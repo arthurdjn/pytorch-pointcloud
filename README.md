@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="medias/logo.png" alt="Pytorch PointCloud Logo" style="background-color:white;border-radius:20px;padding:20px 40px">
+<img src="medias/pytorch.png" alt="Pytorch PointCloud Logo" style="background-color:white;border-radius:20px;padding:20px 40px">
 
 <br>
 
