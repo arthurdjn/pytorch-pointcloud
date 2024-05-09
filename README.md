@@ -46,6 +46,7 @@ rm -rf *.egg-info/
 pip uninstall torch_pointcloud
 
 # Install
+pip3 install torch torchvision
 pip install -v -e .
 ```
 
