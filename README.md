@@ -1,5 +1,5 @@
 <div align="center" style="width: 100%; margin: auto">
-    <a href="" rel="noopener"><img src="./medias/banner.png" alt="logo style="border-radius: 20px"></a>
+    <a href="" rel="noopener"><img src="./medias/banner.png" alt="Pytorch PointCloud banner"></a>
 
 <br>
 <br>
