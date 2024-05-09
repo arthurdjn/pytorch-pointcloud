@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import BatchNorm1d, Conv1d, Dropout, Module, ModuleList, ReLU, Sequential
 
-from torch_pointcloud.layers.mlp import MLP, SharedMLP
+from torch_pointcloud.layers.mlp import MLP, shared_mlp2d
 from torch_pointcloud.ops import ball_grouping, ball_query, fps, knn_interpolate
 
 
@@ -31,7 +31,7 @@ class PointNetSA(Module):
         self.samples_list = samples_list
         self.use_pos = use_pos
         self.normalize_pos = normalize_pos
-        self.mlps = ModuleList([SharedMLP(c, bias=False) for c in channels])
+        self.mlps = ModuleList([shared_mlp2d(c, bias=False) for c in channels])
 
     def forward(
         self,
@@ -85,7 +85,7 @@ class PointNetSA(Module):
 class PointNetFP(Module):
     def __init__(self, channels: List[int], bn: bool = True, bias: bool = False) -> None:
         super().__init__()
-        self.mlp = SharedMLP(channels, bias=bias, bn=bn)
+        self.mlp = shared_mlp2d(channels, bias=bias, bn=bn)
 
     def forward(
         self,
@@ -120,7 +120,7 @@ class PointNetGlobalSA(Module):
             raise ValueError(f"Unrecognized mode {mode!r} for the PointNetGlobalSA. Must be 'mean' or 'max'.")
 
         self.mode = mode
-        self.mlp = SharedMLP(channels, bn=bn, bias=False)
+        self.mlp = shared_mlp2d(channels, bias=False, bn=bn)
 
     def forward(self, pos: Tensor, features: Tensor) -> Tuple[Tensor, Tensor]:
         pos_t = pos.transpose(1, 2).contiguous()

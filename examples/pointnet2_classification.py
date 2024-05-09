@@ -76,7 +76,7 @@ def main() -> None:
     set_seed(42)
 
     pre_transform = T2.NormalizeScale()
-    transform = T2.Compose([T2.SampleRandomPoints(args.num_points)])
+    transform = T2.Compose([T2.SampleMeshPoints(args.num_points)])
     if args.dataset == "ModelNet10":
         train_dataset = ModelNet10(args.root, True, transform=transform, pre_transform=pre_transform, download=True)
         test_dataset = ModelNet10(args.root, False, transform=transform, pre_transform=pre_transform, download=True)
