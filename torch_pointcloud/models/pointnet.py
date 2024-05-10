@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers.activations import get_act
+from torch_pointcloud.layers.mlp import MLP
 
 
 class Block(nn.Module):
@@ -15,7 +16,7 @@ class Block(nn.Module):
         bias: bool = False,
         act: str = "relu",
     ) -> None:
-        super(Block, self).__init__()
+        super().__init__()
         self.conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, bias=bias)
         self.bn = nn.BatchNorm1d(out_channels)
         self.act = get_act(act)
@@ -44,14 +45,7 @@ class PointNet(nn.Module):
         )
 
         self.global_pool = nn.AdaptiveMaxPool1d(1)
-
-        self.head = nn.Sequential(
-            nn.Linear(features_dim, 512, bias=False),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(512, num_classes),
-        )
+        self.head = MLP([features_dim, 512, num_classes], act=act, dropout=dropout)  # TODO: bias=[False, True]
 
     def forward_features(self, x: Tensor) -> Tensor:
         return self.backbone(x)

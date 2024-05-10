@@ -64,7 +64,7 @@ pip install -v -e .
 @misc{pytorch-pointcloud,
     author = {Arthur Dujardin},
     title = {Pytorch Point Cloud},
-    year = {2024}
+    year = {2024},
     publisher = {GitHub},
     journal = {GitHub repository},
     howpublished = {\url{https://github.com/arthurdjn/pytorch-pointcloud}},
