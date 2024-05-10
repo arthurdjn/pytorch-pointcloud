@@ -1,0 +1,2 @@
+- [ ] Possibility to add multiple biases, activation fns, etc. to MLP and SharedMLP
+- [ ] Add generic Conv blocks (CNN -> BatchNorm -> ReLU) that are reused everywhere
