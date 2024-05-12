@@ -6,93 +6,7 @@ import torch.nn as nn
 from torch import FloatTensor, LongTensor, Tensor
 
 from torch_pointcloud.layers.mlp import SharedMLP, shared_mlp2d
-from torch_pointcloud.ops import knn
-
-
-def decimation_indices(ptr: LongTensor, decimation_factor: Union[int, float]) -> Tuple[Tensor, LongTensor]:
-    """Get indices which downsample each point cloud by a decimation factor.
-
-    Decimation happens separately for each cloud to prevent emptying smaller
-    point clouds. Empty clouds are prevented: clouds will have a least
-    one node after decimation.
-
-    Args:
-        ptr (LongTensor): indices of samples in the batch.
-        decimation_factor (Number): value to divide number of nodes with.
-            Should be higher than 1 for downsampling.
-
-    :rtype: (:class:`Tensor`, :class:`LongTensor`): indices for downsampling
-        and resulting updated ptr.
-
-    """
-    if decimation_factor < 1:
-        raise ValueError(
-            "Argument `decimation_factor` should be higher than (or equal to) "
-            f"1 for downsampling. (Current value: {decimation_factor})"
-        )
-
-    batch_size = ptr.size(0) - 1
-    bincount = ptr[1:] - ptr[:-1]
-    decimated_bincount = torch.div(bincount, decimation_factor, rounding_mode="floor")
-    # Decimation should not empty clouds completely.
-    decimated_bincount = torch.max(torch.ones_like(decimated_bincount), decimated_bincount)
-    idx_decim = torch.cat(
-        [(ptr[i] + torch.randperm(bincount[i], device=ptr.device)[: decimated_bincount[i]]) for i in range(batch_size)],
-        dim=0,
-    )
-    # Get updated ptr (e.g. for future decimations)
-    ptr_decim = ptr.clone()
-    for i in range(batch_size):
-        ptr_decim[i + 1] = ptr_decim[i] + decimated_bincount[i]
-
-    return idx_decim, ptr_decim
-
-
-def decimate(tensors: List[Tensor], ptr: Tensor, decimation_factor: int) -> Tuple[Tuple[Tensor, ...], LongTensor]:
-    """Decimate each element of the given tuple of tensors."""
-    idx_decim, ptr_decim = decimation_indices(ptr, decimation_factor)
-    tensors_decim = tuple(tensor[idx_decim] for tensor in tensors)
-    return tensors_decim, ptr_decim
-
-
-class SharedMLP2(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 1,
-        stride: int = 1,
-        transpose: bool = False,
-        padding_mode: str = "zeros",
-        bn: bool = False,
-        activation_fn: Any = None,
-    ):
-        super().__init__()
-
-        conv_fn = nn.ConvTranspose2d if transpose else nn.Conv2d
-
-        self.conv = conv_fn(in_channels, out_channels, kernel_size, stride=stride, padding_mode=padding_mode)
-        self.batch_norm = nn.BatchNorm2d(out_channels, eps=1e-6, momentum=0.99) if bn else None
-        self.activation_fn = activation_fn
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        r"""
-        Forward pass of the network
-
-        Parameters
-        ----------
-        input: torch.Tensor, shape (B, d_in, N, K)
-
-        Returns
-        -------
-        torch.Tensor, shape (B, d_out, N, K)
-        """
-        x = self.conv(x)
-        if self.batch_norm:
-            x = self.batch_norm(x)
-        if self.activation_fn:
-            x = self.activation_fn(x)
-        return x
+from torch_pointcloud.ops import knn, knn_interpolate
 
 
 class LocalSpatialEncoding(nn.Module):
@@ -114,29 +28,6 @@ class LocalSpatialEncoding(nn.Module):
         super().__init__()
         self.num_neighbors = num_neighbors
         self.mlp = shared_mlp2d([10, num_channels], act="relu", bn=True)
-
-    # https://github.com/isl-org/Open3D-ML/blob/fcf97c07bf7a113a47d0fcf63760b245c2a2784e/ml3d/torch/models/randlanet.py
-    # def gather_neighbor(self, coords, neighbor_indices):
-    #     """Gather features based on neighbor indices.
-
-    #     Args:
-    #         coords: torch.Tensor of shape (B, N, d)
-    #         neighbor_indices: torch.Tensor of shape (B, N, K)
-
-    #     Returns:
-    #         gathered neighbors of shape (B, dim, N, K)
-
-    #     """
-    #     B, N, K = neighbor_indices.size()
-    #     dim = coords.shape[2]
-
-    #     extended_indices = neighbor_indices.unsqueeze(1).expand(B, dim, N, K)
-    #     extended_coords = coords.transpose(-2, -1).unsqueeze(-1).expand(
-    #         B, dim, N, K)
-    #     neighbor_coords = torch.gather(extended_coords, 2,
-    #                                    extended_indices)  # (B, dim, N, K)
-
-    #     return neighbor_coords
 
     def forward(
         self,
@@ -163,11 +54,11 @@ class AttentivePooling(nn.Module):
 
     Parameters
     ----------
-    x: torch.Tensor, shape (B, d_in, N, K)
+    x: torch.Tensor, shape (B, in_channels, N, K)
 
     Returns
     -------
-    torch.Tensor, shape (B, d_out, N, 1)
+    torch.Tensor, shape (B, out_channels, N, 1)
     """
 
     def __init__(self, in_channels: int, out_channels: int) -> None:
@@ -209,9 +100,10 @@ class LocalFeatureAggregation(nn.Module):
         self.num_neighbors = num_neighbors
         self.act = act
 
-        self.mlp1 = shared_mlp2d([in_channels, out_channels // 2], act=nn.LeakyReLU(0.2))
-        self.mlp2 = shared_mlp2d([out_channels, 2 * out_channels], act=None)
-        self.shortcut = shared_mlp2d([in_channels, 2 * out_channels], bn=True, act=None)
+        # TODO: fix activation function
+        self.mlp1 = shared_mlp2d([in_channels, out_channels // 2], act=nn.LeakyReLU(0.2), plain_last=False)
+        self.mlp2 = shared_mlp2d([out_channels, 2 * out_channels])
+        self.mlp_skip = shared_mlp2d([in_channels, 2 * out_channels])
 
         self.lse1 = LocalSpatialEncoding(out_channels // 2, num_neighbors)
         self.lse2 = LocalSpatialEncoding(out_channels // 2, num_neighbors)
@@ -222,7 +114,7 @@ class LocalFeatureAggregation(nn.Module):
     def forward(self, xyz: torch.Tensor, features: torch.Tensor) -> torch.Tensor:
         dists, idxs = knn(xyz, xyz, k=self.num_neighbors)
 
-        skip_features = self.shortcut(features)
+        skip_features = self.mlp_skip(features)
         features = self.mlp1(features)
 
         features = self.lse1(xyz, features, dists, idxs)
@@ -235,20 +127,6 @@ class LocalFeatureAggregation(nn.Module):
 
 
 class RandLANet(nn.Module):
-    r"""
-    Forward pass
-
-    Parameters
-    ----------
-    input: torch.Tensor, shape (B, N, d_in)
-    input points
-
-    Returns
-    -------
-    torch.Tensor, shape (B, num_classes, N)
-    segmentation scores for each point
-    """
-
     def __init__(
         self,
         num_features: int,
@@ -267,7 +145,14 @@ class RandLANet(nn.Module):
         num_features_bottleneck = max(32, num_classes, num_features)
 
         # encoder
+        self.mlp0 = nn.Sequential(
+            nn.Linear(num_features, 8),
+            nn.BatchNorm2d(8, eps=1e-6, momentum=0.99),
+            nn.LeakyReLU(0.2),
+        )
         self.fc0 = nn.Linear(num_features, 8)  # d_bottleneck
+        self.bc0 = nn.BatchNorm1d(8)
+
         self.block1 = LocalFeatureAggregation(8, 16, num_neighbors)  # (num_neighbors, d_bottleneck, 32)
         self.block2 = LocalFeatureAggregation(32, 64, num_neighbors)  # (num_neighbors, 32, 128)
         self.block3 = LocalFeatureAggregation(128, 128, num_neighbors)  # (num_neighbors, 128, 256)
@@ -280,69 +165,50 @@ class RandLANet(nn.Module):
         self.fp2 = shared_mlp2d([256, 32], act="relu", bn=True, plain_last=True)  # [128 + 32, 32]
         self.fp1 = shared_mlp2d([64, 8], act="relu", bn=True, plain_last=True)  # [32 + 32, d_bottleneck]
         # head
-        self.mlp_classif = SharedMLP([d_bottleneck, 64, 32], dropout=[0.0, 0.5])
-        self.fc_classif = Linear(32, num_classes)
+        self.mlp_classif = SharedMLP([8, 64, 32], dropout=[0.0, 0.5])
+        self.fc_classif = nn.Linear(32, num_classes)
 
         # final semantic prediction
-        self.head = nn.Sequential(
-            shared_mlp2d([8, 64], bn=True, act=nn.ReLU()),
-            shared_mlp2d([64, 32], bn=True, act=nn.ReLU()),
-            nn.Dropout(),
-            shared_mlp2d([32, num_classes], bn=False, act=None),
-        )
+        # self.head = nn.Sequential(
+        #     shared_mlp2d([8, 64], bn=True, act=nn.ReLU()),
+        #     shared_mlp2d([64, 32], bn=True, act=nn.ReLU()),
+        #     nn.Dropout(),
+        #     shared_mlp2d([32, num_classes], bn=False, act=None),
+        # )
 
-    # def forward(self, x, pos, batch, ptr):
-    #     x = x if x is not None else pos
+    def decimate(self, x: torch.Tensor, ptr: torch.Tensor, d: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Decimate the input tensor, i.e. reduce the number of points by a factor `d`.
 
-    #     b1_out = self.block1(self.fc0(x), pos, batch)
-    #     b1_out_decimated, ptr1 = decimate(b1_out, ptr, self.decimation)
+        Args:
+            x: _description_
+            ptr: _description_
+            d: _description_
 
-    #     b2_out = self.block2(*b1_out_decimated)
-    #     b2_out_decimated, ptr2 = decimate(b2_out, ptr1, self.decimation)
+        Returns:
+            _description_
+        """
+        B, N, C = x.size()
+        idx = torch.arange(0, N, d, device=x.device)
+        x = x[:, idx]
+        ptr = ptr[:, idx]
+        return x, ptr
 
-    #     b3_out = self.block3(*b2_out_decimated)
-    #     b3_out_decimated, ptr3 = decimate(b3_out, ptr2, self.decimation)
+    def forward(self, xyz: torch.Tensor, features: Optional[torch.Tensor] = None) -> torch.Tensor:
+        B, N, _ = xyz.size()
 
-    #     b4_out = self.block4(*b3_out_decimated)
-    #     b4_out_decimated, _ = decimate(b4_out, ptr3, self.decimation)
-
-    #     mlp_out = (
-    #         self.mlp_summit(b4_out_decimated[0]),
-    #         b4_out_decimated[1],
-    #         b4_out_decimated[2],
-    #     )
-
-    #     fp4_out = self.fp4(*mlp_out, *b3_out_decimated)
-    #     fp3_out = self.fp3(*fp4_out, *b2_out_decimated)
-    #     fp2_out = self.fp2(*fp3_out, *b1_out_decimated)
-    #     fp1_out = self.fp1(*fp2_out, *b1_out)
-
-    #     x = self.mlp_classif(fp1_out[0])
-    #     logits = self.fc_classif(x)
-
-    #     if self.return_logits:
-    #         return logits
-
-    #     probas = logits.log_softmax(dim=-1)
-    #     return probas
-
-    def forward(self, xyz: torch.Tensor) -> torch.Tensor:
-
-        N = xyz.size(1)
-        d = self.decimation
-
-        coords = xyz[..., :3].clone().cpu()
-        x = self.fc_start(xyz).transpose(-2, -1).unsqueeze(-1)
-        x = self.bn_start(x)  # shape (B, d, N, 1)
-
-        decimation_ratio = 1
+        feat = features if features is not None else xyz
+        feat = self.fc0(feat).transpose(-2, -1).unsqueeze(-1)
+        feat = self.bn0(feat)  # shape (B, d, N, 1)
 
         # <<<<<<<<<< ENCODER
         x_stack = []
 
         permutation = torch.randperm(N)
-        coords = coords[:, permutation]
-        x = x[:, :, permutation]
+        coords = xyz[:, permutation]
+        x = feat[:, :, permutation]
+
+        d = self.decimation
+        decimation_ratio = 1
 
         for lfa in self.encoder:
             # at iteration i, x.shape = (B, N//(d**i), d_in)
@@ -357,21 +223,13 @@ class RandLANet(nn.Module):
 
         # <<<<<<<<<< DECODER
         for mlp in self.decoder:
-            neighbors, _ = knn(
-                coords[:, : N // decimation_ratio].cpu().contiguous(),  # original set
-                coords[:, : d * N // decimation_ratio].cpu().contiguous(),  # upsampled set
-                1,
-            )  # shape (B, N, 1)
-            neighbors = neighbors.to(self.device)
-
+            neighbors, _ = knn(coords[:, : N // decimation_ratio], coords[:, : d * N // decimation_ratio], 1)
+            # neighbors: shape (B, N, 1)
+            neighbors = neighbors.to(x.device)
             extended_neighbors = neighbors.unsqueeze(1).expand(-1, x.size(1), -1, 1)
-
             x_neighbors = torch.gather(x, -2, extended_neighbors)
-
             x = torch.cat((x_neighbors, x_stack.pop()), dim=1)
-
             x = mlp(x)
-
             decimation_ratio //= d
 
         # >>>>>>>>>> DECODER
@@ -381,3 +239,26 @@ class RandLANet(nn.Module):
         scores = self.fc_end(x)
 
         return scores.squeeze(-1)
+
+
+class FPModule(nn.Module):
+    """Upsampling with a skip connection."""
+
+    def __init__(self, nn: nn.Module, k: int = 1) -> None:
+        super().__init__()
+        self.nn = nn
+        self.k = k
+
+    def forward(
+        self,
+        xyz: torch.Tensor,
+        features: torch.Tensor,
+        xyz_skip: torch.Tensor,
+        features_skip: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        features_t = features.transpose(1, 2)  # (B, C, M)
+        new_features_t = knn_interpolate(features_t, xyz, xyz_skip, k=3)  # (B, N, C)
+        new_features = new_features_t.transpose(1, 2)  # (B, C, N)
+        new_features = torch.cat([new_features, features_skip], dim=1)  # (B, C2 + C1, N)
+        new_features = self.nn(new_features)
+        return xyz_skip, new_features
