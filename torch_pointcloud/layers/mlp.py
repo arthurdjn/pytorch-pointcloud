@@ -72,7 +72,7 @@ class MLP(nn.Module):
         return x
 
 
-_convS: Dict[str, REGISTERED_MODULE_TYPE] = {
+_CONV_LAYERS: Dict[str, REGISTERED_MODULE_TYPE] = {
     "conv1d": nn.Conv1d,
     "conv2d": nn.Conv2d,
     "conv3d": nn.Conv3d,
@@ -80,7 +80,7 @@ _convS: Dict[str, REGISTERED_MODULE_TYPE] = {
 
 
 def _get_conv(name: MODULE_TYPE, *args: Any, **kwargs: Any) -> nn.Module:
-    return get_module(name, *args, registry=_convS, **kwargs)
+    return get_module(name, *args, registry=_CONV_LAYERS, **kwargs)
 
 
 class SharedMLP(nn.Module):
