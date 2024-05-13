@@ -163,5 +163,7 @@ cython_debug/
 # gitkeep
 !.gitkeep
 
-# datasets
+# data, logs, and models
 data/
+logs/
+weights/
