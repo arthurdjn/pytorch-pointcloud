@@ -166,6 +166,9 @@ class RandLANet(nn.Module):
             nn.Conv2d(32, num_classes, kernel_size=1),
         )
 
+    def decimate(self, xyz, features, factor):
+        pass
+
     def forward(self, xyz: torch.Tensor, features: Optional[torch.Tensor] = None) -> torch.Tensor:
         B, N, _ = xyz.size()
         feat = features if features is not None else xyz.transpose(1, 2)
