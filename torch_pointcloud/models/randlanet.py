@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.layers.mlp import SharedMLP, shared_mlp2d
+from torch_pointcloud.layers.mlp import shared_mlp2d
 from torch_pointcloud.ops import knn, knn_interpolate
 
 
@@ -104,6 +104,111 @@ class FPModule(nn.Module):
         return xyz_skip, new_features
 
 
+def decimate(
+    xyz: torch.Tensor, features: torch.Tensor, factor: float, lengths: Optional[torch.Tensor] = None
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Decimates the point cloud data (xyz coordinates and features) by a specified factor.
+
+    Args:
+        xyz: The xyz coordinates of the point cloud, shape (B, N, 3).
+        features: The features associated with each point, shape (B, C, N).
+        factor: The factor by which to decimate the point cloud.
+        lengths: A tensor of lengths specifying the number of points in each batch for padded tensors, shape (B,).
+            If `None`, all points are considered.
+
+    Returns:
+        The decimated xyz coordinates, features, and the new lengths.
+    """
+    B, C, *_ = features.shape
+
+    if factor < 1:
+        raise ValueError(f"The argument `factor` should be higher than (or equal to) 1. Got {factor}.")
+
+    if lengths is None:
+        lengths = torch.full((B,), xyz.size(1), dtype=torch.long, device=xyz.device)
+
+    # Ensure decimation factor does not exceed the number of points
+    lengths = torch.clamp(lengths, min=1)
+    out_lengths = torch.div(lengths, factor, rounding_mode="floor").clamp(min=1)
+    max_length = int(out_lengths.max().item())
+
+    # Initialize tensors for decimated outputs
+    out_xyz = torch.zeros((B, max_length, 3), dtype=xyz.dtype, device=xyz.device)
+    out_features = torch.zeros((B, C, max_length), dtype=features.dtype, device=features.device)
+
+    # Populate decimated tensors
+    for b in range(B):
+        n = int(lengths[b])
+        indices = torch.randperm(n, device=xyz.device)[: out_lengths[b]]
+        out_xyz[b, : out_lengths[b]] = xyz[b, indices]
+        out_features[b, :, : out_lengths[b]] = features[b, :, indices]
+
+    return out_xyz, out_features, out_lengths, indices
+
+
+class RandLANetClassification(nn.Module):
+    def __init__(
+        self,
+        num_features: int,
+        num_classes: int,
+        num_neighbors: int = 16,
+        decimation: int = 4,
+    ):
+        super().__init__()
+        self.num_neighbors = num_neighbors
+        self.decimation = decimation
+
+        # Authors use 8, which is a bottleneck
+        # for the final MLP, and also when `num_classes > 8` or `num_features > 8`.
+        # num_features_bottleneck = max(32, num_classes, num_features)
+
+        # encoder
+        self.mlp0 = nn.Sequential(
+            nn.Linear(num_features, 8),
+            nn.BatchNorm2d(8, eps=1e-6, momentum=0.99),
+            nn.LeakyReLU(0.2),
+        )
+        self.fc0 = nn.Linear(num_features, 8)  # d_bottleneck
+        self.bn0 = nn.BatchNorm2d(8)
+
+        self.block1 = LocalFeatureAggregation(8, 16, num_neighbors)  # (num_neighbors, d_bottleneck, 32)
+        self.block2 = LocalFeatureAggregation(32, 64, num_neighbors)  # (num_neighbors, 32, 128)
+        self.mlp_summit = shared_mlp2d([512, 512], act="relu", bn=True)
+
+        # self.return_logits = return_logits
+        # self.fc0 = Linear(in_features=num_features, out_features=8)
+        # # 2 DilatedResidualBlock converges better than 4 on ModelNet.
+        # self.block1 = DilatedResidualBlock(num_neighboors, 8, 32)
+        # self.block2 = DilatedResidualBlock(num_neighboors, 32, 128)
+        # self.mlp1 = SharedMLP([128, 128])
+        # self.max_agg = MaxAggregation()
+        # self.mlp_classif = SharedMLP([128, 32], dropout=[0.5])
+        # self.fc_classif = Linear(32, num_classes)
+
+    # TODO refactor some blocks to return both xyz and features to be easier to used (we expect to have both)
+    def forward(
+        self,
+        xyz: torch.Tensor,
+        features: Optional[torch.Tensor] = None,
+        lengths: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        B, N, _ = xyz.size()
+        feat = features if features is not None else xyz.transpose(1, 2)  # (B, C, N)
+
+        feat = self.fc0(feat.transpose(1, 2)).transpose(1, 2).unsqueeze(-1)  # (B, C, N, 1)
+        feat = self.bn0(feat)  # (B, C, N, 1)
+
+        b1_feat = self.block1(xyz, feat)  # (B, C, N, 1)
+        b1_xyz, b1_feat, b1_lengths, _ = decimate(xyz, b1_feat.squeeze(-1), factor=self.decimation, lengths=lengths)
+
+        b2_feat = self.block2(b1_xyz, b1_feat.unsqueeze(-1))  # (B, C, N, 1)
+        b2_xyz, b2_feat, b2_lengths, _ = decimate(
+            b1_xyz, b2_feat.squeeze(-1), factor=self.decimation, lengths=b1_lengths
+        )
+
+        return xyz
+
+
 class RandLANet(nn.Module):
     def __init__(
         self,
@@ -112,14 +217,13 @@ class RandLANet(nn.Module):
         num_neighbors: int = 16,
         decimation: int = 4,
     ):
-        super(RandLANet, self).__init__()
-        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        super().__init__()
         self.num_neighbors = num_neighbors
         self.decimation = decimation
 
         # Authors use 8, which is a bottleneck
         # for the final MLP, and also when `num_classes > 8` or `num_features > 8`.
-        num_features_bottleneck = max(32, num_classes, num_features)
+        # num_features_bottleneck = max(32, num_classes, num_features)
 
         # encoder
         self.mlp0 = nn.Sequential(
@@ -153,47 +257,6 @@ class RandLANet(nn.Module):
             nn.Conv2d(32, num_classes, kernel_size=1),
         )
 
-    def decimate(
-        self, xyz: torch.Tensor, features: torch.Tensor, factor: float, lengths: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Decimates the point cloud data (xyz coordinates and features) by a specified factor.
-
-        Args:
-            xyz: The xyz coordinates of the point cloud, shape (B, N, 3).
-            features: The features associated with each point, shape (B, C, N).
-            factor: The factor by which to decimate the point cloud.
-            lengths: A tensor of lengths specifying the number of points in each batch for padded tensors, shape (B,).
-                If `None`, all points are considered.
-
-        Returns:
-            The decimated xyz coordinates, features, and the new lengths.
-        """
-        B, C, *_ = features.shape
-
-        if factor < 1:
-            raise ValueError(f"The argument `factor` should be higher than (or equal to) 1. Got {factor}.")
-
-        if lengths is None:
-            lengths = torch.full((B,), xyz.size(1), dtype=torch.long, device=xyz.device)
-
-        # Ensure decimation factor does not exceed the number of points
-        lengths = torch.clamp(lengths, min=1)
-        out_lengths = torch.div(lengths, factor, rounding_mode="floor").clamp(min=1)
-        max_length = int(out_lengths.max().item())
-
-        # Initialize tensors for decimated outputs
-        out_xyz = torch.zeros((B, max_length, 3), dtype=xyz.dtype, device=xyz.device)
-        out_features = torch.zeros((B, C, max_length), dtype=features.dtype, device=features.device)
-
-        # Populate decimated tensors
-        for b in range(B):
-            n = int(lengths[b])
-            indices = torch.randperm(n, device=xyz.device)[: out_lengths[b]]
-            out_xyz[b, : out_lengths[b]] = xyz[b, indices]
-            out_features[b, :, : out_lengths[b]] = features[b, :, indices]
-
-        return out_xyz, out_features, out_lengths, indices
-
     # TODO refactor some blocks to return both xyz and features to be easier to used (we expect to have both)
     def forward(
         self,
@@ -209,22 +272,20 @@ class RandLANet(nn.Module):
 
         b1_feat = self.block1(xyz, feat)  # (B, C, N, 1)
         b1_feat_before = b1_feat.clone().squeeze(-1)
-        b1_xyz, b1_feat, b1_lengths, _ = self.decimate(
-            xyz, b1_feat.squeeze(-1), factor=self.decimation, lengths=lengths
-        )
+        b1_xyz, b1_feat, b1_lengths, _ = decimate(xyz, b1_feat.squeeze(-1), factor=self.decimation, lengths=lengths)
 
         b2_feat = self.block2(b1_xyz, b1_feat.unsqueeze(-1))  # (B, C, N, 1)
-        b2_xyz, b2_feat, b2_lengths, _ = self.decimate(
+        b2_xyz, b2_feat, b2_lengths, _ = decimate(
             b1_xyz, b2_feat.squeeze(-1), factor=self.decimation, lengths=b1_lengths
         )
 
         b3_feat = self.block3(b2_xyz, b2_feat.unsqueeze(-1))  # (B, C, N, 1)
-        b3_xyz, b3_feat, b3_lengths, _ = self.decimate(
+        b3_xyz, b3_feat, b3_lengths, _ = decimate(
             b2_xyz, b3_feat.squeeze(-1), factor=self.decimation, lengths=b2_lengths
         )
 
         b4_feat = self.block4(b3_xyz, b3_feat.unsqueeze(-1))  # (B, C, N, 1)
-        b4_xyz, b4_feat, b4_lengths, _ = self.decimate(
+        b4_xyz, b4_feat, b4_lengths, _ = decimate(
             b3_xyz, b4_feat.squeeze(-1), factor=self.decimation, lengths=b3_lengths
         )
 

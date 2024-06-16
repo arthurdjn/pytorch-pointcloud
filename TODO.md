@@ -6,6 +6,23 @@
 - [ ] Think of a factory function or decorator (best) to register the models in a dictionary, so that we can easily instantiate them by name.
 - [ ] Think of a config per model / pretrained params to easily load pretrained models. Not urgent but to keep in mind.
 - [ ] Refactor model modules naming. We may want to have a more consistent naming convention, like should sub modules always start by the model name (e.g. `PointNetConv` instead of `Conv`) or not ? Some blocks are reused in different models, so we should think about it. Look deeply into the timm library to see how they handle this or ultralytics, they have both clean structures.
+- [] Add `pre_logits` params. Follow timm convention: `forward_head(x, pre_logits=False)` fn added to all models to allow separate calls of `forward_features` + `forward_head`
+
+    ```python
+    def forward_features(self, x):
+        x = self.stem(x)
+        x = self.stages(x)
+        x = self.norm_pre(x)
+        return x
+
+    def forward_head(self, x, pre_logits: bool = False):
+        return self.head(x, pre_logits=True) if pre_logits else self.head(x)
+
+    def forward(self, x):
+        x = self.forward_features(x)
+        x = self.forward_head(x)
+        return x
+    ```
 
 ## Urgent
 
