@@ -102,7 +102,7 @@ class FPModule(nn.Module):
         new_features_t = knn_interpolate(features_t, xyz, xyz_skip, k=3)  # (B, N, C)
         new_features = new_features_t.transpose(1, 2)  # (B, C, N)
         new_features = torch.cat([new_features, features_skip], dim=1)  # (B, C2 + C1, N)
-        new_features = self.nn(new_features)
+        new_features = self.nn(new_features.unsqueeze(-1)).squeeze(-1)
         return xyz_skip, new_features
 
 
@@ -140,19 +140,8 @@ class RandLANet(nn.Module):
         # decoder
         self.fp4 = FPModule(shared_mlp2d([512 + 256, 256]), k=4)
         self.fp3 = FPModule(shared_mlp2d([256 + 128, 128]), k=2)
-        self.fp2 = FPModule(shared_mlp2d([128 + 64, 32]), k=1)
-        self.fp1 = FPModule(shared_mlp2d([32 + 8, 8]), k=1)
-
-        # decoder_kwargs = dict(transpose=True, bn=True, activation_fn=nn.ReLU())
-        # self.fp4 = shared_mlp2d([1024, 256], act="relu", bn=True, transpose=True, plain_last=True)  # [512 + 256, 256]
-        # self.fp3 = shared_mlp2d([512, 128], act="relu", bn=True, transpose=True, plain_last=True)  # [256 + 128, 128]
-        # self.fp2 = shared_mlp2d([256, 32], act="relu", bn=True, transpose=True, plain_last=True)  # [128 + 32, 32]
-        # self.fp1 = shared_mlp2d(
-        #     [64, 8], act="relu", bn=True, transpose=True, plain_last=True
-        # )  # [32 + 32, d_bottleneck]
-        # head
-        # self.mlp_classif = SharedMLP([8, 64, 32], dropout=[0.0, 0.5])
-        # self.fc_classif = nn.Linear(32, num_classes)
+        self.fp2 = FPModule(shared_mlp2d([128 + 32, 32]), k=1)
+        self.fp1 = FPModule(shared_mlp2d([32 + 32, 8]), k=1)
 
         # final semantic prediction
         self.head = nn.Sequential(
@@ -166,68 +155,115 @@ class RandLANet(nn.Module):
             nn.Conv2d(32, num_classes, kernel_size=1),
         )
 
-    def decimate(self, xyz, features, factor):
-        pass
+    def decimate(
+        self, xyz: torch.Tensor, features: torch.Tensor, factor: float, lengths: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Decimates the point cloud data (xyz coordinates and features) by a specified factor.
 
-    def forward(self, xyz: torch.Tensor, features: Optional[torch.Tensor] = None) -> torch.Tensor:
+        Args:
+            xyz: The xyz coordinates of the point cloud, shape (B, N, 3).
+            features: The features associated with each point, shape (B, C, N).
+            factor: The factor by which to decimate the point cloud.
+            lengths: A tensor of lengths specifying the number of points in each batch for padded tensors, shape (B,).
+                If `None`, all points are considered.
+
+        Returns:
+            The decimated xyz coordinates, features, and the new lengths.
+        """
+        B, C, *_ = features.shape
+
+        if factor < 1:
+            raise ValueError(f"The argument `factor` should be higher than (or equal to) 1. Got {factor}.")
+
+        if lengths is None:
+            lengths = torch.full((B,), xyz.size(1), dtype=torch.long, device=xyz.device)
+
+        # Ensure decimation factor does not exceed the number of points
+        lengths = torch.clamp(lengths, min=1)
+        out_lengths = torch.div(lengths, factor, rounding_mode="floor").clamp(min=1)
+        max_length = int(out_lengths.max().item())
+
+        # Initialize tensors for decimated outputs
+        out_xyz = torch.zeros((B, max_length, 3), dtype=xyz.dtype, device=xyz.device)
+        out_features = torch.zeros((B, C, max_length), dtype=features.dtype, device=features.device)
+
+        # Populate decimated tensors
+        for b in range(B):
+            n = int(lengths[b])
+            indices = torch.randperm(n, device=xyz.device)[: out_lengths[b]]
+            out_xyz[b, : out_lengths[b]] = xyz[b, indices]
+            out_features[b, :, : out_lengths[b]] = features[b, :, indices]
+
+        return out_xyz, out_features, out_lengths, indices
+
+    # TODO: Finish
+    # TODO refactor some blocks to return both xyz and features to be easier to used (we expect to have both)
+    def forward(
+        self,
+        xyz: torch.Tensor,
+        features: Optional[torch.Tensor] = None,
+        lengths: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         B, N, _ = xyz.size()
-        feat = features if features is not None else xyz.transpose(1, 2)
-        feat = self.fc0(feat.transpose(1, 2)).transpose(1, 2).unsqueeze(-1)
-        feat = self.bn0(feat)  # shape (B, d, N, 1)
-        print(f"{feat.shape = }")
+        feat = features if features is not None else xyz.transpose(1, 2)  # (B, C, N)
 
-        b1_out = self.block1(xyz, feat)
-        print(b1_out.shape)
-        lengths = torch.full((B,), N, dtype=torch.long, device=xyz.device)
-        b1_out_decimated, idxs1 = decimate(xyz, lengths, self.decimation)
+        feat = self.fc0(feat.transpose(1, 2)).transpose(1, 2).unsqueeze(-1)  # (B, C, N, 1)
+        feat = self.bn0(feat)  # (B, C, N, 1)
 
-        return b1_out_decimated
+        b1_feat = self.block1(xyz, feat)  # (B, C, N, 1)
+        b1_feat_before = b1_feat.clone().squeeze(-1)
+        b1_xyz, b1_feat, b1_lengths, _ = self.decimate(
+            xyz, b1_feat.squeeze(-1), factor=self.decimation, lengths=lengths
+        )
 
-        # <<<<<<<<<< ENCODER
-        x_stack = []
+        b2_feat = self.block2(b1_xyz, b1_feat.unsqueeze(-1))  # (B, C, N, 1)
+        b2_xyz, b2_feat, b2_lengths, _ = self.decimate(
+            b1_xyz, b2_feat.squeeze(-1), factor=self.decimation, lengths=b1_lengths
+        )
 
-        permutation = torch.randperm(N)
-        coords = xyz[:, permutation]
-        x = feat[:, :, permutation]
+        b3_feat = self.block3(b2_xyz, b2_feat.unsqueeze(-1))  # (B, C, N, 1)
+        b3_xyz, b3_feat, b3_lengths, _ = self.decimate(
+            b2_xyz, b3_feat.squeeze(-1), factor=self.decimation, lengths=b2_lengths
+        )
 
-        d = self.decimation
-        decimation_ratio = 1
+        b4_feat = self.block4(b3_xyz, b3_feat.unsqueeze(-1))  # (B, C, N, 1)
+        b4_xyz, b4_feat, b4_lengths, _ = self.decimate(
+            b3_xyz, b4_feat.squeeze(-1), factor=self.decimation, lengths=b3_lengths
+        )
 
-        for lfa in self.encoder:
-            # at iteration i, x.shape = (B, N//(d**i), d_in)
-            x = lfa(coords[:, : N // decimation_ratio], x)
-            x_stack.append(x.clone())
-            decimation_ratio *= d
-            x = x[:, :, : N // decimation_ratio]
+        feat = self.mlp_summit(b4_feat.unsqueeze(-1)).squeeze(-1)  # (B, C, N, 1)
 
-        # # >>>>>>>>>> ENCODER
+        fp4_xyz, fp4_feat = self.fp4(b4_xyz, feat, b3_xyz, b3_feat)
+        fp3_xyz, fp3_feat = self.fp3(fp4_xyz, fp4_feat, b2_xyz, b2_feat)
 
-        x = self.mlp(x)
+        print()
+        print(f"{fp3_xyz.shape = }")
+        print(f"{fp3_feat.shape = }")
+        print(f"{b1_xyz.shape = }")
+        print(f"{b1_feat.shape = }")
+        fp2_xyz, fp2_feat = self.fp2(fp3_xyz, fp3_feat, b1_xyz, b1_feat)
 
-        # <<<<<<<<<< DECODER
-        for mlp in self.decoder:
-            neighbors, _ = knn(coords[:, : N // decimation_ratio], coords[:, : d * N // decimation_ratio], 1)
-            # neighbors: shape (B, N, 1)
-            neighbors = neighbors.to(x.device)
-            extended_neighbors = neighbors.unsqueeze(1).expand(-1, x.size(1), -1, 1)
-            x_neighbors = torch.gather(x, -2, extended_neighbors)
-            x = torch.cat((x_neighbors, x_stack.pop()), dim=1)
-            x = mlp(x)
-            decimation_ratio //= d
+        print()
+        print(f"{fp2_xyz.shape = }")
+        print(f"{fp2_feat.shape = }")
+        print(f"{xyz.shape = }")
+        print(f"{b1_feat_before.shape = }")
+        fp1_xyz, fp1_feat = self.fp1(fp2_xyz, fp2_feat, xyz, b1_feat_before)
 
-        # >>>>>>>>>> DECODER
-        # inverse permutation
-        x = x[:, :, torch.argsort(permutation)]
+        # TODO: Use a return_logits flag ?
+        # x = self.mlp_classif(fp1_out[0])
+        # logits = self.fc_classif(x)
 
-        scores = self.fc_end(x)
+        # if self.return_logits:
+        #     return logits
 
-        return scores.squeeze(-1)
+        # probas = logits.log_softmax(dim=-1)
+        # return probas
+
+        return self.head(fp1_feat.unsqueeze(-1)).squeeze(-1)
 
 
-def decimation_indices(
-    lengths: torch.Tensor,
-    decimation_factor: float,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+def decimation_indices(lengths: torch.Tensor, decimation_factor: float) -> Tuple[torch.Tensor, torch.Tensor]:
     if decimation_factor < 1:
         raise ValueError(
             f"The argument `decimation_factor` should be higher than (or "
