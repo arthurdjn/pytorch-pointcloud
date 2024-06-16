@@ -1,9 +1,7 @@
-from numbers import Number, Real
-from typing import Any, List, Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-from torch import FloatTensor, LongTensor, Tensor
 
 from torch_pointcloud.layers.mlp import SharedMLP, shared_mlp2d
 from torch_pointcloud.ops import knn, knn_interpolate
@@ -196,7 +194,6 @@ class RandLANet(nn.Module):
 
         return out_xyz, out_features, out_lengths, indices
 
-    # TODO: Finish
     # TODO refactor some blocks to return both xyz and features to be easier to used (we expect to have both)
     def forward(
         self,
@@ -235,59 +232,14 @@ class RandLANet(nn.Module):
 
         fp4_xyz, fp4_feat = self.fp4(b4_xyz, feat, b3_xyz, b3_feat)
         fp3_xyz, fp3_feat = self.fp3(fp4_xyz, fp4_feat, b2_xyz, b2_feat)
-
-        print()
-        print(f"{fp3_xyz.shape = }")
-        print(f"{fp3_feat.shape = }")
-        print(f"{b1_xyz.shape = }")
-        print(f"{b1_feat.shape = }")
         fp2_xyz, fp2_feat = self.fp2(fp3_xyz, fp3_feat, b1_xyz, b1_feat)
-
-        print()
-        print(f"{fp2_xyz.shape = }")
-        print(f"{fp2_feat.shape = }")
-        print(f"{xyz.shape = }")
-        print(f"{b1_feat_before.shape = }")
-        fp1_xyz, fp1_feat = self.fp1(fp2_xyz, fp2_feat, xyz, b1_feat_before)
+        _, fp1_feat = self.fp1(fp2_xyz, fp2_feat, xyz, b1_feat_before)
 
         # TODO: Use a return_logits flag ?
-        # x = self.mlp_classif(fp1_out[0])
         # logits = self.fc_classif(x)
-
         # if self.return_logits:
         #     return logits
-
         # probas = logits.log_softmax(dim=-1)
         # return probas
 
         return self.head(fp1_feat.unsqueeze(-1)).squeeze(-1)
-
-
-def decimation_indices(lengths: torch.Tensor, decimation_factor: float) -> Tuple[torch.Tensor, torch.Tensor]:
-    if decimation_factor < 1:
-        raise ValueError(
-            f"The argument `decimation_factor` should be higher than (or "
-            f"equal to) 1 for downsampling. (got {decimation_factor})"
-        )
-
-    batch_size = int(lengths.size(0))
-    lengths.clamp_(min=1)
-    decim_lengths = torch.div(lengths, decimation_factor, rounding_mode="floor").clamp(min=1)
-    max_decim_length = int(decim_lengths.max().item())
-    decim_indices = torch.full((batch_size, max_decim_length), -1, dtype=torch.long, device=lengths.device)
-    for i in range(batch_size):
-        l = int(lengths[i])
-        sampled_indices = torch.randperm(l, device=lengths.device)[: decim_lengths[i]]
-        decim_indices[i, : sampled_indices.size(0)] = sampled_indices
-
-    return decim_indices, decim_lengths
-
-
-def decimate(
-    tensors: Tuple[torch.Tensor, ...],
-    lengths: torch.Tensor,
-    decimation_factor: float,
-) -> Tuple[Tuple[torch.Tensor, ...], torch.Tensor]:
-    idx_decim, ptr_decim = decimation_indices(lengths, decimation_factor)
-    tensors_decim = tuple(tensor[idx_decim] for tensor in tensors)
-    return tensors_decim, ptr_decim
