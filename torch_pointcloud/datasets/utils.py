@@ -31,7 +31,8 @@ def extract_zip(zip_path: PATH_LIKE, out_dir: PATH_LIKE, relative_to: PATH_LIKE 
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        for member in zip_ref.namelist():
+        members = zip_ref.namelist()
+        for member in tqdm(members, total=len(members), desc="Extracting"):
             if member.endswith("/"):
                 continue
 

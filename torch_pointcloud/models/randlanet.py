@@ -199,23 +199,14 @@ class RandLANetClassification(nn.Module):
         b1_feat = self.block1(xyz, feat)  # (B, C, N, 1)
         b1_xyz, b1_feat, b1_lengths, _ = decimate(xyz, b1_feat.squeeze(-1), factor=self.decimation, lengths=lengths)
 
-        print(f"{b1_xyz.shape=}")
-        print(f"{b1_feat.shape=}")
-        print(f"{b1_lengths.shape=}")
-
         b2_feat = self.block2(b1_xyz, b1_feat.unsqueeze(-1))  # (B, C, N, 1)
         b2_xyz, b2_feat, b2_lengths, _ = decimate(
             b1_xyz, b2_feat.squeeze(-1), factor=self.decimation, lengths=b1_lengths
         )
 
-        print(f"{b2_xyz.shape=}")
-        print(f"{b2_feat.shape=}")
-        print(f"{b2_lengths.shape=}")
-
         x = self.mlp1(b2_feat.unsqueeze(-1)).squeeze(-1)  # (B, C, N)
         # Max pooling
         x = torch.max(x, dim=-1)[0]  # (B, C)
-        print(f"{x.shape=}")
         x = self.mlp_classif(x)
         logits = self.fc_classif(x)
 
