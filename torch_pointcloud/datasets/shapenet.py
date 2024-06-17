@@ -2,8 +2,9 @@ import json
 import os
 import os.path as osp
 from pathlib import Path
-from typing import Callable, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Callable, Dict, List, Literal, Optional, Tuple, TypedDict, Union
 
+import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -34,11 +35,19 @@ SHAPENET_CATEGORY_TYPE = Literal[
 ]
 
 
+def aslist(value: Union[None, List, Tuple]) -> List:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
+
+
 class ShapeNetData(TypedDict, total=False):
     xyz: Tensor
     normal: Tensor
-    sem_target: Tensor
-    cls_target: Tensor
+    segmentation_target: Tensor
+    category_target: Tensor
 
 
 class ShapeNet(Dataset):
@@ -87,7 +96,7 @@ class ShapeNet(Dataset):
         self,
         root: PATH_LIKE,
         *,
-        split: Literal["train", "val", "trainval", "test"],
+        split: Literal["train", "val", "test"],
         categories: Optional[Union[SHAPENET_CATEGORY_TYPE, List[SHAPENET_CATEGORY_TYPE]]] = None,
         include_normals: bool = True,
         transform: Optional[TRANSFORM_TYPE] = None,
@@ -132,7 +141,40 @@ class ShapeNet(Dataset):
         pass
 
     def process(self) -> None:
-        pass
+        split_path = Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json")
+
+        with open(split_path, "r") as f:
+            split_data = json.load(f)
+
+        category_id_to_idx = {self.category_ids[cat]: i for i, cat in enumerate(self.categories)}
+
+        data_list = []
+        for file_name in split_data:
+            file_path = Path(self.raw_dir, file_name.replace("shape_data/", "")).with_suffix(".txt")
+            category_id = file_path.parent.name
+            if category_id not in category_id_to_idx:
+                continue
+
+            # Process file
+            points = np.loadtxt(file_path, delimiter=" ")
+            xyz = points[:, :3]
+            normal = points[:, 3:6]
+            seg_target = points[:, -1]
+
+            data = {
+                "xyz": torch.from_numpy(xyz).float(),
+                "normal": torch.from_numpy(normal).float(),
+                "seg_target": torch.from_numpy(seg_target).long(),
+                "cat_target": category_id_to_idx[category_id],
+            }
+            # End process file
+
+            # if self.pre_filter is not None and not self.pre_filter(data):
+            #     continue
+            # if self.pre_transform is not None:
+            #     data = self.pre_transform(data)
+
+            data_list.append(data)
 
     def _check_exists(self) -> bool:
         return Path(self.processed_dir).exists()
