@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
+from torch_geometric.nn.aggr import MaxAggregation
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T2

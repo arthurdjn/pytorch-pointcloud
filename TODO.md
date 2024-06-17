@@ -24,6 +24,8 @@
         return x
     ```
 
+- [ ] Rename all the MLP stuff to maybe `LinearMLP`, `Conv1dML` and `Conv2dMLP` to be more explicit ?
+
 ## Urgent
 
 - [ ] Need to add tests ASAP.
