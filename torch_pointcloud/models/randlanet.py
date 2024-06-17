@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.layers.mlp import shared_mlp2d
+from torch_pointcloud.layers.mlp import shared_mlp1d, shared_mlp2d
 from torch_pointcloud.ops import knn, knn_interpolate
 
 
@@ -171,19 +171,17 @@ class RandLANetClassification(nn.Module):
         self.fc0 = nn.Linear(num_features, 8)  # d_bottleneck
         self.bn0 = nn.BatchNorm2d(8)
 
+        # 2 DilatedResidualBlock converges better than 4 on ModelNet.
         self.block1 = LocalFeatureAggregation(8, 16, num_neighbors)  # (num_neighbors, d_bottleneck, 32)
         self.block2 = LocalFeatureAggregation(32, 64, num_neighbors)  # (num_neighbors, 32, 128)
-        self.mlp_summit = shared_mlp2d([512, 512], act="relu", bn=True)
-
-        # self.return_logits = return_logits
-        # self.fc0 = Linear(in_features=num_features, out_features=8)
-        # # 2 DilatedResidualBlock converges better than 4 on ModelNet.
-        # self.block1 = DilatedResidualBlock(num_neighboors, 8, 32)
-        # self.block2 = DilatedResidualBlock(num_neighboors, 32, 128)
-        # self.mlp1 = SharedMLP([128, 128])
-        # self.max_agg = MaxAggregation()
-        # self.mlp_classif = SharedMLP([128, 32], dropout=[0.5])
-        # self.fc_classif = Linear(32, num_classes)
+        self.mlp1 = shared_mlp2d([128, 128], act="relu", bn=True)
+        self.mlp_classif = nn.Sequential(
+            nn.Linear(128, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+        )
+        self.fc_classif = nn.Linear(32, num_classes)
 
     # TODO refactor some blocks to return both xyz and features to be easier to used (we expect to have both)
     def forward(
@@ -201,12 +199,27 @@ class RandLANetClassification(nn.Module):
         b1_feat = self.block1(xyz, feat)  # (B, C, N, 1)
         b1_xyz, b1_feat, b1_lengths, _ = decimate(xyz, b1_feat.squeeze(-1), factor=self.decimation, lengths=lengths)
 
+        print(f"{b1_xyz.shape=}")
+        print(f"{b1_feat.shape=}")
+        print(f"{b1_lengths.shape=}")
+
         b2_feat = self.block2(b1_xyz, b1_feat.unsqueeze(-1))  # (B, C, N, 1)
         b2_xyz, b2_feat, b2_lengths, _ = decimate(
             b1_xyz, b2_feat.squeeze(-1), factor=self.decimation, lengths=b1_lengths
         )
 
-        return xyz
+        print(f"{b2_xyz.shape=}")
+        print(f"{b2_feat.shape=}")
+        print(f"{b2_lengths.shape=}")
+
+        x = self.mlp1(b2_feat.unsqueeze(-1)).squeeze(-1)  # (B, C, N)
+        # Max pooling
+        x = torch.max(x, dim=-1)[0]  # (B, C)
+        print(f"{x.shape=}")
+        x = self.mlp_classif(x)
+        logits = self.fc_classif(x)
+
+        return logits
 
 
 class RandLANet(nn.Module):
