@@ -25,7 +25,7 @@ def random_sample_data(
     return data, indices
 
 
-def sample_random_points(data: Dict[str, Any], num_points: int, keys: Sequence[str] = ("pos",)) -> Dict[str, Any]:
+def sample_random_points(data: Dict[str, Any], num_points: int, keys: Sequence[str] = ("xyz",)) -> Dict[str, Any]:
     assert len(keys) > 0, "keys must be a non-empty list"
     key = keys[0]
     N = data[key].size(0)
@@ -37,7 +37,7 @@ def sample_random_points(data: Dict[str, Any], num_points: int, keys: Sequence[s
     return data
 
 
-def normalize_scale(data: Dict[str, Any], keys: Sequence[str] = ("pos",)) -> Dict[str, Any]:
+def normalize_scale(data: Dict[str, Any], keys: Sequence[str] = ("xyz",)) -> Dict[str, Any]:
     for key in keys:
         if key in data.keys():
             data[key] -= data[key].mean(dim=-2, keepdim=True)
@@ -45,7 +45,7 @@ def normalize_scale(data: Dict[str, Any], keys: Sequence[str] = ("pos",)) -> Dic
     return data
 
 
-def sample_furthest_points(data: Dict[str, Any], num_points: int, keys: Sequence[str] = ("pos",)) -> Dict[str, Any]:
+def sample_furthest_points(data: Dict[str, Any], num_points: int, keys: Sequence[str] = ("xyz",)) -> Dict[str, Any]:
     assert len(keys) > 0, "keys must be a non-empty list"
     lengths = data.get("lengths", None)
     key = keys[0]
@@ -59,17 +59,17 @@ def sample_furthest_points(data: Dict[str, Any], num_points: int, keys: Sequence
 
 
 def sample_mesh_points(data: Dict[str, Any], num_points: int, include_normals: bool = True) -> Dict[str, Any]:
-    assert data["pos"] is not None
+    assert data["xyz"] is not None
     assert data["face"] is not None
 
-    pos, face = data["pos"], data["face"]
-    assert pos.size(1) == 3 and face.size(1) == 3
+    xyz, face = data["xyz"], data["face"]
+    assert xyz.size(1) == 3 and face.size(1) == 3
 
-    pos_max = pos.abs().max()
-    pos = pos / pos_max
+    pos_max = xyz.abs().max()
+    xyz = xyz / pos_max
 
-    vec1 = pos[face[:, 1]] - pos[face[:, 0]]
-    vec2 = pos[face[:, 2]] - pos[face[:, 0]]
+    vec1 = xyz[face[:, 1]] - xyz[face[:, 0]]
+    vec2 = xyz[face[:, 2]] - xyz[face[:, 0]]
     area = vec1.cross(vec2, dim=1)
     area = area.norm(p=2, dim=1).abs() / 2
 
@@ -77,21 +77,21 @@ def sample_mesh_points(data: Dict[str, Any], num_points: int, include_normals: b
     samples = torch.multinomial(prob, num_points, replacement=True)
     face = face[samples]
 
-    frac = torch.rand(num_points, 2, device=pos.device)
+    frac = torch.rand(num_points, 2, device=xyz.device)
     mask = frac.sum(dim=-1) > 1
     frac[mask] = 1 - frac[mask]
 
-    vec1 = pos[face[:, 1]] - pos[face[:, 0]]
-    vec2 = pos[face[:, 2]] - pos[face[:, 0]]
+    vec1 = xyz[face[:, 1]] - xyz[face[:, 0]]
+    vec2 = xyz[face[:, 2]] - xyz[face[:, 0]]
 
     if include_normals:
         data["normal"] = torch.nn.functional.normalize(vec1.cross(vec2, dim=1), p=2)
 
-    pos_sampled = pos[face[:, 0]]
+    pos_sampled = xyz[face[:, 0]]
     pos_sampled += frac[:, :1] * vec1
     pos_sampled += frac[:, 1:] * vec2
 
     pos_sampled = pos_sampled * pos_max
-    data["pos"] = pos_sampled
+    data["xyz"] = pos_sampled
 
     return data

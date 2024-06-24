@@ -1,20 +1,19 @@
 import json
-import os
-import os.path as osp
+import shutil
 from pathlib import Path
-from typing import Callable, Dict, List, Literal, Optional, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict
+from urllib.parse import urljoin
 
 import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
-from torch_geometric.data import Data, InMemoryDataset, download_url, extract_zip
-from torch_geometric.io import fs, read_txt_array
 
-from torch_pointcloud.utils.io import load_json
 from torch_pointcloud.utils.types import PATH_LIKE
 
-TRANSFORM_TYPE = Callable[[Dict[str, Tensor]], Dict[str, Tensor]]
+from .utils import download_file, extract_zip
+
+TRANSFORM_TYPE = Callable[[Dict[str, Any]], Dict[str, Any]]
 SHAPENET_CATEGORY_TYPE = Literal[
     "Airplane",
     "Bag",
@@ -35,23 +34,15 @@ SHAPENET_CATEGORY_TYPE = Literal[
 ]
 
 
-def aslist(value: Union[None, List, Tuple]) -> List:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    return [value]
-
-
 class ShapeNetData(TypedDict, total=False):
     xyz: Tensor
-    normal: Tensor
+    face: Tensor
     segmentation_target: Tensor
     category_target: Tensor
 
 
 class ShapeNet(Dataset):
-    data_url = "https://shapenet.cs.stanford.edu/media"
+    data_url = "https://shapenet.cs.stanford.edu/media/"
     resources = ["shapenetcore_partanno_segmentation_benchmark_v0_normal.zip"]
 
     category_ids: Dict[SHAPENET_CATEGORY_TYPE, str] = {
@@ -97,30 +88,30 @@ class ShapeNet(Dataset):
         root: PATH_LIKE,
         *,
         split: Literal["train", "val", "test"],
-        categories: Optional[Union[SHAPENET_CATEGORY_TYPE, List[SHAPENET_CATEGORY_TYPE]]] = None,
+        categories: Optional[List[SHAPENET_CATEGORY_TYPE]] = None,
         include_normals: bool = True,
         transform: Optional[TRANSFORM_TYPE] = None,
-        target_transform: Optional[TRANSFORM_TYPE] = None,
-        transforms: Optional[TRANSFORM_TYPE] = None,
+        pre_transform: Optional[TRANSFORM_TYPE] = None,
+        pre_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
         download: bool = False,
     ) -> None:
         super().__init__()
 
         self.root = root
         self.split = split
-        self.categories = categories
+        self.categories = categories or list(self.category_ids.keys())
         self.include_normals = include_normals
         self.transform = transform
-        self.target_transform = target_transform
-        self.transforms = transforms
+        self.pre_filter = pre_filter
+        self.pre_transform = pre_transform
 
         if download:
             self.download()
 
-        if not self._check_exists():
-            raise RuntimeError("Dataset not found. You can use download=True to download it")
+        if not self._check_raw_exists():
+            raise RuntimeError("Dataset not found. You can use `download=True` to download it")
 
-        if not Path(self.processed_dir, f"{self.split}.pt").exists():
+        if not self._check_processed_exists():
             self.process()
 
         self.data = self._load_processed_data()
@@ -137,8 +128,32 @@ class ShapeNet(Dataset):
     def processed_dir(self) -> str:
         return Path(self.data_dir, "processed").as_posix()
 
+    @property
+    def category_to_id(self) -> Dict[str, int]:
+        return {cat: i for i, cat in enumerate(self.categories)}
+
+    @property
+    def seg_to_id(self) -> Dict[str, int]:
+        return {seg: i for i, seg in enumerate(self.seg_classes)}
+
     def download(self) -> None:
-        pass
+        if self._check_raw_exists():
+            return
+
+        # Download resource
+        file_name = self.resources[0]
+        url = urljoin(self.data_url, file_name)
+        zip_path = Path(self.data_dir, file_name)
+        download_file(url=url, out_path=zip_path)
+
+        # Remove previous raw data
+        shutil.rmtree(self.raw_dir, ignore_errors=True)
+
+        # Extract content as raw directory
+        extract_zip(zip_path, self.data_dir)
+        extract_dir = Path(self.data_dir) / Path(file_name).stem
+        extract_dir.rename(self.raw_dir)
+        zip_path.unlink()
 
     def process(self) -> None:
         split_path = Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json")
@@ -155,175 +170,54 @@ class ShapeNet(Dataset):
             if category_id not in category_id_to_idx:
                 continue
 
-            # Process file
             points = np.loadtxt(file_path, delimiter=" ")
             xyz = points[:, :3]
-            normal = points[:, 3:6]
+            face = points[:, 3:6]
             seg_target = points[:, -1]
 
             data = {
                 "xyz": torch.from_numpy(xyz).float(),
-                "normal": torch.from_numpy(normal).float(),
-                "seg_target": torch.from_numpy(seg_target).long(),
-                "cat_target": category_id_to_idx[category_id],
+                "face": torch.from_numpy(face).float(),
+                "segmentation_target": torch.from_numpy(seg_target).long(),
+                "category_target": torch.tensor(category_id_to_idx[category_id]),
             }
-            # End process file
 
-            # if self.pre_filter is not None and not self.pre_filter(data):
-            #     continue
-            # if self.pre_transform is not None:
-            #     data = self.pre_transform(data)
-
-            data_list.append(data)
-
-    def _check_exists(self) -> bool:
-        return Path(self.processed_dir).exists()
-
-    def _load_processed_data(self) -> Tensor:
-        return torch.load(Path(self.processed_dir, f"{self.split}.pt"))
-
-
-class ShapeNet_original(InMemoryDataset):
-    url = "https://shapenet.cs.stanford.edu/media/" "shapenetcore_partanno_segmentation_benchmark_v0_normal.zip"
-
-    # In case `shapenet.cs.stanford.edu` is offline, try to download the data
-    # from Kaggle instead (requires login):
-    # https://www.kaggle.com/datasets/mitkir/shapenet/download?datasetVersionNumber=1
-
-    category_ids = {
-        "Airplane": "02691156",
-        "Bag": "02773838",
-        "Cap": "02954340",
-        "Car": "02958343",
-        "Chair": "03001627",
-        "Earphone": "03261776",
-        "Guitar": "03467517",
-        "Knife": "03624134",
-        "Lamp": "03636649",
-        "Laptop": "03642806",
-        "Motorbike": "03790512",
-        "Mug": "03797390",
-        "Pistol": "03948459",
-        "Rocket": "04099429",
-        "Skateboard": "04225987",
-        "Table": "04379243",
-    }
-
-    seg_classes = {
-        "Airplane": [0, 1, 2, 3],
-        "Bag": [4, 5],
-        "Cap": [6, 7],
-        "Car": [8, 9, 10, 11],
-        "Chair": [12, 13, 14, 15],
-        "Earphone": [16, 17, 18],
-        "Guitar": [19, 20, 21],
-        "Knife": [22, 23],
-        "Lamp": [24, 25, 26, 27],
-        "Laptop": [28, 29],
-        "Motorbike": [30, 31, 32, 33, 34, 35],
-        "Mug": [36, 37],
-        "Pistol": [38, 39, 40],
-        "Rocket": [41, 42, 43],
-        "Skateboard": [44, 45, 46],
-        "Table": [47, 48, 49],
-    }
-
-    def __init__(
-        self,
-        root: str,
-        categories: Optional[Union[str, List[str]]] = None,
-        include_normals: bool = True,
-        split: str = "trainval",
-        transform: Optional[Callable] = None,
-        pre_transform: Optional[Callable] = None,
-        pre_filter: Optional[Callable] = None,
-        force_reload: bool = False,
-    ) -> None:
-        if categories is None:
-            categories = list(self.category_ids.keys())
-        if isinstance(categories, str):
-            categories = [categories]
-        assert all(category in self.category_ids for category in categories)
-        self.categories = categories
-        super().__init__(root, transform, pre_transform, pre_filter, force_reload=force_reload)
-
-        if split == "train":
-            path = self.processed_paths[0]
-        elif split == "val":
-            path = self.processed_paths[1]
-        elif split == "test":
-            path = self.processed_paths[2]
-        elif split == "trainval":
-            path = self.processed_paths[3]
-        else:
-            raise ValueError((f"Split {split} found, but expected either " "train, val, trainval or test"))
-
-        self.load(path)
-
-        assert isinstance(self._data, Data)
-        self._data.x = self._data.x if include_normals else None
-
-        self.y_mask = torch.zeros((len(self.seg_classes.keys()), 50), dtype=torch.bool)
-        for i, labels in enumerate(self.seg_classes.values()):
-            self.y_mask[i, labels] = 1
-
-    @property
-    def num_classes(self) -> int:
-        return self.y_mask.size(-1)
-
-    @property
-    def raw_file_names(self) -> List[str]:
-        return list(self.category_ids.values()) + ["train_test_split"]
-
-    @property
-    def processed_file_names(self) -> List[str]:
-        cats = "_".join([cat[:3].lower() for cat in self.categories])
-        return [osp.join(f"{cats}_{split}.pt") for split in ["train", "val", "test", "trainval"]]
-
-    def download(self) -> None:
-        path = download_url(self.url, self.root)
-        extract_zip(path, self.root)
-        os.unlink(path)
-        fs.rm(self.raw_dir)
-        name = self.url.split("/")[-1].split(".")[0]
-        os.rename(osp.join(self.root, name), self.raw_dir)
-
-    def process_filenames(self, filenames: List[str]) -> List[Data]:
-        data_list = []
-        categories_ids = [self.category_ids[cat] for cat in self.categories]
-        cat_idx = {categories_ids[i]: i for i in range(len(categories_ids))}
-
-        for name in filenames:
-            cat = name.split(osp.sep)[0]
-            if cat not in categories_ids:
-                continue
-
-            tensor = read_txt_array(osp.join(self.raw_dir, name))
-            pos = tensor[:, :3]
-            x = tensor[:, 3:6]
-            y = tensor[:, -1].type(torch.long)
-            data = Data(pos=pos, x=x, y=y, category=cat_idx[cat])
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
             if self.pre_transform is not None:
                 data = self.pre_transform(data)
+
             data_list.append(data)
 
-        return data_list
+        Path(self.processed_dir).mkdir(parents=True, exist_ok=True)
+        torch.save(data_list, Path(self.processed_dir, f"{self.split}.pt"))
 
-    def process(self) -> None:
-        trainval = []
-        for i, split in enumerate(["train", "val", "test"]):
-            path = osp.join(self.raw_dir, "train_test_split", f"shuffled_{split}_file_list.json")
-            with open(path, "r") as f:
-                filenames = [
-                    osp.sep.join(name.split("/")[1:]) + ".txt" for name in json.load(f)
-                ]  # Removing first directory.
-            data_list = self.process_filenames(filenames)
-            if split == "train" or split == "val":
-                trainval += data_list
-            self.save(data_list, self.processed_paths[i])
-        self.save(trainval, self.processed_paths[3])
+    def _check_raw_exists(self) -> bool:
+        if not Path(self.raw_dir).exists():
+            return False
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({len(self)}, " f"categories={self.categories})"
+        for category_id in self.category_ids.values():
+            if not Path(self.raw_dir, category_id).exists():
+                return False
+
+            if not any(Path(self.raw_dir, category_id).rglob("*.txt")):
+                return False
+
+        return True
+
+    def _check_processed_exists(self) -> bool:
+        return Path(self.processed_dir, f"{self.split}.pt").exists()
+
+    def _load_processed_data(self) -> Any:
+        return torch.load(Path(self.processed_dir, f"{self.split}.pt"))
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        data = self.data[index]
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data
+
+    def __len__(self) -> int:
+        return len(self.data)

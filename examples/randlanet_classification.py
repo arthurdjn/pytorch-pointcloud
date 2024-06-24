@@ -6,10 +6,9 @@ import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
-from torch_geometric.nn.aggr import MaxAggregation
 from tqdm import tqdm
 
-import torch_pointcloud.transforms as T2
+import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ModelNet10
 from torch_pointcloud.models.randlanet import RandLANetClassification
 from torch_pointcloud.utils.utils import set_seed
@@ -37,23 +36,23 @@ def train_one_epoch(
 ) -> Dict[str, float]:
     model.train()
 
-    cum_loss, total = 0.0, 0
+    cum_loss = 0.0
     with tqdm(total=len(loader), desc="Training") as pbar:
-        for i, batch in pbar:
+        for i, batch in enumerate(loader):
             optimizer.zero_grad()
-            pos = batch["pos"].to(device)
-            y = batch["target"].to(device)
-            preds = model(pos, None)
-            loss = F.nll_loss(preds, y)
+            xyz = batch["xyz"].to(device)
+            target = batch["target"].to(device)
+            preds = model(xyz, None)
+            loss = F.nll_loss(preds, target)
             loss.backward()
             optimizer.step()
             cum_loss += loss.item()
-            total += len(y)
+            pbar.update(1)
 
             if i % log_interval == 0:
                 pbar.set_postfix({"train/loss_step": loss.item()})
 
-    return {"train/loss_epoch": cum_loss / total}
+    return {"train/loss_epoch": cum_loss / len(loader)}
 
 
 @torch.no_grad()
@@ -62,11 +61,11 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
 
     correct, total = 0, 0
     for batch in tqdm(loader, total=len(loader), desc="Evaluating"):
-        pos = batch["pos"].to(device)
-        y = batch["target"].to(device)
-        preds = model(pos, None).max(1)[1]
-        correct += preds.eq(y).sum().item()
-        total += len(y)
+        xyz = batch["xyz"].to(device)
+        target = batch["target"].to(device)
+        preds = model(xyz, None).max(1)[1]
+        correct += preds.eq(target).sum().item()
+        total += len(target)
 
     return {"val/acc": correct / total}
 
@@ -76,8 +75,8 @@ def main() -> None:
     args = parser.parse_args()
     set_seed(42)
 
-    pre_transform = T2.NormalizeScale()
-    transform = T2.Compose([T2.SampleMeshPoints(args.num_points)])
+    pre_transform = T.NormalizeScale()
+    transform = T.Compose([T.SampleMeshPoints(args.num_points)])
     if args.dataset == "ModelNet10":
         train_dataset = ModelNet10(args.root, True, transform=transform, pre_transform=pre_transform, download=True)
         test_dataset = ModelNet10(args.root, False, transform=transform, pre_transform=pre_transform, download=True)
@@ -86,7 +85,7 @@ def main() -> None:
 
     def collate(data_list: List[Any]) -> Dict[str, Any]:
         return {
-            "pos": torch.stack([d["pos"] for d in data_list]),
+            "xyz": torch.stack([d["xyz"] for d in data_list]),
             "target": torch.cat([d["target"] for d in data_list]),
         }
 

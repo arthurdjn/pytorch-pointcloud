@@ -85,8 +85,6 @@ class Scannet(Dataset):
         version: Literal["v1", "v2"],
         split: Literal["train", "val", "test"],
         transform: Optional[Callable[[Dict[str, Tensor]], Dict[str, Tensor]]] = None,
-        target_transform: Optional[Callable[[Dict[str, Tensor]], Dict[str, Tensor]]] = None,
-        transforms: Optional[Callable[[Dict[str, Tensor]], Dict[str, Tensor]]] = None,
         download: bool = False,
         unk_label: str = UNK_LABEL,
         unk_target: int = UNK_TARGET,
@@ -99,8 +97,6 @@ class Scannet(Dataset):
         self.version = version
         self.split = split
         self.transform = transform
-        self.target_transform = target_transform
-        self.transforms = transforms
         self.unk_label = unk_label
         self.unk_target = unk_target
 
@@ -296,8 +292,8 @@ class Scannet(Dataset):
 
     def __getitem__(self, index: int) -> Any:
         data = self.data[index]
-        if self.transforms is not None:
-            data = self.transforms(data)
+        if self.transform is not None:
+            data = self.transform(data)
         return data
 
     def __len__(self) -> int:
