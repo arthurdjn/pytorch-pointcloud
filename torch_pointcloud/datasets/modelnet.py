@@ -197,9 +197,9 @@ class ModelNet10(Dataset):
         for off_path in tqdm(files, desc="Processing"):
             label = off_path.parent.parent.name
             target = self.class_to_idx[label]
-            nodes, faces = load_off(off_path)
+            xyz, faces = load_off(off_path)
             data = {
-                "pos": torch.tensor(nodes, dtype=torch.float32),
+                "xyz": torch.tensor(xyz, dtype=torch.float32),
                 "face": torch.tensor(faces, dtype=torch.long),
                 "target": torch.tensor([target]),
             }

@@ -3,15 +3,18 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.layers.mlp import shared_mlp1d, shared_mlp2d
+from torch_pointcloud.layers.mlp import shared_mlp2d
 from torch_pointcloud.ops import knn, knn_interpolate
 
 
+# TODO: Refactor with a gather_neighbors static method
+# TODO: Use a neighbor_indices param in the forward method
 class LocalSpatialEncoding(nn.Module):
-    def __init__(self, num_channels: int, num_neighbors: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, num_neighbors: int, encode_xyz: bool = False) -> None:
         super().__init__()
+        self.encode_xyz = encode_xyz
         self.num_neighbors = num_neighbors
-        self.mlp = shared_mlp2d([10, num_channels], act="relu", bn=True)
+        self.mlp = shared_mlp2d([in_channels, out_channels], act=nn.LeakyReLU(0.2), bn=True, plain_last=False)
 
     def forward(
         self,
@@ -19,24 +22,29 @@ class LocalSpatialEncoding(nn.Module):
         features: torch.Tensor,
         dists: torch.Tensor,
         idxs: torch.Tensor,
+        relative_features: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         B, N, K = idxs.size()
-        # idx(B, N, K), coords(B, N, 3)
-        extended_idx = idxs.unsqueeze(1).expand(B, 3, N, K)  # (B, 3, N, K)
-        xyz = xyz.transpose(-2, -1).unsqueeze(-1).expand(B, 3, N, K)  # (B, 3, N, K)
-        xyz_neighbors = torch.gather(xyz, 2, extended_idx)  # (B, 3, N, K)
 
-        # relative point position encoding
-        concat = torch.cat((xyz, xyz_neighbors, xyz - xyz_neighbors, dists.unsqueeze(-3)), dim=-3).to(xyz.device)
+        if self.encode_xyz:
+            extended_idx = idxs.unsqueeze(1).expand(B, 3, N, K)  # (B, 3, N, K)
+            xyz = xyz.transpose(-2, -1).unsqueeze(-1).expand(B, 3, N, K)  # (B, 3, N, K)
+            xyz_neighbors = torch.gather(xyz, 2, extended_idx)  # (B, 3, N, K)
+
+            # relative point position encoding
+            concat = torch.cat([xyz, xyz_neighbors, xyz - xyz_neighbors, dists.unsqueeze(-3)], dim=-3).to(xyz.device)
+        else:
+            
+        
         out_features = self.mlp(concat)
-        return torch.cat((out_features, features.expand(B, -1, N, K)), dim=-3)
+        return torch.cat([out_features, features.expand(B, -1, N, K)], dim=-3)
 
 
 class AttentivePooling(nn.Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.attn = nn.Sequential(nn.Linear(in_channels, in_channels, bias=False), nn.Softmax(dim=-2))
-        self.mlp = shared_mlp2d([in_channels, out_channels], bn=True, act="relu")
+        self.attn = nn.Sequential(nn.Linear(in_channels, in_channels), nn.Softmax(dim=-2))
+        self.mlp = shared_mlp2d([in_channels, out_channels], act=nn.LeakyReLU(0.2), bn=True, plain_last=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         attn = self.attn(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
@@ -59,11 +67,11 @@ class LocalFeatureAggregation(nn.Module):
         self.act = act
 
         self.mlp1 = shared_mlp2d([in_channels, out_channels // 2], act=nn.LeakyReLU(0.2), plain_last=False)
-        self.mlp2 = shared_mlp2d([out_channels, 2 * out_channels])
-        self.mlp_skip = shared_mlp2d([in_channels, 2 * out_channels])
+        self.mlp2 = shared_mlp2d([out_channels, 2 * out_channels], plain_last=False)
+        self.mlp_skip = shared_mlp2d([in_channels, 2 * out_channels], plain_last=False)
 
-        self.lse1 = LocalSpatialEncoding(out_channels // 2, num_neighbors)
-        self.lse2 = LocalSpatialEncoding(out_channels // 2, num_neighbors)
+        self.lse1 = LocalSpatialEncoding(10, out_channels // 2, num_neighbors=num_neighbors)
+        self.lse2 = LocalSpatialEncoding(out_channels // 2, out_channels // 2, num_neighbors=num_neighbors)
 
         self.pool1 = AttentivePooling(out_channels, out_channels // 2)
         self.pool2 = AttentivePooling(out_channels, out_channels)
@@ -104,6 +112,7 @@ class FPModule(nn.Module):
         return xyz_skip, new_features
 
 
+# TODO: rename to random_sample
 def decimate(
     xyz: torch.Tensor, features: torch.Tensor, factor: float, lengths: Optional[torch.Tensor] = None
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -213,7 +222,7 @@ class RandLANetClassification(nn.Module):
         return logits
 
 
-class RandLANet(nn.Module):
+class RandLANetSegmentation(nn.Module):
     def __init__(
         self,
         num_features: int,
@@ -262,6 +271,7 @@ class RandLANet(nn.Module):
         )
 
     # TODO refactor some blocks to return both xyz and features to be easier to used (we expect to have both)
+    # TODO: Remove the .unsqueeze(-1) to the LocalFeatureAggregation blocks
     def forward(
         self,
         xyz: torch.Tensor,

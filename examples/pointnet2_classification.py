@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from typing import Dict
+from typing import Any, Dict, List
 
 import torch
 import torch.nn.functional as F
@@ -34,7 +34,7 @@ def train_one_epoch(
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
-    cum_loss = 0
+    cum_loss = 0.0
     model.train()
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
@@ -67,7 +67,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         with torch.no_grad():
             preds = model(pos, None).max(1)[1]
         correct += preds.eq(y).sum().item()
-    return {"val/acc": correct / len(loader.dataset)}
+    return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
 
 
 def main() -> None:
@@ -83,7 +83,7 @@ def main() -> None:
     else:
         raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10'.")
 
-    def collate(data_list):
+    def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             "pos": torch.stack([d["pos"] for d in data_list]),
             "target": torch.cat([d["target"] for d in data_list]),

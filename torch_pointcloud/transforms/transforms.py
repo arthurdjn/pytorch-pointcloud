@@ -36,7 +36,7 @@ class Compose(BaseTransform):
 
 
 class SampleRandomPoints(BaseTransform):
-    def __init__(self, num_points: int, keys: Sequence[str] = ("pos",)) -> None:
+    def __init__(self, num_points: int, keys: Sequence[str] = ("xyz",)) -> None:
         assert len(keys) > 0, "keys must be a non-empty list"
         self.num_points = num_points
         self.keys = keys
@@ -49,7 +49,7 @@ class SampleRandomPoints(BaseTransform):
 
 
 class SampleFurthestPoints(BaseTransform):
-    def __init__(self, num_points: int, keys: Sequence[str] = ("pos",)) -> None:
+    def __init__(self, num_points: int, keys: Sequence[str] = ("xyz",)) -> None:
         self.num_points = num_points
         self.keys = keys
 
@@ -73,7 +73,7 @@ class SampleMeshPoints(BaseTransform):
 
 
 class NormalizeScale(BaseTransform):
-    def __init__(self, keys: Sequence[str] = ("pos",)) -> None:
+    def __init__(self, keys: Sequence[str] = ("xyz",)) -> None:
         self.keys = keys
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
