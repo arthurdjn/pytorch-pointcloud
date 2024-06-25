@@ -1,3 +1,6 @@
+# type: ignore
+# https://github.com/pyg-team/pytorch_geometric/blob/master/examples/randlanet_classification.py
+
 import os.path as osp
 
 import torch

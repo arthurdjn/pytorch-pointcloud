@@ -22,7 +22,7 @@ def get_parser() -> ArgumentParser:
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--num_workers", type=int, default=6)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--lr", type=float, default=0.01)
     return parser
 
 
@@ -35,23 +35,26 @@ def train_one_epoch(
 ) -> Dict[str, float]:
     model.train()
 
-    cum_loss = 0.0
+    total_loss = correct = total = 0.0
     with tqdm(total=len(loader), desc="Training") as pbar:
         for i, batch in enumerate(loader):
             optimizer.zero_grad()
             xyz = batch["xyz"].to(device)
             target = batch["segmentation_target"].to(device)
-            preds = model(xyz, None)
+            logits = model(xyz, None)
+            preds = logits.log_softmax(dim=-1)
             loss = F.nll_loss(preds, target)
             loss.backward()
             optimizer.step()
-            cum_loss += loss.item()
+            total_loss += loss.item()
+            correct += preds.argmax(dim=1).eq(target).sum().item()
+            total += target.size(0) * target.size(1)
             pbar.update(1)
 
             if i % log_interval == 0:
-                pbar.set_postfix({"train/loss_step": loss.item()})
+                pbar.set_postfix({"train/loss_step": loss.item(), "train/acc": correct / total})
 
-    return {"train/loss_epoch": cum_loss / len(loader)}
+    return {"train/loss_epoch": total_loss / total, "train/acc": correct / total}
 
 
 @torch.no_grad()
@@ -66,7 +69,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         correct += preds.eq(target).sum().item()
         total += len(target)
 
-    return {"val/acc": correct / total}
+    return {"val/acc": correct / len(loader.dataset)}  # type: ignore
 
 
 def main() -> None:
@@ -76,8 +79,22 @@ def main() -> None:
 
     pre_transform = T.NormalizeScale()
     transform = T.Compose([T.SampleRandomPoints(args.num_points, keys=("xyz", "segmentation_target"))])
-    train_dataset = ShapeNet(args.root, split="train", transform=transform, pre_transform=pre_transform, download=True)
-    test_dataset = ShapeNet(args.root, split="test", transform=transform, pre_transform=pre_transform, download=True)
+    train_dataset = ShapeNet(
+        args.root,
+        split="train",
+        categories=["Airplane"],
+        transform=transform,
+        pre_transform=pre_transform,
+        download=True,
+    )
+    test_dataset = ShapeNet(
+        args.root,
+        split="test",
+        categories=["Airplane"],
+        transform=transform,
+        pre_transform=pre_transform,
+        download=True,
+    )
 
     def collate(data_list: List[Any]) -> Dict[str, Any]:
         return {
@@ -100,8 +117,8 @@ def main() -> None:
         collate_fn=collate,
     )
 
-    model = RandLANetSegmentation(num_features=3, num_classes=50).to(args.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    model = RandLANetSegmentation(in_channels=3, num_classes=50).to(args.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")

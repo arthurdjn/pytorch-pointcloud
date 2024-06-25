@@ -272,11 +272,11 @@ class RandLANetClassification(nn.Module):
         feat = self.fc0(feat.transpose(1, 2)).transpose(1, 2)
         feat = self.bn0(feat.unsqueeze(-1)).squeeze(-1)
 
-        lfa1_feat = self.block1(xyz, feat)
-        lfa1_xyz, lfa1_feat, lfa1_lengths, _ = decimate(xyz, lfa1_feat, self.decimation, lengths=lengths)
+        b1_feat = self.block1(xyz, feat)
+        b1_xyz, b1_feat, b1_lengths, _ = decimate(xyz, b1_feat, self.decimation, lengths=lengths)
 
-        b2_feat = self.block2(lfa1_xyz, lfa1_feat)
-        b2_xyz, b2_feat, b2_lengths, _ = decimate(lfa1_xyz, b2_feat, self.decimation, lengths=lfa1_lengths)
+        b2_feat = self.block2(b1_xyz, b1_feat)
+        b2_xyz, b2_feat, b2_lengths, _ = decimate(b1_xyz, b2_feat, self.decimation, lengths=b1_lengths)
 
         x = self.mlp(b2_feat.unsqueeze(-1)).squeeze(-1)
         # Max pooling
@@ -317,7 +317,7 @@ class RandLANetSegmentation(nn.Module):
         self.fp4 = FPModule(SharedMLP(512 + 256, 256, activation_fn=None), k=1)
         self.fp3 = FPModule(SharedMLP(256 + 128, 128, activation_fn=None), k=1)
         self.fp2 = FPModule(SharedMLP(128 + 32, 32, activation_fn=None), k=1)
-        self.fp1 = FPModule(SharedMLP(32 + 32, features_dim, activation_fn=None), k=1)
+        self.fp1 = FPModule(SharedMLP(32 + 32, 32, activation_fn=None), k=1)
 
         # self.fp4 = SharedMLP(512 + 256, 256, transpose=True, activation_fn=nn.LeakyReLU(0.2))
         # self.fp3 = SharedMLP(256 + 128, 128, transpose=True, activation_fn=nn.LeakyReLU(0.2))
@@ -326,7 +326,7 @@ class RandLANetSegmentation(nn.Module):
 
         # head
         self.head = nn.Sequential(
-            SharedMLP(features_dim, 64, bn=True, activation_fn=nn.LeakyReLU(0.2)),
+            SharedMLP(32, 64, bn=True, activation_fn=nn.LeakyReLU(0.2)),
             SharedMLP(64, 32, activation_fn=nn.LeakyReLU(0.2)),
             nn.Dropout(0.5),
             SharedMLP(32, num_classes, bn=False),
@@ -343,12 +343,12 @@ class RandLANetSegmentation(nn.Module):
         x = self.fc0(x.transpose(1, 2)).transpose(1, 2)
         x = self.bn0(x.unsqueeze(-1)).squeeze(-1)
 
-        lfa1_feat = self.lfa1(coords, x)
-        lfa1_feat_before = lfa1_feat.clone()
-        lfa1_coords, lfa1_feat, lfa1_lengths, _ = decimate(coords, lfa1_feat, self.decimation, lengths=lengths)
+        b1_feat = self.lfa1(coords, x)
+        b1_feat_before = b1_feat.clone()
+        b1_coords, b1_feat, b1_lengths, _ = decimate(coords, b1_feat, self.decimation, lengths=lengths)
 
-        b2_feat = self.lfa2(lfa1_coords, lfa1_feat)
-        b2_coords, b2_feat, b2_lengths, _ = decimate(lfa1_coords, b2_feat, self.decimation, lengths=lfa1_lengths)
+        b2_feat = self.lfa2(b1_coords, b1_feat)
+        b2_coords, b2_feat, b2_lengths, _ = decimate(b1_coords, b2_feat, self.decimation, lengths=b1_lengths)
 
         b3_feat = self.lfa3(b2_coords, b2_feat)
         b3_coords, b3_feat, b3_lengths, _ = decimate(b2_coords, b3_feat, self.decimation, lengths=b2_lengths)
@@ -360,8 +360,30 @@ class RandLANetSegmentation(nn.Module):
 
         fp4_coords, fp4_feat = self.fp4(b4_coords, feat, b3_coords, b3_feat)
         fp3_coords, fp3_feat = self.fp3(fp4_coords, fp4_feat, b2_coords, b2_feat)
-        fp2_coords, fp2_feat = self.fp2(fp3_coords, fp3_feat, lfa1_coords, lfa1_feat)
-        _, fp1_feat = self.fp1(fp2_coords, fp2_feat, coords, lfa1_feat_before)
+        fp2_coords, fp2_feat = self.fp2(fp3_coords, fp3_feat, b1_coords, b1_feat)
+        _, fp1_feat = self.fp1(fp2_coords, fp2_feat, coords, b1_feat_before)
 
         # ? Use a return_logits flag ?
         return self.head(fp1_feat.unsqueeze(-1)).squeeze(-1)
+
+    @staticmethod
+    def nearest_interpolation(feature: torch.Tensor, interp_idx: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            feature: [B, d, N] input features matrix
+            interp_idx: [B, up_num_points, 1] nearest neighbour index
+
+        Returns:
+             [B, up_num_points, d] interpolated features matrix
+
+        """
+        d = feature.size(1)
+        batch_size = interp_idx.size()[0]
+        up_num_points = interp_idx.size()[1]
+
+        interp_idx = torch.reshape(interp_idx, (batch_size, up_num_points))
+        interp_idx = interp_idx.unsqueeze(1).expand(batch_size, d, -1)
+
+        interpolatedim_features = torch.gather(feature, 2, interp_idx)
+        interpolatedim_features = interpolatedim_features.unsqueeze(3)
+        return interpolatedim_features

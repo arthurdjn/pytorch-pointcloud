@@ -42,7 +42,8 @@ def train_one_epoch(
             optimizer.zero_grad()
             xyz = batch["xyz"].to(device)
             target = batch["target"].to(device)
-            preds = model(xyz, None)
+            logits = model(xyz, None)
+            preds = logits.log_softmax(dim=-1)
             loss = F.nll_loss(preds, target)
             loss.backward()
             optimizer.step()
@@ -67,7 +68,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         correct += preds.eq(target).sum().item()
         total += len(target)
 
-    return {"val/acc": correct / total}
+    return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
 
 
 def main() -> None:

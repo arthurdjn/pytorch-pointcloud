@@ -8,7 +8,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import torch_pointcloud.transforms as T2
+import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ModelNet10
 from torch_pointcloud.models.pointnet2 import PointNetClassification
 from torch_pointcloud.utils.utils import set_seed
@@ -39,7 +39,7 @@ def train_one_epoch(
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
     for i, batch in pbar:
-        pos = batch["pos"].to(device)
+        pos = batch["xyz"].to(device)
         y = batch["target"].to(device)
         # feats = batch["normal"].to(device).transpose(1, 2)
 
@@ -60,7 +60,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
     model.eval()
     correct = 0
     for batch in tqdm(loader, total=len(loader), desc="Evaluating"):
-        pos = batch["pos"].to(device)
+        pos = batch["xyz"].to(device)
         y = batch["target"].to(device)
         # feats = batch["normal"].to(device).transpose(1, 2)
 
@@ -75,8 +75,8 @@ def main() -> None:
     args = parser.parse_args()
     set_seed(42)
 
-    pre_transform = T2.NormalizeScale()
-    transform = T2.Compose([T2.SampleMeshPoints(args.num_points)])
+    pre_transform = T.NormalizeScale()
+    transform = T.Compose([T.SampleMeshPoints(args.num_points)])
     if args.dataset == "ModelNet10":
         train_dataset = ModelNet10(args.root, True, transform=transform, pre_transform=pre_transform, download=True)
         test_dataset = ModelNet10(args.root, False, transform=transform, pre_transform=pre_transform, download=True)
@@ -85,7 +85,7 @@ def main() -> None:
 
     def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            "pos": torch.stack([d["pos"] for d in data_list]),
+            "xyz": torch.stack([d["xyz"] for d in data_list]),
             "target": torch.cat([d["target"] for d in data_list]),
         }
 

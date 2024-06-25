@@ -1,15 +1,16 @@
 from argparse import ArgumentParser
-from typing import Dict
+from typing import Any, Dict, List
 
-import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.nn import Module, NLLLoss
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.models.pointnet2 import PointNetSegmentation
+import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets import S3DIS, ShapeNet
+from torch_pointcloud.models.randlanet import RandLANetSegmentation
 from torch_pointcloud.utils.utils import set_seed
 
 
@@ -53,23 +54,22 @@ def train_one_epoch(
         feats = torch.tensor(batch["rgb"], dtype=torch.float32).to(device).transpose(1, 2)
         target = torch.tensor(batch["semantic"], dtype=torch.long).to(device)
 
-        seg_pred, _ = model(pos, feats)
+        seg_pred = model(pos, feats)
+        seg_pred = F.log_softmax(seg_pred, dim=1)  # TODO: move to model forward
         seg_pred = seg_pred.transpose(1, 2).contiguous()
         B, N, C = seg_pred.size()
         seg_pred = seg_pred.view(-1, C)
         batch_label = target.view(-1, 1)[:, 0].cpu().data.numpy()
         target = target.view(-1, 1)[:, 0]
-
         loss = criterion(seg_pred, target)
         loss.backward()
         optimizer.step()
 
         pred_choice = seg_pred.cpu().data.max(1)[1].numpy()
-        correct = np.sum(pred_choice == batch_label)
+        correct = (pred_choice == batch_label).sum()
         total_correct += correct
         total_seen += B * N
         loss_sum += loss
-        exit()
 
         if i % log_interval == 0:
             pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": float(correct / (B * N))})
@@ -104,8 +104,8 @@ def main() -> None:
         weight += count
 
     # Build model, optimizer and loss
-    model = PointNetSegmentation(args.num_classes).to(args.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    model = RandLANetSegmentation(in_channels=3, num_classes=args.num_classes).to(args.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     weight = torch.pow(torch.max(weight) / weight, 1 / 3.0)
     criterion = NLLLoss(weight=torch.tensor(weight).to(args.device))
 
