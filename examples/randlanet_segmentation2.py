@@ -56,11 +56,25 @@ def train_one_epoch(
 
         seg_pred = model(pos, feats)
         seg_pred = F.log_softmax(seg_pred, dim=1)  # TODO: move to model forward
+        print(f"1 - {target.shape = }")
+        print(f"1 - {seg_pred.shape = }")
+
         seg_pred = seg_pred.transpose(1, 2).contiguous()
+        print(f"2 - {target.shape = }")
+        print(f"2 - {seg_pred.shape = }")
+
         B, N, C = seg_pred.size()
         seg_pred = seg_pred.view(-1, C)
+        print(f"3 - {target.shape = }")
+        print(f"3 - {seg_pred.shape = }")
+
         batch_label = target.view(-1, 1)[:, 0].cpu().data.numpy()
+        print(f"4 - {batch_label.shape = }")
+
         target = target.view(-1, 1)[:, 0]
+        print(f"5 - {target.shape = }")
+        print(f"5 - {seg_pred.shape = }")
+
         loss = criterion(seg_pred, target)
         loss.backward()
         optimizer.step()
@@ -70,6 +84,7 @@ def train_one_epoch(
         total_correct += correct
         total_seen += B * N
         loss_sum += loss
+        exit()
 
         if i % log_interval == 0:
             pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": float(correct / (B * N))})
