@@ -141,7 +141,7 @@ at::Tensor three_interpolate_cuda(
   return out;
 }
 
-// TODO(arthurdjn) support all data types once AtomicAdd supports doubles
+// TODO(arthurdjn) support all data types once `atomicAdd` supports doubles
 /**
  * @brief Backward pass for the three_interpolate function
  *
@@ -199,7 +199,7 @@ __global__ void three_interpolate_backward_kernel(
   }
 }
 
-// TODO(arthurdjn) use AT_DISPATCH_FLOATING_TYPES once AtomicAdd supports doubles
+// TODO(arthurdjn) use AT_DISPATCH_FLOATING_TYPES once `atomicAdd` supports doubles
 /**
  * @brief Backward pass for the three_interpolate function
  *

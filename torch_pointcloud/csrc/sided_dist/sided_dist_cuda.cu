@@ -85,7 +85,7 @@ std::tuple<at::Tensor, at::Tensor> sided_distance_cuda(
   return std::make_tuple(dists, idxs);
 }
 
-// TODO: (arthurdjn) support all data types once AtomicAdd supports doubles
+// TODO: (arthurdjn) support all data types once `atomicAdd` supports doubles
 __global__ void sided_distance_backward_kernel(
     const at::PackedTensorAccessor64<float_t, 2, at::RestrictPtrTraits> grad_dists,
     const at::PackedTensorAccessor64<float_t, 3, at::RestrictPtrTraits> pc1,
@@ -121,7 +121,7 @@ __global__ void sided_distance_backward_kernel(
   }
 }
 
-// TODO(arthurdjn) use AT_DISPATCH_FLOATING_TYPES once AtomicAdd supports doubles
+// TODO(arthurdjn) use AT_DISPATCH_FLOATING_TYPES once `atomicAdd` supports doubles
 std::tuple<at::Tensor, at::Tensor> sided_distance_backward_cuda(
     const at::Tensor& grad_dists,
     const at::Tensor& pc1,
