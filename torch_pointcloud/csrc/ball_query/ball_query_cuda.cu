@@ -9,14 +9,11 @@ template <typename scalar_t>
 __global__ void ball_query_kernel(
     const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> pc1,
     const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> pc2,
-    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits>
-        lengths1,
-    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits>
-        lengths2,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths1,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths2,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits>
         max_neighbors,
-    const at::PackedTensorAccessor64<scalar_t, 1, at::RestrictPtrTraits>
-        radiuses,
+    const at::PackedTensorAccessor64<scalar_t, 1, at::RestrictPtrTraits> radiuses,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> dists,
     at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> idxs) {
   const int64_t B = pc1.size(0);
@@ -101,8 +98,7 @@ std::tuple<at::Tensor, at::Tensor> ball_query_cuda(
             pc2.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
             lengths1.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             lengths2.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-            max_neighbors
-                .packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+            max_neighbors.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             radiuses.packed_accessor64<scalar_t, 1, at::RestrictPtrTraits>(),
             dists.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
             idxs.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>());

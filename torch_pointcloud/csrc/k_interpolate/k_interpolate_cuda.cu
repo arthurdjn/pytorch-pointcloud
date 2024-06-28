@@ -31,8 +31,7 @@ __global__ void k_interpolate_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> K,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> out_lengths,
-    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> out)
-{
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> out) {
   const int b = blockIdx.x; // batch index
   const int index = threadIdx.y * blockDim.x + threadIdx.x;
   const int stride = blockDim.y * blockDim.x;
@@ -45,19 +44,16 @@ __global__ void k_interpolate_kernel(
   const int64_t N_b = std::min(N, out_lengths[b]);
   const int64_t K_b = std::min(N_b, K[b]);
 
-  for (int i = index; i < N_b * C; i += stride)
-  {
+  for (int i = index; i < N_b * C; i += stride) {
     const int j = i / C;
     const int c = i % C;
 
     // Interpolate from the K nearest neighbors
     scalar_t interpolated_value = 0;
-    for (int k = 0; k < K_b; k++)
-    {
-      int ik = idxs[b][j][k];         // Index of the k-th nearest neighbor
+    for (int k = 0; k < K_b; k++) {
+      int ik = idxs[b][j][k]; // Index of the k-th nearest neighbor
       scalar_t wk = weights[b][j][k]; // Weight of the k-th nearest neighbor
-      if (ik >= 0 && ik < M_b)
-      {
+      if (ik >= 0 && ik < M_b) {
         interpolated_value += points[b][ik][c] * wk;
       }
     }
@@ -80,13 +76,12 @@ __global__ void k_interpolate_kernel(
  * @return (B, N, C) tensor, interpolated points
  */
 at::Tensor k_interpolate_cuda(
-    const at::Tensor &points,
-    const at::Tensor &idxs,
-    const at::Tensor &weights,
-    const at::Tensor &K,
-    const at::Tensor &lengths,
-    const at::Tensor &out_lengths)
-{
+    const at::Tensor& points,
+    const at::Tensor& idxs,
+    const at::Tensor& weights,
+    const at::Tensor& K,
+    const at::Tensor& lengths,
+    const at::Tensor& out_lengths) {
   at::TensorArg points_t{points, "points", 1}, idxs_t{idxs, "idxs", 2},
       weights_t{weights, "weights", 3}, K_t{K, "K", 4},
       lengths_t{lengths, "lengths", 4}, out_lengths_t{out_lengths, "out_lengths", 5};
@@ -129,22 +124,23 @@ at::Tensor k_interpolate_cuda(
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
   AT_DISPATCH_FLOATING_TYPES(
-      points.scalar_type(), "k_interpolate_cuda", ([&]
-                                                   { k_interpolate_kernel<scalar_t><<<B, opt_block_config(N, C), 0, stream>>>(
-                                                         points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-                                                         idxs.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
-                                                         weights.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-                                                         K.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-                                                         lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-                                                         out_lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-                                                         out.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>()); }));
+      points.scalar_type(), "k_interpolate_cuda", ([&] {
+        k_interpolate_kernel<scalar_t><<<B, opt_block_config(N, C), 0, stream>>>(
+            points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+            idxs.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
+            weights.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+            K.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+            lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+            out_lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+            out.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+      }));
 
   AT_CUDA_CHECK(cudaGetLastError());
 
   return out;
 }
 
-// TODO(arthurdjn) support all data types once AtomicAdd supports doubles
+// TODO(arthurdjn) support all data types once `atomicAdd` supports doubles
 /**
  * @brief Backward pass for the k_interpolate function
  *
@@ -167,8 +163,7 @@ __global__ void k_interpolate_backward_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> K,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> out_lengths,
-    at::PackedTensorAccessor64<float_t, 3, at::RestrictPtrTraits> grad_points)
-{
+    at::PackedTensorAccessor64<float_t, 3, at::RestrictPtrTraits> grad_points) {
   const int64_t C = grad_out.size(2);
   const int64_t N = grad_out.size(1);
   const int64_t M = grad_points.size(1);
@@ -180,17 +175,14 @@ __global__ void k_interpolate_backward_kernel(
 
   const int index = threadIdx.y * blockDim.x + threadIdx.x;
   const int stride = blockDim.y * blockDim.x;
-  for (int i = index; i < N_b * C; i += stride)
-  {
+  for (int i = index; i < N_b * C; i += stride) {
     const int j = i / C; // Output point index
     const int c = i % C; // Channel index
 
-    for (int k = 0; k < K_b; k++)
-    {
-      int64_t ik = idxs[b][j][k];    // Index of the k-th nearest neighbor
+    for (int k = 0; k < K_b; k++) {
+      int64_t ik = idxs[b][j][k]; // Index of the k-th nearest neighbor
       float_t wk = weights[b][j][k]; // Weight of the k-th nearest neighbor
-      if (ik >= 0 && ik < M_b)
-      {
+      if (ik >= 0 && ik < M_b) {
         atomicAdd(&grad_points[b][ik][c], grad_out[b][j][c] * wk);
       }
     }
@@ -215,14 +207,13 @@ __global__ void k_interpolate_backward_kernel(
  * @return (B, M, C) tensor, gradients with respect to the input points
  */
 at::Tensor k_interpolate_backward_cuda(
-    const at::Tensor &grad_out,
-    const at::Tensor &idxs,
-    const at::Tensor &weights,
-    const at::Tensor &K,
-    const at::Tensor &lengths,
-    const at::Tensor &out_lengths,
-    const int64_t M)
-{
+    const at::Tensor& grad_out,
+    const at::Tensor& idxs,
+    const at::Tensor& weights,
+    const at::Tensor& K,
+    const at::Tensor& lengths,
+    const at::Tensor& out_lengths,
+    const int64_t M) {
   at::TensorArg grad_out_t{grad_out, "grad_out", 1}, idxs_t{idxs, "idxs", 2},
       weights_t{weights, "weights", 3}, K_t{K, "K", 4},
       lengths_t{lengths, "lengths", 4}, out_lengths_t{out_lengths, "out_lengths", 5};
