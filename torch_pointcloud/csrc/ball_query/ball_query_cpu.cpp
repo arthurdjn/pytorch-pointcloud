@@ -16,8 +16,8 @@ std::tuple<at::Tensor, at::Tensor> ball_query_cpu(
   const int64_t K = max_neighbors.max().item<int64_t>();
 
   auto long_opts = lengths1.options().dtype(torch::kInt64);
-  torch::Tensor idxs = torch::full({B, N1, K}, -1, long_opts);
-  torch::Tensor dists = torch::full({B, N1, K}, 0, pc1.options());
+  auto idxs = torch::full({B, N1, K}, -1, long_opts);
+  auto dists = torch::full({B, N1, K}, 0, pc1.options());
 
   AT_DISPATCH_FLOATING_TYPES(
       pc1.scalar_type(), "ball_query_cpu", ([&] {
