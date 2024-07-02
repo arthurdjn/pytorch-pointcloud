@@ -1,6 +1,7 @@
 #include <torch/extension.h>
 #include <torch/serialize/tensor.h>
 
+#include "avg_voxelize/avg_voxelize.h"
 #include "ball_query/ball_query.h"
 #include "fps/fps.h"
 #include "k_interpolate/k_interpolate.h"
@@ -8,6 +9,7 @@
 #include "sided_dist/sided_dist.h"
 #include "three_interpolate/three_interpolate.h"
 #include "three_nn/three_nn.h"
+#include "trilinear_devoxelize/trilinear_devoxelize.h"
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("ball_query", &ball_query, "Ball Query (CPU/CUDA)");
@@ -20,4 +22,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("three_interpolate_backward", &three_interpolate_backward);
   m.def("sided_distance", &sided_distance);
   m.def("sided_distance_backward", &sided_distance_backward);
+  m.def("avg_voxelize", &avg_voxelize);
+  m.def("avg_voxelize_backward", &avg_voxelize_backward);
+  m.def("trilinear_devoxelize", &trilinear_devoxelize);
+  m.def("trilinear_devoxelize_backward", &trilinear_devoxelize_backward);
 }
