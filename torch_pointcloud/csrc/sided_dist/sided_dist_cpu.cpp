@@ -8,10 +8,10 @@ std::tuple<at::Tensor, at::Tensor> sided_distance_cpu(
     const at::Tensor& pc2,
     const at::Tensor& lengths1,
     const at::Tensor& lengths2) {
-  CHECK_CPU(pc1);
-  CHECK_CPU(pc2);
-  CHECK_CPU(lengths1);
-  CHECK_CPU(lengths2);
+  CHECK_IS_CPU(pc1);
+  CHECK_IS_CPU(pc2);
+  CHECK_IS_CPU(lengths1);
+  CHECK_IS_CPU(lengths2);
 
   AT_ASSERTM(
       pc1.dim() == 3 && pc2.dim() == 3, "pc1 and pc2 must have the shape [B, N, C]");
@@ -70,12 +70,12 @@ std::tuple<at::Tensor, at::Tensor> sided_distance_backward_cpu(
     const at::Tensor& idxs,
     const at::Tensor& lengths1,
     const at::Tensor& lengths2) {
-  CHECK_CPU(grad_dists);
-  CHECK_CPU(pc1);
-  CHECK_CPU(pc2);
-  CHECK_CPU(idxs);
-  CHECK_CPU(lengths1);
-  CHECK_CPU(lengths2);
+  CHECK_IS_CPU(grad_dists);
+  CHECK_IS_CPU(pc1);
+  CHECK_IS_CPU(pc2);
+  CHECK_IS_CPU(idxs);
+  CHECK_IS_CPU(lengths1);
+  CHECK_IS_CPU(lengths2);
 
   AT_ASSERTM(
       pc1.dim() == 3 && pc2.dim() == 3, "pc1 and pc2 must have the shape (B, N, C)");

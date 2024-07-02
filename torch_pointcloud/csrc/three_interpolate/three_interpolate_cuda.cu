@@ -94,11 +94,11 @@ at::Tensor three_interpolate_cuda(
   at::checkAllSameType(c, {points_t, weights_t});
   at::checkAllSameType(c, {lengths_t, out_lengths_t});
 
-  CHECK_CONTIGUOUS_CUDA(points);
-  CHECK_CONTIGUOUS_CUDA(idxs);
-  CHECK_CONTIGUOUS_CUDA(weights);
-  CHECK_CONTIGUOUS_CUDA(lengths);
-  CHECK_CONTIGUOUS_CUDA(out_lengths);
+  CHECK_IS_CONTIGUOUS_CUDA(points);
+  CHECK_IS_CONTIGUOUS_CUDA(idxs);
+  CHECK_IS_CONTIGUOUS_CUDA(weights);
+  CHECK_IS_CONTIGUOUS_CUDA(lengths);
+  CHECK_IS_CONTIGUOUS_CUDA(out_lengths);
 
   TORCH_CHECK(points.dim() == 3, "points must be a tensor of shape (B, M, 3)");
   TORCH_CHECK(idxs.dim() == 3, "idxs must be a tensor of shape (B, N, 3)");
@@ -227,11 +227,11 @@ at::Tensor three_interpolate_backward_cuda(
   at::checkAllSameType(c, {grad_out_t, weights_t});
   at::checkAllSameType(c, {lengths_t, out_lengths_t});
 
-  CHECK_CONTIGUOUS_CUDA(grad_out);
-  CHECK_CONTIGUOUS_CUDA(idxs);
-  CHECK_CONTIGUOUS_CUDA(weights);
-  CHECK_CONTIGUOUS_CUDA(lengths);
-  CHECK_CONTIGUOUS_CUDA(out_lengths);
+  CHECK_IS_CONTIGUOUS_CUDA(grad_out);
+  CHECK_IS_CONTIGUOUS_CUDA(idxs);
+  CHECK_IS_CONTIGUOUS_CUDA(weights);
+  CHECK_IS_CONTIGUOUS_CUDA(lengths);
+  CHECK_IS_CONTIGUOUS_CUDA(out_lengths);
 
   TORCH_CHECK(grad_out.dim() == 3, "grad_out must be a tensor of shape (B, N, C)");
   TORCH_CHECK(idxs.dim() == 3, "idxs must be a tensor of shape (B, N, 3)");
