@@ -105,12 +105,14 @@ at::Tensor fps_cuda(
 
   auto points_a = points.packed_accessor64<float, 3, at::RestrictPtrTraits>();
   auto lengths_a = lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>();
-  auto num_samples_a = num_samples.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>();
-  auto start_idxs_a = start_idxs.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>();
+  auto num_samples_a =
+      num_samples.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>();
+  auto start_idxs_a =
+      start_idxs.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>();
   auto dists_a = dists.packed_accessor64<float, 2, at::RestrictPtrTraits>();
   auto idxs_a = idxs.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>();
 
-  unsigned int threads = opt_n_threads(N);
+  unsigned int threads = optimal_num_threads(N);
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
   switch (threads) {

@@ -125,7 +125,7 @@ at::Tensor k_interpolate_cuda(
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
   AT_DISPATCH_FLOATING_TYPES(
       points.scalar_type(), "k_interpolate_cuda", ([&] {
-        k_interpolate_kernel<scalar_t><<<B, opt_block_config(N, C), 0, stream>>>(
+        k_interpolate_kernel<scalar_t><<<B, optimal_block_config(N, C), 0, stream>>>(
             points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
             idxs.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
             weights.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
@@ -255,7 +255,7 @@ at::Tensor k_interpolate_backward_cuda(
   auto grad_points = at::zeros({B, M, C}, grad_out.options());
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
-  k_interpolate_backward_kernel<<<B, opt_block_config(N, C), 0, stream>>>(
+  k_interpolate_backward_kernel<<<B, optimal_block_config(N, C), 0, stream>>>(
       grad_out.packed_accessor64<float_t, 3, at::RestrictPtrTraits>(),
       idxs.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
       weights.packed_accessor64<float_t, 3, at::RestrictPtrTraits>(),
