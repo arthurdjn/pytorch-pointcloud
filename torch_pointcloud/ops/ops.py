@@ -88,7 +88,7 @@ def k_interpolate(
     out_lengths = out_lengths.clamp(0, N).contiguous().to(points.device)
     k = k.clamp(0, N).contiguous().to(points.device)
 
-    return KInterpolate.apply(points, idxs, weights, k, lengths, out_lengths)  # type: ignore[no-untyped-call]
+    return KInterpolate.apply(points, idxs, weights, k, lengths, out_lengths)
 
 
 def three_interpolate(
@@ -154,7 +154,6 @@ def three_nn(
     lengths2 = lengths2.clamp(0, N2).to(pc1.device)
 
     return _C.three_nn(pc1.contiguous(), pc2.contiguous(), lengths1, lengths2)
-    return knn(pc1, pc2, k=3, lengths1=lengths1, lengths2=lengths2)
 
 
 def knn_interpolate(
@@ -236,6 +235,7 @@ def ball_query(
 
 def ball_grouping(features: Tensor, idx: Tensor) -> Tensor:
     # TODO: Handle the -1 index directly in the ball_query, and add a fill_mode and fill_value parameters
+    # TODO: to handle the -1, maybe pass the lengths of the features too...
     # fille_mode: str = 'closest', 'furthest', 'random', 'mirror', 'constant', 'pad' (pad: fill_value=-1)
 
     # all_idx = idx.reshape(idx.shape[0], -1)
