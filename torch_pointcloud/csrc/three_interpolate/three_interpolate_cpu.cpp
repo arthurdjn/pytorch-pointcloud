@@ -9,10 +9,12 @@
  *
  * @param points (B, M, 3) tensor, input points
  * @param idxs (B, N, 3) tensor, indices of the three nn used during the forward pass
- * @param weights (B, N, 3) tensor, weights for the three nn used during the forward pass
- * @param lengths (B,) tensor, containing the sizes (size < M) of the input point clouds
- * @param out_lengths (B,) tensor, containing the sizes (size < N) of the output point
+ * @param weights (B, N, 3) tensor, weights for the three nn used during the forward
+ * pass
+ * @param lengths (B,) tensor, containing the sizes (size < M) of the input point
  * clouds
+ * @param out_lengths (B,) tensor, containing the sizes (size < N) of the output
+ * point clouds
  * @return (B, N, 3) tensor, interpolated points
  */
 at::Tensor three_interpolate_cpu(
@@ -29,10 +31,10 @@ at::Tensor three_interpolate_cpu(
   at::checkAllSameType(c, {points_t, weights_t});
   at::checkAllSameType(c, {lengths_t, out_lengths_t});
 
-  CHECK_CONTIGUOUS_CPU(points);
-  CHECK_CONTIGUOUS_CPU(lengths);
-  CHECK_CONTIGUOUS_CPU(idxs);
-  CHECK_CONTIGUOUS_CPU(weights);
+  CHECK_IS_CONTIGUOUS_CPU(points);
+  CHECK_IS_CONTIGUOUS_CPU(lengths);
+  CHECK_IS_CONTIGUOUS_CPU(idxs);
+  CHECK_IS_CONTIGUOUS_CPU(weights);
 
   TORCH_CHECK(points.dim() == 3, "points must be a tensor of shape (B, M, 3)");
   TORCH_CHECK(idxs.dim() == 3, "idxs must be a tensor of shape (B, N, 3)");
@@ -52,45 +54,48 @@ at::Tensor three_interpolate_cpu(
       weights.size(0) == B && weights.size(1) == N && weights.size(2) == 3,
       "weights must be a tensor of shape (B, N, 3)");
   TORCH_CHECK(lengths.size(0) == B, "lengths must be a tensor of shape (B,)");
-  TORCH_CHECK(out_lengths.size(0) == B, "out_lengths must be a tensor of shape (B,)");
+  TORCH_CHECK(
+      out_lengths.size(0) == B, "out_lengths must be a tensor of shape (B,)");
 
   auto out = at::zeros({B, N, C}, points.options());
 
-  AT_DISPATCH_FLOATING_TYPES(
-      points.scalar_type(), "three_interpolate_cpu", ([&] {
-        auto points_a = points.accessor<scalar_t, 3>();
-        auto lengths_a = lengths.accessor<int64_t, 1>();
-        auto out_lengths_a = out_lengths.accessor<int64_t, 1>();
-        auto idxs_a = idxs.accessor<int64_t, 3>();
-        auto weights_a = weights.accessor<scalar_t, 3>();
-        auto out_a = out.accessor<scalar_t, 3>();
+  AT_DISPATCH_FLOATING_TYPES(points.scalar_type(), "three_interpolate_cpu", ([&] {
+                               auto points_a = points.accessor<scalar_t, 3>();
+                               auto lengths_a = lengths.accessor<int64_t, 1>();
+                               auto out_lengths_a =
+                                   out_lengths.accessor<int64_t, 1>();
+                               auto idxs_a = idxs.accessor<int64_t, 3>();
+                               auto weights_a = weights.accessor<scalar_t, 3>();
+                               auto out_a = out.accessor<scalar_t, 3>();
 
-        for (int b = 0; b < B; ++b) {
-          int64_t M_b = std::min(lengths_a[b], M);
-          int64_t N_b = std::min(out_lengths_a[b], N);
-          for (int j = 0; j < N_b; ++j) {
-            for (int64_t c = 0; c < C; ++c) {
-              // Get the three nearest neighbors
-              int64_t i1 = idxs_a[b][j][0];
-              int64_t i2 = idxs_a[b][j][1];
-              int64_t i3 = idxs_a[b][j][2];
+                               for (int b = 0; b < B; ++b) {
+                                 int64_t M_b = std::min(lengths_a[b], M);
+                                 int64_t N_b = std::min(out_lengths_a[b], N);
+                                 for (int j = 0; j < N_b; ++j) {
+                                   for (int64_t c = 0; c < C; ++c) {
+                                     // Get the three nearest neighbors
+                                     int64_t i1 = idxs_a[b][j][0];
+                                     int64_t i2 = idxs_a[b][j][1];
+                                     int64_t i3 = idxs_a[b][j][2];
 
-              // Get the three weights
-              scalar_t w1 = weights_a[b][j][0];
-              scalar_t w2 = weights_a[b][j][1];
-              scalar_t w3 = weights_a[b][j][2];
+                                     // Get the three weights
+                                     scalar_t w1 = weights_a[b][j][0];
+                                     scalar_t w2 = weights_a[b][j][1];
+                                     scalar_t w3 = weights_a[b][j][2];
 
-              // Interpolate the points from the three nearest neighbors
-              if (i1 >= 0 && i1 < M_b && i2 >= 0 && i2 < M_b && i3 >= 0 && i3 < M_b) {
-                scalar_t c1 = points_a[b][i1][c];
-                scalar_t c2 = points_a[b][i2][c];
-                scalar_t c3 = points_a[b][i3][c];
-                out_a[b][j][c] = c1 * w1 + c2 * w2 + c3 * w3;
-              }
-            }
-          }
-        }
-      }));
+                                     // Interpolate the points from the three nearest
+                                     // neighbors
+                                     if (i1 >= 0 && i1 < M_b && i2 >= 0 &&
+                                         i2 < M_b && i3 >= 0 && i3 < M_b) {
+                                       scalar_t c1 = points_a[b][i1][c];
+                                       scalar_t c2 = points_a[b][i2][c];
+                                       scalar_t c3 = points_a[b][i3][c];
+                                       out_a[b][j][c] = c1 * w1 + c2 * w2 + c3 * w3;
+                                     }
+                                   }
+                                 }
+                               }
+                             }));
 
   return out;
 }
@@ -100,10 +105,12 @@ at::Tensor three_interpolate_cpu(
  *
  * @param grad_out (B, N, C) tensor, previously computed gradients
  * @param idxs (B, N, 3) tensor, indices of the three nn used during the forward pass
- * @param weights (B, N, 3) tensor, weights for the three nn used during the forward pass
- * @param lengths (B,) tensor, containing the sizes (size < M) of the input point clouds
- * @param out_lengths (B,) tensor, containing the sizes (size < N) of the output point
+ * @param weights (B, N, 3) tensor, weights for the three nn used during the forward
+ * pass
+ * @param lengths (B,) tensor, containing the sizes (size < M) of the input point
  * clouds
+ * @param out_lengths (B,) tensor, containing the sizes (size < N) of the output
+ * point clouds
  * @return (B, M, C) tensor, gradients with respect to the input points
  */
 at::Tensor three_interpolate_backward_cpu(
@@ -120,11 +127,11 @@ at::Tensor three_interpolate_backward_cpu(
   at::checkAllSameType(c, {grad_out_t, weights_t});
   at::checkAllSameType(c, {lengths_t, out_lengths_t});
 
-  CHECK_CONTIGUOUS_CPU(grad_out);
-  CHECK_CONTIGUOUS_CPU(idxs);
-  CHECK_CONTIGUOUS_CPU(weights);
-  CHECK_CONTIGUOUS_CPU(lengths);
-  CHECK_CONTIGUOUS_CPU(out_lengths);
+  CHECK_IS_CONTIGUOUS_CPU(grad_out);
+  CHECK_IS_CONTIGUOUS_CPU(idxs);
+  CHECK_IS_CONTIGUOUS_CPU(weights);
+  CHECK_IS_CONTIGUOUS_CPU(lengths);
+  CHECK_IS_CONTIGUOUS_CPU(out_lengths);
 
   TORCH_CHECK(grad_out.dim() == 3, "grad_out must be of shape (B, N, 3)");
   TORCH_CHECK(idxs.dim() == 3, "idxs must be of shape (B, N, 3)");
@@ -144,7 +151,8 @@ at::Tensor three_interpolate_backward_cpu(
       weights.size(0) == B && weights.size(1) == N && weights.size(2) == 3,
       "weights must be a tensor of shape (B, N, 3)");
   TORCH_CHECK(lengths.size(0) == B, "lengths must be a tensor of shape (B,)");
-  TORCH_CHECK(out_lengths.size(0) == B, "out_lengths must be a tensor of shape (B,)");
+  TORCH_CHECK(
+      out_lengths.size(0) == B, "out_lengths must be a tensor of shape (B,)");
 
   // Initialize gradients w.r.t the input points
   auto grad_points = at::zeros({B, M, C}, grad_out.options());

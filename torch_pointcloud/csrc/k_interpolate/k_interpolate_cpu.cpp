@@ -32,10 +32,10 @@ at::Tensor k_interpolate_cpu(
   at::checkAllSameType(c, {points_t, weights_t});
   at::checkAllSameType(c, {K_t, lengths_t, out_lengths_t});
 
-  CHECK_CONTIGUOUS_CPU(points);
-  CHECK_CONTIGUOUS_CPU(lengths);
-  CHECK_CONTIGUOUS_CPU(idxs);
-  CHECK_CONTIGUOUS_CPU(weights);
+  CHECK_IS_CONTIGUOUS_CPU(points);
+  CHECK_IS_CONTIGUOUS_CPU(lengths);
+  CHECK_IS_CONTIGUOUS_CPU(idxs);
+  CHECK_IS_CONTIGUOUS_CPU(weights);
 
   TORCH_CHECK(points.dim() == 3, "points must be a tensor of shape (B, M, C)");
   TORCH_CHECK(idxs.dim() == 3, "idxs must be a tensor of shape (B, N, K)");
@@ -125,11 +125,11 @@ at::Tensor k_interpolate_backward_cpu(
   at::checkAllSameType(c, {grad_out_t, weights_t});
   at::checkAllSameType(c, {K_t, lengths_t, out_lengths_t});
 
-  CHECK_CONTIGUOUS_CPU(grad_out);
-  CHECK_CONTIGUOUS_CPU(idxs);
-  CHECK_CONTIGUOUS_CPU(weights);
-  CHECK_CONTIGUOUS_CPU(lengths);
-  CHECK_CONTIGUOUS_CPU(out_lengths);
+  CHECK_IS_CONTIGUOUS_CPU(grad_out);
+  CHECK_IS_CONTIGUOUS_CPU(idxs);
+  CHECK_IS_CONTIGUOUS_CPU(weights);
+  CHECK_IS_CONTIGUOUS_CPU(lengths);
+  CHECK_IS_CONTIGUOUS_CPU(out_lengths);
 
   TORCH_CHECK(grad_out.dim() == 3, "grad_out must be of shape (B, N, 3)");
   TORCH_CHECK(idxs.dim() == 3, "idxs must be of shape (B, N, 3)");
