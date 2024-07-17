@@ -4,7 +4,7 @@
 
 # TODO: add load_kernels function
 # TODO: add datasets!
-# TODOOOOOOO
+# TODOOOOOO
 
 
 def load_kernels(radius, num_kpoints, dimension, fixed, lloyd=False):
