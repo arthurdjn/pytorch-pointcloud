@@ -2,11 +2,6 @@
 # type: ignore
 
 
-# TODO: add load_kernels function
-# TODO: add datasets!
-# TODOOOOOO
-
-
 def load_kernels(radius, num_kpoints, dimension, fixed, lloyd=False):
 
     # Kernel directory
@@ -113,7 +108,6 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
-from kernels.kernel_points import load_kernels
 from torch.nn.init import kaiming_uniform_
 from torch.nn.parameter import Parameter
 
