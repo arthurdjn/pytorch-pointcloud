@@ -38,18 +38,17 @@ def spherical_lloyd(
     Creation of kernel points via Lloyd's algorithm on a sphere.
 
     Args:
-        radius (float): Radius of the kernels.
-        num_cells (int): Number of cells (kernel points) in the Voronoi diagram.
-        dimension (int): Dimension of the space.
-        position (Position): Fix position of certain kernel points.
-        approximation (Approximation): Approximation method for Lloyd's algorithm.
-        approx_n (int): Number of points used for approximation.
-        max_iter (int): Maximum number of iterations for the algorithm.
-        momentum (float): Momentum of the low pass filter smoothing kernel point positions.
+        radius: Radius of the kernels.
+        num_cells: Number of cells (kernel points) in the Voronoi diagram.
+        dimension: Dimension of the space.
+        position: Fix position of certain kernel points.
+        approximation: Approximation method for Lloyd's algorithm.
+        approx_n: Number of points used for approximation.
+        max_iter: Maximum number of iterations for the algorithm.
+        momentum: Momentum of the low pass filter smoothing kernel point positions.
 
     Returns:
-        Tuple[torch.Tensor, torch.Tensor]: Tensor of kernel points with shape [num_cells, dimension],
-                                           and tensor of maximum moves per iteration.
+        Tensor of kernel points with shape [num_cells, dimension], and tensor of maximum moves per iteration.
     """
     if dimension < 2 or dimension > 4:
         raise ValueError("Unsupported dimension. Expected 2, 3 or 4.")
@@ -57,31 +56,6 @@ def spherical_lloyd(
         raise ValueError('Unsupported position. Expected "none", "center" or "verticals".')
     if approximation not in ["discretization", "monte-carlo"]:
         raise ValueError('Unsupported approximation method. Expected "discretization" or "monte-carlo".')
-
-    def generate_approximation_points() -> torch.Tensor:
-        if approximation == "discretization":
-            side_n = int(approx_n ** (1.0 / dimension))
-            dl = 2 * radius / side_n
-            coords = torch.arange(-radius + dl / 2, radius, dl)
-
-            if dimension == 2:
-                x, y = torch.meshgrid(coords, coords, indexing="ij")
-                X = torch.stack((x.ravel(), y.ravel()), dim=1)
-            elif dimension == 3:
-                x, y, z = torch.meshgrid(coords, coords, coords, indexing="ij")
-                X = torch.stack((x.ravel(), y.ravel(), z.ravel()), dim=1)
-            elif dimension == 4:
-                x, y, z, t = torch.meshgrid(coords, coords, coords, coords, indexing="ij")
-                X = torch.stack((x.ravel(), y.ravel(), z.ravel(), t.ravel()), dim=1)
-            else:
-                raise ValueError("Unsupported dimension (max is 4)")
-
-            d2 = torch.sum(X**2, dim=1)
-            return X[d2 < radius * radius, :]
-        elif approximation == "monte-carlo":
-            return torch.zeros((0, dimension))
-        else:
-            raise ValueError(f"Unsupported approximation method: {approximation}")
 
     # Radius used for optimization (points are rescaled afterwards)
     radius0 = 1.0
@@ -105,14 +79,14 @@ def spherical_lloyd(
         kernel_points[2, -1] -= 2 * radius0 / 3
 
     # Initialize discretization if this method is chosen
-    if approximation == "discretization":
+    if approximation == "monte-carlo":
+        X = torch.zeros((0, dimension))
+    elif approximation == "discretization":
         side_n = int(approx_n ** (1.0 / dimension))
         dl = 2 * radius0 / side_n
         coords = torch.arange(-radius0 + dl / 2, radius0, dl)
         mesh = torch.meshgrid([coords] * dimension, indexing="ij")
         X = torch.stack([m.ravel() for m in mesh], dim=1)
-    elif approximation == "monte-carlo":
-        X = torch.zeros((0, dimension))
     else:
         raise ValueError(f'Wrong approximation method chosen: "{approximation}"')
 
@@ -124,24 +98,21 @@ def spherical_lloyd(
 
     for _ in range(max_iter):
         if approximation == "monte-carlo":
-            X = (torch.rand(approx_n, dimension) * 2 - 1) * radius0
+            X = torch.empty(approx_n, dimension).uniform_(-radius0, radius0)
             d2 = torch.sum(X**2, dim=1)
             X = X[d2 < radius0**2, :]
 
         # Get the distances matrix [n_approx, K, dim]
-        differences = X.unsqueeze(1) - kernel_points.unsqueeze(0)
-        sq_distances = torch.sum(differences**2, dim=2)
+        diff = X.unsqueeze(1) - kernel_points.unsqueeze(0)
+        dist2 = torch.sum(diff**2, dim=2)
 
         # Compute cell centers
-        cell_idxs = torch.argmin(sq_distances, dim=1)
+        cell_idxs = torch.argmin(dist2, dim=1)
         center_list = []
         for c in range(num_cells):
             mask_idxs = cell_idxs == c
             num_c = torch.sum(mask_idxs)
-            if num_c > 0:
-                center_list.append(torch.sum(X[mask_idxs, :], dim=0) / num_c)
-            else:
-                center_list.append(kernel_points[c])
+            center_list.append(torch.sum(X[mask_idxs, :], dim=0) / num_c if num_c > 0 else kernel_points[c])
 
         # Update kernel points with low pass filter to smooth monte carlo
         centers = torch.stack(center_list, dim=0)
