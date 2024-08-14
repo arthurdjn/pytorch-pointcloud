@@ -26,6 +26,14 @@
 
 ## 📝 Table of Contents
 
+$$
+M(k) = \begin{bmatrix}
+0 & -k_3 & k_2 \\
+k_3 & 0 & -k_1 \\
+-k_2 & k_1 & 0
+\end{bmatrix}
+$$
+
 <br>
 
 ## 📌 About <a name="about"></a>

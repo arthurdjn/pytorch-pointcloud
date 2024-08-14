@@ -6,6 +6,31 @@ from torch import Tensor
 
 
 def cross_product_matrix(k: Tensor) -> Tensor:
+    r"""Constructs a skew-symmetric matrix (also known as a cross-product matrix) 
+    for a given 3D vector $k = [k1, k2, k3]$. The function returns a 
+    3x3 skew-symmetric matrix `M(k)` of the form:
+
+    $$
+    M(k) = \begin{bmatrix}
+    0 & -k_3 & k_2 \\
+    k_3 & 0 & -k_1 \\
+    -k_2 & k_1 & 0
+    \end{bmatrix}
+    $$
+
+    Args:
+        k: A tensor of shape `[3]` representing the 3D vector.
+
+    Returns:
+        A 3x3 skew-symmetric matrix corresponding to the cross-product operation.
+
+    Example:
+        >>> k = torch.tensor([1.0, 2.0, 3.0])
+        >>> v = torch.tensor([4.0, 5.0, 6.0])
+        >>> m = cross_product_matrix(k)
+        >>> cross_product = torch.matmul(m, v)
+    """
+
     m = [
         [0, -k[2], k[1]],
         [k[2], 0, -k[0]],
@@ -16,6 +41,27 @@ def cross_product_matrix(k: Tensor) -> Tensor:
 
 
 def rodrigues_rotation_matrix(axis: Tensor, theta_degrees: float) -> Tensor:
+    r"""Computes a 3D rotation matrix using Rodrigues' rotation formula.
+
+    This function rotates a vector in 3D space around a specified axis by a
+    given angle. The rotation matrix is computed using the following formula:
+
+    $$
+    R = I + \sin(\theta)K + (1 - \cos(\theta))K^2
+    $$
+
+    Where:
+    - \( I \) is the identity matrix.
+    - \( K \) is the skew-symmetric matrix (cross-product matrix) derived from the axis of rotation.
+    - \( \theta \) is the rotation angle in radians, converted from degrees.
+
+    Args:
+        axis: A 3D vector representing the axis of rotation.
+        theta_degrees: The angle of rotation in degrees.
+
+    Returns:
+        A 3x3 rotation matrix that rotates a vector around the specified axis by the specified angle.
+    """
     axis = axis.detach().clone().float()
     axis = axis / axis.norm()
     K = cross_product_matrix(axis)
@@ -34,8 +80,7 @@ def spherical_lloyd(
     max_iter: int = 500,
     momentum: float = 0.9,
 ) -> torch.Tensor:
-    """
-    Creation of kernel points via Lloyd's algorithm on a sphere.
+    r"""Creation of kernel points via Lloyd's algorithm on a sphere.
 
     Args:
         radius: Radius of the kernels.

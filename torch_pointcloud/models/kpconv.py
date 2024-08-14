@@ -16,43 +16,28 @@ from torch_pointcloud.utils.config import CACHE_DIR
 class KPConv(nn.Module):
     def __init__(
         self,
-        kernel_size,
-        p_dim,
-        in_channels,
-        out_channels,
-        KP_extent,
-        radius,
-        fixed_kernel_points="center",
-        KP_influence="linear",
-        aggregation_mode="sum",
-        deformable=False,
-        modulated=False,
+        kernel_size: int,
+        p_dim: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_extent: float,
+        radius: float,
+        fixed_kernel_points: str = "center",
+        kernel_influence: str = "linear",
+        aggregation_mode: str = "sum",
+        deformable: bool = False,
+        modulated: bool = False,
     ):
-        """
-        Initialize parameters for KPConvDeformable.
-        :param kernel_size: Number of kernel points.
-        :param p_dim: dimension of the point space.
-        :param in_channels: dimension of input features.
-        :param out_channels: dimension of output features.
-        :param KP_extent: influence radius of each kernel point.
-        :param radius: radius used for kernel point init. Even for deformable, use the config.conv_radius
-        :param fixed_kernel_points: fix position of certain kernel points ('none', 'center' or 'verticals').
-        :param KP_influence: influence function of the kernel points ('constant', 'linear', 'gaussian').
-        :param aggregation_mode: choose to sum influences, or only keep the closest ('closest', 'sum').
-        :param deformable: choose deformable or not
-        :param modulated: choose if kernel weights are modulated in addition to deformed
-        """
-        super(KPConv, self).__init__()
+        super().__init__()
 
-        # Save parameters
-        self.K = kernel_size
+        self.kernel_size = kernel_size
         self.p_dim = p_dim
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.radius = radius
-        self.KP_extent = KP_extent
+        self.kernel_extent = kernel_extent
         self.fixed_kernel_points = fixed_kernel_points
-        self.KP_influence = KP_influence
+        self.kernel_influence = kernel_influence
         self.aggregation_mode = aggregation_mode
         self.deformable = deformable
         self.modulated = modulated
@@ -64,7 +49,7 @@ class KPConv(nn.Module):
 
         # Initialize weights
         self.weights = Parameter(
-            torch.zeros((self.K, in_channels, out_channels), dtype=torch.float32), requires_grad=True
+            torch.zeros((kernel_size, in_channels, out_channels), dtype=torch.float32), requires_grad=True
         )
 
         # Initiate weights for offsets
@@ -95,35 +80,20 @@ class KPConv(nn.Module):
         self.reset_parameters()
 
         # Initialize kernel points
-        self.kernel_points = self.init_KP()
+        self.kernel_points = self.load_kernel()
 
-        return
-
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         kaiming_uniform_(self.weights, a=math.sqrt(5))
         if self.deformable:
             nn.init.zeros_(self.offset_bias)
-        return
 
-    def init_KP(self):
-        """
-        Initialize the kernel point positions in a sphere
-        :return: the tensor of kernel points
-        """
-
+    def load_kernel(self) -> Tensor:
         # Create one kernel disposition (as numpy array). Choose the KP distance to center thanks to the KP extent
         K_points_numpy = load_kernels(self.radius, self.K, dimension=self.p_dim, fixed=self.fixed_kernel_points)
-
         return Parameter(torch.tensor(K_points_numpy, dtype=torch.float32), requires_grad=False)
 
-    def forward(self, q_pts, s_pts, neighb_inds, x):
-
-        ###################
-        # Offset generation
-        ###################
-
+    def forward(self, q_pts: Tensor, s_pts: Tensor, neighb_inds: Tensor, x: Tensor) -> Tensor:
         if self.deformable:
-
             # Get offsets with a KPConv that only takes part of the features
             self.offset_features = self.offset_conv(q_pts, s_pts, neighb_inds, x) + self.offset_bias
 
@@ -254,7 +224,7 @@ class KPConv(nn.Module):
         # Convolution sum [n_points, out_fdim]
         return torch.sum(kernel_outputs, dim=0)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "KPConv(radius: {:.2f}, in_feat: {:d}, out_feat: {:d})".format(
             self.radius, self.in_channels, self.out_channels
         )
