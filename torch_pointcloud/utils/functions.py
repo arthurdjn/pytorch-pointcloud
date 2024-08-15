@@ -40,6 +40,38 @@ def cross_product_matrix(k: Tensor) -> Tensor:
     return torch.tensor(m, device=k.device)
 
 
+def cross_product_matrices(k: Tensor) -> Tensor:
+    r"""Constructs a batch of skew-symmetric matrices (also known as cross-product matrices) 
+    for a batch of 3D vectors.
+
+    For each 3D vector \( k = [k_1, k_2, k_3] \), the corresponding skew-symmetric matrix \( K \) is:
+
+    $$
+    K = \begin{bmatrix}
+    0 & -k_3 & k_2 \\
+    k_3 & 0 & -k_1 \\
+    -k_2 & k_1 & 0
+    \end{bmatrix}
+    $$
+
+    Args:
+        k: A tensor of shape `[N, 3]` representing N 3D vectors.
+
+    Returns:
+        A tensor of shape [N, 3, 3] where each [3, 3] matrix is the skew-symmetric 
+        matrix corresponding to the cross-product operation for each vector.
+    """
+    K = torch.zeros(k.shape[0], 3, 3, device=k.device)
+    K[:, 0, 1] = -k[:, 2]
+    K[:, 0, 2] = k[:, 1]
+    K[:, 1, 0] = k[:, 2]
+    K[:, 1, 2] = -k[:, 0]
+    K[:, 2, 0] = -k[:, 1]
+    K[:, 2, 1] = k[:, 0]
+
+    return K
+
+
 def rodrigues_rotation_matrix(axis: Tensor, theta_degrees: float) -> Tensor:
     r"""Computes a 3D rotation matrix using Rodrigues' rotation formula.
 
@@ -68,6 +100,81 @@ def rodrigues_rotation_matrix(axis: Tensor, theta_degrees: float) -> Tensor:
     t = torch.tensor([theta_degrees / 180.0 * math.pi], device=axis.device)
     R = torch.eye(3, device=axis.device) + torch.sin(t) * K + (1 - torch.cos(t)) * K.mm(K)
     return R
+
+
+def rodrigues_rotation_matrices(axes: Tensor, theta_degrees: Tensor) -> Tensor:
+    r"""Computes a batch of 3D rotation matrices using Rodrigues' rotation formula.
+
+    Rodrigues' rotation formula for rotating a vector by an angle \( \theta \) around
+    an axis \( k \) is given by:
+
+    $$
+    R = I + \sin(\theta)K + (1 - \cos(\theta))K^2
+    $$
+
+    Where:
+    - \( I \) is the identity matrix.
+    - \( K \) is the skew-symmetric matrix (cross-product matrix) of the axis \( k \).
+    - \( \theta \) is the angle of rotation in radians.
+
+    Args:
+        axes: A tensor of shape $[N, 3]$ representing the axes of rotation.
+        theta_degrees: A tensor of shape $[N,]$ representing the angles of rotation in degrees.
+
+    Returns:
+        A tensor of shape $[N, 3, 3]$ containing the rotation matrices for each axis-angle pair.
+    """
+    axes = axes / axes.norm(dim=1, keepdim=True)  # Normalize the axes
+    theta_radians = theta_degrees * math.pi / 180.0  # Convert angles to radians
+
+    # Create batch of cross-product matrices for the axes
+    K = cross_product_matrices(axes)
+
+    # Rodrigues' formula: R = I + sin(theta) * K + (1 - cos(theta)) * K^2
+    eye = torch.eye(3, device=axes.device).unsqueeze(0)  # Identity matrix of shape [1, 3, 3]
+    sin_theta = torch.sin(theta_radians).unsqueeze(1).unsqueeze(2)  # [N, 1, 1]
+    cos_theta = torch.cos(theta_radians).unsqueeze(1).unsqueeze(2)  # [N, 1, 1]
+
+    # Compute the rotation matrix using tensor operations
+    R = eye + sin_theta * K + (1 - cos_theta) * K @ K
+
+    return R
+
+
+# def create_3D_rotations(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
+#     r"""Creates 3D rotation matrices from a set of axes and corresponding angles using the axis-angle representation.
+
+#     This function computes rotation matrices for each axis-angle pair using the Rodrigues' rotation formula.
+#     Given an axis of rotation and an angle, it returns the 3x3 rotation matrix for each pair.
+
+#     Args:
+#         axis: A tensor of shape [N, 3] representing the axes of rotation. Each row is a 3D vector (axis).
+#         angle: A tensor of shape [N,] representing the rotation angles (in radians) for each axis.
+
+#     Returns:
+#         A tensor of shape [N, 3, 3] containing the rotation matrices for each axis-angle pair.
+#         Each 3x3 matrix represents a rotation in 3D space.
+#     """
+#     t1 = torch.cos(angle)
+#     t2 = 1 - t1
+#     t3 = axis[:, 0] * axis[:, 0]
+#     t6 = t2 * axis[:, 0]
+#     t7 = t6 * axis[:, 1]
+#     t8 = torch.sin(angle)
+#     t9 = t8 * axis[:, 2]
+#     t11 = t6 * axis[:, 2]
+#     t12 = t8 * axis[:, 1]
+#     t15 = axis[:, 1] * axis[:, 1]
+#     t19 = t2 * axis[:, 1] * axis[:, 2]
+#     t20 = t8 * axis[:, 0]
+#     t24 = axis[:, 2] * axis[:, 2]
+
+#     R = torch.stack(
+#         [t1 + t2 * t3, t7 - t9, t11 + t12, t7 + t9, t1 + t2 * t15, t19 - t20, t11 - t12, t19 + t20, t1 + t2 * t24],
+#         dim=1,
+#     )
+
+#     return R.reshape(-1, 3, 3)
 
 
 def spherical_lloyd(
