@@ -5,7 +5,7 @@ import torch.autograd
 from torch import Tensor
 
 from torch_pointcloud import _C  # type: ignore[attr-defined]
-from torch_pointcloud.utils import default_vector
+from torch_pointcloud.utils import default_vector, sequence_tensor
 
 
 class ThreeInterpolate(torch.autograd.Function):
@@ -19,21 +19,15 @@ class ThreeInterpolate(torch.autograd.Function):
         out_lengths: Tensor,
     ) -> Tensor:
         ctx.save_for_backward(idxs, weights, lengths, out_lengths)
-        ctx.num_points = points.size(1)
         out = _C.three_interpolate(points, idxs, weights, lengths, out_lengths)
         return out
 
     @staticmethod
     def backward(ctx: Any, *grad_outputs: Tensor) -> Tuple[Tensor, None, None, None, None]:
-        # There is a typing error if not using *args as arguments in the function signature:
-        # -> Signature of "backward" incompatible with supertype "_SingleLevelFunction" mypy[override]
-        # Using *args is a workaround to avoid the error, and it is expected to be fixed in future versions,
-        # to have a cleaner function signature and easier to understand.
         grad_out, *_ = grad_outputs
         grad_out = grad_out.contiguous()
         idxs, weights, lengths, out_lengths = ctx.saved_tensors
-        M = ctx.num_points
-        grad_points = _C.three_interpolate_backward(grad_out, idxs, weights, lengths, out_lengths, M)
+        grad_points = _C.three_interpolate_backward(grad_out, idxs, weights, lengths, out_lengths)
         return grad_points, None, None, None, None
 
 
@@ -55,10 +49,6 @@ class KInterpolate(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx: Any, *grad_outputs: Tensor) -> Tuple[Tensor, None, None, None, None, None]:
-        # There is a typing error if not using *args as arguments in the function signature:
-        # -> Signature of "backward" incompatible with supertype "_SingleLevelFunction" mypy[override]
-        # Using *args is a workaround to avoid the error, and it is expected to be fixed in future versions,
-        # to have a cleaner function signature and easier to understand.
         grad_out, *_ = grad_outputs
         grad_out = grad_out.contiguous()
         idxs, weights, K, lengths, out_lengths = ctx.saved_tensors
@@ -183,7 +173,7 @@ def fps(
     points: Tensor,
     num_samples: Optional[Union[int, Tensor]] = None,
     ratio: Union[float, Tensor, None] = None,
-    lengths: Optional[Union[int, Tensor]] = None,
+    lengths: Optional[Union[int, Sequence[int], Tensor]] = None,
     start_idxs: Union[bool, int, Tensor, None] = None,
 ) -> Tensor:
     B, N, _ = points.shape
@@ -201,7 +191,7 @@ def fps(
         start_idxs = torch.zeros(B, dtype=torch.int64)
 
     start_idxs = default_vector(start_idxs, size=B).long()  # (B,)
-    lengths = default_vector(lengths, size=B, default_value=N).long()  # (B,)
+    lengths = sequence_tensor(lengths, length=B, default=N).long()  # (B,)
 
     num_samples = num_samples.to(points.device)
     start_idxs = start_idxs.clamp(0, N - 1).to(points.device)

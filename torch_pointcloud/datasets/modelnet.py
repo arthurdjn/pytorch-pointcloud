@@ -199,8 +199,8 @@ class ModelNet10(Dataset):
             target = self.class_to_idx[label]
             xyz, faces = load_off(off_path)
             data = {
-                "xyz": torch.tensor(xyz, dtype=torch.float32),
-                "face": torch.tensor(faces, dtype=torch.long),
+                "xyz": xyz.float(),
+                "face": faces.long(),
                 "target": torch.tensor([target]),
             }
 

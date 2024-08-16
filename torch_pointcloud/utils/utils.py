@@ -1,5 +1,5 @@
 import random
-from typing import Any, List
+from typing import Any, List, Optional, Sequence, SupportsFloat, Union
 
 import numpy as np
 import torch
@@ -38,6 +38,22 @@ def default_vector(vector: Any, size: int = 1, default_value: int = 0) -> Tensor
     vector = torch.tensor(vector).flatten()
     vector = vector.repeat(size) if vector.size(0) == 1 else vector
     return vector
+
+
+def sequence_tensor(
+    value: Union[None, SupportsFloat, Sequence[SupportsFloat], torch.Tensor, np.ndarray],
+    length: int = 1,
+    default: Optional[Union[SupportsFloat, Sequence[SupportsFloat]]] = None,
+) -> Tensor:
+    if value is None and default is None:
+        raise ValueError("Either value or default_value must be provided")
+    elif value is None:
+        value = default
+
+    value = aslist(value)
+    tensor = torch.tensor(value).flatten()
+    tensor = tensor.repeat(length) if tensor.size(0) == 1 else tensor
+    return tensor
 
 
 def set_seed(seed: int) -> None:

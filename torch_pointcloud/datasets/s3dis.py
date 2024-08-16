@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms.functional as F
-from torch_pointcloud.utils.functions import rodrigues_rotation_matrix
+from torch_pointcloud.utils import rodrigues_rotation_matrix
 from torch_pointcloud.utils.types import PATH_LIKE
 
 from .utils import download_file, extract_zip

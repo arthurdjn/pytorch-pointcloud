@@ -8,8 +8,10 @@ from . import functional as F
 
 class BaseTransform(ABC):
     @abstractmethod
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]: ...
+
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        pass
+        return self.transform(data)
 
     def extra_repr(self) -> str:
         return ""
@@ -22,7 +24,7 @@ class Compose(BaseTransform):
     def __init__(self, transforms: List[Callable]) -> None:
         self.transforms = transforms
 
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         for transform in self.transforms:
             data = transform(data)
         return data
@@ -41,7 +43,7 @@ class SampleRandomPoints(BaseTransform):
         self.num_points = num_points
         self.keys = keys
 
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return F.sample_random_points(data, self.num_points, self.keys)
 
     def extra_repr(self) -> str:
@@ -53,7 +55,7 @@ class SampleFurthestPoints(BaseTransform):
         self.num_points = num_points
         self.keys = keys
 
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return F.sample_furthest_points(data, self.num_points, self.keys)
 
     def extra_repr(self) -> str:
@@ -65,7 +67,7 @@ class SampleMeshPoints(BaseTransform):
         self.num_points = num_points
         self.include_normals = include_normals
 
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return F.sample_mesh_points(data, self.num_points, self.include_normals)
 
     def extra_repr(self) -> str:
@@ -76,7 +78,7 @@ class NormalizeScale(BaseTransform):
     def __init__(self, keys: Sequence[str] = ("xyz",)) -> None:
         self.keys = keys
 
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return F.normalize_scale(data, self.keys)
 
     def extra_repr(self) -> str:
@@ -84,5 +86,5 @@ class NormalizeScale(BaseTransform):
 
 
 class ToTorchGeometricData(BaseTransform):
-    def __call__(self, data: Dict[str, Any]) -> Data:
+    def transform(self, data: Dict[str, Any]) -> Data:
         return Data(**data)
