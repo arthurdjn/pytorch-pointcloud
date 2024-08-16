@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Sequence, Tuple
+from typing import Any, Dict, Literal, Sequence, Tuple, Union
 
 import torch
 
@@ -11,18 +11,34 @@ def random_sample(tensor: torch.Tensor, num_samples: int) -> Tuple[torch.Tensor,
 
 
 def random_sample_data(
-    data: Dict[str, Any], num_samples: int, keys: Sequence[str] | Literal["all"] = "all"
+    data: Dict[str, Any],
+    num_samples: int,
+    keys: Union[Sequence[str], Literal["all"]] = "all",
+    inplace: bool = False,
 ) -> Tuple[Dict[str, Any], torch.Tensor]:
     keys = list(data.keys()) if keys == "all" else keys
     keys = list(set(keys).intersection(data.keys()))
     assert len(keys) > 0, "keys must be a non-empty list"
 
+    out = data if inplace else data.copy()
+
     key = keys.pop(0)
-    data[key], indices = random_sample(data[key], num_samples)
+    out[key], indices = random_sample(data[key], num_samples)
 
     for key in keys:
-        data[key] = data[key][indices]
-    return data, indices
+        out[key] = data[key][indices]
+    return out, indices
+
+
+def random_sample_tensors(*tensors: torch.Tensor, num_samples: int) -> Tuple[Tuple[torch.Tensor, ...], torch.Tensor]:
+    assert len(tensors) > 0, "tensors must be a non-empty list"
+
+    sampled_tensor, indices = random_sample(tensors[0], num_samples)
+
+    sampled_tensors = [sampled_tensor]
+    for tensor in tensors[1:]:
+        sampled_tensors.append(tensor[indices])
+    return tuple(sampled_tensors), indices
 
 
 def sample_random_points(data: Dict[str, Any], num_points: int, keys: Sequence[str] = ("xyz",)) -> Dict[str, Any]:
@@ -37,11 +53,11 @@ def sample_random_points(data: Dict[str, Any], num_points: int, keys: Sequence[s
     return data
 
 
-def normalize_scale(data: Dict[str, Any], keys: Sequence[str] = ("xyz",)) -> Dict[str, Any]:
+def normalize_scale(data: Dict[str, Any], keys: Sequence[str] = ("xyz",), eps: float = 1e-6) -> Dict[str, Any]:
     for key in keys:
         if key in data.keys():
             data[key] -= data[key].mean(dim=-2, keepdim=True)
-            data[key] = data[key] / (data[key].abs().max() + 1e-5)
+            data[key] = data[key] / (data[key].abs().max() + eps)
     return data
 
 

@@ -39,3 +39,7 @@ Add gradcheks and unit tests for ops, datasets and so on.
 Start working on the lightning interface to conduct more advanced training and experiments.
 
 Add object detection training for PVCNN following config https://github.com/mit-han-lab/pvcnn/blob/master/configs/kitti/frustum/pvcnne.py
+
+## Misc
+
+- Remove the default_tensor function in utils
