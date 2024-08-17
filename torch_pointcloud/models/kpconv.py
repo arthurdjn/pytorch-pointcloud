@@ -1,16 +1,14 @@
 import math
-import warnings
-from pathlib import Path
-from typing import Any, List, Literal, Optional, Tuple, Union
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn.init import kaiming_uniform_
 from torch.nn.parameter import Parameter
 
-from torch_pointcloud.utils.config import CACHE_DIR
+
+def kernel_points(method: str = "lloyd") -> None:
+    pass
 
 
 class KPConv(nn.Module):
@@ -20,10 +18,10 @@ class KPConv(nn.Module):
         p_dim: int,
         in_channels: int,
         out_channels: int,
-        kernel_extent: float,
+        KP_extent: float,
         radius: float,
         fixed_kernel_points: str = "center",
-        kernel_influence: str = "linear",
+        KP_influence: str = "linear",
         aggregation_mode: str = "sum",
         deformable: bool = False,
         modulated: bool = False,
@@ -35,9 +33,9 @@ class KPConv(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.radius = radius
-        self.kernel_extent = kernel_extent
+        self.KP_extent = KP_extent
         self.fixed_kernel_points = fixed_kernel_points
-        self.kernel_influence = kernel_influence
+        self.KP_influence = KP_influence
         self.aggregation_mode = aggregation_mode
         self.deformable = deformable
         self.modulated = modulated
@@ -224,132 +222,5 @@ class KPConv(nn.Module):
         # Convolution sum [n_points, out_fdim]
         return torch.sum(kernel_outputs, dim=0)
 
-    def __repr__(self) -> str:
-        return "KPConv(radius: {:.2f}, in_feat: {:d}, out_feat: {:d})".format(
-            self.radius, self.in_channels, self.out_channels
-        )
-
-
-class BasicBlock(nn.Module):
-    def __init__(self, block_name, in_dim, out_dim, radius, layer_ind, config):
-        """
-        Initialize a simple convolution block with its ReLU and BatchNorm.
-        :param in_dim: dimension input features
-        :param out_dim: dimension input features
-        :param radius: current radius of convolution
-        :param config: parameters
-        """
-        super().__init__()
-
-        # get KP_extent from current radius
-        current_extent = radius * config.KP_extent / config.conv_radius
-
-        # Get other parameters
-        self.bn_momentum = config.batch_norm_momentum
-        self.use_bn = config.use_batch_norm
-        self.layer_ind = layer_ind
-        self.block_name = block_name
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-
-        # Define the KPConv class
-        self.KPConv = KPConv(
-            config.num_kernel_points,
-            config.in_points_dim,
-            in_dim,
-            out_dim // 2,
-            current_extent,
-            radius,
-            fixed_kernel_points=config.fixed_kernel_points,
-            KP_influence=config.KP_influence,
-            aggregation_mode=config.aggregation_mode,
-            deformable="deform" in block_name,
-            modulated=config.modulated,
-        )
-
-        # Other opperations
-        self.batch_norm = BatchNormBlock(out_dim // 2, self.use_bn, self.bn_momentum)
-        self.leaky_relu = nn.LeakyReLU(0.1)
-
-    def forward(self, x, batch):
-        if "strided" in self.block_name:
-            q_pts = batch.points[self.layer_ind + 1]
-            s_pts = batch.points[self.layer_ind]
-            neighb_inds = batch.pools[self.layer_ind]
-        else:
-            q_pts = batch.points[self.layer_ind]
-            s_pts = batch.points[self.layer_ind]
-            neighb_inds = batch.neighbors[self.layer_ind]
-
-        x = self.KPConv(q_pts, s_pts, neighb_inds, x)
-        return self.leaky_relu(self.batch_norm(x))
-
-
-class KPCNNClassification(nn.Module):
-    def __init__(
-        self,
-        block: Union[BasicBlock, Bottleneck],
-        layers: Tuple[int, ...],
-        in_features: int,
-        out_features: int,
-        first_subsampling_dl: float = 0.02,
-        conv_radius: float = 2.5,
-        num_kernel_points: int = 15,
-    ) -> None:
-        super().__init__()
-        layer = 0
-        r = first_subsampling_dl * conv_radius
-        in_dim = in_features
-        out_dim = out_features
-        self.K = num_kernel_points
-
-        # Save all block operations in a list of modules
-        self.block_ops = nn.ModuleList()
-
-        # Loop over consecutive blocks
-        block_in_layer = 0
-        for block_i, block in enumerate(architecture):
-            # Check equivariance
-            if ("equivariant" in block) and (not out_dim % 3 == 0):
-                raise ValueError("Equivariant block but features dimension is not a factor of 3")
-
-            # Detect upsampling block to stop
-            if "upsample" in block:
-                break
-
-            # Apply the good block function defining tf ops
-            self.block_ops.append(block_decider(block, r, in_dim, out_dim, layer, config))
-
-            # Index of block in this layer
-            block_in_layer += 1
-
-            # Update dimension of input from output
-            if "simple" in block:
-                in_dim = out_dim // 2
-            else:
-                in_dim = out_dim
-
-            # Detect change to a subsampled layer
-            if "pool" in block or "strided" in block:
-                # Update radius and feature dimension for next layer
-                layer += 1
-                r *= 2
-                out_dim *= 2
-                block_in_layer = 0
-
-        # Put average here
-
-        self.head_mlp = UnaryBlock(out_dim, 1024, False, 0)
-        self.head_softmax = UnaryBlock(1024, config.num_classes, False, 0, no_relu=True)
-
-    def forward(self, xyz: Tensor, features: Optional[Tensor] = None) -> torch.Tensor:
-        x = features if features is not None else xyz.clone().detach()
-
-        # Loop over consecutive blocks
-        for block_op in self.block_ops:
-            x = block_op(x, batch)
-
-        # Head of network
-        x = self.head_mlp(x, batch)
-        x = self.head_softmax(x, batch)
-        return x
+    def extra_repr(self) -> str:
+        return f"radius={self.radius}, in_channels={self.in_channels}, out_channels={self.out_channels}"
