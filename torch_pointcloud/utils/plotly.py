@@ -44,7 +44,7 @@ def plot_points(
     elif isinstance(colors, list) and len(colors) == N:
         colors = np.array(colors)[sampled_idxs]
     elif isinstance(colors, str):
-        colors = [colors] * num_points
+        colors = np.array([colors] * num_points)
 
     points = points[sampled_idxs]
     # Above the above to add a legend for each label
