@@ -72,6 +72,7 @@ def cross_product_matrices(k: Tensor) -> Tensor:
     return K
 
 
+# TODO: convert to radians
 def rodrigues_rotation_matrix(axis: Tensor, theta_degrees: float) -> Tensor:
     r"""Computes a 3D rotation matrix using Rodrigues' rotation formula.
 
@@ -102,6 +103,7 @@ def rodrigues_rotation_matrix(axis: Tensor, theta_degrees: float) -> Tensor:
     return R
 
 
+# TODO: convert to radians
 def rodrigues_rotation_matrices(axes: Tensor, theta_degrees: Tensor) -> Tensor:
     r"""Computes a batch of 3D rotation matrices using Rodrigues' rotation formula.
 
@@ -179,10 +181,10 @@ def random_spherical_points(
     return points
 
 
-def gradient_optimization_spherical_points(
+def spherical_points_gradient(
     radius: float,
     num_points: int,
-    fixed_points: Literal["none", "center", "vertical"] = "center",
+    fixed_position: Literal["none", "center", "vertical"] = "center",
     ratio: float = 0.66,
     max_steps: int = 10_000,
     step_size: float = 1e-2,
@@ -195,7 +197,7 @@ def gradient_optimization_spherical_points(
     Args:
         radius: Radius of the kernel.
         num_points: Number of points composing the kernel.
-        fixed_points: Fix position of certain kernel points ('none', 'center', or 'verticals').
+        fixed_position: Fix position of certain kernel points ('none', 'center', or 'verticals').
         ratio: Ratio of the radius where you want the kernel points to be placed.
         max_steps: Maximum number of optimization steps.
         step_size: Step size for moving points based on gradient norms.
@@ -219,7 +221,7 @@ def gradient_optimization_spherical_points(
         return inter_grads + circle_grads
 
     # Parameters
-    if fixed_points not in ["none", "center", "vertical"]:
+    if fixed_position not in ["none", "center", "vertical"]:
         raise ValueError('Unsupported fixed points. Expected "none", "center", or "vertical".')
 
     if max_step_size is None:
@@ -229,9 +231,9 @@ def gradient_optimization_spherical_points(
     kernel_points = random_spherical_points(num_points, radius, bounds=(0, 0.7071067811865476))
 
     # Apply fixed positions if required
-    if fixed_points == "center":
+    if fixed_position == "center":
         kernel_points[0, :] = 0  # Fix the first point to the center
-    elif fixed_points == "vertical":
+    elif fixed_position == "vertical":
         kernel_points[:3, :] = 0  # Fix the first three points
         kernel_points[1, -1] += 2 * radius / 3  # Move second point up vertically
         kernel_points[2, -1] -= 2 * radius / 3  # Move third point down vertically
@@ -244,7 +246,7 @@ def gradient_optimization_spherical_points(
     while step < max_steps:
         grads = compute_gradients(kernel_points)
 
-        if fixed_points == "vertical":
+        if fixed_position == "vertical":
             grads[1:3, :-1] = 0
 
         grad_norms = torch.sqrt(torch.sum(grads**2, dim=-1))
@@ -252,12 +254,12 @@ def gradient_optimization_spherical_points(
 
         # Check for stopping conditions
         if (
-            fixed_points == "center"
+            fixed_position == "center"
             and torch.max(torch.abs(old_grad_norms[1:] - grad_norms[1:])) < convergence_threshold
         ):
             break
         elif (
-            fixed_points == "vertical"
+            fixed_position == "vertical"
             and torch.max(torch.abs(old_grad_norms[3:] - grad_norms[3:])) < convergence_threshold
         ):
             break
@@ -268,7 +270,7 @@ def gradient_optimization_spherical_points(
 
         # Move points
         moving_dists = torch.minimum(step_size * grad_norms, torch.tensor(max_step_size))
-        if fixed_points == "center" or fixed_points == "vertical":
+        if fixed_position == "center" or fixed_position == "vertical":
             moving_dists[0] = 0  # Do not move the first point if fixed
 
         kernel_points -= moving_dists.unsqueeze(-1) * grads / (grad_norms.unsqueeze(-1) + 1e-6)
@@ -282,10 +284,10 @@ def gradient_optimization_spherical_points(
     return kernel_points, saved_grad_norms[step - 1]
 
 
-def spherical_lloyd(
+def spherical_points_lloyd(
     radius: float,
     num_points: int,
-    fixed_points: Literal["none", "center", "vertical"] = "none",
+    fixed_position: Literal["none", "center", "vertical"] = "none",
     approximation: Literal["discretization", "monte-carlo"] = "discretization",
     approx_n: int = 5000,
     max_iter: int = 500,
@@ -296,7 +298,7 @@ def spherical_lloyd(
     Args:
         radius (float): Radius of the sphere.
         num_cells (int): Number of kernel points (Voronoi cells).
-        fixed_points (str, optional): Fix the position of specific kernel points. Defaults to 'none'.
+        fixed_position (str, optional): Fix the position of specific kernel points. Defaults to 'none'.
             Options:
                 - 'none': No kernel points are fixed. All points move freely during optimization.
                 - 'center': The first kernel point is fixed at the center of the sphere.
@@ -316,7 +318,7 @@ def spherical_lloyd(
         torch.Tensor: Tensor of shape [num_points, dimension] with the final kernel points on the sphere.
     """
 
-    if fixed_points not in ["none", "center", "vertical"]:
+    if fixed_position not in ["none", "center", "vertical"]:
         raise ValueError('Unsupported fixed points. Expected "none", "center", or "vertical".')
     if approximation not in ["discretization", "monte-carlo"]:
         raise ValueError('Unsupported approximation. Expected "discretization" or "monte-carlo".')
@@ -334,9 +336,9 @@ def spherical_lloyd(
     kernel_points = kernel_points[:num_points]
 
     # Optional fixing of kernel positions
-    if fixed_points == "center":
+    if fixed_position == "center":
         kernel_points[0] = torch.zeros(3)
-    elif fixed_points == "vertical":
+    elif fixed_position == "vertical":
         kernel_points[:3, :] = torch.zeros(3, 3)
         kernel_points[1, -1] += 2 * radius0 / 3
         kernel_points[2, -1] -= 2 * radius0 / 3
@@ -384,9 +386,9 @@ def spherical_lloyd(
         max_moves = torch.cat((max_moves, max_move_per_iter.unsqueeze(0)))
 
         # Optional fixing of kernel positions
-        if fixed_points == "center":
+        if fixed_position == "center":
             kernel_points[0] = torch.zeros(3)
-        elif fixed_points == "vertical":
+        elif fixed_position == "vertical":
             kernel_points[0] = torch.zeros(3)
             kernel_points[1:, :-1] = torch.zeros_like(kernel_points[1:, :-1])
 

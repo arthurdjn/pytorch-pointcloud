@@ -9,7 +9,7 @@ from torch_pointcloud.utils.geometry import (
     cross_product_matrix,
     rodrigues_rotation_matrices,
     rodrigues_rotation_matrix,
-    spherical_lloyd,
+    spherical_points_lloyd,
 )
 
 
@@ -157,30 +157,30 @@ def test_rodrigues_rotation_matrices_custom_axes(axes: torch.Tensor, theta_degre
 
 
 @pytest.mark.parametrize(
-    "radius, num_points, fixed_points, approximation, expected_shape",
+    "radius, num_points, fixed_position, approximation, expected_shape",
     [
         # Test for default parameters with no fixed fixed_pointss and discretization
         (1.0, 10, "none", "discretization", (10, 3)),
-        # Test for center fixed fixed_points and discretization
+        # Test for center fixed fixed_position and discretization
         (1.0, 10, "center", "discretization", (10, 3)),
-        # Test for vertical fixed_points and discretization
+        # Test for vertical fixed_position and discretization
         (1.0, 10, "vertical", "discretization", (10, 3)),
     ],
 )
 def test_spherical_lloyd_output_shape(
     radius: float,
     num_points: int,
-    fixed_points: Literal["none", "center", "vertical"],
+    fixed_position: Literal["none", "center", "vertical"],
     approximation: Literal["discretization", "monte-carlo"],
     expected_shape: Tuple[int, int],
 ) -> None:
-    """Test that spherical_lloyd returns a tensor with the expected shape."""
-    kernel_points = spherical_lloyd(radius, num_points, fixed_points, approximation)
+    """Test that spherical_points_lloyd returns a tensor with the expected shape."""
+    kernel_points = spherical_points_lloyd(radius, num_points, fixed_position, approximation)
     assert kernel_points.shape == expected_shape, f"Expected shape {expected_shape}, but got {kernel_points.shape}"
 
 
 @pytest.mark.parametrize(
-    "radius, num_points, fixed_points, approximation",
+    "radius, num_points, fixed_position, approximation",
     [
         (1.0, 10, "none", "discretization"),
         (1.0, 10, "center", "discretization"),
@@ -193,18 +193,18 @@ def test_spherical_lloyd_output_shape(
 def test_spherical_lloyd_kernel_points_in_sphere(
     radius: float,
     num_points: int,
-    fixed_points: Literal["none", "center", "vertical"],
+    fixed_position: Literal["none", "center", "vertical"],
     approximation: Literal["discretization", "monte-carlo"],
 ) -> None:
-    kernel_points = spherical_lloyd(radius, num_points, fixed_points, approximation)
+    kernel_points = spherical_points_lloyd(radius, num_points, fixed_position, approximation)
     norms = kernel_points.norm(dim=1)
     assert torch.all(norms <= radius), "All kernel points should be inside the sphere."
 
 
 @pytest.mark.parametrize("radius, num_points", [(1.0, 10), (1.0, 10)])
 def test_spherical_lloyd_fixed_points_vertical(radius: float, num_points: int) -> None:
-    # Test that spherical_lloyd fixes the kernel points as specified by the fixed_points parameter.
-    kernel_points = spherical_lloyd(radius=radius, num_points=num_points, fixed_points="vertical")
+    # Test that spherical_points_lloyd fixes the kernel points as specified by the fixed_position parameter.
+    kernel_points = spherical_points_lloyd(radius=radius, num_points=num_points, fixed_position="vertical")
     # The first three points should be vertically aligned
     assert torch.allclose(kernel_points[0], torch.zeros(3)), "The first kernel point should be at the origin"
     assert kernel_points[1, -1] > 0, "The second point should be above the origin"
@@ -213,7 +213,7 @@ def test_spherical_lloyd_fixed_points_vertical(radius: float, num_points: int) -
 
 @pytest.mark.parametrize("radius, num_points", [(1.0, 10), (1.0, 10)])
 def test_spherical_lloyd_fixed_points_center(radius: float, num_points: int) -> None:
-    kernel_points = spherical_lloyd(radius=radius, num_points=num_points, fixed_points="center")
+    kernel_points = spherical_points_lloyd(radius=radius, num_points=num_points, fixed_position="center")
     assert torch.allclose(kernel_points[0], torch.zeros(3)), "The first kernel point should be at the origin"
 
 
