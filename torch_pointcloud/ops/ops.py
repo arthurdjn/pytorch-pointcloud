@@ -99,7 +99,7 @@ def three_interpolate(
     lengths = lengths.clamp(0, M).contiguous().to(points.device)
     out_lengths = out_lengths.clamp(0, N).contiguous().to(points.device)
 
-    return ThreeInterpolate.apply(points, idxs, weights, lengths, out_lengths)  # type: ignore[no-untyped-call]
+    return ThreeInterpolate.apply(points, idxs, weights, lengths, out_lengths)
     # return k_interpolate(points, idxs, weights, k=3, lengths=lengths, out_lengths=out_lengths)
 
 
@@ -199,6 +199,7 @@ def fps(
     return _C.fps(points, lengths, num_samples, start_idxs)
 
 
+# ! BUG: When pc1 or pc2 has zero values, it is inferred as a padded tensor but should not be
 def ball_query(
     pc1: Tensor,
     pc2: Tensor,
