@@ -43,3 +43,5 @@ Add object detection training for PVCNN following config https://github.com/mit-
 ## Misc
 
 - Remove the default_tensor function in utils
+- Add better tests
+- Refactor naming conventions for points
