@@ -3,7 +3,6 @@ from typing import Any, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.layers.mlp import shared_mlp2d
 from torch_pointcloud.ops import knn, knn_interpolate
 
 
