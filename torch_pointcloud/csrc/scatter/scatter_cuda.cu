@@ -6,33 +6,37 @@
 #include "../cuda_utils.h"
 #include "./atomics.cuh"
 
-// TODO: Update cluster_seen to be size of max cluster id (or N)
 __global__ void count_num_clusters_kernel(
     const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
-    at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
-    const int max_clusters) {
-  int b = blockIdx.x; // Each block processes one item in the batch
-  if (b < cluster_ids.size(0)) {
-    extern __shared__ bool cluster_seen[];
+    at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters) {
+  int b = blockIdx.x;
+  int tid = threadIdx.x;
+  int stride = blockDim.x;
+  __shared__ unsigned int
+      cluster_bitset[128]; // 4096 bits, can handle up to 4096 clusters
 
-    // Initialize shared memory
-    for (int i = threadIdx.x; i < max_clusters; i += blockDim.x) {
-      cluster_seen[i] = false;
+  // Initialize shared memory
+  for (int i = tid; i < 128; i += stride) {
+    cluster_bitset[i] = 0;
+  }
+  __syncthreads();
+
+  int64_t length_b = lengths[b];
+  for (int64_t n = tid; n < length_b; n += stride) {
+    int64_t cluster_id = cluster_ids[b][n];
+    if (cluster_id < 4096) {
+      atomicOr(&cluster_bitset[cluster_id / 32], 1U << (cluster_id % 32));
     }
-    __syncthreads();
+  }
+  __syncthreads();
 
-    int64_t length_b = lengths[b];
-    int64_t count = 0;
-
-    for (int64_t n = 0; n < length_b; ++n) {
-      int64_t cluster_id = cluster_ids[b][n];
-      if (cluster_id < max_clusters && !cluster_seen[cluster_id]) {
-        cluster_seen[cluster_id] = true;
-        count++;
-      }
+  // Count set bits
+  if (tid == 0) {
+    unsigned int count = 0;
+    for (int i = 0; i < 128; ++i) {
+      count += __popc(cluster_bitset[i]);
     }
-
     num_clusters[b] = count;
   }
 }
@@ -42,23 +46,16 @@ at::Tensor count_num_clusters_cuda(
     const at::Tensor& lengths) {
   int64_t B = cluster_ids.size(0);
   auto num_clusters = at::zeros_like(lengths);
-  int64_t max_clusters = cluster_ids.max().item<int64_t>() + 1;
 
   const int blocks = B;
   const int threads = 256;
-  size_t shared_mem_size = max_clusters * sizeof(bool);
 
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, 0);
-  if (shared_mem_size > prop.sharedMemPerBlock) {
-    AT_ERROR("Required shared memory exceeds device limit");
-  }
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
-  count_num_clusters_kernel<<<blocks, threads, shared_mem_size>>>(
+  count_num_clusters_kernel<<<blocks, threads, 0, stream>>>(
       cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
       lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-      num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-      max_clusters);
+      num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>());
 
   return num_clusters;
 }
@@ -464,4 +461,98 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_cuda(
     const float padding_value = 0.0) {
   return AT_DISPATCH_REDUCTION_TYPES(
       reduce, points, cluster_ids, lengths, padding_value);
+}
+
+template <typename scalar_t>
+__global__ void scatter_sum_backward_kernel(
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_output,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points) {
+  int b = blockIdx.x; // batch index
+  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  int total_threads = blockDim.x * blockDim.y; // total threads in the block
+
+  for (int n = tid; n < lengths[b]; n += total_threads) {
+    int64_t cluster = cluster_ids[b][n];
+
+    if (cluster >= 0 && cluster < num_clusters[b]) {
+      for (int64_t d = 0; d < grad_points.size(2); ++d) {
+        atomicAdd(&grad_points[b][n][d], grad_output[b][cluster][d]);
+      }
+    }
+  }
+}
+
+at::Tensor scatter_sum_backward_cuda(
+    const at::Tensor& grad_output,
+    const at::Tensor& points,
+    const at::Tensor& cluster_ids,
+    const at::Tensor& lengths,
+    const at::Tensor& num_clusters,
+    const at::Tensor& counts,
+    const at::Tensor& indices) {
+  auto B = points.size(0);
+  auto N = points.size(1);
+  auto C = points.size(2);
+
+  auto grad_points = at::zeros_like(points);
+
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  AT_DISPATCH_FLOATING_TYPES(
+      points.scalar_type(), "scatter_sum_backward_cuda", ([&] {
+        scatter_sum_backward_kernel<scalar_t>
+            <<<B, optimal_block_config(N, C), 0, stream>>>(
+                grad_output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+      }));
+
+  return grad_points;
+}
+
+#define AT_DISPATCH_REDUCTION_TYPES_BACKWARD(       \
+    reduce,                                         \
+    grad_output,                                    \
+    points,                                         \
+    cluster_ids,                                    \
+    lengths,                                        \
+    num_clusters,                                   \
+    counts,                                         \
+    indices)                                        \
+  [&]() -> at::Tensor {                             \
+    if (reduce == "sum")                            \
+      return scatter_sum_backward_cuda(             \
+          grad_output,                              \
+          points,                                   \
+          cluster_ids,                              \
+          lengths,                                  \
+          num_clusters,                             \
+          counts,                                   \
+          indices);                                 \
+    else                                            \
+      AT_ERROR("Unknown reduction type: ", reduce); \
+  }()
+
+at::Tensor scatter_backward_cuda(
+    const std::string& reduce,
+    const at::Tensor& grad_output,
+    const at::Tensor& points,
+    const at::Tensor& cluster_ids,
+    const at::Tensor& lengths,
+    const at::Tensor& num_clusters,
+    const at::Tensor& counts,
+    const at::Tensor& indices) {
+  return AT_DISPATCH_REDUCTION_TYPES_BACKWARD(
+      reduce,
+      grad_output,
+      points,
+      cluster_ids,
+      lengths,
+      num_clusters,
+      counts,
+      indices);
 }
