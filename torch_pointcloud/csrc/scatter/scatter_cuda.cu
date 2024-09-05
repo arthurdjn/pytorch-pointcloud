@@ -10,16 +10,24 @@
 __global__ void count_num_clusters_kernel(
     const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
-    at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters) {
-  int b = blockIdx.x * blockDim.x + threadIdx.x;
+    at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    const int max_clusters) {
+  int b = blockIdx.x; // Each block processes one item in the batch
   if (b < cluster_ids.size(0)) {
+    extern __shared__ bool cluster_seen[];
+
+    // Initialize shared memory
+    for (int i = threadIdx.x; i < max_clusters; i += blockDim.x) {
+      cluster_seen[i] = false;
+    }
+    __syncthreads();
+
     int64_t length_b = lengths[b];
-    bool cluster_seen[1024] = {false};
     int64_t count = 0;
 
     for (int64_t n = 0; n < length_b; ++n) {
       int64_t cluster_id = cluster_ids[b][n];
-      if (!cluster_seen[cluster_id]) {
+      if (cluster_id < max_clusters && !cluster_seen[cluster_id]) {
         cluster_seen[cluster_id] = true;
         count++;
       }
@@ -32,15 +40,25 @@ __global__ void count_num_clusters_kernel(
 at::Tensor count_num_clusters_cuda(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths) {
+  int64_t B = cluster_ids.size(0);
   auto num_clusters = at::zeros_like(lengths);
+  int64_t max_clusters = cluster_ids.max().item<int64_t>() + 1;
 
+  const int blocks = B;
   const int threads = 256;
-  const int blocks = (cluster_ids.size(0) + threads - 1) / threads;
+  size_t shared_mem_size = max_clusters * sizeof(bool);
 
-  count_num_clusters_kernel<<<blocks, threads>>>(
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, 0);
+  if (shared_mem_size > prop.sharedMemPerBlock) {
+    AT_ERROR("Required shared memory exceeds device limit");
+  }
+
+  count_num_clusters_kernel<<<blocks, threads, shared_mem_size>>>(
       cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
       lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-      num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>());
+      num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+      max_clusters);
 
   return num_clusters;
 }
