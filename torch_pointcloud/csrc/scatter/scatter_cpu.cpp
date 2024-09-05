@@ -53,19 +53,15 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
     auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto output_a = output.accessor<scalar_t, 3>();
-    auto indices_a = indices.accessor<int64_t, 3>();
     auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
       for (int64_t n = 0; n < lengths_a[b]; ++n) {
         int64_t cluster = cluster_ids_a[b][n];
-        int64_t count = counts_a[b][cluster];
-
         for (int64_t d = 0; d < C; ++d) {
           output_a[b][cluster][d] += points_a[b][n][d];
         }
 
-        indices_a[b][cluster][count] = n;
         counts_a[b][cluster] += 1;
       }
 
@@ -154,19 +150,15 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
     auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto output_a = output.accessor<scalar_t, 3>();
-    auto indices_a = indices.accessor<int64_t, 3>();
     auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
       for (int64_t n = 0; n < lengths_a[b]; ++n) {
         int64_t cluster = cluster_ids_a[b][n];
-        int64_t count = counts_a[b][cluster];
-
         for (int64_t d = 0; d < C; ++d) {
           output_a[b][cluster][d] *= points_a[b][n][d];
         }
 
-        indices_a[b][cluster][count] = n;
         counts_a[b][cluster] += 1;
       }
 
