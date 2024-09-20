@@ -26,6 +26,8 @@
 
 ## 📝 Table of Contents
 
+WIP
+
 $$
 M(k) = \begin{bmatrix}
 0 & -k_3 & k_2 \\
