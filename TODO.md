@@ -47,3 +47,4 @@ Add object detection training for PVCNN following config https://github.com/mit-
 - Refactor naming conventions for points
 
 - Finish scatter, make sure they are optimized
+- Update the grid cluster to handle large number of channels
