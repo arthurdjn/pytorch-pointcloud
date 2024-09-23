@@ -45,3 +45,5 @@ Add object detection training for PVCNN following config https://github.com/mit-
 - Remove the default_tensor function in utils
 - Add better tests
 - Refactor naming conventions for points
+
+- Finish scatter, make sure they are optimized
