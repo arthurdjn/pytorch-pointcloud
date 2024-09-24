@@ -48,3 +48,4 @@ Add object detection training for PVCNN following config https://github.com/mit-
 
 - Finish scatter, make sure they are optimized
 - Update the grid cluster to handle large number of channels
+- Update the grid cluster CPU id matching to match the GPU version from the torch-scatter test utils
