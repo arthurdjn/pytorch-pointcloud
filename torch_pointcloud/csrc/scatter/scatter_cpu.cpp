@@ -3,7 +3,7 @@
 #include <limits>
 #include <vector>
 
-at::Tensor count_num_clusters(
+at::Tensor count_num_clusters_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths) {
   auto B = cluster_ids.size(0);
@@ -40,7 +40,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
   auto B = points.size(0);
   auto C = points.size(2);
 
-  auto num_clusters = count_num_clusters(cluster_ids, lengths);
+  auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);
@@ -85,7 +85,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
   auto B = points.size(0);
   auto C = points.size(2);
 
-  auto num_clusters = count_num_clusters(cluster_ids, lengths);
+  auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);
@@ -137,7 +137,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
   auto B = points.size(0);
   auto C = points.size(2);
 
-  auto num_clusters = count_num_clusters(cluster_ids, lengths);
+  auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);
@@ -182,7 +182,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
   auto B = points.size(0);
   auto C = points.size(2);
 
-  auto num_clusters = count_num_clusters(cluster_ids, lengths);
+  auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);
@@ -233,7 +233,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
   auto B = points.size(0);
   auto C = points.size(2);
 
-  auto num_clusters = count_num_clusters(cluster_ids, lengths);
+  auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);

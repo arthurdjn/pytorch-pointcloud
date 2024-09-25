@@ -514,6 +514,234 @@ at::Tensor scatter_sum_backward_cuda(
   return grad_points;
 }
 
+template <typename scalar_t>
+__global__ void scatter_mean_backward_kernel(
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_output,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points) {
+  int b = blockIdx.x; // batch index
+  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  int total_threads = blockDim.x * blockDim.y; // total threads in the block
+
+  for (int n = tid; n < lengths[b]; n += total_threads) {
+    int64_t cluster = cluster_ids[b][n];
+
+    if (cluster >= 0 && cluster < num_clusters[b]) {
+      int64_t cluster_count = counts[b][cluster];
+
+      if (cluster_count > 0) {
+        for (int64_t d = 0; d < grad_points.size(2); ++d) {
+          atomicAdd(
+              &grad_points[b][n][d],
+              grad_output[b][cluster][d] / static_cast<scalar_t>(cluster_count));
+        }
+      }
+    }
+  }
+}
+
+at::Tensor scatter_mean_backward_cuda(
+    const at::Tensor& grad_output,
+    const at::Tensor& points,
+    const at::Tensor& cluster_ids,
+    const at::Tensor& lengths,
+    const at::Tensor& num_clusters,
+    const at::Tensor& counts,
+    const at::Tensor& indices) {
+  auto B = points.size(0);
+  auto N = points.size(1);
+  auto C = points.size(2);
+
+  auto grad_points = at::zeros_like(points);
+
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  AT_DISPATCH_FLOATING_TYPES(
+      points.scalar_type(), "scatter_mean_backward_cuda", ([&] {
+        scatter_mean_backward_kernel<scalar_t>
+            <<<B, optimal_block_config(N, C), 0, stream>>>(
+                grad_output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+      }));
+
+  return grad_points;
+}
+
+template <typename scalar_t>
+__global__ void scatter_prod_backward_kernel(
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_output,
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points,
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> points) {
+  int b = blockIdx.x; // batch index
+  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  int total_threads = blockDim.x * blockDim.y; // total threads in the block
+
+  for (int n = tid; n < lengths[b]; n += total_threads) {
+    int64_t cluster = cluster_ids[b][n];
+
+    if (cluster >= 0 && cluster < num_clusters[b]) {
+      for (int64_t d = 0; d < grad_points.size(2); ++d) {
+        if (points[b][n][d] != 0 && counts[b][cluster] > 0) {
+          scalar_t grad =
+              grad_output[b][cluster][d] * output[b][cluster][d] / points[b][n][d];
+          atomicAdd(&grad_points[b][n][d], grad);
+        }
+      }
+    }
+  }
+}
+
+at::Tensor scatter_prod_backward_cuda(
+    const at::Tensor& grad_output,
+    const at::Tensor& points,
+    const at::Tensor& cluster_ids,
+    const at::Tensor& lengths,
+    const at::Tensor& num_clusters,
+    const at::Tensor& counts,
+    const at::Tensor& output) {
+  auto B = points.size(0);
+  auto N = points.size(1);
+  auto C = points.size(2);
+
+  auto grad_points = at::zeros_like(points);
+
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  AT_DISPATCH_FLOATING_TYPES(
+      points.scalar_type(), "scatter_prod_backward_cuda", ([&] {
+        scatter_prod_backward_kernel<scalar_t>
+            <<<B, optimal_block_config(N, C), 0, stream>>>(
+                grad_output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+      }));
+
+  return grad_points;
+}
+
+template <typename scalar_t>
+__global__ void scatter_min_backward_kernel(
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_output,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    const at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points) {
+  int b = blockIdx.x; // batch index
+  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  int total_threads = blockDim.x * blockDim.y; // total threads in the block
+
+  for (int n = tid; n < lengths[b]; n += total_threads) {
+    int64_t cluster = cluster_ids[b][n];
+
+    if (cluster >= 0 && cluster < num_clusters[b]) {
+      for (int64_t d = 0; d < grad_points.size(2); ++d) {
+        if (indices[b][cluster][d] == n) {
+          atomicAdd(&grad_points[b][n][d], grad_output[b][cluster][d]);
+        }
+      }
+    }
+  }
+}
+
+at::Tensor scatter_min_backward_cuda(
+    const at::Tensor& grad_output,
+    const at::Tensor& points,
+    const at::Tensor& cluster_ids,
+    const at::Tensor& lengths,
+    const at::Tensor& num_clusters,
+    const at::Tensor& indices) {
+  auto B = points.size(0);
+  auto N = points.size(1);
+  auto C = points.size(2);
+
+  auto grad_points = at::zeros_like(points);
+
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  AT_DISPATCH_FLOATING_TYPES(
+      points.scalar_type(), "scatter_min_backward_cuda", ([&] {
+        scatter_min_backward_kernel<scalar_t>
+            <<<B, optimal_block_config(N, C), 0, stream>>>(
+                grad_output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
+                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+      }));
+
+  return grad_points;
+}
+
+template <typename scalar_t>
+__global__ void scatter_max_backward_kernel(
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_output,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    const at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points) {
+  int b = blockIdx.x; // batch index
+  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  int total_threads = blockDim.x * blockDim.y; // total threads in the block
+
+  for (int n = tid; n < lengths[b]; n += total_threads) {
+    int64_t cluster = cluster_ids[b][n];
+
+    if (cluster >= 0 && cluster < num_clusters[b]) {
+      for (int64_t d = 0; d < grad_points.size(2); ++d) {
+        if (indices[b][cluster][d] == n) {
+          atomicAdd(&grad_points[b][n][d], grad_output[b][cluster][d]);
+        }
+      }
+    }
+  }
+}
+
+at::Tensor scatter_max_backward_cuda(
+    const at::Tensor& grad_output,
+    const at::Tensor& points,
+    const at::Tensor& cluster_ids,
+    const at::Tensor& lengths,
+    const at::Tensor& num_clusters,
+    const at::Tensor& indices) {
+  auto B = points.size(0);
+  auto N = points.size(1);
+  auto C = points.size(2);
+
+  auto grad_points = at::zeros_like(points);
+
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  AT_DISPATCH_FLOATING_TYPES(
+      points.scalar_type(), "scatter_max_backward_cuda", ([&] {
+        scatter_max_backward_kernel<scalar_t>
+            <<<B, optimal_block_config(N, C), 0, stream>>>(
+                grad_output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
+                lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
+                indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
+                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+      }));
+
+  return grad_points;
+}
+
 #define AT_DISPATCH_REDUCTION_TYPES_BACKWARD(       \
     reduce,                                         \
     grad_output,                                    \
@@ -533,10 +761,21 @@ at::Tensor scatter_sum_backward_cuda(
           num_clusters,                             \
           counts,                                   \
           indices);                                 \
+    else if (reduce == "mean")                      \
+      return scatter_mean_backward_cuda(            \
+          grad_output,                              \
+          points,                                   \
+          cluster_ids,                              \
+          lengths,                                  \
+          num_clusters,                             \
+          counts,                                   \
+          indices);                                 \
     else                                            \
       AT_ERROR("Unknown reduction type: ", reduce); \
   }()
 
+// ! NOTE: The scatter prod, min and max do not follow the same API as the scatter
+// ! sum and mean... !!!
 at::Tensor scatter_backward_cuda(
     const std::string& reduce,
     const at::Tensor& grad_output,

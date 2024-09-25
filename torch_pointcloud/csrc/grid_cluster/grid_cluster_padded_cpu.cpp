@@ -1,6 +1,3 @@
-// !! TODO: Cluster IDs should be unique within each batch and across batches
-// !! So that it can be compatible with torch scatter
-
 #include <torch/extension.h>
 #include <cmath>
 #include <unordered_map>
@@ -10,17 +7,17 @@ at::Tensor grid_cluster_cpu(
     const at::Tensor& points, // shape (B, N, 3)
     const at::Tensor& lengths, // shape (B), actual number of points per batch
     const float voxel_size) {
-  const int64_t B = points.size(0); // Batch size
-  const int64_t N = points.size(1); // Max number of points per batch
-  const int64_t C = points.size(2); // Coordinate dimension (should be 3)
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
   TORCH_CHECK(C == 3, "Expected point cloud to have 3 coordinates per point");
 
-  auto opts = points.options().dtype(at::kLong); // Use long for cluster IDs
+  auto opts = points.options().dtype(at::kLong);
   at::Tensor cluster_ids = at::full({B, N}, -1, opts);
 
   return AT_DISPATCH_FLOATING_TYPES(points.scalar_type(), "grid_cluster_cpu", [&] {
-    auto points_a = points.accessor<scalar_t, 3>(); // Accessor for points (B, N, 3)
-    auto lengths_a = lengths.accessor<int64_t, 1>(); // Accessor for lengths (B)
+    auto points_a = points.accessor<scalar_t, 3>();
+    auto lengths_a = lengths.accessor<int64_t, 1>();
     auto cluster_ids_a =
         cluster_ids.accessor<int64_t, 2>(); // Accessor for cluster IDs (B, N)
 
@@ -54,10 +51,6 @@ at::Tensor grid_cluster_cpu(
       int64_t dim_y =
           static_cast<int64_t>(std::floor((max_y - origin_y) / voxel_size)) + 1;
 
-      // Map for normalizing voxel indices
-      std::unordered_map<int64_t, int64_t> voxel_map;
-      int64_t next_cluster_id = 0;
-
       // Loop through each point and assign a voxel index (cluster ID)
       for (int64_t i = 0; i < cur_length; ++i) {
         scalar_t x = points_a[b][i][0];
@@ -71,14 +64,7 @@ at::Tensor grid_cluster_cpu(
 
         // Compute a unique voxel (cluster) ID using a 3D grid
         int64_t voxel_idx = gx + dim_x * gy + dim_x * dim_y * gz;
-
-        // If this voxel index hasn't been assigned a cluster ID yet, assign one
-        if (voxel_map.find(voxel_idx) == voxel_map.end()) {
-          voxel_map[voxel_idx] = next_cluster_id++;
-        }
-
-        // Assign the normalized cluster ID
-        cluster_ids_a[b][i] = voxel_map[voxel_idx];
+        cluster_ids_a[b][i] = voxel_idx;
       }
     }
 
