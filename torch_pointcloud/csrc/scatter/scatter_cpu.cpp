@@ -3,6 +3,12 @@
 #include <limits>
 #include <vector>
 
+/**
+ * @brief Count the number of clusters in each batch.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B,) tensor. The lengths of each batch in case of padding.
+ * @return (B,) tensor. The number of clusters in each batch.
+ */
 at::Tensor count_num_clusters_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths) {
@@ -32,7 +38,19 @@ at::Tensor count_num_clusters_cpu(
   return num_clusters;
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
+/**
+ * @brief Sum the input points together based on the cluster ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ *   This tensor is used during the backward pass, to avoid computing
+ *   the number of clusters again.
+ */
+std::tuple<at::Tensor, at::Tensor> scatter_sum_cpu(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -43,8 +61,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
-  auto counts = at::zeros({B, max_num_clusters}, at::kLong);
-  auto indices = at::full({B, max_num_clusters, C}, -1, at::kLong);
   auto output = at::zeros({B, max_num_clusters, C}, points.options());
 
   AT_DISPATCH_FLOATING_TYPES(points.scalar_type(), "scatter_sum_cpu", [&] {
@@ -53,7 +69,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
     auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto output_a = output.accessor<scalar_t, 3>();
-    auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
       for (int64_t n = 0; n < lengths_a[b]; ++n) {
@@ -61,8 +76,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
         for (int64_t d = 0; d < C; ++d) {
           output_a[b][cluster][d] += points_a[b][n][d];
         }
-
-        counts_a[b][cluster] += 1;
       }
 
       // Padding for unused clusters
@@ -74,10 +87,21 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cpu(
     }
   });
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters);
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
+/**
+ * @brief Compute the mean of the input points based on the cluster ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ * - counts (B, max_num_clusters) tensor. The number of points in each cluster.
+ */
+std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -89,7 +113,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);
-  auto indices = at::full({B, max_num_clusters, C}, -1, at::kLong);
   auto output = at::zeros({B, max_num_clusters, C}, points.options());
 
   AT_DISPATCH_FLOATING_TYPES(points.scalar_type(), "scatter_mean_cpu", [&] {
@@ -126,10 +149,20 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
     }
   });
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters, counts);
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
+/**
+ * @brief Compute the product of the input points based on the cluster ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ */
+std::tuple<at::Tensor, at::Tensor> scatter_prod_cpu(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -140,8 +173,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
-  auto counts = at::zeros({B, max_num_clusters}, at::kLong);
-  auto indices = at::full({B, max_num_clusters, C}, -1, at::kLong);
   auto output = at::ones({B, max_num_clusters, C}, points.options());
 
   AT_DISPATCH_FLOATING_TYPES(points.scalar_type(), "scatter_prod_cpu", [&] {
@@ -150,7 +181,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
     auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto output_a = output.accessor<scalar_t, 3>();
-    auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
       for (int64_t n = 0; n < lengths_a[b]; ++n) {
@@ -158,8 +188,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
         for (int64_t d = 0; d < C; ++d) {
           output_a[b][cluster][d] *= points_a[b][n][d];
         }
-
-        counts_a[b][cluster] += 1;
       }
 
       // Padding for unused clusters
@@ -171,10 +199,22 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cpu(
     }
   });
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters);
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
+/**
+ * @brief Compute the minimum channel-wise of the input points based on the cluster
+ * ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ * - indices (B, max_num_clusters, C) tensor. The indices of the minimum points.
+ */
+std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -185,7 +225,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
-  auto counts = at::zeros({B, max_num_clusters}, at::kLong);
   auto indices = at::full({B, max_num_clusters, C}, -1, at::kLong);
   auto output = at::full(
       {B, max_num_clusters, C}, std::numeric_limits<float>::max(), points.options());
@@ -197,7 +236,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto output_a = output.accessor<scalar_t, 3>();
     auto indices_a = indices.accessor<int64_t, 3>();
-    auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
       int64_t length_b = lengths_a[b];
@@ -209,8 +247,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
             indices_a[b][cluster][d] = n;
           }
         }
-
-        counts_a[b][cluster] += 1;
       }
 
       // Padding for unused clusters
@@ -222,10 +258,22 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
     }
   });
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters, indices);
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
+/**
+ * @brief Compute the maximum channel-wise of the input points based on the cluster
+ * ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ * - indices (B, max_num_clusters, C) tensor. The indices of the maximum points.
+ */
+std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -236,7 +284,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
-  auto counts = at::zeros({B, max_num_clusters}, at::kLong);
   auto indices = at::full({B, max_num_clusters, C}, -1, at::kLong);
   auto output = at::full(
       {B, max_num_clusters, C},
@@ -250,10 +297,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto output_a = output.accessor<scalar_t, 3>();
     auto indices_a = indices.accessor<int64_t, 3>();
-    auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
-      int64_t length_b = lengths_a[b];
+      int64_t length_b = lengths_a[b]; // TODO: maybe min(length, N)
       for (int64_t n = 0; n < length_b; ++n) {
         int64_t cluster = cluster_ids_a[b][n];
         for (int64_t d = 0; d < C; ++d) {
@@ -262,8 +308,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
             indices_a[b][cluster][d] = n;
           }
         }
-
-        counts_a[b][cluster] += 1;
       }
 
       // Padding for unused clusters
@@ -275,44 +319,24 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
     }
   });
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters, indices);
 }
 
-#define AT_DISPATCH_REDUCTION_TYPES(                                        \
-    reduce, points, cluster_ids, lengths, padding_value)                    \
-  [&]() -> std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> {     \
-    if (reduce == "sum")                                                    \
-      return scatter_sum_cpu(points, cluster_ids, lengths, padding_value);  \
-    else if (reduce == "mean")                                              \
-      return scatter_mean_cpu(points, cluster_ids, lengths, padding_value); \
-    else if (reduce == "prod")                                              \
-      return scatter_prod_cpu(points, cluster_ids, lengths, padding_value); \
-    else if (reduce == "min")                                               \
-      return scatter_min_cpu(points, cluster_ids, lengths, padding_value);  \
-    else if (reduce == "max")                                               \
-      return scatter_max_cpu(points, cluster_ids, lengths, padding_value);  \
-    else                                                                    \
-      AT_ERROR("Unknown reduction type: ", reduce);                         \
-  }()
-
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_cpu(
-    const std::string& reduce,
-    const at::Tensor& points,
-    const at::Tensor& cluster_ids,
-    const at::Tensor& lengths,
-    const float padding_value = 0.0) {
-  return AT_DISPATCH_REDUCTION_TYPES(
-      reduce, points, cluster_ids, lengths, padding_value);
-}
-
+/**
+ * @brief Compute the backward pass for the scatter sum operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_sum_backward_cpu(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
-    const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
+    const at::Tensor& num_clusters) {
   auto B = points.size(0);
   auto C = points.size(2);
 
@@ -341,14 +365,23 @@ at::Tensor scatter_sum_backward_cpu(
   return grad_points;
 }
 
+/**
+ * @brief Compute the backward pass for the scatter mean operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param counts (B, max_num_clusters) tensor. The number of points in each cluster.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_mean_backward_cpu(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
+    const at::Tensor& counts) {
   auto B = points.size(0);
   auto C = points.size(2);
 
@@ -367,11 +400,11 @@ at::Tensor scatter_mean_backward_cpu(
       for (int64_t n = 0; n < length_b; ++n) {
         int64_t cluster = cluster_ids_a[b][n];
         if (cluster >= 0 && cluster < num_clusters_a[b]) {
-          int64_t cluster_size = counts_a[b][cluster];
-          if (cluster_size > 0) {
+          int64_t count = counts_a[b][cluster];
+          if (count > 0) {
             for (int64_t d = 0; d < C; ++d) {
               grad_points_a[b][n][d] +=
-                  grad_output_a[b][cluster][d] / static_cast<scalar_t>(cluster_size);
+                  grad_output_a[b][cluster][d] / static_cast<scalar_t>(count);
             }
           }
         }
@@ -382,27 +415,35 @@ at::Tensor scatter_mean_backward_cpu(
   return grad_points;
 }
 
+/**
+ * @brief Compute the backward pass for the scatter prod operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_prod_backward_cpu(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
+    const at::Tensor& output) {
   auto B = points.size(0);
   auto C = points.size(2);
 
   auto grad_points = at::zeros_like(points);
-  auto prod_all_except_n = at::ones_like(points);
 
   AT_DISPATCH_FLOATING_TYPES(points.scalar_type(), "scatter_prod_backward_cpu", [&] {
     auto grad_output_a = grad_output.accessor<scalar_t, 3>();
-    auto lengths_a = lengths.accessor<int64_t, 1>();
+    auto points_a = points.accessor<scalar_t, 3>();
     auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
+    auto lengths_a = lengths.accessor<int64_t, 1>();
     auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
     auto grad_points_a = grad_points.accessor<scalar_t, 3>();
-    auto points_a = points.accessor<scalar_t, 3>();
+    auto output_a = output.accessor<scalar_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
       int64_t length_b = lengths_a[b];
@@ -410,14 +451,10 @@ at::Tensor scatter_prod_backward_cpu(
         int64_t cluster = cluster_ids_a[b][n];
         if (cluster >= 0 && cluster < num_clusters_a[b]) {
           for (int64_t d = 0; d < C; ++d) {
-            scalar_t product = 1;
-            for (int64_t m = 0; m < length_b; ++m) {
-              if (m != n && cluster_ids_a[b][m] == cluster) {
-                product *= points_a[b][m][d];
-              }
+            if (points_a[b][n][d] != 0) {
+              grad_points_a[b][n][d] += grad_output_a[b][cluster][d] *
+                  output_a[b][cluster][d] / points_a[b][n][d];
             }
-
-            grad_points_a[b][n][d] = grad_output_a[b][cluster][d] * product;
           }
         }
       }
@@ -427,13 +464,22 @@ at::Tensor scatter_prod_backward_cpu(
   return grad_points;
 }
 
+/**
+ * @brief Compute the backward pass for the scatter min operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param indices (B, max_num_clusters, C) tensor. The indices of the minimum points.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_min_backward_cpu(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
-    const at::Tensor& counts,
     const at::Tensor& indices) {
   auto B = points.size(0);
   auto C = points.size(2);
@@ -463,13 +509,23 @@ at::Tensor scatter_min_backward_cpu(
   return grad_points;
 }
 
+/**
+ * @brief Compute the backward pass for the scatter max operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param indices (B, max_num_clusters,  C) tensor. The indices of the maximum
+ * points.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_max_backward_cpu(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
-    const at::Tensor& counts,
     const at::Tensor& indices) {
   auto B = points.size(0);
   auto C = points.size(2);
@@ -498,83 +554,4 @@ at::Tensor scatter_max_backward_cpu(
   });
 
   return grad_points;
-}
-
-#define AT_DISPATCH_REDUCTION_BACKWARD_TYPES(       \
-    reduce,                                         \
-    grad_output,                                    \
-    points,                                         \
-    cluster_ids,                                    \
-    lengths,                                        \
-    num_clusters,                                   \
-    counts,                                         \
-    indices)                                        \
-  [&]() -> at::Tensor {                             \
-    if (reduce == "sum")                            \
-      return scatter_sum_backward_cpu(              \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else if (reduce == "mean")                      \
-      return scatter_mean_backward_cpu(             \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else if (reduce == "prod")                      \
-      return scatter_prod_backward_cpu(             \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else if (reduce == "min")                       \
-      return scatter_min_backward_cpu(              \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else if (reduce == "max")                       \
-      return scatter_max_backward_cpu(              \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else                                            \
-      AT_ERROR("Unknown reduction type: ", reduce); \
-  }()
-
-at::Tensor scatter_backward_cpu(
-    const std::string& reduce,
-    const at::Tensor& grad_output,
-    const at::Tensor& points,
-    const at::Tensor& cluster_ids,
-    const at::Tensor& lengths,
-    const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
-  return AT_DISPATCH_REDUCTION_BACKWARD_TYPES(
-      reduce,
-      grad_output,
-      points,
-      cluster_ids,
-      lengths,
-      num_clusters,
-      counts,
-      indices);
 }
