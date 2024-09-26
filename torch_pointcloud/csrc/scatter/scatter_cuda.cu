@@ -13,8 +13,7 @@ __global__ void count_num_clusters_kernel(
   int b = blockIdx.x;
   int tid = threadIdx.x;
   int stride = blockDim.x;
-  __shared__ unsigned int
-      cluster_bitset[128]; // 4096 bits, can handle up to 4096 clusters
+  __shared__ unsigned int cluster_bitset[128];
 
   // Initialize shared memory
   for (int i = tid; i < 128; i += stride) {
@@ -41,6 +40,12 @@ __global__ void count_num_clusters_kernel(
   }
 }
 
+/**
+ * @brief Count the number of clusters in each batch.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B,) tensor. The lengths of each batch in case of padding.
+ * @return (B,) tensor. The number of clusters in each batch.
+ */
 at::Tensor count_num_clusters_cuda(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths) {
@@ -67,8 +72,6 @@ __global__ void scatter_sum_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
-    at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
-    at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
     scalar_t padding_value) {
   int b = blockIdx.x; // batch index
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
@@ -80,8 +83,6 @@ __global__ void scatter_sum_kernel(
     for (int64_t d = 0; d < points.size(2); ++d) {
       atomicAdd(&output[b][cluster][d], points[b][n][d]);
     }
-
-    atomAdd(&counts[b][cluster], static_cast<int64_t>(1));
   }
 
   __syncthreads();
@@ -95,7 +96,19 @@ __global__ void scatter_sum_kernel(
   }
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cuda(
+/**
+ * @brief Sum the input points together based on the cluster ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ *   This tensor is used during the backward pass, to avoid computing
+ *   the number of clusters again.
+ */
+std::tuple<at::Tensor, at::Tensor> scatter_sum_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -110,8 +123,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cuda(
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
 
-  auto counts = at::zeros({B, max_num_clusters}, long_opts);
-  auto indices = at::full({B, max_num_clusters, C}, -1, long_opts);
   auto output = at::zeros({B, max_num_clusters, C}, opts);
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -123,12 +134,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_sum_cuda(
             lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-            indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
-            counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
             static_cast<scalar_t>(padding_value));
       }));
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters);
 }
 
 template <typename scalar_t>
@@ -138,7 +147,6 @@ __global__ void scatter_mean_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
-    at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
     at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
     scalar_t padding_value) {
   int b = blockIdx.x; // batch index
@@ -175,7 +183,18 @@ __global__ void scatter_mean_kernel(
   }
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cuda(
+/**
+ * @brief Compute the mean of the input points based on the cluster ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ * - counts (B, max_num_clusters) tensor. The number of points in each cluster.
+ */
+std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_mean_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -191,7 +210,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cuda(
   auto long_opts = opts.dtype(at::kLong);
 
   auto counts = at::zeros({B, max_num_clusters}, long_opts);
-  auto indices = at::full({B, max_num_clusters, C}, -1, long_opts);
   auto output = at::zeros({B, max_num_clusters, C}, opts);
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -203,12 +221,11 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_mean_cuda(
             lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-            indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
             counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
             static_cast<scalar_t>(padding_value));
       }));
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters, counts);
 }
 
 template <typename scalar_t>
@@ -218,8 +235,6 @@ __global__ void scatter_prod_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
-    at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
-    at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
     scalar_t padding_value) {
   int b = blockIdx.x; // batch index
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
@@ -231,8 +246,6 @@ __global__ void scatter_prod_kernel(
     for (int64_t d = 0; d < points.size(2); ++d) {
       atomMul(&output[b][cluster][d], points[b][n][d]);
     }
-
-    atomAdd(&counts[b][cluster], static_cast<int64_t>(1));
   }
 
   __syncthreads();
@@ -246,7 +259,17 @@ __global__ void scatter_prod_kernel(
   }
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cuda(
+/**
+ * @brief Compute the product of the input points based on the cluster ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ */
+std::tuple<at::Tensor, at::Tensor> scatter_prod_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -261,8 +284,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cuda(
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
 
-  auto counts = at::zeros({B, max_num_clusters}, long_opts);
-  auto indices = at::full({B, max_num_clusters, C}, -1, long_opts);
   auto output = at::ones({B, max_num_clusters, C}, opts);
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -274,12 +295,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_prod_cuda(
             lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-            indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
-            counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
             static_cast<scalar_t>(padding_value));
       }));
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters);
 }
 
 template <typename scalar_t>
@@ -290,7 +309,6 @@ __global__ void scatter_min_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
     at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
-    at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
     scalar_t padding_value) {
   int b = blockIdx.x; // batch index
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
@@ -307,8 +325,6 @@ __global__ void scatter_min_kernel(
         indices[b][cluster][d] = n;
       }
     }
-
-    atomAdd(&counts[b][cluster], static_cast<int64_t>(1));
   }
 
   __syncthreads();
@@ -322,7 +338,19 @@ __global__ void scatter_min_kernel(
   }
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cuda(
+/**
+ * @brief Compute the minimum channel-wise of the input points based on the cluster
+ * ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ * - indices (B, max_num_clusters, C) tensor. The indices of the minimum points.
+ */
+std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_min_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -337,7 +365,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cuda(
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
 
-  auto counts = at::zeros({B, max_num_clusters}, long_opts);
   auto indices = at::full({B, max_num_clusters, C}, -1, long_opts);
   auto inf = std::numeric_limits<float>::max();
   auto output = at::full({B, max_num_clusters, C}, inf, opts);
@@ -352,11 +379,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_min_cuda(
             num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
             indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
-            counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
             static_cast<scalar_t>(padding_value));
       }));
 
-  return std::make_tuple(output, num_clusters, counts, indices);
+  return std::make_tuple(output, num_clusters, indices);
 }
 
 template <typename scalar_t>
@@ -367,7 +393,6 @@ __global__ void scatter_max_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
     at::PackedTensorAccessor64<int64_t, 3, at::RestrictPtrTraits> indices,
-    at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
     scalar_t padding_value) {
   int b = blockIdx.x; // batch index
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
@@ -384,8 +409,6 @@ __global__ void scatter_max_kernel(
         indices[b][cluster][d] = n;
       }
     }
-
-    atomAdd(&counts[b][cluster], static_cast<int64_t>(1));
   }
 
   __syncthreads();
@@ -399,7 +422,19 @@ __global__ void scatter_max_kernel(
   }
 }
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cuda(
+/**
+ * @brief Compute the maximum channel-wise of the input points based on the cluster
+ * ids.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param padding_value The value to use for padding.
+ * @return A tuple of:
+ * - output (B, max_num_clusters, C) tensor. The output tensor.
+ * - num_clusters (B) tensor. The number of clusters in each batch.
+ * - indices (B, max_num_clusters, C) tensor. The indices of the maximum points.
+ */
+std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_max_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
@@ -414,7 +449,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cuda(
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
 
-  auto counts = at::zeros({B, max_num_clusters}, long_opts);
   auto indices = at::full({B, max_num_clusters, C}, -1, long_opts);
   auto inf = std::numeric_limits<float>::min();
   auto output = at::full({B, max_num_clusters, C}, inf, opts);
@@ -429,38 +463,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_max_cuda(
             num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
             output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
             indices.packed_accessor64<int64_t, 3, at::RestrictPtrTraits>(),
-            counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
             static_cast<scalar_t>(padding_value));
       }));
 
-  return std::make_tuple(output, num_clusters, counts, indices);
-}
-
-#define AT_DISPATCH_REDUCTION_TYPES(                                         \
-    reduce, points, cluster_ids, lengths, padding_value)                     \
-  [&]() -> std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> {      \
-    if (reduce == "sum")                                                     \
-      return scatter_sum_cuda(points, cluster_ids, lengths, padding_value);  \
-    else if (reduce == "mean")                                               \
-      return scatter_mean_cuda(points, cluster_ids, lengths, padding_value); \
-    else if (reduce == "prod")                                               \
-      return scatter_prod_cuda(points, cluster_ids, lengths, padding_value); \
-    else if (reduce == "min")                                                \
-      return scatter_min_cuda(points, cluster_ids, lengths, padding_value);  \
-    else if (reduce == "max")                                                \
-      return scatter_max_cuda(points, cluster_ids, lengths, padding_value);  \
-    else                                                                     \
-      AT_ERROR("Unknown reduction type: ", reduce);                          \
-  }()
-
-std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor> scatter_cuda(
-    const std::string& reduce,
-    const at::Tensor& points,
-    const at::Tensor& cluster_ids,
-    const at::Tensor& lengths,
-    const float padding_value = 0.0) {
-  return AT_DISPATCH_REDUCTION_TYPES(
-      reduce, points, cluster_ids, lengths, padding_value);
+  return std::make_tuple(output, num_clusters, indices);
 }
 
 template <typename scalar_t>
@@ -485,14 +491,21 @@ __global__ void scatter_sum_backward_kernel(
   }
 }
 
+/**
+ * @brief Compute the backward pass for the scatter sum operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_sum_backward_cuda(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
-    const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
+    const at::Tensor& num_clusters) {
   auto B = points.size(0);
   auto N = points.size(1);
   auto C = points.size(2);
@@ -543,14 +556,23 @@ __global__ void scatter_mean_backward_kernel(
   }
 }
 
+/**
+ * @brief Compute the backward pass for the scatter mean operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param counts (B, max_num_clusters) tensor. The number of points in each cluster.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_mean_backward_cuda(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
+    const at::Tensor& counts) {
   auto B = points.size(0);
   auto N = points.size(1);
   auto C = points.size(2);
@@ -576,13 +598,12 @@ at::Tensor scatter_mean_backward_cuda(
 template <typename scalar_t>
 __global__ void scatter_prod_backward_kernel(
     const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_output,
-    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> points,
     const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
-    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> counts,
-    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points,
-    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> points) {
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> grad_points) {
   int b = blockIdx.x; // batch index
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
@@ -592,7 +613,7 @@ __global__ void scatter_prod_backward_kernel(
 
     if (cluster >= 0 && cluster < num_clusters[b]) {
       for (int64_t d = 0; d < grad_points.size(2); ++d) {
-        if (points[b][n][d] != 0 && counts[b][cluster] > 0) {
+        if (points[b][n][d] != 0) {
           scalar_t grad =
               grad_output[b][cluster][d] * output[b][cluster][d] / points[b][n][d];
           atomicAdd(&grad_points[b][n][d], grad);
@@ -602,13 +623,22 @@ __global__ void scatter_prod_backward_kernel(
   }
 }
 
+/**
+ * @brief Compute the backward pass for the scatter prod operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param output (B, max_num_clusters, C) tensor. The output of the forward pass.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_prod_backward_cuda(
     const at::Tensor& grad_output,
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
-    const at::Tensor& counts,
     const at::Tensor& output) {
   auto B = points.size(0);
   auto N = points.size(1);
@@ -622,13 +652,12 @@ at::Tensor scatter_prod_backward_cuda(
         scatter_prod_backward_kernel<scalar_t>
             <<<B, optimal_block_config(N, C), 0, stream>>>(
                 grad_output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-                output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
                 cluster_ids.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
                 lengths.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
                 num_clusters.packed_accessor64<int64_t, 1, at::RestrictPtrTraits>(),
-                counts.packed_accessor64<int64_t, 2, at::RestrictPtrTraits>(),
-                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
-                points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
+                output.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>(),
+                grad_points.packed_accessor64<scalar_t, 3, at::RestrictPtrTraits>());
       }));
 
   return grad_points;
@@ -659,6 +688,16 @@ __global__ void scatter_min_backward_kernel(
   }
 }
 
+/**
+ * @brief Compute the backward pass for the scatter min operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param indices (B, max_num_clusters, C) tensor. The indices of the minimum points.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_min_backward_cuda(
     const at::Tensor& grad_output,
     const at::Tensor& points,
@@ -713,6 +752,16 @@ __global__ void scatter_max_backward_kernel(
   }
 }
 
+/**
+ * @brief Compute the backward pass for the scatter max operation.
+ * @param grad_output (B, max_num_clusters, C) tensor. The gradients of the output.
+ * @param points (B, N, C) tensor. The input points.
+ * @param cluster_ids (B, N) tensor. The cluster ids.
+ * @param lengths (B) tensor. The lengths of each batch in case of padding.
+ * @param num_clusters (B) tensor. The number of clusters in each batch.
+ * @param indices (B, max_num_clusters, C) tensor. The indices of the maximum points.
+ * @return (B, N, C) tensor. The gradients of the input points.
+ */
 at::Tensor scatter_max_backward_cuda(
     const at::Tensor& grad_output,
     const at::Tensor& points,
@@ -740,58 +789,4 @@ at::Tensor scatter_max_backward_cuda(
       }));
 
   return grad_points;
-}
-
-#define AT_DISPATCH_REDUCTION_TYPES_BACKWARD(       \
-    reduce,                                         \
-    grad_output,                                    \
-    points,                                         \
-    cluster_ids,                                    \
-    lengths,                                        \
-    num_clusters,                                   \
-    counts,                                         \
-    indices)                                        \
-  [&]() -> at::Tensor {                             \
-    if (reduce == "sum")                            \
-      return scatter_sum_backward_cuda(             \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else if (reduce == "mean")                      \
-      return scatter_mean_backward_cuda(            \
-          grad_output,                              \
-          points,                                   \
-          cluster_ids,                              \
-          lengths,                                  \
-          num_clusters,                             \
-          counts,                                   \
-          indices);                                 \
-    else                                            \
-      AT_ERROR("Unknown reduction type: ", reduce); \
-  }()
-
-// ! NOTE: The scatter prod, min and max do not follow the same API as the scatter
-// ! sum and mean... !!!
-at::Tensor scatter_backward_cuda(
-    const std::string& reduce,
-    const at::Tensor& grad_output,
-    const at::Tensor& points,
-    const at::Tensor& cluster_ids,
-    const at::Tensor& lengths,
-    const at::Tensor& num_clusters,
-    const at::Tensor& counts,
-    const at::Tensor& indices) {
-  return AT_DISPATCH_REDUCTION_TYPES_BACKWARD(
-      reduce,
-      grad_output,
-      points,
-      cluster_ids,
-      lengths,
-      num_clusters,
-      counts,
-      indices);
 }
