@@ -42,12 +42,14 @@ Add object detection training for PVCNN following config https://github.com/mit-
 
 ## Misc
 
-- Remove the default_tensor function in utils
-- Add better tests
-- Refactor naming conventions for points
+- [ ] Remove the default_tensor function in utils
+- [ ] Add better tests
+- [ ] Refactor naming conventions for points
 
-- Finish scatter, make sure they are optimized
-- Update the grid cluster to handle large number of channels
-- Update the grid cluster CPU id matching to match the GPU version from the torch-scatter test utils
-- Use `std::clamp` in most functions to clamp the length to (0, N)
-- Add packed version for all C++ and CUDA functions. Maybe add a AT_DISPATCH_DATA_TYPE_MODES macro to handle all the types at once (`packed`, `batched`, `auto`). Or maybe use it in python directly ? But we might have to define multiple torch Functions ... ?
+- [x] Finish scatter, make sure they are optimized
+- [ ] Update the grid cluster to handle large number of channels
+- [x] Update the grid cluster CPU id matching to match the GPU version from the torch-scatter test utils
+- [ ] Use `std::clamp` in most functions to clamp the length to (0, N)
+- [ ] Add packed version for all C++ and CUDA functions. Maybe add a AT_DISPATCH_DATA_TYPE_MODES macro to handle all the types at once (`packed`, `batched`, `auto`). Or maybe use it in python directly ? But we might have to define multiple torch Functions ... ?
+
+- [ ] Add checks for cuda tensors and sizes in csrc
