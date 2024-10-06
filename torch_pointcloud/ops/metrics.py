@@ -39,7 +39,7 @@ def sided_distance(
     lengths1 = lengths1.clamp(0, N1).to(pc1.device)
     lengths2 = lengths2.clamp(0, N2).to(pc2.device)
 
-    return SidedDistance.apply(pc1, pc2, lengths1, lengths2)  # type: ignore[no-untyped-call]
+    return SidedDistance.apply(pc1, pc2, lengths1, lengths2)
 
 
 def chamfer_distance(
