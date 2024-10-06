@@ -13,7 +13,8 @@ __global__ void count_num_clusters_kernel(
   int b = blockIdx.x;
   int tid = threadIdx.x;
   int stride = blockDim.x;
-  __shared__ unsigned int cluster_bitset[128];
+  __shared__ unsigned int
+      cluster_bitset[128]; // 4096 bits, can handle up to 4096 clusters
 
   // Initialize shared memory
   for (int i = tid; i < 128; i += stride) {
@@ -40,12 +41,6 @@ __global__ void count_num_clusters_kernel(
   }
 }
 
-/**
- * @brief Count the number of clusters in each batch.
- * @param cluster_ids (B, N) tensor. The cluster ids.
- * @param lengths (B,) tensor. The lengths of each batch in case of padding.
- * @return (B,) tensor. The number of clusters in each batch.
- */
 at::Tensor count_num_clusters_cuda(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths) {
@@ -73,56 +68,51 @@ __global__ void scatter_sum_kernel(
     const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
     at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
     scalar_t padding_value) {
-  int b = blockIdx.x; // batch index
-  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
-  int total_threads = blockDim.x * blockDim.y; // total threads in the block
+  const int b = blockIdx.x; // batch index
+  const int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  const int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
+  const int64_t max_num_clusters = output.size(1);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    for (int64_t d = 0; d < points.size(2); ++d) {
-      atomicAdd(&output[b][cluster][d], points[b][n][d]);
+  for (int n = tid; n < length_b; n += total_threads) {
+    // Sum the points per cluster
+    const int64_t cluster_id = cluster_ids[b][n];
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < C; ++c) {
+        atomicAdd(&output[b][cluster_id][c], points[b][n][c]);
+      }
     }
   }
 
   __syncthreads();
 
   if (tid == 0) {
-    for (int64_t c = num_clusters[b]; c < output.size(1); ++c) {
-      for (int64_t d = 0; d < output.size(2); ++d) {
-        output[b][c][d] = padding_value;
+    // Padding for unused clusters
+    for (int64_t n = num_clusters[b]; n < max_num_clusters; ++n) {
+      for (int64_t c = 0; c < C; ++c) {
+        output[b][n][c] = padding_value;
       }
     }
   }
 }
 
-/**
- * @brief Sum the input points together based on the cluster ids.
- * @param points (B, N, C) tensor. The input points.
- * @param cluster_ids (B, N) tensor. The cluster ids.
- * @param lengths (B) tensor. The lengths of each batch in case of padding.
- * @param padding_value The value to use for padding.
- * @return A tuple of:
- * - output (B, max_num_clusters, C) tensor. The output tensor.
- * - num_clusters (B) tensor. The number of clusters in each batch.
- *   This tensor is used during the backward pass, to avoid computing
- *   the number of clusters again.
- */
 std::tuple<at::Tensor, at::Tensor> scatter_sum_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  int64_t B = points.size(0);
-  int64_t N = points.size(1);
-  int64_t C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cuda(cluster_ids, lengths);
-  int64_t max_num_clusters = num_clusters.max().item<int64_t>();
+  const int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
-
   auto output = at::zeros({B, max_num_clusters, C}, opts);
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -153,31 +143,39 @@ __global__ void scatter_mean_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
+  const int64_t max_num_clusters = output.size(1);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    for (int64_t d = 0; d < points.size(2); ++d) {
-      atomicAdd(&output[b][cluster][d], points[b][n][d]);
+  for (int n = tid; n < length_b; n += total_threads) {
+    // Sum the points per cluster
+    const int64_t cluster_id = cluster_ids[b][n];
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < C; ++c) {
+        atomicAdd(&output[b][cluster_id][c], points[b][n][c]);
+      }
+      atomAdd(&counts[b][cluster_id], static_cast<int64_t>(1));
     }
-
-    atomAdd(&counts[b][cluster], static_cast<int64_t>(1));
   }
 
   __syncthreads();
 
-  // Compute the mean for each cluster and pad unused clusters
   if (tid == 0) {
-    for (int64_t cluster = 0; cluster < num_clusters[b]; ++cluster) {
-      if (counts[b][cluster] > 0) {
-        for (int64_t d = 0; d < output.size(2); ++d) {
-          output[b][cluster][d] /= static_cast<scalar_t>(counts[b][cluster]);
+    // Divide by the number of points per cluster
+    for (int n = 0; n < length_b; ++n) {
+      const int64_t cluster_id = cluster_ids[b][n];
+      if (counts[b][cluster_id] && cluster_id >= 0 && cluster_id < num_clusters[b]) {
+        for (int64_t c = 0; c < C; ++c) {
+          output[b][cluster_id][c] /= counts[b][cluster_id];
         }
       }
     }
 
-    for (int64_t c = num_clusters[b]; c < output.size(1); ++c) {
-      for (int64_t d = 0; d < output.size(2); ++d) {
-        output[b][c][d] = padding_value;
+    // Padding for unused clusters
+    for (int64_t n = num_clusters[b]; n < max_num_clusters; ++n) {
+      for (int64_t c = 0; c < C; ++c) {
+        output[b][n][c] = padding_value;
       }
     }
   }
@@ -199,12 +197,12 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_mean_cuda(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  int64_t B = points.size(0);
-  int64_t N = points.size(1);
-  int64_t C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cuda(cluster_ids, lengths);
-  int64_t max_num_clusters = num_clusters.max().item<int64_t>();
+  const int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
@@ -228,37 +226,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_mean_cuda(
   return std::make_tuple(output, num_clusters, counts);
 }
 
-template <typename scalar_t>
-__global__ void scatter_prod_kernel(
-    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> points,
-    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
-    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
-    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
-    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
-    scalar_t padding_value) {
-  int b = blockIdx.x; // batch index
-  int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
-  int total_threads = blockDim.x * blockDim.y; // total threads in the block
-
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
-
-    for (int64_t d = 0; d < points.size(2); ++d) {
-      atomMul(&output[b][cluster][d], points[b][n][d]);
-    }
-  }
-
-  __syncthreads();
-
-  if (tid == 0) {
-    for (int64_t c = num_clusters[b]; c < output.size(1); ++c) {
-      for (int64_t d = 0; d < output.size(2); ++d) {
-        output[b][c][d] = padding_value;
-      }
-    }
-  }
-}
-
 /**
  * @brief Compute the product of the input points based on the cluster ids.
  * @param points (B, N, C) tensor. The input points.
@@ -269,21 +236,57 @@ __global__ void scatter_prod_kernel(
  * - output (B, max_num_clusters, C) tensor. The output tensor.
  * - num_clusters (B) tensor. The number of clusters in each batch.
  */
+template <typename scalar_t>
+__global__ void scatter_prod_kernel(
+    const at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> points,
+    const at::PackedTensorAccessor64<int64_t, 2, at::RestrictPtrTraits> cluster_ids,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> lengths,
+    const at::PackedTensorAccessor64<int64_t, 1, at::RestrictPtrTraits> num_clusters,
+    at::PackedTensorAccessor64<scalar_t, 3, at::RestrictPtrTraits> output,
+    scalar_t padding_value) {
+  const int b = blockIdx.x; // batch index
+  const int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
+  const int total_threads = blockDim.x * blockDim.y; // total threads in the block
+
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
+  const int64_t max_num_clusters = output.size(1);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
+
+  for (int n = tid; n < length_b; n += total_threads) {
+    const int64_t cluster_id = cluster_ids[b][n];
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < C; ++c) {
+        atomMul(&output[b][cluster_id][c], points[b][n][c]);
+      }
+    }
+  }
+
+  __syncthreads();
+
+  if (tid == 0) {
+    for (int64_t n = num_clusters[b]; n < max_num_clusters; ++n) {
+      for (int64_t c = 0; c < C; ++c) {
+        output[b][n][c] = padding_value;
+      }
+    }
+  }
+}
+
 std::tuple<at::Tensor, at::Tensor> scatter_prod_cuda(
     const at::Tensor& points,
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  int64_t B = points.size(0);
-  int64_t N = points.size(1);
-  int64_t C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cuda(cluster_ids, lengths);
-  int64_t max_num_clusters = num_clusters.max().item<int64_t>();
+  const int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto opts = points.options();
   auto long_opts = opts.dtype(at::kLong);
-
   auto output = at::ones({B, max_num_clusters, C}, opts);
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -314,15 +317,21 @@ __global__ void scatter_min_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
+  const int64_t max_num_clusters = output.size(1);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    for (int64_t d = 0; d < points.size(2); ++d) {
-      scalar_t point_value = points[b][n][d];
-      scalar_t old_value = atomMin(&output[b][cluster][d], point_value);
+  for (int n = tid; n < length_b; n += total_threads) {
+    int64_t cluster_id = cluster_ids[b][n];
 
-      if (point_value == output[b][cluster][d]) { // Only update if it's the min
-        indices[b][cluster][d] = n;
+    for (int64_t c = 0; c < C; ++c) {
+      scalar_t point_value = points[b][n][c];
+      scalar_t old_value = atomMin(&output[b][cluster_id][c], point_value);
+
+      // Only update if it's the min
+      if (point_value == output[b][cluster_id][c]) {
+        indices[b][cluster_id][c] = n;
       }
     }
   }
@@ -330,9 +339,9 @@ __global__ void scatter_min_kernel(
   __syncthreads();
 
   if (tid == 0) {
-    for (int64_t c = num_clusters[b]; c < output.size(1); ++c) {
-      for (int64_t d = 0; d < output.size(2); ++d) {
-        output[b][c][d] = padding_value;
+    for (int64_t n = num_clusters[b]; n < max_num_clusters; ++n) {
+      for (int64_t c = 0; c < C; ++c) {
+        output[b][n][c] = padding_value;
       }
     }
   }
@@ -398,15 +407,20 @@ __global__ void scatter_max_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
+  const int64_t max_num_clusters = output.size(1);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    for (int64_t d = 0; d < points.size(2); ++d) {
-      scalar_t point_value = points[b][n][d];
-      scalar_t old_value = atomMax(&output[b][cluster][d], point_value);
+  for (int n = tid; n < length_b; n += total_threads) {
+    int64_t cluster_id = cluster_ids[b][n];
 
-      if (point_value == output[b][cluster][d]) { // Only update if it's the max
-        indices[b][cluster][d] = n;
+    for (int64_t c = 0; c < C; ++c) {
+      scalar_t point_value = points[b][n][c];
+      scalar_t old_value = atomMax(&output[b][cluster_id][c], point_value);
+
+      if (point_value == output[b][cluster_id][c]) { // Only update if it's the max
+        indices[b][cluster_id][c] = n;
       }
     }
   }
@@ -414,9 +428,9 @@ __global__ void scatter_max_kernel(
   __syncthreads();
 
   if (tid == 0) {
-    for (int64_t c = num_clusters[b]; c < output.size(1); ++c) {
-      for (int64_t d = 0; d < output.size(2); ++d) {
-        output[b][c][d] = padding_value;
+    for (int64_t n = num_clusters[b]; n < max_num_clusters; ++n) {
+      for (int64_t c = 0; c < C; ++c) {
+        output[b][n][c] = padding_value;
       }
     }
   }
@@ -480,12 +494,16 @@ __global__ void scatter_sum_backward_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = grad_points.size(1);
+  const int64_t C = grad_points.size(2);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    if (cluster >= 0 && cluster < num_clusters[b]) {
-      for (int64_t d = 0; d < grad_points.size(2); ++d) {
-        atomicAdd(&grad_points[b][n][d], grad_output[b][cluster][d]);
+  for (int n = tid; n < length_b; n += total_threads) {
+    int64_t cluster_id = cluster_ids[b][n];
+
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < C; ++c) {
+        atomicAdd(&grad_points[b][n][c], grad_output[b][cluster_id][c]);
       }
     }
   }
@@ -539,17 +557,19 @@ __global__ void scatter_mean_backward_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = grad_points.size(1);
+  const int64_t C = grad_points.size(2);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    if (cluster >= 0 && cluster < num_clusters[b]) {
-      int64_t cluster_count = counts[b][cluster];
-
+  for (int n = tid; n < length_b; n += total_threads) {
+    int64_t cluster_id = cluster_ids[b][n];
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      int64_t cluster_count = counts[b][cluster_id];
       if (cluster_count > 0) {
-        for (int64_t d = 0; d < grad_points.size(2); ++d) {
+        for (int64_t c = 0; c < C; ++c) {
           atomicAdd(
-              &grad_points[b][n][d],
-              grad_output[b][cluster][d] / static_cast<scalar_t>(cluster_count));
+              &grad_points[b][n][c],
+              grad_output[b][cluster_id][c] / static_cast<scalar_t>(cluster_count));
         }
       }
     }
@@ -608,15 +628,19 @@ __global__ void scatter_prod_backward_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = grad_points.size(1);
+  const int64_t C = grad_points.size(2);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    if (cluster >= 0 && cluster < num_clusters[b]) {
-      for (int64_t d = 0; d < grad_points.size(2); ++d) {
-        if (points[b][n][d] != 0) {
-          scalar_t grad =
-              grad_output[b][cluster][d] * output[b][cluster][d] / points[b][n][d];
-          atomicAdd(&grad_points[b][n][d], grad);
+  for (int n = tid; n < length_b; n += total_threads) {
+    int64_t cluster_id = cluster_ids[b][n];
+
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < C; ++c) {
+        if (points[b][n][c] != 0) {
+          scalar_t grad = grad_output[b][cluster_id][c] * output[b][cluster_id][c] /
+              points[b][n][c];
+          atomicAdd(&grad_points[b][n][c], grad);
         }
       }
     }
@@ -675,13 +699,17 @@ __global__ void scatter_min_backward_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = grad_points.size(1);
+  const int64_t C = grad_points.size(2);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    if (cluster >= 0 && cluster < num_clusters[b]) {
-      for (int64_t d = 0; d < grad_points.size(2); ++d) {
-        if (indices[b][cluster][d] == n) {
-          atomicAdd(&grad_points[b][n][d], grad_output[b][cluster][d]);
+  for (int n = tid; n < length_b; n += total_threads) {
+    const int64_t cluster_id = cluster_ids[b][n];
+
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < C; ++c) {
+        if (indices[b][cluster_id][c] == n) {
+          atomicAdd(&grad_points[b][n][c], grad_output[b][cluster_id][c]);
         }
       }
     }
@@ -705,9 +733,9 @@ at::Tensor scatter_min_backward_cuda(
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
     const at::Tensor& indices) {
-  auto B = points.size(0);
-  auto N = points.size(1);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto grad_points = at::zeros_like(points);
 
@@ -739,13 +767,17 @@ __global__ void scatter_max_backward_kernel(
   int tid = threadIdx.x + threadIdx.y * blockDim.x; // thread index
   int total_threads = blockDim.x * blockDim.y; // total threads in the block
 
-  for (int n = tid; n < lengths[b]; n += total_threads) {
-    int64_t cluster = cluster_ids[b][n];
+  const int64_t N = grad_points.size(1);
+  const int64_t C = grad_points.size(2);
+  const int64_t length_b = std::clamp(lengths[b], int64_t(0), N);
 
-    if (cluster >= 0 && cluster < num_clusters[b]) {
-      for (int64_t d = 0; d < grad_points.size(2); ++d) {
-        if (indices[b][cluster][d] == n) {
-          atomicAdd(&grad_points[b][n][d], grad_output[b][cluster][d]);
+  for (int n = tid; n < length_b; n += total_threads) {
+    int64_t cluster_id = cluster_ids[b][n];
+
+    if (cluster_id >= 0 && cluster_id < num_clusters[b]) {
+      for (int64_t c = 0; c < grad_points.size(2); ++c) {
+        if (indices[b][cluster_id][c] == n) {
+          atomicAdd(&grad_points[b][n][c], grad_output[b][cluster_id][c]);
         }
       }
     }
@@ -769,9 +801,9 @@ at::Tensor scatter_max_backward_cuda(
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
     const at::Tensor& indices) {
-  auto B = points.size(0);
-  auto N = points.size(1);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto grad_points = at::zeros_like(points);
 
