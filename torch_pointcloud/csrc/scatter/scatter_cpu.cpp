@@ -15,20 +15,19 @@ at::Tensor count_num_clusters_cpu(
   auto B = cluster_ids.size(0);
   auto N = cluster_ids.size(1);
 
-  auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
-  auto lengths_accessor = lengths.accessor<int64_t, 1>();
+  auto num_clusters = at::zeros({B}, cluster_ids.options());
 
-  auto options = cluster_ids.options();
-  auto num_clusters = at::zeros({B}, options);
   auto num_clusters_a = num_clusters.accessor<int64_t, 1>();
+  auto cluster_ids_a = cluster_ids.accessor<int64_t, 2>();
+  auto lengths_a = lengths.accessor<int64_t, 1>();
 
   for (int64_t b = 0; b < B; ++b) {
-    int64_t length_b = lengths_accessor[b];
+    int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
     std::vector<bool> cluster_seen(N, false);
 
     for (int64_t n = 0; n < length_b; ++n) {
       int64_t cluster_id = cluster_ids_a[b][n];
-      if (!cluster_seen[cluster_id]) {
+      if (!cluster_seen[cluster_id] && cluster_id >= 0 && cluster_id < N) {
         cluster_seen[cluster_id] = true;
         num_clusters_a[b]++;
       }
@@ -55,11 +54,12 @@ std::tuple<at::Tensor, at::Tensor> scatter_sum_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
-  int64_t max_num_clusters = num_clusters.max().item<int64_t>();
+  const int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto output = at::zeros({B, max_num_clusters, C}, points.options());
 
@@ -71,10 +71,13 @@ std::tuple<at::Tensor, at::Tensor> scatter_sum_cpu(
     auto output_a = output.accessor<scalar_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      for (int64_t n = 0; n < lengths_a[b]; ++n) {
-        int64_t cluster = cluster_ids_a[b][n];
-        for (int64_t d = 0; d < C; ++d) {
-          output_a[b][cluster][d] += points_a[b][n][d];
+      const int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
+      for (int64_t n = 0; n < length_b; ++n) {
+        int64_t cluster_id = cluster_ids_a[b][n];
+        if (cluster_id >= 0 && cluster_id < max_num_clusters) {
+          for (int64_t d = 0; d < C; ++d) {
+            output_a[b][cluster_id][d] += points_a[b][n][d];
+          }
         }
       }
 
@@ -106,11 +109,12 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
-  int64_t max_num_clusters = num_clusters.max().item<int64_t>();
+  const int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto counts = at::zeros({B, max_num_clusters}, at::kLong);
   auto output = at::zeros({B, max_num_clusters, C}, points.options());
@@ -124,26 +128,33 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_mean_cpu(
     auto counts_a = counts.accessor<int64_t, 2>();
 
     for (int64_t b = 0; b < B; ++b) {
-      for (int64_t n = 0; n < lengths_a[b]; ++n) {
-        int64_t cluster = cluster_ids_a[b][n];
-        for (int64_t d = 0; d < C; ++d) {
-          output_a[b][cluster][d] += points_a[b][n][d];
+      const int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
+      // Sum the points per cluster
+      for (int64_t n = 0; n < length_b; ++n) {
+        const int64_t cluster_id = cluster_ids_a[b][n];
+        if (cluster_id >= 0 && cluster_id < max_num_clusters) {
+          for (int64_t d = 0; d < C; ++d) {
+            output_a[b][cluster_id][d] += points_a[b][n][d];
+          }
+          counts_a[b][cluster_id] += 1;
         }
-
-        counts_a[b][cluster] += 1;
       }
 
-      for (int64_t cluster = 0; cluster < num_clusters_a[b]; ++cluster) {
-        if (counts_a[b][cluster] > 0) {
+      // Divide by the number of points per cluster
+      for (int64_t n = 0; n < length_b; ++n) {
+        const int64_t cluster_id = cluster_ids_a[b][n];
+        if (counts_a[b][cluster_id] > 0 && cluster_id >= 0 &&
+            cluster_id < max_num_clusters) {
           for (int64_t d = 0; d < C; ++d) {
-            output_a[b][cluster][d] /= counts_a[b][cluster];
+            output_a[b][cluster_id][d] /= counts_a[b][cluster_id];
           }
         }
       }
 
-      for (int64_t c = num_clusters_a[b]; c < max_num_clusters; ++c) {
+      // Padding for unused clusters
+      for (int64_t n = num_clusters_a[b]; n < max_num_clusters; ++n) {
         for (int64_t d = 0; d < C; ++d) {
-          output_a[b][c][d] = static_cast<scalar_t>(padding_value);
+          output_a[b][n][d] = static_cast<scalar_t>(padding_value);
         }
       }
     }
@@ -167,11 +178,12 @@ std::tuple<at::Tensor, at::Tensor> scatter_prod_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
-  int64_t max_num_clusters = num_clusters.max().item<int64_t>();
+  const int64_t max_num_clusters = num_clusters.max().item<int64_t>();
 
   auto output = at::ones({B, max_num_clusters, C}, points.options());
 
@@ -183,17 +195,20 @@ std::tuple<at::Tensor, at::Tensor> scatter_prod_cpu(
     auto output_a = output.accessor<scalar_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      for (int64_t n = 0; n < lengths_a[b]; ++n) {
-        int64_t cluster = cluster_ids_a[b][n];
-        for (int64_t d = 0; d < C; ++d) {
-          output_a[b][cluster][d] *= points_a[b][n][d];
+      const int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
+      for (int64_t n = 0; n < length_b; ++n) {
+        const int64_t cluster_id = cluster_ids_a[b][n];
+        if (cluster_id >= 0 && cluster_id < max_num_clusters) {
+          for (int64_t c = 0; c < C; ++c) {
+            output_a[b][cluster_id][c] *= points_a[b][n][c];
+          }
         }
       }
 
       // Padding for unused clusters
-      for (int64_t c = num_clusters_a[b]; c < max_num_clusters; ++c) {
-        for (int64_t d = 0; d < C; ++d) {
-          output_a[b][c][d] = static_cast<scalar_t>(padding_value);
+      for (int64_t n = num_clusters_a[b]; n < max_num_clusters; ++n) {
+        for (int64_t c = 0; c < C; ++c) {
+          output_a[b][n][c] = static_cast<scalar_t>(padding_value);
         }
       }
     }
@@ -219,8 +234,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
@@ -238,21 +254,23 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_min_cpu(
     auto indices_a = indices.accessor<int64_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      int64_t length_b = lengths_a[b];
+      const int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
       for (int64_t n = 0; n < length_b; ++n) {
-        int64_t cluster = cluster_ids_a[b][n];
-        for (int64_t d = 0; d < C; ++d) {
-          if (points_a[b][n][d] < output_a[b][cluster][d]) {
-            output_a[b][cluster][d] = points_a[b][n][d];
-            indices_a[b][cluster][d] = n;
+        const int64_t cluster_id = cluster_ids_a[b][n];
+        if (cluster_id >= 0 && cluster_id < max_num_clusters) {
+          for (int64_t c = 0; c < C; ++c) {
+            if (points_a[b][n][c] < output_a[b][cluster_id][c]) {
+              output_a[b][cluster_id][c] = points_a[b][n][c];
+              indices_a[b][cluster_id][c] = n;
+            }
           }
         }
       }
 
       // Padding for unused clusters
-      for (int64_t c = num_clusters_a[b]; c < max_num_clusters; ++c) {
-        for (int64_t d = 0; d < C; ++d) {
-          output_a[b][c][d] = static_cast<scalar_t>(padding_value);
+      for (int64_t n = num_clusters_a[b]; n < max_num_clusters; ++n) {
+        for (int64_t c = 0; c < C; ++c) {
+          output_a[b][n][c] = static_cast<scalar_t>(padding_value);
         }
       }
     }
@@ -278,8 +296,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const float padding_value = 0.0) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto num_clusters = count_num_clusters_cpu(cluster_ids, lengths);
   int64_t max_num_clusters = num_clusters.max().item<int64_t>();
@@ -299,21 +318,23 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> scatter_max_cpu(
     auto indices_a = indices.accessor<int64_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      int64_t length_b = lengths_a[b]; // TODO: maybe min(length, N)
+      const int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
       for (int64_t n = 0; n < length_b; ++n) {
-        int64_t cluster = cluster_ids_a[b][n];
-        for (int64_t d = 0; d < C; ++d) {
-          if (points_a[b][n][d] > output_a[b][cluster][d]) {
-            output_a[b][cluster][d] = points_a[b][n][d];
-            indices_a[b][cluster][d] = n;
+        const int64_t cluster_id = cluster_ids_a[b][n];
+        if (cluster_id >= 0 && cluster_id < max_num_clusters) {
+          for (int64_t c = 0; c < C; ++c) {
+            if (points_a[b][n][c] > output_a[b][cluster_id][c]) {
+              output_a[b][cluster_id][c] = points_a[b][n][c];
+              indices_a[b][cluster_id][c] = n;
+            }
           }
         }
       }
 
       // Padding for unused clusters
-      for (int64_t c = num_clusters_a[b]; c < max_num_clusters; ++c) {
-        for (int64_t d = 0; d < C; ++d) {
-          output_a[b][c][d] = static_cast<scalar_t>(padding_value);
+      for (int64_t n = num_clusters_a[b]; n < max_num_clusters; ++n) {
+        for (int64_t c = 0; c < C; ++c) {
+          output_a[b][n][c] = static_cast<scalar_t>(padding_value);
         }
       }
     }
@@ -337,8 +358,9 @@ at::Tensor scatter_sum_backward_cpu(
     const at::Tensor& cluster_ids,
     const at::Tensor& lengths,
     const at::Tensor& num_clusters) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto grad_points = at::zeros_like(points);
 
@@ -350,12 +372,12 @@ at::Tensor scatter_sum_backward_cpu(
     auto grad_points_a = grad_points.accessor<scalar_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      int64_t length_b = lengths_a[b];
+      const int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
       for (int64_t n = 0; n < length_b; ++n) {
-        int64_t cluster = cluster_ids_a[b][n];
-        if (cluster >= 0 && cluster < num_clusters_a[b]) {
-          for (int64_t d = 0; d < C; ++d) {
-            grad_points_a[b][n][d] += grad_output_a[b][cluster][d];
+        int64_t cluster_id = cluster_ids_a[b][n];
+        if (cluster_id >= 0 && cluster_id < num_clusters_a[b]) {
+          for (int64_t c = 0; c < C; ++c) {
+            grad_points_a[b][n][c] += grad_output_a[b][cluster_id][c];
           }
         }
       }
@@ -481,8 +503,9 @@ at::Tensor scatter_min_backward_cpu(
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
     const at::Tensor& indices) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto grad_points = at::zeros_like(points);
 
@@ -494,12 +517,12 @@ at::Tensor scatter_min_backward_cpu(
     auto grad_points_a = grad_points.accessor<scalar_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      int64_t length_b = lengths_a[b];
-      for (int64_t cluster = 0; cluster < num_clusters_a[b]; ++cluster) {
-        for (int64_t d = 0; d < C; ++d) {
-          int64_t min_idx = indices_a[b][cluster][d];
+      int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
+      for (int64_t cluster_id = 0; cluster_id < num_clusters_a[b]; ++cluster_id) {
+        for (int64_t c = 0; c < C; ++c) {
+          int64_t min_idx = indices_a[b][cluster_id][c];
           if (min_idx >= 0 && min_idx < length_b) {
-            grad_points_a[b][min_idx][d] += grad_output_a[b][cluster][d];
+            grad_points_a[b][min_idx][c] += grad_output_a[b][cluster_id][c];
           }
         }
       }
@@ -527,8 +550,9 @@ at::Tensor scatter_max_backward_cpu(
     const at::Tensor& lengths,
     const at::Tensor& num_clusters,
     const at::Tensor& indices) {
-  auto B = points.size(0);
-  auto C = points.size(2);
+  const int64_t B = points.size(0);
+  const int64_t N = points.size(1);
+  const int64_t C = points.size(2);
 
   auto grad_points = at::zeros_like(points);
 
@@ -540,13 +564,13 @@ at::Tensor scatter_max_backward_cpu(
     auto grad_points_a = grad_points.accessor<scalar_t, 3>();
 
     for (int64_t b = 0; b < B; ++b) {
-      int64_t length_b = lengths_a[b];
+      int64_t length_b = std::clamp(lengths_a[b], int64_t(0), N);
 
-      for (int64_t cluster = 0; cluster < num_clusters_a[b]; ++cluster) {
-        for (int64_t d = 0; d < C; ++d) {
-          int64_t max_idx = indices_a[b][cluster][d];
+      for (int64_t cluster_id = 0; cluster_id < num_clusters_a[b]; ++cluster_id) {
+        for (int64_t c = 0; c < C; ++c) {
+          int64_t max_idx = indices_a[b][cluster_id][c];
           if (max_idx >= 0 && max_idx < length_b) {
-            grad_points_a[b][max_idx][d] += grad_output_a[b][cluster][d];
+            grad_points_a[b][max_idx][c] += grad_output_a[b][cluster_id][c];
           }
         }
       }
