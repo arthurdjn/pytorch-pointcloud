@@ -53,3 +53,7 @@ Add object detection training for PVCNN following config https://github.com/mit-
 - [ ] Add packed version for all C++ and CUDA functions. Maybe add a AT_DISPATCH_DATA_TYPE_MODES macro to handle all the types at once (`packed`, `batched`, `auto`). Or maybe use it in python directly ? But we might have to define multiple torch Functions ... ?
 
 - [ ] Add checks for cuda tensors and sizes in csrc
+
+- [ ] ⚠️ Important BUG ! The scatter functions in padded mode are not correct right now because they need consecutive cluster ids from LOW to HIGH. Currently the consecutive cluster functions only remap the cluster ids while preserving the original order. E.g. [[4, 2]] -> [[1, 0]] instead of [[0, 1]].
+The simpler would be to fix the scatter functions in C++.
+NOTE: in fact this is not a "bug" but would be best to have the same behavior as the packed version.
