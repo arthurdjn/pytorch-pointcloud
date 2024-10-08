@@ -1,16 +1,17 @@
-from typing import Any, Literal, Tuple, TypedDict, Union, overload
+from typing import Any, Literal, Tuple, overload
 
 import torch
 
 
 @overload
 def scatter_sum(
-    points: torch.Tensor,
-    cluster_ids: torch.Tensor,
-    *,
-    mode: Literal["auto"],
-    lengths: torch.Tensor | None = None,
-    batch_idxs: torch.Tensor | None = None,
+    points: torch.Tensor, cluster_ids: torch.Tensor, *, mode: Literal["auto"], lengths: torch.Tensor | None = None
+) -> Tuple[torch.Tensor, torch.Tensor]: ...
+
+
+@overload
+def scatter_sum(
+    points: torch.Tensor, cluster_ids: torch.Tensor, *, mode: Literal["auto"], batch_idxs: torch.Tensor | None = None
 ) -> Tuple[torch.Tensor, torch.Tensor]: ...
 
 
@@ -76,6 +77,7 @@ batch_idxs = torch.tensor([0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
 
 
 a = scatter_sum(points, cluster_ids, mode="padded", lengths=lengths)
-a = scatter_sum(points, cluster_ids, mode="auto", batch_idxs=lengths)
-
-b = scatter_sum(points, cluster_ids, mode="packed", batch_idxs=batch_idxs)
+a = scatter_sum(points, cluster_ids, mode="packed", batch_idxs=batch_idxs)
+a = scatter_sum(points, cluster_ids, mode="auto", lengths=lengths)
+a = scatter_sum(points, cluster_ids, mode="auto", batch_idxs=batch_idxs)
+# a = scatter_sum(points, cluster_ids, mode="auto", lengths=lengths, batch_idxs=batch_idxs)  # Error
