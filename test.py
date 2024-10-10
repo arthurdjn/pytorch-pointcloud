@@ -2,6 +2,57 @@ from typing import Any, Literal, Tuple, overload
 
 import torch
 
+Mode = Literal["auto", "padded", "packed"]
+StrictMode = Literal["padded", "packed"]
+
+
+def resolve_strict_mode_params(dim: int, mode: str, **kwargs: Any) -> Tuple[StrictMode, Any, Any]:
+    extra_kwargs = {k: v for k, v in kwargs.items() if k not in ("lengths", "batch_idxs")}
+    if extra_kwargs:
+        extra_kwargs_str = ", ".join([f"{k}={v}" for k, v in extra_kwargs.items()])
+        raise TypeError(f"Unexpected keyword arguments: {extra_kwargs_str}")
+
+    if mode == "auto" and dim == 3:
+        if "lengths" in kwargs:
+            return "padded", kwargs["lengths"], None
+        elif "batch_idxs" in kwargs:
+            print("Warning: found 'batch_idxs' in kwargs for 'padded' mode. Converting it to 'lengths'.")
+            lengths = torch.bincount(kwargs["batch_idxs"])
+            return "padded", lengths, None
+        return "padded", None, None
+
+    elif mode == "auto" and dim == 2:
+        if "batch_idxs" in kwargs:
+            return "packed", None, kwargs["batch_idxs"]
+        elif "lengths" in kwargs:
+            print("Warning: found 'lengths' in kwargs for 'packed' mode. Converting it to 'batch_idxs'.")
+            batch_idxs = torch.repeat_interleave(torch.arange(len(kwargs["lengths"])), kwargs["lengths"])
+            return "packed", None, batch_idxs
+        return "packed", None, None
+
+    elif mode == "auto" and dim not in (2, 3):
+        raise ValueError(f"Unsupported shape {dim}. Expecting 2D or 3D tensor.")
+
+    elif mode == "padded":
+        if "lengths" in kwargs:
+            return "padded", kwargs["lengths"], None
+        elif "batch_idxs" in kwargs:
+            print("Warning: found 'batch_idxs' in kwargs for 'padded' mode. Converting it to 'lengths'.")
+            lengths = torch.bincount(kwargs["batch_idxs"])
+            return "padded", lengths, None
+        return "padded", None, None
+
+    elif mode == "packed":
+        if "batch_idxs" in kwargs:
+            return "packed", None, kwargs["batch_idxs"]
+        elif "lengths" in kwargs:
+            print("Warning: found 'lengths' in kwargs for 'packed' mode. Converting it to 'batch_idxs'.")
+            batch_idxs = torch.repeat_interleave(torch.arange(len(kwargs["lengths"])), kwargs["lengths"])
+            return "packed", None, batch_idxs
+        return "packed", None, None
+
+    raise ValueError("Invalid mode. Expected 'auto', 'padded', or 'packed'.")
+
 
 @overload
 def scatter_sum(
@@ -31,43 +82,18 @@ def scatter_sum(
     points: torch.Tensor,
     cluster_ids: torch.Tensor,
     *,
-    mode: str,
+    mode: Mode,
     **kwargs: Any,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Unified scatter_sum function for both padded and packed modes.
-    Depending on the mode, either 'lengths' (padded) or 'batch_idxs' (packed) must be passed as kwargs.
+    Depending on the mode, either 'lengths' (padded) or 'batch_idxs' (packed) can be passed as kwargs.
     """
-    if mode == "auto":
-        # Automatically detect the mode based on the shape of points
-        if points.dim() == 3:  # (B, N, C) -> Padded mode
-            mode = "padded"
-            if "lengths" not in kwargs:
-                raise ValueError("In 'auto' mode for padded format, 'lengths' must be provided.")
-
-        elif points.dim() == 2:  # (N_total, C) -> Packed mode
-            mode = "packed"
-            if "batch_idxs" not in kwargs:
-                raise ValueError("In 'auto' mode for packed format, 'batch_idxs' must be provided.")
-        else:
-            raise ValueError(f"Unsupported shape {points.shape} for auto mode. Expecting 2D or 3D tensor.")
-
+    mode, lengths, batch_idxs = resolve_strict_mode_params(points.dim(), mode, **kwargs)
     if mode == "padded":
-        # Expecting 'lengths' in kwargs
-        lengths = kwargs.get("lengths", None)
-        if lengths is None:
-            raise ValueError("In 'padded' mode, 'lengths' must be provided.")
         return points, cluster_ids
-
-    elif mode == "packed":
-        # Expecting 'batch_idxs' in kwargs
-        batch_idxs = kwargs.get("batch_idxs")
-        if batch_idxs is None:
-            raise ValueError("In 'packed' mode, 'batch_idxs' must be provided.")
-        return points, cluster_ids
-
     else:
-        raise ValueError("Invalid mode. Expected 'padded' or 'packed'.")
+        return points, cluster_ids
 
 
 points = torch.rand(10, 3)
@@ -81,3 +107,5 @@ a = scatter_sum(points, cluster_ids, mode="packed", batch_idxs=batch_idxs)
 a = scatter_sum(points, cluster_ids, mode="auto", lengths=lengths)
 a = scatter_sum(points, cluster_ids, mode="auto", batch_idxs=batch_idxs)
 # a = scatter_sum(points, cluster_ids, mode="auto", lengths=lengths, batch_idxs=batch_idxs)  # Error
+
+scatter_sum(points, cluster_ids, mode="auto", batch_idxs=batch_idxs)  # Warning
