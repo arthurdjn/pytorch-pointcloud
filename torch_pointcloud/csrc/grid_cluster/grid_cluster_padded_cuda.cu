@@ -56,7 +56,6 @@ __global__ void grid_cluster_kernel(
       int64_t voxel_idx = gx + dim_x * gy + dim_x * dim_y * gz;
 
       // Atomically assign cluster ID
-      //   atomicCAS(&cluster_ids[b][i], -1, voxel_idx); // Ensure thread safety
       atomicCAS(
           reinterpret_cast<unsigned long long int*>(&cluster_ids[b][i]),
           static_cast<unsigned long long int>(-1),
@@ -69,12 +68,14 @@ at::Tensor grid_cluster_cuda(
     const at::Tensor& points, // shape (B, N, 3)
     const at::Tensor& lengths, // shape (B), actual number of points per batch
     const float voxel_size) {
-  const int64_t B = points.size(0);
-  const int64_t N = points.size(1);
+  const int64_t B = points.size(0); // Batch size
+  const int64_t N = points.size(1); // Max number of points per batch
 
   auto opts = points.options().dtype(at::kLong); // Use long for cluster IDs
-  at::Tensor cluster_ids = at::full({B, N}, -1, opts);
+  at::Tensor cluster_ids =
+      at::full({B, N}, -1, opts); // Initialize with -1 (no cluster assigned)
 
+  // Launch CUDA kernel
   dim3 threads_per_block(1024); // Set threads per block (this can be adjusted)
   dim3 num_blocks(B, (N + 1024 - 1) / 1024); // Calculate number of blocks needed
 
