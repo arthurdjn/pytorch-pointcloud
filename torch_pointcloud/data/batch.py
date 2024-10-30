@@ -13,6 +13,8 @@ class PointCloudBatch:
     feats: Tensor
 
 
+
+# TODO: Return same type as in the data_list, e.g. can be named tuple, dict, dataclass etc.
 def collate(data_list: List[PointCloudData]) -> PointCloudBatch:
     pos = torch.stack([data.pos for data in data_list])
     feats = torch.stack([data.features for data in data_list])
