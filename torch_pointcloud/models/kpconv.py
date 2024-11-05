@@ -164,6 +164,7 @@ class KPConv(nn.Module):
         else:
             raise ValueError(f"Unknown influence type: {self.KP_influence}")
 
+    # TODO: make support points optional
     def forward(self, q_pts: Tensor, s_pts: Tensor, neighbor_idxs: Tensor, x: Tensor) -> Tensor:
         # 1. Compute the offsets if the layer is deformable
         if self.deformable and self.offset_conv is not None:
@@ -375,7 +376,6 @@ class KPConvClassification(nn.Module):
         # Loop over consecutive blocks
         block_in_layer = 0
         for block_i, block in enumerate(config.architecture):
-
             # Check equivariance
             if ("equivariant" in block) and (not out_dim % 3 == 0):
                 raise ValueError("Equivariant block but features dimension is not a factor of 3")
