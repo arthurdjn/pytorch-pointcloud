@@ -1,13 +1,20 @@
 from functools import partial
-from typing import Any, Dict, Type, Union
+from typing import Any, Callable, Dict, Type, TypeVar, Union
 
 import torch.nn as nn
 
-MODULE_TYPE = Union[Type[nn.Module], partial[nn.Module], nn.Module, str]
-REGISTERED_MODULE_TYPE = Union[Type[nn.Module], partial[nn.Module]]
+ModuleName = TypeVar("ModuleName", bound=str)
+
+# NOTE: MyPy is strict about partial types, so we need to use `Any` here.
+ModuleLike = Union[Type[nn.Module], nn.Module, Callable, partial[Any], ModuleName]
+RegisteredModuleLike = Union[Type[nn.Module], partial[Any]]
+
+# NOTE: We want to allow specifying registry dict with literal string keys,
+# to provide better type hints support.
+ModuleRegistryDict = Dict[ModuleName, RegisteredModuleLike]
 
 
-def get_module(name: MODULE_TYPE, *args: Any, registry: Dict[str, REGISTERED_MODULE_TYPE], **kwargs: Any) -> nn.Module:
+def get_module(name: ModuleLike, *args: Any, registry: ModuleRegistryDict, **kwargs: Any) -> nn.Module:
     """Utility function to instantiate modules from a registry, or directly pass a module instance.
 
     Args:
@@ -35,8 +42,10 @@ def get_module(name: MODULE_TYPE, *args: Any, registry: Dict[str, REGISTERED_MOD
         Conv1d(3, 4, kernel_size=(1,), stride=(1,))
     """
     if isinstance(name, nn.Module):
+        # Skip registry lookup, in case custom modules are passed directly
         return name
     elif isinstance(name, str):
+        # Lookup module in registry
         module = registry.get(name)
         if module is None:
             available_names = ", ".join(registry.keys())
