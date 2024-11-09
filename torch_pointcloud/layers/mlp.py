@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from ._modules import MODULE_TYPE, REGISTERED_MODULE_TYPE, get_module
+from ._modules import REGISTERED_MODULE_TYPE, ModuleLike, get_module
 from .activations import get_act
 from .norms import get_norm
 
@@ -14,9 +14,9 @@ class MLP(nn.Module):
         self,
         dims: List[int],
         *,
-        act: Optional[MODULE_TYPE] = "relu",
+        act: Optional[ModuleLike] = "relu",
         act_first: bool = False,
-        norm: Optional[MODULE_TYPE] = "batch_norm1d",
+        norm: Optional[ModuleLike] = "batch_norm1d",
         dropout: float = 0.0,
         bias: Union[bool] = True,
         plain_last: bool = True,
@@ -79,7 +79,7 @@ _CONV_LAYERS: Dict[str, REGISTERED_MODULE_TYPE] = {
 }
 
 
-def _get_conv(name: MODULE_TYPE, *args: Any, **kwargs: Any) -> nn.Module:
+def _get_conv(name: ModuleLike, *args: Any, **kwargs: Any) -> nn.Module:
     return get_module(name, *args, registry=_CONV_LAYERS, **kwargs)
 
 
@@ -89,9 +89,9 @@ class SharedMLP(nn.Module):
         channels: List[int],
         *,
         act_first: bool = False,
-        act: Optional[MODULE_TYPE] = "relu",
-        norm: Optional[MODULE_TYPE] = "batch_norm1d",
-        conv: MODULE_TYPE = "conv1d",
+        act: Optional[ModuleLike] = "relu",
+        norm: Optional[ModuleLike] = "batch_norm1d",
+        conv: ModuleLike = "conv1d",
         dropout: float = 0.0,
         bias: Union[bool] = True,
         plain_last: bool = True,
@@ -153,7 +153,7 @@ def shared_mlp1d(
     channels: List[int],
     *,
     act_first: bool = False,
-    act: MODULE_TYPE = "relu",
+    act: ModuleLike = "relu",
     bn: bool = True,
     dropout: float = 0,
     bias: bool = True,
@@ -175,7 +175,7 @@ def shared_mlp2d(
     channels: List[int],
     *,
     act_first: bool = False,
-    act: MODULE_TYPE = "relu",
+    act: ModuleLike = "relu",
     bn: bool = True,
     dropout: float = 0,
     bias: bool = True,

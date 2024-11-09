@@ -1,22 +1,13 @@
-"""Activations
-
-A collection of activations fn and modules with a common interface so that they can
-easily be swapped. All have an `inplace` argument.
-
-Hacked together by / Copyright 2020 Ross Wightman
-Updated by / Copyright 2024 Arthur Dujardin
-"""
-
 # Mostly from https://github.com/huggingface/pytorch-image-models/blob/main/timm/layers/activations.py
 
 from functools import partial
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from ._modules import MODULE_TYPE, REGISTERED_MODULE_TYPE, get_module
+from ._modules import ModuleLike, RegisteredModuleLike, get_module
 
 
 def swish(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
@@ -151,7 +142,31 @@ _has_hardswish = "hardswish" in dir(torch.nn.functional)
 _has_hardsigmoid = "hardsigmoid" in dir(torch.nn.functional)
 _has_mish = "mish" in dir(torch.nn.functional)
 
-_ACT_LAYERS: Dict[str, REGISTERED_MODULE_TYPE] = dict(
+ActName = Literal[
+    "silu",
+    "swish",
+    "mish",
+    "relu",
+    "relu6",
+    "leaky_relu",
+    "elu",
+    "prelu",
+    "celu",
+    "selu",
+    "gelu",
+    "gelu_tanh",
+    "quick_gelu",
+    "sigmoid",
+    "tanh",
+    "hard_sigmoid",
+    "hard_swish",
+    "hard_mish",
+    "identity",
+]
+
+ActLike = ModuleLike[ActName]
+
+_ACT_REGISTRY: Dict[ActName, RegisteredModuleLike] = dict(
     silu=nn.SiLU if _has_silu else Swish,
     swish=nn.SiLU if _has_silu else Swish,
     mish=nn.Mish if _has_mish else Mish,
@@ -174,5 +189,5 @@ _ACT_LAYERS: Dict[str, REGISTERED_MODULE_TYPE] = dict(
 )
 
 
-def get_act(name: MODULE_TYPE, *args: Any, **kwargs: Any) -> nn.Module:
-    return get_module(name, *args, registry=_ACT_LAYERS, **kwargs)
+def get_act(name: ActLike, *args: Any, **kwargs: Any) -> nn.Module:
+    return get_module(name, *args, registry=_ACT_REGISTRY, **kwargs)

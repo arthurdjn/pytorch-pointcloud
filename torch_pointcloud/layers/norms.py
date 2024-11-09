@@ -1,10 +1,25 @@
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 from torch import nn as nn
 
-from ._modules import MODULE_TYPE, REGISTERED_MODULE_TYPE, get_module
+from ._modules import ModuleLike, RegisteredModuleLike, get_module
 
-_NORM_LAYERS: Dict[str, REGISTERED_MODULE_TYPE] = dict(
+NormName = Literal[
+    "batch_norm1d",
+    "batch_norm2d",
+    "batch_norm3d",
+    "group_norm",
+    "instance_norm1d",
+    "instance_norm2d",
+    "instance_norm3d",
+    "layer_norm",
+    "local_response_norm",
+    "identity",
+]
+
+NormLike = ModuleLike[NormName]
+
+_NORM_REGISTRY: Dict[NormName, RegisteredModuleLike] = dict(
     batch_norm1d=nn.BatchNorm1d,
     batch_norm2d=nn.BatchNorm2d,
     batch_norm3d=nn.BatchNorm3d,
@@ -18,5 +33,5 @@ _NORM_LAYERS: Dict[str, REGISTERED_MODULE_TYPE] = dict(
 )
 
 
-def get_norm(name: MODULE_TYPE, *args: Any, **kwargs: Any) -> nn.Module:
-    return get_module(name, *args, registry=_NORM_LAYERS, **kwargs)
+def get_norm(name: NormLike, *args: Any, **kwargs: Any) -> nn.Module:
+    return get_module(name, *args, registry=_NORM_REGISTRY, **kwargs)
