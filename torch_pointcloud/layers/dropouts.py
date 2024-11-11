@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Union
 
 from torch import nn as nn
 
@@ -16,5 +16,7 @@ _DROPOUT_REGISTRY: Dict[DropoutName, RegisteredModuleLike] = dict(
 )
 
 
-def get_dropout(name: DropoutLike, *args: Any, **kwargs: Any) -> nn.Module:
+def get_dropout(name: Union[DropoutLike, float], *args: Any, **kwargs: Any) -> nn.Module:
+    if isinstance(name, (int, float)):
+        return get_module("dropout", p=name, *args, registry=_DROPOUT_REGISTRY, **kwargs)
     return get_module(name, *args, registry=_DROPOUT_REGISTRY, **kwargs)
