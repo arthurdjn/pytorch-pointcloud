@@ -30,7 +30,6 @@ class TNet(nn.Module):
         k: int = 3,
         mlp_channels: Sequence[int] = (64, 128, 1024),
         fc_channels: Sequence[int] = (512, 256),
-        use_bn: bool = True,
     ) -> None:
         super().__init__()
 
@@ -56,20 +55,6 @@ class TNet(nn.Module):
         self.transform = nn.Linear(fc_channels[-1], k * k)
         nn.init.zeros_(self.transform.weight)
         nn.init.eye_(self.transform.bias.view(k, k))
-
-        # self.conv1 = nn.Conv1d(k, 64, 1)
-        # self.conv2 = nn.Conv1d(64, 128, 1)
-        # self.conv3 = nn.Conv1d(128, 1024, 1)
-
-        # self.fc1 = nn.Linear(1024, 512)
-        # self.fc2 = nn.Linear(512, 256)
-        # self.fc3 = nn.Linear(256, k * k)
-
-        # self.bn1 = nn.BatchNorm1d(64)
-        # self.bn2 = nn.BatchNorm1d(128)
-        # self.bn3 = nn.BatchNorm1d(1024)
-        # self.bn4 = nn.BatchNorm1d(512)
-        # self.bn5 = nn.BatchNorm1d(256)
 
     def forward(self, x: torch.Tensor, batch_idxs: torch.Tensor) -> torch.Tensor:
         x = x.unsqueeze(-1)
