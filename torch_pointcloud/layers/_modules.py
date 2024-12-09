@@ -49,7 +49,7 @@ def get_module(name: ModuleLike, *args: Any, registry: ModuleRegistryDict, **kwa
         module = registry.get(name)
         if module is None:
             available_names = ", ".join(registry.keys())
-            raise ValueError(f"Could not find module with name '{name}'. Available modules: {available_names}")
+            raise ValueError(f"Could not find module with name {name!r}. Available modules: {available_names}")
         return module(*args, **kwargs)
     # Instantiate (partial) modules
     return name(*args, **kwargs)
