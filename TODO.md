@@ -57,3 +57,15 @@ Add object detection training for PVCNN following config https://github.com/mit-
 - [ ] ⚠️ Important BUG ! The scatter functions in padded mode are not correct right now because they need consecutive cluster ids from LOW to HIGH. Currently the consecutive cluster functions only remap the cluster ids while preserving the original order. E.g. [[4, 2]] -> [[1, 0]] instead of [[0, 1]].
 The simpler would be to fix the scatter functions in C++.
 NOTE: in fact this is not a "bug" but would be best to have the same behavior as the packed version.
+
+## Other repos
+
+- https://github.com/Pointcept/Pointcept
+- https://github.com/IGNF/myria3d
+- https://github.com/isl-org/Open3D
+- https://github.com/qinzheng93/vision3d
+- https://github.com/open-mmlab/OpenPCDet
+- https://github.com/drprojects/superpoint_transformer
+- https://github.com/torch-points3d/torch-points3d
+
+## Datasets
