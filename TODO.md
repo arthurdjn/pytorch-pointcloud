@@ -69,3 +69,7 @@ NOTE: in fact this is not a "bug" but would be best to have the same behavior as
 - https://github.com/torch-points3d/torch-points3d
 
 ## Datasets
+
+## Papers
+
+- Survey: https://arxiv.org/pdf/1912.12033
