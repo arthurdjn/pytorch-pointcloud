@@ -1,5 +1,5 @@
 import itertools
-from typing import Optional, Sequence
+from typing import Any, Dict, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
 import torch.nn as nn
@@ -10,6 +10,15 @@ from torch_pointcloud.layers.activations import ActLike
 from torch_pointcloud.layers.blocks import linear_block
 from torch_pointcloud.layers.classifier import create_classifier
 from torch_pointcloud.layers.norms import NormLike
+
+
+class TNetConfig(TypedDict):
+    k: int
+    mlp1_dims: Sequence[int]
+    mlp2_dims: Sequence[int]
+    act: ActLike
+    norm: NormLike
+    global_pool: str
 
 
 class TNet(nn.Module):
@@ -55,6 +64,19 @@ class TNet(nn.Module):
         x = x.view(-1, self.k, self.k) + iden
 
         return x[batch_idxs]
+
+
+class PointNetEncoderConfig(TypedDict):
+    coords_dim: int
+    features_dim: int
+    mlp1_dims: Sequence[int]
+    mlp2_dims: Sequence[int]
+    act: ActLike
+    norm: NormLike
+    global_pool: str
+    use_ftnet: bool
+    tnet: str
+    tnet_cfg: TNetConfig
 
 
 class PointNetEncoder(nn.Module):
@@ -132,6 +154,21 @@ class PointNetEncoder(nn.Module):
         return x
 
 
+class PointNetClassificationConfig(TypedDict):
+    num_classes: int
+    coords_dim: int
+    features_dim: int
+    dropout: float
+    global_pool: str
+    mlp1_dims: Sequence[int]
+    mlp2_dims: Sequence[int]
+    act: ActLike
+    norm: NormLike
+    use_ftnet: bool
+    tnet: str
+    tnet_cfg: TNetConfig
+
+
 class PointNetClassification(nn.Module):
     def __init__(
         self,
@@ -140,6 +177,9 @@ class PointNetClassification(nn.Module):
         features_dim: int = 0,
         dropout: float = 0.0,
         global_pool: str = "max",
+        cls_dims: Sequence[int] = (),
+        head: str = "mlp",
+        head_cfg: Optional[Dict[str, Any]] = None,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
         act: ActLike = "relu",
