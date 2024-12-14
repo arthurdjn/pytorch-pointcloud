@@ -6,19 +6,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter
 
+from torch_pointcloud.layers._modules import ModuleLike
 from torch_pointcloud.layers.activations import ActLike
 from torch_pointcloud.layers.blocks import linear_block
 from torch_pointcloud.layers.classifier import create_classifier
 from torch_pointcloud.layers.norms import NormLike
-
-
-class TNetConfig(TypedDict):
-    k: int
-    mlp1_dims: Sequence[int]
-    mlp2_dims: Sequence[int]
-    act: ActLike
-    norm: NormLike
-    global_pool: str
 
 
 class TNet(nn.Module):
@@ -64,19 +56,6 @@ class TNet(nn.Module):
         x = x.view(-1, self.k, self.k) + iden
 
         return x[batch_idxs]
-
-
-class PointNetEncoderConfig(TypedDict):
-    coords_dim: int
-    features_dim: int
-    mlp1_dims: Sequence[int]
-    mlp2_dims: Sequence[int]
-    act: ActLike
-    norm: NormLike
-    global_pool: str
-    use_ftnet: bool
-    tnet: str
-    tnet_cfg: TNetConfig
 
 
 class PointNetEncoder(nn.Module):
@@ -154,19 +133,13 @@ class PointNetEncoder(nn.Module):
         return x
 
 
-class PointNetClassificationConfig(TypedDict):
-    num_classes: int
-    coords_dim: int
-    features_dim: int
-    dropout: float
-    global_pool: str
-    mlp1_dims: Sequence[int]
-    mlp2_dims: Sequence[int]
-    act: ActLike
-    norm: NormLike
-    use_ftnet: bool
-    tnet: str
-    tnet_cfg: TNetConfig
+class FCHead(nn.Module):
+    def __init__(self, num_features: int, num_classes: int) -> None:
+        super().__init__()
+        self.fc = nn.Linear(num_features, num_classes)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.fc(x)
 
 
 class PointNetClassification(nn.Module):
@@ -177,9 +150,6 @@ class PointNetClassification(nn.Module):
         features_dim: int = 0,
         dropout: float = 0.0,
         global_pool: str = "max",
-        cls_dims: Sequence[int] = (),
-        head: str = "mlp",
-        head_cfg: Optional[Dict[str, Any]] = None,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
         act: ActLike = "relu",
@@ -189,6 +159,7 @@ class PointNetClassification(nn.Module):
         tnet_mlp2_dims: Sequence[int] = (512, 256),
         tnet_act: ActLike = "relu",
         tnet_norm: NormLike = "batch_norm1d",
+        head: ModuleLike = "fc",
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
@@ -209,11 +180,22 @@ class PointNetClassification(nn.Module):
         )
 
         self.num_features = mlp2_dims[-1]
-        self.global_pool, self.head = create_classifier(self.num_features, self.num_classes, global_pool)
 
-    def reset_classifier(self, num_classes: int, global_pool: str = "max") -> None:
+        self.global_pool = create_pool(global_pool)
+        self.head = create_cls_head(head, num_features=num_features, num_classes=num_classes)
+        # NOTE: If num_classes = 0, return nn.Identity
+
+        # head, head_cfg = head if isinstance(head, tuple) else (head, {})
+        # self.head = create_cls_head(head, num_features=num_features, num_classes=num_classes, **head_cfg)
+
+    # def reset_classifier(self, num_classes: int, global_pool: str = "max") -> None:
+    #     self.num_classes = num_classes
+    #     self.global_pool, self.head = create_classifier(self.num_features, self.num_classes, global_pool)
+
+    def reset_classifier(self, head: ModuleLike, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool, self.head = create_classifier(self.num_features, self.num_classes, global_pool)
+        self.global_pool = create_pool(global_pool)
+        self.head = create_cls_head(head, num_features=self.num_features, num_classes=self.num_classes, **kwargs)
 
     def forward_features(
         self,
