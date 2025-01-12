@@ -2,7 +2,7 @@
 
 SRC:=src
 TESTS:=tests
-CMD:=
+CMD:=uv run
 
 # Linting, formatting, etc.
 
