@@ -48,13 +48,13 @@ def test_download_url_custom_path(mock_urlopen: Mock, tmp_path: Path) -> None:
     assert Path(path).read_text() == "content"
 
 
-def test_download_no_progress(mock_urlopen: Mock, tmp_path: Path) -> None:
-    with patch("torch_pointcloud.datasets.utils.tqdm") as mock_tqdm:
-        _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", progress=False)
-        mock_tqdm.assert_not_called()
+def test_download_no_progress(mock_urlopen: Mock, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", progress=False)
+    captured = capsys.readouterr()
+    assert "Downloading" not in captured.err
 
 
-def test_download_url_with_progress(mock_urlopen: Mock, tmp_path: Path) -> None:
-    with patch("torch_pointcloud.datasets.utils.tqdm") as mock_tqdm:
-        _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", progress=True)
-        mock_tqdm.assert_called_once()
+def test_download_url_with_progress(mock_urlopen: Mock, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", progress=True)
+    captured = capsys.readouterr()
+    assert "Downloading" in captured.err
