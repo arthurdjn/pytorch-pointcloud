@@ -1,4 +1,6 @@
+import shutil
 import ssl
+import zipfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
@@ -60,19 +62,16 @@ def download_url(
     context = ssl._create_unverified_context()
     with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), context=context) as response:
         with open(file_path, "wb") as fh:
-            if progress:
-                with tqdm(
-                    total=response.length,
-                    desc=description,
-                    unit="B",
-                    unit_scale=True,
-                    unit_divisor=1024,
-                ) as pbar:
-                    while chunk := response.read(chunk_size):
-                        fh.write(chunk)
-                        pbar.update(len(chunk))
-            else:
+            with tqdm(
+                total=response.length,
+                desc=description,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                disable=not progress,
+            ) as pbar:
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
+                    pbar.update(len(chunk))
 
     return file_path.as_posix()
