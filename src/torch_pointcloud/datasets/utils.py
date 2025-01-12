@@ -75,3 +75,46 @@ def download_url(
                     pbar.update(len(chunk))
 
     return file_path.as_posix()
+
+
+def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "", progress: bool = True) -> str:
+    """Extract a zip file to a directory.
+
+    Args:
+        zip_path: The path to the zip file to extract.
+        out_dir: The directory to extract the zip file to.
+        relative_to: If provided, extract the zip file relative to this directory.
+            This is useful when the zip file contains nested directories but
+            you want to extract the files on a specific level
+            (e.g. for a nested zip `A.zip` containing files under directory `A`,
+            then you will get `A/A/*.png` when extracting, but setting `relative_to="A"`
+            will extract the files to `A/*.png` only).
+        progress: Whether to display a progress bar.
+
+    Returns:
+        The path to the extracted directory.
+
+    Examples:
+        >>> extract_zip("A.zip", "A")
+        "A"
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        members = zip_ref.namelist()
+        for member in tqdm(members, total=len(members), desc="Extracting", disable=not progress):
+            if member.endswith("/"):
+                continue
+
+            member_path = Path(member)
+            if relative_to and member_path.is_relative_to(relative_to):
+                member_path = member_path.relative_to(relative_to)
+
+            out_path = Path(out_dir) / member_path
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with zip_ref.open(member) as source, open(out_path, "wb") as dest:
+                shutil.copyfileobj(source, dest)
+
+    return out_dir.as_posix()
