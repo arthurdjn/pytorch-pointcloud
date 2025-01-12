@@ -1,6 +1,4 @@
-import shutil
 import ssl
-import zipfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
