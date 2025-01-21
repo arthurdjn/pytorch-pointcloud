@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
+import torch
 
 from torch_pointcloud.datasets import ShapeNetPart
 
@@ -26,6 +27,24 @@ def test_shapenet_dataset_split(data_dir: Path, split: str) -> None:
     dataset = ShapeNetPart(root=data_dir, split=split, progress=False)
     assert len(dataset) > 0
 
+    for data in dataset:
+        category = data["category"]
+        segmentation = data["segmentation"]
+        coords = data["coords"]
+        normals = data["normals"]
+
+        assert torch.is_tensor(category)
+        assert torch.is_tensor(segmentation)
+        assert torch.is_tensor(coords)
+        assert torch.is_tensor(normals)
+
+        # Category is a scalar
+        assert category.numel() == 1
+        assert 0 <= category.item() < len(dataset.category_ids)
+        assert segmentation.shape == (10,)
+        assert coords.shape == (10, 3)
+        assert normals.shape == (10, 3)
+
 
 @pytest.mark.parametrize("split", ["train", "val", "test"])
 def test_shapenet_dataset_process_split(data_dir: Path, split: str) -> None:
@@ -34,6 +53,24 @@ def test_shapenet_dataset_process_split(data_dir: Path, split: str) -> None:
 
     dataset = ShapeNetPart(root=data_dir, split=split, progress=False)
     assert len(dataset) > 0
+
+    for data in dataset:
+        category = data["category"]
+        segmentation = data["segmentation"]
+        coords = data["coords"]
+        normals = data["normals"]
+
+        assert torch.is_tensor(category)
+        assert torch.is_tensor(segmentation)
+        assert torch.is_tensor(coords)
+        assert torch.is_tensor(normals)
+
+        # Category is a scalar
+        assert category.numel() == 1
+        assert 0 <= category.item() < len(dataset.category_ids)
+        assert segmentation.shape == (10,)
+        assert coords.shape == (10, 3)
+        assert normals.shape == (10, 3)
 
 
 def test_shapenet_dataset_invalid_split(data_dir: Path) -> None:
