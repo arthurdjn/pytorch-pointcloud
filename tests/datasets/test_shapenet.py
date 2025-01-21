@@ -1,11 +1,13 @@
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List
+from unittest.mock import Mock
 
 import pytest
 import torch
 
 from torch_pointcloud.datasets import ShapeNetPart
+from torch_pointcloud.datasets.shapenet import load_shapenet_part
 
 
 class DummyTransform:
@@ -15,62 +17,66 @@ class DummyTransform:
         return data
 
 
+def test_load_shapenet_part(data_dir: Path) -> None:
+    """Test that the shapenet part is loaded correctly"""
+    file_path = data_dir / "ShapeNetPart" / "raw" / "02691156" / "103c9e43cdf6501c62b600da24e0965.txt"
+    data = load_shapenet_part(file_path, 0)
+
+    assert torch.is_tensor(data["category"])
+    assert torch.is_tensor(data["segmentation"])
+    assert torch.is_tensor(data["coords"])
+    assert torch.is_tensor(data["normals"])
+
+    assert data["category"].item() == 0
+    assert data["segmentation"].shape == (10,)
+    assert data["coords"].shape == (10, 3)
+    assert data["normals"].shape == (10, 3)
+
+
 def test_shapenet_dataset_not_found(tmp_path: Path) -> None:
     """Raises an error if the dataset is not found"""
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = ShapeNetPart(root=tmp_path, split="train", progress=False)
 
 
 @pytest.mark.parametrize("split", ["train", "val", "test"])
-def test_shapenet_dataset_split(data_dir: Path, split: str) -> None:
+def test_shapenet_dataset_split(data_dir: Path, monkeypatch: pytest.MonkeyPatch, split: str) -> None:
     """Test that the dataset is loaded correctly for different splits"""
+    mock_load = Mock(wraps=load_shapenet_part)
+    monkeypatch.setattr("torch_pointcloud.datasets.shapenet.load_shapenet_part", mock_load)
+
     dataset = ShapeNetPart(root=data_dir, split=split, progress=False)
     assert len(dataset) > 0
+    _ = list(dataset)
 
-    for data in dataset:
-        category = data["category"]
-        segmentation = data["segmentation"]
-        coords = data["coords"]
-        normals = data["normals"]
-
-        assert torch.is_tensor(category)
-        assert torch.is_tensor(segmentation)
-        assert torch.is_tensor(coords)
-        assert torch.is_tensor(normals)
-
-        # Category is a scalar
-        assert category.numel() == 1
-        assert 0 <= category.item() < len(dataset.category_ids)
-        assert segmentation.shape == (10,)
-        assert coords.shape == (10, 3)
-        assert normals.shape == (10, 3)
+    assert mock_load.call_count == 0
 
 
 @pytest.mark.parametrize("split", ["train", "val", "test"])
-def test_shapenet_dataset_process_split(data_dir: Path, split: str) -> None:
+def test_shapenet_dataset_process_split(data_dir: Path, monkeypatch: pytest.MonkeyPatch, split: str) -> None:
     """Test that the dataset is processed correctly for different splits"""
     shutil.rmtree(data_dir / "ShapeNetPart" / "processed")
+    mock_load = Mock(wraps=load_shapenet_part)
+    monkeypatch.setattr("torch_pointcloud.datasets.shapenet.load_shapenet_part", mock_load)
 
     dataset = ShapeNetPart(root=data_dir, split=split, progress=False)
     assert len(dataset) > 0
+    _ = list(dataset)
 
-    for data in dataset:
-        category = data["category"]
-        segmentation = data["segmentation"]
-        coords = data["coords"]
-        normals = data["normals"]
+    assert mock_load.call_count == len(dataset)
 
-        assert torch.is_tensor(category)
-        assert torch.is_tensor(segmentation)
-        assert torch.is_tensor(coords)
-        assert torch.is_tensor(normals)
 
-        # Category is a scalar
-        assert category.numel() == 1
-        assert 0 <= category.item() < len(dataset.category_ids)
-        assert segmentation.shape == (10,)
-        assert coords.shape == (10, 3)
-        assert normals.shape == (10, 3)
+@pytest.mark.parametrize("split", ["train", "val", "test"])
+def test_shapenet_dataset_process_split_forced(data_dir: Path, monkeypatch: pytest.MonkeyPatch, split: str) -> None:
+    """Test that the dataset is processed correctly for different splits regardless of whether the processed data already exists"""
+    mock_load = Mock(wraps=load_shapenet_part)
+    monkeypatch.setattr("torch_pointcloud.datasets.shapenet.load_shapenet_part", mock_load)
+
+    dataset = ShapeNetPart(root=data_dir, split=split, progress=False, process=True)
+    assert len(dataset) > 0
+    _ = list(dataset)
+
+    assert mock_load.call_count == len(dataset)
 
 
 def test_shapenet_dataset_invalid_split(data_dir: Path) -> None:
