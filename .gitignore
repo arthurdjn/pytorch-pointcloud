@@ -161,9 +161,11 @@ cython_debug/
 .vscode/
 
 # Project
-data/
+data/**
 notebooks/**
 !notebooks/*.ipynb
+notebooks/**/\[WIP\]*.ipynb
+!tests/data
 
 # Git keep
 !.gitkeep
