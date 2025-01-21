@@ -1,1 +1,1 @@
-from .shapenet import ShapeNet
+from .shapenet import ShapeNetPart

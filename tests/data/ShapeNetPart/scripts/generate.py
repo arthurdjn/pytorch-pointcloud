@@ -29,7 +29,7 @@ def main() -> None:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             np.savetxt(out_path, data, delimiter=" ")
 
-            # Store the data ID in the same format as in ShapeNet
+            # Store the data ID in the same format as in ShapeNetPart
             data_id = f"shape_data/{txt_path.parent.name}/{txt_path.stem}"
             filtered_ids.append(data_id)
 
@@ -40,7 +40,7 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate ShapeNet data for testing")
+    parser = ArgumentParser(description="Generate ShapeNetPart data for testing")
     parser.add_argument("src", type=str, help="Path to source raw data")
     parser.add_argument("dst", type=str, help="Path to output raw data")
     parser.add_argument("--max-points", type=int, default=10, help="Maximum number of points per object")

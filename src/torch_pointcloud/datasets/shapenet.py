@@ -32,7 +32,50 @@ ShapeNetCategory = Literal[
 ]
 
 
-class ShapeNet(Dataset):
+class ShapeNetPart(Dataset):
+    """The ShapeNetPart dataset as described in the original paper
+    [A Scalable Active Framework for Region Annotation in 3D Shape Collections](http://web.stanford.edu/~ericyi/papers/part_annotation_16_small.pdf).
+
+    You can download the raw dataset from https://shapenet.org/ official website.
+
+    The ShapeNetPart dataset is a subset of the ShapeNetCore dataset.
+    It contains approximately 17,000 3D shapes from 16 categories.
+    Each category is annotated with 2 to 6 semantic parts.
+
+    The dataset will be processed automatically and saved in the `ShapeNetPart/processed` directory.
+    If the processed data already exists, it will be loaded from the `ShapeNetPart/processed` directory
+    and processing steps will be skipped.
+
+    Args:
+        root: The root directory of the dataset, where the raw and processed data will be stored.
+        split: The split to load, one of "train", "val", or "test".
+        categories: The categories to load, either a list of ShapeNetPart categories or a single category.
+        transform: A callable that transforms the data when retrieved from the dataset.
+        pre_transform: Used to transform the data before saving it in the processed directory.
+        pre_filter: Used to filter the data before saving it in the processed directory.
+        progress: Whether to show a progress bar during processing.
+        num_workers: If specified, the number of workers to use for processing the data.
+            If unspecified or `None`, the data will be processed sequentially.
+
+    Example:
+        Assuming you have downloaded the raw dataset from https://shapenet.org/,
+        and extracted it under `data/ShapeNetPart/raw`, you can load the dataset as follows:
+
+        ```python
+        from torch_pointcloud.datasets import ShapeNetPart
+
+        dataset = ShapeNetPart(
+            root="data",
+            split="train",
+            categories=["Airplane", "Chair"],
+            progress=False,
+        )
+        ```
+
+        This will process the raw data and save it in the `data/ShapeNetPart/processed` directory,
+        and re-running the above code will load the processed data from the `data/ShapeNetPart/processed` directory.
+    """
+
     category_ids: Dict[ShapeNetCategory, str] = {
         "Airplane": "02691156",
         "Bag": "02773838",
@@ -81,7 +124,7 @@ class ShapeNet(Dataset):
         pre_transform: Optional[TransformLike] = None,
         pre_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
         progress: bool = True,
-        num_workers: int = -1,
+        num_workers: Optional[int] = None,
     ) -> None:
         super().__init__()
 
@@ -153,19 +196,25 @@ class ShapeNet(Dataset):
         split_path = Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json")
 
         with open(split_path, "r") as f:
-            split_data = json.load(f)
+            split_files = json.load(f)
 
         category_id_to_idx = {self.category_ids[cat]: i for i, cat in enumerate(self.categories)}
 
-        with Parallel(n_jobs=self.num_workers) as parallel:
-            data_list = parallel(
-                delayed(self._process_data)(file_name, category_id_to_idx)
-                for file_name in tqdm(split_data, total=len(split_data), desc="Processing", disable=not self.progress)
-            )
-            data_list = [data for data in data_list if data is not None]
+        data_list = self._process_data_list(split_files, category_id_to_idx)
+        data_list = [data for data in data_list if data is not None]
 
         Path(self.processed_dir).mkdir(parents=True, exist_ok=True)
         torch.save(data_list, Path(self.processed_dir, f"{self.split}.pt"))
+
+    def _process_data_list(self, file_names: List[str], category_id_to_idx: Dict[str, int]) -> List[Dict[str, Any]]:
+        pbar = tqdm(file_names, total=len(file_names), desc="Processing", disable=not self.progress)
+        if self.num_workers is None:
+            data_list = [self._process_data(file_name, category_id_to_idx) for file_name in pbar]
+        else:
+            with Parallel(n_jobs=self.num_workers) as parallel:
+                data_list = parallel(delayed(self._process_data)(file_name, category_id_to_idx) for file_name in pbar)
+
+        return [data for data in data_list if data is not None]
 
     def _process_data(self, file_name: str, category_id_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         file_path = Path(self.raw_dir, file_name.replace("shape_data/", "")).with_suffix(".txt")
@@ -182,8 +231,8 @@ class ShapeNet(Dataset):
         data = {
             "coords": torch.from_numpy(coords).float(),
             "normals": torch.from_numpy(normals).float(),
-            "segmentation_target": torch.from_numpy(seg_target).long(),
-            "category_target": torch.tensor(category_id_to_idx[category_id]),
+            "segmentation": torch.from_numpy(seg_target).long(),
+            "category": torch.tensor(category_id_to_idx[category_id]),
         }
 
         if self.pre_filter is not None and not self.pre_filter(data):
