@@ -52,7 +52,7 @@ def test_download_url_default(mock_urlopen: Mock, tmp_path: Path) -> None:
     """Test that the file is downloaded at the current working directory with the URL file name."""
     os.chdir(tmp_path)
 
-    path = download_url("https://example.com/file.txt", progress=False)
+    path = download_url("https://example.com/file.txt", show_progress=False)
     assert path == "file.txt"
     assert Path(path).exists()
     assert Path(path).read_text() == "content"
@@ -60,22 +60,22 @@ def test_download_url_default(mock_urlopen: Mock, tmp_path: Path) -> None:
 
 def test_download_url_custom_path(mock_urlopen: Mock, tmp_path: Path) -> None:
     """Test that the file is downloaded to a custom path."""
-    path = download_url("https://example.com/file.txt", tmp_path / "custom.txt", progress=False)
+    path = download_url("https://example.com/file.txt", tmp_path / "custom.txt", show_progress=False)
     assert path == str(tmp_path / "custom.txt")
     assert Path(path).exists()
     assert Path(path).read_text() == "content"
 
 
 def test_download_no_progress(mock_urlopen: Mock, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that the progress bar is not displayed when downloading a file."""
-    _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", progress=False)
+    """Test that the show_progress bar is not displayed when downloading a file."""
+    _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=False)
     captured = capsys.readouterr()
     assert "Downloading" not in captured.err
 
 
 def test_download_url_with_progress(mock_urlopen: Mock, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that the progress bar is displayed when downloading a file."""
-    _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", progress=True)
+    """Test that the show_progress bar is displayed when downloading a file."""
+    _ = download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=True)
     captured = capsys.readouterr()
     assert "Downloading" in captured.err
 
@@ -83,7 +83,7 @@ def test_download_url_with_progress(mock_urlopen: Mock, tmp_path: Path, capsys: 
 def test_extract_zip(tmp_path: Path) -> None:
     """Test that the zip file is extracted to the correct directory."""
     zip_path = create_zip(tmp_path)
-    result = extract_zip(zip_path, tmp_path, progress=False)
+    result = extract_zip(zip_path, tmp_path, show_progress=False)
     assert Path(result).exists()
     assert Path(result, "file.txt").exists()
     assert len(list(Path(result).glob("**/*.txt"))) == 1
@@ -92,23 +92,23 @@ def test_extract_zip(tmp_path: Path) -> None:
 def test_extract_zip_nested_relative_to(tmp_path: Path) -> None:
     """Test that the zip file is extracted relative to a specific directory."""
     zip_path = create_zip(tmp_path, nested=True)
-    result = extract_zip(zip_path, tmp_path, relative_to="files", progress=False)
+    result = extract_zip(zip_path, tmp_path, relative_to="files", show_progress=False)
     assert Path(result).exists()
     assert Path(result, "file.txt").exists()
     assert len(list(Path(result).glob("**/*.txt"))) == 1
 
 
 def test_extract_zip_no_progress(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that the progress bar is not displayed when extracting a zip file."""
+    """Test that the show_progress bar is not displayed when extracting a zip file."""
     zip_path = create_zip(tmp_path)
-    _ = extract_zip(zip_path, tmp_path, progress=False)
+    _ = extract_zip(zip_path, tmp_path, show_progress=False)
     captured = capsys.readouterr()
     assert "Extracting" not in captured.err
 
 
 def test_extract_zip_with_progress(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that the progress bar is displayed when extracting a zip file."""
+    """Test that the show_progress bar is displayed when extracting a zip file."""
     zip_path = create_zip(tmp_path)
-    _ = extract_zip(zip_path, tmp_path, progress=True)
+    _ = extract_zip(zip_path, tmp_path, show_progress=True)
     captured = capsys.readouterr()
     assert "Extracting" in captured.err
