@@ -47,14 +47,8 @@ class PointCloudDataset(Dataset):
         if self.data_dir is not None:
             body.append(f"Data location: {self.data_dir}")
         body += self.extra_repr().splitlines()
-        if hasattr(self, "transform") and self.transform is not None:
-            body += [repr(self.transform)]
         lines = [head] + [" " * self._repr_indent + line for line in body]
         return "\n".join(lines)
-
-    def _format_transform_repr(self, transform: Callable, head: str) -> List[str]:
-        lines = transform.__repr__().splitlines()
-        return [f"{head}{lines[0]}"] + ["{}{}".format(" " * len(head), line) for line in lines[1:]]
 
     def extra_repr(self) -> str:
         return ""
