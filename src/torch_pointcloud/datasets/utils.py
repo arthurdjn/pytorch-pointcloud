@@ -1,7 +1,10 @@
+import hashlib
+import logging
 import shutil
 import ssl
 import zipfile
 from pathlib import Path
+from typing import Callable, Dict, Literal, Optional
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -9,7 +12,18 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.types import PathLike
 
+HashType = Literal["md5", "sha1", "sha256", "sha512"]
+SUPPORTED_HASH_TYPES: Dict[HashType, Callable] = {
+    "md5": hashlib.md5,
+    "sha1": hashlib.sha1,
+    "sha256": hashlib.sha256,
+    "sha512": hashlib.sha512,
+}
+
 USER_AGENT = "torch_pointcloud"
+
+
+logger = logging.getLogger(__name__)
 
 
 def urltailname(url: str) -> str:
@@ -35,7 +49,7 @@ def download_url(
     file_path: PathLike = "",
     chunk_size: int = 1024 * 32,
     description: str = "Downloading",
-    progress: bool = True,
+    show_progress: bool = True,
 ) -> str:
     """Download a file from a URL to a local path.
 
@@ -45,7 +59,7 @@ def download_url(
             If not provided, the file will be saved in the current working directory with the name taken from `Path
         chunk_size: The size of the chunks to download in bytes.
         description: The description to display in the progress bar.
-        progress: Whether to display a progress bar.
+        show_progress: Whether to display a progress bar.
 
     Returns:
         The local path to the downloaded file.
@@ -57,6 +71,8 @@ def download_url(
         "my_file.zip"
     """
     file_path = Path(file_path if file_path else urltailname(url))
+    logger.info(f"Downloading {url!r} to {file_path!r}...")
+
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     context = ssl._create_unverified_context()
@@ -68,7 +84,7 @@ def download_url(
                 unit="B",
                 unit_scale=True,
                 unit_divisor=1024,
-                disable=not progress,
+                disable=not show_progress,
             ) as pbar:
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
@@ -77,7 +93,7 @@ def download_url(
     return file_path.as_posix()
 
 
-def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "", progress: bool = True) -> str:
+def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "", show_progress: bool = True) -> str:
     """Extract a zip file to a directory.
 
     Args:
@@ -89,7 +105,7 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
             (e.g. for a nested zip `A.zip` containing files under directory `A`,
             then you will get `A/A/*.png` when extracting, but setting `relative_to="A"`
             will extract the files to `A/*.png` only).
-        progress: Whether to display a progress bar.
+        show_progress: Whether to display a progress bar.
 
     Returns:
         The path to the extracted directory.
@@ -103,7 +119,7 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         members = zip_ref.namelist()
-        for member in tqdm(members, total=len(members), desc="Extracting", disable=not progress):
+        for member in tqdm(members, total=len(members), desc="Extracting", disable=not show_progress):
             if member.endswith("/"):
                 continue
 
@@ -118,3 +134,48 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
                 shutil.copyfileobj(source, dest)
 
     return out_dir.as_posix()
+
+
+# Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py
+def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash_type: HashType = "md5") -> bool:
+    """Check if the hash of a file matches the expected hash.
+
+    Args:
+        file_path: The path to the file to check the hash of.
+        expected_hash: The expected hash of the file.
+        hash_type: The type of hash to use for the comparison.
+
+    Returns:
+        True if the hash of the file matches the expected hash, False otherwise.
+
+    Examples:
+        >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "md5")
+        False
+        >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "sha256")
+        True
+    """
+
+    if expected_hash is None:
+        logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {file_path}.")
+        return True
+
+    hash_fn = SUPPORTED_HASH_TYPES.get(hash_type)
+    if hash_fn is None:
+        expected_types = ", ".join(SUPPORTED_HASH_TYPES.keys())
+        logger.error(f"Unsupported hash type: {hash_type}. Expected one of: {expected_types}.")
+        return False
+
+    actual_hash = hash_fn()
+
+    try:
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                actual_hash.update(chunk)
+
+    except Exception as e:
+        logger.error(f"Exception in check_hash: {e}")
+        return False
+
+    calculated_hash = actual_hash.hexdigest()
+
+    return calculated_hash == expected_hash
