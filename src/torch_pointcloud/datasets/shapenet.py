@@ -1,15 +1,18 @@
 import json
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, Union
 
 import numpy as np
 import torch
-from joblib import Parallel, delayed
-from torch.utils.data import Dataset
 from tqdm import tqdm
+from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
+
+from .pointcloud import PointCloudDataset
 
 TransformLike = Callable[[Dict[str, Any]], Dict[str, Any]]
 ShapeNetCategory = Literal[
@@ -39,7 +42,7 @@ class ShapeNetPartData(TypedDict):
     category: torch.Tensor
 
 
-def load_shapenet_part(file_path: PathLike, category: int) -> ShapeNetPartData:
+def load_shapenet_part_data(file_path: PathLike, category: int) -> ShapeNetPartData:
     points = np.loadtxt(file_path, delimiter=" ")
     coords = points[:, :3]
     normals = points[:, 3:6]
@@ -53,7 +56,7 @@ def load_shapenet_part(file_path: PathLike, category: int) -> ShapeNetPartData:
     )
 
 
-class ShapeNetPart(Dataset):
+class ShapeNetPart(PointCloudDataset):
     """The ShapeNetPart dataset as described in the original paper
     [A Scalable Active Framework for Region Annotation in 3D Shape Collections](http://web.stanford.edu/~ericyi/papers/part_annotation_16_small.pdf).
 
@@ -100,6 +103,8 @@ class ShapeNetPart(Dataset):
         This will process the raw data and save it in the `data/ShapeNetPart/processed` directory,
         and re-running the above code will load the processed data from the `data/ShapeNetPart/processed` directory.
     """
+
+    data_url = "https://shapenet.org/"
 
     category_ids: Dict[ShapeNetCategory, str] = {
         "Airplane": "02691156",
@@ -148,11 +153,11 @@ class ShapeNetPart(Dataset):
         transform: Optional[TransformLike] = None,
         pre_transform: Optional[TransformLike] = None,
         pre_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
-        process: bool = False,
-        progress: bool = True,
+        force_process: bool = False,
+        show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(root)
 
         if split not in ["train", "val", "test"]:
             raise ValueError(f"Invalid split: {split}. Must be one of 'train', 'val' or 'test'.")
@@ -163,20 +168,10 @@ class ShapeNetPart(Dataset):
         self.transform = transform
         self.pre_filter = pre_filter
         self.pre_transform = pre_transform
-        self.progress = progress
+        self.show_progress = show_progress
         self.num_workers = num_workers
 
-        if not self.raw_files_exists():
-            root = Path(self.root).resolve().as_posix()
-
-            raise RuntimeError(
-                f"Dataset not found at {root!r}. "
-                f"You can download the raw dataset from https://shapenet.org/, "
-                f"and extract it under {self.raw_dir!r}."
-            )
-
-        if process or not self.processed_file_exists():
-            self.process()
+        self.process(force=force_process)
 
         self.data = self._load_processed_data()
 
@@ -200,7 +195,8 @@ class ShapeNetPart(Dataset):
     def seg_to_id(self) -> Dict[str, int]:
         return {seg: i for i, seg in enumerate(self.seg_ids)}
 
-    def raw_files_exists(self) -> bool:
+    @override
+    def raw_files_exist(self) -> bool:
         if not Path(self.raw_dir).exists():
             return False
 
@@ -216,32 +212,33 @@ class ShapeNetPart(Dataset):
 
         return True
 
-    def processed_file_exists(self) -> bool:
+    @override
+    def processed_files_exist(self) -> bool:
         return Path(self.processed_dir, f"{self.split}.pt").exists()
 
-    def process(self) -> None:
+    def process(self, force: bool = False) -> None:
+        if self.processed_files_exist() and not force:
+            return
+        elif not self.raw_files_exist():
+            raise RuntimeError(
+                f"Dataset not found at {self.raw_dir!r}. "
+                f"You can download the raw dataset from {self.data_url!r}, "
+                f"and extract it under {self.raw_dir!r}."
+            )
+
         split_path = Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json")
 
         with open(split_path, "r") as f:
             split_files = json.load(f)
 
+        pbar = tqdm(split_files, total=len(split_files), desc="Processing", disable=not self.show_progress)
         category_id_to_idx = {self.category_ids[cat]: i for i, cat in enumerate(self.categories)}
-
-        data_list = self._process_data_list(split_files, category_id_to_idx)
+        func = partial(self._process_data, category_id_to_idx=category_id_to_idx)
+        data_list = parallel_map(func, pbar, num_workers=self.num_workers)
         data_list = [data for data in data_list if data is not None]
 
         Path(self.processed_dir).mkdir(parents=True, exist_ok=True)
         torch.save(data_list, Path(self.processed_dir, f"{self.split}.pt"))
-
-    def _process_data_list(self, file_names: List[str], category_id_to_idx: Dict[str, int]) -> List[Dict[str, Any]]:
-        pbar = tqdm(file_names, total=len(file_names), desc="Processing", disable=not self.progress)
-        if self.num_workers is None:
-            data_list = [self._process_data(file_name, category_id_to_idx) for file_name in pbar]
-        else:
-            with Parallel(n_jobs=self.num_workers) as parallel:
-                data_list = parallel(delayed(self._process_data)(file_name, category_id_to_idx) for file_name in pbar)
-
-        return [data for data in data_list if data is not None]
 
     def _process_data(self, file_name: str, category_id_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         file_path = Path(self.raw_dir, file_name.replace("shape_data/", "")).with_suffix(".txt")
@@ -252,7 +249,7 @@ class ShapeNetPart(Dataset):
         if category is None:
             return None
 
-        data: Dict[str, Any] = load_shapenet_part(file_path, category)  # type: ignore[assignment]
+        data: Dict[str, Any] = load_shapenet_part_data(file_path, category)  # type: ignore[assignment]
 
         if self.pre_filter is not None and not self.pre_filter(data):
             return None
@@ -263,7 +260,8 @@ class ShapeNetPart(Dataset):
         return data
 
     def _load_processed_data(self) -> Any:
-        return torch.load(Path(self.processed_dir, f"{self.split}.pt"), weights_only=True)
+        file_path = Path(self.processed_dir, f"{self.split}.pt")
+        return torch.load(file_path, weights_only=True)
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
         data = self.data[index]
