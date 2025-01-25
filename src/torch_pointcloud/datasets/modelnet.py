@@ -113,6 +113,9 @@ class _ModelNet(PointCloudDataset):
         for ds_store in Path(self.raw_dir).rglob(".DS_Store"):
             ds_store.unlink()
 
+        # Remove the downloaded resource
+        resource_path.unlink()
+
     def process(self, force: bool = False) -> None:
         if self.processed_files_exist() and not force:
             return
