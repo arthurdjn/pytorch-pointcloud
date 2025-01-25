@@ -8,6 +8,22 @@ DATA_DIR = Path("tests/data")
 
 @pytest.fixture
 def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
+    """Utility fixture to mock the test `data` directory.
+    This fixture is used to add data files within the test temporary directory `tmp_path`.
+    For convenience, the copied data is symlinked to the `data` directory within the test temporary directory.
+
+    The purpose of this function is to allow data modification in an isolated folder,
+    without affecting the actual data directory.
+    For example, if a test modifies the data files created by this fixture,
+    the changes will not be reflected in the actual data directory.
+
+    Args:
+        pattern: The pattern to match the data files to be copied.
+
+    Returns:
+        The path to the test `data` directory.
+    """
+
     def data_dir(pattern: str = "*") -> Path:
         out_dir = tmp_path / "data"
         for file_path in DATA_DIR.rglob(pattern):
