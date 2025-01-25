@@ -22,6 +22,27 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
 
     Returns:
         The path to the test `data` directory.
+
+    Example:
+        ```python
+        def test_data_dir(data_dir_factory: Callable[..., Path]) -> None:
+            data_dir = data_dir_factory("ShapeNetPart/raw/**/*")
+            # data_dir is the path to the tmp directory with the copied data,
+            # e.g. /tmp/pytest-of-user/test_data_dir/test_data_dir0/data
+            # containing the files matching the pattern "ShapeNetPart/raw/**/*"
+            # from the actual data directory.
+
+            # The data directory can be used in the test as if it were the actual data directory.
+            # For example, the test can use the data directory to load data.
+
+            dataset = ShapeNetPart(root=data_dir)
+
+            # Finally, if the test corrupts the data, the changes will not be reflected in the actual data directory.
+            # This is useful to avoid modifying the actual data directory.
+
+            # The below will not remove the actual data directory
+            shutil.rmtree(data_dir)
+        ```
     """
 
     def data_dir(pattern: str = "*") -> Path:
