@@ -77,11 +77,11 @@ class ShapeNetPart(PointCloudDataset):
         transform: A callable that transforms the data when retrieved from the dataset.
         pre_transform: Used to transform the data before saving it in the processed directory.
         pre_filter: Used to filter the data before saving it in the processed directory.
-        process: Whether to process the raw data and save it in the processed directory.
+        force_process: Whether to process the raw data and save it in the processed directory.
             If `False`, the processed data will be loaded from the processed directory.
             If `True`, the raw data will be processed and saved in the processed directory,
             regardless of whether the processed data already exists.
-        progress: Whether to show a progress bar during processing.
+        show_progress: Whether to show a progress bar during processing.
         num_workers: If specified, the number of workers to use for processing the data.
             If unspecified or `None`, the data will be processed sequentially.
 

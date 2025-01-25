@@ -190,7 +190,6 @@ class ModelNet10(_ModelNet):
         num_workers: The number of workers to use for parallel processing.
 
     Example:
-
         ```python
         from torch_pointcloud.datasets import ModelNet10
 
@@ -240,7 +239,6 @@ class ModelNet40(_ModelNet):
         num_workers: The number of workers to use for parallel processing.
 
     Example:
-
         ```python
         from torch_pointcloud.datasets import ModelNet40
 
