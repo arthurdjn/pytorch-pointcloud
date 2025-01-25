@@ -96,8 +96,8 @@ class _ModelNet(PointCloudDataset):
         resource_path = Path(self.raw_dir, self.resource)
 
         if (
-            resource_path.exists()
-            and not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
+            not resource_path.exists()
+            or not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
             or force
         ):
             download_url(url, resource_path, show_progress=self.show_progress)
