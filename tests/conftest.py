@@ -66,4 +66,5 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
 
 @pytest.fixture
 def data_dir(data_dir_factory: Callable[..., Path]) -> Path:
+    """Utility fixture to get a copy of the full data directory"""
     return data_dir_factory()
