@@ -1,5 +1,4 @@
 import hashlib
-import logging
 import shutil
 import ssl
 import zipfile
@@ -21,9 +20,6 @@ SUPPORTED_HASH_TYPES: Dict[HashType, Callable] = {
 }
 
 USER_AGENT = "torch_pointcloud"
-
-
-logger = logging.getLogger(__name__)
 
 
 def urltailname(url: str) -> str:
@@ -71,8 +67,6 @@ def download_url(
         "my_file.zip"
     """
     file_path = Path(file_path if file_path else urltailname(url))
-    logger.info(f"Downloading {url!r} to {file_path!r}...")
-
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     context = ssl._create_unverified_context()
@@ -156,13 +150,10 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
     """
 
     if expected_hash is None:
-        logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {file_path}.")
         return True
 
     hash_fn = SUPPORTED_HASH_TYPES.get(hash_type)
     if hash_fn is None:
-        expected_types = ", ".join(SUPPORTED_HASH_TYPES.keys())
-        logger.error(f"Unsupported hash type: {hash_type}. Expected one of: {expected_types}.")
         return False
 
     actual_hash = hash_fn()
@@ -171,9 +162,7 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(1024 * 1024), b""):
                 actual_hash.update(chunk)
-
-    except Exception as e:
-        logger.error(f"Exception in check_hash: {e}")
+    except Exception:
         return False
 
     calculated_hash = actual_hash.hexdigest()
