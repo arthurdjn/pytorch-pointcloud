@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from torch_pointcloud.datasets.utils import download_url, extract_zip, urltailname
+from torch_pointcloud.datasets.utils import download_url, extract_zip, is_hash_valid, urltailname
 
 
 def create_zip(out_dir: Path, nested: bool = False) -> Path:
@@ -112,3 +112,48 @@ def test_extract_zip_with_progress(tmp_path: Path, capsys: pytest.CaptureFixture
     _ = extract_zip(zip_path, tmp_path, show_progress=True)
     captured = capsys.readouterr()
     assert "Extracting" in captured.err
+
+
+@pytest.fixture
+def test_content_file(tmp_path: Path) -> Path:
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("test content")
+    return test_file
+
+
+@pytest.mark.parametrize(
+    "hash_type, expected_hash",
+    [
+        ("md5", "9473fdd0d880a43c21b7778d34872157"),
+        ("sha1", "1eebdf4fdc9fc7bf283031b93f9aef3338de9052"),
+        ("sha256", "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"),
+        (
+            "sha512",
+            "0cbf4caef38047bba9a24e621a961484e5d2a92176a859e7eb27df343dd34eb98d538a6c5f4da1ce302ec250b821cc001e46cc97a704988297185a4df7e99602",
+        ),
+    ],
+)
+def test_is_hash_valid_sha256(test_content_file: Path, hash_type: str, expected_hash: str) -> None:
+    """Test that hash validation works correctly."""
+    assert is_hash_valid(test_content_file, expected_hash, hash_type)
+
+
+@pytest.mark.parametrize("hash_type", ["md5", "sha1", "sha256", "sha512"])
+def test_is_hash_valid_wrong_hash(test_content_file: Path, hash_type: str) -> None:
+    """Test that hash validation fails when the hash is incorrect."""
+    assert not is_hash_valid(test_content_file, "wrong_hash", hash_type)
+
+
+def test_is_hash_valid_unsupported_type(test_content_file: Path) -> None:
+    """Test that unsupported hash types return False."""
+    assert not is_hash_valid(test_content_file, "some_hash", "unsupported_type")
+
+
+def test_is_hash_valid_nonexistent_file() -> None:
+    """Test that validation fails for nonexistent files."""
+    assert not is_hash_valid("nonexistent_file.txt", "some_hash", "md5")
+
+
+def test_is_hash_valid_none_hash() -> None:
+    """Test that validation is skipped when expected hash is None."""
+    assert is_hash_valid("nonexistent_file.txt", None)
