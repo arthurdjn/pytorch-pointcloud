@@ -39,7 +39,17 @@ all: format type lint isort ## Run all formatting commands
 test: ## Run tests
 	$(CMD) pytest $(TESTS) -s -vv
 
-# Utils
+# Documentation
+
+.PHONY: docs
+docs: ## Generate documentation
+	JUPYTER_PLATFORM_DIRS=1 $(CMD) mkdocs build
+
+.PHONY: serve
+serve: ## Serve documentation
+	JUPYTER_PLATFORM_DIRS=1 $(CMD) mkdocs serve
+
+# Misc
 
 .PHONY: clean
 clean: ## Clear local caches and build artifacts
