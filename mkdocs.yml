@@ -52,14 +52,21 @@ validation:
   absolute_links: warn
   unrecognized_links: warn
 
+extra_javascript:
+  - js/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
 extra_css:
   - "css/style.css"
+  - https://unpkg.com/katex@0/dist/katex.min.css
 
 nav:
   - Get Started:
       - Welcome to torch_pointcloud: index.md
   - API Reference:
       - Datasets: api/datasets.md
+      - Utils: api/utils.md
 
 markdown_extensions:
   - tables
@@ -72,6 +79,9 @@ markdown_extensions:
   - pymdownx.emoji:
   - pymdownx.tabbed:
       alternate_style: true
+  # For math equations
+  - pymdownx.arithmatex:
+      generic: true
 
 watch:
   - src/torch_pointcloud
