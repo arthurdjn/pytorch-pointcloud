@@ -1,10 +1,8 @@
-from typing import Optional
-
 import torch
 from torch import Tensor
 
 
-def axis_aligned_bounding_box(coords: Tensor, label: Optional[int] = None) -> Tensor:
+def axis_aligned_bounding_box(coords: Tensor) -> Tensor:
     r"""Compute the axis aligned bounding box of a set of points,
     parameterized by $(c_x, c_y, c_z)$ and $(d_x, d_y, d_z)$ where $(c_x, c_y, c_z)$ is the center point of the box,
     and $d_x$ is the x-axis length of the box.
