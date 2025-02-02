@@ -39,7 +39,6 @@ class S3DISRoomData(TypedDict, total=False):
     colors: torch.Tensor
     semantic: torch.Tensor
     instances: torch.Tensor
-    boxes: torch.Tensor
 
 
 def load_s3dis_room_data(
@@ -48,7 +47,6 @@ def load_s3dis_room_data(
     with_colors: bool = True,
     with_semantic: bool = True,
     with_instances: bool = True,
-    with_boxes: bool = True,
     alignment_angle: float | None = None,
     class_to_idx: Optional[Dict[str, int]] = None,
     unk_id: Optional[int] = None,
@@ -83,10 +81,6 @@ def load_s3dis_room_data(
             room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
         if with_instances:
             room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
-        if with_boxes:
-            boxes = axis_aligned_bounding_box(points[:, 0:3])
-            boxes = torch.cat([boxes, torch.tensor([category_idx])])
-            room["boxes"].append(boxes.reshape(1, -1))
 
     # Stack the data
     for key, values in room.items():
@@ -131,6 +125,18 @@ def iter_blocks(
             continue
 
         yield coords[cond], indices[cond]
+
+
+def _axis_aligned_bounding_boxes(coords: torch.Tensor, semantic: torch.Tensor, instances: torch.Tensor) -> torch.Tensor:
+    boxes = []
+    for instance_idx in torch.unique(instances):
+        instance_mask = instances == instance_idx
+        instance_coords = coords[instance_mask]
+        category_idx = semantic[instance_mask][0]
+        box = axis_aligned_bounding_box(instance_coords)
+        box = torch.cat([box, torch.tensor([category_idx])])
+        boxes.append(box)
+    return torch.cat(boxes, dim=0)
 
 
 class S3DIS(PointCloudDataset):
@@ -387,9 +393,12 @@ class S3DIS(PointCloudDataset):
             block_size=self.block_size,
             stride=self.block_stride,
         ):
-            block_data = {"coords": block_coords}
-            for key in set(room.keys()) - set(block_data.keys()):
-                block_data[key] = room[key][block_idxs]  # type: ignore[literal-required]
+            block_data = {
+                "coords": block_coords,
+                "colors": room["colors"][block_idxs],
+                "semantic": room["semantic"][block_idxs],
+                "instances": room["instances"][block_idxs],
+            }
 
             if self.pre_filter is not None and not self.pre_filter(block_data):
                 continue
