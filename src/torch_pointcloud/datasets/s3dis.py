@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
-from torch_pointcloud.utils.geometry import axis_aligned_bounding_box, rodrigues_rotation_matrix
+from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
