@@ -43,10 +43,6 @@ class S3DISRoomData(TypedDict, total=False):
 
 def load_s3dis_room_data(
     room_dir: PathLike,
-    with_coords: bool = True,
-    with_colors: bool = True,
-    with_semantic: bool = True,
-    with_instances: bool = True,
     alignment_angle: float | None = None,
     class_to_idx: Optional[Dict[str, int]] = None,
     unk_id: Optional[int] = None,
@@ -73,14 +69,10 @@ def load_s3dis_room_data(
             R = rodrigues_rotation_matrix(torch.tensor([0, 0, 1]), alignment_angle)
             points[:, 0:3] = coords @ R
 
-        if with_coords:
-            room["coords"].append(points[:, 0:3])
-        if with_colors:
-            room["colors"].append(points[:, 3:6].to(torch.uint8))
-        if with_semantic:
-            room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
-        if with_instances:
-            room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
+        room["coords"].append(points[:, 0:3])
+        room["colors"].append(points[:, 3:6].to(torch.uint8))
+        room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
+        room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
 
     # Stack the data
     for key, values in room.items():
@@ -125,18 +117,6 @@ def iter_blocks(
             continue
 
         yield coords[cond], indices[cond]
-
-
-def _axis_aligned_bounding_boxes(coords: torch.Tensor, semantic: torch.Tensor, instances: torch.Tensor) -> torch.Tensor:
-    boxes = []
-    for instance_idx in torch.unique(instances):
-        instance_mask = instances == instance_idx
-        instance_coords = coords[instance_mask]
-        category_idx = semantic[instance_mask][0]
-        box = axis_aligned_bounding_box(instance_coords)
-        box = torch.cat([box, torch.tensor([category_idx])])
-        boxes.append(box)
-    return torch.cat(boxes, dim=0)
 
 
 class S3DIS(PointCloudDataset):
@@ -378,16 +358,17 @@ class S3DIS(PointCloudDataset):
     ) -> List[Optional[Dict[str, Any]]]:
         room = load_s3dis_room_data(
             room_dir,
-            with_coords=True,
-            with_colors=True,
-            with_semantic=True,
-            with_instances=True,
             alignment_angle=alignment_angle,
             class_to_idx=class_to_idx,
             unk_id=self.unk_id,
         )
 
+        # If the room do not contain any points (e.g. filtering), return None
+        if not room:
+            return [None]
+
         blocks: List[Optional[Dict[str, Any]]] = []
+
         for block_coords, block_idxs in iter_blocks(
             room["coords"],
             block_size=self.block_size,

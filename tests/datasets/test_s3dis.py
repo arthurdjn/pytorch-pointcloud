@@ -40,7 +40,7 @@ def test_s3dis_dataset_raw_files_exist(data_dir_factory: Callable[..., Path], ar
 
 @pytest.mark.parametrize("areas", [["Area_1"], ["Area_1", "Area_2"], "all"])
 def test_s3dis_dataset_raw_files_not_exist(areas: str | list[str]) -> None:
-    """Test that the raw files do not exist"""
+    """Test that an error is raised if the raw files do not exist"""
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = S3DIS(root="not-found", areas=areas, show_progress=False)
 
@@ -54,14 +54,13 @@ def test_s3dis_dataset_processed_files_exist(data_dir_factory: Callable[..., Pat
 
 
 @pytest.mark.parametrize("areas", [["Area_1"], ["Area_1", "Area_2"], "all"])
-@patch("torch_pointcloud.datasets.s3dis.load_s3dis_room_data")
+@patch("torch_pointcloud.datasets.s3dis.load_s3dis_room_data", wraps=load_s3dis_room_data)
 def test_s3dis_dataset_split(
     mock_load: Mock,
     data_dir_factory: Callable[..., Path],
     areas: str | list[str],
 ) -> None:
-    """Test that the dataset is loaded correctly for different areas"""
-    mock_load.side_effect = load_s3dis_room_data
+    """Test that the dataset does not load raw data if the processed data exists"""
     data_dir = data_dir_factory("S3DIS/processed/**/*")
 
     dataset = S3DIS(root=data_dir, areas=areas, show_progress=False)
@@ -72,14 +71,13 @@ def test_s3dis_dataset_split(
 
 
 @pytest.mark.parametrize("areas", [["Area_1"], ["Area_1", "Area_2"], "all"])
-@patch("torch_pointcloud.datasets.s3dis.load_s3dis_room_data")
+@patch("torch_pointcloud.datasets.s3dis.load_s3dis_room_data", wraps=load_s3dis_room_data)
 def test_s3dis_dataset_process_split(
     mock_load: Mock,
     data_dir_factory: Callable[..., Path],
     areas: str | list[str],
 ) -> None:
-    """Test that the dataset is processed correctly for different areas"""
-    mock_load.side_effect = load_s3dis_room_data
+    """Test that the dataset loads raw data if the processed data does not exist"""
     data_dir = data_dir_factory("S3DIS/raw/**/*")
 
     dataset = S3DIS(root=data_dir, areas=areas, show_progress=False)
@@ -90,7 +88,7 @@ def test_s3dis_dataset_process_split(
 
 
 def test_s3dis_dataset_progress(data_dir_factory: Callable[..., Path], capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that the dataset is processed correctly with a progress bar"""
+    """Test that the dataset displays a progress bar during processing"""
     data_dir = data_dir_factory("S3DIS/raw/**/*")
 
     dataset = S3DIS(root=data_dir, show_progress=True)
@@ -103,7 +101,7 @@ def test_s3dis_dataset_progress(data_dir_factory: Callable[..., Path], capsys: p
 def test_s3dis_dataset_without_progress(
     data_dir_factory: Callable[..., Path], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Test that the dataset is processed correctly without a progress bar"""
+    """Test that the dataset does not display a progress bar during processing"""
     data_dir = data_dir_factory("S3DIS/raw/**/*")
 
     dataset = S3DIS(root=data_dir, show_progress=False)
@@ -127,18 +125,30 @@ def test_s3dis_dataset_progress_with_cached_processed(
     assert captured.out == ""
 
 
-@pytest.mark.parametrize("classes", [["wall"], ["wall", "floor"], "all"])
+@pytest.mark.parametrize("classes", [["wall"], ["wall", "floor", "ceiling"]])
 def test_s3dis_dataset_classes(
     data_dir_factory: Callable[..., Path],
-    classes: str | list[str],
+    classes: list[str],
 ) -> None:
-    """Test that the dataset is loaded correctly for specific classes"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    """Test that the dataset loads specific classes"""
+    data_dir = data_dir_factory("S3DIS/raw/**/*")
 
-    dataset = S3DIS(root=data_dir, classes=classes, show_progress=False)
+    dataset = S3DIS(root=data_dir, classes=classes, unk_id=-1, show_progress=False)
     assert len(dataset) > 0
-    if classes != "all":
-        assert all(cls in dataset.classes for cls in (classes if isinstance(classes, list) else [classes]))
+    assert all(cls in dataset.classes for cls in classes)
+
+    class_ids = set([*dataset.class_to_idx.values(), dataset.unk_id])
+    for data in dataset:
+        labels = data["semantic"].unique().tolist()
+        assert set(labels).issubset(class_ids)
+
+
+def test_s3dis_dataset_all_classes(data_dir_factory: Callable[..., Path]) -> None:
+    """Test that the dataset loads all classes"""
+    data_dir = data_dir_factory("S3DIS/raw/**/*")
+
+    dataset = S3DIS(root=data_dir, classes="all", show_progress=False)
+    assert len(dataset) > 0
 
 
 def test_s3dis_dataset_pre_transform(data_dir_factory: Callable[..., Path]) -> None:
