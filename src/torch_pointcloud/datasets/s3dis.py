@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
-from torch_pointcloud.utils.geometry import axis_aligned_bounding_box, rodrigues_rotation_matrix
+from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -39,16 +39,10 @@ class S3DISRoomData(TypedDict, total=False):
     colors: torch.Tensor
     semantic: torch.Tensor
     instances: torch.Tensor
-    bboxes: torch.Tensor
 
 
 def load_s3dis_room_data(
     room_dir: PathLike,
-    with_coords: bool = True,
-    with_colors: bool = True,
-    with_semantic: bool = False,
-    with_instances: bool = False,
-    with_bboxes: bool = False,
     alignment_angle: float | None = None,
     class_to_idx: Optional[Dict[str, int]] = None,
     unk_id: Optional[int] = None,
@@ -75,18 +69,10 @@ def load_s3dis_room_data(
             R = rodrigues_rotation_matrix(torch.tensor([0, 0, 1]), alignment_angle)
             points[:, 0:3] = coords @ R
 
-        if with_coords:
-            room["coords"].append(points[:, 0:3])
-        if with_colors:
-            room["colors"].append(points[:, 3:6].to(torch.uint8))
-        if with_semantic:
-            room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
-        if with_instances:
-            room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
-        if with_bboxes:
-            bboxes = axis_aligned_bounding_box(points[:, 0:3])
-            bboxes = torch.cat([bboxes, torch.tensor([category_idx])])
-            room["boxes"].append(bboxes.reshape(1, -1))
+        room["coords"].append(points[:, 0:3])
+        room["colors"].append(points[:, 3:6].to(torch.uint8))
+        room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
+        room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
 
     # Stack the data
     for key, values in room.items():
@@ -372,24 +358,28 @@ class S3DIS(PointCloudDataset):
     ) -> List[Optional[Dict[str, Any]]]:
         room = load_s3dis_room_data(
             room_dir,
-            with_coords=True,
-            with_colors=True,
-            with_semantic=True,
-            with_instances=True,
             alignment_angle=alignment_angle,
             class_to_idx=class_to_idx,
             unk_id=self.unk_id,
         )
 
+        # If the room do not contain any points (e.g. filtering), return None
+        if not room:
+            return [None]
+
         blocks: List[Optional[Dict[str, Any]]] = []
+
         for block_coords, block_idxs in iter_blocks(
             room["coords"],
             block_size=self.block_size,
             stride=self.block_stride,
         ):
-            block_data = {"coords": block_coords}
-            for key in set(room.keys()) - set(block_data.keys()):
-                block_data[key] = room[key][block_idxs]  # type: ignore[literal-required]
+            block_data = {
+                "coords": block_coords,
+                "colors": room["colors"][block_idxs],
+                "semantic": room["semantic"][block_idxs],
+                "instances": room["instances"][block_idxs],
+            }
 
             if self.pre_filter is not None and not self.pre_filter(block_data):
                 continue
