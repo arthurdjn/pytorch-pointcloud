@@ -1,0 +1,4 @@
+## Global alignment angle per disjoint space in Area_1 ##
+## Disjoint Space Name Global Alignment Angle ##
+conferenceRoom_1 270
+hallway_1 270
