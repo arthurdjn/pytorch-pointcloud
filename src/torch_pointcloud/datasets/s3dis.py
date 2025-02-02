@@ -258,10 +258,10 @@ class S3DIS(PointCloudDataset):
             if not Path(self.raw_dir, area).is_dir():
                 return False
 
-            for room_dir in Path(self.raw_dir, area).iterdir():
+            room_dirs = [path for path in Path(self.raw_dir, area).iterdir() if path.is_dir()]
+            for room_dir in room_dirs:
                 if not any(room_dir.rglob("Annotations/*.txt")):
                     return False
-                return False
         return True
 
     @override
@@ -335,6 +335,12 @@ class S3DIS(PointCloudDataset):
     def process(self, force: bool = False) -> None:
         if self.processed_files_exist() and not force:
             return
+        elif not self.raw_files_exist():
+            raise RuntimeError(
+                f"Dataset not found at {self.root!r}. "
+                f"You can download the raw dataset from {self.data_url!r}, "
+                f"and extract it under {self.raw_dir!r}."
+            )
 
         for area in self.areas:
             area_dir = Path(self.raw_dir, area)
@@ -347,7 +353,7 @@ class S3DIS(PointCloudDataset):
             blocks = []
 
             room_dirs = [path for path in area_dir.iterdir() if path.is_dir()]
-            pbar = tqdm(room_dirs, total=len(room_dirs), desc=f"Processing {area}")
+            pbar = tqdm(room_dirs, total=len(room_dirs), desc=f"Processing {area}", disable=not self.show_progress)
             for room_dir in pbar:
                 alignment_angle = alignment_angles.get(room_dir.name, None)
                 room_blocks = self._process_room(room_dir, alignment_angle, self.class_to_idx)
