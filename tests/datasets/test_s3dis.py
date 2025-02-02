@@ -16,8 +16,14 @@ def test_load_s3dis_room_data(data_dir: Path) -> None:
 
     assert isinstance(data["coords"], torch.Tensor)
     assert isinstance(data["colors"], torch.Tensor)
+    assert isinstance(data["instances"], torch.Tensor)
+    assert isinstance(data["semantic"], torch.Tensor)
+    assert isinstance(data["boxes"], torch.Tensor)
     assert data["coords"].shape[1] == 3
     assert data["colors"].shape[1] == 3
+    assert data["instances"].ndim == 1
+    assert data["semantic"].ndim == 1
+    assert data["boxes"].shape[1] == 7
 
 
 def test_s3dis_dataset_not_found() -> None:

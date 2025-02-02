@@ -39,16 +39,16 @@ class S3DISRoomData(TypedDict, total=False):
     colors: torch.Tensor
     semantic: torch.Tensor
     instances: torch.Tensor
-    bboxes: torch.Tensor
+    boxes: torch.Tensor
 
 
 def load_s3dis_room_data(
     room_dir: PathLike,
     with_coords: bool = True,
     with_colors: bool = True,
-    with_semantic: bool = False,
-    with_instances: bool = False,
-    with_bboxes: bool = False,
+    with_semantic: bool = True,
+    with_instances: bool = True,
+    with_boxes: bool = True,
     alignment_angle: float | None = None,
     class_to_idx: Optional[Dict[str, int]] = None,
     unk_id: Optional[int] = None,
@@ -83,10 +83,10 @@ def load_s3dis_room_data(
             room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
         if with_instances:
             room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
-        if with_bboxes:
-            bboxes = axis_aligned_bounding_box(points[:, 0:3])
-            bboxes = torch.cat([bboxes, torch.tensor([category_idx])])
-            room["boxes"].append(bboxes.reshape(1, -1))
+        if with_boxes:
+            boxes = axis_aligned_bounding_box(points[:, 0:3])
+            boxes = torch.cat([boxes, torch.tensor([category_idx])])
+            room["boxes"].append(boxes.reshape(1, -1))
 
     # Stack the data
     for key, values in room.items():
