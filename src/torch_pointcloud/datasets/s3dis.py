@@ -134,6 +134,77 @@ def iter_blocks(
 
 
 class S3DIS(PointCloudDataset):
+    """
+    The Stanford 3D Indoor Spaces Dataset (S3DIS) dataset, as described in the original paper
+    [3D Indoor Spaces Dataset: Collection, Annotations, and Methods](https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf).
+
+    You can download the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/ official website.
+
+    The S3DIS dataset contains 6 diverse areas (one used for testing) covering a total of 6020 square meters.
+    Each area contains multiple rooms (e.g. office, conference room, etc.), and each room contains multiple semantic regions
+    (e.g. wall, floor, ceiling, etc.) with instance-level annotations.
+
+    The dataset will be processed automatically and saved in the `S3DIS/processed` directory.
+    If the processed data already exists, it will be loaded from the `S3DIS/processed` directory
+    and processing steps will be skipped.
+    The raw dataset is processed by blocks of size `block_size` with a stride of `block_stride`.
+
+    > [!TIP]
+    > If you change the preprocessing parameters, you can delete the processed data to reprocess the dataset
+    > or use the `force_process` argument to force the processing of the raw data.
+
+    Args:
+        root: The root directory of the dataset, where the raw and processed data will be stored.
+        areas: The areas to load, either a list of area names or "all".
+        classes: The classes to load, either a list of class names or "all".
+        unk_id: The id to use for unknown classes.
+        block_size: The size of the blocks to process.
+        block_stride: The stride of the blocks to process.
+        transform: A callable that transforms the data when retrieved from the dataset.
+        normalize_coords: Whether to normalize and center the coordinates of the block.
+        pre_transform: Used to transform the data before saving it in the processed directory.
+        pre_filter: Used to filter the data before saving it in the processed directory.
+        download: Whether to download the raw data.
+        force_download: Whether to force the download of the raw data.
+        force_process: Whether to force the processing of the raw data.
+        show_progress: Whether to show a progress bar during processing.
+
+    Example:
+        Assuming you have downloaded the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/,
+        and extracted it under `data/S3DIS/raw`, you can load the dataset as follows:
+
+        ```python
+        from torch_pointcloud.datasets import S3DIS
+
+        dataset = S3DIS(
+            root="data",
+            areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
+        )
+        ```
+
+        You can select the block size to process the dataset by passing the `block_size` argument.
+        For example, to process blocks of size 1 meter, you can do:
+
+        ```python
+        dataset = S3DIS(
+            root="data",
+            block_size=1,  # The size of the blocks to process.
+            block_stride=0.5,  # The stride of the blocks to process.
+        )
+        ```
+
+        You can select specific classes to load by passing a list of class names to the `classes` argument.
+        For example, to load only the "wall" and "floor" classes, you can do:
+
+        ```python
+        dataset = S3DIS(
+            root="data",
+            classes=["wall", "floor"],
+            unk_id=-1,  # Use -1 to treat unknown classes as a single class
+        )
+        ```
+    """
+
     data_url = "https://cvg-data.inf.ethz.ch/s3dis/"
     resources = [
         "ReadMe.txt",
@@ -317,6 +388,7 @@ class S3DIS(PointCloudDataset):
             if self.pre_filter is not None and not self.pre_filter(block_data):
                 continue
 
+            # TODO: move to a transform
             if self.normalize_coords:
                 x_min, y_min, _ = torch.min(block_data["coords"], dim=0).values
                 delta = self.block_size / 2
