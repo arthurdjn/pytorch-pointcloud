@@ -3,7 +3,8 @@ import shutil
 import ssl
 import zipfile
 from pathlib import Path
-from typing import Callable, Dict, Literal, Optional
+from ssl import SSLContext
+from typing import Callable, Dict, Literal, Optional, Union
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -40,12 +41,40 @@ def urltailname(url: str) -> str:
     return unquote(urlparse(url).path.split("/")[-1])
 
 
+def urlsize(
+    url: str,
+    *,
+    timeout: Optional[float] = None,
+    cafile: Optional[str] = None,
+    capath: Optional[str] = None,
+    cadefault: bool = False,
+    context: Optional[SSLContext] = None,
+) -> int:
+    """Get the size of a URL.
+
+    Args:
+        url: The URL to get the size of.
+        **kwargs: Additional arguments to pass to the `requests.head` function.
+
+    Returns:
+        The size of the URL in bytes.
+
+    Examples:
+        >>> urlsize("https://example.com/file.zip")
+        1024
+    """
+    req = Request(url, method="HEAD")
+    with urlopen(req, timeout=timeout, cafile=cafile, capath=capath, cadefault=cadefault, context=context) as f:
+        return int(f.headers.get("content-length", 0))
+
+
 def download_url(
     url: str,
     file_path: PathLike = "",
     chunk_size: int = 1024 * 32,
     description: str = "Downloading",
     show_progress: bool = True,
+    overwrite: Union[bool, Literal["incomplete"]] = False,
 ) -> str:
     """Download a file from a URL to a local path.
 
@@ -56,6 +85,10 @@ def download_url(
         chunk_size: The size of the chunks to download in bytes.
         description: The description to display in the progress bar.
         show_progress: Whether to display a progress bar.
+        overwrite: Whether to overwrite the file if it already exists. If `True`, the local file will be overwritten
+            even if it already exists. If `'incomplete'`, the local file will be overwritten if it already exists and its
+            size does not match the expected size. If `False`, the local file will not be overwritten if it already
+            exists.
 
     Returns:
         The local path to the downloaded file.
@@ -63,11 +96,16 @@ def download_url(
     Examples:
         >>> download_url("https://example.com/file.zip")
         "file.zip"
-        >>> download_url("https://example.com/my%20file.zip", "my_file.zip", progress=False)
+        >>> download_url("https://example.com/my%20file.zip", "my_file.zip", show_progress=False)
         "my_file.zip"
     """
     file_path = Path(file_path if file_path else urltailname(url))
     file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if file_path.exists() and not overwrite:
+        return file_path.as_posix()
+    if file_path.exists() and overwrite == "incomplete" and file_path.stat().st_size == urlsize(url):
+        return file_path.as_posix()
 
     context = ssl._create_unverified_context()
     with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), context=context) as response:
