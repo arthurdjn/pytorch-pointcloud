@@ -931,15 +931,6 @@ wheels = [
 ]
 
 [[package]]
-name = "narwhals"
-version = "1.24.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8f/db/f5d3b2d2f759ac341f8ce909e8df5233945768344c44d0cec007bce41de6/narwhals-1.24.2.tar.gz", hash = "sha256:c7bbb96ec8efb22ee384872e4a57cff591df653dc49067c314f88e2a54d8a76b", size = 254303 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/cf/6723d679c1eb75f9b976ed98bb3575c6bb571ffd427479288b98819604dd/narwhals-1.24.2-py3-none-any.whl", hash = "sha256:5d70dda4c032c86d0bda3f4d60a9d3f8dbd7d83deb8d23d68dd2f2eb3bc86417", size = 312773 },
-]
-
-[[package]]
 name = "nbclient"
 version = "0.10.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1306,19 +1297,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/13/fc/128cc9cb8f03208bdbf93d3aa862e16d376844a14f9a0ce5cf4507372de4/platformdirs-4.3.6.tar.gz", hash = "sha256:357fb2acbc885b0419afd3ce3ed34564c13c9b95c89360cd9563f73aa5e2b907", size = 21302 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/a6/bc1012356d8ece4d66dd75c4b9fc6c1f6650ddd5991e421177d9f8f671be/platformdirs-4.3.6-py3-none-any.whl", hash = "sha256:73e575e1408ab8103900836b97580d5307456908a03e92031bab39e4554cc3fb", size = 18439 },
-]
-
-[[package]]
-name = "plotly"
-version = "6.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "narwhals" },
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/80/761c14012d6daf18e12b6d1e4f6b218e999bcceb694d7a9b180154f9e4db/plotly-6.0.0.tar.gz", hash = "sha256:c4aad38b8c3d65e4a5e7dd308b084143b9025c2cc9d5317fc1f1d30958db87d3", size = 8111782 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/77/a946f38b57fb88e736c71fbdd737a1aebd27b532bda0779c137f357cf5fc/plotly-6.0.0-py3-none-any.whl", hash = "sha256:f708871c3a9349a68791ff943a5781b1ec04de7769ea69068adcd9202e57653a", size = 14805949 },
 ]
 
 [[package]]
@@ -1977,10 +1955,8 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "joblib" },
-    { name = "nbformat" },
     { name = "numpy" },
     { name = "pandas" },
-    { name = "plotly" },
     { name = "plyfile" },
     { name = "torch" },
     { name = "tqdm" },
@@ -2007,10 +1983,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "joblib", specifier = ">=1.4.2" },
-    { name = "nbformat", specifier = ">=5.10.4" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "plotly", specifier = ">=6.0.0" },
     { name = "plyfile", specifier = ">=1.1" },
     { name = "torch", specifier = ">=2.0.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
