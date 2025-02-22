@@ -416,7 +416,7 @@ class ScanNet(PointCloudDataset):
         self,
         root: str,
         version: Literal["v1", "v2"] = "v2",
-        train: bool = True,
+        split: Literal["train", "test", "val"] = "train",
         classes: Union[Sequence[str], Literal["all"]] = "all",
         label_name: str = "nyu40class",
         label_id: str = "nyu40id",
@@ -430,8 +430,11 @@ class ScanNet(PointCloudDataset):
         show_progress: bool = True,
     ) -> None:
         super().__init__(root)
+        if split not in ["train", "val", "test"]:
+            raise ValueError(f"Invalid split {split!r}, expected one of 'train', 'val' or 'test'.")
+
         self.version = version
-        self.train = train
+        self.split = split
         self.label_name = label_name
         self.label_id = label_id
         self.transform = transform
@@ -467,10 +470,21 @@ class ScanNet(PointCloudDataset):
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     def raw_files_exist(self) -> bool:
+        scans_dir = Path(self.raw_dir, self.version if self.split in ["train", "val"] else "v2", "scans")
+
+        if not scans_dir.exists():
+            return False
+
+        # Check that there is at least one scene directory
+        scene_dirs = list(scans_dir.glob("scene*"))
+        if len(scene_dirs) == 0:
+            return False
+
         return True
 
     def processed_files_exist(self) -> bool:
-        return True
+        # Checks that the processed files exist for the specified split
+        return len(list(Path(self.processed_dir, self.split).glob("*.pt"))) > 0
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -504,14 +518,15 @@ class ScanNet(PointCloudDataset):
         )
 
         # Search for all available scans
-        resource_path = self.scan_ids_resource if self.train else self.test_scan_ids_resource
+        is_train_val = self.split in ["train", "val"]
+        resource_path = self.scan_ids_resource if is_train_val else self.test_scan_ids_resource
         resource_path = resource_path.format(version=self.version)
         url = urljoin(self.data_url, resource_path)
         with urlopen(url) as f:
             scan_ids = [line.decode("utf-8").strip() for line in f]
 
         # Download all resources per scan
-        resources = self.scan_resources if self.train else self.test_scan_resources
+        resources = self.scan_resources if is_train_val else self.test_scan_resources
         for i, scan_id in enumerate(scan_ids):
             for resource_path in resources:
                 resource_path = resource_path.format(version=self.version, scan_id=scan_id)
@@ -546,30 +561,41 @@ class ScanNet(PointCloudDataset):
         label_to_id = dict(zip(self.labels[label_col], self.labels[self.label_id]))
         label_to_idx = {label: class_to_idx.get(label, unk_idx) for label in label_to_id.keys()}
 
-        scans_dir = Path(raw_dir, self.version if self.train else "v2", "scans")
-        split_file = raw_dir / "metadata" / f"scannetv2_{['train', 'test', 'val'][int(self.train)]}.txt"
+        # Look for the associated scene IDs for the specified split
+        is_train_val = self.split in ["train", "val"]
+        scans_dir = Path(raw_dir, self.version if is_train_val else "v2", "scans")
+        split_file = raw_dir / "metadata" / f"scannetv2_{self.split}.txt"
         with open(split_file) as f:
-            scene_ids = [line.strip() for line in f]
+            scene_ids = sorted([line.strip() for line in f])
 
+        # Process each scene
         for scene_id in tqdm(scene_ids, desc="Processing", total=len(scene_ids)):
             meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"), None)
             mesh_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.ply"), None)
             aggregation_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.aggregation.json"), None)
             segments_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.0.010000.segs.json"), None)
 
-            if meta_path is None:
-                raise FileNotFoundError(f"Metadata file not found for scene {scene_id!r}.")
-            if mesh_path is None:
-                raise FileNotFoundError(f"Mesh file not found for scene {scene_id!r}.")
+            if not mesh_path or not meta_path:
+                warnings.warn(
+                    f"Scene {scene_id!r} is missing a mesh or metadata file. "
+                    f"Make sure the scene has a {scene_id}_vh_clean_2.ply and {scene_id}.txt file.",
+                    category=RuntimeWarning,
+                )
+                continue
 
-            data = load_scannet_scene(
-                mesh_path=mesh_path,
-                meta_path=meta_path,
-                aggregation_path=aggregation_path,
-                segments_path=segments_path,
-                label_to_idx=label_to_idx,
-                scene_id=scene_id,
-            )
+            try:
+                # If for some reason a scene cannot be loaded (or corrupted), skip it
+                data = load_scannet_scene(
+                    mesh_path=mesh_path,
+                    meta_path=meta_path,
+                    aggregation_path=aggregation_path,
+                    segments_path=segments_path,
+                    label_to_idx=label_to_idx,
+                    scene_id=scene_id,
+                )
+            except Exception as e:
+                warnings.warn(f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning)
+                continue
 
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
@@ -577,13 +603,13 @@ class ScanNet(PointCloudDataset):
             if self.pre_transform is not None:
                 data = self.pre_transform(data)
 
-            out_path = Path(self.processed_dir, "train" if self.train else "test", f"{scene_id}.pt")
+            out_path = Path(self.processed_dir, self.split, f"{scene_id}.pt")
             out_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save(data, out_path)
 
     def _load_processed_data(self) -> Any:
         data_list = []
-        for path in Path(self.processed_dir, "train" if self.train else "test").glob("*.pt"):
+        for path in Path(self.processed_dir, self.split).glob("*.pt"):
             data = torch.load(path, weights_only=True)
             if isinstance(data, dict):
                 data_list.append(data)
