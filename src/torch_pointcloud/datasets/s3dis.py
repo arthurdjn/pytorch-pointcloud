@@ -228,7 +228,7 @@ class S3DIS(PointCloudDataset):
         self.pre_filter = pre_filter
         self.show_progress = show_progress
 
-        if download:
+        if download or force_download:
             self.download(force=force_download)
 
         self.process(force=force_process)
