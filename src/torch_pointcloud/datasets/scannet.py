@@ -444,15 +444,15 @@ class ScanNet(PointCloudDataset):
         resource_path = self.label_resources[int(self.version == "v2")]
         resource_path = resource_path.format(version=self.version)
         labels_path = Path(self.raw_dir, resource_path)
-        if not labels_path.exists():
-            raise FileNotFoundError(
-                f"Labels file not found at {labels_path!r}. Make sure to download the labels from {self.data_url}."
-            )
+        if labels_path.exists():
+            # Load the labels and select the desired classes
+            self.labels = load_scannet_labels(labels_path)
+            self.classes = select_scannet_classes(self.labels, self.label_name, sort_by=self.label_id, values=classes)
+        else:
+            # Fallback to empty labels and classes
+            self.labels = None
+            self.classes = []
 
-        self.labels = load_scannet_labels(labels_path)
-
-        # Select desired classes (with unknown class if specified)
-        self.classes = select_scannet_classes(self.labels, self.label_name, sort_by=self.label_id, values=classes)
         if with_unk:
             self.classes.insert(0, UNK_CLS)
 
@@ -465,8 +465,13 @@ class ScanNet(PointCloudDataset):
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     def raw_files_exist(self) -> bool:
-        scans_dir = Path(self.raw_dir, self.version if self.split in ["train", "val"] else "v2", "scans")
+        # Check that the labels file exists
+        labels_path = Path(self.raw_dir, self.label_resources[int(self.version == "v2")].format(version=self.version))
+        if not labels_path.exists():
+            return False
 
+        # Check that the scans directory exists
+        scans_dir = Path(self.raw_dir, self.version if self.split in ["train", "val"] else "v2", "scans")
         if not scans_dir.exists():
             return False
 
@@ -564,7 +569,7 @@ class ScanNet(PointCloudDataset):
             scene_ids = sorted([line.strip() for line in f])
 
         # Process each scene
-        for scene_id in tqdm(scene_ids, desc="Processing", total=len(scene_ids)):
+        for scene_id in tqdm(scene_ids, desc="Processing", total=len(scene_ids), disable=not self.show_progress):
             meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"), None)
             mesh_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.ply"), None)
             aggregation_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.aggregation.json"), None)
