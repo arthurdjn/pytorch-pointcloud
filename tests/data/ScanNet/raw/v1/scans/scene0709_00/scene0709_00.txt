@@ -1,0 +1,17 @@
+colorHeight = 100
+colorToDepthExtrinsics = 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0
+colorWidth = 100
+depthHeight = 100
+depthWidth = 100
+fx_color = 1.0
+fx_depth = 1.0
+fy_color = 1.0
+fy_depth = 1.0
+mx_color = 50.0
+mx_depth = 50.0
+my_color = 50.0
+my_depth = 50.0
+numColorFrames = 1
+numDepthFrames = 1
+numIMUmeasurements = 1
+sceneType = Apartment
