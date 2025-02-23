@@ -248,7 +248,6 @@ def load_scannet_scene(
         segment_to_vertices[seg_id].append(idx)
 
     # Sanity checks
-    print(len(points), num_vertices)
     assert len(points) == num_vertices, "Invalid number of vertices in the point cloud."
 
     # Create the targets associated to each points (semantic labels between [-1, num_classes-1])
