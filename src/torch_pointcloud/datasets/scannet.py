@@ -177,7 +177,7 @@ def select_scannet_classes(
 
 def load_scannet_scene(
     mesh_path: PathLike,
-    meta_path: PathLike,
+    meta_path: Optional[PathLike] = None,
     aggregation_path: Optional[PathLike] = None,
     segments_path: Optional[PathLike] = None,
     label_to_idx: Optional[Dict[str, int]] = None,
@@ -216,7 +216,7 @@ def load_scannet_scene(
     normals = vertex_normals(points, faces)
 
     # Optionally transform the points with the axis alignment matrix
-    metadata = load_scannet_scene_metadata(meta_path)
+    metadata = load_scannet_scene_metadata(meta_path) if meta_path else {}
     if "axisAlignment" in metadata:
         # The axis alignment matrix is a 4x4 matrix that transforms the points
         # that is provided in the v2 version of the dataset
@@ -248,6 +248,7 @@ def load_scannet_scene(
         segment_to_vertices[seg_id].append(idx)
 
     # Sanity checks
+    print(len(points), num_vertices)
     assert len(points) == num_vertices, "Invalid number of vertices in the point cloud."
 
     # Create the targets associated to each points (semantic labels between [-1, num_classes-1])
@@ -314,7 +315,7 @@ class ScanNet(PointCloudDataset):
     Args:
         root: The root directory of the dataset.
         version: The version of the dataset to use.
-        train: Whether to load the training set.
+        split: The split dataset to load, one of `train`, `val`, or `test`.
         classes: The classes to load.
         label_name: The name of the label column in the labels CSV file.
         label_id: The id of the label column in the labels CSV file.
@@ -376,11 +377,6 @@ class ScanNet(PointCloudDataset):
         "v1/tasks/scannet-labels.combined.tsv",  # v1 raw labels
         "v2/tasks/scannetv2-labels.combined.tsv",  # v2 raw labels
     ]
-
-    # meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"))
-    # mesh_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.ply"))
-    # aggregation_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.aggregation.json"))
-    # segments_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.0.010000.segs.json"))
 
     scan_ids_resource = "{version}/scans.txt"
     scan_resources = [
@@ -575,10 +571,10 @@ class ScanNet(PointCloudDataset):
             aggregation_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.aggregation.json"), None)
             segments_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.0.010000.segs.json"), None)
 
-            if not mesh_path or not meta_path:
+            if not mesh_path:
                 warnings.warn(
-                    f"Scene {scene_id!r} is missing a mesh or metadata file. "
-                    f"Make sure the scene has a {scene_id}_vh_clean_2.ply and {scene_id}.txt file.",
+                    f"Scene {scene_id!r} is missing a mesh file. "
+                    f"Make sure the scene has a {scene_id}_vh_clean_2.ply file.",
                     category=RuntimeWarning,
                 )
                 continue
