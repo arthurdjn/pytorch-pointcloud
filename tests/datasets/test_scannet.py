@@ -95,8 +95,8 @@ def test_scannet_dataset_missing_scenes(data_dir_factory: Callable[..., Path]) -
     data_dir = data_dir_factory("ScanNet/raw/**/*")
 
     # Remove a scene's mesh file to trigger the warning
-    mesh_file = next(data_dir.glob("**/scene0000_00_vh_clean_2.ply"), None)
-    if mesh_file is not None and mesh_file.exists():
+    mesh_files = list(data_dir.glob("**/scene0000_00_vh_clean_2.ply"))
+    for mesh_file in mesh_files:
         mesh_file.unlink()
 
     with pytest.warns(RuntimeWarning, match="Scene 'scene0000_00' is missing a mesh file"):
@@ -109,9 +109,8 @@ def test_scannet_dataset_corrupted_ply(data_dir_factory: Callable[..., Path]) ->
     data_dir = data_dir_factory("ScanNet/raw/**/*")
 
     # Corrupt a scene's PLY file
-    mesh_file = next(data_dir.glob("**/scene0000_00_vh_clean_2.ply"), None)
-    if mesh_file is not None and mesh_file.exists():
-        # Write a new file with invalid PLY data
+    mesh_files = list(data_dir.glob("**/scene0000_00_vh_clean_2.ply"))
+    for mesh_file in mesh_files:
         mesh_file.unlink()
         with open(mesh_file, "w") as f:
             f.write("invalid PLY data")
@@ -127,9 +126,8 @@ def test_scannet_dataset_corrupted_segments(data_dir_factory: Callable[..., Path
     data_dir = data_dir_factory("ScanNet/raw/**/*")
 
     # Corrupt a scene's segments file
-    segs_file = next(data_dir.glob("**/scene0000_00_vh_clean_2.0.010000.segs.json"), None)
-    if segs_file is not None and segs_file.exists():
-        # Write a new file with invalid JSON data
+    segs_files = list(data_dir.glob("**/scene0000_00_vh_clean_2.0.010000.segs.json"))
+    for segs_file in segs_files:
         segs_file.unlink()
         with open(segs_file, "w") as f:
             f.write("invalid JSON data")
@@ -145,9 +143,8 @@ def test_scannet_dataset_corrupted_aggregation(data_dir_factory: Callable[..., P
     data_dir = data_dir_factory("ScanNet/raw/**/*")
 
     # Corrupt a scene's aggregation file
-    agg_file = next(data_dir.glob("**/scene0000_00.aggregation.json"), None)
-    if agg_file is not None and agg_file.exists():
-        # Write a new file with invalid JSON data
+    agg_files = list(data_dir.glob("**/scene0000_00.aggregation.json"))
+    for agg_file in agg_files:
         agg_file.unlink()
         with open(agg_file, "w") as f:
             f.write("invalid JSON data")
