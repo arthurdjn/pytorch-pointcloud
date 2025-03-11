@@ -40,7 +40,7 @@ line-length = 120
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"src/**/__init__.py" = ["F401"]
+"src/**/__init__.py" = ["F401", "F403"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["torch_pointcloud"]
