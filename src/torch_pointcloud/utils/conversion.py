@@ -20,3 +20,13 @@ def ensure_tuple(value: Any) -> Tuple[Any, ...]:
     elif isinstance(value, Iterable):
         return tuple(value)
     return tuple([value])
+
+
+def ensure_tuple_size(value: Any, size: int) -> Tuple[Any, ...]:
+    value = ensure_tuple(value)
+    if len(value) == 1:
+        return tuple([value[0]] * size)
+    elif len(value) == size:
+        return value
+    else:
+        raise ValueError(f"Expected a tuple of size {size}, got {len(value)}")
