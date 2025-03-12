@@ -64,9 +64,16 @@ extra_css:
 nav:
   - Get Started:
       - Welcome to torch_pointcloud: index.md
-  - API Reference:
-      - Datasets: api/datasets.md
-      - Utils: api/utils.md
+  - Models:
+      - PointNet: models/pointnet.md
+  - Datasets:
+      - ModelNet: datasets/modelnet.md
+      - S3DIS: datasets/s3dis.md
+      - ScanNet: datasets/scannet.md
+      - ShapeNet: datasets/shapenet.md
+  - Transforms:
+      - Transforms: transforms/index.md
+      - Dictionary: transforms/dictionary.md
 
 markdown_extensions:
   - tables
@@ -94,7 +101,6 @@ plugins:
           paths: [.]
           options:
             show_root_heading: true
-            # heading_level: 1
             members_order: source
             separate_signature: true
             docstring_options:
