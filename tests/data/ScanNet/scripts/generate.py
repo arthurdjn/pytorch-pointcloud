@@ -128,19 +128,19 @@ def _generate_scene_points(scene_dir: PathLike, scene_id: str, num_points: int =
         ],
     )
 
-    vertex_data["x"] = points[:, 0]  # type: ignore[call-overload]
-    vertex_data["y"] = points[:, 1]  # type: ignore[call-overload]
-    vertex_data["z"] = points[:, 2]  # type: ignore[call-overload]
-    vertex_data["red"] = colors[:, 0]  # type: ignore[call-overload]
-    vertex_data["green"] = colors[:, 1]  # type: ignore[call-overload]
-    vertex_data["blue"] = colors[:, 2]  # type: ignore[call-overload]
-    vertex_data["nx"] = normals[:, 0]  # type: ignore[call-overload]
-    vertex_data["ny"] = normals[:, 1]  # type: ignore[call-overload]
-    vertex_data["nz"] = normals[:, 2]  # type: ignore[call-overload]
+    vertex_data["x"] = points[:, 0]
+    vertex_data["y"] = points[:, 1]
+    vertex_data["z"] = points[:, 2]
+    vertex_data["red"] = colors[:, 0]
+    vertex_data["green"] = colors[:, 1]
+    vertex_data["blue"] = colors[:, 2]
+    vertex_data["nx"] = normals[:, 0]
+    vertex_data["ny"] = normals[:, 1]
+    vertex_data["nz"] = normals[:, 2]
 
     # Create face data
     face_data = np.empty(num_faces, dtype=[("vertex_indices", "i4", (3,))])
-    face_data["vertex_indices"] = faces  # type: ignore[call-overload]
+    face_data["vertex_indices"] = faces
 
     # Create PLY elements
     vertex_element = plyfile.PlyElement.describe(vertex_data, "vertex")
