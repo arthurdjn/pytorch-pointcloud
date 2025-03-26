@@ -2,7 +2,7 @@ from typing import Any, Dict, Literal
 
 from torch import nn as nn
 
-from ._modules import ModuleLike, RegisteredModuleLike, get_module
+from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
 NormName = Literal[
     "batch_norm1d",
@@ -33,5 +33,5 @@ _NORM_REGISTRY: Dict[NormName, RegisteredModuleLike] = dict(
 )
 
 
-def get_norm(name: NormLike, *args: Any, **kwargs: Any) -> nn.Module:
-    return get_module(name, *args, registry=_NORM_REGISTRY, **kwargs)
+def create_norm(name: NormLike, *args: Any, **kwargs: Any) -> nn.Module:
+    return create_module(name, *args, registry=_NORM_REGISTRY, **kwargs)
