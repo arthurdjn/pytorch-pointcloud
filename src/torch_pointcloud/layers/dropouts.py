@@ -1,15 +1,9 @@
 from typing import Any, Dict, Literal, Union
 
-from torch import nn as nn
-
-from ._modules import ModuleLike, RegisteredModuleLike, create_module
-
-"""
-
-"""
-
 import torch.nn as nn
 from torch import Tensor
+
+from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
 
 def drop_path(x: Tensor, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True) -> Tensor:
