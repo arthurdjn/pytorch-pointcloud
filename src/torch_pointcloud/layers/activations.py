@@ -7,7 +7,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from ._modules import ModuleLike, RegisteredModuleLike, get_module
+from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
 
 def swish(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
@@ -189,5 +189,5 @@ _ACT_REGISTRY: Dict[ActName, RegisteredModuleLike] = dict(
 )
 
 
-def get_act(name: ActLike, *args: Any, **kwargs: Any) -> nn.Module:
-    return get_module(name, *args, registry=_ACT_REGISTRY, **kwargs)
+def create_act(name: ActLike, *args: Any, **kwargs: Any) -> nn.Module:
+    return create_module(name, *args, registry=_ACT_REGISTRY, **kwargs)

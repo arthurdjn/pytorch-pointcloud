@@ -14,7 +14,7 @@ RegisteredModuleLike = Union[Type[nn.Module], partial[Any]]
 ModuleRegistryDict = Dict[ModuleName, RegisteredModuleLike]
 
 
-def get_module(name: ModuleLike, *args: Any, registry: ModuleRegistryDict, **kwargs: Any) -> nn.Module:
+def create_module(name: ModuleLike, *args: Any, registry: ModuleRegistryDict, **kwargs: Any) -> nn.Module:
     """Utility function to instantiate modules from a registry, or directly pass a module instance.
 
     Args:

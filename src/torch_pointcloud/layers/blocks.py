@@ -2,9 +2,9 @@ from typing import Any, Dict, Literal, Optional, Sequence, Union
 
 import torch.nn as nn
 
-from .activations import ActLike, get_act
-from .dropouts import get_dropout
-from .norms import NormLike, get_norm
+from .activations import ActLike, create_act
+from .dropouts import create_dropout
+from .norms import NormLike, create_norm
 
 
 def _validate_block_order(layers: Dict[str, Any], order: str) -> None:
@@ -63,9 +63,9 @@ def linear_block(
     order = order if isinstance(order, str) else "".join(order)
     layers = {
         "l": nn.Linear(in_features, out_features, bias=bias),
-        "a": get_act(act) if act is not None else None,
-        "n": get_norm(norm, out_features) if norm is not None else None,
-        "d": get_dropout(dropout) if dropout is not None else None,
+        "a": create_act(act) if act is not None else None,
+        "n": create_norm(norm, out_features) if norm is not None else None,
+        "d": create_dropout(dropout) if dropout is not None else None,
     }
 
     _validate_block_order(layers, order)
@@ -124,9 +124,9 @@ def conv1d_block(
     order = order if isinstance(order, str) else "".join(order)
     layers = {
         "c": nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias=bias),
-        "a": get_act(act) if act is not None else None,
-        "n": get_norm(norm, out_channels) if norm is not None else None,
-        "d": get_dropout(dropout) if dropout is not None else None,
+        "a": create_act(act) if act is not None else None,
+        "n": create_norm(norm, out_channels) if norm is not None else None,
+        "d": create_dropout(dropout) if dropout is not None else None,
     }
 
     _validate_block_order(layers, order)
