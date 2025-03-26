@@ -52,6 +52,7 @@ def module_available(module_path: str) -> bool:
     return True
 
 
+@lru_cache
 def check_requirement(requirement: str) -> bool:
     """Check if a package with specified version is available.
 
@@ -81,6 +82,7 @@ def check_requirement(requirement: str) -> bool:
         return False
 
 
+@lru_cache
 def optional_import(module_path: str, name: str = "", requirement: str = "", url: str = "None") -> Tuple[Any, bool]:
     """Import a module with a version check and return a boolean indicating availability.
     Args:
