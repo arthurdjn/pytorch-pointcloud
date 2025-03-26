@@ -78,7 +78,7 @@ def check_requirement(requirement: str) -> bool:
         return False
 
 
-def optional_import(requirement: str, url: Optional[str] = None) -> Tuple[Any, bool]:
+def optional_import(requirement: str, name: Optional[str] = None, url: Optional[str] = None) -> Tuple[Any, bool]:
     """Import a module with a version check and return a boolean indicating availability.
 
     Args:
@@ -89,11 +89,11 @@ def optional_import(requirement: str, url: Optional[str] = None) -> Tuple[Any, b
         Imported module (or proxy if not available) and boolean indicating availability
 
     Examples:
-        >>> torch, _IS_TORCH_AVAILABLE = optional_import("torch>=2.5.0")
-        >>> _IS_TORCH_AVAILABLE
+        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch>=2.5.0")
+        >>> IS_TORCH_AVAILABLE
         True
-        >>> pkg, _IS_PKG_AVAILABLE = optional_import("missing_package")
-        >>> _IS_PKG_AVAILABLE
+        >>> pkg, IS_PKG_AVAILABLE = optional_import("missing_package")
+        >>> IS_PKG_AVAILABLE
         False
         >>> pkg.some_function()
         OptionalImportError: ...
@@ -101,14 +101,22 @@ def optional_import(requirement: str, url: Optional[str] = None) -> Tuple[Any, b
     """
     req = Requirement(requirement)
     is_available = check_requirement(requirement)
+    msg = ""
 
     if is_available:
-        return import_module(req.name), True
+        module = import_module(req.name)
+        if not name:
+            return module, True
+
+        try:
+            return getattr(module, name), True
+        except AttributeError:
+            msg = f"Optional module '{req.name}' is available but could not import '{name}' from '{req.name}'."
 
     # Create a proxy that will raise import error when used
     base_name, *_ = req.name.split(".")
     base_requirement = requirement.replace(req.name, base_name)
-    msg = f"Optional module '{req.name}' is not available, but expected {base_requirement}."
+    msg = msg or f"Optional module '{req.name}' is not available, but expected {base_requirement}."
     if url:
         msg += f" Check official documentation to install it: {url}."
 

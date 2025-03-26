@@ -17,8 +17,7 @@ SERIALIZATION_ORDERS: Tuple[SerializationOrder, ...] = ("z", "z-trans", "hilbert
 def _z_order_encode(grid_coord: Tensor, depth: int) -> Tensor:
     x, y, z = grid_coord[:, 0].long(), grid_coord[:, 1].long(), grid_coord[:, 2].long()
     # we block the support to batch, maintain batched code in Point class
-    code = octree_encode(x, y, z, b=None, depth=depth)
-    return code
+    return octree_encode(x, y, z, b=None, depth=depth)
 
 
 def _hilbert_encode(grid_coord: Tensor, depth: int) -> Tensor:
@@ -26,17 +25,50 @@ def _hilbert_encode(grid_coord: Tensor, depth: int) -> Tensor:
 
 
 @torch.inference_mode()
-def serialize_grid_coords(
+def serialize_coords(
     grid_coords: Tensor,
     batch_idx: Tensor,
     depth: int,
     order: SerializationOrder,
-) -> Tuple[Tensor, Tensor, Tensor]:
+) -> Tensor:
+    """Encode / serialize grid coordinates into a code depending on the serialization order.
+    The code can be used to sort the grid coordinates or to index them, and was introduced in the paper
+    [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/pdf/2312.10035)
+    by Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao.
+
+    Note:
+        To get the code's order and inverse, you can use `torch.argsort` twice:
+
+        >>> code = serialize_coords(grid_coords, batch_idx, depth, order)
+        >>> order = torch.argsort(code)
+        >>> inverse = torch.argsort(order)
+
+    Args:
+        grid_coords: A int tensor of shape $(N, 3)$ containing the grid coordinates.
+        batch_idx: A int tensor of contiguous values from 0 to $B - 1$ of shape $(N)$ containing the batch $B$ indices.
+        depth: The depth of the serialization cube.
+        order: The serialization order. Available orders are:
+            - "z": Z-order curve.
+            - "z-trans": Z-order curve transposed.
+            - "hilbert": Hilbert curve.
+            - "hilbert-trans": Hilbert curve transposed.
+
+    Returns:
+        A int tensor of shape $(N)$ containing the serialized grid coordinates.
+
+    Examples:
+        >>> coords = torch.randn(10, 3)
+        >>> grid_size = 0.1
+        >>> grid_coords = torch.div(coords - coords.min(0).values, grid_size, rounding_mode="trunc")
+        >>> batch_idx = torch.zeros(10, dtype=torch.long)
+        >>> serialize_coords(grid_coords, batch_idx, depth=5, order="z")
+        tensor([21477, 23409,  2342, 15220, 22319, 25104,   577,  3531,  3721,  5118])
+    """
     if order not in SERIALIZATION_ORDERS:
         expected_orders = ", ".join(SERIALIZATION_ORDERS)
         raise ValueError(f"Unsupported serialization order: {order}. Expected one of: {expected_orders}")
 
-    # Adaptive measure the depth of serialization cube (length = 2 ^ depth)
+    # NOTE: Adaptive measure the depth of serialization cube (length = 2 ^ depth)
     # depth = int(grid_coords.max()).bit_length()
 
     if order == "z":
@@ -51,11 +83,4 @@ def serialize_grid_coords(
     if batch_idx is not None:
         serialized_code = batch_idx << depth * 3 | serialized_code
 
-    serialized_order = torch.argsort(serialized_code)
-    serialized_inverse = torch.zeros_like(serialized_order).scatter_(
-        dim=0,
-        index=serialized_order,
-        src=torch.arange(0, len(serialized_code), device=serialized_order.device),
-    )
-
-    return serialized_code, serialized_order, serialized_inverse
+    return serialized_code
