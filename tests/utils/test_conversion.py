@@ -3,8 +3,43 @@ from typing import Any, Iterable, Tuple, Union
 import numpy as np
 import pytest
 import torch
+from torch import Tensor
 
-from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.conversion import (
+    batch_to_bincount,
+    batch_to_cu_seqlens,
+    batch_to_offset,
+    bincount_to_batch,
+    bincount_to_cu_seqlens,
+    bincount_to_offset,
+    cu_seqlens_to_batch,
+    cu_seqlens_to_bincount,
+    cu_seqlens_to_offset,
+    ensure_tuple,
+    offset_to_batch,
+    offset_to_bincount,
+    offset_to_cu_seqlens,
+)
+
+
+@pytest.fixture
+def batch_tensor() -> Tensor:
+    return torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
+
+
+@pytest.fixture
+def offset_tensor() -> Tensor:
+    return torch.tensor([4, 7, 12])
+
+
+@pytest.fixture
+def bincount_tensor() -> Tensor:
+    return torch.tensor([4, 3, 5])
+
+
+@pytest.fixture
+def cu_seqlens_tensor() -> Tensor:
+    return torch.tensor([0, 4, 7, 12])
 
 
 def test_ensure_tuple_numpy_scalar() -> None:
@@ -92,3 +127,78 @@ def test_ensure_tuple_custom_type() -> None:
     value = CustomType()
     result = ensure_tuple(value)
     assert result == (value,)
+    assert result == (value,)
+
+
+def test_offset_conversions(
+    cu_seqlens_tensor: Tensor,
+    bincount_tensor: Tensor,
+    offset_tensor: Tensor,
+    batch_tensor: Tensor,
+) -> None:
+    """Test all conversions starting from offset tensor."""
+    result = offset_to_bincount(offset_tensor)
+    assert torch.equal(result, bincount_tensor)
+
+    # Test offset -> batch
+    result = offset_to_batch(offset_tensor)
+    assert torch.equal(result, batch_tensor)
+
+    # Test offset -> cu_seqlens
+    result = offset_to_cu_seqlens(offset_tensor)
+    assert torch.equal(result, cu_seqlens_tensor)
+
+
+def test_bincount_conversions(
+    cu_seqlens_tensor: Tensor,
+    bincount_tensor: Tensor,
+    offset_tensor: Tensor,
+    batch_tensor: Tensor,
+) -> None:
+    """Test all conversions starting from bincount tensor."""
+    result = bincount_to_offset(bincount_tensor)
+    assert torch.equal(result, offset_tensor)
+
+    # Test bincount -> batch
+    result = bincount_to_batch(bincount_tensor)
+    assert torch.equal(result, batch_tensor)
+
+    # Test bincount -> cu_seqlens
+    result = bincount_to_cu_seqlens(bincount_tensor)
+    assert torch.equal(result, cu_seqlens_tensor)
+
+
+def test_cu_seqlens_conversions(
+    cu_seqlens_tensor: Tensor,
+    bincount_tensor: Tensor,
+    offset_tensor: Tensor,
+    batch_tensor: Tensor,
+) -> None:
+    """Test all conversions starting from cu_seqlens tensor."""
+    result = cu_seqlens_to_offset(cu_seqlens_tensor)
+    assert torch.equal(result, offset_tensor)
+
+    # Test cu_seqlens -> bincount
+    result = cu_seqlens_to_bincount(cu_seqlens_tensor)
+    assert torch.equal(result, bincount_tensor)
+
+    # Test cu_seqlens -> batch
+    result = cu_seqlens_to_batch(cu_seqlens_tensor)
+    assert torch.equal(result, batch_tensor)
+
+
+def test_batch_conversions(
+    cu_seqlens_tensor: Tensor,
+    bincount_tensor: Tensor,
+    offset_tensor: Tensor,
+    batch_tensor: Tensor,
+) -> None:
+    """Test all conversions starting from batch tensor."""
+    result = batch_to_offset(batch_tensor)
+    assert torch.equal(result, offset_tensor)
+
+    result = batch_to_bincount(batch_tensor)
+    assert torch.equal(result, bincount_tensor)
+
+    result = batch_to_cu_seqlens(batch_tensor)
+    assert torch.equal(result, cu_seqlens_tensor)
