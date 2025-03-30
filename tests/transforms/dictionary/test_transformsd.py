@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch, sentinel
 
-from torch_pointcloud.transforms.dictionary import NormalizeScaled, RandomSampled, RandomSampleVerticesd
+from torch_pointcloud.transforms.dictionary import NormalizeScaled, RandomSampled, RandomSampleFaceVerticesd
 
 
 @patch("torch_pointcloud.transforms.dictionary.transforms.F.random_sampled")
@@ -31,24 +31,28 @@ def test_random_sample_dict_transform(mock_fn: Mock) -> None:
     assert result is mock_fn.return_value
 
 
-@patch("torch_pointcloud.transforms.dictionary.transforms.F.random_sample_verticesd")
-def test_random_sample_vertices_dict_transform(mock_fn: Mock) -> None:
-    """Test that RandomSampleVerticesd transform calls the functional API correctly."""
+@patch("torch_pointcloud.transforms.dictionary.transforms.F.random_sample_face_verticesd")
+def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
+    """Test that RandomSampleFaceVerticesd transform calls the functional API correctly."""
     data = sentinel.data
     num_samples = sentinel.num_samples
     keys = (sentinel.key,)
-    face_keys = (sentinel.face_key,)
+    vertices_key = sentinel.vertices_key
+    faces_key = sentinel.faces_key
     include_normals = sentinel.include_normals
+    normals_key = sentinel.normals_key
     allow_missing_keys = sentinel.allow_missing_keys
     seed = sentinel.seed
 
-    transform = RandomSampleVerticesd(
+    transform = RandomSampleFaceVerticesd(
         num_samples=num_samples,
         keys=keys,
-        face_keys=face_keys,
+        vertices_key=vertices_key,
+        faces_key=faces_key,
         include_normals=include_normals,
-        allow_missing_keys=allow_missing_keys,
+        normals_key=normals_key,
         seed=seed,
+        allow_missing_keys=allow_missing_keys,
     )
 
     result = transform(data)
@@ -56,9 +60,11 @@ def test_random_sample_vertices_dict_transform(mock_fn: Mock) -> None:
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
-        face_keys=face_keys,
+        vertices_key=vertices_key,
+        faces_key=faces_key,
         num_samples=num_samples,
         include_normals=include_normals,
+        normals_key=normals_key,
         seed=seed,
         allow_missing_keys=allow_missing_keys,
     )

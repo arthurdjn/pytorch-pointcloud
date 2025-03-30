@@ -1,7 +1,6 @@
 from typing import Optional
 
 import torch_pointcloud.transforms.functional as F
-from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.types import DictStr, KeyCollection
 
 from ._utils import key_iterator
@@ -36,15 +35,16 @@ def random_sampled(
     return d
 
 
-def random_sample_verticesd(
+def random_sample_face_verticesd(
     data: DictStr,
     keys: KeyCollection,
-    face_keys: KeyCollection,
+    vertices_key: str,
+    faces_key: str,
     num_samples: int,
     include_normals: bool = True,
+    normals_key: str = "normals",
     seed: Optional[int] = None,
     allow_missing_keys: bool = False,
-    normals_keys: Optional[KeyCollection] = "normals",
 ) -> DictStr:
     """Randomly sample a fixed number of vertices from a dictionary.
     If multiple keys are provided, the same indices are used for all keys, ensuring
@@ -53,28 +53,22 @@ def random_sample_verticesd(
     Args:
         data: The dictionary data to apply the transform to.
         keys: The keys to sample from.
-        face_keys: The keys to sample the faces from.
+        vertices_key: The key to sample the vertices from.
+        faces_key: The key to sample the faces from.
         num_samples: The number of vertices to sample.
         include_normals: If `True`, the normals will be included in the output.
+        normals_key: The key to store the normals in.
         seed: The seed for the random number generator.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
-        normals_keys: The keys to store the normals in.
 
     Returns:
         The transformed dictionary data.
     """
-    face_keys = ensure_tuple_size(face_keys, size=len(keys))
-    normals_keys = ensure_tuple_size(normals_keys, size=len(keys))
-
     d = dict(data)  # avoid modifying the original data
-    normals_keys = normals_keys or keys
-    iterator = key_iterator(d, keys, face_keys, normals_keys, allow_missing_keys=allow_missing_keys)
 
-    key, face_key, normals_key = next(iterator)
-
-    out = F.random_sample_vertices(
-        d[key],
-        d[face_key],
+    out = F.random_sample_face_vertices(
+        d[vertices_key],
+        d[faces_key],
         num_samples,
         seed=seed,
         return_normals=include_normals,
@@ -82,13 +76,13 @@ def random_sample_verticesd(
     )
 
     if include_normals:
-        sampled_tensor, normals, indices = out
+        _, normals, indices = out
         d[normals_key] = normals
     else:
-        sampled_tensor, indices = out
+        _, indices = out
 
-    d[key] = sampled_tensor
-    for key, face_key, normals_key in iterator:
+    iterator = key_iterator(d, keys, allow_missing_keys=allow_missing_keys)
+    for key in iterator:
         d[key] = d[key][indices]
 
     return d

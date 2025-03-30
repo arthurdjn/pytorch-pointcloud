@@ -8,7 +8,7 @@
 
 ::: torch_pointcloud.transforms.RandomSample
 
-::: torch_pointcloud.transforms.RandomSampleVertices
+::: torch_pointcloud.transforms.RandomSampleFaceVertices
 
 ::: torch_pointcloud.transforms.NormalizeScale
 
@@ -16,6 +16,6 @@
 
 ::: torch_pointcloud.transforms.functional.random_sample
 
-::: torch_pointcloud.transforms.functional.random_sample_vertices
+::: torch_pointcloud.transforms.functional.random_sample_face_vertices
 
 ::: torch_pointcloud.transforms.functional.normalize_scale
