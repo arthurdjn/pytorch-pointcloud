@@ -21,7 +21,7 @@ jobs:
 
       - name: Add extras dependencies for python ${{ matrix.python-version }}
         if: matrix.python-version != '3.13'
-        run: uv sync --extras ocnn
+        run: uv sync --extra ocnn
 
       - name: Test with python ${{ matrix.python-version }}
         run: uv run --frozen pytest
