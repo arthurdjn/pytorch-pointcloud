@@ -19,7 +19,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Add extras dependencies for python ${{ matrix.python-version }}
+      - name: Add ocnn dependency for python ${{ matrix.python-version }}
+        # NOTE: ocnn depends on torchvision, which is not fully compatible with python 3.13 yet
         if: matrix.python-version != '3.13'
         run: uv sync --extra ocnn
 
