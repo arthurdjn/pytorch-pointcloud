@@ -183,11 +183,11 @@ class RandomSample(Transform):
         )
 
 
-class RandomSampleVertices(Transform):
+class RandomSampleFaceVertices(Transform):
     """Randomly sample a fixed number of vertices from a 3D mesh (vertices, faces).
 
     See Also:
-        :func:`torch_pointcloud.transforms.functional.random_sample_vertices` for more details.
+        :func:`torch_pointcloud.transforms.functional.random_sample_face_vertices` for more details.
 
     Args:
         num_samples: The number of vertices to sample.
@@ -219,7 +219,7 @@ class RandomSampleVertices(Transform):
         Returns:
             The transformed tensor.
         """
-        return F.random_sample_vertices(
+        return F.random_sample_face_vertices(
             points,
             faces,
             num_samples=self.num_samples,

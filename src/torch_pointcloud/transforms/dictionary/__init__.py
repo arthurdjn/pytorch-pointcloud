@@ -1,1 +1,1 @@
-from .transforms import NormalizeScaled, RandomSampled, RandomSampleVerticesd, Transformd
+from .transforms import NormalizeScaled, RandomSampled, RandomSampleFaceVerticesd, Transformd
