@@ -141,3 +141,6 @@ def optional_import(module_path: str, name: str = "", requirement: str = "", url
             return msg
 
     return ModuleNotFoundProxy(), False
+
+
+_OCNN_AVAILABLE = module_available("ocnn")
