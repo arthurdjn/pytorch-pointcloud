@@ -127,9 +127,11 @@ class RandomSampleFaceVerticesd(Transformd):
 
     Args:
         keys: The keys to sample from.
-        face_keys: The keys to sample the faces from.
+        vertices_key: The key to sample the vertices from.
+        faces_key: The key to sample the faces from.
         num_samples: The number of vertices to sample.
         include_normals: If ``True``, the normals will be included in the output.
+        normals_key: The key to store the normals in.
         seed: The seed for the random number generator.
         allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
     """
