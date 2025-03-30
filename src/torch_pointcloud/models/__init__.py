@@ -1,1 +1,2 @@
+from .point_transformer_v3 import PointTransformerV3Classification
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
