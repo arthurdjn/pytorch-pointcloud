@@ -1,12 +1,18 @@
-from typing import Literal, Tuple
+from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
-from ocnn.octree import xyz2key as octree_encode
 from torch import Tensor
 
+from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from .hilbert import encode as hilbert_encode
+
+if TYPE_CHECKING:
+    from ocnn.octree import xyz2key as octree_encode
+
+octree_encode, _ = optional_import("ocnn.octree", "xyz2key")
+
 
 MAX_DEPTH = 16
 MAX_CODE_BITS = 63

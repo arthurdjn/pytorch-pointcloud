@@ -7,12 +7,14 @@ requires-python = ">=3.10"
 dependencies = [
     "joblib>=1.4.2",
     "numpy>=2.0.0",
-    "ocnn>=2.2.6",
     "pandas>=2.2.3",
     "plyfile>=1.1",
     "torch>=2.0.0",
     "tqdm>=4.67.1",
 ]
+
+[project.optional-dependencies]
+ocnn = ["ocnn>=2.2.6"]
 
 [tool.uv]
 package = true
