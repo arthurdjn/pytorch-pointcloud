@@ -137,16 +137,20 @@ class RandomSampleFaceVerticesd(Transformd):
     def __init__(
         self,
         keys: KeyCollection,
-        face_keys: KeyCollection,
+        vertices_key: str,
+        faces_key: str,
         num_samples: int,
         include_normals: bool = True,
+        normals_key: str = "normals",
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.face_keys = ensure_tuple(face_keys)
+        self.vertices_key = vertices_key
+        self.faces_key = faces_key
         self.num_samples = num_samples
         self.include_normals = include_normals
+        self.normals_key = normals_key
         self.seed = seed
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -161,9 +165,11 @@ class RandomSampleFaceVerticesd(Transformd):
         return F.random_sample_face_verticesd(
             data,
             keys=self.keys,
-            face_keys=self.face_keys,
+            vertices_key=self.vertices_key,
+            faces_key=self.faces_key,
             num_samples=self.num_samples,
             include_normals=self.include_normals,
+            normals_key=self.normals_key,
             seed=self.seed,
             allow_missing_keys=self.allow_missing_keys,
         )
