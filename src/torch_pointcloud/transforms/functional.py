@@ -56,7 +56,7 @@ def random_sample(
 
 
 @overload
-def random_sample_vertices(
+def random_sample_face_vertices(
     vertices: Tensor,
     faces: Tensor,
     num_samples: int,
@@ -67,7 +67,7 @@ def random_sample_vertices(
 
 
 @overload
-def random_sample_vertices(
+def random_sample_face_vertices(
     vertices: Tensor,
     faces: Tensor,
     num_samples: int,
@@ -78,7 +78,7 @@ def random_sample_vertices(
 
 
 @overload
-def random_sample_vertices(
+def random_sample_face_vertices(
     vertices: Tensor,
     faces: Tensor,
     num_samples: int,
@@ -88,7 +88,7 @@ def random_sample_vertices(
 ) -> Tensor: ...
 
 
-def random_sample_vertices(
+def random_sample_face_vertices(
     vertices: Tensor,
     faces: Tensor,
     num_samples: int,

@@ -9,7 +9,7 @@ from torch_pointcloud.transforms.functional import (
     divisible_pad,
     normalize_scale,
     random_sample,
-    random_sample_vertices,
+    random_sample_face_vertices,
     split_batch,
 )
 
@@ -79,43 +79,43 @@ def test_random_sample_with_seed(mock_randint: Mock, mock_generator: Mock) -> No
     assert tensor[mock_randint.return_value] is result
 
 
-def test_random_sample_vertices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+def test_random_sample_face_vertices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that the random sample vertices function returns the correct shape."""
     vertices, faces = sample_mesh
     num_samples = 10
 
-    sampled = random_sample_vertices(vertices, faces, num_samples)
+    sampled = random_sample_face_vertices(vertices, faces, num_samples)
     assert sampled.shape == (num_samples, 3)
 
 
-def test_random_sample_vertices_with_normals(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+def test_random_sample_face_vertices_with_normals(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that the random sample vertices function returns the correct shape with normals."""
     vertices, faces = sample_mesh
     num_samples = 10
 
-    sampled, normals = random_sample_vertices(vertices, faces, num_samples, return_normals=True)
+    sampled, normals = random_sample_face_vertices(vertices, faces, num_samples, return_normals=True)
     assert sampled.shape == (num_samples, 3)
     assert normals.shape == (num_samples, 3)
     # Check normals are normalized
     assert torch.allclose(torch.norm(normals, dim=1), torch.ones(num_samples))
 
 
-def test_random_sample_vertices_with_indices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+def test_random_sample_face_vertices_with_indices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that the random sample vertices function returns the correct shape with indices."""
     vertices, faces = sample_mesh
     num_samples = 10
 
-    sampled, indices = random_sample_vertices(vertices, faces, num_samples, return_indices=True)
+    sampled, indices = random_sample_face_vertices(vertices, faces, num_samples, return_indices=True)
     assert sampled.shape == (num_samples, 3)
     assert indices.shape == (num_samples,)
 
 
-def test_random_sample_vertices_with_all_returns(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+def test_random_sample_face_vertices_with_all_returns(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that the random sample vertices function returns the correct shape with normals and indices."""
     vertices, faces = sample_mesh
     num_samples = 10
 
-    sampled, normals, indices = random_sample_vertices(
+    sampled, normals, indices = random_sample_face_vertices(
         vertices, faces, num_samples, return_normals=True, return_indices=True
     )
     assert sampled.shape == (num_samples, 3)

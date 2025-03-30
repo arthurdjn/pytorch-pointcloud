@@ -1,2 +1,2 @@
-from .dictionary import NormalizeScaled, RandomSampled, RandomSampleVerticesd, Transformd
-from .transforms import Compose, NormalizeScale, RandomSample, RandomSampleVertices, Transform
+from .dictionary import NormalizeScaled, RandomSampled, RandomSampleFaceVerticesd, Transformd
+from .transforms import Compose, NormalizeScale, RandomSample, RandomSampleFaceVertices, Transform

@@ -1,6 +1,10 @@
 from unittest.mock import MagicMock, Mock, patch, sentinel
 
-from torch_pointcloud.transforms.dictionary.functional import normalize_scaled, random_sample_verticesd, random_sampled
+from torch_pointcloud.transforms.dictionary.functional import (
+    normalize_scaled,
+    random_sample_face_verticesd,
+    random_sampled,
+)
 
 
 @patch("torch_pointcloud.transforms.dictionary.functional.F.random_sample")
@@ -41,9 +45,9 @@ def test_random_sampled(mock_fn: Mock) -> None:
     assert result["other"] is data["other"]
 
 
-@patch("torch_pointcloud.transforms.dictionary.functional.F.random_sample_vertices")
-def test_random_sample_verticesd(mock_fn: Mock) -> None:
-    """Test that random_sample_verticesd correctly processes mesh data."""
+@patch("torch_pointcloud.transforms.dictionary.functional.F.random_sample_face_vertices")
+def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
+    """Test that random_sample_face_verticesd correctly processes mesh data."""
     data = {
         "vertices": MagicMock(),
         "colors": MagicMock(),
@@ -59,12 +63,14 @@ def test_random_sample_verticesd(mock_fn: Mock) -> None:
     sampled_indices = sentinel.sampled_indices
     mock_fn.return_value = (sampled_vertices, sampled_normals, sampled_indices)
 
-    result = random_sample_verticesd(
+    result = random_sample_face_verticesd(
         data,
         keys=["vertices", "colors"],
-        face_keys=["faces"],
+        vertices_key="vertices",
+        faces_key="faces",
         num_samples=num_samples,
         include_normals=include_normals,
+        normals_key="normals",
         seed=seed,
         allow_missing_keys=allow_missing_keys,
     )
@@ -78,7 +84,7 @@ def test_random_sample_verticesd(mock_fn: Mock) -> None:
         seed=seed,
     )
 
-    assert result["vertices"] is sampled_vertices
+    assert result["vertices"] is data["vertices"][sampled_indices]
     assert result["normals"] is sampled_normals
     assert result["colors"] is data["colors"][sampled_indices]
     assert result["other"] is data["other"]
