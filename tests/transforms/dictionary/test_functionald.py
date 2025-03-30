@@ -66,9 +66,11 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     result = random_sample_face_verticesd(
         data,
         keys=["vertices", "colors"],
-        face_keys=["faces"],
+        vertices_key="vertices",
+        faces_key="faces",
         num_samples=num_samples,
         include_normals=include_normals,
+        normals_key="normals",
         seed=seed,
         allow_missing_keys=allow_missing_keys,
     )
@@ -82,7 +84,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
         seed=seed,
     )
 
-    assert result["vertices"] is sampled_vertices
+    assert result["vertices"] is data["vertices"][sampled_indices]
     assert result["normals"] is sampled_normals
     assert result["colors"] is data["colors"][sampled_indices]
     assert result["other"] is data["other"]
