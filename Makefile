@@ -2,33 +2,34 @@
 
 SRC:=src
 TESTS:=tests
+EXAMPLES:=examples
 CMD:=uv run
 
 # Linting, formatting, etc.
 
 .PHONY: format
 format: ## Format source code and tests
-	$(CMD) ruff format $(SRC) $(TESTS)
+	$(CMD) ruff format $(SRC) $(TESTS) $(EXAMPLES)
 
 .PHONY: lint
 lint: ## Lint source code and tests
-	$(CMD) ruff check $(SRC) $(TESTS)
+	$(CMD) ruff check $(SRC) $(TESTS) $(EXAMPLES)
 
 .PHONY: lint-fix
 lint-fix: ## Lint and fix source code and tests
-	$(CMD) ruff check --fix $(SRC) $(TESTS)
+	$(CMD) ruff check --fix $(SRC) $(TESTS) $(EXAMPLES)
 
 .PHONY: type
 type: ## Type in source code and tests
-	$(CMD) mypy $(SRC) $(TESTS)
+	$(CMD) mypy $(SRC) $(TESTS) $(EXAMPLES)
 
 .PHONY: isort
 isort: ## Sort imports using ruff
-	$(CMD) ruff check --select I
+	$(CMD) ruff check --select I $(SRC) $(TESTS) $(EXAMPLES)
 
 .PHONY: isort-fix
 isort-fix: ## Sort imports using ruff
-	$(CMD) ruff check --select I --fix
+	$(CMD) ruff check --select I --fix $(SRC) $(TESTS) $(EXAMPLES)
 
 .PHONY: all
 all: format type lint isort ## Run all formatting commands

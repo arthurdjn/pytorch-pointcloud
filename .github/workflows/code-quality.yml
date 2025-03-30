@@ -16,10 +16,13 @@ jobs:
           python-version: 3.11
 
       - name: Check types
-        run: uv run mypy src tests
+        run: uv run mypy src tests examples
 
       - name: Run linter
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests examples
 
       - name: Run formatter
-        run: uv run ruff format src tests --check
+        run: uv run ruff format src tests examples --check
+
+      - name: Check imports
+        run: uv run ruff check --select I src tests examples
