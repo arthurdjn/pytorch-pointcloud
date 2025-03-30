@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch, sentinel
 
-from torch_pointcloud.transforms.dictionary import NormalizeScaled, RandomSampled, RandomSampleVerticesd
+from torch_pointcloud.transforms.dictionary import NormalizeScaled, RandomSampled, RandomSampleFaceVerticesd
 
 
 @patch("torch_pointcloud.transforms.dictionary.transforms.F.random_sampled")
@@ -31,9 +31,9 @@ def test_random_sample_dict_transform(mock_fn: Mock) -> None:
     assert result is mock_fn.return_value
 
 
-@patch("torch_pointcloud.transforms.dictionary.transforms.F.random_sample_verticesd")
-def test_random_sample_vertices_dict_transform(mock_fn: Mock) -> None:
-    """Test that RandomSampleVerticesd transform calls the functional API correctly."""
+@patch("torch_pointcloud.transforms.dictionary.transforms.F.random_sample_face_verticesd")
+def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
+    """Test that RandomSampleFaceVerticesd transform calls the functional API correctly."""
     data = sentinel.data
     num_samples = sentinel.num_samples
     keys = (sentinel.key,)
@@ -42,7 +42,7 @@ def test_random_sample_vertices_dict_transform(mock_fn: Mock) -> None:
     allow_missing_keys = sentinel.allow_missing_keys
     seed = sentinel.seed
 
-    transform = RandomSampleVerticesd(
+    transform = RandomSampleFaceVerticesd(
         num_samples=num_samples,
         keys=keys,
         face_keys=face_keys,

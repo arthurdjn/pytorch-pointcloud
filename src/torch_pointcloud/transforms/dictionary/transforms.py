@@ -122,8 +122,8 @@ class RandomSampled(Transformd):
         )
 
 
-class RandomSampleVerticesd(Transformd):
-    """Dictionary transform version of :class:`torch_pointcloud.transforms.RandomSampleVertices`.
+class RandomSampleFaceVerticesd(Transformd):
+    """Dictionary transform version of :class:`torch_pointcloud.transforms.RandomSampleFaceVertices`.
 
     Args:
         keys: The keys to sample from.
@@ -158,7 +158,7 @@ class RandomSampleVerticesd(Transformd):
         Returns:
             The transformed dictionary data.
         """
-        return F.random_sample_verticesd(
+        return F.random_sample_face_verticesd(
             data,
             keys=self.keys,
             face_keys=self.face_keys,

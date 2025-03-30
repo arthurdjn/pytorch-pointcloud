@@ -36,7 +36,7 @@ def random_sampled(
     return d
 
 
-def random_sample_verticesd(
+def random_sample_face_verticesd(
     data: DictStr,
     keys: KeyCollection,
     face_keys: KeyCollection,
@@ -72,7 +72,7 @@ def random_sample_verticesd(
 
     key, face_key, normals_key = next(iterator)
 
-    out = F.random_sample_vertices(
+    out = F.random_sample_face_vertices(
         d[key],
         d[face_key],
         num_samples,
