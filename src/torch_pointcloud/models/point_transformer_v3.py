@@ -764,7 +764,7 @@ class PointTransformerV3Classification(nn.Module):
 
         Args:
             features: Additional point features of shape $(N, features_dim)$.
-            coords: Point coordinates of shape $(N, coords_dim)$.
+            grid_coords: Grid coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
