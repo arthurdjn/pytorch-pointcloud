@@ -1,5 +1,5 @@
-from typing import Any, Tuple
-from unittest.mock import ANY, Mock, patch, sentinel
+from typing import Any
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 import torch
