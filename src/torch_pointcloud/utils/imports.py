@@ -2,7 +2,7 @@ import importlib
 from functools import lru_cache
 from importlib import import_module
 from importlib.util import find_spec
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 from packaging.requirements import Requirement
 from packaging.version import Version
@@ -83,7 +83,12 @@ def check_requirement(requirement: str) -> bool:
 
 
 @lru_cache
-def optional_import(module_path: str, name: str = "", requirement: str = "", url: str = "None") -> Tuple[Any, bool]:
+def optional_import(
+    module_path: str,
+    name: str = "",
+    requirement: str = "",
+    url: Optional[str] = None,
+) -> Tuple[Any, bool]:
     """Import a module with a version check and return a boolean indicating availability.
     Args:
         module_path: Path to the module to import (e.g. `torch`)
@@ -144,3 +149,6 @@ def optional_import(module_path: str, name: str = "", requirement: str = "", url
 
 
 _OCNN_AVAILABLE = module_available("ocnn")
+_SPCONV_AVAILABLE = module_available("spconv.pytorch")
+_FLASH_ATTN_AVAILABLE = module_available("flash_attn")
+_TORCH_SCATTER_AVAILABLE = module_available("torch_scatter")
