@@ -14,7 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+flash-attn = ["flash-attn>=2.4.1"]
 ocnn = ["ocnn>=2.2.6"]
+spconv = ["spconv>=2.2.1"]
 
 [tool.uv]
 package = true
