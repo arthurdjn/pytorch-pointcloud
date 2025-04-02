@@ -37,8 +37,7 @@ def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
     data = sentinel.data
     num_samples = sentinel.num_samples
     keys = (sentinel.key,)
-    vertices_key = sentinel.vertices_key
-    faces_key = sentinel.faces_key
+    face_keys = (sentinel.face_key,)
     include_normals = sentinel.include_normals
     normals_key = sentinel.normals_key
     allow_missing_keys = sentinel.allow_missing_keys
@@ -47,8 +46,7 @@ def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
     transform = RandomSampleFaceVerticesd(
         num_samples=num_samples,
         keys=keys,
-        vertices_key=vertices_key,
-        faces_key=faces_key,
+        face_keys=face_keys,
         include_normals=include_normals,
         normals_key=normals_key,
         seed=seed,
@@ -60,8 +58,7 @@ def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
-        vertices_key=vertices_key,
-        faces_key=faces_key,
+        face_keys=face_keys,
         num_samples=num_samples,
         include_normals=include_normals,
         normals_key=normals_key,

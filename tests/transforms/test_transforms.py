@@ -31,26 +31,12 @@ def test_random_sample_face_vertices_transform(mock_fn: Mock) -> None:
     faces = sentinel.faces
     num_samples = sentinel.num_samples
     return_normals = sentinel.return_normals
-    return_indices = sentinel.return_indices
     seed = sentinel.seed
 
-    transform = RandomSampleFaceVertices(
-        num_samples=num_samples,
-        return_normals=return_normals,
-        return_indices=return_indices,
-        seed=seed,
-    )
-
+    transform = RandomSampleFaceVertices(num_samples=num_samples, return_normals=return_normals, seed=seed)
     result = transform(vertices, faces)
 
-    mock_fn.assert_called_once_with(
-        vertices,
-        faces,
-        num_samples=num_samples,
-        return_normals=return_normals,
-        return_indices=return_indices,
-        seed=seed,
-    )
+    mock_fn.assert_called_once_with(vertices, faces, num_samples=num_samples, return_normals=return_normals, seed=seed)
 
     assert result is mock_fn.return_value
 
