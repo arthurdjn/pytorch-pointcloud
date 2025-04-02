@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets import ModelNet10
+from torch_pointcloud.datasets import ModelNet10, ModelNet40
 from torch_pointcloud.models import PointTransformerV3Classification
 from torch_pointcloud.utils.random import seed_everything
 
@@ -23,19 +23,50 @@ def main() -> None:
         [
             T.RandomSampleFaceVerticesd(
                 keys=["coords"],
-                vertices_key="coords",
-                faces_key="faces",
+                face_keys=["faces"],
                 num_samples=args.num_points,
                 include_normals=True,
                 normals_key="normals",
             )
         ]
     )
-    if args.dataset == "ModelNet10":
-        train_dataset = ModelNet10(args.root, True, transform=transform, pre_transform=pre_transform, download=True)
-        test_dataset = ModelNet10(args.root, False, transform=transform, pre_transform=pre_transform, download=True)
+
+    if args.dataset.lower() == "modelnet10":
+        train_dataset = ModelNet10(
+            args.root,
+            True,
+            transform=transform,
+            pre_transform=pre_transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+        test_dataset = ModelNet10(
+            args.root,
+            False,
+            transform=transform,
+            pre_transform=pre_transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+    elif args.dataset.lower() == "modelnet40":
+        train_dataset = ModelNet40(
+            args.root,
+            True,
+            transform=transform,
+            pre_transform=pre_transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+        test_dataset = ModelNet40(
+            args.root,
+            False,
+            transform=transform,
+            pre_transform=pre_transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
     else:
-        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10'.")
+        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10' or 'ModelNet40'.")
 
     train_loader = DataLoader(
         train_dataset,
@@ -53,7 +84,7 @@ def main() -> None:
     )
 
     model = PointTransformerV3Classification(
-        num_classes=10,
+        num_classes=args.num_classes,
         in_channels=6,
         serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
@@ -73,10 +104,21 @@ def main() -> None:
         upcast_attention=False,
         upcast_softmax=False,
     ).to(args.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=args.lr,
+        pct_start=0.05,
+        anneal_strategy="cos",
+        div_factor=10.0,
+        final_div_factor=1000.0,
+        total_steps=len(train_loader) * args.epochs,
+    )
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
+        scheduler.step()
         train_metrics = train_one_epoch(model, optimizer, train_loader, args.device)
         val_metrics = eval_one_epoch(model, test_loader, args.device)
         metrics = {**train_metrics, **val_metrics}
@@ -88,13 +130,15 @@ def main() -> None:
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--root", type=str, default="data")
-    parser.add_argument("--dataset", type=str, default="ModelNet10")
-    parser.add_argument("--num_points", type=int, default=1024)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--dataset", type=str, default="modelnet10", choices=["modelnet10", "modelnet40"])
+    parser.add_argument("--num-classes", type=int, default=10)
+    parser.add_argument("--num-points", type=int, default=1024)
+    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--num_workers", type=int, default=6)
+    parser.add_argument("--num-workers", type=int, default=6)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--weight-decay", type=float, default=0.01)
     return parser.parse_args()
 
 
