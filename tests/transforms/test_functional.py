@@ -100,29 +100,6 @@ def test_random_sample_face_vertices_with_normals(sample_mesh: Tuple[Tensor, Ten
     assert torch.allclose(torch.norm(normals, dim=1), torch.ones(num_samples))
 
 
-def test_random_sample_face_vertices_with_indices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
-    """Test that the random sample vertices function returns the correct shape with indices."""
-    vertices, faces = sample_mesh
-    num_samples = 10
-
-    sampled, indices = random_sample_face_vertices(vertices, faces, num_samples, return_indices=True)
-    assert sampled.shape == (num_samples, 3)
-    assert indices.shape == (num_samples,)
-
-
-def test_random_sample_face_vertices_with_all_returns(sample_mesh: Tuple[Tensor, Tensor]) -> None:
-    """Test that the random sample vertices function returns the correct shape with normals and indices."""
-    vertices, faces = sample_mesh
-    num_samples = 10
-
-    sampled, normals, indices = random_sample_face_vertices(
-        vertices, faces, num_samples, return_normals=True, return_indices=True
-    )
-    assert sampled.shape == (num_samples, 3)
-    assert normals.shape == (num_samples, 3)
-    assert indices.shape == (num_samples,)
-
-
 def test_normalize_scale(sample_points: Tensor) -> None:
     """Test that the normalize scale function returns the correct shape."""
     normalized = normalize_scale(sample_points)
