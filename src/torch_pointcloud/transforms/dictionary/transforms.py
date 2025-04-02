@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Generator, Iterable, Optional, Tuple, Union
 
 from torch_pointcloud.transforms.transforms import Transform
-from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import KeyCollection
 
 from . import functional as F
@@ -139,8 +139,7 @@ class RandomSampleFaceVerticesd(Transformd):
     def __init__(
         self,
         keys: KeyCollection,
-        vertices_key: str,
-        faces_key: str,
+        face_keys: KeyCollection,
         num_samples: int,
         include_normals: bool = True,
         normals_key: str = "normals",
@@ -148,8 +147,7 @@ class RandomSampleFaceVerticesd(Transformd):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.vertices_key = vertices_key
-        self.faces_key = faces_key
+        self.face_keys = ensure_tuple_size(face_keys, len(self.keys))
         self.num_samples = num_samples
         self.include_normals = include_normals
         self.normals_key = normals_key
@@ -167,8 +165,7 @@ class RandomSampleFaceVerticesd(Transformd):
         return F.random_sample_face_verticesd(
             data,
             keys=self.keys,
-            vertices_key=self.vertices_key,
-            faces_key=self.faces_key,
+            face_keys=self.face_keys,
             num_samples=self.num_samples,
             include_normals=self.include_normals,
             normals_key=self.normals_key,

@@ -1,6 +1,7 @@
 from typing import Optional
 
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import DictStr, KeyCollection
 
 from ._utils import key_iterator
@@ -38,8 +39,7 @@ def random_sampled(
 def random_sample_face_verticesd(
     data: DictStr,
     keys: KeyCollection,
-    vertices_key: str,
-    faces_key: str,
+    face_keys: KeyCollection,
     num_samples: int,
     include_normals: bool = True,
     normals_key: str = "normals",
@@ -65,25 +65,26 @@ def random_sample_face_verticesd(
         The transformed dictionary data.
     """
     d = dict(data)  # avoid modifying the original data
+    keys = ensure_tuple(keys)
+    face_keys = ensure_tuple_size(face_keys, len(keys))
 
-    out = F.random_sample_face_vertices(
-        d[vertices_key],
-        d[faces_key],
-        num_samples,
-        seed=seed,
-        return_normals=include_normals,
-        return_indices=True,
-    )
+    iterator = key_iterator(d, keys, face_keys, allow_missing_keys=allow_missing_keys)
+    for vertices_key, faces_key in iterator:
+        out = F.random_sample_face_vertices(
+            d[vertices_key],
+            d[faces_key],
+            num_samples,
+            seed=seed,
+            return_normals=include_normals,
+        )
 
-    if include_normals:
-        _, normals, indices = out
-        d[normals_key] = normals
-    else:
-        _, indices = out
+        if include_normals:
+            vertices, normals = out
+            d[normals_key] = normals
+        else:
+            vertices = out
 
-    iterator = key_iterator(d, keys, allow_missing_keys=allow_missing_keys)
-    for key in iterator:
-        d[key] = d[key][indices]
+        d[vertices_key] = vertices
 
     return d
 

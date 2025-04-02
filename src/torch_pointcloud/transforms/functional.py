@@ -61,18 +61,6 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: Literal[True] = True,
-    return_indices: Literal[True] = True,
-    seed: Optional[int] = None,
-) -> Tuple[Tensor, Tensor, Tensor]: ...
-
-
-@overload
-def random_sample_face_vertices(
-    vertices: Tensor,
-    faces: Tensor,
-    num_samples: int,
-    return_normals: Literal[True] = True,
-    return_indices: bool = False,
     seed: Optional[int] = None,
 ) -> Tuple[Tensor, Tensor]: ...
 
@@ -83,7 +71,6 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: bool = False,
-    return_indices: bool = False,
     seed: Optional[int] = None,
 ) -> Tensor: ...
 
@@ -93,9 +80,8 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: bool = False,
-    return_indices: bool = False,
     seed: Optional[int] = None,
-) -> Union[Tensor, Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     """Randomly sample a fixed number of vertices from a 3D mesh (vertices, faces),
     using:
 
@@ -107,12 +93,9 @@ def random_sample_face_vertices(
         faces: The input tensor.
         num_samples: The number of vertices to sample.
         return_normals: Whether to return the normals of the sampled vertices.
-        return_indices: Whether to return the indices of the sampled vertices.
         seed: The seed for the random number generator.
 
     Returns:
-        If `return_indices` is `True`, the function returns a tuple of the sampled vertices and their indices.
-        Otherwise, it returns the sampled vertices.
         If `return_normals` is `True`, the function returns a tuple of the sampled vertices and their normals.
         Otherwise, it returns the sampled vertices.
     """
@@ -147,12 +130,8 @@ def random_sample_face_vertices(
     vertices += frac[:, 1:] * v02
     vertices = vertices * pos_max
 
-    if return_indices and return_normals:
-        return vertices, normals, faces[:, 0]
-    elif return_normals:
+    if return_normals:
         return vertices, normals
-    elif return_indices:
-        return vertices, faces[:, 0]
     return vertices
 
 
