@@ -199,17 +199,13 @@ class RandomSampleFaceVertices(Transform):
         self,
         num_samples: int,
         return_normals: bool = True,
-        return_indices: bool = False,
         seed: Optional[int] = None,
     ):
         self.num_samples = num_samples
         self.return_normals = return_normals
-        self.return_indices = return_indices
         self.seed = seed
 
-    def transform(
-        self, points: Tensor, faces: Tensor
-    ) -> Union[Tensor, Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
+    def transform(self, points: Tensor, faces: Tensor) -> Any:
         """Apply the transform to the input tensor.
 
         Args:
@@ -224,7 +220,6 @@ class RandomSampleFaceVertices(Transform):
             faces,
             num_samples=self.num_samples,
             return_normals=self.return_normals,
-            return_indices=self.return_indices,
             seed=self.seed,
         )
 

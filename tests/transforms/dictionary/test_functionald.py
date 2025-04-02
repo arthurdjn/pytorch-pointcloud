@@ -60,14 +60,12 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     seed = sentinel.seed
     sampled_vertices = sentinel.sampled_vertices
     sampled_normals = sentinel.sampled_normals
-    sampled_indices = sentinel.sampled_indices
-    mock_fn.return_value = (sampled_vertices, sampled_normals, sampled_indices)
+    mock_fn.return_value = (sampled_vertices, sampled_normals)
 
     result = random_sample_face_verticesd(
         data,
-        keys=["vertices", "colors"],
-        vertices_key="vertices",
-        faces_key="faces",
+        keys=["vertices"],
+        face_keys=["faces"],
         num_samples=num_samples,
         include_normals=include_normals,
         normals_key="normals",
@@ -80,14 +78,13 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
         data["faces"],
         num_samples,
         return_normals=include_normals,
-        return_indices=True,
         seed=seed,
     )
 
-    assert result["vertices"] is data["vertices"][sampled_indices]
+    assert result["vertices"] is sampled_vertices
     assert result["normals"] is sampled_normals
-    assert result["colors"] is data["colors"][sampled_indices]
     assert result["other"] is data["other"]
+    assert result["colors"] is data["colors"]  # Unchanged
 
 
 @patch("torch_pointcloud.transforms.dictionary.functional.F.normalize_scale")
