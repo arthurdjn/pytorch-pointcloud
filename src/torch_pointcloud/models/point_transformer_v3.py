@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Sequence, Tuple, overload
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -1003,9 +1003,6 @@ class PointTransformerV3Segmentation(nn.Module):
         enc_channels: Sequence[int] = (32, 64, 128, 256, 512),
         enc_num_head: Sequence[int] = (2, 4, 8, 16, 32),
         enc_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
-        # dec_depths: Sequence[int] = (2, 2, 2, 2),
-        # dec_channels: Sequence[int] = (64, 64, 128, 256),
-        # dec_num_head: Sequence[int] = (4, 4, 8, 16),
         dec_depths: Sequence[int] = (2, 2, 2, 2),
         dec_channels: Sequence[int] = (256, 128, 64, 64),
         dec_num_head: Sequence[int] = (16, 8, 4, 4),
@@ -1068,7 +1065,8 @@ class PointTransformerV3Segmentation(nn.Module):
     def configure_downsample_blocks(self) -> nn.ModuleList:
         # Pre-compute the drop paths for each (encoder) block.
         # The drop path is the same as the encoder block, but in reverse order.
-        # For example, if the drop path is 0.3, and the depths are (2, 3, 4), then the drop paths are:
+        # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
+        # then the drop paths for each block at each stage are:
         # - block 0: [0.0000, 0.0375]
         # - block 1: [0.0750, 0.1125, 0.1500]
         # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
@@ -1114,10 +1112,11 @@ class PointTransformerV3Segmentation(nn.Module):
     def configure_upsample_blocks(self) -> nn.ModuleList:
         # Pre-compute the drop paths for each (decoder) block.
         # The drop path is the same as the encoder block, but in reverse order.
-        # For example, if the drop path is 0.3, and the depths are (2, 3, 4), then the drop paths are:
-        # - block 2: [0.3000, 0.2625, 0.2250, 0.1875]
+        # For example, if the drop path is 0.3, and the depths are (4, 3, 2),
+        # then the drop paths for each block at each stage are:
+        # - block 0: [0.3000, 0.2625, 0.2250, 0.1875]
         # - block 1: [0.1500, 0.1125, 0.0750]
-        # - block 0: [0.0375, 0.0000]
+        # - block 2: [0.0375, 0.0000]
         drop_paths = torch.split(torch.linspace(0, self.drop_path, sum(self.dec_depths)), self.dec_depths)[::-1]
 
         blocks = nn.ModuleList()
@@ -1155,12 +1154,31 @@ class PointTransformerV3Segmentation(nn.Module):
             blocks.append(block)
         return blocks
 
-    def forward_down_features(
+    @overload
+    def forward_features(
         self,
         features: OptTensor,
         grid_coords: Tensor,
         batch: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Tuple[Tensor, ...]]]:
+        return_skip_outputs: Literal[True] = True,
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        features: OptTensor,
+        grid_coords: Tensor,
+        batch: Tensor,
+        return_skip_outputs: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        features: OptTensor,
+        grid_coords: Tensor,
+        batch: Tensor,
+        return_skip_outputs: bool = False,
+    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]]:
         features = features if features is not None else grid_coords.float()
 
         serialized_code, serialized_order, serialized_inverse = serialize(
@@ -1174,7 +1192,7 @@ class PointTransformerV3Segmentation(nn.Module):
         # variable names, so that we can easily forward the outputs to the next layer / block.
         features = self.embedding(features, grid_coords, batch)
 
-        skip_outputs: List[Tuple[Tensor, ...]] = []
+        skip_outputs: List[Dict[str, Tensor]] = []
         for i, block in enumerate(self.downsamples):
             *block_outputs, pooling_inverse = block(
                 features,
@@ -1186,18 +1204,26 @@ class PointTransformerV3Segmentation(nn.Module):
                 return_pooling_inverse=True,
             )
 
-            # We need to store the outputs of the downsample blocks, so that we can forward them to the decoder blocks.
-            if i > 0:
-                skip_output = (features, grid_coords, batch, serialized_order, serialized_inverse, pooling_inverse)
+            if i > 0 and return_skip_outputs:
+                skip_output = dict(
+                    skip_features=features,
+                    skip_grid_coords=grid_coords,
+                    skip_batch=batch,
+                    skip_serialized_order=serialized_order,
+                    skip_serialized_inverse=serialized_inverse,
+                    pooling_inverse=pooling_inverse,
+                )
                 skip_outputs.append(skip_output)
 
             features, grid_coords, batch, serialized_code, serialized_order, serialized_inverse = block_outputs
 
-        return features, grid_coords, batch, skip_outputs
+        if return_skip_outputs:
+            return features, grid_coords, batch, skip_outputs
+        return features, grid_coords, batch
 
-    def forward_up_features(self, features: Tensor, skip_outputs: List[Tuple[Tensor, ...]]) -> Tensor:
+    def forward_decoder(self, features: Tensor, skip_outputs: List[Dict[str, Tensor]]) -> Tensor:
         for block, skip_output in zip(self.upsamples, reversed(skip_outputs)):
-            features = block(features, *skip_output)
+            features = block(features, **skip_output)
 
         return features
 
@@ -1207,6 +1233,6 @@ class PointTransformerV3Segmentation(nn.Module):
         return features if pre_logits else self.head(features)
 
     def forward(self, features: Tensor, grid_coords: Tensor, batch: Tensor) -> Tensor:
-        features, _, _, skip_outputs = self.forward_down_features(features, grid_coords, batch)
-        features = self.forward_up_features(features, skip_outputs)
+        features, _, _, skip_outputs = self.forward_features(features, grid_coords, batch, return_skip_outputs=True)
+        features = self.forward_decoder(features, skip_outputs)
         return self.forward_head(features)
