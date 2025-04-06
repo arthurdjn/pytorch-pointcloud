@@ -6,7 +6,7 @@ from torch import Tensor, nn
 
 from torch_pointcloud.layers import ActLike, NormLike, create_act, create_cls_head, create_norm, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
-from torch_pointcloud.utils.conversion import ensure_tuple_size
+from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import softmax, voxel_grid
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
@@ -392,6 +392,13 @@ def create_encoder_blocks(
     attn_drop: float = 0.0,
     drop_path: float = 0.0,
 ) -> nn.ModuleList:
+    depths = ensure_tuple(depths)
+    n = len(depths)
+    channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Encoder length `channels` != `depths` + 1.")
+    num_groups = ensure_tuple_size(num_groups, size=n, extra_msg="Encoder length `num_groups` != `depths`.")
+    num_neighbors = ensure_tuple_size(num_neighbors, size=n, extra_msg="Encoder length `num_neighbors` != `depths`.")
+    grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
+
     # Pre-compute the drop paths for each encoder block.
     # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
     # then the drop paths for each block, at each stage, are:
@@ -400,17 +407,8 @@ def create_encoder_blocks(
     # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
     drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
 
-    num_stages = len(depths)
-    if len(channels) != num_stages or len(num_groups) != num_stages or len(num_neighbors) != num_stages:
-        raise ValueError(
-            "Could not configure the encoder: `depths`, `channels`, `num_groups` and `num_neighbors` "
-            f"must have the same length {num_stages} and grid_sizes must have the length {num_stages - 1}, "
-            f"but got {len(depths)}, {len(channels)}, {len(num_groups)}, {len(num_neighbors)} and "
-            f"{len(grid_sizes)} respectively."
-        )
-
     blocks = nn.ModuleList()
-    for i in range(num_stages):
+    for i in range(n):
         downsample: Optional[GridPool] = None
         if i > 0:
             downsample = GridPool(
@@ -441,7 +439,7 @@ def create_encoder_blocks(
 def create_decoder_blocks(
     depths: Sequence[int],
     channels: Sequence[int],
-    encoder_channels: Sequence[int],
+    skip_channels: Sequence[int],
     num_groups: Sequence[int],
     num_neighbors: Sequence[int],
     norm: NormLike = "batch_norm1d",
@@ -452,6 +450,13 @@ def create_decoder_blocks(
     attn_drop: float = 0.0,
     drop_path: float = 0.0,
 ) -> nn.ModuleList:
+    depths = ensure_tuple(depths)
+    n = len(depths)
+    channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Decoder length `channels` != `depths` + 1.")
+    skip_channels = ensure_tuple_size(skip_channels, size=n, extra_msg="Decoder length `skip_channels` != `depths`.")
+    num_groups = ensure_tuple_size(num_groups, size=n, extra_msg="Decoder length `num_groups` != `depths`.")
+    num_neighbors = ensure_tuple_size(num_neighbors, size=n, extra_msg="Decoder length `num_neighbors` != `depths`.")
+
     # Pre-compute the drop paths for each (decoder) block.
     # The drop path is the same as the encoder block, but in reverse order.
     # For example, if the drop path is 0.3, and the depths are (4, 3, 2),
@@ -462,11 +467,11 @@ def create_decoder_blocks(
     drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
 
     blocks = nn.ModuleList()
-    for i in range(len(depths)):
+    for i in range(n):
         upsample = InversePool(
-            in_channels=channels[i - 1] if i > 0 else encoder_channels[-1],
-            skip_channels=encoder_channels[-i - 2],
-            out_channels=channels[i],
+            in_channels=channels[i],
+            skip_channels=skip_channels[i],
+            out_channels=channels[i + 1],
             norm=norm,
             act=act,
         )
@@ -474,7 +479,7 @@ def create_decoder_blocks(
         # NOTE: For decoder blocks, the drop paths should be in reverse order (i.e. higher -> lower within each block)
         block = DecoderBlock(
             depth=depths[i],
-            channels=channels[i],
+            channels=channels[i + 1],
             num_groups=num_groups[i],
             num_neighbors=num_neighbors[i],
             norm=norm,
@@ -601,8 +606,8 @@ class PointTransformerV2Classification(nn.Module):
         features: Tensor,
         coords: Tensor,
         batch: Tensor,
-        return_intermediates: Literal[False] = False,
-    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
     def forward_features(
@@ -610,8 +615,8 @@ class PointTransformerV2Classification(nn.Module):
         features: Tensor,
         coords: Tensor,
         batch: Tensor,
-        return_intermediates: Literal[True] = True,
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
@@ -642,9 +647,9 @@ class PointTransformerV2Classification(nn.Module):
         for i, block in enumerate(self.encoder):
             intermediate = {"features": features, "coords": coords, "batch": batch}
 
-            features, coords, batch, *pooling_inverse = block(features, coords, batch, return_inverse=i > 0)
+            features, coords, batch, pooling_inverse = block(features, coords, batch, return_inverse=True)
             if i > 0:
-                intermediate["pooling_inverse"] = pooling_inverse[0]
+                intermediate["pooling_inverse"] = pooling_inverse
                 intermediates.append(intermediate)
 
         if return_intermediates:
@@ -768,8 +773,8 @@ class PointTransformerV2Segmentation(nn.Module):
 
         self.decoder = self.configure_decoder_blocks(
             depths=decoder_depths,
-            channels=decoder_channels,
-            encoder_channels=encoder_channels,
+            channels=[encoder_channels[-1]] + list(decoder_channels),
+            skip_channels=list(encoder_channels[:-1])[::-1],
             num_groups=decoder_num_groups,
             num_neighbors=decoder_num_neighbors,
             qkv_bias=qkv_bias,
@@ -812,8 +817,8 @@ class PointTransformerV2Segmentation(nn.Module):
         features: Tensor,
         coords: Tensor,
         batch: Tensor,
-        return_intermediates: Literal[False] = False,
-    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
     def forward_features(
@@ -821,8 +826,8 @@ class PointTransformerV2Segmentation(nn.Module):
         features: Tensor,
         coords: Tensor,
         batch: Tensor,
-        return_intermediates: Literal[True] = True,
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
