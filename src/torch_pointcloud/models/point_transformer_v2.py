@@ -348,6 +348,42 @@ def create_encoder_blocks(
 
 
 class PointTransformerV2Classification(nn.Module):
+    """Implementation of the Point Transformer V2 classification model as described in the paper
+    [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
+    by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
+
+    This implementation is based on the original implementation from [Pointcept](https://github.com/Pointcept/Pointcept).
+
+    Note:
+        This implementation requires [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
+        and [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+
+    Args:
+        in_channels: Number of input channels.
+        num_classes: Number of output classes.
+        encoder_depths: Number of encoder blocks for each stage.
+        encoder_channels: Number of channels for each encoder block.
+        encoder_num_groups: Number of groups for each encoder block.
+        encoder_num_neighbors: Number of neighbors for each encoder block.
+        grid_sizes: Size of the grid for each stage.
+        norm: Normalization layer to use.
+        act: Activation function to use.
+        qkv_bias: Whether to use bias in the QKV linear layer.
+        pe_multiplier: Whether to use a multiplier for the PE.
+        pe_bias: Whether to use bias in the PE linear layer.
+        drop_path: Drop path rate.
+        dropout: Dropout rate.
+        global_pool: Global pooling method to use.
+
+    Inputs:
+        features: Float tensor of shape $(N, in_channels)$.
+        coords: Float tensor of shape $(N, 3)$.
+        batch: Long tensor of shape $(N,)$.
+
+    Outputs:
+        Logits tensor of shape $(N, num_classes)$.
+    """
+
     def __init__(
         self,
         in_channels: int,
