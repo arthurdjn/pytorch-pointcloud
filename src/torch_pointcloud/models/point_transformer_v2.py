@@ -1,0 +1,503 @@
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+
+import torch
+import torch.nn.functional as F
+from torch import Tensor, nn
+
+from torch_pointcloud.layers import ActLike, NormLike, create_act, create_cls_head, create_norm, create_pool
+from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.utils.conversion import ensure_tuple_size
+from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.ops import softmax, voxel_grid
+from torch_pointcloud.utils.types import OptTensor
+
+if TYPE_CHECKING:
+    from torch_cluster import knn_graph
+    from torch_scatter import scatter_sum, segment_csr
+
+knn_graph, _ = optional_import("torch_cluster", name="knn_graph")
+scatter_sum, _ = optional_import("torch_scatter", name="scatter_sum")
+segment_csr, _ = optional_import("torch_scatter", name="segment_csr")
+
+
+class GroupedVectorAttention(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        num_groups: int,
+        attn_drop: float = 0.0,
+        qkv_bias: bool = True,
+        pe_multiplier: bool = False,
+        pe_bias: bool = True,
+        norm: NormLike = "batch_norm1d",
+        act: ActLike = "gelu",
+    ):
+        super().__init__()
+        if channels % num_groups != 0:
+            raise ValueError(f"channels ({channels}) must be divisible by num_groups ({num_groups})")
+
+        self.channels = channels
+        self.num_groups = num_groups
+
+        self.q = nn.Sequential(
+            nn.Linear(channels, channels, bias=qkv_bias),
+            create_norm(norm, channels),
+            create_act(act),
+        )
+        self.k = nn.Sequential(
+            nn.Linear(channels, channels, bias=qkv_bias),
+            create_norm(norm, channels),
+            create_act(act),
+        )
+        self.v = nn.Linear(channels, channels, bias=qkv_bias)
+
+        self.pe_multiplier: Optional[nn.Module] = None
+        if pe_multiplier:
+            self.pe_multiplier = nn.Sequential(
+                nn.Linear(3, channels),
+                create_norm(norm, channels),
+                create_act(act),
+                nn.Linear(channels, channels),
+            )
+
+        self.pe_bias: Optional[nn.Module] = None
+        if pe_bias:
+            self.pe_bias = nn.Sequential(
+                nn.Linear(3, channels),
+                create_norm(norm, channels),
+                create_act(act),
+                nn.Linear(channels, channels),
+            )
+
+        self.weight_encoding = nn.Sequential(
+            nn.Linear(channels, num_groups),
+            create_norm(norm, num_groups),
+            create_act(act),
+            nn.Linear(num_groups, num_groups),
+        )
+
+        self.attn_drop = nn.Dropout(attn_drop)
+
+    def forward(self, features: Tensor, coords: Tensor, neighbors: Tensor) -> Tensor:
+        query, key, value = self.q(features), self.k(features), self.v(features)
+
+        row, col = neighbors
+        value = value[row]
+        coords = coords[row] - coords[col]
+        relation_qk = key[row] - query[col]
+
+        if self.pe_multiplier is not None:
+            factor = self.pe_multiplier(coords)
+            relation_qk = relation_qk * factor
+
+        if self.pe_bias is not None:
+            bias = self.pe_bias(coords)
+            relation_qk = relation_qk + bias
+            value = value + bias
+
+        weight = self.weight_encoding(relation_qk)
+        weight = self.attn_drop(softmax(weight, col))
+
+        value = value.reshape(-1, self.num_groups, self.channels // self.num_groups)
+        features = value * weight.unsqueeze(-1)
+        features = features.reshape(-1, self.channels)
+        features = scatter_sum(features, col, dim=0)
+        return features
+
+
+class Block(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        num_groups: int,
+        qkv_bias: bool = True,
+        pe_multiplier: bool = False,
+        pe_bias: bool = True,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        norm: NormLike = "batch_norm1d",
+        act: ActLike = "gelu",
+    ):
+        super().__init__()
+        self.attn = GroupedVectorAttention(
+            channels=channels,
+            num_groups=num_groups,
+            qkv_bias=qkv_bias,
+            attn_drop=attn_drop,
+            pe_multiplier=pe_multiplier,
+            pe_bias=pe_bias,
+        )
+        self.fc1 = nn.Linear(channels, channels, bias=False)
+        self.fc3 = nn.Linear(channels, channels, bias=False)
+        self.norm1 = create_norm(norm, channels)
+        self.norm2 = create_norm(norm, channels)
+        self.norm3 = create_norm(norm, channels)
+        self.act = create_act(act)
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+
+    def forward(self, features: Tensor, coords: Tensor, batch: Tensor) -> Tensor:
+        shortcut = features
+        features = self.act(self.norm1(self.fc1(features)))
+        features = self.attn(features, coords, batch)
+        features = self.act(self.norm2(features))
+        features = self.norm3(self.fc3(features))
+        features = self.drop_path(features) + shortcut
+        features = self.act(features)
+        return features
+
+
+class GridPool(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        grid_size: float,
+        bias: bool = False,
+        reduce: str = "max",
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.grid_size = grid_size
+        self.reduce = reduce
+
+        self.fc = nn.Linear(in_channels, out_channels, bias=bias)
+        self.norm = nn.BatchNorm1d(out_channels)
+        self.act = nn.ReLU(inplace=True)
+
+    @overload
+    def forward(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_inverse: Literal[True] = True,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
+
+    @overload
+    def forward(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_inverse: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_inverse: bool = False,
+    ) -> Tuple[Tensor, ...]:
+        features = self.act(self.norm(self.fc(features)))
+        start = segment_csr(
+            coords,
+            torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)]),
+            reduce="min",
+        )
+        cluster = voxel_grid(coords - start[batch], size=self.grid_size, batch=batch, start=0)
+        _, cluster, counts = torch.unique(cluster, sorted=True, return_inverse=True, return_counts=True)
+        _, sorted_cluster_indices = torch.sort(cluster)
+        idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
+        coords = segment_csr(coords[sorted_cluster_indices], idx_ptr, reduce="mean")
+        features = segment_csr(features[sorted_cluster_indices], idx_ptr, reduce=self.reduce)
+        batch = batch[idx_ptr[:-1]]
+
+        if return_inverse:
+            return features, coords, batch, cluster
+        return features, coords, batch
+
+
+class EncoderBlock(nn.Module):
+    def __init__(
+        self,
+        depth: int,
+        channels: int,
+        num_groups: int,
+        num_neighbors: int,
+        qkv_bias: bool = True,
+        pe_multiplier: bool = False,
+        pe_bias: bool = True,
+        norm: NormLike = "batch_norm1d",
+        act: ActLike = "gelu",
+        attn_drop: Optional[Union[float, Sequence[float]]] = None,
+        drop_path: Optional[Union[float, Sequence[float]]] = None,
+        downsample: Optional[GridPool] = None,
+    ):
+        super().__init__()
+        attn_drop = ensure_tuple_size(attn_drop, depth)
+        drop_path = ensure_tuple_size(drop_path, depth)
+
+        self.num_neighbors = num_neighbors
+        self.downsample = downsample
+
+        self.blocks = nn.ModuleList()
+        for i in range(depth):
+            block = Block(
+                channels=channels,
+                num_groups=num_groups,
+                qkv_bias=qkv_bias,
+                pe_multiplier=pe_multiplier,
+                pe_bias=pe_bias,
+                attn_drop=attn_drop[i],  # type: ignore[index]
+                drop_path=drop_path[i],  # type: ignore[index]
+                norm=norm,
+                act=act,
+            )
+            self.blocks.append(block)
+
+    @overload
+    def forward(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_inverse: Literal[True] = True,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
+
+    @overload
+    def forward(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_inverse: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_inverse: bool = False,
+    ) -> Tuple[Tensor, ...]:
+        if return_inverse and self.downsample is None:
+            raise ValueError("`return_inverse` is only supported if `downsample` is provided")
+
+        if self.downsample is not None:
+            features, coords, batch, pooling_inverse = self.downsample(features, coords, batch, return_inverse=True)
+
+        neighbors = knn_graph(coords, self.num_neighbors, batch, loop=True)
+        for block in self.blocks:
+            features = block(features, coords, neighbors)
+
+        if return_inverse:
+            return features, coords, batch, pooling_inverse
+        return features, coords, batch
+
+
+def create_encoder_blocks(
+    depths: Sequence[int],
+    channels: Sequence[int],
+    num_groups: Sequence[int],
+    num_neighbors: Sequence[int],
+    grid_sizes: Sequence[float],
+    norm: NormLike = "batch_norm1d",
+    act: ActLike = "gelu",
+    qkv_bias: bool = True,
+    pe_multiplier: bool = False,
+    pe_bias: bool = True,
+    attn_drop: float = 0.0,
+    drop_path: float = 0.0,
+) -> nn.ModuleList:
+    # Pre-compute the drop paths for each encoder block.
+    # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
+    # then the drop paths for each block, at each stage, are:
+    # - block 0: [0.0000, 0.0375]
+    # - block 1: [0.0750, 0.1125, 0.1500]
+    # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
+    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
+
+    num_stages = len(depths)
+    if len(channels) != num_stages or len(num_groups) != num_stages or len(num_neighbors) != num_stages:
+        raise ValueError(
+            "Could not configure the encoder: `depths`, `channels`, `num_groups` and `num_neighbors` "
+            f"must have the same length {num_stages} and grid_sizes must have the length {num_stages - 1}, "
+            f"but got {len(depths)}, {len(channels)}, {len(num_groups)}, {len(num_neighbors)} and "
+            f"{len(grid_sizes)} respectively."
+        )
+
+    encoder = nn.ModuleList()
+    for i in range(num_stages):
+        downsample: Optional[GridPool] = None
+        if i > 0:
+            downsample = GridPool(
+                in_channels=channels[i - 1],
+                out_channels=channels[i],
+                grid_size=grid_sizes[i - 1],
+                reduce="max",
+            )
+
+        block = EncoderBlock(
+            depth=depths[i],
+            channels=channels[i],
+            num_groups=num_groups[i],
+            num_neighbors=num_neighbors[i],
+            norm=norm,
+            act=act,
+            qkv_bias=qkv_bias,
+            pe_multiplier=pe_multiplier,
+            pe_bias=pe_bias,
+            attn_drop=attn_drop,
+            drop_path=drop_paths[i].tolist(),
+            downsample=downsample,
+        )
+        encoder.append(block)
+    return encoder
+
+
+class PointTransformerV2Classification(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        encoder_depths: Sequence[int] = (1, 2, 2, 6, 2),
+        encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
+        encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
+        encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
+        grid_sizes: Sequence[float] = (0.06, 0.12, 0.24, 0.48),
+        norm: NormLike = "batch_norm1d",
+        act: ActLike = "gelu",
+        qkv_bias: bool = True,
+        attn_drop: float = 0.0,
+        pe_multiplier: bool = False,
+        pe_bias: bool = True,
+        drop_path: float = 0.0,
+        dropout: float = 0.0,
+        global_pool: str = "max",
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+
+        self.embedding = nn.Sequential(
+            nn.Linear(in_channels, encoder_channels[0]),
+            create_norm(norm, encoder_channels[0]),
+            create_act(act),
+        )
+
+        self.encoder = self.configure_encoder_blocks(
+            depths=encoder_depths,
+            channels=encoder_channels,
+            num_groups=encoder_num_groups,
+            num_neighbors=encoder_num_neighbors,
+            grid_sizes=grid_sizes,
+            qkv_bias=qkv_bias,
+            pe_multiplier=pe_multiplier,
+            pe_bias=pe_bias,
+            attn_drop=attn_drop,
+            drop_path=drop_path,
+        )
+
+        self.dropout = dropout
+        self.global_pool = create_pool(global_pool)
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.encoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+
+    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        return create_encoder_blocks(*args, **kwargs)
+
+    def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
+        """Resets the classification head with new parameters.
+
+        Note:
+            To set an empty classification head, use `num_classes=0`.
+
+        Args:
+            num_classes: Number of output classes.
+            global_pool: Pooling method to aggregate point features ("max" or "mean").
+            **kwargs: Additional keyword arguments to pass to the classification head.
+        """
+        self.num_classes = num_classes
+        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+
+    @overload
+    def forward_features(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    @overload
+    def forward_features(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True] = True,
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    def forward_features(
+        self,
+        features: OptTensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        """Forward features through the encoder blocks, before the global pooling.
+
+        Args:
+            features: Additional point features of shape $(N, features_dim)$.
+            coords: Coordinates of shape $(N, 3)$.
+            batch: Batch indices for each point of shape $(N,)$.
+            return_intermediates: Whether to return the intermediate features.
+
+        Returns:
+            - features: Pre-pooling features of shape $(N, embedding_dim)$.
+            - coords: Coordinates of shape $(N, 3)$.
+            - batch: Batch indices for each point of shape $(N,)$.
+            - intermediates: List of dictionaries containing the intermediate features,
+                coordinates, and batch indices for each encoder block.
+        """
+        features = features if features is not None else coords
+        features = self.embedding(features)
+
+        intermediates: List[Dict[str, Tensor]] = []
+        for i, block in enumerate(self.encoder):
+            intermediate = {"features": features, "coords": coords, "batch": batch}
+
+            features, coords, batch, *pooling_inverse = block(features, coords, batch, return_inverse=i > 0)
+            if i > 0:
+                intermediate["pooling_inverse"] = pooling_inverse[0]
+                intermediates.append(intermediate)
+
+        if return_intermediates:
+            return features, coords, batch, intermediates
+        return features, coords, batch
+
+    def forward_head(self, features: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        """Forward pass of the classification head from pre-pooling features.
+
+        Args:
+            features: Pre-pooling features of shape $(N, embedding_dim)$.
+            batch: Batch indices for each point of shape $(N,)$.
+            pre_logits: Whether to return pre-logits.
+
+        Returns:
+            Classification logits of shape $(B, num_classes)$.
+        """
+        features = self.global_pool(features, batch)
+        if self.dropout:
+            features = F.dropout(features, p=float(self.dropout), training=self.training)
+        return features if pre_logits else self.head(features)
+
+    def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
+        """Forward pass of the PointNet classification network.
+
+        Args:
+            features: Additional point features of shape $(N, features_dim)$.
+            coords: Coordinates of shape $(N, 3)$.
+            batch: Batch indices for each point of shape $(N,)$.
+
+        Returns:
+            Classification logits of shape $(B, num_classes)$.
+        """
+        features, _, batch = self.forward_features(features, coords, batch)
+        return self.forward_head(features, batch)
