@@ -53,8 +53,7 @@ def random_sample_face_verticesd(
     Args:
         data: The dictionary data to apply the transform to.
         keys: The keys to sample from.
-        vertices_key: The key to sample the vertices from.
-        faces_key: The key to sample the faces from.
+        face_keys: The keys to sample the faces from.
         num_samples: The number of vertices to sample.
         include_normals: If `True`, the normals will be included in the output.
         normals_key: The key to store the normals in.
