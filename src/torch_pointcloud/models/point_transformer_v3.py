@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, overload
 
 import torch
 import torch.nn as nn
@@ -319,9 +319,7 @@ class SerializedPooling(nn.Module):
     ):
         super().__init__()
         if reduce not in ["sum", "mean", "min", "max"]:
-            raise ValueError(
-                f"Invalid reduce operaIntTensor, tion: {reduce}. Must be one of: 'sum', 'mean', 'min', 'max'."
-            )
+            raise ValueError(f"Invalid reduce operation: {reduce}. Must be one of: 'sum', 'mean', 'min', 'max'.")
         if stride != 2 ** (math.ceil(stride) - 1).bit_length():
             raise ValueError(f"Invalid stride: {stride}. Must be a power of 2.")
 
@@ -407,12 +405,7 @@ class SerializedUnpooling(nn.Module):
         self.act = create_act(act) if act is not None else None
         self.act_skip = create_act(act) if act is not None else None
 
-    def forward(
-        self,
-        features: Tensor,
-        skip_features: Tensor,
-        pooling_inverse: Tensor,
-    ) -> Tensor:
+    def forward(self, features: Tensor, skip_features: Tensor, pooling_inverse: Tensor) -> Tensor:
         features = self.proj(features)
         if self.norm is not None:
             features = self.norm(features)
@@ -640,7 +633,7 @@ class DecoderBlock(nn.Module):
         skip_serialized_order: Tensor,
         skip_serialized_inverse: Tensor,
         pooling_inverse: OptTensor = None,
-    ) -> Tensor:
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         if not skip_serialized_order.shape == skip_serialized_inverse.shape:
             raise ValueError(
                 "`skip_serialized_order` and `skip_serialized_inverse` "
@@ -666,7 +659,7 @@ class DecoderBlock(nn.Module):
                 serialized_inverse=skip_serialized_inverse[order_idx],
             )
 
-        return features
+        return features, skip_grid_coords, skip_batch
 
 
 def serialize(
@@ -684,6 +677,146 @@ def serialize(
     serialized_order = torch.argsort(serialized_code, dim=1)
     serialized_inverse = torch.argsort(serialized_order, dim=1)
     return serialized_code, serialized_order, serialized_inverse
+
+
+def create_encoder_blocks(
+    depths: Sequence[int],
+    channels: Sequence[int],
+    num_heads: Sequence[int],
+    patch_sizes: Sequence[int],
+    strides: Sequence[int],
+    mlp_ratio: float = 4.0,
+    norm: NormLike = "batch_norm1d",
+    act: ActLike = "gelu",
+    qkv_bias: bool = True,
+    qk_scale: Optional[float] = None,
+    attn_drop: float = 0.0,
+    proj_drop: float = 0.0,
+    drop_path: float = 0.0,
+    with_rpe: bool = False,
+    with_flash_attn: bool = True,
+    upcast_attention: bool = False,
+    upcast_softmax: bool = False,
+) -> nn.ModuleList:
+    depths = ensure_tuple(depths)
+    n = len(depths)
+    channels = ensure_tuple_size(channels, size=n, extra_msg="Encoder length `channels` != `depths`.")
+    num_heads = ensure_tuple_size(num_heads, size=n, extra_msg="Encoder length `num_heads` != `depths`.")
+    patch_sizes = ensure_tuple_size(patch_sizes, size=n, extra_msg="Encoder length `patch_sizes` != `depths`.")
+    strides = ensure_tuple_size(strides, size=n - 1, extra_msg="Encoder length `strides` != `depths` - 1.")
+
+    # Pre-compute the drop paths for each encoder block.
+    # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
+    # then the drop paths for each block, at each stage, are:
+    # - block 0: [0.0000, 0.0375]
+    # - block 1: [0.0750, 0.1125, 0.1500]
+    # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
+    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
+
+    blocks = nn.ModuleList()
+    for i in range(n):
+        downsample: Optional[SerializedPooling] = None
+        if i > 0:
+            downsample = SerializedPooling(
+                in_channels=channels[i - 1],
+                out_channels=channels[i],
+                stride=strides[i - 1],
+                norm=norm,
+                act=act,
+            )
+
+        block = EncoderBlock(
+            channels=channels[i],
+            depth=depths[i],
+            num_heads=num_heads[i],
+            patch_size=patch_sizes[i],
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            drop_path=drop_paths[i].tolist(),
+            norm="layer_norm",
+            act=act,
+            cpe_indice_key=f"stage{i}",
+            with_rpe=with_rpe,
+            with_flash_attn=with_flash_attn,
+            upcast_attention=upcast_attention,
+            upcast_softmax=upcast_softmax,
+            downsample=downsample,
+        )
+        blocks.append(block)
+    return blocks
+
+
+def create_decoder_blocks(
+    depths: Sequence[int],
+    channels: Sequence[int],
+    skip_channels: Sequence[int],
+    num_heads: Sequence[int],
+    patch_sizes: Sequence[int],
+    mlp_ratio: float = 4.0,
+    norm: NormLike = "batch_norm1d",
+    act: ActLike = "gelu",
+    qkv_bias: bool = True,
+    qk_scale: Optional[float] = None,
+    attn_drop: float = 0.0,
+    proj_drop: float = 0.0,
+    drop_path: float = 0.0,
+    with_rpe: bool = False,
+    with_flash_attn: bool = True,
+    upcast_attention: bool = False,
+    upcast_softmax: bool = False,
+) -> nn.ModuleList:
+    depths = ensure_tuple(depths)
+    n = len(depths)
+    channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Decoder length `channels` != `depths` + 1.")
+    skip_channels = ensure_tuple_size(skip_channels, size=n, extra_msg="Decoder length `skip_channels` != `depths`.")
+    num_heads = ensure_tuple_size(num_heads, size=n, extra_msg="Decoder length `num_heads` != `depths`.")
+    patch_sizes = ensure_tuple_size(patch_sizes, size=n, extra_msg="Decoder length `patch_sizes` != `depths`.")
+
+    # Pre-compute the drop paths for each (decoder) block.
+    # The drop path is the same as the encoder block, but in reverse order.
+    # For example, if the drop path is 0.3, and the depths are (4, 3, 2),
+    # then the drop paths for each block at each stage are:
+    # - block 0: [0.3000, 0.2625, 0.2250, 0.1875]
+    # - block 1: [0.1500, 0.1125, 0.0750]
+    # - block 2: [0.0375, 0.0000]
+    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
+
+    blocks = nn.ModuleList()
+    for i in range(n):
+        upsample = SerializedUnpooling(
+            in_channels=channels[i],
+            skip_channels=skip_channels[i],
+            out_channels=channels[i + 1],
+            norm=norm,
+            act=act,
+        )
+
+        # NOTE: For decoder blocks, the drop paths should be in reverse order (i.e. higher -> lower within each block)
+        block = DecoderBlock(
+            channels=channels[i + 1],
+            depth=depths[i],
+            num_heads=num_heads[i],
+            patch_size=patch_sizes[i],
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            drop_path=drop_paths[i].tolist()[::-1],
+            norm="layer_norm",
+            act=act,
+            cpe_indice_key=f"stage{i}",
+            with_rpe=with_rpe,
+            with_flash_attn=with_flash_attn,
+            upcast_attention=upcast_attention,
+            upcast_softmax=upcast_softmax,
+            upsample=upsample,
+        )
+        blocks.append(block)
+    return blocks
 
 
 class PointTransformerV3Classification(nn.Module):
@@ -730,39 +863,6 @@ class PointTransformerV3Classification(nn.Module):
 
     Outputs:
         logits: Float tensor of shape $(N, num_classes)$.
-
-    Examples:
-        To use this model, you will need to convert coordinates to grid coordinates.
-        You can achieve this with:
-
-        ```python
-        coords = torch.randn(1000, 3)
-        grid_size = 0.01
-        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
-        ```
-
-        Then you can use the model as follows:
-
-        ```python
-        model = PointTransformerV3Classification(in_channels=6, num_classes=10)
-        logits = model(features, grid_coords, batch)
-
-        # Compute predictions, metrics, etc.
-        preds = F.log_softmax(logits, dim=1)
-        loss = F.nll_loss(preds, target)
-        ```
-
-        You can extract global features by using the `forward_features` method:
-
-        ```python
-        features, grid_coords, batch = model.forward_features(features, grid_coords, batch)
-        ```
-
-        You can manually compute the logits by using the `forward_head` method:
-
-        ```python
-        logits = model.forward_head(features, batch)
-        ```
     """
 
     def __init__(
@@ -772,10 +872,10 @@ class PointTransformerV3Classification(nn.Module):
         serialization_orders: Sequence[str] = ("hilbert", "hilbert-trans"),
         shuffle_serialization_orders: bool = True,
         stride: Sequence[int] = (2, 2, 2, 2),
-        enc_depths: Sequence[int] = (2, 2, 2, 6, 2),
-        enc_channels: Sequence[int] = (32, 64, 128, 256, 512),
-        enc_num_head: Sequence[int] = (2, 4, 8, 16, 32),
-        enc_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
+        encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
+        encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
+        encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
+        encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
         norm: NormLike = "batch_norm1d",
         act: ActLike = "gelu",
         mlp_ratio: float = 4,
@@ -796,28 +896,27 @@ class PointTransformerV3Classification(nn.Module):
         self.num_classes = num_classes
         self.serialization_orders = ensure_tuple(serialization_orders)
         self.shuffle_serialization_orders = shuffle_serialization_orders
-        self.stride = ensure_tuple(stride)
 
-        num_stages = len(self.stride) + 1
-        self.enc_depths = ensure_tuple_size(enc_depths, size=num_stages)
-        self.enc_channels = ensure_tuple_size(enc_channels, size=num_stages)
-        self.enc_num_head = ensure_tuple_size(enc_num_head, size=num_stages)
-        self.enc_patch_size = ensure_tuple_size(enc_patch_size, size=num_stages)
-        self.norm = norm
-        self.act = act
-        self.mlp_ratio = mlp_ratio
-        self.qkv_bias = qkv_bias
-        self.qk_scale = qk_scale
-        self.attn_drop = attn_drop
-        self.proj_drop = proj_drop
-        self.drop_path = drop_path
-        self.with_rpe = with_rpe
-        self.with_flash_attn = with_flash_attn
-        self.upcast_attention = upcast_attention
-        self.upcast_softmax = upcast_softmax
-
-        self.embedding = Embedding(in_channels=in_channels, embedding_dim=enc_channels[0], norm=norm, act=act)
-        self.downsamples = self.configure_downsample_blocks()
+        self.embedding = Embedding(in_channels=in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
+        self.encoder = self.configure_encoder_blocks(
+            depths=encoder_depths,
+            channels=encoder_channels,
+            num_heads=encoder_num_head,
+            patch_sizes=encoder_patch_size,
+            strides=stride,
+            mlp_ratio=mlp_ratio,
+            norm=norm,
+            act=act,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            drop_path=drop_path,
+            with_rpe=with_rpe,
+            with_flash_attn=with_flash_attn,
+            upcast_attention=upcast_attention,
+            upcast_softmax=upcast_softmax,
+        )
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
@@ -825,46 +924,10 @@ class PointTransformerV3Classification(nn.Module):
 
     @property
     def embedding_dim(self) -> int:
-        return self.enc_channels[-1]
+        return self.encoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
-    def configure_downsample_blocks(self) -> nn.ModuleList:
-        drop_paths = torch.split(torch.linspace(0, self.drop_path, sum(self.enc_depths)), list(self.enc_depths))
-
-        blocks = nn.ModuleList()
-        for i in range(len(self.enc_depths)):
-            downsample: Optional[SerializedPooling] = None
-            if i > 0:
-                downsample = SerializedPooling(
-                    in_channels=self.enc_channels[i - 1],
-                    out_channels=self.enc_channels[i],
-                    stride=self.stride[i - 1],
-                    norm=self.norm,
-                    act=self.act,
-                )
-
-            block = EncoderBlock(
-                channels=self.enc_channels[i],
-                depth=self.enc_depths[i],
-                num_heads=self.enc_num_head[i],
-                patch_size=self.enc_patch_size[i],
-                mlp_ratio=self.mlp_ratio,
-                qkv_bias=self.qkv_bias,
-                qk_scale=self.qk_scale,
-                attn_drop=self.attn_drop,
-                proj_drop=self.proj_drop,
-                drop_path=drop_paths[i].tolist(),
-                norm="layer_norm",
-                act=self.act,
-                cpe_indice_key=f"stage{i}",
-                with_rpe=self.with_rpe,
-                with_flash_attn=self.with_flash_attn,
-                upcast_attention=self.upcast_attention,
-                upcast_softmax=self.upcast_softmax,
-                downsample=downsample,
-            )
-            blocks.append(block)
-
-        return blocks
+    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        return create_encoder_blocks(*args, **kwargs)
 
     def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -881,12 +944,31 @@ class PointTransformerV3Classification(nn.Module):
         self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
+    @overload
     def forward_features(
         self,
         features: OptTensor,
         grid_coords: Tensor,
         batch: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        features: OptTensor,
+        grid_coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        features: OptTensor,
+        grid_coords: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
         """Forward pass of the PointTransformerV3 encoder, returning pre-pooling features.
 
         Args:
@@ -909,21 +991,43 @@ class PointTransformerV3Classification(nn.Module):
             shuffle=self.shuffle_serialization_orders,
         )
 
-        # NOTE: It is important that the outputs of the layers / blocks re-use the same
-        # variable names, so that we can easily forward the outputs to the next layer / block.
         features = self.embedding(features, grid_coords, batch)
 
-        for block in self.downsamples:
-            features, grid_coords, batch, serialized_code, serialized_order, serialized_inverse = block(
+        intermediates: List[Dict[str, Tensor]] = []
+        for i, block in enumerate(self.encoder):
+            intermediate = {
+                "features": features,
+                "grid_coords": grid_coords,
+                "batch": batch,
+                "serialized_code": serialized_code,
+                "serialized_order": serialized_order,
+                "serialized_inverse": serialized_inverse,
+            }
+
+            (
+                features,
+                grid_coords,
+                batch,
+                serialized_code,
+                serialized_order,
+                serialized_inverse,
+                pooling_inverse,
+            ) = block(
                 features,
                 grid_coords,
                 batch,
                 serialized_code=serialized_code,
                 serialized_order=serialized_order,
                 serialized_inverse=serialized_inverse,
-                return_pooling_inverse=False,
+                return_pooling_inverse=True,
             )
 
+            if i > 0:
+                intermediate["pooling_inverse"] = pooling_inverse
+                intermediates.append(intermediate)
+
+        if return_intermediates:
+            return features, grid_coords, batch, intermediates
         return features, grid_coords, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
@@ -970,14 +1074,14 @@ class PointTransformerV3Segmentation(nn.Module):
         num_classes: Number of output classes for segmentation.
         serialization_orders: Serialization orders to use for the encoder.
         stride: Stride for the downsampling operations.
-        enc_depths: Number of encoder blocks for each stage.
-        enc_channels: Number of channels for each encoder block.
-        enc_num_head: Number of attention heads for each encoder block.
-        enc_patch_size: Patch size for each encoder block.
-        dec_depths: Number of decoder blocks for each stage.
-        dec_channels: Number of channels for each decoder block.
-        dec_num_head: Number of attention heads for each decoder block.
-        dec_patch_size: Patch size for each decoder block.
+        encoder_depths: Number of encoder blocks for each stage.
+        encoder_channels: Number of channels for each encoder block.
+        encoder_num_head: Number of attention heads for each encoder block.
+        encoder_patch_size: Patch size for each encoder block.
+        decoder_depths: Number of decoder blocks for each stage.
+        decoder_channels: Number of channels for each decoder block.
+        decoder_num_head: Number of attention heads for each decoder block.
+        decoder_patch_size: Patch size for each decoder block.
         norm: Normalization layer to use.
         act: Activation function to use.
         mlp_ratio: Ratio of the hidden dimension to the input dimension.
@@ -998,15 +1102,15 @@ class PointTransformerV3Segmentation(nn.Module):
         in_channels: int,
         num_classes: int,
         serialization_orders: Sequence[str] = ("hilbert", "hilbert-trans"),
-        stride: Sequence[int] = (2, 2, 2, 2),
-        enc_depths: Sequence[int] = (2, 2, 2, 6, 2),
-        enc_channels: Sequence[int] = (32, 64, 128, 256, 512),
-        enc_num_head: Sequence[int] = (2, 4, 8, 16, 32),
-        enc_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
-        dec_depths: Sequence[int] = (2, 2, 2, 2),
-        dec_channels: Sequence[int] = (256, 128, 64, 64),
-        dec_num_head: Sequence[int] = (16, 8, 4, 4),
-        dec_patch_size: Sequence[int] = (48, 48, 48, 48),
+        strides: Sequence[int] = (2, 2, 2, 2),
+        encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
+        encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
+        encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
+        encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
+        decoder_depths: Sequence[int] = (2, 2, 2, 2),
+        decoder_channels: Sequence[int] = (256, 128, 64, 64),
+        decoder_num_head: Sequence[int] = (16, 8, 4, 4),
+        decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
         norm: NormLike = "batch_norm1d",
         act: ActLike = "gelu",
         mlp_ratio: float = 4,
@@ -1027,132 +1131,63 @@ class PointTransformerV3Segmentation(nn.Module):
         self.num_classes = num_classes
         self.serialization_orders = ensure_tuple(serialization_orders)
         self.shuffle_serialization_orders = shuffle_serialization_orders
-        self.stride = ensure_tuple(stride)
 
-        num_stages = len(self.stride) + 1
-        self.enc_depths = ensure_tuple_size(enc_depths, size=num_stages)
-        self.enc_channels = ensure_tuple_size(enc_channels, size=num_stages)
-        self.enc_num_head = ensure_tuple_size(enc_num_head, size=num_stages)
-        self.enc_patch_size = ensure_tuple_size(enc_patch_size, size=num_stages)
-        self.dec_depths = ensure_tuple_size(dec_depths, size=num_stages - 1)
-        self.dec_channels = ensure_tuple_size(dec_channels, size=num_stages - 1)
-        self.dec_num_head = ensure_tuple_size(dec_num_head, size=num_stages - 1)
-        self.dec_patch_size = ensure_tuple_size(dec_patch_size, size=num_stages - 1)
-        self.norm = norm
-        self.act = act
-        self.mlp_ratio = mlp_ratio
-        self.qkv_bias = qkv_bias
-        self.qk_scale = qk_scale
-        self.attn_drop = attn_drop
-        self.proj_drop = proj_drop
-        self.drop_path = drop_path
-        self.with_rpe = with_rpe
-        self.with_flash_attn = with_flash_attn
-        self.upcast_attention = upcast_attention
-        self.upcast_softmax = upcast_softmax
-
-        self.embedding = Embedding(in_channels=in_channels, embedding_dim=enc_channels[0], norm=norm, act=act)
-        self.downsamples = self.configure_downsample_blocks()
-        self.upsamples = self.configure_upsample_blocks()
+        self.embedding = Embedding(in_channels=in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
+        self.encoder = self.configure_encoder_blocks(
+            depths=encoder_depths,
+            channels=encoder_channels,
+            num_heads=encoder_num_head,
+            patch_sizes=encoder_patch_size,
+            strides=strides,
+            mlp_ratio=mlp_ratio,
+            norm=norm,
+            act=act,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            drop_path=drop_path,
+            with_rpe=with_rpe,
+            with_flash_attn=with_flash_attn,
+            upcast_attention=upcast_attention,
+            upcast_softmax=upcast_softmax,
+        )
+        self.decoder = self.configure_decoder_blocks(
+            depths=decoder_depths,
+            channels=[encoder_channels[-1]] + list(decoder_channels),
+            skip_channels=list(encoder_channels[:-1])[::-1],
+            num_heads=decoder_num_head,
+            patch_sizes=decoder_patch_size,
+            mlp_ratio=mlp_ratio,
+            norm=norm,
+            act=act,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            drop_path=drop_path,
+            with_rpe=with_rpe,
+            with_flash_attn=with_flash_attn,
+            upcast_attention=upcast_attention,
+            upcast_softmax=upcast_softmax,
+        )
 
         self.dropout = dropout
-        self.head = create_cls_head(num_features=self.dec_channels[-1], num_classes=self.num_classes)
+        self.head = create_cls_head(num_features=self.upsampling_dim, num_classes=self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
-        return self.enc_channels[-1]
+        return self.encoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
-    def configure_downsample_blocks(self) -> nn.ModuleList:
-        # Pre-compute the drop paths for each (encoder) block.
-        # The drop path is the same as the encoder block, but in reverse order.
-        # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
-        # then the drop paths for each block at each stage are:
-        # - block 0: [0.0000, 0.0375]
-        # - block 1: [0.0750, 0.1125, 0.1500]
-        # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
-        # The below line will return a tuple of tensors, specifying the drop paths for each block.
-        drop_paths = torch.split(torch.linspace(0, self.drop_path, sum(self.enc_depths)), list(self.enc_depths))
+    @property
+    def upsampling_dim(self) -> int:
+        return self.decoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
-        blocks = nn.ModuleList()
-        for i in range(len(self.enc_depths)):
-            downsample: Optional[SerializedPooling] = None
-            if i > 0:
-                downsample = SerializedPooling(
-                    in_channels=self.enc_channels[i - 1],
-                    out_channels=self.enc_channels[i],
-                    stride=self.stride[i - 1],
-                    norm=self.norm,
-                    act=self.act,
-                )
+    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        return create_encoder_blocks(*args, **kwargs)
 
-            block = EncoderBlock(
-                channels=self.enc_channels[i],
-                depth=self.enc_depths[i],
-                num_heads=self.enc_num_head[i],
-                patch_size=self.enc_patch_size[i],
-                mlp_ratio=self.mlp_ratio,
-                qkv_bias=self.qkv_bias,
-                qk_scale=self.qk_scale,
-                attn_drop=self.attn_drop,
-                proj_drop=self.proj_drop,
-                drop_path=drop_paths[i].tolist(),
-                norm="layer_norm",
-                act=self.act,
-                cpe_indice_key=f"stage{i}",
-                with_rpe=self.with_rpe,
-                with_flash_attn=self.with_flash_attn,
-                upcast_attention=self.upcast_attention,
-                upcast_softmax=self.upcast_softmax,
-                downsample=downsample,
-            )
-            blocks.append(block)
-
-        return blocks
-
-    def configure_upsample_blocks(self) -> nn.ModuleList:
-        # Pre-compute the drop paths for each (decoder) block.
-        # The drop path is the same as the encoder block, but in reverse order.
-        # For example, if the drop path is 0.3, and the depths are (4, 3, 2),
-        # then the drop paths for each block at each stage are:
-        # - block 0: [0.3000, 0.2625, 0.2250, 0.1875]
-        # - block 1: [0.1500, 0.1125, 0.0750]
-        # - block 2: [0.0375, 0.0000]
-        drop_paths = torch.split(torch.linspace(0, self.drop_path, sum(self.dec_depths)), self.dec_depths)[::-1]
-
-        blocks = nn.ModuleList()
-        for i in range(len(self.dec_depths)):
-            # The 'last' (i.e. deepest) decoder block `in_channels` must match the last encoder `in_channels
-            upsample = SerializedUnpooling(
-                in_channels=self.dec_channels[i - 1] if i > 0 else self.enc_channels[-1],
-                skip_channels=self.enc_channels[-i - 2],
-                out_channels=self.dec_channels[i],
-                norm=self.norm,
-                act=self.act,
-            )
-
-            # NOTE: For decoder blocks, the drop paths should be in reverse order (i.e. higher -> lower within each block)
-            block = DecoderBlock(
-                channels=self.dec_channels[i],
-                depth=self.dec_depths[i],
-                num_heads=self.dec_num_head[i],
-                patch_size=self.dec_patch_size[i],
-                mlp_ratio=self.mlp_ratio,
-                qkv_bias=self.qkv_bias,
-                qk_scale=self.qk_scale,
-                attn_drop=self.attn_drop,
-                proj_drop=self.proj_drop,
-                drop_path=drop_paths[i].tolist()[::-1],
-                norm="layer_norm",
-                act=self.act,
-                cpe_indice_key=f"stage{i}",
-                with_rpe=self.with_rpe,
-                with_flash_attn=self.with_flash_attn,
-                upcast_attention=self.upcast_attention,
-                upcast_softmax=self.upcast_softmax,
-                upsample=upsample,
-            )
-            blocks.append(block)
-        return blocks
+    def configure_decoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        return create_decoder_blocks(*args, **kwargs)
 
     @overload
     def forward_features(
@@ -1160,7 +1195,7 @@ class PointTransformerV3Segmentation(nn.Module):
         features: OptTensor,
         grid_coords: Tensor,
         batch: Tensor,
-        return_skip_outputs: Literal[True] = True,
+        return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
@@ -1169,7 +1204,7 @@ class PointTransformerV3Segmentation(nn.Module):
         features: OptTensor,
         grid_coords: Tensor,
         batch: Tensor,
-        return_skip_outputs: Literal[False] = False,
+        return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1177,10 +1212,23 @@ class PointTransformerV3Segmentation(nn.Module):
         features: OptTensor,
         grid_coords: Tensor,
         batch: Tensor,
-        return_skip_outputs: bool = False,
-    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]]:
+        return_intermediates: bool = False,
+    ) -> Any:
+        """Forward pass of the PointTransformerV3 encoder, returning pre-pooling features.
+
+        Args:
+            features: Additional point features of shape $(N, features_dim)$.
+            grid_coords: Grid coordinates of shape $(N, 3)$.
+            batch: Batch indices for each point of shape $(N,)$.
+
+        Returns:
+            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+        """
         features = features if features is not None else grid_coords.float()
 
+        # Serialize the grid coordinates for each serialization order (e.g. "z", "z-trans", etc.)
+        # NOTE: For faster processing, we pre-compute the serialized code, order and inverse.
+        # These variables will be reused in each blocks and updated after each pooling operation.
         serialized_code, serialized_order, serialized_inverse = serialize(
             grid_coords,
             batch,
@@ -1188,13 +1236,28 @@ class PointTransformerV3Segmentation(nn.Module):
             shuffle=self.shuffle_serialization_orders,
         )
 
-        # NOTE: It is important that the outputs of the layers / blocks re-use the same
-        # variable names, so that we can easily forward the outputs to the next layer / block.
         features = self.embedding(features, grid_coords, batch)
 
-        skip_outputs: List[Dict[str, Tensor]] = []
-        for i, block in enumerate(self.downsamples):
-            *block_outputs, pooling_inverse = block(
+        intermediates: List[Dict[str, Tensor]] = []
+        for i, block in enumerate(self.encoder):
+            intermediate = {
+                "features": features,
+                "grid_coords": grid_coords,
+                "batch": batch,
+                "serialized_code": serialized_code,
+                "serialized_order": serialized_order,
+                "serialized_inverse": serialized_inverse,
+            }
+
+            (
+                features,
+                grid_coords,
+                batch,
+                serialized_code,
+                serialized_order,
+                serialized_inverse,
+                pooling_inverse,
+            ) = block(
                 features,
                 grid_coords,
                 batch,
@@ -1204,28 +1267,24 @@ class PointTransformerV3Segmentation(nn.Module):
                 return_pooling_inverse=True,
             )
 
-            if i > 0 and return_skip_outputs:
-                skip_output = dict(
-                    skip_features=features,
-                    skip_grid_coords=grid_coords,
-                    skip_batch=batch,
-                    skip_serialized_order=serialized_order,
-                    skip_serialized_inverse=serialized_inverse,
-                    pooling_inverse=pooling_inverse,
-                )
-                skip_outputs.append(skip_output)
+            if i > 0:
+                intermediate["pooling_inverse"] = pooling_inverse
+                intermediates.append(intermediate)
 
-            features, grid_coords, batch, serialized_code, serialized_order, serialized_inverse = block_outputs
-
-        if return_skip_outputs:
-            return features, grid_coords, batch, skip_outputs
+        if return_intermediates:
+            return features, grid_coords, batch, intermediates
         return features, grid_coords, batch
 
-    def forward_decoder(self, features: Tensor, skip_outputs: List[Dict[str, Tensor]]) -> Tensor:
-        for block, skip_output in zip(self.upsamples, reversed(skip_outputs)):
-            features = block(features, **skip_output)
-
-        return features
+    def forward_decoder(
+        self,
+        features: Tensor,
+        intermediates: List[Dict[str, Tensor]],
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        for block, intermediate in zip(self.decoder, reversed(intermediates)):
+            intermediate.pop("serialized_code", None)
+            intermediate = {f"skip_{k}" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
+            features, grid_coords, batch = block(features, **intermediate)
+        return features, grid_coords, batch
 
     def forward_head(self, features: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout:
@@ -1233,6 +1292,6 @@ class PointTransformerV3Segmentation(nn.Module):
         return features if pre_logits else self.head(features)
 
     def forward(self, features: Tensor, grid_coords: Tensor, batch: Tensor) -> Tensor:
-        features, _, _, skip_outputs = self.forward_features(features, grid_coords, batch, return_skip_outputs=True)
-        features = self.forward_decoder(features, skip_outputs)
+        features, _, _, intermediates = self.forward_features(features, grid_coords, batch, return_intermediates=True)
+        features, _, _ = self.forward_decoder(features, intermediates)
         return self.forward_head(features)

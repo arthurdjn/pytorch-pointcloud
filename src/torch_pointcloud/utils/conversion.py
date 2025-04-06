@@ -44,7 +44,7 @@ def ensure_tuple(value: Any) -> Tuple[Any, ...]:
     return tuple([value])
 
 
-def ensure_tuple_size(value: Any, size: int) -> Tuple[Any, ...]:
+def ensure_tuple_size(value: Any, size: int, extra_msg: str = "") -> Tuple[Any, ...]:
     """Convert a value to a tuple of a given size.
     If the value is a scalar, it will be repeated to match the size.
     If the value's length does not match the size, an error will be raised.
@@ -72,7 +72,7 @@ def ensure_tuple_size(value: Any, size: int) -> Tuple[Any, ...]:
     elif len(value) == size:
         return value
     else:
-        raise ValueError(f"Expected a tuple of size {size}, got {len(value)}")
+        raise ValueError(f"Expected a tuple of size {size}, got {len(value)}. {extra_msg}")
 
 
 @torch.no_grad()
