@@ -1,12 +1,17 @@
 import itertools
-from typing import Any, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_scatter import scatter
 
 from torch_pointcloud.layers import ActLike, NormLike, create_cls_head, create_pool, create_seg_head, linear_block
+from torch_pointcloud.utils.imports import optional_import
+
+if TYPE_CHECKING:
+    from torch_scatter import scatter
+
+scatter, _ = optional_import("torch_scatter", "scatter")
 
 
 class TNet(nn.Module):
