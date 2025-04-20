@@ -271,6 +271,40 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
 
 
 class PointNet2Classification(nn.Module):
+    """PointNet++ classification model from the paper
+    [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+
+    This network is a hierarchical point cloud classification model. It processes raw point clouds through
+    multiple Set Abstraction (SA) blocks that progressively downsample the points while learning local features
+    using radius-based grouping. Each SA block can optionally use Multi-Scale Grouping (MSG) to capture features
+    at different scales. The network starts with an optional linear stem layer, followed by SA blocks, and ends
+    with aggregation layers and a classification head. The architecture supports flexible configuration of
+    channels, sampling ratios, search radiuses and neighborhood sizes at each level.
+
+    Args:
+        in_channels: Number of input channels (features per point).
+        num_classes: Number of output classes.
+        stem_channels: Optional number of channels for initial linear projection.
+        sa_channels: List of channel configurations for Set Abstraction (SA) blocks.
+            Each element defines the MLP channels for one SA block.
+            For Multi-Scale Grouping (MSG), provide nested lists of channels.
+        aggr_channels: Channel sizes for the final MLP after global pooling.
+        ratios: Sampling ratios for each SA block (between 0 and 1).
+        radii: Search radiuses for each SA block's neighborhood.
+            For MSG, provide a list of radii per block.
+        num_neighbors: Max number of neighbors for each SA block.
+            For MSG, provide a list of neighbor counts per block.
+        act: Activation function.
+        norm: Normalization layer.
+        bias: Whether to use bias in linear layers.
+        order: Order of operations in MLPs.
+        use_coords: Whether to use point coordinates as features.
+        pool: Pooling operation for SA blocks.
+        dropout: Dropout rate for classification head.
+        global_pool: Global pooling operation.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -392,6 +426,43 @@ class PointNet2Classification(nn.Module):
 
 
 class PointNet2Segmentation(nn.Module):
+    """PointNet++ segmentation model from the paper
+    [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+
+    This network is a hierarchical point cloud segmentation model. It processes raw point clouds through
+    multiple Set Abstraction (SA) blocks that progressively downsample the points while learning local features
+    using radius-based grouping. Each SA block can optionally use Multi-Scale Grouping (MSG) to capture features
+    at different scales. The network starts with an optional linear stem layer, followed by SA blocks and optionally
+    a GlobalSA block. The network ends with a Feature Propagation (FP) block for each SA block and finally a
+    classification head. The architecture supports flexible configuration of channels, sampling ratios, search
+    radiuses and neighborhood sizes at each level.
+
+    Args:
+        in_channels: Number of input channels (features per point).
+        num_classes: Number of output classes.
+        stem_channels: Optional number of channels for initial linear projection.
+        sa_channels: List of channel configurations for Set Abstraction (SA) blocks.
+            Each element defines the MLP channels for one SA block.
+            For Multi-Scale Grouping (MSG), provide nested lists of channels.
+        aggr_channels: Channel sizes for the final MLP after global pooling.
+        fp_channels: List of channel configurations for Feature Propagation (FP) blocks.
+            Each element defines the MLP channels for one FP block.
+        ratios: Sampling ratios for each SA block (between 0 and 1).
+        radii: Search radiuses for each SA block's neighborhood.
+            For MSG, provide a list of radii per block.
+        num_neighbors: Max number of neighbors for each SA block.
+            For MSG, provide a list of neighbor counts per block.
+        act: Activation function.
+        norm: Normalization layer.
+        bias: Whether to use bias in linear layers.
+        order: Order of operations in MLPs.
+        use_coords: Whether to use point coordinates as features.
+        pool: Pooling operation for SA blocks.
+        dropout: Dropout rate for classification head.
+        global_pool: Global pooling operation.
+    """
+
     def __init__(
         self,
         in_channels: int,
