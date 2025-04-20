@@ -1,12 +1,67 @@
 from collections.abc import Iterable
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 import numpy as np
 import torch
 from torch import Tensor
 
 
-def ensure_tuple(value: Any) -> Tuple[Any, ...]:
+def is_iterable(value: Any) -> bool:
+    """Check if a value is iterable.
+    A value is considered iterable if it is an instance of `Iterable` (i.e. `list`, `tuple`, `set`
+    or any iterable defining the `__iter__` method) and not an instance of `str` or `bytes`.
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        True if the value is iterable, False otherwise.
+    """
+    return isinstance(value, Iterable) and not isinstance(value, (str, bytes))
+
+
+def ensure_list(value: Any, recursive: bool = False) -> List[Any]:
+    """Convert a value to a list. If the value is a numpy array or torch tensor,
+    it will be converted to a list. If the value is a scalar, it will be wrapped in a list.
+
+    Note:
+        If the value is None, it will be wrapped in a list.
+
+    Args:
+        value: The value to convert.
+        recursive: If True, the function will recursively apply itself to the elements of the list.
+
+    Returns:
+        The value as a list.
+
+    Examples:
+        >>> ensure_list(1)
+        [1]
+        >>> ensure_list([1, 2, 3])
+        [1, 2, 3]
+        >>> ensure_list(np.array([1, 2, 3]))
+        [1, 2, 3]
+        >>> ensure_list(torch.tensor([1, 2, 3]))
+        [1, 2, 3]
+        >>> ensure_list(None)
+        [None]
+    """
+    if isinstance(value, np.ndarray):
+        value = value.tolist() if value.ndim > 0 else value.item()
+    elif isinstance(value, torch.Tensor):
+        value = value.detach().cpu()
+        value = value.tolist() if value.ndim > 0 else value.item()
+
+    if is_iterable(value):
+        if recursive:
+            return list(ensure_list(v, recursive=True) if is_iterable(v) else v for v in value)
+        else:
+            return list(value)
+
+    return list([value])
+
+
+def ensure_tuple(value: Any, recursive: bool = False) -> Tuple[Any, ...]:
     """Convert a value to a tuple. If the value is a scalar or single element,
     it will be wrapped in a tuple.
 
@@ -28,23 +83,14 @@ def ensure_tuple(value: Any) -> Tuple[Any, ...]:
         >>> ensure_tuple(torch.tensor([1, 2, 3], device="cuda"))
         (1, 2, 3)
     """
-    if isinstance(value, np.ndarray):
-        if value.ndim > 0:
-            return tuple(value.tolist())
-        return tuple([value.item()])
-    elif isinstance(value, torch.Tensor):
-        value = value.detach().cpu()
-        if value.ndim > 0:
-            return tuple(value.tolist())
-        return tuple([value.item()])
-    elif isinstance(value, (str, bytes)):
-        return tuple([value])
-    elif isinstance(value, Iterable):
-        return tuple(value)
-    return tuple([value])
+
+    value = ensure_list(value, recursive=recursive)
+    if recursive:
+        return tuple(ensure_tuple(v, recursive=True) if is_iterable(v) else v for v in value)
+    return tuple(value)
 
 
-def ensure_tuple_size(value: Any, size: int, extra_msg: str = "") -> Tuple[Any, ...]:
+def ensure_tuple_size(value: Any, size: int, recursive: bool = False, extra_msg: str = "") -> Tuple[Any, ...]:
     """Convert a value to a tuple of a given size.
     If the value is a scalar, it will be repeated to match the size.
     If the value's length does not match the size, an error will be raised.
@@ -52,6 +98,8 @@ def ensure_tuple_size(value: Any, size: int, extra_msg: str = "") -> Tuple[Any, 
     Args:
         value: The value to convert.
         size: The size of the tuple.
+        recursive: If True, the function will recursively apply itself to the elements of the tuple.
+        extra_msg: An additional message to include in the error.
 
     Returns:
         The value as a tuple of the given size.
@@ -66,7 +114,7 @@ def ensure_tuple_size(value: Any, size: int, extra_msg: str = "") -> Tuple[Any, 
         >>> ensure_tuple_size(np.array([1, 2, 3]), 3)
         (1, 2, 3)
     """
-    value = ensure_tuple(value)
+    value = ensure_tuple(value, recursive=recursive)
     if len(value) == 1:
         return tuple([value[0]] * size)
     elif len(value) == size:

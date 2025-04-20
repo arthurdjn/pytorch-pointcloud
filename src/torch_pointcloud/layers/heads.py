@@ -1,18 +1,12 @@
-import functools
 import itertools
-from typing import List, Optional, Sequence
+from typing import List, Sequence
 
 import torch
 import torch.nn as nn
-from torch_scatter import scatter
 
 from .activations import ActLike
 from .blocks import LinearBlockOrderLike, linear_block
 from .norms import NormLike
-
-
-def create_pool(reduce: str = "mean", dim: int = 0, dim_size: Optional[int] = None) -> functools.partial:
-    return functools.partial(scatter, dim=dim, dim_size=dim_size, reduce=reduce)
 
 
 def create_cls_head(num_features: int, num_classes: int) -> torch.nn.Module:

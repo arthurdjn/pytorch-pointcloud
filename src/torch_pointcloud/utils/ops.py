@@ -5,12 +5,15 @@ from torch import Tensor
 
 from .conversion import ensure_tuple_size
 from .imports import optional_import
+from .types import OptTensor
 
 if TYPE_CHECKING:
+    from torch_cluster import grid_cluster, knn
     from torch_scatter import scatter
 
 scatter, _ = optional_import("torch_scatter", name="scatter")
 grid_cluster, _ = optional_import("torch_cluster", name="grid_cluster")
+knn, _ = optional_import("torch_cluster", name="knn")
 
 
 def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("nan")) -> Tensor:
@@ -120,3 +123,56 @@ def voxel_grid(
         end = torch.cat([end, batch.max().unsqueeze(0)])
 
     return grid_cluster(coords, size, start, end)
+
+
+def knn_interpolate(
+    x: Tensor,
+    coords_x: Tensor,
+    coords_y: Tensor,
+    batch_x: OptTensor = None,
+    batch_y: OptTensor = None,
+    k: int = 3,
+    num_workers: int = 1,
+) -> Tensor:
+    r"""The k-NN interpolation from the `"PointNet++: Deep Hierarchical
+    Feature Learning on Point Sets in a Metric Space"
+    <https://arxiv.org/abs/1706.02413>`_ paper.
+
+    For each point $y$ with position $\mathbf{p}(y)$, its
+    interpolated features $\mathbf{f}(y)$ are given by
+
+    $$
+        \mathbf{f}(y) = \frac{\sum_{i=1}^k w(x_i) \mathbf{f}(x_i)}{\sum_{i=1}^k
+        w(x_i)} \textrm{, where } w(x_i) = \frac{1}{d(\mathbf{p}(y),
+        \mathbf{p}(x_i))^2}
+    $$
+
+    and $\{ x_1, \ldots, x_k \}$ denoting the $k$ nearest points
+    to $y$.
+
+    Note:
+        This function is adapted from the `torch_geometric` package,
+        and requires the `torch-cluster` package.
+
+    Args:
+        x: Node feature matrix $\mathbf{X} \in \mathbb{R}^{N \times F}$.
+        coords_x: Node position matrix $\in \mathbb{R}^{N \times d}$.
+        coords_y: Upsampled node position matrix $\in \mathbb{R}^{M \times d}$.
+        batch_x: Batch vector $\mathbf{b_x} \in {\{ 0, \ldots, B-1\}}^N$, which assigns
+            each node from $\mathbf{X}$ to a specific example.
+        batch_y: Batch vector $\mathbf{b_y} \in {\{ 0, \ldots, B-1\}}^N$, which assigns
+            each node from $\mathbf{Y}$ to a specific example.
+        k: Number of neighbors.
+        num_workers: Number of workers to use for computation.
+            Has no effect in case `batch_x` or `batch_y` is not `None`, or the input lies on the GPU.
+    """
+    with torch.no_grad():
+        assign_index = knn(coords_x, coords_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
+        y_idx, x_idx = assign_index[0], assign_index[1]
+        diff = coords_x[x_idx] - coords_y[y_idx]
+        squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
+        weights = 1.0 / torch.clamp(squared_distance, min=1e-16)
+
+    y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=coords_y.size(0), reduce="sum")
+    y = y / scatter(weights, y_idx, dim=0, dim_size=coords_y.size(0), reduce="sum")
+    return y
