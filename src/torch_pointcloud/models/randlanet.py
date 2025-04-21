@@ -293,12 +293,15 @@ class RandLANetSegmentation(nn.Module):
         dropout: float = 0.0,
     ):
         super().__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
         self.decimation = decimation
+
         self.stem = nn.Linear(in_channels, stem_channels) if stem_channels else None
         in_channels = stem_channels if stem_channels else in_channels
-        self.encoder_blocks = create_encoder_blocks(in_channels, encoder_channels, num_neighbors)
-
         skip_channels = [in_channels]
+
+        self.encoder_blocks = create_encoder_blocks(in_channels, encoder_channels, num_neighbors)
         skip_channels.extend(encoder_channels[:-1])
 
         aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
