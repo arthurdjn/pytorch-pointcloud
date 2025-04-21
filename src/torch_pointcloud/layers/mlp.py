@@ -92,8 +92,10 @@ class MLP(nn.Module):
             dropouts = list(self.dropout)
             if self.plain_last:
                 dropouts.pop(-1)
-            same = all(dropouts[0] == dropout for dropout in dropouts) if len(dropouts) > 0 else True
-            inner_repr += f", dropout={self.dropout[0] if same else dropouts}"
+            # Only display dropout if it's not all None
+            if not all(dropout is None for dropout in dropouts):
+                same = all(dropouts[0] == dropout for dropout in dropouts) if len(dropouts) > 0 else True
+                inner_repr += f", dropout={self.dropout[0] if same else dropouts}"
         return inner_repr
 
     def __repr__(self) -> str:
