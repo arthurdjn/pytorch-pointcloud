@@ -312,7 +312,7 @@ class PointNet2Classification(nn.Module):
         *,
         stem_channels: Optional[int] = None,
         sa_channels: Sequence[Sequence[Union[int, Sequence[int]]]],
-        aggr_channels: Sequence[int],
+        aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         ratios: Sequence[float],
         radii: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
@@ -354,23 +354,17 @@ class PointNet2Classification(nn.Module):
         )
 
         in_channels = sum([c[-1] for c in sa_channels[-1]])
-        self.aggr = GlobalSAModule(
-            in_channels=in_channels,
-            channels=aggr_channels,
-            act=act,
-            norm=norm,
-            bias=bias,
-            order=order,
-            pool=global_pool,
-        )
+        aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
+        self.aggr = MLP(in_channels=in_channels, channels=aggr_channels, act=act, norm=norm) if aggr_channels else None
 
+        self.global_pool = create_pool(global_pool)
         self.dropout = dropout
-        self.embedding_dim = aggr_channels[-1]
+        self.embedding_dim = aggr_channels[-1] if aggr_channels else in_channels
         self.head = create_cls_head(self.embedding_dim, num_classes)
 
-    def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.aggr.pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
     @overload
@@ -404,25 +398,28 @@ class PointNet2Classification(nn.Module):
 
         # NOTE: We only store the intermediate results if specified with `return_intermediates=True`
         intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
-        for block in self.sa_blocks:
+        for i, block in enumerate(self.sa_blocks):
             features, coords, batch = block(features, coords, batch)
-            if return_intermediates:
+            if return_intermediates and i < len(self.sa_blocks) - 1:
+                # NOTE: Do not store the last result, as it will be the returned output.
                 intermediates.append({"features": features, "coords": coords, "batch": batch})
 
-        features, coords, batch = self.aggr(features, coords, batch)
+        if self.aggr is not None:
+            features = self.aggr(features)
 
         if return_intermediates:
             return features, coords, batch, intermediates
         return features, coords, batch
 
-    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        x = self.global_pool(x, batch)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
     def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
-        features, _, _ = self.forward_features(features, coords, batch)
-        return self.forward_head(features)
+        features, _, batch = self.forward_features(features, coords, batch)
+        return self.forward_head(features, batch)
 
 
 class PointNet2Segmentation(nn.Module):
@@ -470,7 +467,7 @@ class PointNet2Segmentation(nn.Module):
         *,
         stem_channels: Optional[int] = None,
         sa_channels: Sequence[Sequence[Union[int, Sequence[int]]]],
-        aggr_channels: Optional[Sequence[int]] = None,
+        aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         fp_channels: Sequence[Sequence[int]],
         ratios: Sequence[float],
         radii: Sequence[Union[float, Sequence[float]]],
@@ -482,7 +479,6 @@ class PointNet2Segmentation(nn.Module):
         use_coords: bool = True,
         pool: PoolLike = "max",
         dropout: float = 0.0,
-        global_pool: PoolLike = "max",
     ) -> None:
         super().__init__()
         sa_channels = ensure_msg_list(
@@ -494,13 +490,9 @@ class PointNet2Segmentation(nn.Module):
         self.in_channels = in_channels
         self.num_classes = num_classes
 
+        self.stem = nn.Linear(in_channels, stem_channels) if stem_channels else None
+        in_channels = stem_channels if stem_channels else in_channels
         skip_channels = [in_channels]
-
-        self.stem: Optional[nn.Module] = None
-        if stem_channels is not None:
-            self.stem = nn.Linear(in_channels, stem_channels)
-            in_channels = stem_channels
-            skip_channels = [stem_channels]
 
         self.sa_blocks = create_sa_blocks(
             in_channels=in_channels,
@@ -516,23 +508,20 @@ class PointNet2Segmentation(nn.Module):
             pool=pool,
         )
 
+        # Store the output channels of each SA (MSG) block for ease of use
+        sa_out_channels = []
         for i in range(len(sa_channels)):
-            skip_channels.append(sum([c[-1] for c in sa_channels[i]]))
+            sa_out_channels.append(sum([c[-1] for c in sa_channels[i]]))
 
-        self.aggr = None
-        if aggr_channels is not None:
-            self.aggr = GlobalSAModule(
-                in_channels=skip_channels[-1],
-                channels=aggr_channels,
-                act=act,
-                norm=norm,
-                bias=bias,
-                order=order,
-                pool=global_pool,
-            )
+        # The skip channels are the output of each SA (MSG) block except the last one
+        skip_channels.extend(sa_out_channels[:-1])
+        in_channels = sa_out_channels[-1]
+
+        aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
+        self.aggr = MLP(in_channels=in_channels, channels=aggr_channels, act=act, norm=norm) if aggr_channels else None
 
         self.fp_blocks = create_fp_blocks(
-            in_channels=aggr_channels[-1] if aggr_channels is not None else skip_channels.pop(-1),
+            in_channels=aggr_channels[-1] if aggr_channels is not None else in_channels,
             skip_channels=skip_channels[::-1],
             fp_channels=fp_channels,
             bias=bias,
@@ -545,9 +534,8 @@ class PointNet2Segmentation(nn.Module):
         self.embedding_dim = fp_channels[-1][-1]
         self.head = create_cls_head(self.embedding_dim, num_classes)
 
-    def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
     @overload
@@ -581,17 +569,14 @@ class PointNet2Segmentation(nn.Module):
 
         # NOTE: We only store the intermediate results if specified with `return_intermediates=True`
         intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
-        for block in self.sa_blocks:
+        for i, block in enumerate(self.sa_blocks):
             features, coords, batch = block(features, coords, batch)
-            if return_intermediates:
+            if return_intermediates and i < len(self.sa_blocks) - 1:
+                # NOTE: Do not store the last result, as it will be the returned output.
                 intermediates.append({"features": features, "coords": coords, "batch": batch})
 
         if self.aggr is not None:
-            features, coords, batch = self.aggr(features, coords, batch)
-        else:
-            # In case the GlobalSAModule is not specified (`aggr_channels=None`), then the last intermediate features
-            # is in fact the final result and not an intermediate result, so pop it
-            intermediates.pop(-1)
+            features = self.aggr(features)
 
         if return_intermediates:
             return features, coords, batch, intermediates
