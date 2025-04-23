@@ -150,40 +150,43 @@ class KPConv(nn.Module):
         elif self.kp_influence == "linear":
             return torch.clamp(1 - torch.sqrt(sq_distances) / self.kp_extent, min=0.0)
         elif self.kp_influence == "gaussian":
-            sigma = self.kp_extent * 0.3
-            return torch.exp(-sq_distances / (2 * sigma**2 + 1e-6))
+            # sigma = self.kp_extent * 0.3
+            return torch.exp(-sq_distances / (2 * self.kp_extent**2 + 1e-6))
         else:
             raise ValueError(f"Unknown influence type: {self.kp_influence}")
 
-    def forward(self, features: Tensor, coords: Tensor, edge_index: Tensor) -> Tensor:
-        # print(f"{features.shape = }, {coords.shape = }, {edge_index.shape = }")
-        src_idx, tgt_idx = edge_index
-        rel_coords = coords[src_idx] - coords[tgt_idx]
+    def forward(
+        self,
+        features: Tensor,
+        query_coords: Tensor,
+        support_coords: Tensor,
+        edge_index: Tensor,
+    ) -> Tensor:
+        row, col = edge_index
+        rel_coords = support_coords[col] - query_coords[row]
+        print(f"rel_coords: {rel_coords.shape}")
 
-        # Expand kernel points to shape [E, K, p_dim]
         kernel_points = self.kernel.unsqueeze(0).expand(rel_coords.size(0), -1, -1)
+        print(f"kernel_points: {kernel_points.shape}")
 
-        # Calculate squared distances between position differences and kernel points
-        # Shape: [E, K]
         rel_coords = rel_coords.unsqueeze(1)  # [E, 1, p_dim]
         sq_distances = torch.sum((rel_coords - kernel_points) ** 2, dim=-1)  # [E, K]
-
-        # Compute kernel weights based on distances
-        # Shape: [E, K]
         weights = self._compute_weights(sq_distances)
+        print(f"weights: {weights.shape}")
 
         if self.aggregation_mode == "closest":
             neighbors_1nn = torch.argmin(sq_distances, dim=1)  # [E]
             one_hot = torch.zeros_like(weights).scatter_(1, neighbors_1nn.unsqueeze(1), 1)
             weights = weights * one_hot  # [E, K]
 
-        source_features = features[src_idx]  # [E, in_channels]
-        output = torch.zeros(features.size(0), self.out_channels, device=features.device, dtype=features.dtype)
+        source_features = features[col]  # [E, in_channels]
+        output = torch.zeros(query_coords.size(0), self.out_channels, device=features.device, dtype=features.dtype)
+        print(f"output: {output.shape}, {source_features.shape}, {weights.shape}")
         for k in range(self.kernel_size):
             weights_k = weights[:, k].unsqueeze(1)  # [E, 1]
             weighted_features = weights_k * source_features  # [E, in_channels]
             transformed_features = torch.matmul(weighted_features, self.weights[k].to(features.dtype))
-            scatter_add(transformed_features, tgt_idx, dim=0, out=output)
+            scatter_add(transformed_features, row, dim=0, out=output)
 
         return output
 
