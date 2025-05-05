@@ -17,10 +17,10 @@ class MLP(nn.Module):
         *,
         in_channels: Optional[int] = None,
         out_channels: Optional[int] = None,
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Optional[ActLike] = "relu",
+        norm: Optional[NormLike] = "batch_norm1d",
         bias: bool = True,
-        dropout: Union[float, Sequence[float]] = 0.0,
+        dropout: Optional[Union[float, Sequence[float]]] = 0.0,
         order: str = "land",
         plain_last: bool = False,
     ) -> None:

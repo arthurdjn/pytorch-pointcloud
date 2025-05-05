@@ -60,7 +60,7 @@ def random_sample_face_vertices(
     vertices: Tensor,
     faces: Tensor,
     num_samples: int,
-    return_normals: Literal[True] = True,
+    return_normals: Literal[True],
     seed: Optional[int] = None,
 ) -> Tuple[Tensor, Tensor]: ...
 
@@ -70,9 +70,19 @@ def random_sample_face_vertices(
     vertices: Tensor,
     faces: Tensor,
     num_samples: int,
-    return_normals: bool = False,
+    return_normals: Literal[False] = False,
     seed: Optional[int] = None,
 ) -> Tensor: ...
+
+
+@overload
+def random_sample_face_vertices(
+    vertices: Tensor,
+    faces: Tensor,
+    num_samples: int,
+    return_normals: bool,
+    seed: Optional[int] = None,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]: ...
 
 
 def random_sample_face_vertices(
@@ -155,6 +165,24 @@ def normalize_scale(points: Tensor, eps: float = 1e-8) -> Tensor:
     points -= points.mean(dim=-2, keepdim=True)
     points = points / (points.abs().max() + eps)
     return points
+
+
+@overload
+def divisible_pad(
+    batch: Tensor,
+    k: int,
+    mode: Literal["below", "above", "all"] = "all",
+    return_inverse: Literal[True] = True,
+) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+
+@overload
+def divisible_pad(
+    batch: Tensor,
+    k: int,
+    mode: Literal["below", "above", "all"] = "all",
+    return_inverse: bool = False,
+) -> Tuple[Tensor, Tensor]: ...
 
 
 @torch.no_grad()

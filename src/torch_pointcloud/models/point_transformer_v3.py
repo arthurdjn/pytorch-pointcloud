@@ -6,12 +6,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from torch_pointcloud.layers import ActLike, NormLike, create_act, create_cls_head, create_norm, create_pool
+from torch_pointcloud.layers import ActLike, NormLike, PoolLike, create_act, create_cls_head, create_norm, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.transforms.functional import divisible_pad, split_batch
 from torch_pointcloud.utils.conversion import batch_to_offset, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
-from torch_pointcloud.utils.serialization import serialize_coords
+from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
 
 if TYPE_CHECKING:
@@ -335,7 +335,7 @@ class SerializedPooling(nn.Module):
         features: Tensor,
         grid_coords: Tensor,
         batch: Tensor,
-        serialized_code: OptTensor = None,
+        serialized_code: Tensor,
         return_pooling_inverse: Literal[True] = True,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
 
@@ -345,7 +345,7 @@ class SerializedPooling(nn.Module):
         features: Tensor,
         grid_coords: Tensor,
         batch: Tensor,
-        serialized_code: OptTensor = None,
+        serialized_code: Tensor,
         return_pooling_inverse: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
@@ -354,13 +354,9 @@ class SerializedPooling(nn.Module):
         features: Tensor,
         grid_coords: Tensor,
         batch: Tensor,
-        serialized_code: OptTensor = None,
+        serialized_code: Tensor,
         return_pooling_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
-        # Generate serialization code if not provided
-        if serialized_code is None:
-            serialized_code = serialize_coords(grid_coords, batch)
-
         pooling_depth = (math.ceil(self.stride) - 1).bit_length()
         pooled_code = serialized_code >> (pooling_depth * 3)
         _, cluster, counts = torch.unique(pooled_code[0], sorted=True, return_inverse=True, return_counts=True)
@@ -543,8 +539,14 @@ class EncoderBlock(nn.Module):
         serialized_order: Tensor,
         serialized_inverse: Tensor,
         return_pooling_inverse: bool = False,
-    ) -> Tuple[Tensor, ...]:
-        assert serialized_code.shape == serialized_order.shape == serialized_inverse.shape
+    ) -> Any:
+        if not serialized_code.shape == serialized_order.shape == serialized_inverse.shape:
+            raise ValueError(
+                "`serialized_code`, `serialized_order` and `serialized_inverse` "
+                f"must have the same shape. Got {serialized_code.shape}, "
+                f"{serialized_order.shape} and {serialized_inverse.shape} respectively."
+            )
+
         num_serializations = len(serialized_code)
         pooling_inverse: Any = None
 
@@ -665,7 +667,7 @@ class DecoderBlock(nn.Module):
 def serialize(
     grid_coords: Tensor,
     batch: Tensor,
-    orders: Sequence[str],
+    orders: Sequence[SerializationOrder],
     shuffle: bool = False,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     if shuffle:
@@ -869,7 +871,7 @@ class PointTransformerV3Classification(nn.Module):
         self,
         in_channels: int,
         num_classes: int,
-        serialization_orders: Sequence[str] = ("hilbert", "hilbert-trans"),
+        serialization_orders: Sequence[SerializationOrder] = ("hilbert", "hilbert-trans"),
         shuffle_serialization_orders: bool = True,
         stride: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
@@ -889,7 +891,7 @@ class PointTransformerV3Classification(nn.Module):
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
         dropout: float = 0.0,
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -929,7 +931,7 @@ class PointTransformerV3Classification(nn.Module):
     def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
         return create_encoder_blocks(*args, **kwargs)
 
-    def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
 
         Note:
@@ -941,7 +943,7 @@ class PointTransformerV3Classification(nn.Module):
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
     @overload
@@ -993,7 +995,7 @@ class PointTransformerV3Classification(nn.Module):
 
         features = self.embedding(features, grid_coords, batch)
 
-        intermediates: List[Dict[str, Tensor]] = []
+        intermediates = []
         for i, block in enumerate(self.encoder):
             intermediate = {
                 "features": features,
@@ -1238,7 +1240,7 @@ class PointTransformerV3Segmentation(nn.Module):
 
         features = self.embedding(features, grid_coords, batch)
 
-        intermediates: List[Dict[str, Tensor]] = []
+        intermediates = []
         for i, block in enumerate(self.encoder):
             intermediate = {
                 "features": features,

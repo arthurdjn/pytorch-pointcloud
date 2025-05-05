@@ -13,7 +13,7 @@ def key_iterator(
 ) -> Generator[Any, None, None]:
     # inspired by: https://github.com/Project-MONAI/MONAI/blob/main/monai/transforms/transform.py#L456
     # if no extra iterables given, create a dummy list of Nones
-    ex_iters = extra_iterables or [[None] * len(keys)]
+    ex_iters: Iterable[Any] = extra_iterables or [[None] * len(keys)]
     ex_iters = [ensure_tuple(ex_iter) for ex_iter in ex_iters]
 
     for key, *_ex_iters in zip(keys, *ex_iters):
