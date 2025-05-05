@@ -5,7 +5,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from torch_pointcloud.layers import ActLike, NormLike, create_cls_head, create_pool, create_seg_head, linear_block
+from torch_pointcloud.layers import (
+    ActLike,
+    NormLike,
+    PoolLike,
+    create_cls_head,
+    create_pool,
+    create_seg_head,
+    linear_block,
+)
 from torch_pointcloud.utils.imports import optional_import
 
 if TYPE_CHECKING:
@@ -291,7 +299,7 @@ class PointNetClassification(nn.Module):
         coords_dim: int = 3,
         features_dim: int = 0,
         dropout: float = 0.0,
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
         act: ActLike = "relu",
@@ -328,7 +336,7 @@ class PointNetClassification(nn.Module):
     def reset_classifier(
         self,
         num_classes: int,
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
         **kwargs: Any,
     ) -> None:
         """Resets the classification head with new parameters.
@@ -342,7 +350,7 @@ class PointNetClassification(nn.Module):
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.num_features, num_classes=self.num_classes, **kwargs)
 
     def forward_features(
@@ -446,7 +454,7 @@ class PointNetSegmentation(nn.Module):
         mlp2_dims: Sequence[int] = (128, 1024),
         act: ActLike = "relu",
         norm: NormLike = "batch_norm1d",
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
@@ -491,7 +499,7 @@ class PointNetSegmentation(nn.Module):
     def reset_classifier(
         self,
         num_classes: int,
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
         **kwargs: Any,
     ) -> None:
         """Resets the segmentation head with new parameters.
@@ -502,7 +510,7 @@ class PointNetSegmentation(nn.Module):
             **kwargs: Additional keyword arguments to pass to the segmentation head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.global_pool = create_pool(global_pool)
         dims = kwargs.get("dims", [])
         self.head = create_seg_head([self.num_features] + list(dims), num_classes, **kwargs)
 

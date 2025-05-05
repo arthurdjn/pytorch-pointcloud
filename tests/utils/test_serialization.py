@@ -78,4 +78,4 @@ def test_hilbert_trans_encoding(mock_hilbert: Mock, grid_coords: Tensor, batch: 
 
 def test_invalid_order(grid_coords: Tensor, batch: Tensor, depth: int) -> None:
     with pytest.raises(ValueError, match="Unsupported serialization order"):
-        serialize_coords(grid_coords, batch, depth, order="invalid")
+        serialize_coords(grid_coords, batch, depth, order="invalid")  # type: ignore[arg-type]

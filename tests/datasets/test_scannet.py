@@ -1,3 +1,4 @@
+# mypy: disable-error-code="arg-type,call-overload,attr-defined"
 from pathlib import Path
 from typing import Callable
 from unittest.mock import Mock, patch
@@ -271,10 +272,5 @@ def test_scannet_dataset_label_columns(
     """Test that the dataset loads different label columns correctly"""
     data_dir = data_dir_factory("ScanNet/raw/**/*")
 
-    dataset = ScanNet(
-        root=data_dir,
-        label_name=label_name,
-        label_id=label_id,
-        show_progress=False,
-    )
+    dataset = ScanNet(root=data_dir, label_name=label_name, label_id=label_id, show_progress=False)
     assert len(dataset) > 0
