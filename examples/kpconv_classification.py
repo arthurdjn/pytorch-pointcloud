@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ModelNet10, ModelNet40
-from torch_pointcloud.models import KPConvClassification
+from torch_pointcloud.models import KPConvNetClassification
 from torch_pointcloud.utils.random import seed_everything
 
 
@@ -73,18 +73,18 @@ def main() -> None:
     )
 
     print("Building model...")
-    model = KPConvClassification(
+    model = KPConvNetClassification(
         in_channels=6,
         num_classes=args.num_classes,
+        stem_channels=64,
+        encoder_depths=[1, 3, 3, 3],
+        encoder_channels=[64, 128, 256, 512],
+        encoder_num_neighbors=[16, 16, 16, 16],
+        grid_sizes=[0.08, 0.16, 0.32],
         kernel_size=15,
-        radii=(2.5, 5, 10, 20),
-        sigmas=(2, 4, 8, 16),
-        # sigmas = (2.5 * 1.2 / 2.5, 5 * 1.2 / 2.5, 10 * 1.2 / 2.5, 20 * 1.2 / 2.5),  # conv_radius = 2.5, kp_extent = 1.2
-        encoder_depths=(1, 2, 2, 2),
-        encoder_channels=(64, 128, 256, 512),
-        encoder_num_groups=(6, 12, 24, 48),
-        encoder_num_neighbors=(16, 16, 16, 16),
-        grid_sizes=(0.1, 0.2, 0.4),  # (0.04, 0.08, 0.16),
+        kp_radius=[0.1, 0.2, 0.4, 0.8],
+        kp_sigma=[0.08, 0.16, 0.32, 0.64],
+        radii=[0.1, 0.2, 0.4, 0.8],
     ).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
