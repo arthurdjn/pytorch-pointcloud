@@ -138,7 +138,7 @@ class _ModelNet(PointCloudDataset):
         torch.save(data_list, out_path)
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
-        label = file_path.parent.parent.name
+        label = Path(file_path).parent.parent.name
         target = class_to_idx.get(label)
         if target is None:
             return None
