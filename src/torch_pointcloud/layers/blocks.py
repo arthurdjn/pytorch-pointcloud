@@ -30,7 +30,7 @@ def linear_block(
     act: Optional[ActLike] = "relu",
     norm: Optional[NormLike] = "batch_norm1d",
     dropout: Optional[float] = 0.0,
-    order: LinearBlockOrderLike = "land",
+    order: LinearBlockOrderLike = "lnad",
 ) -> nn.Sequential:
     r"""Creates a customizable linear block consisting of a linear layer, activation, normalization and dropout.
     The order of the layers can be customized using the `order` argument.
@@ -63,8 +63,8 @@ def linear_block(
     order = order if isinstance(order, str) else "".join(order)
     layers = {
         "l": nn.Linear(in_features, out_features, bias=bias),
-        "a": create_act(act) if act is not None else None,
         "n": create_norm(norm, out_features) if norm is not None else None,
+        "a": create_act(act) if act is not None else None,
         "d": create_dropout(dropout) if dropout is not None else None,
     }
 
@@ -87,7 +87,7 @@ def conv1d_block(
     act: Optional[ActLike] = "relu",
     norm: Optional[NormLike] = "batch_norm1d",
     dropout: Optional[float] = 0.0,
-    order: Union[str, Sequence[Literal["a", "c", "n", "d"]]] = "cand",
+    order: Union[str, Sequence[Literal["a", "c", "n", "d"]]] = "cnad",
 ) -> nn.Sequential:
     """Creates a customizable 1D convolutional block consisting of a convolutional layer, activation, normalization and dropout.
     The order of the layers can be customized using the `order` argument.
@@ -124,8 +124,8 @@ def conv1d_block(
     order = order if isinstance(order, str) else "".join(order)
     layers = {
         "c": nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias=bias),
-        "a": create_act(act) if act is not None else None,
         "n": create_norm(norm, out_channels) if norm is not None else None,
+        "a": create_act(act) if act is not None else None,
         "d": create_dropout(dropout) if dropout is not None else None,
     }
 

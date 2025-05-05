@@ -1,3 +1,4 @@
+# mypy: disable-error-code="arg-type,call-overload"
 from pathlib import Path
 from typing import Callable, Type
 from unittest.mock import Mock, patch

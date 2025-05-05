@@ -4,7 +4,16 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from torch_pointcloud.layers import ActLike, NormLike, create_act, create_cls_head, create_norm, create_pool
+from torch_pointcloud.layers import (
+    ActLike,
+    NormLike,
+    PoolLike,
+    create_act,
+    create_cls_head,
+    create_norm,
+    create_pool,
+    linear_block,
+)
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
@@ -228,15 +237,23 @@ class InversePool(nn.Module):
         self.skip_channels = skip_channels
         self.out_channels = out_channels
 
-        self.proj = nn.Sequential(
-            nn.Linear(in_channels, out_channels, bias=bias),
-            create_norm(norm, out_channels),
-            create_act(act),
+        self.proj = linear_block(
+            in_features=in_channels,
+            out_features=out_channels,
+            bias=bias,
+            norm=norm,
+            act=act,
+            dropout=None,
+            order="lna",
         )
-        self.proj_skip = nn.Sequential(
-            nn.Linear(skip_channels, out_channels, bias=bias),
-            create_norm(norm, out_channels),
-            create_act(act),
+        self.proj_skip = linear_block(
+            in_features=in_channels,
+            out_features=out_channels,
+            bias=bias,
+            norm=norm,
+            act=act,
+            dropout=None,
+            order="lna",
         )
 
     def forward(self, features: Tensor, skip_features: Tensor, inverse: Tensor) -> Tensor:
@@ -549,7 +566,7 @@ class PointTransformerV2Classification(nn.Module):
         pe_bias: bool = True,
         drop_path: float = 0.0,
         dropout: float = 0.0,
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -585,7 +602,7 @@ class PointTransformerV2Classification(nn.Module):
     def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
         return create_encoder_blocks(*args, **kwargs)
 
-    def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
 
         Note:
@@ -597,13 +614,13 @@ class PointTransformerV2Classification(nn.Module):
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
     @overload
     def forward_features(
         self,
-        features: Tensor,
+        features: OptTensor,
         coords: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
@@ -612,7 +629,7 @@ class PointTransformerV2Classification(nn.Module):
     @overload
     def forward_features(
         self,
-        features: Tensor,
+        features: OptTensor,
         coords: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
@@ -643,7 +660,7 @@ class PointTransformerV2Classification(nn.Module):
         features = features if features is not None else coords
         features = self.embedding(features)
 
-        intermediates: List[Dict[str, Tensor]] = []
+        intermediates = []
         for i, block in enumerate(self.encoder):
             intermediate = {"features": features, "coords": coords, "batch": batch}
 
@@ -814,7 +831,7 @@ class PointTransformerV2Segmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        features: Tensor,
+        features: OptTensor,
         coords: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
@@ -823,7 +840,7 @@ class PointTransformerV2Segmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        features: Tensor,
+        features: OptTensor,
         coords: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
@@ -854,7 +871,7 @@ class PointTransformerV2Segmentation(nn.Module):
         features = features if features is not None else coords
         features = self.embedding(features)
 
-        intermediates: List[Dict[str, Tensor]] = []
+        intermediates = []
         for i, block in enumerate(self.encoder):
             intermediate = {"features": features, "coords": coords, "batch": batch}
 

@@ -38,7 +38,7 @@ class ScanNetData(TypedDict):
     scene: NotRequired[str]
 
 
-def load_scannet_scene_mesh(file_path: str) -> Tuple[torch.Tensor, torch.Tensor]:
+def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
     """Load a ScanNet PLY file and return the vertices and faces.
 
     Args:
@@ -58,7 +58,7 @@ def load_scannet_scene_mesh(file_path: str) -> Tuple[torch.Tensor, torch.Tensor]
     return torch.from_numpy(vertices), torch.from_numpy(faces).long()
 
 
-def load_scannet_scene_metadata(file_path: str) -> Dict[str, Any]:
+def load_scannet_scene_metadata(file_path: PathLike) -> Dict[str, Any]:
     """Load a ScanNet metadata file and return the metadata.
 
     Args:

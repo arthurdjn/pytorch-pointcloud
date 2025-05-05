@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers import MLP, ActLike, NormLike, PoolLike, create_cls_head, create_pool
-from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import OptTensor
@@ -38,14 +38,14 @@ class SAModule(nn.Module):
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
-        self.channels = ensure_tuple(channels, recursive=True)
+        self.channels = ensure_list(channels, recursive=True)
         self.ratio = ratio
         self.order = order
         self.use_coords = use_coords
         self.normalize_coords = normalize_coords
 
         # Wrap parameters in list of lists to be compatible with Multi-Scale Grouping (MSG) mode
-        self.channels = [self.channels] if not isinstance(self.channels[0], tuple) else self.channels
+        self.channels = [self.channels] if not isinstance(self.channels[0], list) else self.channels
         sizes = [len(channels) for channels in self.channels]
 
         extra_msg = f"The parameter `{{param}}` must be a sequence matching the number of scales {len(sizes)}."

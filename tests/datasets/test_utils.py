@@ -135,18 +135,18 @@ def test_content_file(tmp_path: Path) -> Path:
 )
 def test_is_hash_valid_sha256(test_content_file: Path, hash_type: str, expected_hash: str) -> None:
     """Test that hash validation works correctly."""
-    assert is_hash_valid(test_content_file, expected_hash, hash_type)
+    assert is_hash_valid(test_content_file, expected_hash, hash_type)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("hash_type", ["md5", "sha1", "sha256", "sha512"])
 def test_is_hash_valid_wrong_hash(test_content_file: Path, hash_type: str) -> None:
     """Test that hash validation fails when the hash is incorrect."""
-    assert not is_hash_valid(test_content_file, "wrong_hash", hash_type)
+    assert not is_hash_valid(test_content_file, "wrong_hash", hash_type)  # type: ignore[arg-type]
 
 
 def test_is_hash_valid_unsupported_type(test_content_file: Path) -> None:
     """Test that unsupported hash types return False."""
-    assert not is_hash_valid(test_content_file, "some_hash", "unsupported_type")
+    assert not is_hash_valid(test_content_file, "some_hash", "unsupported_type")  # type: ignore[arg-type]
 
 
 def test_is_hash_valid_nonexistent_file() -> None:
