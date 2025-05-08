@@ -96,8 +96,8 @@ class KPConv(nn.Module):
         kernel_size: int,
         kp_radius: float,
         kp_sigma: float,
-        fixed_kernel_points: Literal["none", "center", "vertical"] = "center",
         kp_influence: str = "linear",
+        fixed_kernel_points: Literal["none", "center", "vertical"] = "center",
         aggregation_mode: str = "sum",
         deformable: bool = False,
         modulated: bool = False,
@@ -245,29 +245,6 @@ class KPConvBlock(nn.Module):
         if self.act is not None:
             features = self.act(features)
         return features
-
-
-# class UnaryBlock(nn.Module):
-#     def __init__(
-#         self,
-#         in_channels: int,
-#         out_channels: int,
-#         bias: bool = True,
-#         norm: NormLike = "layer_norm",
-#         act: ActLike = "leaky_relu",
-#     ):
-#         super().__init__()
-#         self.mlp = nn.Linear(in_channels, out_channels, bias=bias)
-#         self.norm = create_norm(norm, out_channels) if norm is not None else None
-#         self.act = create_act(act) if act is not None else None
-
-#     def forward(self, x: Tensor) -> Tensor:
-#         x = self.mlp(x)
-#         if self.norm is not None:
-#             x = self.norm(x)
-#         if self.act is not None:
-#             x = self.act(x)
-#         return x
 
 
 class KPResidualBlock(nn.Module):
