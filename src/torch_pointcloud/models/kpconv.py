@@ -8,17 +8,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn.init import kaiming_uniform_
 from torch.nn.parameter import Parameter
 
-from torch_pointcloud.layers import MLP, ActLike, NormLike, create_act, create_cls_head, create_norm, create_pool
+from torch_pointcloud.layers import (
+    MLP,
+    ActLike,
+    NormLike,
+    PoolLike,
+    create_act,
+    create_cls_head,
+    create_norm,
+    create_pool,
+)
 from torch_pointcloud.layers.blocks import linear_block
 from torch_pointcloud.utils.config import CACHE_DIR
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.imports import optional_import
-from torch_pointcloud.utils.ops import consecutive_cluster, softmax, voxel_grid
-from torch_pointcloud.utils.types import OptTensor, ValueCollection
+from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
+from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
     from torch_cluster import radius, radius_graph
@@ -114,7 +122,6 @@ class KPConv(nn.Module):
         self.register_buffer("kernel", self.configure_kernel())
 
     def init_weights_(self) -> None:
-        # kaiming_uniform_(self.weights, a=math.sqrt(5))
         nn.init.kaiming_uniform_(self.weights, a=math.sqrt(5))
         # if self.bias is not None:
         #     fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weights)
@@ -165,7 +172,7 @@ class KPConv(nn.Module):
         row, col = edge_index
         rel_coords = coords_support[col] - coords_query[row]
 
-        kernel_points = self.kernel.unsqueeze(0).expand(rel_coords.size(0), -1, -1)
+        kernel_points = self.kernel.unsqueeze(0).expand(rel_coords.size(0), -1, -1)  # type: ignore[operator]
 
         rel_coords = rel_coords.unsqueeze(1)  # [E, 1, p_dim]
         sq_distances = torch.sum((rel_coords - kernel_points) ** 2, dim=-1)  # [E, K]
@@ -240,27 +247,27 @@ class KPConvBlock(nn.Module):
         return features
 
 
-class UnaryBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        bias: bool = True,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "leaky_relu",
-    ):
-        super().__init__()
-        self.mlp = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = create_norm(norm, out_channels) if norm is not None else None
-        self.act = create_act(act) if act is not None else None
+# class UnaryBlock(nn.Module):
+#     def __init__(
+#         self,
+#         in_channels: int,
+#         out_channels: int,
+#         bias: bool = True,
+#         norm: NormLike = "layer_norm",
+#         act: ActLike = "leaky_relu",
+#     ):
+#         super().__init__()
+#         self.mlp = nn.Linear(in_channels, out_channels, bias=bias)
+#         self.norm = create_norm(norm, out_channels) if norm is not None else None
+#         self.act = create_act(act) if act is not None else None
 
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.mlp(x)
-        if self.norm is not None:
-            x = self.norm(x)
-        if self.act is not None:
-            x = self.act(x)
-        return x
+#     def forward(self, x: Tensor) -> Tensor:
+#         x = self.mlp(x)
+#         if self.norm is not None:
+#             x = self.norm(x)
+#         if self.act is not None:
+#             x = self.act(x)
+#         return x
 
 
 class KPResidualBlock(nn.Module):
@@ -284,7 +291,7 @@ class KPResidualBlock(nn.Module):
 
         mid_channels = out_channels // 4
 
-        self.unary1 = UnaryBlock(in_channels, mid_channels, norm=norm, act=act)
+        self.unary1 = MLP(in_channels=in_channels, out_channels=mid_channels, norm=norm, act=act, dropout=None)
         self.conv = KPConvBlock(
             spatial_dim=spatial_dim,
             in_channels=mid_channels,
@@ -296,13 +303,12 @@ class KPResidualBlock(nn.Module):
             act=act,
             bias=bias,
         )
-        self.unary2 = UnaryBlock(mid_channels, out_channels, norm=norm, act=None)
-
-        if in_channels != out_channels:
-            self.shortcut = UnaryBlock(in_channels, out_channels, norm=norm, act=None)
-        else:
-            self.shortcut = nn.Identity()  # type: ignore
-
+        self.unary2 = MLP(in_channels=mid_channels, out_channels=out_channels, norm=norm, act=None, dropout=None)
+        self.shortcut = (
+            MLP(in_channels=in_channels, out_channels=out_channels, norm=norm, act=None, dropout=None)
+            if in_channels != out_channels
+            else nn.Identity()
+        )
         self.act = create_act(act) if act is not None else None
 
     def forward(self, features: Tensor, coords_query: Tensor, coords_support: Tensor, edge_index: Tensor) -> Tensor:
@@ -549,7 +555,7 @@ class KPConvNetClassification(nn.Module):
         norm: NormLike = "batch_norm1d",
         act: ActLike = "relu",
         dropout: float = 0.0,
-        global_pool: str = "max",
+        global_pool: PoolLike = "max",
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -584,10 +590,28 @@ class KPConvNetClassification(nn.Module):
         self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
-    def reset_classifier(self, num_classes: int, global_pool: str = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool) if isinstance(global_pool, str) else global_pool
+        self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+
+    @overload
+    def forward_features(
+        self,
+        features: OptTensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        features: OptTensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
@@ -601,7 +625,7 @@ class KPConvNetClassification(nn.Module):
         if self.stem is not None:
             features = self.stem(features)
 
-        intermediates: List[Dict[str, Tensor]] = []
+        intermediates = []
         for i, block in enumerate(self.encoder):
             intermediate = {"features": features, "coords": coords, "batch": batch}
             features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
@@ -621,5 +645,15 @@ class KPConvNetClassification(nn.Module):
         return features if pre_logits else self.head(features)
 
     def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
+        """Forward pass of the classification model.
+
+        Args:
+            features: Additional point features of shape $(N, features_dim)$.
+            coords: Point coordinates of shape $(N, coords_dim)$.
+            batch: Batch indices for each point of shape $(N,)$.
+
+        Returns:
+            Classification logits of shape $(B, num_classes)$.
+        """
         features, _, batch = self.forward_features(features, coords, batch)
-        return self.forward_head(features, batch)
+        return self.forward_head(features, batch, pre_logits=False)

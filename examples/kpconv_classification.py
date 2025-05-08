@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
@@ -34,6 +34,9 @@ def main() -> None:
     )
 
     print(f"Loading {args.dataset} dataset...")
+
+    train_dataset: Dataset
+    test_dataset: Dataset
     if args.dataset.lower() == "modelnet10":
         train_dataset = ModelNet10(args.root, True, transform=transform, pre_transform=pre_transform, download=True)
         test_dataset = ModelNet10(args.root, False, transform=transform, pre_transform=pre_transform, download=True)
