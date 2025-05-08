@@ -21,7 +21,7 @@ class MLP(nn.Module):
         norm: Optional[NormLike] = "batch_norm1d",
         bias: bool = True,
         dropout: Optional[Union[float, Sequence[float]]] = 0.0,
-        order: str = "land",
+        order: str = "lnad",
         plain_last: bool = False,
     ) -> None:
         super().__init__()
