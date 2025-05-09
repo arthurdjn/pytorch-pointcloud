@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn.parameter import Parameter
 
 from torch_pointcloud.layers import (
     MLP,
@@ -97,7 +96,7 @@ class KPConv(nn.Module):
         kp_radius: float,
         kp_sigma: float,
         kp_influence: str = "linear",
-        fixed_kernel_points: Literal["none", "center", "vertical"] = "center",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
         aggregation_mode: str = "sum",
         deformable: bool = False,
         modulated: bool = False,
@@ -110,23 +109,31 @@ class KPConv(nn.Module):
         self.kernel_size = kernel_size
         self.kp_radius = kp_radius
         self.kp_sigma = kp_sigma
-        self.fixed_kernel_points = fixed_kernel_points
+        self.fixed_position = fixed_position
         self.kp_influence = kp_influence
         self.aggregation_mode = aggregation_mode
+        self._deformable = deformable
         self.modulated = modulated
 
-        # Initialize parameters
-        self.weights = Parameter(torch.zeros(kernel_size, in_channels, out_channels), requires_grad=True)
-        self.init_weights_()
-
+        self.weight = nn.Parameter(torch.zeros(kernel_size, in_channels, out_channels), requires_grad=True)
         self.register_buffer("kernel", self.configure_kernel())
+        self.register_parameter("bias", nn.Parameter(torch.zeros(size=(out_channels,))) if bias else None)
+        self.reset_parameters()
 
-    def init_weights_(self) -> None:
-        nn.init.kaiming_uniform_(self.weights, a=math.sqrt(5))
-        # if self.bias is not None:
-        #     fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weights)
-        #     bound = 1 / math.sqrt(fan_in)
-        #     nn.init.uniform_(self.bias, -bound, bound)
+    @property
+    def deformable(self) -> bool:
+        return self._deformable
+
+    def reset_parameters(self) -> None:
+        # Setting a=sqrt(5) in kaiming_uniform is the same as initializing with
+        # uniform(-1/sqrt(k), 1/sqrt(k)), where k = weight.size(1) * prod(*kernel_size)
+        # For more details see: https://github.com/pytorch/pytorch/issues/15314#issuecomment-477448573
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            if fan_in != 0:
+                bound = 1 / math.sqrt(fan_in)
+                nn.init.uniform_(self.bias, -bound, bound)
 
     def configure_offsets(self) -> Tuple[nn.Module, Tensor]:
         offset_dim = self.spatial_dim * self.kernel_size
@@ -140,15 +147,15 @@ class KPConv(nn.Module):
             kernel_size=self.kernel_size,
             kp_radius=self.kp_radius,
             kp_sigma=self.kp_sigma,
-            fixed_kernel_points=self.fixed_kernel_points,
             kp_influence=self.kp_influence,
+            fixed_position=self.fixed_position,
             aggregation_mode=self.aggregation_mode,
         )
-        offset_bias = Parameter(torch.zeros(offset_dim), requires_grad=True)
+        offset_bias = nn.Parameter(torch.zeros(offset_dim), requires_grad=True)
         return offset_conv, offset_bias
 
     def configure_kernel(self) -> Tensor:
-        return create_kernel_points(self.kp_radius, self.kernel_size, fixed_position=self.fixed_kernel_points)
+        return create_kernel_points(self.kp_radius, self.kernel_size, fixed_position=self.fixed_position)
 
     def _compute_weights(self, sq_distances: Tensor) -> Tensor:
         if self.kp_influence == "constant":
@@ -170,12 +177,12 @@ class KPConv(nn.Module):
         edge_index: Tensor,
     ) -> Tensor:
         row, col = edge_index
-        rel_coords = coords_support[col] - coords_query[row]
+        coords_rel = coords_support[col] - coords_query[row]
 
-        kernel_points = self.kernel.unsqueeze(0).expand(rel_coords.size(0), -1, -1)  # type: ignore[operator]
+        kernel_points = self.kernel.unsqueeze(0).expand(coords_rel.size(0), -1, -1)  # type: ignore[operator]
 
-        rel_coords = rel_coords.unsqueeze(1)  # [E, 1, p_dim]
-        sq_distances = torch.sum((rel_coords - kernel_points) ** 2, dim=-1)  # [E, K]
+        coords_rel = coords_rel.unsqueeze(1)  # [E, 1, p_dim]
+        sq_distances = torch.sum((coords_rel - kernel_points) ** 2, dim=-1)  # [E, K]
         weights = self._compute_weights(sq_distances)
 
         if self.aggregation_mode == "closest":
@@ -188,7 +195,7 @@ class KPConv(nn.Module):
         for k in range(self.kernel_size):
             weights_k = weights[:, k].unsqueeze(1)  # [E, 1]
             weighted_features = weights_k * source_features  # [E, in_channels]
-            transformed_features = torch.matmul(weighted_features, self.weights[k].to(features.dtype))
+            transformed_features = torch.matmul(weighted_features, self.weight[k].to(features.dtype))
             scatter_add(transformed_features, row, dim=0, out=output)
 
         return output
@@ -196,10 +203,11 @@ class KPConv(nn.Module):
     def extra_repr(self) -> str:
         return (
             f"in_channels={self.in_channels}, out_channels={self.out_channels}, "
+            f"spatial_dim={self.spatial_dim}, "
             f"kp_radius={self.kp_radius}, "
             f"kp_sigma={self.kp_sigma}, "
             f"kp_influence={self.kp_influence!r}, "
-            f"fixed_kernel_points={self.fixed_kernel_points!r}, "
+            f"fixed_position={self.fixed_position!r}, "
             f"aggregation_mode={self.aggregation_mode!r}"
         )
 
@@ -228,7 +236,7 @@ class KPConvBlock(nn.Module):
             kernel_size=kernel_size,
             kp_sigma=kp_sigma,
             kp_radius=kp_radius,
-            fixed_kernel_points="center",
+            fixed_position="center",
             kp_influence="linear",
             aggregation_mode="sum",
             deformable=False,
@@ -531,13 +539,17 @@ class KPConvNetClassification(nn.Module):
         kp_sigma: Union[float, Sequence[float]],
         norm: NormLike = "batch_norm1d",
         act: ActLike = "leaky_relu",
+        bias: bool = False,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
         super().__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
+        kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
+        kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
 
+        self.stem_type = stem_type
         self.stem: Optional[nn.Module] = None
         if stem_channels is not None:
             self.stem = linear_block(
@@ -560,6 +572,8 @@ class KPConvNetClassification(nn.Module):
             kp_sigma=kp_sigma,
             norm=norm,
             act=act,
+            spatial_dim=spatial_dim,
+            bias=bias,
         )
 
         self.embedding_dim = encoder_channels[-1]
