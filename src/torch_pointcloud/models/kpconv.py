@@ -43,8 +43,10 @@ def create_kernel_points(
     fixed_position: Literal["none", "center", "vertical"] = "center",
     method: Literal["lloyd", "gradient"] = "lloyd",
 ) -> torch.Tensor:
+    if method not in ["lloyd", "gradient"]:
+        raise ValueError(f"Unknown method: {method!r}, expected 'lloyd' or 'gradient'.")
     if num_points > 30 and method != "lloyd":
-        warnings.warn("Too many points, consider using Lloyds algorithm `method='lloyd'`.")
+        warnings.warn("Too many points, consider using Lloyds algorithm with `method='lloyd'`.")
 
     # Check if kernel is already computed
     kernel_path = Path(CACHE_DIR, "kernels", f"k_{num_points}_{fixed_position}_{method}.pt")
@@ -101,8 +103,12 @@ class KPConv(nn.Module):
         deformable: bool = False,
         modulated: bool = False,
         bias: bool = False,
+        track_running_stats: bool = True,
     ) -> None:
         super().__init__()
+        if aggregation_mode not in ["sum", "closest"]:
+            raise ValueError(f"Unknown aggregation mode: {aggregation_mode!r}, expected 'sum' or 'closest'.")
+
         self.spatial_dim = spatial_dim
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -112,7 +118,6 @@ class KPConv(nn.Module):
         self.fixed_position = fixed_position
         self.kp_influence = kp_influence
         self.aggregation_mode = aggregation_mode
-        self._deformable = deformable
         self.modulated = modulated
 
         self.weight = nn.Parameter(torch.zeros(kernel_size, in_channels, out_channels), requires_grad=True)
@@ -120,9 +125,18 @@ class KPConv(nn.Module):
         self.register_parameter("bias", nn.Parameter(torch.zeros(size=(out_channels,))) if bias else None)
         self.reset_parameters()
 
+        self.offset_conv, offset_bias = self.configure_offsets() if deformable else (None, None)
+        self.register_parameter("offset_bias", offset_bias)
+
+        # Track running statistics (mostly for regularization)
+        self.track_running_stats = track_running_stats
+        self.register_buffer("running_min_d2", None)
+        self.register_buffer("running_deformed_kernel", None)
+        self.register_buffer("running_offset_features", None)
+
     @property
     def deformable(self) -> bool:
-        return self._deformable
+        return self.offset_conv is not None
 
     def reset_parameters(self) -> None:
         # Setting a=sqrt(5) in kaiming_uniform is the same as initializing with
@@ -135,10 +149,10 @@ class KPConv(nn.Module):
                 bound = 1 / math.sqrt(fan_in)
                 nn.init.uniform_(self.bias, -bound, bound)
 
-    def configure_offsets(self) -> Tuple[nn.Module, Tensor]:
+    def configure_offsets(self) -> Tuple[nn.Module, nn.Parameter]:
         offset_dim = self.spatial_dim * self.kernel_size
         if self.modulated:
-            offset_dim += self.spatial_dim
+            offset_dim += self.kernel_size
 
         offset_conv = KPConv(
             spatial_dim=self.spatial_dim,
@@ -150,8 +164,11 @@ class KPConv(nn.Module):
             kp_influence=self.kp_influence,
             fixed_position=self.fixed_position,
             aggregation_mode=self.aggregation_mode,
+            deformable=False,
+            modulated=False,
+            bias=False,
         )
-        offset_bias = nn.Parameter(torch.zeros(offset_dim), requires_grad=True)
+        offset_bias = nn.Parameter(torch.zeros(offset_dim))
         return offset_conv, offset_bias
 
     def configure_kernel(self) -> Tensor:
@@ -169,6 +186,42 @@ class KPConv(nn.Module):
         else:
             raise ValueError(f"Unknown influence type: {self.kp_influence}")
 
+    def _compute_offsets(
+        self,
+        features: Tensor,
+        coords_query: Tensor,
+        coords_support: Tensor,
+        edge_index: Tensor,
+    ) -> Tuple[OptTensor, OptTensor]:
+        if self.offset_conv is None:
+            return None, None
+
+        # Use the offset convolution to get offset features
+        offset_features = self.offset_conv(features, coords_query, coords_support, edge_index)
+        if self.offset_bias is not None:
+            offset_features = offset_features + self.offset_bias
+
+        if self.track_running_stats:
+            self.running_offset_features = offset_features
+
+        if self.modulated:
+            # Split into offsets and modulations
+            unscaled_offsets = offset_features[:, : self.spatial_dim * self.kernel_size]
+            unscaled_offsets = unscaled_offsets.view(-1, self.kernel_size, self.spatial_dim)
+
+            # Get modulations (sigmoid to keep between 0 and 2)
+            modulations = 2 * torch.sigmoid(offset_features[:, self.spatial_dim * self.kernel_size :])
+            modulations = modulations.view(-1, self.kernel_size)
+        else:
+            # Just offsets, no modulations
+            unscaled_offsets = offset_features.view(-1, self.kernel_size, self.spatial_dim)
+            modulations = None
+
+        # Scale offsets by kp_sigma (equivalent to KP_extent in original)
+        offsets = unscaled_offsets * self.kp_sigma
+
+        return offsets, modulations
+
     def forward(
         self,
         features: Tensor,
@@ -179,16 +232,34 @@ class KPConv(nn.Module):
         row, col = edge_index
         coords_rel = coords_support[col] - coords_query[row]
 
-        kernel_points = self.kernel.unsqueeze(0).expand(coords_rel.size(0), -1, -1)  # type: ignore[operator]
+        # For deformable KPConv, compute offsets and modulations
+        offsets, modulations = self._compute_offsets(features, coords_query, coords_support, edge_index)
+
+        # Get kernel points at each point
+        if self.deformable and offsets is not None:
+            kernel_points = self.kernel.unsqueeze(0) + offsets[row]  # [E, K, spatial_dim]
+            if self.track_running_stats:
+                self.running_deformed_kernel = kernel_points
+        else:
+            kernel_points = self.kernel.unsqueeze(0).expand(coords_rel.size(0), -1, -1)  # [E, K, spatial_dim]
 
         coords_rel = coords_rel.unsqueeze(1)  # [E, 1, p_dim]
         sq_distances = torch.sum((coords_rel - kernel_points) ** 2, dim=-1)  # [E, K]
+
+        if self.track_running_stats and self.deformable:
+            self.running_min_d2, _ = torch.min(sq_distances, dim=1)  # type: ignore[assignment]
+            # Optional: Optimization by ignoring points outside a deformed KP range
+
         weights = self._compute_weights(sq_distances)
 
         if self.aggregation_mode == "closest":
             neighbors_1nn = torch.argmin(sq_distances, dim=1)  # [E]
             one_hot = torch.zeros_like(weights).scatter_(1, neighbors_1nn.unsqueeze(1), 1)
             weights = weights * one_hot  # [E, K]
+
+        # Apply modulations if deformable and modulated
+        if self.deformable and self.modulated and modulations is not None:
+            weights = weights * modulations[row]
 
         source_features = features[col]  # [E, in_channels]
         output = torch.zeros(coords_query.size(0), self.out_channels, device=features.device, dtype=features.dtype)
@@ -202,13 +273,15 @@ class KPConv(nn.Module):
 
     def extra_repr(self) -> str:
         return (
-            f"in_channels={self.in_channels}, out_channels={self.out_channels}, "
             f"spatial_dim={self.spatial_dim}, "
+            f"in_channels={self.in_channels}, out_channels={self.out_channels}, "
             f"kp_radius={self.kp_radius}, "
             f"kp_sigma={self.kp_sigma}, "
             f"kp_influence={self.kp_influence!r}, "
             f"fixed_position={self.fixed_position!r}, "
-            f"aggregation_mode={self.aggregation_mode!r}"
+            f"aggregation_mode={self.aggregation_mode!r}, "
+            f"deformable={self.deformable}, "
+            f"modulated={self.modulated}"
         )
 
     def __repr__(self) -> str:
@@ -224,6 +297,11 @@ class KPConvBlock(nn.Module):
         kernel_size: int,
         kp_radius: float,
         kp_sigma: float,
+        kp_influence: str = "linear",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
+        aggregation_mode: str = "sum",
+        deformable: bool = False,
+        modulated: bool = False,
         norm: NormLike = "layer_norm",
         act: ActLike = "leaky_relu",
         bias: bool = False,
@@ -236,11 +314,11 @@ class KPConvBlock(nn.Module):
             kernel_size=kernel_size,
             kp_sigma=kp_sigma,
             kp_radius=kp_radius,
-            fixed_position="center",
-            kp_influence="linear",
-            aggregation_mode="sum",
-            deformable=False,
-            modulated=False,
+            fixed_position=fixed_position,
+            kp_influence=kp_influence,
+            aggregation_mode=aggregation_mode,
+            deformable=deformable,
+            modulated=modulated,
             bias=bias,
         )
         self.norm = create_norm(norm, out_channels) if norm is not None else None
@@ -264,6 +342,11 @@ class KPResidualBlock(nn.Module):
         kernel_size: int,
         kp_radius: float,
         kp_sigma: float,
+        kp_influence: str = "linear",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
+        aggregation_mode: str = "sum",
+        deformable: bool = False,
+        modulated: bool = False,
         strided: bool = False,
         norm: NormLike = "layer_norm",
         act: ActLike = "leaky_relu",
@@ -283,6 +366,11 @@ class KPResidualBlock(nn.Module):
             kernel_size=kernel_size,
             kp_radius=kp_radius,
             kp_sigma=kp_sigma,
+            kp_influence=kp_influence,
+            fixed_position=fixed_position,
+            aggregation_mode=aggregation_mode,
+            deformable=deformable,
+            modulated=modulated,
             norm=norm,
             act=act,
             bias=bias,
@@ -363,17 +451,22 @@ class EncoderBlock(nn.Module):
         self,
         *,
         depth: int,
+        radius: float,
+        max_num_neighbors: int,
         spatial_dim: int,
         in_channels: int,
         out_channels: int,
         kernel_size: int,
         kp_radius: Union[float, Sequence[float]],
         kp_sigma: Union[float, Sequence[float]],
-        radius: float,
-        max_num_neighbors: int,
+        kp_influence: str = "linear",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
+        aggregation_mode: str = "sum",
+        deformable: bool = False,
+        modulated: bool = False,
+        bias: bool = False,
         norm: NormLike = "batch_norm1d",
         act: ActLike = "leaky_relu",
-        bias: bool = False,
         downsample: Optional[GridPool] = None,
     ):
         super().__init__()
@@ -394,6 +487,11 @@ class EncoderBlock(nn.Module):
                 kernel_size=kernel_size,
                 kp_radius=kp_radius[i],
                 kp_sigma=kp_sigma[i],
+                kp_influence=kp_influence,
+                fixed_position=fixed_position,
+                aggregation_mode=aggregation_mode,
+                deformable=deformable,
+                modulated=modulated,
                 strided=strided,
                 norm=norm,
                 act=act,
@@ -476,6 +574,11 @@ def create_encoder_blocks(
     kernel_size: int,
     kp_sigma: Union[float, Sequence[float]],
     kp_radius: Union[float, Sequence[float]],
+    kp_influence: str = "linear",
+    fixed_position: Literal["none", "center", "vertical"] = "center",
+    aggregation_mode: str = "sum",
+    deformable: bool = False,
+    modulated: bool = False,
     norm: NormLike = "batch_norm1d",
     act: ActLike = "leaky_relu",
     bias: bool = False,
@@ -501,6 +604,9 @@ def create_encoder_blocks(
             downsample = GridPool(grid_size=grid_sizes[i - 1], reduce="max")
 
         block = EncoderBlock(
+            downsample=downsample,
+            radius=radii[i],
+            max_num_neighbors=max_num_neighbors[i],
             spatial_dim=spatial_dim,
             depth=depths[i],
             in_channels=in_channels,
@@ -508,11 +614,13 @@ def create_encoder_blocks(
             kernel_size=kernel_size,
             kp_radius=([kp_radius[i - 1]] + [kp_radius[i]] * (depths[i] - 1)) if i > 0 else kp_radius[i],
             kp_sigma=([kp_sigma[i - 1]] + [kp_sigma[i]] * (depths[i] - 1)) if i > 0 else kp_sigma[i],
-            radius=radii[i],
-            max_num_neighbors=max_num_neighbors[i],
+            kp_influence=kp_influence,
+            fixed_position=fixed_position,
+            aggregation_mode=aggregation_mode,
+            deformable=deformable,
+            modulated=modulated,
             norm=norm,
             act=act,
-            downsample=downsample,
             bias=bias,
         )
         blocks.append(block)
@@ -537,6 +645,11 @@ class KPConvNetClassification(nn.Module):
         kernel_size: int,
         kp_radius: Union[float, Sequence[float]],
         kp_sigma: Union[float, Sequence[float]],
+        kp_influence: str = "linear",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
+        aggregation_mode: str = "sum",
+        deformable: bool = False,
+        modulated: bool = False,
         norm: NormLike = "batch_norm1d",
         act: ActLike = "leaky_relu",
         bias: bool = False,
@@ -567,12 +680,17 @@ class KPConvNetClassification(nn.Module):
             grid_sizes=grid_sizes,
             radii=radii,
             max_num_neighbors=encoder_num_neighbors,
+            spatial_dim=spatial_dim,
             kernel_size=kernel_size,
             kp_radius=kp_radius,
             kp_sigma=kp_sigma,
+            kp_influence=kp_influence,
+            fixed_position=fixed_position,
+            aggregation_mode=aggregation_mode,
+            deformable=deformable,
+            modulated=modulated,
             norm=norm,
             act=act,
-            spatial_dim=spatial_dim,
             bias=bias,
         )
 
