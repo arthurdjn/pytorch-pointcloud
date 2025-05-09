@@ -200,7 +200,7 @@ class KPConv(nn.Module):
             f"kp_sigma={self.kp_sigma}, "
             f"kp_influence={self.kp_influence!r}, "
             f"fixed_kernel_points={self.fixed_kernel_points!r}, "
-            f"aggregation_mode={self.aggregation_mode!r}, "
+            f"aggregation_mode={self.aggregation_mode!r}"
         )
 
     def __repr__(self) -> str:
@@ -262,11 +262,10 @@ class KPResidualBlock(nn.Module):
         bias: bool = False,
     ):
         super().__init__()
+        mid_channels = out_channels // 4
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.strided = strided
-
-        mid_channels = out_channels // 4
 
         self.unary1 = MLP(in_channels=in_channels, out_channels=mid_channels, norm=norm, act=act, dropout=None)
         self.conv = KPConvBlock(
@@ -365,7 +364,7 @@ class EncoderBlock(nn.Module):
         radius: float,
         max_num_neighbors: int,
         norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        act: ActLike = "leaky_relu",
         bias: bool = False,
         downsample: Optional[GridPool] = None,
     ):
@@ -379,14 +378,15 @@ class EncoderBlock(nn.Module):
 
         self.blocks = nn.ModuleList()
         for i in range(depth):
+            strided = downsample is not None and i == 0
             block = KPResidualBlock(
                 spatial_dim=spatial_dim,
-                in_channels=in_channels if i == 0 else out_channels,
-                out_channels=out_channels,
+                in_channels=in_channels if i == 0 or (downsample is not None and i == 1) else out_channels,
+                out_channels=in_channels if strided else out_channels,
                 kernel_size=kernel_size,
                 kp_radius=kp_radius[i],
                 kp_sigma=kp_sigma[i],
-                strided=downsample is not None and i == 0,
+                strided=strided,
                 norm=norm,
                 act=act,
                 bias=bias,
@@ -469,7 +469,7 @@ def create_encoder_blocks(
     kp_sigma: Union[float, Sequence[float]],
     kp_radius: Union[float, Sequence[float]],
     norm: NormLike = "batch_norm1d",
-    act: ActLike = "relu",
+    act: ActLike = "leaky_relu",
     bias: bool = False,
     spatial_dim: int = 3,
 ) -> nn.ModuleList:
@@ -530,7 +530,7 @@ class KPConvNetClassification(nn.Module):
         kp_radius: Union[float, Sequence[float]],
         kp_sigma: Union[float, Sequence[float]],
         norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        act: ActLike = "leaky_relu",
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
