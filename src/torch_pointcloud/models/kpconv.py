@@ -125,6 +125,7 @@ class KPConv(nn.Module):
         self.register_parameter("bias", nn.Parameter(torch.zeros(size=(out_channels,))) if bias else None)
         self.reset_parameters()
 
+        self.offset_conv: Optional[nn.Module]
         self.offset_conv, offset_bias = self.configure_offsets() if deformable else (None, None)
         self.register_parameter("offset_bias", offset_bias)
 
@@ -147,7 +148,7 @@ class KPConv(nn.Module):
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
             if fan_in != 0:
                 bound = 1 / math.sqrt(fan_in)
-                nn.init.uniform_(self.bias, -bound, bound)
+                nn.init.uniform_(self.bias, -bound, bound)  # type: ignore[arg-type]
 
     def configure_offsets(self) -> Tuple[nn.Module, nn.Parameter]:
         offset_dim = self.spatial_dim * self.kernel_size
@@ -237,17 +238,17 @@ class KPConv(nn.Module):
 
         # Get kernel points at each point
         if self.deformable and offsets is not None:
-            kernel_points = self.kernel.unsqueeze(0) + offsets[row]  # [E, K, spatial_dim]
+            kernel_points = self.kernel.unsqueeze(0) + offsets[row]  # type: ignore[operator]
             if self.track_running_stats:
                 self.running_deformed_kernel = kernel_points
         else:
-            kernel_points = self.kernel.unsqueeze(0).expand(coords_rel.size(0), -1, -1)  # [E, K, spatial_dim]
+            kernel_points = self.kernel.unsqueeze(0).expand(coords_rel.size(0), -1, -1)  # type: ignore[operator]
 
         coords_rel = coords_rel.unsqueeze(1)  # [E, 1, p_dim]
         sq_distances = torch.sum((coords_rel - kernel_points) ** 2, dim=-1)  # [E, K]
 
         if self.track_running_stats and self.deformable:
-            self.running_min_d2, _ = torch.min(sq_distances, dim=1)  # type: ignore[assignment]
+            self.running_min_d2, _ = torch.min(sq_distances, dim=1)
             # Optional: Optimization by ignoring points outside a deformed KP range
 
         weights = self._compute_weights(sq_distances)
