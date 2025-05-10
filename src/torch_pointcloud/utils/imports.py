@@ -148,7 +148,15 @@ def optional_import(
     return ModuleNotFoundProxy(), False
 
 
+_FLASH_ATTN_GITHUB_URL = "https://github.com/Dao-AILab/flash-attention"
+_OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"
+_SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
+_TORCH_CLUSTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_cluster"
+_TORCH_SCATTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_scatter"
+
+
+_FLASH_ATTN_AVAILABLE = module_available("flash_attn")
 _OCNN_AVAILABLE = module_available("ocnn")
 _SPCONV_AVAILABLE = module_available("spconv.pytorch")
-_FLASH_ATTN_AVAILABLE = module_available("flash_attn")
+_TORCH_CLUSTER_AVAILABLE = module_available("torch_cluster")
 _TORCH_SCATTER_AVAILABLE = module_available("torch_scatter")
