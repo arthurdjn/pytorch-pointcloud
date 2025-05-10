@@ -24,5 +24,10 @@ jobs:
         if: matrix.python-version != '3.13'
         run: uv sync --extra ocnn
 
+      - name: Install torch-geometric dependencies (torch==2.6.0)
+        run: |
+          uv pip install torch==2.6.0
+          uv pip install pyg_lib torch_scatter torch_cluster -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
+
       - name: Test with python ${{ matrix.python-version }}
         run: uv run --frozen pytest
