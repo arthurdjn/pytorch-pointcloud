@@ -125,6 +125,36 @@ def voxel_grid(
     return grid_cluster(coords, size, start, end)
 
 
+def consecutive_cluster(cluster: Tensor, return_permutation: bool = False) -> Union[Tuple[Tensor, Tensor], Tensor]:
+    """Return consecutive cluster indices (and associated permutation)
+    from a tensor of cluster indices. A cluster tensor is a tensor of shape `(N,)` where each element
+    represents the cluster index of the corresponding point.
+
+    Args:
+        cluster: The cluster tensor of shape `(N,)`.
+        return_permutation: Whether to return the permutation. Can be used
+            to select batch indices, target categories etc. belonging to the same cluster.
+
+    Returns:
+        The consecutive cluster indices and the permutation.
+
+    Example:
+        >>> cluster = torch.tensor([10, 2, 31, 10, 10, 31, 5, 6, 5])
+        >>> inv, perm = consecutive_cluster(cluster, return_permutation=True)
+        >>> inv
+        tensor([3, 0, 4, 3, 3, 4, 1, 2, 1])
+        >>> perm
+        tensor([1, 8, 7, 4, 5])
+    """
+    unique, inv = torch.unique(cluster, sorted=True, return_inverse=True)
+    if not return_permutation:
+        return inv
+
+    perm = torch.arange(inv.size(0), dtype=inv.dtype, device=inv.device)
+    perm = inv.new_empty(unique.size(0)).scatter_(0, inv, perm)
+    return inv, perm
+
+
 def knn_interpolate(
     x: Tensor,
     coords_x: Tensor,
