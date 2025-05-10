@@ -187,10 +187,7 @@ def model_clf() -> KPConvNetClassification:
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_kpconv_classification_forward(
-    model_clf: KPConvNetClassification,
-    data: Dict[str, Tensor],
-) -> None:
+def test_kpconv_clf_forward(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["features"], data["coords"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
@@ -199,10 +196,7 @@ def test_kpconv_classification_forward(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_kpconv_classification_reset_classifier(
-    model_clf: KPConvNetClassification,
-    data: Dict[str, Tensor],
-) -> None:
+def test_kpconv_clf_reset_classifier(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
     new_num_classes = 20
     model_clf.reset_classifier(new_num_classes)
 
@@ -216,10 +210,7 @@ def test_kpconv_classification_reset_classifier(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_kpconv_classification_forward_no_features(
-    model_clf: KPConvNetClassification,
-    data: Dict[str, Tensor],
-) -> None:
+def test_kpconv_clf_forward_no_features(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
     output = model_clf(None, data["coords"], data["batch"])
     assert output.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
@@ -228,10 +219,7 @@ def test_kpconv_classification_forward_no_features(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_kpconv_classification_forward_features(
-    model_clf: KPConvNetClassification,
-    data: Dict[str, Tensor],
-) -> None:
+def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
     out_features, out_coords, out_batch = model_clf.forward_features(data["features"], data["coords"], data["batch"])
     assert out_features.dim() == 2
     assert out_coords.dim() == 2
