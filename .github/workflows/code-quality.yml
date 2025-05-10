@@ -16,17 +16,17 @@ jobs:
           python-version: 3.11
 
       - name: Check types
-        run: uv run mypy src tests examples
         if: ${{ always() }}
+        run: uv run mypy src tests examples
 
       - name: Check linting
-        run: uv run ruff check src tests examples
         if: ${{ always() }}
+        run: uv run ruff check src tests examples
 
       - name: Check imports
-        run: uv run ruff check src tests examples --select I
         if: ${{ always() }}
+        run: uv run ruff check src tests examples --select I
 
       - name: Check formatting
-        run: uv run ruff format src tests examples --check
         if: ${{ always() }}
+        run: uv run ruff format src tests examples --check
