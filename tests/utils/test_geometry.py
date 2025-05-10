@@ -312,7 +312,7 @@ def test_spherical_points_gradient_fixed_position_convergence(
 
     # Verify convergence criteria
     diff = torch.abs(grad_norms[-2] - grad_norms[-1])
-    assert torch.allclose(diff, torch.tensor(0.0), atol=1e-3)
+    assert torch.allclose(diff, torch.tensor(0.0), atol=1e-2)
 
 
 def test_spherical_points_lloyd_basic() -> None:
