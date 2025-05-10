@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union, overload
 
 import torch
 from torch import Tensor
@@ -166,15 +166,15 @@ def vertex_normals(vertices: Tensor, faces: Tensor) -> Tensor:
 
 
 def random_spherical_points(
-    num_points: int,
     radius: float,
+    num_points: int,
     bounds: Union[float, Tuple[float, float]] = 1.0,
-) -> torch.Tensor:
+) -> Tensor:
     """Generate random points inside a sphere or a spherical shell based on radius limits.
 
     Args:
-        num_points: The number of points to generate.
         radius: The radius of the sphere.
+        num_points: The number of points to generate.
         bounds: A float or tuple of floats defining the inner and outer bounds of the sphere.
             If a single float is provided, it is treated as the outer limit, with the inner limit as 0.
             Defaults to 1.0.
@@ -203,6 +203,7 @@ def random_spherical_points(
     return points
 
 
+@overload
 def spherical_points_gradient(
     radius: float,
     num_points: int,
@@ -213,7 +214,37 @@ def spherical_points_gradient(
     step_decay: float = 0.9995,
     convergence_threshold: float = 1e-5,
     max_step_size: Optional[float] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    return_grad_norms: Literal[False] = False,
+) -> Tensor: ...
+
+
+@overload
+def spherical_points_gradient(
+    radius: float,
+    num_points: int,
+    fixed_position: Literal["none", "center", "vertical"] = "center",
+    ratio: float = 0.66,
+    max_steps: int = 10_000,
+    step_size: float = 1e-2,
+    step_decay: float = 0.9995,
+    convergence_threshold: float = 1e-5,
+    max_step_size: Optional[float] = None,
+    return_grad_norms: Literal[True] = True,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+def spherical_points_gradient(
+    radius: float,
+    num_points: int,
+    fixed_position: Literal["none", "center", "vertical"] = "center",
+    ratio: float = 0.66,
+    max_steps: int = 10_000,
+    step_size: float = 1e-2,
+    step_decay: float = 0.9995,
+    convergence_threshold: float = 1e-5,
+    max_step_size: Optional[float] = None,
+    return_grad_norms: bool = False,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     """Creation of kernel points via optimization of potentials for a single kernel.
 
     Args:
@@ -233,7 +264,7 @@ def spherical_points_gradient(
             - Saved gradient norms of the optimization process.
     """
 
-    def compute_gradients(points: torch.Tensor) -> torch.Tensor:
+    def compute_gradients(points: Tensor) -> Tensor:
         A = points.unsqueeze(1)
         B = points.unsqueeze(0)
         inter_d2 = torch.sum((A - B) ** 2, dim=-1)
@@ -244,13 +275,13 @@ def spherical_points_gradient(
 
     # Parameters
     if fixed_position not in ["none", "center", "vertical"]:
-        raise ValueError('Unsupported fixed points. Expected "none", "center", or "vertical".')
+        raise ValueError('Unsupported fixed position. Expected "none", "center", or "vertical".')
 
     if max_step_size is None:
         max_step_size = 0.05 * radius
 
-    # Initialize kernel points
-    kernel_points = random_spherical_points(num_points, radius, bounds=(0, 0.7071067811865476))
+    # Initialize kernel points (bounds: [0, 1/√2])
+    kernel_points = random_spherical_points(radius, num_points, bounds=(0, 0.7071067811865476))
 
     # Apply fixed positions if required
     if fixed_position == "center":
@@ -262,7 +293,7 @@ def spherical_points_gradient(
 
     # Kernel optimization
     saved_grad_norms = torch.zeros(max_steps)
-    old_grad_norms = torch.zeros(num_points)
+    prev_grad_norms = torch.zeros(num_points)
     step = 0
 
     while step < max_steps:
@@ -277,18 +308,18 @@ def spherical_points_gradient(
         # Check for stopping conditions
         if (
             fixed_position == "center"
-            and torch.max(torch.abs(old_grad_norms[1:] - grad_norms[1:])) < convergence_threshold
+            and torch.max(torch.abs(prev_grad_norms[1:] - grad_norms[1:])) < convergence_threshold
         ):
             break
         elif (
             fixed_position == "vertical"
-            and torch.max(torch.abs(old_grad_norms[3:] - grad_norms[3:])) < convergence_threshold
+            and torch.max(torch.abs(prev_grad_norms[3:] - grad_norms[3:])) < convergence_threshold
         ):
             break
-        elif torch.max(torch.abs(old_grad_norms - grad_norms)) < convergence_threshold:
+        elif torch.max(torch.abs(prev_grad_norms - grad_norms)) < convergence_threshold:
             break
 
-        old_grad_norms = grad_norms
+        prev_grad_norms = grad_norms
 
         # Move points
         moving_dists = torch.minimum(step_size * grad_norms, torch.tensor(max_step_size))
@@ -303,7 +334,9 @@ def spherical_points_gradient(
     r = torch.sqrt(torch.sum(kernel_points**2, dim=-1))
     kernel_points *= ratio / torch.mean(r[1:])
 
-    return kernel_points, saved_grad_norms[step - 1]
+    if return_grad_norms:
+        return kernel_points, saved_grad_norms[:step]
+    return kernel_points
 
 
 def spherical_points_lloyd(
@@ -337,11 +370,11 @@ def spherical_points_lloyd(
         momentum (float, optional): Momentum factor for smoothing kernel point positions. Defaults to 0.9.
 
     Returns:
-        torch.Tensor: Tensor of shape [num_points, dimension] with the final kernel points on the sphere.
+        Tensor: Tensor of shape [num_points, dimension] with the final kernel points on the sphere.
     """
 
     if fixed_position not in ["none", "center", "vertical"]:
-        raise ValueError('Unsupported fixed points. Expected "none", "center", or "vertical".')
+        raise ValueError('Unsupported fixed position. Expected "none", "center", or "vertical".')
     if approximation not in ["discretization", "monte-carlo"]:
         raise ValueError('Unsupported approximation. Expected "discretization" or "monte-carlo".')
 

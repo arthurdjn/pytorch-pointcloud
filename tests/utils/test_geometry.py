@@ -240,6 +240,23 @@ def test_spherical_points_gradient_basic() -> None:
     assert torch.allclose(torch.mean(distances[1:]), torch.tensor(0.66), atol=1e-4)
 
 
+def test_spherical_points_gradient_distribution() -> None:
+    """Test that points are roughly uniformly distributed in the sphere."""
+    radius = 1.0
+    num_points = 100
+    points = spherical_points_gradient(radius, num_points)
+
+    # Check that the mean is close to the origin
+    mean = torch.mean(points, dim=0)
+    assert torch.allclose(mean, torch.zeros(3), atol=0.2)
+
+    # For a uniform distribution in a sphere of radius R,
+    # the standard deviation along any axis is: σ = R * sqrt(1/5)
+    std = torch.std(points, dim=0)
+    expected_std = radius * math.sqrt(1 / 5)
+    assert torch.allclose(std, torch.full_like(std, expected_std), atol=0.2)
+
+
 def test_spherical_points_gradient_fixed_position_none() -> None:
     """Test that the points are not fixed when fixed_position is 'none'."""
     radius = 1.0
@@ -296,3 +313,79 @@ def test_spherical_points_gradient_fixed_position_convergence(
     # Verify convergence criteria
     diff = torch.abs(grad_norms[-2] - grad_norms[-1])
     assert torch.allclose(diff, torch.tensor(0.0), atol=1e-3)
+
+
+def test_spherical_points_lloyd_basic() -> None:
+    """Test basic functionality of spherical_points_lloyd."""
+    radius = 1.0
+    num_points = 100
+    points = spherical_points_lloyd(radius, num_points)
+
+    # Check output shape
+    assert points.shape == (num_points, 3)
+
+    # Check points are within expected radius
+    distances = torch.norm(points, dim=1)
+    assert torch.all(distances <= radius)
+
+
+def test_spherical_points_lloyd_distribution() -> None:
+    """Test that points are roughly uniformly distributed in the sphere."""
+    radius = 1.0
+    num_points = 100
+    points = spherical_points_lloyd(radius, num_points)
+
+    # Check that the mean is close to the origin
+    mean = torch.mean(points, dim=0)
+    assert torch.allclose(mean, torch.zeros(3), atol=0.2)
+
+    # For a uniform distribution in a sphere of radius R,
+    # the standard deviation along any axis is: σ = R * sqrt(1/5)
+    std = torch.std(points, dim=0)
+    expected_std = radius * math.sqrt(1 / 5)
+    assert torch.allclose(std, torch.full_like(std, expected_std), atol=0.2)
+
+
+def test_spherical_points_lloyd_fixed_position_center() -> None:
+    """Test that the points are centered when fixed_position is 'center'."""
+    radius = 1.0
+    num_points = 100
+    points = spherical_points_lloyd(radius, num_points, fixed_position="center")
+
+    # First point should be at center
+    assert torch.allclose(points[0], torch.zeros(3))
+
+
+def test_spherical_points_lloyd_fixed_position_vertical() -> None:
+    """Test that the points are vertically aligned when fixed_position is 'vertical'."""
+    radius = 1.0
+    num_points = 100
+    points = spherical_points_lloyd(radius, num_points, fixed_position="vertical")
+
+    # First point at center
+    assert torch.allclose(points[0], torch.zeros(3))
+    # Second and third points only have z component
+    assert torch.allclose(points[1, :2], torch.zeros(2))
+    assert torch.allclose(points[2, :2], torch.zeros(2))
+    # Second point above center, third point below
+    assert points[1, 2] > 0
+    assert points[2, 2] < 0
+
+
+@pytest.mark.parametrize("approximation", ["discretization", "monte-carlo"])
+def test_spherical_points_lloyd_approximation(approximation: Literal["discretization", "monte-carlo"]) -> None:
+    """Test different approximation methods."""
+    radius = 1.0
+    num_points = 100
+    points = spherical_points_lloyd(
+        radius,
+        num_points,
+        approximation=approximation,
+        approx_n=1000,
+        max_iter=100,
+        momentum=0.9,
+    )
+
+    # Check points are within expected radius
+    distances = torch.norm(points, dim=1)
+    assert torch.all(distances <= radius)
