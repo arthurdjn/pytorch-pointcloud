@@ -210,15 +210,6 @@ def test_kpconv_clf_reset_classifier(model_clf: KPConvNetClassification, data: D
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_kpconv_clf_forward_no_features(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
-    output = model_clf(None, data["coords"], data["batch"])
-    assert output.shape == (data["batch"].max() + 1, model_clf.num_classes)
-
-
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
     out_features, out_coords, out_batch = model_clf.forward_features(data["features"], data["coords"], data["batch"])
     assert out_features.dim() == 2
@@ -239,3 +230,13 @@ def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: D
         assert "batch" in intermediate
         if "pooling_inverse" in intermediate:
             assert intermediate["pooling_inverse"].dim() == 1
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_kpconv_clf_forward_features_and_head(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
+    out_features, _, out_batch = model_clf.forward_features(data["features"], data["coords"], data["batch"])
+    logits = model_clf.forward_head(out_features, out_batch)
+    assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
