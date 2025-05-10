@@ -26,7 +26,7 @@ def data() -> Dict[str, Tensor]:
     # Dummy edge_index connecting each point to 16 nearest indices
     row = torch.arange(len(coords)).repeat_interleave(16)
     cumsum = torch.cat([torch.tensor([0]), torch.cumsum(lengths, dim=0)])
-    col = torch.cat([torch.arange(int(lengths[i])).repeat(16) + cumsum[i] * 16 for i in range(len(lengths))])
+    col = torch.cat([torch.arange(int(lengths[i])).repeat(16) + cumsum[i] for i in range(len(lengths))])
     edge_index = torch.stack([row, col])
 
     return dict(
