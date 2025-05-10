@@ -89,7 +89,7 @@ def conv1d_block(
     dropout: Optional[float] = 0.0,
     order: Union[str, Sequence[Literal["a", "c", "n", "d"]]] = "cnad",
 ) -> nn.Sequential:
-    """Creates a customizable 1D convolutional block consisting of a convolutional layer, activation, normalization and dropout.
+    r"""Creates a customizable 1D convolutional block consisting of a convolutional layer, activation, normalization and dropout.
     The order of the layers can be customized using the `order` argument.
 
     Input Shape:
