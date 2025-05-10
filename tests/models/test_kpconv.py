@@ -168,7 +168,7 @@ def test_encoder_block(data: Dict[str, Tensor]) -> None:
 
 
 @pytest.fixture
-def model_cls() -> KPConvNetClassification:
+def model_clf() -> KPConvNetClassification:
     return KPConvNetClassification(
         in_channels=3,
         num_classes=10,
@@ -188,11 +188,11 @@ def model_cls() -> KPConvNetClassification:
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_classification_forward(
-    model_cls: KPConvNetClassification,
+    model_clf: KPConvNetClassification,
     data: Dict[str, Tensor],
 ) -> None:
-    logits = model_cls(data["features"], data["coords"], data["batch"])
-    assert logits.shape == (data["batch"].max() + 1, model_cls.num_classes)
+    logits = model_clf(data["features"], data["coords"], data["batch"])
+    assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
 @pytest.mark.skipif(
@@ -200,15 +200,15 @@ def test_kpconv_classification_forward(
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_classification_reset_classifier(
-    model_cls: KPConvNetClassification,
+    model_clf: KPConvNetClassification,
     data: Dict[str, Tensor],
 ) -> None:
     new_num_classes = 20
-    model_cls.reset_classifier(new_num_classes)
+    model_clf.reset_classifier(new_num_classes)
 
-    assert model_cls.num_classes == new_num_classes
-    assert model_cls.head.out_features == new_num_classes
-    logits = model_cls(data["features"], data["coords"], data["batch"])
+    assert model_clf.num_classes == new_num_classes
+    assert model_clf.head.out_features == new_num_classes
+    logits = model_clf(data["features"], data["coords"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
@@ -217,11 +217,11 @@ def test_kpconv_classification_reset_classifier(
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_classification_forward_no_features(
-    model_cls: KPConvNetClassification,
+    model_clf: KPConvNetClassification,
     data: Dict[str, Tensor],
 ) -> None:
-    output = model_cls(None, data["coords"], data["batch"])
-    assert output.shape == (data["batch"].max() + 1, model_cls.num_classes)
+    output = model_clf(None, data["coords"], data["batch"])
+    assert output.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
 @pytest.mark.skipif(
@@ -229,22 +229,22 @@ def test_kpconv_classification_forward_no_features(
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_classification_forward_features(
-    model_cls: KPConvNetClassification,
+    model_clf: KPConvNetClassification,
     data: Dict[str, Tensor],
 ) -> None:
-    out_features, out_coords, out_batch = model_cls.forward_features(data["features"], data["coords"], data["batch"])
+    out_features, out_coords, out_batch = model_clf.forward_features(data["features"], data["coords"], data["batch"])
     assert out_features.dim() == 2
     assert out_coords.dim() == 2
     assert out_batch.dim() == 1
 
     # Test forward features with intermediates
-    out_features, out_coords, out_batch, intermediates = model_cls.forward_features(
+    out_features, out_coords, out_batch, intermediates = model_clf.forward_features(
         data["features"],
         data["coords"],
         data["batch"],
         return_intermediates=True,
     )
-    assert len(intermediates) == len(model_cls.encoder) - 1
+    assert len(intermediates) == len(model_clf.encoder) - 1
     for intermediate in intermediates:
         assert "features" in intermediate
         assert "coords" in intermediate
