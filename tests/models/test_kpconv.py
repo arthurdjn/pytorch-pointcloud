@@ -37,7 +37,10 @@ def data() -> Dict[str, Tensor]:
     )
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_module(data: Dict[str, Tensor]) -> None:
     conv = KPConv(
         spatial_dim=3,
@@ -67,7 +70,10 @@ def test_kpconv_module(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["coords"]), 32)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_block_layer(data: Dict[str, Tensor]) -> None:
     block = KPConvBlock(
         spatial_dim=3,
@@ -82,7 +88,10 @@ def test_kpconv_block_layer(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["coords"]), 32)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
     block = KPResidualBlock(
         spatial_dim=3,
@@ -110,7 +119,10 @@ def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["coords"]), 32)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_encoder_block(data: Dict[str, Tensor]) -> None:
     block = EncoderBlock(
         depth=2,
@@ -171,7 +183,10 @@ def classification_model() -> KPConvNetClassification:
     )
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_classification_forward(
     classification_model: KPConvNetClassification,
     data: Dict[str, Tensor],
@@ -180,7 +195,10 @@ def test_kpconv_classification_forward(
     assert logits.shape == (data["batch"].max() + 1, classification_model.num_classes)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_classification_reset_classifier(
     classification_model: KPConvNetClassification,
     data: Dict[str, Tensor],
@@ -194,7 +212,10 @@ def test_kpconv_classification_reset_classifier(
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_classification_forward_no_features(
     classification_model: KPConvNetClassification,
     data: Dict[str, Tensor],
@@ -203,7 +224,10 @@ def test_kpconv_classification_forward_no_features(
     assert output.shape == (data["batch"].max() + 1, classification_model.num_classes)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_kpconv_classification_forward_features(
     classification_model: KPConvNetClassification,
     data: Dict[str, Tensor],
