@@ -354,7 +354,8 @@ class KPResidualBlock(nn.Module):
         bias: bool = False,
     ):
         super().__init__()
-        mid_channels = out_channels // 4
+        # Avoid bottleneck if mid_channels is too small
+        mid_channels = max(out_channels // 4, 8)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.strided = strided
