@@ -631,10 +631,56 @@ def create_encoder_blocks(
 
 
 class KPConvNetClassification(nn.Module):
+    """KPConv Network for classification tasks as described in the paper
+    [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
+    by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
+
+    KPConv introduces a novel point convolution operator that uses kernel points to define the spatial extent and weights
+    of the convolution. The kernel points are arranged in space to define the convolution pattern, with weights determined
+    by their spatial correlation with input points. This allows for flexible and efficient convolution on irregular point
+    clouds while maintaining permutation invariance and translation invariance. The network uses a hierarchical architecture
+    with strided convolutions for spatial pooling and feature aggregation.
+
+    Note:
+        The implementation is based on the original paper and the authors' code
+        [KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch).
+
+    Important:
+        This implementation was completely rewritten to be compatible with
+        [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
+
+    Args:
+        num_classes: Number of output classes.
+        in_channels: Number of input channels.
+        spatial_dim: Spatial dimension of the input point cloud.
+        stem_channels: Number of channels in the stem layer.
+        stem_type: Type of stem layer to use.
+        encoder_depths: List of depths for each encoder block,
+            i.e. corresponds to the number of residual blocks at each level.
+        encoder_channels: List of channels for each encoder block.
+        encoder_num_neighbors: List of maximum number of neighbors for each encoder block.
+        grid_sizes: List of grid sizes for each downsampling block.
+        radii: Search radius for each downsampling block.
+        kernel_size: Size of the kernel for each KPConv block.
+        kp_radius: List of kernel radius for KPConv blocks, at each level.
+        kp_sigma: List of kernel extent for KPConv blocks, at each level.
+        kp_influence: Influence function to use for KPConv blocks. Options are "constant", "linear", "gaussian".
+        fixed_position: Whether to fix the position of the kernel points in KPConv blocks. Options are "none", "center", "vertical".
+        aggregation_mode: Aggregation mode to use for the KPConv blocks. Options are "sum", "mean", "max".
+        deformable: Whether to use a deformable kernel for the KPConv blocks.
+        modulated: Whether to use a modulated kernel in KPConv operation.
+        norm: Normalization to use for the KPConv blocks.
+        act: Activation function to use for the KPConv blocks.
+        bias: Whether to use a bias for the KPConv blocks.
+        dropout: Dropout rate before the classification head.
+        global_pool: Global pooling method to use before the classification head. Options are "max", "mean".
+
+    """
+
     def __init__(
         self,
-        in_channels: int,
         num_classes: int,
+        in_channels: int,
         *,
         spatial_dim: int = 3,
         stem_channels: Optional[int] = None,
@@ -702,6 +748,16 @@ class KPConvNetClassification(nn.Module):
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+        """Resets the classification head with new parameters.
+
+        Note:
+            To set an empty classification head, use `num_classes=0`.
+
+        Args:
+            num_classes: Number of output classes.
+            global_pool: Pooling method to aggregate point features ("max" or "mean").
+            **kwargs: Additional keyword arguments to pass to the classification head.
+        """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
@@ -731,6 +787,16 @@ class KPConvNetClassification(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
+        """Forward pass of the encoder, returning pre-pooling features.
+
+        Args:
+            features: Additional point features of shape $(N, features_dim)$.
+            coords: Point coordinates of shape $(N, coords_dim)$.
+            batch: Batch indices for each point of shape $(N,)$.
+
+        Returns:
+            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+        """
         features = features if features is not None else coords
 
         if self.stem is not None:
@@ -750,6 +816,16 @@ class KPConvNetClassification(nn.Module):
         return features, coords, batch
 
     def forward_head(self, features: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        """Forward pass of the classification head from pre-pooling features.
+
+        Args:
+            features: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+            batch: Batch indices for each point of shape $(N,)$.
+            pre_logits: Whether to return pre-logits. Defaults to False.
+
+        Returns:
+            Classification logits of shape $(B, num_classes)$.
+        """
         features = self.global_pool(features, batch)
         if self.dropout:
             features = F.dropout(features, p=float(self.dropout), training=self.training)
