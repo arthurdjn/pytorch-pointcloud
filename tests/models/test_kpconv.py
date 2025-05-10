@@ -10,6 +10,7 @@ from torch_pointcloud.models.kpconv import (
     KPConv,
     KPConvBlock,
     KPConvNetClassification,
+    KPConvNetSegmentation,
     KPResidualBlock,
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
@@ -183,6 +184,23 @@ def model_clf() -> KPConvNetClassification:
     )
 
 
+@pytest.fixture
+def model_seg() -> KPConvNetSegmentation:
+    return KPConvNetSegmentation(
+        in_channels=3,
+        num_classes=10,
+        encoder_depths=[2, 2],
+        encoder_channels=[32, 64],
+        encoder_num_neighbors=[16, 16],
+        fp_channels=[[32], [16]],
+        grid_sizes=[0.1],
+        radii=[0.1, 0.2],
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+    )
+
+
 @pytest.mark.skipif(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
@@ -223,7 +241,7 @@ def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: D
         data["batch"],
         return_intermediates=True,
     )
-    assert len(intermediates) == len(model_clf.encoder) - 1
+    assert len(intermediates) == len(model_clf.encoder_blocks) - 1
     for intermediate in intermediates:
         assert "features" in intermediate
         assert "coords" in intermediate
@@ -240,3 +258,41 @@ def test_kpconv_clf_forward_features_and_head(model_clf: KPConvNetClassification
     out_features, _, out_batch = model_clf.forward_features(data["features"], data["coords"], data["batch"])
     logits = model_clf.forward_head(out_features, out_batch)
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_kpconv_seg_forward(model_seg: KPConvNetSegmentation, data: Dict[str, Tensor]) -> None:
+    logits = model_seg(data["features"], data["coords"], data["batch"])
+    assert logits.shape == (data["coords"].shape[0], model_seg.num_classes)
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_kpconv_seg_forward_features(model_seg: KPConvNetSegmentation, data: Dict[str, Tensor]) -> None:
+    out_features, out_coords, out_batch = model_seg.forward_features(data["features"], data["coords"], data["batch"])
+    assert out_features.shape[0] == out_coords.shape[0] == out_batch.shape[0]
+    assert out_features.dim() == 2
+    assert out_coords.dim() == 2
+    assert out_batch.dim() == 1
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_kpconv_seg_forward_features_and_head(model_seg: KPConvNetSegmentation, data: Dict[str, Tensor]) -> None:
+    out_features, out_coords, out_batch, intermediates = model_seg.forward_features(
+        data["features"],
+        data["coords"],
+        data["batch"],
+        return_intermediates=True,
+    )
+
+    out_features = model_seg.forward_decoder(out_features, out_coords, out_batch, intermediates)
+    logits = model_seg.forward_head(out_features)
+    assert logits.shape == (data["coords"].shape[0], model_seg.num_classes)
