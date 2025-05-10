@@ -27,6 +27,8 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import OptTensor
 
+from .pointnet2 import create_fp_blocks
+
 if TYPE_CHECKING:
     from torch_cluster import radius, radius_graph
     from torch_scatter import scatter, scatter_add
@@ -630,6 +632,7 @@ def create_encoder_blocks(
     return blocks
 
 
+# TODO: Make KPConv stem
 class KPConvNetClassification(nn.Module):
     """KPConv Network for classification tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
@@ -721,7 +724,7 @@ class KPConvNetClassification(nn.Module):
             )
             in_channels = stem_channels
 
-        self.encoder = create_encoder_blocks(
+        self.encoder_blocks = create_encoder_blocks(
             in_channels=in_channels if stem_channels is None else stem_channels,
             depths=encoder_depths,
             channels=encoder_channels,
@@ -803,7 +806,7 @@ class KPConvNetClassification(nn.Module):
             features = self.stem(features)
 
         intermediates = []
-        for i, block in enumerate(self.encoder):
+        for i, block in enumerate(self.encoder_blocks):
             intermediate = {"features": features, "coords": coords, "batch": batch}
             features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
 
@@ -844,3 +847,204 @@ class KPConvNetClassification(nn.Module):
         """
         features, _, batch = self.forward_features(features, coords, batch)
         return self.forward_head(features, batch, pre_logits=False)
+
+
+# TODO: Do not use FP channels, but use a simple decoder_channels
+# TODO: param that will be used to create the FP blocks,
+# TODO: i.e. from fp_channels=[[256], [128], [64], [32]] -> decoder_channels=[256, 128, 64, 32]
+class KPConvNetSegmentation(nn.Module):
+    """KPConv Network for segmentation tasks as described in the paper
+    [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
+    by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
+
+    KPConv introduces a novel point convolution operator that uses kernel points to define the spatial extent and weights
+    of the convolution. The kernel points are arranged in space to define the convolution pattern, with weights determined
+    by their spatial correlation with input points. This allows for flexible and efficient convolution on irregular point
+    clouds while maintaining permutation invariance and translation invariance. The network uses a hierarchical architecture
+    with strided convolutions for spatial pooling and feature aggregation.
+
+    Note:
+        The implementation is based on the original paper and the authors' code
+        [KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch).
+
+    Important:
+        This implementation was completely rewritten to be compatible with
+        [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
+
+    Args:
+        num_classes: Number of output classes.
+        in_channels: Number of input channels.
+        spatial_dim: Spatial dimension of the input point cloud.
+        stem_channels: Number of channels in the stem layer.
+        stem_type: Type of stem layer to use.
+        encoder_depths: List of depths for each encoder block,
+            i.e. corresponds to the number of residual blocks at each level.
+        encoder_channels: List of channels for each encoder block.
+        encoder_num_neighbors: List of maximum number of neighbors for each encoder block.
+        fp_channels: List of channels for each feature propagation block.
+        grid_sizes: List of grid sizes for each downsampling block.
+        radii: Search radius for each downsampling block.
+        kernel_size: Size of the kernel for each KPConv block.
+        kp_radius: List of kernel radius for KPConv blocks, at each level.
+        kp_sigma: List of kernel extent for KPConv blocks, at each level.
+        kp_influence: Influence function to use for KPConv blocks. Options are "constant", "linear", "gaussian".
+        fixed_position: Whether to fix the position of the kernel points in KPConv blocks. Options are "none", "center", "vertical".
+        aggregation_mode: Aggregation mode to use for the KPConv blocks. Options are "sum", "mean", "max".
+        deformable: Whether to use a deformable kernel for the KPConv blocks.
+        modulated: Whether to use a modulated kernel in KPConv operation.
+        norm: Normalization to use for the KPConv blocks.
+        act: Activation function to use for the KPConv blocks.
+        bias: Whether to use a bias for the KPConv blocks.
+        dropout: Dropout rate before the classification head.
+    """
+
+    def __init__(
+        self,
+        num_classes: int,
+        in_channels: int,
+        *,
+        spatial_dim: int = 3,
+        stem_channels: Optional[int] = None,
+        stem_type: Literal["linear", "kpconv"] = "kpconv",
+        encoder_depths: Sequence[int],
+        encoder_channels: Sequence[int],
+        encoder_num_neighbors: Sequence[int],
+        fp_channels: Sequence[Sequence[int]],
+        grid_sizes: Sequence[float],
+        radii: Sequence[float],
+        kernel_size: int,
+        kp_radius: Union[float, Sequence[float]],
+        kp_sigma: Union[float, Sequence[float]],
+        kp_influence: str = "linear",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
+        aggregation_mode: str = "sum",
+        deformable: bool = False,
+        modulated: bool = False,
+        norm: NormLike = "batch_norm1d",
+        act: ActLike = "leaky_relu",
+        bias: bool = False,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+        kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
+        kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
+
+        self.stem_type = stem_type
+        self.stem: Optional[nn.Module] = None
+        if stem_channels is not None:
+            self.stem = linear_block(
+                in_features=in_channels,
+                out_features=stem_channels,
+                norm=norm,
+                act=act,
+            )
+            in_channels = stem_channels
+
+        self.encoder_blocks = create_encoder_blocks(
+            in_channels=in_channels if stem_channels is None else stem_channels,
+            depths=encoder_depths,
+            channels=encoder_channels,
+            grid_sizes=grid_sizes,
+            radii=radii,
+            max_num_neighbors=encoder_num_neighbors,
+            spatial_dim=spatial_dim,
+            kernel_size=kernel_size,
+            kp_radius=kp_radius,
+            kp_sigma=kp_sigma,
+            kp_influence=kp_influence,
+            fixed_position=fixed_position,
+            aggregation_mode=aggregation_mode,
+            deformable=deformable,
+            modulated=modulated,
+            norm=norm,
+            act=act,
+            bias=bias,
+        )
+
+        skip_channels = [in_channels] + list(encoder_channels[:-1])
+        self.fp_blocks = create_fp_blocks(
+            in_channels=encoder_channels[-1],
+            skip_channels=skip_channels[::-1],
+            fp_channels=fp_channels,
+            bias=bias,
+            act=act,
+            norm=norm,
+        )
+
+        self.embedding_dim = fp_channels[-1][-1]
+        self.dropout = dropout
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+
+    @overload
+    def forward_features(
+        self,
+        features: OptTensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        features: OptTensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        features: OptTensor,
+        coords: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        features = features if features is not None else coords
+
+        if self.stem is not None:
+            features = self.stem(features)
+
+        intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
+        for i, block in enumerate(self.encoder_blocks):
+            features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
+            if return_intermediates and i < len(self.encoder_blocks) - 1:
+                # NOTE: Do not store the last result, as it will be the returned output.
+                intermediates.append({"features": features, "coords": coords, "batch": batch})
+
+        if return_intermediates:
+            return features, coords, batch, intermediates
+        return features, coords, batch
+
+    def forward_decoder(
+        self,
+        features: Tensor,
+        coords: Tensor,
+        batch: Tensor,
+        intermediates: List[Dict[str, Tensor]],
+    ) -> Tensor:
+        for block, intermediate in zip(self.fp_blocks, reversed(intermediates)):
+            features_skip = intermediate["features"]
+            coords_skip = intermediate["coords"]
+            batch_skip = intermediate["batch"]
+
+            features, coords, batch = block(features, coords, batch, features_skip, coords_skip, batch_skip)
+        return features
+
+    def forward_head(self, features: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.dropout:
+            features = F.dropout(features, p=float(self.dropout), training=self.training)
+        return features if pre_logits else self.head(features)
+
+    def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
+        features, coords, batch, intermediates = self.forward_features(
+            features, coords, batch, return_intermediates=True
+        )
+        features = self.forward_decoder(features, coords, batch, intermediates)
+        return self.forward_head(features)
