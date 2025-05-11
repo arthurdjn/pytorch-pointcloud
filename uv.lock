@@ -2313,21 +2313,15 @@ source = { editable = "." }
 dependencies = [
     { name = "joblib" },
     { name = "numpy" },
+    { name = "packaging" },
     { name = "pandas" },
     { name = "plyfile" },
+    { name = "setuptools" },
     { name = "torch" },
     { name = "tqdm" },
 ]
 
 [package.optional-dependencies]
-build = [
-    { name = "packaging" },
-    { name = "setuptools" },
-    { name = "torch" },
-]
-compile = [
-    { name = "flash-attn" },
-]
 flash-attn = [
     { name = "flash-attn" },
 ]
@@ -2364,23 +2358,21 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "flash-attn", marker = "extra == 'compile'" },
     { name = "flash-attn", marker = "extra == 'flash-attn'", specifier = ">=2.4.1" },
     { name = "joblib", specifier = ">=1.4.2" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "ocnn", marker = "extra == 'ocnn'", specifier = ">=2.2.6" },
-    { name = "packaging", marker = "extra == 'build'" },
+    { name = "packaging", specifier = ">=24.2" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "plyfile", specifier = ">=1.1" },
-    { name = "setuptools", marker = "extra == 'build'" },
+    { name = "setuptools", specifier = ">=78.1.0" },
     { name = "spconv", marker = "extra == 'spconv'", specifier = ">=2.2.1" },
     { name = "torch", specifier = ">=2.0.0,<2.7.0" },
-    { name = "torch", marker = "extra == 'build'" },
     { name = "torch-cluster", marker = "extra == 'pyg-lib'", specifier = ">=1.6.3" },
     { name = "torch-scatter", marker = "extra == 'pyg-lib'", specifier = ">=2.1.2" },
     { name = "tqdm", specifier = ">=4.67.1" },
 ]
-provides-extras = ["build", "compile", "ocnn", "spconv", "flash-attn", "pyg-lib"]
+provides-extras = ["flash-attn", "ocnn", "spconv", "pyg-lib"]
 
 [package.metadata.requires-dev]
 dev = [
