@@ -2313,10 +2313,8 @@ source = { editable = "." }
 dependencies = [
     { name = "joblib" },
     { name = "numpy" },
-    { name = "packaging" },
     { name = "pandas" },
     { name = "plyfile" },
-    { name = "setuptools" },
     { name = "torch" },
     { name = "tqdm" },
 ]
@@ -2362,10 +2360,8 @@ requires-dist = [
     { name = "joblib", specifier = ">=1.4.2" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "ocnn", marker = "extra == 'ocnn'", specifier = ">=2.2.6" },
-    { name = "packaging", specifier = ">=24.2" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "plyfile", specifier = ">=1.1" },
-    { name = "setuptools", specifier = ">=78.1.0" },
     { name = "spconv", marker = "extra == 'spconv'", specifier = ">=2.2.1" },
     { name = "torch", specifier = ">=2.0.0,<2.7.0" },
     { name = "torch-cluster", marker = "extra == 'pyg-lib'", specifier = ">=1.6.3" },

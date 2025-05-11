@@ -7,10 +7,8 @@ requires-python = ">=3.10"
 dependencies = [
     "joblib>=1.4.2",
     "numpy>=2.0.0",
-    "packaging>=24.2",
     "pandas>=2.2.3",
     "plyfile>=1.1",
-    "setuptools>=78.1.0",
     "torch>=2.0.0,<2.7.0",
     "tqdm>=4.67.1",
 ]
