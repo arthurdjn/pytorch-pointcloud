@@ -33,7 +33,7 @@ jobs:
         run: uv sync --extra spconv
 
       - name: Install flash-attn dependency
-        if: env.CUDA_HOME != ''
+        if: runner.os == 'Linux' && contains(runner.name, 'gpu')
         run: uv sync --extra flash-attn
 
       - name: Test with python ${{ matrix.python-version }}
