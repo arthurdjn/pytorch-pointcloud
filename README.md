@@ -8,7 +8,7 @@ PyTorch Point Cloud models, scripts, pretrained weights -- PointNet, PointNet++,
 # Install the minimum dependencies
 uv sync
 
-# Install all extras (NOTE: Some extras are CPU only)
+# Install all extras (NOTE: Some extras are Linux and CPU only)
 uv sync --all-extras
 
 # For CUDA specific, it is recommended to install the dependencies manually
