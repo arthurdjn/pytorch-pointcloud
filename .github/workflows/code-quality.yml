@@ -17,7 +17,7 @@ jobs:
 
       - name: Install all extras
         # NOTE: Do not install flash-attn here, as it requires CUDA
-        run: uv sync --extra spconv ocnn pyg-lib
+        run: uv sync --extra spconv --extra ocnn --extra pyg-lib
 
       - name: Check types
         if: ${{ always() }}
