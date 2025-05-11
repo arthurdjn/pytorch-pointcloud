@@ -9,7 +9,7 @@ dependencies = [
     "numpy>=2.0.0",
     "pandas>=2.2.3",
     "plyfile>=1.1",
-    "torch>=2.0.0",
+    "torch>=2.0.0,<2.7.0",
     "tqdm>=4.67.1",
 ]
 
@@ -17,9 +17,12 @@ dependencies = [
 flash-attn = ["flash-attn>=2.4.1"]
 ocnn = ["ocnn>=2.2.6"]
 spconv = ["spconv>=2.2.1"]
+pyg-lib = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
 
 [tool.uv]
 package = true
+find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
+no-build-isolation-package = ["flash-attn"]
 dev-dependencies = [
     "mypy>=1.14.1",
     "pytest>=8.3.4",
@@ -36,6 +39,11 @@ dev-dependencies = [
     "mkdocstrings-python>=1.13.0",
     "types-requests>=2.32.0.20241016",
 ]
+
+[[tool.uv.dependency-metadata]]
+name = "flash-attn"
+version = "2.4.1"
+requires-dist = ["torch", "einops"]
 
 [tool.ruff]
 target-version = "py310"
