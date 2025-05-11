@@ -13,7 +13,11 @@ jobs:
       - name: Install the latest version of uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.11
+          python-version: "3.10"
+
+      - name: Install all extras
+        # NOTE: Do not install flash-attn here, as it requires CUDA
+        run: uv sync --extra spconv --extra ocnn --extra pyg-lib
 
       - name: Check types
         if: ${{ always() }}
