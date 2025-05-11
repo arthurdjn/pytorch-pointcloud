@@ -31,12 +31,11 @@ from .pointnet2 import create_fp_blocks
 
 if TYPE_CHECKING:
     from torch_cluster import radius, radius_graph
-    from torch_scatter import scatter, scatter_add
+    from torch_scatter import scatter
 
 radius, _ = optional_import("torch_cluster", name="radius")
 radius_graph, _ = optional_import("torch_cluster", name="radius_graph")
 scatter, _ = optional_import("torch_scatter", name="scatter")
-scatter_add, _ = optional_import("torch_scatter", name="scatter_add")
 
 
 def create_kernel_points(
@@ -270,7 +269,7 @@ class KPConv(nn.Module):
             weights_k = weights[:, k].unsqueeze(1)  # [E, 1]
             weighted_features = weights_k * source_features  # [E, in_channels]
             transformed_features = torch.matmul(weighted_features, self.weight[k].to(features.dtype))
-            scatter_add(transformed_features, row, dim=0, out=output)
+            scatter(transformed_features, row, dim=0, out=output, reduce="sum")
 
         return output
 
