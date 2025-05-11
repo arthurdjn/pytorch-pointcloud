@@ -16,6 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 build = ["torch", "setuptools", "packaging"]
 compile = ["flash-attn"]
+flash-attn = ["flash-attn>=2.4.1"]
 ocnn = ["ocnn>=2.2.6"]
 spconv = ["spconv>=2.2.1"]
 pyg-lib = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
