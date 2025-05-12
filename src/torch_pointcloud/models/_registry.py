@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, Literal, Optional, Protocol, TypedDict, 
 
 from torch import nn
 
-ModelCategory = Literal["unspecified", "classification", "segmentation", "detection"]
+Task = Literal["unspecified", "classification", "segmentation", "detection"]
 
 
 class ModelDict(TypedDict):
@@ -14,7 +14,7 @@ class ModelDict(TypedDict):
     fn: Callable
 
 
-_REGISTERED_MODELS: Dict[ModelCategory, Dict[str, ModelDict]] = {
+_REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
     "unspecified": {},
     "classification": {},
     "segmentation": {},
@@ -73,7 +73,7 @@ def register_model(
     params: Optional[Dict[str, Any]] = None,
     transforms: Optional[Dict[str, Any]] = None,
     weights: Optional[Dict[str, Any]] = None,
-    category: Literal["unspecified"],
+    task: Literal["unspecified"],
 ) -> Callable[[Callable[..., nn.Module]], Callable[..., nn.Module]]: ...
 
 
@@ -84,7 +84,7 @@ def register_model(
     params: Optional[Dict[str, Any]] = None,
     transforms: Optional[Dict[str, Any]] = None,
     weights: Optional[Dict[str, Any]] = None,
-    category: Literal["classification"],
+    task: Literal["classification"],
 ) -> Callable[[Callable[..., ClassificationModel]], Callable[..., ClassificationModel]]: ...
 
 
@@ -95,7 +95,7 @@ def register_model(
     params: Optional[Dict[str, Any]] = None,
     transforms: Optional[Dict[str, Any]] = None,
     weights: Optional[Dict[str, Any]] = None,
-    category: Literal["segmentation"],
+    task: Literal["segmentation"],
 ) -> Callable[[Callable[..., SegmentationModel]], Callable[..., SegmentationModel]]: ...
 
 
@@ -106,7 +106,7 @@ def register_model(
     params: Optional[Dict[str, Any]] = None,
     transforms: Optional[Dict[str, Any]] = None,
     weights: Optional[Dict[str, Any]] = None,
-    category: Literal["detection"],
+    task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
 
 
@@ -116,18 +116,18 @@ def register_model(
     params: Optional[Dict[str, Any]] = None,
     transforms: Optional[Dict[str, Any]] = None,
     weights: Optional[Dict[str, Any]] = None,
-    category: ModelCategory = "unspecified",
+    task: Task = "unspecified",
 ) -> Callable:
     params = params or {}
     transforms = transforms or {}
     weights = weights or {}
 
-    if category not in _REGISTERED_MODELS.keys():
+    if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
-        raise ValueError(f"Invalid model category {category!r}. Expected one of: {expected_tasks}.")
+        raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
 
     def decorator(fn: Callable) -> Callable:
-        _REGISTERED_MODELS[category][name] = {
+        _REGISTERED_MODELS[task][name] = {
             "name": name,
             "transforms": transforms,
             "params": params,
@@ -145,37 +145,37 @@ def register_model(
 
 
 @overload
-def create_model(name: str, category: Literal["unspecified"], *args: Any, **kwargs: Any) -> nn.Module: ...
+def create_model(name: str, task: Literal["unspecified"], *args: Any, **kwargs: Any) -> nn.Module: ...
 
 
 @overload
-def create_model(name: str, category: Literal["classification"], *args: Any, **kwargs: Any) -> ClassificationModel: ...
+def create_model(name: str, task: Literal["classification"], *args: Any, **kwargs: Any) -> ClassificationModel: ...
 
 
 @overload
-def create_model(name: str, category: Literal["segmentation"], *args: Any, **kwargs: Any) -> SegmentationModel: ...
+def create_model(name: str, task: Literal["segmentation"], *args: Any, **kwargs: Any) -> SegmentationModel: ...
 
 
 @overload
-def create_model(name: str, category: Literal["detection"], *args: Any, **kwargs: Any) -> DetectionModel: ...
+def create_model(name: str, task: Literal["detection"], *args: Any, **kwargs: Any) -> DetectionModel: ...
 
 
-def create_model(name: str, *args: Any, category: ModelCategory = "unspecified", **kwargs: Any) -> Any:
-    if category not in _REGISTERED_MODELS.keys():
+def create_model(name: str, *args: Any, task: Task = "unspecified", **kwargs: Any) -> Any:
+    if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
-        raise ValueError(f"Invalid model category {category!r}. Expected one of: {expected_tasks}.")
+        raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
 
-    if category == "unspecified":
-        for category in _REGISTERED_MODELS.keys():
-            model_dict = _REGISTERED_MODELS[category].get(name)
+    if task == "unspecified":
+        for task in _REGISTERED_MODELS.keys():
+            model_dict = _REGISTERED_MODELS[task].get(name)
             if model_dict is not None:
                 break
     else:
-        model_dict = _REGISTERED_MODELS[category].get(name)
+        model_dict = _REGISTERED_MODELS[task].get(name)
 
     if model_dict is None:
-        available_models = ", ".join(f"{m!r}" for m in _REGISTERED_MODELS[category].keys())
-        raise ValueError(f"Model {name!r} not found in {category!r} registry. Available models: {available_models}.")
+        available_models = ", ".join(f"{m!r}" for m in _REGISTERED_MODELS[task].keys())
+        raise ValueError(f"Model {name!r} not found in {task!r} registry. Available models: {available_models}.")
 
     model_fn = model_dict["fn"]
     return model_fn(*args, **kwargs)
