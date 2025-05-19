@@ -238,7 +238,7 @@ class RandLANetClassification(nn.Module):
         Args:
             features: Additional point features of shape $(N, features_dim)$.
             coords: Point coordinates of shape $(N, coords_dim)$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Classification logits of shape $(B, num_classes)$.
