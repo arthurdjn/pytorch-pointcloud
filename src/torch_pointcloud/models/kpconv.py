@@ -1,6 +1,7 @@
 import math
 import random
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
@@ -27,6 +28,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import OptTensor
 
+from ._registry import register_model
 from .pointnet2 import create_fp_blocks
 
 if TYPE_CHECKING:
@@ -681,8 +683,8 @@ class KPConvNetClassification(nn.Module):
 
     def __init__(
         self,
-        num_classes: int,
         in_channels: int,
+        num_classes: int,
         *,
         spatial_dim: int = 3,
         stem_channels: Optional[int] = None,
@@ -1047,3 +1049,32 @@ class KPConvNetSegmentation(nn.Module):
         )
         features = self.forward_decoder(features, coords, batch, intermediates)
         return self.forward_head(features)
+
+
+def _kpconvnet_small_clf(in_channels: int, num_classes: int) -> KPConvNetClassification:
+    return KPConvNetClassification(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        stem_channels=32,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3],
+        encoder_channels=[64, 128, 256, 512],
+        encoder_num_neighbors=[20, 35, 40, 40],
+        grid_sizes=[0.08, 0.16, 0.32],
+        radii=[0.1, 0.2, 0.4, 0.8],
+        kernel_size=15,
+        kp_radius=[0.1, 0.2, 0.4, 0.8],
+        kp_sigma=[0.05, 0.1, 0.2, 0.4],
+        act="leaky_relu",
+        norm=partial(torch.nn.BatchNorm1d, momentum=0.05),
+    )
+
+
+@register_model("kpconv-original.modelnet40", task="classification")
+def kpconvnet_original_clf() -> KPConvNetClassification:
+    return _kpconvnet_small_clf(in_channels=6, num_classes=40)
+
+
+@register_model("kpconv-sm.modelnet40", task="classification")
+def kpconvnet_small_clf() -> KPConvNetClassification:
+    return _kpconvnet_small_clf(in_channels=6, num_classes=40)
