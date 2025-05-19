@@ -87,10 +87,10 @@ class GroupedVectorAttention(nn.Module):
 
         self.attn_drop = nn.Dropout(attn_drop)
 
-    def forward(self, features: Tensor, coords: Tensor, neighbors: Tensor) -> Tensor:
+    def forward(self, features: Tensor, coords: Tensor, edge_index: Tensor) -> Tensor:
         query, key, value = self.q(features), self.k(features), self.v(features)
 
-        row, col = neighbors
+        row, col = edge_index
         value = value[row]
         coords = coords[row] - coords[col]
         relation_qk = key[row] - query[col]
@@ -146,10 +146,10 @@ class Block(nn.Module):
         self.act = create_act(act)
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def forward(self, features: Tensor, coords: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, features: Tensor, coords: Tensor, edge_index: Tensor) -> Tensor:
         shortcut = features
         features = self.act(self.norm1(self.fc1(features)))
-        features = self.attn(features, coords, batch)
+        features = self.attn(features, coords, edge_index)
         features = self.act(self.norm2(features))
         features = self.norm3(self.fc3(features))
         features = self.drop_path(features) + shortcut
@@ -331,9 +331,9 @@ class EncoderBlock(nn.Module):
         if self.downsample is not None:
             features, coords, batch, pooling_inverse = self.downsample(features, coords, batch, return_inverse=True)
 
-        neighbors = knn_graph(coords, self.num_neighbors, batch, loop=True)
+        edge_index = knn_graph(coords, self.num_neighbors, batch, loop=True)
         for block in self.blocks:
-            features = block(features, coords, neighbors)
+            features = block(features, coords, edge_index)
 
         if return_inverse:
             return features, coords, batch, pooling_inverse
@@ -389,9 +389,9 @@ class DecoderBlock(nn.Module):
         if self.upsample is not None:
             features = self.upsample(features, skip_features, pooling_inverse)
 
-        neighbors = knn_graph(skip_coords, self.num_neighbors, skip_batch, loop=True)
+        edge_index = knn_graph(skip_coords, self.num_neighbors, skip_batch, loop=True)
         for block in self.blocks:
-            features = block(features, skip_coords, neighbors)
+            features = block(features, skip_coords, edge_index)
         return features, skip_coords, skip_batch
 
 
@@ -529,7 +529,7 @@ class PointTransformerV2Classification(nn.Module):
         encoder_depths: Number of encoder blocks for each stage.
         encoder_channels: Number of channels for each encoder block.
         encoder_num_groups: Number of groups for each encoder block.
-        encoder_num_neighbors: Number of neighbors for each encoder block.
+        encoder_num_neighbors: Number of edge_index for each encoder block.
         grid_sizes: Size of the grid for each stage.
         norm: Normalization layer to use.
         act: Activation function to use.
@@ -721,7 +721,7 @@ class PointTransformerV2Segmentation(nn.Module):
         encoder_depths: Number of encoder blocks for each stage.
         encoder_channels: Number of channels for each encoder block.
         encoder_num_groups: Number of groups for each encoder block.
-        encoder_num_neighbors: Number of neighbors for each encoder block.
+        encoder_num_neighbors: Number of edge_index for each encoder block.
         grid_sizes: Size of the grid for each stage.
         norm: Normalization layer to use.
         act: Activation function to use.
