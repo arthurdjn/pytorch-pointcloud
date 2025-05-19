@@ -82,26 +82,26 @@ class TNet(nn.Module):
         nn.init.zeros_(self.transform.weight)
         nn.init.eye_(self.transform.bias.view(k, k))
 
-    def forward(self, x: torch.Tensor, batch_idxs: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
         """Forward pass of the T-Net.
 
         Args:
             x: Input tensor of shape $(N, k, *)$ where $N$ is the batch size, $k$ is the dimension of the input features, and $*$ means any number of additional dimensions.
-            batch_idxs: Batch indices of shape $(N)$ where $N$ is the batch size.
+            batch: Batch indices of shape $(N)$ where $N$ is the batch size.
 
         Returns:
             Transformation matrix of shape $(N, k, k)$ where $N$ is the batch size.
         """
 
         x = self.mlp1(x)
-        x = scatter(x, batch_idxs, dim=0, reduce=self.global_pool)
+        x = scatter(x, batch, dim=0, reduce=self.global_pool)
         x = self.mlp2(x)
 
         x = self.transform(x)
         iden = torch.eye(self.k, dtype=x.dtype, device=x.device)
         x = x.view(-1, self.k, self.k) + iden
 
-        return x[batch_idxs]
+        return x[batch]
 
 
 class PointNetEncoder(nn.Module):
@@ -125,8 +125,8 @@ class PointNetEncoder(nn.Module):
 
         ```python
         model = PointNetClassification(num_classes=10)
-        x = model(coords, features, batch_idxs)
-        global_features = self.global_pool(x, batch_idxs)
+        x = model(coords, features, batch)
+        global_features = self.global_pool(x, batch)
         ```
 
     Args:
@@ -199,7 +199,7 @@ class PointNetEncoder(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
     ) -> torch.Tensor: ...
 
     @overload
@@ -207,7 +207,7 @@ class PointNetEncoder(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
         return_point_features: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]: ...
 
@@ -215,7 +215,7 @@ class PointNetEncoder(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
         return_point_features: bool = False,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """Forward pass of the PointNet encoder.
@@ -223,7 +223,7 @@ class PointNetEncoder(nn.Module):
         Args:
             coords: Point coordinates of shape $(N, coords_dim)$ where $N$ is the batch size.
             features: Additional point features of shape $(N, features_dim)$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
             return_point_features: Whether to return per-point features.
 
         Returns:
@@ -233,7 +233,7 @@ class PointNetEncoder(nn.Module):
                 where `point_features` is of shape $(N, mlp1_dims[-1])$.
         """
 
-        xt = self.stnet(coords, batch_idxs)
+        xt = self.stnet(coords, batch)
         x = torch.bmm(coords.unsqueeze(1), xt).squeeze(1)
 
         if features is not None:
@@ -242,7 +242,7 @@ class PointNetEncoder(nn.Module):
         point_features = self.mlp1(x)
 
         if self.ftnet is not None:
-            xt = self.ftnet(point_features, batch_idxs)
+            xt = self.ftnet(point_features, batch)
             point_features = torch.bmm(point_features.unsqueeze(1), xt).squeeze(1)
 
         x = self.mlp2(point_features)
@@ -357,32 +357,32 @@ class PointNetClassification(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass of the PointNet encoder, returning pre-pooling features.
 
         Args:
             coords: Point coordinates of shape $(N, coords_dim)$.
             features: Additional point features of shape $(N, features_dim)$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
         """
-        return self.encoder(coords, features, batch_idxs)
+        return self.encoder(coords, features, batch)
 
-    def forward_head(self, x: torch.Tensor, batch_idxs: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
+    def forward_head(self, x: torch.Tensor, batch: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
         """Forward pass of the classification head from pre-pooling features.
 
         Args:
             x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
             Classification logits of shape $(B, num_classes)$.
         """
-        x = self.global_pool(x, batch_idxs)
+        x = self.global_pool(x, batch)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
@@ -391,20 +391,20 @@ class PointNetClassification(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass of the PointNet classification network.
 
         Args:
             coords: Point coordinates of shape $(N, coords_dim)$.
             features: Additional point features of shape $(N, features_dim)$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Classification logits of shape $(B, num_classes)$.
         """
-        x = self.forward_features(coords, features, batch_idxs)
-        return self.forward_head(x, batch_idxs)
+        x = self.forward_features(coords, features, batch)
+        return self.forward_head(x, batch)
 
 
 class PointNetSegmentation(nn.Module):
@@ -518,28 +518,29 @@ class PointNetSegmentation(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the PointNet encoder, returning pre-pooling features.
 
         Args:
             coords: Point coordinates of shape $(N, coords_dim)$.
             features: Additional point features of shape $(N, features_dim)$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             A tuple of $(pre_pooling_features, point_features)$
                 where `pre_pooling_features` is of shape $(N, mlp2_dims[-1])$
                 and `point_features` is of shape $(N, mlp1_dims[-1])$.
         """
-        x, point_features = self.encoder(coords, features, batch_idxs, return_point_features=True)
+        # TODO: Actually do the global pooling in the encoder
+        x, point_features = self.encoder(coords, features, batch, return_point_features=True)
         return x, point_features
 
     def forward_head(
         self,
         x: torch.Tensor,
         point_features: torch.Tensor,
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
         pre_logits: bool = False,
     ) -> torch.Tensor:
         """Forward pass of the segmentation head from pre-pooling features.
@@ -547,15 +548,15 @@ class PointNetSegmentation(nn.Module):
         Args:
             x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
             point_features: Point features of shape $(N, mlp1_dims[-1])$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
             Per-point segmentation logits of shape $(N, num_classes)$.
         """
-        global_features = self.global_pool(x, batch_idxs)
+        global_features = self.global_pool(x, batch)
         # Expand global features to match point features
-        global_features = global_features[batch_idxs]
+        global_features = global_features[batch]
 
         x = torch.cat([point_features, global_features], dim=1)
 
@@ -567,17 +568,17 @@ class PointNetSegmentation(nn.Module):
         self,
         coords: torch.Tensor,
         features: Optional[torch.Tensor],
-        batch_idxs: torch.Tensor,
+        batch: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass of the PointNet segmentation network.
 
         Args:
             coords: Point coordinates of shape $(N, coords_dim)$.
             features: Additional point features of shape $(N, features_dim)$.
-            batch_idxs: Batch indices for each point of shape $(N,)$.
+            batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Per-point segmentation logits of shape $(N, num_classes)$.
         """
-        x, point_features = self.forward_features(coords, features, batch_idxs)
-        return self.forward_head(x, point_features, batch_idxs)
+        x, point_features = self.forward_features(coords, features, batch)
+        return self.forward_head(x, point_features, batch)
