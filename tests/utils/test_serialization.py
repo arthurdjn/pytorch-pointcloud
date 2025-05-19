@@ -32,7 +32,7 @@ def depth() -> int:
     return 5
 
 
-@pytest.mark.skipif(not _OCNN_AVAILABLE, reason="Ocnn is not installed")
+@pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
 @patch("torch_pointcloud.utils.serialization.octree_encode")
 def test_z_order_encoding(mock_octree: Mock, grid_coords: Tensor, batch: Tensor, depth: int) -> None:
     serialize_coords(grid_coords, batch, depth, order="z")
@@ -44,7 +44,7 @@ def test_z_order_encoding(mock_octree: Mock, grid_coords: Tensor, batch: Tensor,
     assert torch.equal(args[2], grid_coords[:, 2].long())
 
 
-@pytest.mark.skipif(not _OCNN_AVAILABLE, reason="Ocnn is not installed")
+@pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
 @patch("torch_pointcloud.utils.serialization.octree_encode")
 def test_z_order_trans_encoding(mock_octree: Mock, grid_coords: Tensor, batch: Tensor, depth: int) -> None:
     serialize_coords(grid_coords, batch, depth, order="z-trans")
