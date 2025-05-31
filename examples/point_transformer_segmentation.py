@@ -63,7 +63,7 @@ def main() -> None:
 
     model = PointTransformerSegmentation(
         num_classes=args.num_classes,
-        in_channels=3,
+        in_channels=0,
         ratios=(0.25, 0.25, 0.25),
         encoder_depths=(2, 2, 6, 2),
         encoder_channels=(48, 96, 192, 384),
@@ -120,7 +120,7 @@ def train_one_epoch(
         batch = data["batch"].to(device)
 
         optimizer.zero_grad()
-        logits = model(coords, coords, batch)
+        logits = model(None, coords, batch)
         logits = F.log_softmax(logits, dim=1)
         loss = F.nll_loss(logits, target)
         loss.backward()
@@ -149,7 +149,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         batch = data["batch"].to(device)
 
         with torch.no_grad():
-            logits = model(coords, coords, batch)
+            logits = model(None, coords, batch)
             preds = logits.argmax(dim=1)
 
         total_correct += preds.eq(target).sum().item()

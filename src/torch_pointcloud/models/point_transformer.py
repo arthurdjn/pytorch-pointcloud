@@ -228,7 +228,9 @@ class PointTransformerBlock(torch.nn.Module):
             plain_last=False,
         )
 
+        self.act = activation_resolver(act, **act_kwargs)
         self.lin1 = nn.Linear(in_channels, in_channels)
+        self.norm1 = normalization_resolver(norm, out_channels, **norm_kwargs)
         self.transformer = PointTransformerConv(
             in_channels,
             out_channels,
@@ -238,10 +240,8 @@ class PointTransformerBlock(torch.nn.Module):
             attn_nn=MLP([out_channels, out_channels // num_groups, out_channels // num_groups], **kwargs),
             add_self_loops=add_self_loops,
         )
-        self.lin3 = nn.Linear(out_channels, out_channels)
-        self.act = activation_resolver(act, **act_kwargs)
-        self.norm1 = normalization_resolver(norm, out_channels, **norm_kwargs)
         self.norm2 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.lin3 = nn.Linear(out_channels, out_channels)
         self.norm3 = normalization_resolver(norm, out_channels, **norm_kwargs)
 
     def forward(self, x: Tensor, pos: Tensor, edge_index: Adj) -> Tensor:
@@ -280,8 +280,8 @@ class PointTransformerTransitionDown(torch.nn.Module):
         # Max pool onto each cluster the features from knn in points
         x_out = scatter(x[id_k_neighbor[1]], id_k_neighbor[0], dim=0, dim_size=id_clusters.size(0), reduce="max")
         # keep only the clusters and their max-pooled features
-        sub_pos, out = pos[id_clusters], x_out
-        return out, sub_pos, sub_batch
+        sub_pos = pos[id_clusters]
+        return x_out, sub_pos, sub_batch
 
     def extra_repr(self) -> str:
         return f"in_channels={self.in_channels}, out_channels={self.out_channels}, num_neighbors={self.num_neighbors}, ratio={self.ratio}"
@@ -312,22 +312,21 @@ class PointTransformerTransitionUp(torch.nn.Module):
             plain_last=False,
         )
 
-        self.mlp_skip = MLP([in_channels, out_channels], **kwargs)
-        self.mlp = MLP([out_channels, out_channels], **kwargs)
+        self.mlp = MLP([in_channels, out_channels], **kwargs)
+        self.mlp_skip = MLP([out_channels, out_channels], **kwargs)
 
     def forward(
         self,
         x: Tensor,
-        x_skip: Tensor,
         pos: Tensor,
+        batch: OptTensor,
+        x_skip: Tensor,
         pos_skip: Tensor,
-        batch: OptTensor = None,
-        batch_skip: OptTensor = None,
+        batch_skip: OptTensor,
     ) -> Tensor:
-        x_skip = self.mlp_skip(x_skip)
-        x_interpolated = knn_interpolate(x_skip, pos_skip, pos, k=3, batch_x=batch_skip, batch_y=batch)
-        x = self.mlp(x) + x_interpolated
-        return x
+        x = self.mlp(x)
+        x_interpolated = knn_interpolate(x, pos_x=pos, pos_y=pos_skip, k=3, batch_x=batch, batch_y=batch_skip)
+        return self.mlp_skip(x_skip) + x_interpolated
 
 
 class PointTransformerEncoderBlock(torch.nn.Module):
@@ -413,15 +412,22 @@ class PointTransformerDecoderBlock(torch.nn.Module):
                 )
             )
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: OptTensor,
+        x_skip: Tensor,
+        pos_skip: Tensor,
+        batch_skip: OptTensor,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         if self.upsample is not None:
-            x, pos, batch = self.upsample(x, pos, batch)
+            x = self.upsample(x, pos, batch, x_skip, pos_skip, batch_skip)
 
-        edge_index = knn_graph(pos, k=self.num_neighbors, batch=batch)
+        edge_index = knn_graph(pos_skip, k=self.num_neighbors, batch=batch_skip)
         for block in self.blocks:
-            x = block(x, pos, edge_index)
-
-        return x, pos, batch
+            x = block(x, pos_skip, edge_index)
+        return x, pos_skip, batch_skip
 
 
 class PointTransformerEncoder(torch.nn.Module):
@@ -516,15 +522,88 @@ class PointTransformerEncoder(torch.nn.Module):
         return x, pos, batch
 
 
+class PointTransformerDecoder(torch.nn.Module):
+    def __init__(
+        self,
+        channels: Sequence[int],
+        # skip_channels: Sequence[int],
+        depths: Sequence[int],
+        num_groups: Sequence[int],
+        num_neighbors: Sequence[int],
+        spatial_dim: int = 3,
+        add_self_loops: bool = False,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        upsample: Optional[nn.Module] = None,
+    ):
+        super().__init__()
+        self.upsample = upsample
+        self.blocks = nn.ModuleList()
+
+        depths = ensure_tuple(depths)
+        n = len(depths)
+        extra_msg = "Decoder length `{param}` != {size}."
+        channels = ensure_tuple_size(channels, size=n + 1, extra_msg=extra_msg.format(param="channels", size=n + 1))
+        num_groups = ensure_tuple_size(num_groups, size=n, extra_msg=extra_msg.format(param="num_groups", size=n))
+        num_neighbors = ensure_tuple_size(
+            num_neighbors,
+            size=n,
+            extra_msg=extra_msg.format(param="num_neighbors", size=n),
+        )
+
+        self.blocks = nn.ModuleList()
+        for i in range(n):
+            upsample = PointTransformerTransitionUp(
+                in_channels=channels[i],
+                out_channels=channels[i + 1],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            )
+
+            block = PointTransformerDecoderBlock(
+                channels=channels[i + 1],
+                depth=depths[i],
+                num_groups=num_groups[i],
+                num_neighbors=num_neighbors[i],
+                spatial_dim=spatial_dim,
+                add_self_loops=add_self_loops,
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                upsample=upsample,
+            )
+            self.blocks.append(block)
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        intermediates: List[Dict[str, Tensor]],
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        for block, intermediate in zip(self.blocks, reversed(intermediates)):
+            x, pos, batch = block(x, pos, batch, intermediate["features"], intermediate["pos"], intermediate["batch"])
+        return x, pos, batch
+
+
 class PointTransformerClassification(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
         num_classes: int,
+        *,
         encoder_channels: Sequence[int],
         encoder_depths: Sequence[int],
         encoder_num_groups: Sequence[int],
-        num_neighbors: Sequence[int],
+        encoder_num_neighbors: Sequence[int],
         ratios: Sequence[float],
         spatial_dim: int = 3,
         add_self_loops: bool = False,
@@ -537,16 +616,15 @@ class PointTransformerClassification(torch.nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        # dummy feature is created if there is none given
-        in_channels = max(in_channels, 1)
+        # if in_channels is 0, we use positions as features
+        self.in_channels = in_channels if in_channels > 0 else spatial_dim
 
-        self.num_neighbors = num_neighbors
         self.embeddings = MLP([in_channels, encoder_channels[0]], plain_last=False)
         self.encoder = PointTransformerEncoder(
             channels=encoder_channels,
             depths=encoder_depths,
             num_groups=encoder_num_groups,
-            num_neighbors=num_neighbors,
+            num_neighbors=encoder_num_neighbors,
             ratios=ratios,
             spatial_dim=spatial_dim,
             add_self_loops=add_self_loops,
@@ -591,9 +669,7 @@ class PointTransformerClassification(torch.nn.Module):
         batch: OptTensor = None,
         return_intermediates: bool = False,
     ) -> Any:
-        # add dummy features in case there is none
-        x = x if x is not None else torch.ones((pos.shape[0], 1), device=pos.get_device())
-
+        x = x if x is not None else pos
         x = self.embeddings(x)
         return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
@@ -606,3 +682,117 @@ class PointTransformerClassification(torch.nn.Module):
     def forward(self, x: OptTensor, pos: Tensor, batch: OptTensor = None) -> Tensor:
         x, _, batch = self.forward_encoder(x, pos, batch)
         return self.forward_head(x, batch)
+
+
+class PointTransformerSegmentation(torch.nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        encoder_channels: Sequence[int],
+        encoder_depths: Sequence[int],
+        encoder_num_groups: Sequence[int],
+        encoder_num_neighbors: Sequence[int],
+        decoder_channels: Sequence[int],
+        decoder_depths: Sequence[int],
+        decoder_num_groups: Sequence[int],
+        decoder_num_neighbors: Sequence[int],
+        ratios: Sequence[float],
+        spatial_dim: int = 3,
+        add_self_loops: bool = False,
+        dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        # if in_channels is 0, we use positions as features
+        self.in_channels = in_channels if in_channels > 0 else spatial_dim
+        self.num_classes = num_classes
+        self.embedding_dim = decoder_channels[-1]
+        self.dropout = dropout
+
+        self.embeddings = MLP([self.in_channels, encoder_channels[0]], plain_last=False)
+        self.encoder = PointTransformerEncoder(
+            channels=encoder_channels,
+            depths=encoder_depths,
+            num_groups=encoder_num_groups,
+            num_neighbors=encoder_num_neighbors,
+            ratios=ratios,
+            spatial_dim=spatial_dim,
+            add_self_loops=add_self_loops,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+        )
+        self.decoder = PointTransformerDecoder(
+            channels=[encoder_channels[-1]] + list(decoder_channels),
+            depths=decoder_depths,
+            num_groups=decoder_num_groups,
+            num_neighbors=decoder_num_neighbors,
+            spatial_dim=spatial_dim,
+            add_self_loops=add_self_loops,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+        )
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+
+    def reset_head(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+
+    @overload
+    def forward_encoder(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward_encoder(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_encoder(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: OptTensor = None,
+        return_intermediates: bool = False,
+    ) -> Any:
+        x = x if x is not None else pos
+        x = self.embeddings(x)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
+
+    def forward_decoder(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        intermediates: List[Dict[str, Tensor]],
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        return self.decoder(x, pos, batch, intermediates)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.dropout:
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: OptTensor = None) -> Tensor:
+        x, pos, batch, intermediates = self.forward_encoder(x, pos, batch, return_intermediates=True)
+        x, _, _ = self.forward_decoder(x, pos, batch, intermediates)
+        return self.forward_head(x)
