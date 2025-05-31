@@ -260,26 +260,38 @@ class PointTransformerTransitionDown(torch.nn.Module):
         out_channels: int,
         num_neighbors: int = 16,
         ratio: float = 0.25,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        pool: str = "max",
     ):
         super().__init__()
+        kwargs = dict(
+            act=act,
+            act_first=act_first,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            plain_last=False,
+        )
+
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_neighbors = num_neighbors
         self.ratio = ratio
-        self.mlp = MLP([in_channels, out_channels], plain_last=False)
+        self.pool = pool
+        self.mlp = MLP([in_channels, out_channels], **kwargs)
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, pos: Tensor, batch: OptTensor) -> Tuple[Tensor, Tensor, OptTensor]:
         id_clusters = fps(pos, ratio=self.ratio, batch=batch)
-
-        # compute for each cluster the k nearest points
         sub_batch = batch[id_clusters] if batch is not None else None
-        # beware of self loop
         id_k_neighbor = knn(pos, pos[id_clusters], k=self.num_neighbors, batch_x=batch, batch_y=sub_batch)
-        # transformation of features through a simple MLP
+
         x = self.mlp(x)
-        # Max pool onto each cluster the features from knn in points
-        x_out = scatter(x[id_k_neighbor[1]], id_k_neighbor[0], dim=0, dim_size=id_clusters.size(0), reduce="max")
-        # keep only the clusters and their max-pooled features
+
+        x_out = scatter(x[id_k_neighbor[1]], id_k_neighbor[0], dim=0, dim_size=id_clusters.size(0), reduce=self.pool)
         sub_pos = pos[id_clusters]
         return x_out, sub_pos, sub_batch
 
@@ -468,6 +480,11 @@ class PointTransformerEncoder(torch.nn.Module):
                     out_channels=channels[i],
                     num_neighbors=num_neighbors[i - 1],
                     ratio=ratios[i - 1],
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    act_first=act_first,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
                 )
 
             block = PointTransformerEncoderBlock(
