@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ShapeNetPart
-from torch_pointcloud.models import PointTransformerV3Segmentation
+from torch_pointcloud.models import PointTransformerSegmentation
 from torch_pointcloud.utils.random import seed_everything
 
 
@@ -40,7 +40,7 @@ def main() -> None:
     else:
         raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
 
-    # Limit the size of the dataset if specified
+    # Limit the size of the datasets, if specified
     if args.limit_train_batches is not None:
         train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
     if args.limit_test_batches is not None:
@@ -61,30 +61,18 @@ def main() -> None:
         collate_fn=collate,
     )
 
-    model = PointTransformerV3Segmentation(
+    model = PointTransformerSegmentation(
         num_classes=args.num_classes,
-        in_channels=3,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
-        encoder_depths=(2, 2, 2, 6, 2),
-        encoder_channels=(32, 64, 128, 256, 512),
-        encoder_num_head=(2, 4, 8, 16, 32),
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        decoder_depths=(2, 2, 2, 2),
-        decoder_channels=(64, 64, 128, 256),
-        decoder_num_head=(4, 4, 8, 16),
-        decoder_patch_size=(1024, 1024, 1024, 1024),
-        mlp_ratio=4,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        with_rpe=False,
-        with_flash_attn=True,
-        upcast_attention=False,
-        upcast_softmax=False,
+        in_channels=0,
+        ratios=(0.25, 0.25, 0.25),
+        encoder_depths=(2, 2, 6, 2),
+        encoder_channels=(48, 96, 192, 384),
+        encoder_num_groups=(6, 12, 24, 48),
+        encoder_num_neighbors=(16, 16, 16, 16),
+        decoder_depths=(1, 1, 1),
+        decoder_channels=(192, 96, 48),
+        decoder_num_groups=(24, 12, 6),
+        decoder_num_neighbors=(16, 16, 16),
     ).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
@@ -131,11 +119,8 @@ def train_one_epoch(
         target = data["target"].to(device)
         batch = data["batch"].to(device)
 
-        grid_size = 0.01
-        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
-
         optimizer.zero_grad()
-        logits = model(None, grid_coords, batch)
+        logits = model(None, coords, batch)
         logits = F.log_softmax(logits, dim=1)
         loss = F.nll_loss(logits, target)
         loss.backward()
@@ -163,11 +148,8 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         target = data["target"].to(device)
         batch = data["batch"].to(device)
 
-        grid_size = 0.01
-        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
-
         with torch.no_grad():
-            logits = model(None, grid_coords, batch)
+            logits = model(None, coords, batch)
             preds = logits.argmax(dim=1)
 
         total_correct += preds.eq(target).sum().item()
