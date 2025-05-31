@@ -5,12 +5,12 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets import ModelNet10, ModelNet40
-from torch_pointcloud.models import PointTransformerClassification
+from torch_pointcloud.datasets import ShapeNetPart
+from torch_pointcloud.models import PointTransformerSegmentation
 from torch_pointcloud.utils.random import seed_everything
 
 
@@ -19,56 +19,32 @@ def main() -> None:
     seed_everything(42)
 
     pre_transform = T.NormalizeScaled(keys="coords")
-    transform = T.Compose(
-        [
-            T.RandomSampleFaceVerticesd(
-                keys=["coords"],
-                face_keys=["faces"],
-                num_samples=args.num_points,
-                include_normals=True,
-                normals_key="normals",
-            )
-        ]
-    )
-
+    transform = None
     train_dataset: Dataset
     test_dataset: Dataset
-    if args.dataset.lower() == "modelnet10":
-        train_dataset = ModelNet10(
+    if args.dataset.lower() == "shapenetpart":
+        train_dataset = ShapeNetPart(
             args.root,
-            True,
+            split="train",
+            categories=args.categories,
             transform=transform,
             pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
         )
-        test_dataset = ModelNet10(
+        test_dataset = ShapeNetPart(
             args.root,
-            False,
+            split="test",
+            categories=args.categories,
             transform=transform,
             pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-    elif args.dataset.lower() == "modelnet40":
-        train_dataset = ModelNet40(
-            args.root,
-            True,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-        test_dataset = ModelNet40(
-            args.root,
-            False,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
         )
     else:
-        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10' or 'ModelNet40'.")
+        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
+
+    # Limit the size of the datasets, if specified
+    if args.limit_train_batches is not None:
+        train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
+    if args.limit_test_batches is not None:
+        test_dataset = Subset(test_dataset, range(args.limit_test_batches * args.batch_size))
 
     train_loader = DataLoader(
         train_dataset,
@@ -85,33 +61,26 @@ def main() -> None:
         collate_fn=collate,
     )
 
-    model = PointTransformerClassification(
+    model = PointTransformerSegmentation(
         num_classes=args.num_classes,
-        in_channels=6,
+        in_channels=3,
+        ratios=(0.25, 0.25, 0.25),
         encoder_depths=(2, 2, 6, 2),
         encoder_channels=(48, 96, 192, 384),
         encoder_num_groups=(6, 12, 24, 48),
         encoder_num_neighbors=(16, 16, 16, 16),
-        ratios=(0.5, 0.25, 0.125),
+        decoder_depths=(1, 1, 1),
+        decoder_channels=(192, 96, 48),
+        decoder_num_groups=(24, 12, 6),
+        decoder_num_neighbors=(16, 16, 16),
     ).to(args.device)
-
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer,
-        max_lr=args.lr,
-        pct_start=0.05,
-        anneal_strategy="cos",
-        div_factor=10.0,
-        final_div_factor=1000.0,
-        total_steps=len(train_loader) * args.epochs,
-    )
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
         train_metrics = train_one_epoch(model, optimizer, train_loader, args.device)
         val_metrics = eval_one_epoch(model, test_loader, args.device)
         metrics = {**train_metrics, **val_metrics}
-        scheduler.step()
 
         print("Scores:", end=" ")
         print(" | ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
@@ -120,15 +89,16 @@ def main() -> None:
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--root", type=str, default="data")
-    parser.add_argument("--dataset", type=str, default="modelnet10", choices=["modelnet10", "modelnet40"])
-    parser.add_argument("--num-classes", type=int, default=10)
-    parser.add_argument("--num-points", type=int, default=1024)
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--dataset", type=str, default="ShapeNetPart")
+    parser.add_argument("--num-classes", type=int, default=50)
+    parser.add_argument("--categories", nargs="+", default=None)
+    parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--num-workers", type=int, default=6)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--limit-train-batches", type=int, default=None)
+    parser.add_argument("--limit-test-batches", type=int, default=None)
     return parser.parse_args()
 
 
@@ -139,54 +109,61 @@ def train_one_epoch(
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
-    cum_loss = 0.0
     model.train()
+
+    total_loss = total_correct = total_points = 0.0
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
     for i, data in pbar:
         coords = data["coords"].to(device)
-        normals = data["normals"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
-        features = torch.cat([coords, normals], dim=1)
 
         optimizer.zero_grad()
-        logits = model(features, coords, batch)
-        preds = F.log_softmax(logits, dim=1)
-        loss = F.nll_loss(preds, target)
+        logits = model(coords, coords, batch)
+        logits = F.log_softmax(logits, dim=1)
+        loss = F.nll_loss(logits, target)
         loss.backward()
         optimizer.step()
-        cum_loss += loss.item()
+        total_loss += loss.item()
+        correct = logits.argmax(dim=1).eq(target).sum()
+        total_correct += correct.item()
+        total_points += len(target)
 
         if i % log_interval == 0:
-            pbar.set_postfix({"train/loss_step": loss.item()})
+            pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": correct.item() / len(target)})
 
-    return {"train/loss_epoch": cum_loss / len(loader)}
+    return {
+        "train/loss_epoch": total_loss / len(loader),
+        "train/acc_epoch": total_correct / total_points,
+    }
 
 
 def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> Dict[str, float]:
     model.eval()
-    correct = 0
+
+    total_correct = total_points = 0.0
     for data in tqdm(loader, total=len(loader), desc="Evaluating"):
         coords = data["coords"].to(device)
-        normals = data["normals"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
-        features = torch.cat([coords, normals], dim=1)
 
         with torch.no_grad():
-            preds = model(features, coords, batch).max(1)[1]
-        correct += preds.eq(target).sum().item()
-    return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
+            logits = model(coords, coords, batch)
+            preds = logits.argmax(dim=1)
+
+        total_correct += preds.eq(target).sum().item()
+        total_points += len(target)
+
+    return {"val/acc": total_correct / total_points}
 
 
 def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
     batch = torch.cat([torch.ones(len(d["coords"])) * i for i, d in enumerate(data_list)]).long()
     coords = torch.cat([d["coords"] for d in data_list]).float()
-    normals = torch.cat([d["normals"] for d in data_list]).float()
-    target = torch.stack([d["target"] for d in data_list])
+    target = torch.cat([d["segmentation"] for d in data_list])
 
-    return {"coords": coords, "normals": normals, "target": target, "batch": batch}
+    return {"coords": coords, "target": target, "batch": batch}
 
 
 if __name__ == "__main__":

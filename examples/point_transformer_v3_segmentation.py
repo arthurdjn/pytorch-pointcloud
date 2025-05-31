@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
@@ -20,6 +20,8 @@ def main() -> None:
 
     pre_transform = T.NormalizeScaled(keys="coords")
     transform = None
+    train_dataset: Dataset
+    test_dataset: Dataset
     if args.dataset.lower() == "shapenetpart":
         train_dataset = ShapeNetPart(
             args.root,
@@ -37,6 +39,12 @@ def main() -> None:
         )
     else:
         raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
+
+    # Limit the size of the dataset if specified
+    if args.limit_train_batches is not None:
+        train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
+    if args.limit_test_batches is not None:
+        test_dataset = Subset(test_dataset, range(args.limit_test_batches * args.batch_size))
 
     train_loader = DataLoader(
         train_dataset,
@@ -101,6 +109,8 @@ def parse_args() -> Namespace:
     parser.add_argument("--num-workers", type=int, default=6)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--limit-train-batches", type=int, default=None)
+    parser.add_argument("--limit-test-batches", type=int, default=None)
     return parser.parse_args()
 
 
