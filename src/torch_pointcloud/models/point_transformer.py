@@ -635,6 +635,9 @@ class PointTransformerClassification(torch.nn.Module):
         super().__init__()
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
+        self.num_classes = num_classes
+        self.embedding_dim = encoder_channels[-1]
+        self.dropout = dropout
 
         self.embeddings = MLP([in_channels, encoder_channels[0]], plain_last=False)
         self.encoder = PointTransformerEncoder(
@@ -651,9 +654,7 @@ class PointTransformerClassification(torch.nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.embedding_dim = encoder_channels[-1]
         self.global_pool = create_pool(global_pool)
-        self.dropout = dropout
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
@@ -762,7 +763,7 @@ class PointTransformerSegmentation(torch.nn.Module):
         )
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
-    def reset_head(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
