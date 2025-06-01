@@ -118,6 +118,23 @@ def test_ensure_tuple_empty_iterable() -> None:
     assert result == ()
 
 
+def test_ensure_tuple_none_as_empty() -> None:
+    """Test conversion of None to empty tuple"""
+    result = ensure_tuple(None, none_as_empty=False)
+    assert result == (None,)
+
+    result = ensure_tuple(None, none_as_empty=True)
+    assert result == ()
+
+    # Make sure that other values that can evaluate to False
+    # are indeed not considered as empty
+    result = ensure_tuple(0, none_as_empty=True)
+    assert result == (0,)
+
+    result = ensure_tuple("", none_as_empty=True)
+    assert result == ("",)
+
+
 def test_ensure_tuple_custom_type() -> None:
     """Test conversion of custom type"""
 
