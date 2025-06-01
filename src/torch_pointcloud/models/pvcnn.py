@@ -331,7 +331,7 @@ class PVCNNClassification(nn.Module):
 
         self.depths = ensure_tuple(depths)
         self.channels = ensure_tuple_size([in_channels] + list(channels), size=len(self.depths) + 1)
-        self.global_channels = ensure_tuple(global_channels) if global_channels is not None else None
+        self.global_channels = ensure_tuple(global_channels, none_as_empty=True)
         self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
         self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
         self.with_se = with_se
@@ -375,7 +375,7 @@ class PVCNNClassification(nn.Module):
         return blocks
 
     def configure_global_mlp(self) -> Optional[MLP]:
-        if self.global_channels is None:
+        if not self.global_channels:
             return None
 
         return MLP(
@@ -458,9 +458,9 @@ class PVCNNSegmentation(nn.Module):
 
         self.depths = ensure_tuple(depths)
         self.channels = ensure_tuple_size([self.in_channels] + list(channels), size=len(self.depths) + 1)
+        self.global_channels = ensure_tuple(global_channels, none_as_empty=True)
         self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
         self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
-        self.global_channels = ensure_tuple(global_channels) if global_channels is not None else None
         self.with_se = with_se
         self.normalize = normalize
         self.dropout = dropout
@@ -505,7 +505,7 @@ class PVCNNSegmentation(nn.Module):
         return blocks
 
     def configure_global_mlp(self) -> Optional[MLP]:
-        if self.global_channels is None:
+        if not self.global_channels:
             return None
 
         return MLP(
