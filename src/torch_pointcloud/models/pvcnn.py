@@ -548,6 +548,9 @@ class PVCNNSegmentation(nn.Module):
             return x, intermediates
         return x
 
+    # NOTE: Does it make sense to have this forward_decoder?
+    # NOTE: Maybe we should raise an error/warning specifying that this method
+    # NOTE: is irrelevant for this model. ...And include the global_mlp in the head instead?
     def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[Tensor]) -> Tensor:
         x_global = self.global_pool(x, batch)
         if self.global_mlp:
