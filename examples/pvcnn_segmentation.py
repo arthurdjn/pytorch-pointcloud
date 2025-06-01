@@ -65,7 +65,7 @@ def main() -> None:
         num_classes=args.num_classes,
         in_channels=0,
         channels=[64, 128, 512, 2048],
-        aggr_channels=[256, 128],
+        global_channels=[256, 128],
         depths=[1, 2, 1, 1],
         kernel_sizes=[3, 3, 0, 0],
         resolutions=[32, 16, 0, 0],
