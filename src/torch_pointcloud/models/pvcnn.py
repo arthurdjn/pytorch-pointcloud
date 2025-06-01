@@ -1,11 +1,15 @@
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.nn.resolver import activation_resolver
-from torch_scatter import scatter
+from torch_geometric.utils import scatter
+
+from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 
 
 def avg_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int) -> Tensor:
@@ -112,12 +116,10 @@ class Voxelization(nn.Module):
         self,
         resolution: int,
         normalize: bool = True,
-        eps: float = 1e-6,
     ):
         super().__init__()
         self.resolution = resolution
         self.normalize = normalize
-        self.eps = eps
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         batch_size = batch.max().item() + 1
@@ -129,7 +131,7 @@ class Voxelization(nn.Module):
             pos_norm = torch.norm(pos_centered, dim=1, keepdim=True)
             pos_norm_max = scatter(pos_norm.squeeze(), batch, dim=0, reduce="max", dim_size=batch_size)
             pos_norm_max = pos_norm_max[batch].unsqueeze(1)
-            norm_coords = pos_centered / (pos_norm_max * 2.0 + self.eps) + 0.5
+            norm_coords = pos_centered / (pos_norm_max * 2.0 + 1e-6) + 0.5
         else:
             norm_coords = (pos_centered + 1) / 2.0
 
@@ -178,13 +180,12 @@ class PVConv(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        eps: float = 1e-6,
     ):
         super().__init__()
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
         self.resolution = resolution
-        self.voxelization = Voxelization(resolution, normalize, eps)
+        self.voxelization = Voxelization(resolution, normalize=normalize)
 
         if act_first:
             voxel_layers = [
@@ -226,3 +227,287 @@ class PVConv(nn.Module):
         # Devoxelize the features back to the "packed" representation
         x_voxels = trilinear_devoxelize(x_voxels, voxel_coords, batch, self.resolution)  # (N, C)
         return x_voxels + self.mlp(x)  # (N, C)
+
+
+class PVCNNClassification(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        channels: Sequence[int],
+        depths: Sequence[int],
+        kernel_sizes: Sequence[int],
+        resolutions: Sequence[int],
+        with_se: bool = False,
+        normalize: bool = True,
+        dropout: float = 0.0,
+        global_pool: PoolLike = "max",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+
+        self.depths = ensure_tuple(depths)
+        self.channels = ensure_tuple_size([in_channels] + list(channels), size=len(self.depths) + 1)
+        self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
+        self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
+        self.with_se = with_se
+        self.normalize = normalize
+        self.dropout = dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+
+        self.blocks = self.configure_blocks()
+        self.global_pool = create_pool(global_pool)
+        self.head = create_cls_head(self.embedding_dim, self.num_classes)
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.channels[-1]
+
+    def configure_blocks(self) -> nn.ModuleList:
+        blocks = nn.ModuleList()
+        for i in range(len(self.depths)):
+            in_channels = self.channels[i]
+            out_channels = self.channels[i + 1]
+
+            # NOTE: Maybe refactor this into a single PVConvBlock class,
+            # which allows for swithcing between full MLP and PVConv blocks.
+            # THis would also ensure that the MLP and PVConv blocks accept the same arguments
+            # even though the MLP uses only the features.
+            for _ in range(self.depths[i]):
+                if not self.resolutions[i]:
+                    layer = MLP(
+                        [in_channels, out_channels],
+                        act=self.act,
+                        act_kwargs=self.act_kwargs,
+                        act_first=self.act_first,
+                        norm=self.norm,
+                        norm_kwargs=self.norm_kwargs,
+                        plain_last=False,
+                    )
+                else:
+                    layer = PVConv(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=self.kernel_sizes[i],
+                        resolution=self.resolutions[i],
+                        with_se=self.with_se,
+                        normalize=self.normalize,
+                        act=self.act,
+                        act_kwargs=self.act_kwargs,
+                        act_first=self.act_first,
+                        norm=self.norm,
+                        norm_kwargs=self.norm_kwargs,
+                    )
+
+                blocks.append(layer)
+                in_channels = out_channels
+
+        return blocks
+
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, List[Tensor]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tensor: ...
+
+    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+        intermediates = []
+        for block in self.blocks:
+            x = block(x, pos, batch)
+            if return_intermediates:
+                intermediates.append(x)
+
+        if return_intermediates:
+            return x, intermediates
+        return x
+
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        x = self.global_pool(x, batch)
+        if self.dropout:
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x = self.forward_features(x, pos, batch)
+        x = self.forward_head(x, batch)
+        return x
+
+
+class PVCNNSegmentation(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        channels: Sequence[int],
+        aggr_channels: Optional[Sequence[int]] = None,
+        depths: Sequence[int],
+        kernel_sizes: Sequence[int],
+        resolutions: Sequence[int],
+        spatial_dim: int = 3,
+        with_se: bool = False,
+        normalize: bool = True,
+        dropout: float = 0.0,
+        global_pool: PoolLike = "max",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+        self.in_channels = max(in_channels, spatial_dim)
+        self.num_classes = num_classes
+
+        self.depths = ensure_tuple(depths)
+        self.channels = ensure_tuple_size([self.in_channels] + list(channels), size=len(self.depths) + 1)
+        self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
+        self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
+        self.aggr_channels = ensure_tuple(aggr_channels) if aggr_channels is not None else None
+        self.with_se = with_se
+        self.normalize = normalize
+        self.dropout = dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+
+        self.blocks = self.configure_blocks()
+
+        self.aggr = (
+            MLP(
+                [self.channels[-1]] + list(self.aggr_channels),
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                act_first=self.act_first,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                plain_last=False,
+            )
+            if self.aggr_channels
+            else None
+        )
+
+        self.global_pool = create_pool(global_pool)
+        self.head = create_cls_head(self.embedding_dim, self.num_classes)
+
+    @property
+    def embedding_dim(self) -> int:
+        embedding_dim = sum(channels * depth for channels, depth in zip(self.channels[1:], self.depths))
+        if self.aggr_channels:
+            return embedding_dim + self.aggr_channels[-1]
+        return embedding_dim + self.channels[-1]
+
+    def configure_blocks(self) -> nn.ModuleList:
+        blocks = nn.ModuleList()
+        for i in range(len(self.depths)):
+            in_channels = self.channels[i]
+            out_channels = self.channels[i + 1]
+
+            # NOTE: Maybe refactor this into a single PVConvBlock class,
+            # which allows for swithcing between full MLP and PVConv blocks.
+            # THis would also ensure that the MLP and PVConv blocks accept the same arguments
+            # even though the MLP uses only the features.
+            for _ in range(self.depths[i]):
+                if not self.resolutions[i]:
+                    layer = MLP(
+                        [in_channels, out_channels],
+                        act=self.act,
+                        act_kwargs=self.act_kwargs,
+                        act_first=self.act_first,
+                        norm=self.norm,
+                        norm_kwargs=self.norm_kwargs,
+                        plain_last=False,
+                    )
+                else:
+                    layer = PVConv(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=self.kernel_sizes[i],
+                        resolution=self.resolutions[i],
+                        with_se=self.with_se,
+                        normalize=self.normalize,
+                        act=self.act,
+                        act_kwargs=self.act_kwargs,
+                        act_first=self.act_first,
+                        norm=self.norm,
+                        norm_kwargs=self.norm_kwargs,
+                    )
+
+                blocks.append(layer)
+                in_channels = out_channels
+
+        return blocks
+
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, List[Tensor]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tensor: ...
+
+    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+        x = x if x is not None else pos
+
+        intermediates = []
+        for block in self.blocks:
+            x = block(x, pos, batch)
+            if return_intermediates:
+                intermediates.append(x)
+
+        if return_intermediates:
+            return x, intermediates
+        return x
+
+    def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[Tensor]) -> Tensor:
+        x_global = self.global_pool(x, batch)
+        if self.aggr:
+            x_global = self.aggr(x_global)
+
+        intermediates.append(x_global[batch])
+        return torch.cat(intermediates, dim=1)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.dropout:
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x = self.forward_decoder(x, batch, intermediates)
+        x = self.forward_head(x)
+        return x

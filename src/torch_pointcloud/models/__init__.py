@@ -5,4 +5,5 @@ from .point_transformer_v2 import PointTransformerV2Classification, PointTransfo
 from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Segmentation
+from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
