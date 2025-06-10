@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Type, TypeVar
 
 import numpy as np
 import torch
@@ -11,13 +11,62 @@ def is_iterable(value: Any) -> bool:
     A value is considered iterable if it is an instance of `Iterable` (i.e. `list`, `tuple`, `set`
     or any iterable defining the `__iter__` method) and not an instance of `str` or `bytes`.
 
+    It is worth noting that `torch.Tensor` and `np.ndarray` are considered iterable (here)
+    only if they have a dimension greater than 0 (i.e. not scalars).
+
     Args:
         value: The value to check.
 
     Returns:
         True if the value is iterable, False otherwise.
     """
-    return isinstance(value, Iterable) and not isinstance(value, (str, bytes))
+    if isinstance(value, (str, bytes)):
+        return False
+    elif isinstance(value, (torch.Tensor, np.ndarray)) and value.ndim == 0:
+        return False
+    elif not isinstance(value, Iterable):
+        return False
+    return True
+
+
+T = TypeVar("T", bound=Any)
+
+
+def ensure_iterable(value: Any, type: Type[T], recursive: bool = False, none_as_empty: bool = False) -> T:
+    if none_as_empty and value is None:
+        return type([])
+    if isinstance(value, np.ndarray):
+        value = value.tolist() if value.ndim > 0 else value.item()
+    elif isinstance(value, torch.Tensor):
+        value = value.detach().cpu()
+        value = value.tolist() if value.ndim > 0 else value.item()
+
+    if is_iterable(value):
+        if recursive:
+            return type(ensure_iterable(v, type, recursive=True) if is_iterable(v) else v for v in value)
+        return type(value)
+
+    return type([value])
+
+
+def ensure_iterable_size(
+    value: Any,
+    type: Type[T],
+    size: int,
+    recursive: bool = False,
+    none_as_empty: bool = False,
+    extra_msg: str = "",
+) -> T:
+    """Convert a value to a list of a given size.
+    If the value is a scalar, it will be repeated to match the size.
+    If the value's length does not match the size, an error will be raised.
+    """
+    value = ensure_iterable(value, type, recursive=recursive, none_as_empty=none_as_empty)
+    if len(value) == 1:
+        return type([value[0]] * size)
+    elif len(value) == size:
+        return value
+    raise ValueError(f"Expected a {type.__name__} of size {size}, got {len(value)}. {extra_msg}")
 
 
 def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False) -> List[Any]:
@@ -31,6 +80,7 @@ def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False
         value: The value to convert.
         recursive: If True, the function will recursively apply itself to the elements of the list.
         none_as_empty: If True, and the value is None, an empty list will be returned.
+        extra_msg: An additional message to include in the error.
 
     Returns:
         The value as a list.
@@ -49,21 +99,24 @@ def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False
         >>> ensure_list(None, none_as_empty=True)
         []
     """
-    if none_as_empty and value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        value = value.tolist() if value.ndim > 0 else value.item()
-    elif isinstance(value, torch.Tensor):
-        value = value.detach().cpu()
-        value = value.tolist() if value.ndim > 0 else value.item()
+    return ensure_iterable(value, list, recursive=recursive, none_as_empty=none_as_empty)
 
-    if is_iterable(value):
-        if recursive:
-            return list(ensure_list(v, recursive=True) if is_iterable(v) else v for v in value)
-        else:
-            return list(value)
 
-    return list([value])
+def ensure_list_size(
+    value: Any, size: int, recursive: bool = False, none_as_empty: bool = False, extra_msg: str = ""
+) -> List[Any]:
+    """Convert a value to a list of a given size.
+    If the value is a scalar, it will be repeated to match the size.
+    If the value's length does not match the size, an error will be raised.
+    """
+    return ensure_iterable_size(
+        value,
+        list,
+        size=size,
+        recursive=recursive,
+        none_as_empty=none_as_empty,
+        extra_msg=extra_msg,
+    )
 
 
 def ensure_tuple(value: Any, recursive: bool = False, none_as_empty: bool = False) -> Tuple[Any, ...]:
@@ -90,11 +143,7 @@ def ensure_tuple(value: Any, recursive: bool = False, none_as_empty: bool = Fals
         >>> ensure_tuple(torch.tensor([1, 2, 3], device="cuda"))
         (1, 2, 3)
     """
-
-    value = ensure_list(value, recursive=recursive, none_as_empty=none_as_empty)
-    if recursive:
-        return tuple(ensure_tuple(v, recursive=True) if is_iterable(v) else v for v in value)
-    return tuple(value)
+    return ensure_iterable(value, tuple, recursive=recursive, none_as_empty=none_as_empty)
 
 
 def ensure_tuple_size(
@@ -128,12 +177,14 @@ def ensure_tuple_size(
         >>> ensure_tuple_size(np.array([1, 2, 3]), 3)
         (1, 2, 3)
     """
-    value = ensure_tuple(value, recursive=recursive, none_as_empty=none_as_empty)
-    if len(value) == 1:
-        return tuple([value[0]] * size)
-    elif len(value) == size:
-        return value
-    raise ValueError(f"Expected a tuple of size {size}, got {len(value)}. {extra_msg}")
+    return ensure_iterable_size(
+        value,
+        tuple,
+        size=size,
+        recursive=recursive,
+        none_as_empty=none_as_empty,
+        extra_msg=extra_msg,
+    )
 
 
 @torch.no_grad()

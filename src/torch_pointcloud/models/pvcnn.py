@@ -263,6 +263,7 @@ class PVConvBlock(nn.Module):
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             if not resolution:
+                # In case resolution is 0 or None, use a linear block
                 layer = MLP([in_channels, out_channels], plain_last=False, **kwargs)
             else:
                 layer = PVConv(
