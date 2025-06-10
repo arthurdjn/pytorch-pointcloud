@@ -411,7 +411,7 @@ def create_encoder_blocks(
 ) -> nn.ModuleList:
     depths = ensure_tuple(depths)
     n = len(depths)
-    channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Encoder length `channels` != `depths` + 1.")
+    channels = ensure_tuple_size(channels, size=n, extra_msg="Encoder length `channels` != `depths`.")
     num_groups = ensure_tuple_size(num_groups, size=n, extra_msg="Encoder length `num_groups` != `depths`.")
     num_neighbors = ensure_tuple_size(num_neighbors, size=n, extra_msg="Encoder length `num_neighbors` != `depths`.")
     grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
