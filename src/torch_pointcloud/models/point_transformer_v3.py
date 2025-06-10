@@ -548,7 +548,7 @@ class EncoderBlock(nn.Module):
             )
 
         num_serializations = len(serialized_code)
-        pooling_inverse: Any = None
+        pooling_inverse: OptTensor = None
 
         if self.downsample is not None:
             features, grid_coords, batch, serialized_code, pooling_inverse = self.downsample(
@@ -894,12 +894,12 @@ class PointTransformerV3Classification(nn.Module):
         global_pool: PoolLike = "max",
     ):
         super().__init__()
-        self.in_channels = in_channels
+        self.in_channels = in_channels if in_channels > 0 else 3
         self.num_classes = num_classes
         self.serialization_orders = ensure_tuple(serialization_orders)
         self.shuffle_serialization_orders = shuffle_serialization_orders
 
-        self.embedding = Embedding(in_channels=in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
+        self.embedding = Embedding(in_channels=self.in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
         self.encoder = self.configure_encoder_blocks(
             depths=encoder_depths,
             channels=encoder_channels,
@@ -1129,12 +1129,12 @@ class PointTransformerV3Segmentation(nn.Module):
         dropout: float = 0.0,
     ):
         super().__init__()
-        self.in_channels = in_channels
+        self.in_channels = in_channels if in_channels > 0 else 1
         self.num_classes = num_classes
         self.serialization_orders = ensure_tuple(serialization_orders)
         self.shuffle_serialization_orders = shuffle_serialization_orders
 
-        self.embedding = Embedding(in_channels=in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
+        self.embedding = Embedding(in_channels=self.in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
         self.encoder = self.configure_encoder_blocks(
             depths=encoder_depths,
             channels=encoder_channels,
@@ -1226,7 +1226,8 @@ class PointTransformerV3Segmentation(nn.Module):
         Returns:
             Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
         """
-        features = features if features is not None else grid_coords.float()
+        # features = features if features is not None else grid_coords.float()
+        features = features if features is not None else torch.ones(grid_coords.shape[0], 1).to(grid_coords.device)
 
         # Serialize the grid coordinates for each serialization order (e.g. "z", "z-trans", etc.)
         # NOTE: For faster processing, we pre-compute the serialized code, order and inverse.

@@ -63,7 +63,7 @@ def main() -> None:
 
     model = PointTransformerV3Segmentation(
         num_classes=args.num_classes,
-        in_channels=3,
+        in_channels=0,
         serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders=True,
         strides=(2, 2, 2, 2),
