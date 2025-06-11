@@ -403,6 +403,7 @@ class PVCNN2Segmentation(nn.Module):
         in_channels: int,
         num_classes: int,
         *,
+        spatial_dim: int = 3,
         ratios: Sequence[float],
         radii: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
@@ -426,7 +427,7 @@ class PVCNN2Segmentation(nn.Module):
         dropout: float = 0.0,
     ):
         super().__init__()
-        self.in_channels = in_channels
+        self.in_channels = in_channels or spatial_dim
         self.num_classes = num_classes
         sa_channels = ensure_msg_list(sa_channels)
 
