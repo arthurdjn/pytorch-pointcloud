@@ -40,6 +40,10 @@ def trilinear_devoxelize(x_voxels: Tensor, pos: Tensor, batch: Tensor, resolutio
     device = pos.device
     N, _ = pos.shape
     B, C, R, R1, R2 = x_voxels.shape
+    # Operation can fails if the tensors are not all contiguous
+    x_voxels = x_voxels.contiguous()
+    pos = pos.contiguous()
+    batch = batch.contiguous()
 
     # Sanity checks
     if resolution != R or resolution != R1 or resolution != R2:
@@ -259,6 +263,7 @@ class PVConvBlock(nn.Module):
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             if not resolution:
+                # In case resolution is 0 or None, use a linear block
                 layer = MLP([in_channels, out_channels], plain_last=False, **kwargs)
             else:
                 layer = PVConv(
