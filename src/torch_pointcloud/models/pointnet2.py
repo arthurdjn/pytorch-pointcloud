@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -7,7 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers import MLP, ActLike, NormLike, PoolLike, create_cls_head, create_pool
-from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size, is_iterable
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import OptTensor
@@ -20,6 +19,7 @@ fps, _ = optional_import("torch_cluster", "fps")
 radius, _ = optional_import("torch_cluster", "radius")
 
 
+# TODO: add a `spatial_dim` argument
 class SAModule(nn.Module):
     def __init__(
         self,
@@ -85,7 +85,7 @@ class SAModule(nn.Module):
         msg_features = []
 
         for r, k, mlp in zip(self.radii, self.num_neighbors, self.mlps):
-            row, col = radius(coords, new_coords, r, batch, batch[idx], max_num_neighbors=k)
+            row, col = radius(coords, new_coords, r, batch, new_batch, max_num_neighbors=k)
             # row: Tensor of shape (N,) containing neighbor indices in the the new point cloud
             # col: Tensor of shape (N,) containing neighbor indices in the original point cloud
 
@@ -222,7 +222,7 @@ def create_fp_blocks(
         block = FPModule(
             in_channels=in_channels + skip_channels[i],
             channels=fp_channels[i],
-            k=1 if i == 0 else 3,
+            k=1 if i == 0 else 3,  # TODO: replace with spatial_dim
             act=act,
             norm=norm,
             bias=bias,
@@ -249,9 +249,7 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
         >>> ensure_msg_list(sa_channels)
         [[[32, 64]], [[128, 256]], [[256, 512, 512], [256, 512, 1024]]]
     """
-
-    def is_iterable(item: Any) -> bool:
-        return isinstance(item, Iterable) and not isinstance(item, (str, bytes))
+    items = ensure_list(items, recursive=True)
 
     result = []
     if not is_iterable(items):
@@ -262,10 +260,15 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
             raise ValueError(f"Expected a sequence, got {type(item).__name__} at index {i} from {items}. {extra_msg}")
 
         # Check if the item is already a list of lists
-        if any(is_iterable(subitem) for subitem in item):
+        if all(is_iterable(subitem) for subitem in item):
             result.append(item)
-        else:
+        elif all(not is_iterable(subitem) for subitem in item):
             result.append([item])
+        else:
+            raise ValueError(
+                "Expected either all items to be iterable or non-iterable, "
+                f"got a mix of both at index {i} from {items}. {extra_msg}"
+            )
 
     return result
 
@@ -402,6 +405,8 @@ class PointNet2Classification(nn.Module):
             features, coords, batch = block(features, coords, batch)
             if return_intermediates and i < len(self.sa_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
+                # TODO: We could move this up, before the forward block call,
+                # TODO: to avoid having the condition i < len(self.sa_blocks) - 1 etc.
                 intermediates.append({"features": features, "coords": coords, "batch": batch})
 
         if self.aggr is not None:
@@ -422,6 +427,8 @@ class PointNet2Classification(nn.Module):
         return self.forward_head(features, batch)
 
 
+# TODO: Update the docstring (remove classification part)
+# TODO: Allow using the GlobalSA block (maybe add a global_pool parameter)
 class PointNet2Segmentation(nn.Module):
     """PointNet++ segmentation model from the paper
     [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
