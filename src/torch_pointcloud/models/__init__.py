@@ -8,3 +8,4 @@ from .pointnet2 import PointNet2Classification, PointNet2Segmentation
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
+from .spvcnn import SPVCNNClassification

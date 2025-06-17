@@ -116,11 +116,7 @@ def trilinear_devoxelize(x_voxels: Tensor, pos: Tensor, batch: Tensor, resolutio
 
 
 class Voxelization(nn.Module):
-    def __init__(
-        self,
-        resolution: int,
-        normalize: bool = True,
-    ):
+    def __init__(self, resolution: int, normalize: bool = True):
         super().__init__()
         self.resolution = resolution
         self.normalize = normalize
