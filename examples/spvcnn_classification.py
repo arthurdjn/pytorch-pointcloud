@@ -94,11 +94,12 @@ def main() -> None:
     model = SPVCNNClassification(
         num_classes=args.num_classes,
         in_channels=6,
-        encoder_channels=[32, 64, 128, 256],
+        # stem_channels=32,
+        encoder_channels=[48, 96, 192, 384],
         encoder_voxel_sizes=[0.05, 0.1, 0.2, 0.4],
         encoder_point_depths=[2, 2, 2, 2],
         encoder_voxel_depths=[2, 2, 2, 2],
-        act="gelu",
+        act="leaky_relu",
     ).to(args.device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -158,8 +159,11 @@ def train_one_epoch(
         batch = data["batch"].to(device)
         features = torch.cat([coords, normals], dim=1)
 
+        grid_size = 0.01
+        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
+
         optimizer.zero_grad()
-        logits = model(features, coords, batch)
+        logits = model(features, grid_coords, batch)
         probs = F.log_softmax(logits, dim=1)
 
         loss = F.nll_loss(probs, target)
@@ -189,8 +193,11 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         batch = data["batch"].to(device)
         features = torch.cat([coords, normals], dim=1)
 
+        grid_size = 0.01
+        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
+
         with torch.no_grad():
-            preds = model(features, coords, batch).max(1)[1]
+            preds = model(features, grid_coords, batch).max(1)[1]
         correct += preds.eq(target).sum().item()
     return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
 

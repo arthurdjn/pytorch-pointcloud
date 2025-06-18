@@ -136,6 +136,8 @@ def sparse_voxelize(
     reduce: str = "mean",
     return_inverse: bool = False,
 ) -> Tuple[Tensor, ...]:
+    # Ensure the position is float
+    pos = pos.float()
     start = pos.min(0)[0]
 
     cluster = voxel_grid(pos, batch=batch, size=voxel_size, start=start)
