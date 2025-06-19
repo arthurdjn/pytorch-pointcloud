@@ -3,12 +3,17 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
-from torch_geometric.nn import MLP
+from torch import IntTensor, Tensor
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
-from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size, to_spconv_tensor
+from torch_pointcloud.utils.conversion import (
+    ensure_list,
+    ensure_tuple,
+    ensure_tuple_size,
+    packed_to_spconv_tensor,
+    spconv_tensor_to_packed,
+)
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
 from torch_pointcloud.utils.voxelization import sparse_voxelize
@@ -52,7 +57,7 @@ class SPVConv(nn.Module):
             return_inverse=True,
         )
 
-        x_sparse = to_spconv_tensor(x_voxels, pos_voxels, batch_voxels)
+        x_sparse = packed_to_spconv_tensor(x_voxels, pos_voxels, batch_voxels)
         x_sparse = self.voxel_nn(x_sparse)
         x_voxels = x_sparse.features[cluster]
 
@@ -180,14 +185,47 @@ class SparseConvResidualBlock(nn.Module):
         return out
 
 
-class SPVCNNEncoderBlock(nn.Module):
+class SPVCNNUpsample(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        skip_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        padding: int = 1,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        indice_key: Optional[str] = None,
+    ):
+        super().__init__()
+        self.upsample = spconv.SparseInverseConv3d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            bias=False,
+            indice_key=indice_key,
+        )
+
+        self.skip_mlp = nn.Sequential(
+            nn.Linear(skip_channels, out_channels),
+            nn.BatchNorm1d(out_channels),
+            nn.ReLU(True),
+        )
+
+    def forward(self, x: SparseConvTensor, x_skip: SparseConvTensor) -> SparseConvTensor:
+        x = self.upsample(x)
+        x = x.replace_feature(x.features + self.skip_mlp(x_skip.features))
+        return x
+
+
+class SparseEncoderBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        voxel_size: float,
-        voxel_depth: int = 2,
-        point_depth: int = 2,
+        depth: int = 2,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -196,18 +234,11 @@ class SPVCNNEncoderBlock(nn.Module):
         downsample: Optional[SparseConvBlock] = None,
     ):
         super().__init__()
-        voxel_depth = max(voxel_depth, 1)
-        point_depth = max(point_depth, 1)
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.voxel_size = voxel_size
-        self.voxel_depth = voxel_depth
-        self.point_depth = point_depth
+        depth = max(depth, 1)
         self.downsample = downsample
 
-        voxel_layers = []
-        for i in range(voxel_depth):
+        self.layers = nn.ModuleList()
+        for i in range(depth):
             layer = SparseConvResidualBlock(
                 in_channels if i == 0 else out_channels,
                 out_channels,
@@ -215,54 +246,68 @@ class SPVCNNEncoderBlock(nn.Module):
                 act_kwargs=act_kwargs,
                 norm=norm,
                 norm_kwargs=norm_kwargs,
-                indice_key=f"{indice_key}.voxel{i}" if indice_key else None,
+                indice_key=f"{indice_key}.layer{i}" if indice_key else None,
             )
-            voxel_layers.append(layer)
+            self.layers.append(layer)
 
-        voxel_nn = nn.Sequential(*voxel_layers)
-
-        point_nn = MLP(
-            [in_channels, out_channels] + [out_channels] * (point_depth - 1),
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            plain_last=False,
-        )
-
-        fusion_nn = MLP(
-            [out_channels * 2, out_channels],
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            plain_last=False,
-        )
-
-        self.spvconv = SPVConv(
-            voxel_size=voxel_size,
-            voxel_nn=voxel_nn,
-            point_nn=point_nn,
-            fusion_nn=fusion_nn,
-        )
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
         if self.downsample is not None:
-            x_sparse = to_spconv_tensor(x, pos, batch)
-            x_sparse = self.downsample(x_sparse)
-            x = x_sparse.features
+            x = self.downsample(x)
 
-        x = self.spvconv(x, pos, batch)
-        return x, pos, batch
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class SPVCNNDecoderBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        depth: int = 2,
+        kernel_size: int = 3,
+        padding: int = 1,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        indice_key: Optional[str] = None,
+        upsample: Optional[SPVCNNUpsample] = None,
+    ):
+        super().__init__()
+        depth = max(depth, 1)
+        self.upsample = upsample
+
+        self.layers = nn.ModuleList()
+        for i in range(depth):
+            layer = SparseConvResidualBlock(
+                in_channels if i == 0 else out_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                indice_key=f"{indice_key}.layer{i}" if indice_key else None,
+            )
+            self.layers.append(layer)
+
+    def forward(self, x: SparseConvTensor, x_skip: SparseConvTensor) -> SparseConvTensor:
+        if self.upsample is not None:
+            x = self.upsample(x, x_skip)
+
+        x = x.replace_feature(torch.cat([x.features, x_skip.features], dim=1))
+        for layer in self.layers:
+            x = layer(x)
+        return x
 
 
 class SPVCNNEncoder(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
-        voxel_sizes: Sequence[float],
-        point_depths: Sequence[int],
-        voxel_depths: Sequence[int],
+        depths: Sequence[int],
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -276,27 +321,26 @@ class SPVCNNEncoder(nn.Module):
             "Invalid encoder length for `{param}`, expected {size}. "
             "HINT: make sure the length of the encoder parameters are compatible with the number of channels."
         )
-        point_depths = ensure_tuple_size(point_depths, size=n, extra_msg=extra_msg.format(param="point_depths", size=n))
-        voxel_depths = ensure_tuple_size(voxel_depths, size=n, extra_msg=extra_msg.format(param="voxel_depths", size=n))
-        voxel_sizes = ensure_tuple_size(voxel_sizes, size=n, extra_msg=extra_msg.format(param="voxel_sizes", size=n))
+        depths = ensure_tuple_size(depths, size=n, extra_msg=extra_msg.format(param="depths", size=n))
 
         self.blocks = nn.ModuleList()
         for i in range(n):
             downsample = SparseConvBlock(
                 in_channels=channels[i],
                 out_channels=channels[i],
+                kernel_size=2,
+                stride=2,
                 act=act,
                 act_kwargs=act_kwargs,
                 norm=norm,
                 norm_kwargs=norm_kwargs,
+                indice_key=f"{indice_key}.downsample{i}" if indice_key else None,
             )
 
-            block = SPVCNNEncoderBlock(
+            block = SparseEncoderBlock(
                 in_channels=channels[i],
                 out_channels=channels[i + 1],
-                voxel_size=voxel_sizes[i],
-                point_depth=point_depths[i],
-                voxel_depth=voxel_depths[i],
+                depth=depths[i],
                 act=act,
                 act_kwargs=act_kwargs,
                 norm=norm,
@@ -308,32 +352,68 @@ class SPVCNNEncoder(nn.Module):
 
     @overload
     def forward(
-        self,
-        x: Tensor,
-        pos: Tensor,
-        batch: Tensor,
-        return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+        self, x: SparseConvTensor, return_intermediates: Literal[True]
+    ) -> Tuple[SparseConvTensor, List[SparseConvTensor]]: ...
 
     @overload
-    def forward(
-        self,
-        x: Tensor,
-        pos: Tensor,
-        batch: Tensor,
-        return_intermediates: Literal[False] = False,
-    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+    def forward(self, x: SparseConvTensor, return_intermediates: Literal[False] = False) -> SparseConvTensor: ...
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
-        intermediates = []
+    def forward(self, x: SparseConvTensor, return_intermediates: bool = False) -> Any:
+        intermediates: List[SparseConvTensor] = []
+
         for block in self.blocks:
             if return_intermediates:
                 intermediates.append(x)
-            x, pos, batch = block(x, pos, batch)
+            x = block(x)
 
         if return_intermediates:
-            return x, pos, batch, intermediates
-        return x, pos, batch
+            return x, intermediates
+        return x
+
+
+class SPVCNNDecoder(nn.Module):
+    def __init__(
+        self,
+        depths: Sequence[int],
+        channels: Sequence[int],
+        skip_channels: Sequence[int],
+        act: Union[str, Callable, None] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        indice_key: Optional[str] = None,
+        upsample_indice_key: Optional[str] = None,
+    ):
+        super().__init__()
+        depths = ensure_tuple(depths)
+        n = len(depths)
+        channels = ensure_tuple_size(channels, size=n + 1)
+        skip_channels = ensure_tuple_size(skip_channels, size=n)
+
+        self.blocks = nn.ModuleList()
+        for i in range(n):
+            upsample = SPVCNNUpsample(
+                in_channels=channels[i],
+                out_channels=channels[i + 1],
+                skip_channels=skip_channels[i],
+                kernel_size=2,
+                indice_key=f"{upsample_indice_key}.downsample{n - i - 1}" if upsample_indice_key else None,
+                act=act,
+                norm=norm,
+            )
+            block = SPVCNNDecoderBlock(
+                in_channels=channels[i + 1] + skip_channels[i],
+                out_channels=channels[i + 1],
+                depth=depths[i],
+                act=act,
+                norm=norm,
+                indice_key=f"{indice_key}.block{i}",
+                upsample=upsample,
+            )
+            self.blocks.append(block)
+
+    def forward(self, x: SparseConvTensor, intermediates: List[SparseConvTensor]) -> SparseConvTensor:
+        for block, intermediate in zip(self.blocks, reversed(intermediates)):
+            x = block(x, intermediate)
+        return x
 
 
 class SPVCNNClassification(nn.Module):
@@ -343,9 +423,7 @@ class SPVCNNClassification(nn.Module):
         in_channels: int,
         *,
         encoder_channels: Sequence[int],
-        encoder_voxel_sizes: Sequence[float],
-        encoder_point_depths: Sequence[int],
-        encoder_voxel_depths: Sequence[int],
+        encoder_depths: Sequence[int],
         stem_channels: Optional[int] = None,
         global_pool: PoolLike = "max",
         dropout: float = 0.0,
@@ -355,12 +433,13 @@ class SPVCNNClassification(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+
         self.num_classes = num_classes
         self.in_channels = in_channels
-        self.encoder_channels = encoder_channels
-        self.encoder_voxel_sizes = encoder_voxel_sizes
-        self.encoder_point_depths = encoder_point_depths
-        self.encoder_voxel_depths = encoder_voxel_depths
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.encoder_depths = ensure_list(encoder_depths)
         self.stem_channels = stem_channels
 
         self.stem: Optional[SparseSequential] = None
@@ -369,7 +448,7 @@ class SPVCNNClassification(nn.Module):
                 spconv.SubMConv3d(in_channels=in_channels, out_channels=stem_channels, kernel_size=3),
                 normalization_resolver(norm, stem_channels, **norm_kwargs) or nn.Identity(),
                 activation_resolver(act, **act_kwargs) or nn.Identity(),
-                spconv.SparseConv3d(in_channels=stem_channels, out_channels=stem_channels, kernel_size=3),
+                spconv.SubMConv3d(in_channels=stem_channels, out_channels=stem_channels, kernel_size=3),
                 normalization_resolver(norm, stem_channels, **norm_kwargs) or nn.Identity(),
                 activation_resolver(act, **act_kwargs) or nn.Identity(),
             )
@@ -377,9 +456,7 @@ class SPVCNNClassification(nn.Module):
         in_channels = stem_channels or in_channels
         self.encoder = SPVCNNEncoder(
             channels=[in_channels, *encoder_channels],
-            voxel_sizes=encoder_voxel_sizes,
-            point_depths=encoder_point_depths,
-            voxel_depths=encoder_voxel_depths,
+            depths=encoder_depths,
             act=act,
             act_kwargs=act_kwargs,
             norm=norm,
@@ -403,17 +480,20 @@ class SPVCNNClassification(nn.Module):
     def forward_encoder(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos: IntTensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # automatically use the position if no features are provided
-        x = x if x is not None else pos
+        x = x if x is not None else pos.float()
 
+        x_sparse = packed_to_spconv_tensor(x, pos, batch)
         if self.stem is not None:
-            x = self.stem(x)
+            x_sparse = self.stem(x_sparse)
 
-        return self.encoder(x, pos, batch)
+        x_sparse = self.encoder(x_sparse)
+        x, pos, batch = spconv_tensor_to_packed(x_sparse)
+        return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
@@ -421,6 +501,52 @@ class SPVCNNClassification(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: IntTensor, batch: Tensor) -> Tensor:
         x, _, batch = self.forward_encoder(x, pos, batch)
         return self.forward_head(x, batch)
+
+
+class SPVCNNSegmentation(nn.Module):
+    def __init__(
+        self,
+        num_classes: int,
+        in_channels: int,
+        *,
+        encoder_channels: Sequence[int] = (32, 64, 128, 256),
+        encoder_depths: Sequence[int] = (2, 2, 2, 2),
+        decoder_channels: Sequence[int] = (256, 128, 96, 96),
+        decoder_depths: Sequence[int] = (2, 2, 2, 2),
+        stem_channels: int = 32,
+    ):
+        super().__init__()
+        self.stem = SparseConvBlock(in_channels, stem_channels, indice_key="stem")
+
+        self.encoder = SPVCNNEncoder(
+            channels=[stem_channels, *encoder_channels],
+            depths=encoder_depths,
+            act="relu",
+            norm="batch_norm",
+            indice_key="encoder",
+        )
+
+        self.decoder = SPVCNNDecoder(
+            channels=[encoder_channels[-1]] + list(decoder_channels),
+            skip_channels=list(encoder_channels[:-1])[::-1] + [stem_channels],
+            depths=decoder_depths,
+            act="relu",
+            norm="batch_norm",
+            indice_key="decoder",
+            upsample_indice_key="encoder",
+        )
+
+        self.head = nn.Linear(decoder_channels[-1], num_classes)
+
+    def forward(self, x: OptTensor, pos: IntTensor, batch: Tensor) -> Tensor:
+        x = x if x is not None else pos.float()
+        x_sparse = packed_to_spconv_tensor(x, pos, batch)
+
+        x_sparse = self.stem(x_sparse)
+        x_sparse, intermediates = self.encoder(x_sparse, return_intermediates=True)
+        x_sparse = self.decoder(x_sparse, intermediates)
+        x, _, _ = spconv_tensor_to_packed(x_sparse)
+        return self.head(x)

@@ -1,7 +1,7 @@
 from typing import Literal, Tuple, overload
 
 import torch
-from torch import Tensor
+from torch import IntTensor, Tensor
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
@@ -114,7 +114,7 @@ def sparse_voxelize(
     voxel_size: float,
     reduce: str,
     return_inverse: Literal[True],
-) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
+) -> Tuple[Tensor, IntTensor, Tensor, Tensor]: ...
 
 
 @overload
@@ -125,7 +125,7 @@ def sparse_voxelize(
     voxel_size: float,
     reduce: str = "mean",
     return_inverse: Literal[False] = False,
-) -> Tuple[Tensor, Tensor, Tensor]: ...
+) -> Tuple[Tensor, IntTensor, Tensor]: ...
 
 
 def sparse_voxelize(

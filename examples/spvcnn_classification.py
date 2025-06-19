@@ -95,10 +95,8 @@ def main() -> None:
         num_classes=args.num_classes,
         in_channels=6,
         # stem_channels=32,
-        encoder_channels=[48, 96, 192, 384],
-        encoder_voxel_sizes=[0.05, 0.1, 0.2, 0.4],
-        encoder_point_depths=[2, 2, 2, 2],
-        encoder_voxel_depths=[2, 2, 2, 2],
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[2, 2, 6, 2],
         act="leaky_relu",
     ).to(args.device)
 

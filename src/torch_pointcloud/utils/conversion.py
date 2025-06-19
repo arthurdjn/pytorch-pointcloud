@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple, Type, Ty
 
 import numpy as np
 import torch
-from torch import Tensor
+from torch import IntTensor, LongTensor, Tensor
 
 from torch_pointcloud.utils.imports import optional_import
 
@@ -453,9 +453,9 @@ def cu_seqlens_to_batch(cu_seqlens: Tensor) -> Tensor:
     return offset_to_batch(offset)
 
 
-def to_spconv_tensor(
+def packed_to_spconv_tensor(
     x: Tensor,
-    pos: Tensor,
+    pos: IntTensor,
     batch: Tensor,
     spatial_shape: Optional[Sequence[int]] = None,
     padding: int = 96,
@@ -480,3 +480,15 @@ def to_spconv_tensor(
         spatial_shape=spatial_shape,
         batch_size=batch[-1].item() + 1,
     )
+
+
+def spconv_tensor_to_packed(spconv_tensor: SparseConvTensor) -> Tuple[Tensor, IntTensor, LongTensor]:
+    x = spconv_tensor.features
+    indices = spconv_tensor.indices
+
+    batch = indices[:, 0]
+    pos = indices[:, 1:]
+
+    pos = pos.int()
+    batch = batch.long()
+    return x, pos, batch
