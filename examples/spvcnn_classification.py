@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 import torch
 import torch.nn.functional as F
+import torchsparse
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -12,6 +13,13 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ModelNet10, ModelNet40
 from torch_pointcloud.models import SPVCNNClassification
 from torch_pointcloud.utils.random import seed_everything
+
+# Set torchsparse configurations, see:
+# https://github.com/mit-han-lab/torchsparse/issues/347#issuecomment-2920272471
+torchsparse.nn.functional.set_kmap_mode("hashmap")
+ts_config = torchsparse.nn.functional.conv_config.get_default_conv_config()
+ts_config.kmap_mode = "hashmap"
+torchsparse.nn.functional.conv_config.set_global_conv_config(ts_config)
 
 
 def main() -> None:
@@ -92,12 +100,17 @@ def main() -> None:
     )
 
     model = SPVCNNClassification(
-        num_classes=args.num_classes,
         in_channels=6,
-        # stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[2, 2, 6, 2],
-        act="leaky_relu",
+        num_classes=args.num_classes,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256, 512],
+        encoder_depths=[2, 2, 2, 4, 2],
+        encoder_fusion_stages=[True, False, True, False, True],
+        act="relu",
+        act_kwargs={"inplace": True},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-5, "momentum": 0.1},
+        drop_path=0.3,
     ).to(args.device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -155,10 +168,10 @@ def train_one_epoch(
         normals = data["normals"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
-        features = torch.cat([coords, normals], dim=1)
 
         grid_size = 0.01
         grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
+        features = torch.cat([coords, normals], dim=1)
 
         optimizer.zero_grad()
         logits = model(features, grid_coords, batch)
@@ -173,7 +186,9 @@ def train_one_epoch(
         total_correct += correct.item()
 
         if i % log_interval == 0:
-            pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": correct.item() / len(target)})
+            loss_step = loss.item()
+            acc_step = correct.item() / len(target)
+            pbar.set_postfix({"train/loss_step": f"{loss_step:.3f}", "train/acc_step": f"{acc_step:.3f}"})
 
     return {
         "train/loss_epoch": total_loss / len(loader),
@@ -189,14 +204,15 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         normals = data["normals"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
-        features = torch.cat([coords, normals], dim=1)
 
         grid_size = 0.01
         grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
+        features = torch.cat([coords, normals], dim=1)
 
         with torch.no_grad():
             preds = model(features, grid_coords, batch).max(1)[1]
         correct += preds.eq(target).sum().item()
+
     return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
 
 

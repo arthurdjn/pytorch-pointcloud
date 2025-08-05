@@ -1,82 +1,140 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    TypedDict,
+    Union,
+    overload,
+)
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import IntTensor, Tensor
+from torch import Tensor
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
-from torch_pointcloud.utils.conversion import (
-    ensure_list,
-    ensure_tuple,
-    ensure_tuple_size,
-    packed_to_spconv_tensor,
-    spconv_tensor_to_packed,
-)
+from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
-from torch_pointcloud.utils.types import OptTensor
-from torch_pointcloud.utils.voxelization import sparse_voxelize
 
 if TYPE_CHECKING:
-    import spconv.pytorch as spconv
-    from spconv.pytorc import SparseConvTensor, SparseModule, SparseSequential
+    import torchsparse
+    import torchsparse.nn as spnn
+    import torchsparse.nn.functional as spF
+    from torchsparse.tensor import PointTensor, SparseTensor
 
 
-spconv, _ = optional_import("spconv.pytorch")
-SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
-SparseModule, _ = optional_import("spconv.pytorch", "SparseModule")
-SparseSequential, _ = optional_import("spconv.pytorch", "SparseSequential")
+torchsparse, _ = optional_import("torchsparse")
+spnn, _ = optional_import("torchsparse.nn")
+spF, _ = optional_import("torchsparse.nn.functional")
+PointTensor, _ = optional_import("torchsparse.tensor", "PointTensor")
+SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor")
 
 
-class SPVConv(nn.Module):
-    def __init__(
-        self,
-        voxel_size: float,
-        voxel_nn: Union[SparseModule, SparseSequential],
-        point_nn: nn.Module,
-        fusion_nn: nn.Module,
+def initial_voxelize(x_points: PointTensor) -> SparseTensor:
+    pc_hash = spF.sphash(torch.floor(x_points.C).int())
+    sparse_hash = torch.unique(pc_hash)
+    idx_query = spF.sphashquery(pc_hash, sparse_hash)
+    counts = spF.spcount(idx_query.int(), len(sparse_hash))
+
+    inserted_coords = spF.spvoxelize(torch.floor(x_points.C), idx_query, counts)
+    inserted_coords = torch.round(inserted_coords).int()
+    inserted_feat = spF.spvoxelize(x_points.F, idx_query, counts)
+
+    new_tensor = SparseTensor(inserted_feat, inserted_coords, 1)
+    new_tensor._caches.cmaps.setdefault(new_tensor.stride, new_tensor.coords)
+    x_points.additional_features["idx_query"][1] = idx_query
+    x_points.additional_features["counts"][1] = counts
+    return new_tensor
+
+
+def point_to_voxel(x_voxels: SparseTensor, x_points: PointTensor) -> SparseTensor:
+    if (
+        x_points.additional_features is None
+        or x_points.additional_features.get("idx_query") is None
+        or x_points.additional_features["idx_query"].get(x_voxels.s) is None
     ):
-        super().__init__()
-        self.voxel_size = voxel_size
-        self.voxel_nn = voxel_nn
-        self.point_nn = point_nn
-        self.fusion_nn = fusion_nn
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        # encode the points in a dense representation
-        x_points = self.point_nn(x)
-
-        # encode the points in a sparse representation
-        x_voxels, pos_voxels, batch_voxels, cluster = sparse_voxelize(
-            x,
-            pos,
-            batch,
-            voxel_size=self.voxel_size,
-            reduce="mean",
-            return_inverse=True,
+        pc_hash = spF.sphash(
+            torch.cat(
+                [
+                    torch.floor(x_points.C[:, :3] / x_voxels.s[0]).int() * x_voxels.s[0],
+                    x_points.C[:, -1].int().view(-1, 1),
+                ],
+                1,
+            )
         )
+        sparse_hash = spF.sphash(x_voxels.C)
+        idx_query = spF.sphashquery(pc_hash, sparse_hash)
+        counts = spF.spcount(idx_query.int(), x_voxels.C.shape[0])
+        x_points.additional_features["idx_query"][x_voxels.s] = idx_query
+        x_points.additional_features["counts"][x_voxels.s] = counts
+    else:
+        idx_query = x_points.additional_features["idx_query"][x_voxels.s]
+        counts = x_points.additional_features["counts"][x_voxels.s]
 
-        x_sparse = packed_to_spconv_tensor(x_voxels, pos_voxels, batch_voxels)
-        x_sparse = self.voxel_nn(x_sparse)
-        x_voxels = x_sparse.features[cluster]
+    inserted_feat = spF.spvoxelize(x_points.F, idx_query, counts)
+    new_tensor = SparseTensor(inserted_feat, x_voxels.C, x_voxels.s)
+    new_tensor._caches.cmaps = x_voxels._caches.cmaps
+    new_tensor._caches.kmaps = x_voxels._caches.kmaps
 
-        # fuse the two representations
-        x_combined = torch.cat([x_points, x_voxels], dim=1)
-        x_fused = self.fusion_nn(x_combined)
-        return x_fused
+    return new_tensor
 
 
-class SparseConvBlock(nn.Module):
+def voxel_to_point(x_voxels: SparseTensor, x_points: PointTensor) -> PointTensor:
+    if (
+        x_points.idx_query is None
+        or x_points.weights is None
+        or x_points.idx_query.get(x_voxels.s) is None
+        or x_points.weights.get(x_voxels.s) is None
+    ):
+        off = spnn.utils.get_kernel_offsets(2, x_voxels.s, 1, device=x_points.F.device)
+        old_hash = spF.sphash(
+            torch.cat(
+                [
+                    torch.floor(x_points.C[:, :3] / x_voxels.s[0]).int() * x_voxels.s[0],
+                    x_points.C[:, -1].int().view(-1, 1),
+                ],
+                1,
+            ),
+            off,
+        )
+        pc_hash = spF.sphash(x_voxels.C.to(x_points.F.device))
+        idx_query = spF.sphashquery(old_hash, pc_hash)
+        weights = spF.calc_ti_weights(x_points.C, idx_query.transpose(0, 1), scale=x_voxels.s[0]).contiguous()
+        idx_query = idx_query.contiguous().transpose(0, 1)
+
+        new_feat = spF.spdevoxelize(x_voxels.F, idx_query, weights)
+        new_tensor = PointTensor(new_feat, x_points.C, idx_query=x_points.idx_query, weights=x_points.weights)
+        new_tensor.additional_features = x_points.additional_features
+        new_tensor.idx_query[x_voxels.s] = idx_query
+        new_tensor.weights[x_voxels.s] = weights
+        x_points.idx_query[x_voxels.s] = idx_query
+        x_points.weights[x_voxels.s] = weights
+
+    else:
+        new_feat = spF.spdevoxelize(x_voxels.F, x_points.idx_query.get(x_voxels.s), x_points.weights.get(x_voxels.s))
+        new_tensor = PointTensor(new_feat, x_points.C, idx_query=x_points.idx_query, weights=x_points.weights)
+        new_tensor.additional_features = x_points.additional_features
+
+    return new_tensor
+
+
+class BasicBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
         stride: int = 1,
-        padding: int = 1,
-        bias: bool = False,
-        indice_key: Optional[str] = None,
+        dilation: int = 1,
+        transposed: bool = False,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -86,46 +144,32 @@ class SparseConvBlock(nn.Module):
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
 
-        if stride == 1:
-            self.conv = spconv.SubMConv3d(
-                in_channels,
-                out_channels,
-                kernel_size=kernel_size,
-                padding=padding,
-                bias=bias,
-                indice_key=indice_key,
-            )
-        else:
-            self.conv = spconv.SparseConv3d(
-                in_channels,
-                out_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-                bias=bias,
-                indice_key=indice_key,
-            )
+        self.conv = spnn.Conv3d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            dilation=dilation,
+            stride=stride,
+            transposed=transposed,
+        )
+        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.act = activation_resolver(act, **act_kwargs)
 
-        self.act = activation_resolver(act, **act_kwargs) or nn.Identity()
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) or nn.Identity()
-
-    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
+    def forward(self, x: PointTensor) -> PointTensor:
         x = self.conv(x)
-        x = x.replace_feature(self.norm(x.features))
-        x = x.replace_feature(self.act(x.features))
+        x.F = self.act(self.norm(x.F))
         return x
 
 
-class SparseConvResidualBlock(nn.Module):
+class ResidualBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
         stride: int = 1,
-        padding: int = 1,
-        bias: bool = False,
-        indice_key: Optional[str] = None,
+        dilation: int = 1,
+        drop_path: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -135,296 +179,429 @@ class SparseConvResidualBlock(nn.Module):
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
 
-        self.conv1 = SparseConvBlock(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            bias=bias,
-            indice_key=f"{indice_key}.conv1" if indice_key else None,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-        self.conv2 = SparseConvBlock(
-            in_channels=out_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=1,
-            padding=padding,
-            bias=bias,
-            indice_key=f"{indice_key}.conv2" if indice_key else None,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
+        self.conv1 = spnn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=stride)
+        self.norm1 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.conv2 = spnn.Conv3d(out_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=1)
+        self.norm2 = normalization_resolver(norm, out_channels, **norm_kwargs)
 
-        self.act = activation_resolver(act, **act_kwargs) or nn.Identity()
-        self.skip: Optional[spconv.SparseConv3d] = None
-        self.skip_norm: Optional[nn.Module] = None
+        self.conv_skip: Optional[nn.Module] = None
+        self.norm_skip: Optional[nn.Module] = None
         if in_channels != out_channels or stride != 1:
-            self.skip = spconv.SparseConv3d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias)
-            self.skip_norm = normalization_resolver(norm, out_channels, **norm_kwargs) or nn.Identity()
+            self.conv_skip = spnn.Conv3d(in_channels, out_channels, kernel_size=1, dilation=1, stride=stride)
+            self.norm_skip = normalization_resolver(norm, out_channels, **norm_kwargs)
 
-    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
-        identity = x
+        self.act = activation_resolver(act, **act_kwargs)
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else None
 
-        out = self.conv1(x)
-        out = self.conv2(out)
+    def forward(self, x: PointTensor) -> PointTensor:
+        x_skip = x
+        x = self.conv1(x)
+        x.F = self.act(self.norm1(x.F))
+        x = self.conv2(x)
+        x.F = self.norm2(x.F)
 
-        if self.skip is not None:
-            identity = self.skip(identity)
-        if self.skip_norm is not None:
-            identity = identity.replace_feature(self.skip_norm(identity.features))
+        if self.conv_skip is not None:
+            x_skip = self.conv_skip(x_skip)
+        if self.norm_skip is not None:
+            x_skip.F = self.norm_skip(x_skip.F)
+        if self.drop_path is not None:
+            x_skip.F = self.drop_path(x_skip.F)
 
-        out = out.replace_feature(out.features + identity.features)
-        out = out.replace_feature(self.act(out.features))
-        return out
+        x.F = self.act(x.F + x_skip.F)
+        return x
 
 
-class SPVCNNUpsample(nn.Module):
+class SPVFusionBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: Optional[int],
+        out_channels: int,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+
+        self.lin = nn.LazyLinear(out_channels) if not in_channels else nn.Linear(in_channels, out_channels)
+        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.act = activation_resolver(act, **act_kwargs)
+
+    def forward(self, x_voxels: SparseTensor, x_points: PointTensor) -> Tuple[SparseTensor, PointTensor]:
+        # NOTE: In the original paper, the fusion is done with a simple addition
+        # between the voxel and point features. However, concatenating the features
+        # and passing them through a MLP achieves better performance.
+        x_points_out = voxel_to_point(x_voxels, x_points)
+        x_points_out.F = x_points_out.F + self.act(self.norm(self.lin(x_points.F)))
+        x_voxels_out = point_to_voxel(x_voxels, x_points_out)
+        return x_voxels_out, x_points_out
+
+
+class SPVCNNUpsampleBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         skip_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        padding: int = 1,
+        stride: int = 1,
+        dilation: int = 1,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        indice_key: Optional[str] = None,
     ):
         super().__init__()
-        self.upsample = spconv.SparseInverseConv3d(
-            in_channels=in_channels,
-            out_channels=out_channels,
+        self.conv = BasicBlock(
+            in_channels,
+            out_channels,
+            kernel_size=2,
+            stride=2,
+            transposed=True,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+        )
+        self.residual = ResidualBlock(
+            out_channels + skip_channels,
+            out_channels,
             kernel_size=kernel_size,
-            bias=False,
-            indice_key=indice_key,
+            stride=stride,
+            dilation=dilation,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
         )
 
-        self.skip_mlp = nn.Sequential(
-            nn.Linear(skip_channels, out_channels),
-            nn.BatchNorm1d(out_channels),
-            nn.ReLU(True),
-        )
-
-    def forward(self, x: SparseConvTensor, x_skip: SparseConvTensor) -> SparseConvTensor:
-        x = self.upsample(x)
-        x = x.replace_feature(x.features + self.skip_mlp(x_skip.features))
+    def forward(self, x: SparseTensor, x_skip: SparseTensor) -> SparseTensor:
+        x = self.conv(x)
+        x = self.residual(torchsparse.cat([x, x_skip]))
         return x
 
 
-class SparseEncoderBlock(nn.Module):
+class SPVCNNEncoderBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        depth: int = 2,
+        depth: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        drop_path: Union[float, Sequence[float]] = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        indice_key: Optional[str] = None,
-        downsample: Optional[SparseConvBlock] = None,
+        fusion: Optional[nn.Module] = None,
+        downsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        depth = max(depth, 1)
         self.downsample = downsample
+        self.fusion = fusion
+        drop_path = ensure_tuple_size(drop_path, size=depth)
 
-        self.layers = nn.ModuleList()
+        self.blocks = nn.ModuleList()
         for i in range(depth):
-            layer = SparseConvResidualBlock(
-                in_channels if i == 0 else out_channels,
+            in_channels = in_channels if i == 0 else out_channels
+            block = ResidualBlock(
+                in_channels,
                 out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                dilation=dilation,
+                drop_path=drop_path[i],
                 act=act,
                 act_kwargs=act_kwargs,
                 norm=norm,
                 norm_kwargs=norm_kwargs,
-                indice_key=f"{indice_key}.layer{i}" if indice_key else None,
             )
-            self.layers.append(layer)
+            self.blocks.append(block)
 
-    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: Optional[PointTensor],
+    ) -> Tuple[SparseTensor, Optional[PointTensor]]:
         if self.downsample is not None:
-            x = self.downsample(x)
+            x_voxels = self.downsample(x_voxels)
 
-        for layer in self.layers:
-            x = layer(x)
-        return x
+        for block in self.blocks:
+            x_voxels = block(x_voxels)
+
+        if self.fusion:
+            if x_points is None:
+                raise ValueError("`x_points` is required when `fusion` is not None, but got None")
+
+            x_voxels, x_points = self.fusion(x_voxels, x_points)
+
+        return x_voxels, x_points
 
 
 class SPVCNNDecoderBlock(nn.Module):
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        depth: int = 2,
+        channels: int,
+        depth: int,
         kernel_size: int = 3,
-        padding: int = 1,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        indice_key: Optional[str] = None,
-        upsample: Optional[SPVCNNUpsample] = None,
+        stride: int = 1,
+        dilation: int = 1,
+        dropout: float = 0.0,
+        fusion: Optional[nn.Module] = None,
+        upsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        depth = max(depth, 1)
         self.upsample = upsample
-
-        self.layers = nn.ModuleList()
-        for i in range(depth):
-            layer = SparseConvResidualBlock(
-                in_channels if i == 0 else out_channels,
-                out_channels,
-                kernel_size=kernel_size,
-                padding=padding,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                indice_key=f"{indice_key}.layer{i}" if indice_key else None,
-            )
-            self.layers.append(layer)
-
-    def forward(self, x: SparseConvTensor, x_skip: SparseConvTensor) -> SparseConvTensor:
-        if self.upsample is not None:
-            x = self.upsample(x, x_skip)
-
-        x = x.replace_feature(torch.cat([x.features, x_skip.features], dim=1))
-        for layer in self.layers:
-            x = layer(x)
-        return x
-
-
-class SPVCNNEncoder(nn.Module):
-    def __init__(
-        self,
-        channels: Sequence[int],
-        depths: Sequence[int],
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        indice_key: Optional[str] = None,
-    ):
-        super().__init__()
-        channels = ensure_tuple(channels)
-        n = len(channels) - 1
-        extra_msg = (
-            "Invalid encoder length for `{param}`, expected {size}. "
-            "HINT: make sure the length of the encoder parameters are compatible with the number of channels."
-        )
-        depths = ensure_tuple_size(depths, size=n, extra_msg=extra_msg.format(param="depths", size=n))
+        self.fusion = fusion
+        self.dropout = dropout
 
         self.blocks = nn.ModuleList()
-        for i in range(n):
-            downsample = SparseConvBlock(
-                in_channels=channels[i],
-                out_channels=channels[i],
-                kernel_size=2,
-                stride=2,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                indice_key=f"{indice_key}.downsample{i}" if indice_key else None,
-            )
-
-            block = SparseEncoderBlock(
-                in_channels=channels[i],
-                out_channels=channels[i + 1],
-                depth=depths[i],
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                indice_key=f"{indice_key}.block{i}" if indice_key else None,
-                downsample=downsample,
-            )
+        for _ in range(depth):
+            block = ResidualBlock(channels, channels, kernel_size=kernel_size, stride=stride, dilation=dilation)
             self.blocks.append(block)
 
     @overload
     def forward(
-        self, x: SparseConvTensor, return_intermediates: Literal[True]
-    ) -> Tuple[SparseConvTensor, List[SparseConvTensor]]: ...
+        self,
+        x_voxels: SparseTensor,
+        x_points: None,
+        x_voxels_skip: Optional[SparseTensor],
+    ) -> Tuple[SparseTensor, None]: ...
 
     @overload
-    def forward(self, x: SparseConvTensor, return_intermediates: Literal[False] = False) -> SparseConvTensor: ...
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: PointTensor,
+        x_voxels_skip: Optional[SparseTensor],
+    ) -> Tuple[SparseTensor, PointTensor]: ...
 
-    def forward(self, x: SparseConvTensor, return_intermediates: bool = False) -> Any:
-        intermediates: List[SparseConvTensor] = []
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: Optional[PointTensor],
+        x_voxels_skip: Optional[SparseTensor],
+    ) -> Tuple[SparseTensor, Optional[PointTensor]]:
+        if self.upsample is not None:
+            if x_voxels_skip is None:
+                raise ValueError("`x_voxels_skip` is required when `upsample` is not None, but got None")
+
+            x_voxels = self.upsample(x_voxels, x_voxels_skip)
 
         for block in self.blocks:
+            x_voxels = block(x_voxels)
+
+        if self.fusion:
+            if x_points is None:
+                raise ValueError("`x_points` is required when `fusion` is not None, but got None")
+
+            x_voxels, x_points = self.fusion(x_voxels, x_points)
+
+        if self.dropout:
+            x_voxels.F = torch.nn.functional.dropout(x_voxels.F, p=self.dropout, training=self.training)
+        return x_voxels, x_points
+
+
+class SPVCNNIntermediateDict(TypedDict):
+    x_voxels: SparseTensor
+    x_points: PointTensor
+
+
+class SPVCNNEncoder(nn.Module):
+    block_name = "block{i}"
+
+    def __init__(
+        self,
+        channels: Sequence[int],
+        depths: Sequence[int],
+        fusion_stages: Sequence[bool],
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        drop_path: float = 0.3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+        self.num_blocks = len(depths)
+        assert len(depths) == len(fusion_stages), f"{len(depths) = }, {len(fusion_stages) = }"
+        assert len(channels) == self.num_blocks + 1, f"{len(channels) = }, {self.num_blocks + 1 = }"
+        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
+
+        for i in range(self.num_blocks):
+            downsample = BasicBlock(
+                channels[i],
+                channels[i],
+                kernel_size=2,
+                stride=2,
+                dilation=1,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            )
+
+            fusion = None
+            if fusion_stages[i]:
+                fusion = SPVFusionBlock(
+                    in_channels=None,
+                    out_channels=channels[i + 1],
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                )
+
+            block = SPVCNNEncoderBlock(
+                in_channels=channels[i],
+                out_channels=channels[i + 1],
+                depth=depths[i],
+                kernel_size=kernel_size,
+                stride=stride,
+                dilation=dilation,
+                downsample=downsample,
+                fusion=fusion,
+                drop_path=drop_paths[i].tolist(),
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            )
+            self.add_module(self.block_name.format(i=i), block)
+
+    @overload
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: PointTensor,
+    ) -> Tuple[SparseTensor, PointTensor]: ...
+
+    @overload
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: PointTensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[SparseTensor, PointTensor, List[SPVCNNIntermediateDict]]: ...
+
+    @overload
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: PointTensor,
+        return_intermediates: Literal[False],
+    ) -> Tuple[SparseTensor, PointTensor]: ...
+
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: PointTensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        intermediates: List[SPVCNNIntermediateDict] = []
+        for i in range(self.num_blocks):
+            block = self.get_submodule(self.block_name.format(i=i))
             if return_intermediates:
-                intermediates.append(x)
-            x = block(x)
+                intermediates.append({"x_voxels": x_voxels, "x_points": x_points})
+            x_voxels, x_points = block(x_voxels, x_points)
 
         if return_intermediates:
-            return x, intermediates
-        return x
+            return x_voxels, x_points, intermediates
+        return x_voxels, x_points
 
 
 class SPVCNNDecoder(nn.Module):
+    block_name = "block{i}"
+
     def __init__(
         self,
         depths: Sequence[int],
         channels: Sequence[int],
         skip_channels: Sequence[int],
+        fusion_stages: Sequence[bool],
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
-        indice_key: Optional[str] = None,
-        upsample_indice_key: Optional[str] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        depths = ensure_tuple(depths)
-        n = len(depths)
-        channels = ensure_tuple_size(channels, size=n + 1)
-        skip_channels = ensure_tuple_size(skip_channels, size=n)
+        self.num_blocks = len(depths)
+        assert len(depths) == len(skip_channels) == len(fusion_stages)
+        assert len(channels) == self.num_blocks + 1
 
-        self.blocks = nn.ModuleList()
-        for i in range(n):
-            upsample = SPVCNNUpsample(
+        for i in range(self.num_blocks):
+            upsample = SPVCNNUpsampleBlock(
                 in_channels=channels[i],
                 out_channels=channels[i + 1],
                 skip_channels=skip_channels[i],
-                kernel_size=2,
-                indice_key=f"{upsample_indice_key}.downsample{n - i - 1}" if upsample_indice_key else None,
+                kernel_size=kernel_size,
+                stride=stride,
+                dilation=dilation,
                 act=act,
+                act_kwargs=act_kwargs,
                 norm=norm,
+                norm_kwargs=norm_kwargs,
             )
+
+            fusion = None
+            if fusion_stages[i]:
+                fusion = SPVFusionBlock(
+                    in_channels=None,
+                    out_channels=channels[i + 1],
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                )
+
             block = SPVCNNDecoderBlock(
-                in_channels=channels[i + 1] + skip_channels[i],
-                out_channels=channels[i + 1],
+                channels=channels[i + 1],
                 depth=depths[i],
-                act=act,
-                norm=norm,
-                indice_key=f"{indice_key}.block{i}",
+                kernel_size=kernel_size,
+                stride=stride,
+                dilation=dilation,
+                fusion=fusion,
                 upsample=upsample,
             )
-            self.blocks.append(block)
+            self.add_module(self.block_name.format(i=i), block)
 
-    def forward(self, x: SparseConvTensor, intermediates: List[SparseConvTensor]) -> SparseConvTensor:
-        for block, intermediate in zip(self.blocks, reversed(intermediates)):
-            x = block(x, intermediate)
-        return x
+    def forward(
+        self,
+        x_voxels: SparseTensor,
+        x_points: PointTensor,
+        intermediates: List[SPVCNNIntermediateDict],
+    ) -> Tuple[SparseTensor, PointTensor]:
+        for i, intermediate in enumerate(reversed(intermediates)):
+            block = self.get_submodule(self.block_name.format(i=i))
+            x_voxels, x_points = block(x_voxels, x_points, intermediate["x_voxels"])
+        return x_voxels, x_points
 
 
 class SPVCNNClassification(nn.Module):
     def __init__(
         self,
-        num_classes: int,
         in_channels: int,
+        num_classes: int,
         *,
-        encoder_channels: Sequence[int],
-        encoder_depths: Sequence[int],
-        stem_channels: Optional[int] = None,
+        spatial_dim: int = 3,
+        stem_channels: int = 32,
+        encoder_channels: Sequence[int] = (32, 64, 128, 256, 256),
+        encoder_depths: Sequence[int] = (2, 2, 2, 2, 2),
+        encoder_fusion_stages: Sequence[bool] = (False, False, False, True),
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        drop_path: float = 0.3,
         global_pool: PoolLike = "max",
         dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
@@ -433,120 +610,177 @@ class SPVCNNClassification(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-
+        self.in_channels = in_channels or spatial_dim
         self.num_classes = num_classes
-        self.in_channels = in_channels
-        self.encoder_channels = ensure_list(encoder_channels)
-        self.encoder_depths = ensure_list(encoder_depths)
-        self.stem_channels = stem_channels
+        self.embedding_dim = encoder_channels[-1]
+        self.dropout = dropout
 
-        self.stem: Optional[SparseSequential] = None
-        if stem_channels is not None:
-            self.stem = SparseSequential(
-                spconv.SubMConv3d(in_channels=in_channels, out_channels=stem_channels, kernel_size=3),
-                normalization_resolver(norm, stem_channels, **norm_kwargs) or nn.Identity(),
-                activation_resolver(act, **act_kwargs) or nn.Identity(),
-                spconv.SubMConv3d(in_channels=stem_channels, out_channels=stem_channels, kernel_size=3),
-                normalization_resolver(norm, stem_channels, **norm_kwargs) or nn.Identity(),
-                activation_resolver(act, **act_kwargs) or nn.Identity(),
-            )
+        self.stem = nn.Sequential(
+            BasicBlock(
+                self.in_channels,
+                stem_channels,
+                kernel_size=3,
+                stride=1,
+                dilation=1,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            ),
+            BasicBlock(
+                stem_channels,
+                stem_channels,
+                kernel_size=3,
+                stride=1,
+                dilation=1,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            ),
+        )
 
-        in_channels = stem_channels or in_channels
         self.encoder = SPVCNNEncoder(
-            channels=[in_channels, *encoder_channels],
+            channels=[stem_channels, *encoder_channels],
             depths=encoder_depths,
+            fusion_stages=encoder_fusion_stages,
+            kernel_size=kernel_size,
+            stride=stride,
+            dilation=dilation,
+            drop_path=drop_path,
             act=act,
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
-            indice_key="encoder",
         )
 
         self.global_pool = create_pool(global_pool)
-        self.dropout = dropout
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
-
-    @property
-    def embedding_dim(self) -> int:
-        return self.encoder_channels[-1]
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
-    def forward_encoder(
+    def forward(
         self,
-        x: OptTensor,
-        pos: IntTensor,
+        x: Optional[Tensor],
+        pos: Tensor,
         batch: Tensor,
-        return_intermediates: bool = False,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        # automatically use the position if no features are provided
-        x = x if x is not None else pos.float()
+    ) -> Tensor:
+        x = pos.float() if x is None else x
+        pos = torch.cat([pos.float(), batch.unsqueeze(-1).float()], dim=1).contiguous()
+        x_points = PointTensor(x, pos)
+        x_voxels = initial_voxelize(x_points)
 
-        x_sparse = packed_to_spconv_tensor(x, pos, batch)
-        if self.stem is not None:
-            x_sparse = self.stem(x_sparse)
+        x_voxels = self.stem(x_voxels)
+        x_points = voxel_to_point(x_voxels, x_points)
 
-        x_sparse = self.encoder(x_sparse)
-        x, pos, batch = spconv_tensor_to_packed(x_sparse)
-        return x, pos, batch
+        x_voxels, x_points = self.encoder(x_voxels, x_points)
 
-    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        x = self.global_pool(x, batch)
+        x = self.global_pool(x_points.F, batch)
         if self.dropout:
             x = F.dropout(x, p=self.dropout, training=self.training)
-        return x if pre_logits else self.head(x)
-
-    def forward(self, x: OptTensor, pos: IntTensor, batch: Tensor) -> Tensor:
-        x, _, batch = self.forward_encoder(x, pos, batch)
-        return self.forward_head(x, batch)
+        return self.head(x)
 
 
 class SPVCNNSegmentation(nn.Module):
     def __init__(
         self,
-        num_classes: int,
         in_channels: int,
+        num_classes: int,
         *,
-        encoder_channels: Sequence[int] = (32, 64, 128, 256),
-        encoder_depths: Sequence[int] = (2, 2, 2, 2),
-        decoder_channels: Sequence[int] = (256, 128, 96, 96),
-        decoder_depths: Sequence[int] = (2, 2, 2, 2),
+        spatial_dim: int = 3,
         stem_channels: int = 32,
-    ):
+        encoder_channels: Sequence[int],
+        encoder_depths: Sequence[int],
+        encoder_fusion_stages: Sequence[bool],
+        decoder_channels: Sequence[int],
+        decoder_depths: Sequence[int],
+        decoder_fusion_stages: Sequence[bool],
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        drop_path: float = 0.3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__()
-        self.stem = SparseConvBlock(in_channels, stem_channels, indice_key="stem")
+        self.in_channels = in_channels or spatial_dim
+        self.num_classes = num_classes
+        self.stem_channels = stem_channels
+
+        self.stem = nn.Sequential(
+            BasicBlock(
+                self.in_channels,
+                stem_channels,
+                kernel_size=3,
+                stride=1,
+                dilation=1,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            ),
+            BasicBlock(
+                stem_channels,
+                stem_channels,
+                kernel_size=3,
+                stride=1,
+                dilation=1,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            ),
+        )
 
         self.encoder = SPVCNNEncoder(
             channels=[stem_channels, *encoder_channels],
             depths=encoder_depths,
-            act="relu",
-            norm="batch_norm",
-            indice_key="encoder",
+            fusion_stages=encoder_fusion_stages,
+            kernel_size=kernel_size,
+            stride=stride,
+            dilation=dilation,
+            drop_path=drop_path,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
         )
 
         self.decoder = SPVCNNDecoder(
-            channels=[encoder_channels[-1]] + list(decoder_channels),
-            skip_channels=list(encoder_channels[:-1])[::-1] + [stem_channels],
             depths=decoder_depths,
-            act="relu",
-            norm="batch_norm",
-            indice_key="decoder",
-            upsample_indice_key="encoder",
+            channels=[encoder_channels[-1], *decoder_channels],
+            skip_channels=[*reversed(encoder_channels[:-1]), stem_channels],
+            fusion_stages=decoder_fusion_stages,
+            kernel_size=kernel_size,
+            stride=stride,
+            dilation=dilation,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
         )
 
-        self.head = nn.Linear(decoder_channels[-1], num_classes)
+        self.head = create_cls_head(num_features=decoder_channels[-1], num_classes=num_classes)
 
-    def forward(self, x: OptTensor, pos: IntTensor, batch: Tensor) -> Tensor:
-        x = x if x is not None else pos.float()
-        x_sparse = packed_to_spconv_tensor(x, pos, batch)
+    def forward(
+        self,
+        x: Optional[Tensor],
+        pos: Tensor,
+        batch: Tensor,
+    ) -> Tensor:
+        x = pos.float() if x is None else x
+        pos = torch.cat([pos.float(), batch.unsqueeze(-1).float()], dim=1).contiguous()
+        x_points = PointTensor(x, pos)
+        x_voxels = initial_voxelize(x_points)
 
-        x_sparse = self.stem(x_sparse)
-        x_sparse, intermediates = self.encoder(x_sparse, return_intermediates=True)
-        x_sparse = self.decoder(x_sparse, intermediates)
-        x, _, _ = spconv_tensor_to_packed(x_sparse)
-        return self.head(x)
+        x_voxels = self.stem(x_voxels)
+        x_points = voxel_to_point(x_voxels, x_points)
+
+        x_voxels, x_points, intermediates = self.encoder(x_voxels, x_points, return_intermediates=True)
+        x_voxels, x_points = self.decoder(x_voxels, x_points, intermediates)
+        return self.head(x_points.F)
