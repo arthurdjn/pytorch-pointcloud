@@ -229,7 +229,7 @@ class SPVFusionBlock(nn.Module):
         self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
         self.act = activation_resolver(act, **act_kwargs)
 
-    def forward(self, x_voxels: SparseTensor, x_points: PointTensor) -> Tuple[SparseTensor, PointTensor]:
+    def forward(self, x_voxels: "SparseTensor", x_points: "PointTensor") -> Tuple["SparseTensor", "PointTensor"]:
         # NOTE: In the original paper, the fusion is done with a simple addition
         # between the voxel and point features. However, concatenating the features
         # and passing them through a MLP achieves better performance.
