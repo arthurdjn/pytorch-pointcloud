@@ -38,7 +38,7 @@ PointTensor, _ = optional_import("torchsparse.tensor", "PointTensor")
 SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor")
 
 
-def initial_voxelize(x_points: PointTensor) -> SparseTensor:
+def initial_voxelize(x_points: "PointTensor") -> "SparseTensor":
     pc_hash = spF.sphash(torch.floor(x_points.C).int())
     sparse_hash = torch.unique(pc_hash)
     idx_query = spF.sphashquery(pc_hash, sparse_hash)
@@ -55,7 +55,7 @@ def initial_voxelize(x_points: PointTensor) -> SparseTensor:
     return new_tensor
 
 
-def point_to_voxel(x_voxels: SparseTensor, x_points: PointTensor) -> SparseTensor:
+def point_to_voxel(x_voxels: "SparseTensor", x_points: "PointTensor") -> "SparseTensor":
     if (
         x_points.additional_features is None
         or x_points.additional_features.get("idx_query") is None
@@ -87,7 +87,7 @@ def point_to_voxel(x_voxels: SparseTensor, x_points: PointTensor) -> SparseTenso
     return new_tensor
 
 
-def voxel_to_point(x_voxels: SparseTensor, x_points: PointTensor) -> PointTensor:
+def voxel_to_point(x_voxels: "SparseTensor", x_points: "PointTensor") -> "PointTensor":
     if (
         x_points.idx_query is None
         or x_points.weights is None
@@ -155,7 +155,7 @@ class BasicBlock(nn.Module):
         self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
         self.act = activation_resolver(act, **act_kwargs)
 
-    def forward(self, x: PointTensor) -> PointTensor:
+    def forward(self, x: "PointTensor") -> "PointTensor":
         x = self.conv(x)
         x.F = self.act(self.norm(x.F))
         return x
@@ -193,7 +193,7 @@ class ResidualBlock(nn.Module):
         self.act = activation_resolver(act, **act_kwargs)
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else None
 
-    def forward(self, x: PointTensor) -> PointTensor:
+    def forward(self, x: "PointTensor") -> "PointTensor":
         x_skip = x
         x = self.conv1(x)
         x.F = self.act(self.norm1(x.F))
@@ -277,7 +277,7 @@ class SPVCNNUpsampleBlock(nn.Module):
             norm_kwargs=norm_kwargs,
         )
 
-    def forward(self, x: SparseTensor, x_skip: SparseTensor) -> SparseTensor:
+    def forward(self, x: "SparseTensor", x_skip: "SparseTensor") -> "SparseTensor":
         x = self.conv(x)
         x = self.residual(torchsparse.cat([x, x_skip]))
         return x
@@ -324,9 +324,9 @@ class SPVCNNEncoderBlock(nn.Module):
 
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: Optional[PointTensor],
-    ) -> Tuple[SparseTensor, Optional[PointTensor]]:
+        x_voxels: "SparseTensor",
+        x_points: Optional["PointTensor"],
+    ) -> Tuple["SparseTensor", Optional["PointTensor"]]:
         if self.downsample is not None:
             x_voxels = self.downsample(x_voxels)
 
@@ -367,25 +367,25 @@ class SPVCNNDecoderBlock(nn.Module):
     @overload
     def forward(
         self,
-        x_voxels: SparseTensor,
+        x_voxels: "SparseTensor",
         x_points: None,
-        x_voxels_skip: Optional[SparseTensor],
-    ) -> Tuple[SparseTensor, None]: ...
+        x_voxels_skip: Optional["SparseTensor"],
+    ) -> Tuple["SparseTensor", None]: ...
 
     @overload
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: PointTensor,
-        x_voxels_skip: Optional[SparseTensor],
-    ) -> Tuple[SparseTensor, PointTensor]: ...
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
+        x_voxels_skip: Optional["SparseTensor"],
+    ) -> Tuple["SparseTensor", "PointTensor"]: ...
 
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: Optional[PointTensor],
-        x_voxels_skip: Optional[SparseTensor],
-    ) -> Tuple[SparseTensor, Optional[PointTensor]]:
+        x_voxels: "SparseTensor",
+        x_points: Optional["PointTensor"],
+        x_voxels_skip: Optional["SparseTensor"],
+    ) -> Tuple["SparseTensor", Optional["PointTensor"]]:
         if self.upsample is not None:
             if x_voxels_skip is None:
                 raise ValueError("`x_voxels_skip` is required when `upsample` is not None, but got None")
@@ -407,8 +407,8 @@ class SPVCNNDecoderBlock(nn.Module):
 
 
 class SPVCNNIntermediateDict(TypedDict):
-    x_voxels: SparseTensor
-    x_points: PointTensor
+    x_voxels: "SparseTensor"
+    x_points: "PointTensor"
 
 
 class SPVCNNEncoder(nn.Module):
@@ -478,30 +478,30 @@ class SPVCNNEncoder(nn.Module):
     @overload
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: PointTensor,
-    ) -> Tuple[SparseTensor, PointTensor]: ...
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
+    ) -> Tuple["SparseTensor", "PointTensor"]: ...
 
     @overload
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: PointTensor,
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
         return_intermediates: Literal[True],
-    ) -> Tuple[SparseTensor, PointTensor, List[SPVCNNIntermediateDict]]: ...
+    ) -> Tuple["SparseTensor", "PointTensor", List[SPVCNNIntermediateDict]]: ...
 
     @overload
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: PointTensor,
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
         return_intermediates: Literal[False],
-    ) -> Tuple[SparseTensor, PointTensor]: ...
+    ) -> Tuple["SparseTensor", "PointTensor"]: ...
 
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: PointTensor,
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
         return_intermediates: bool = False,
     ) -> Any:
         intermediates: List[SPVCNNIntermediateDict] = []
@@ -577,10 +577,10 @@ class SPVCNNDecoder(nn.Module):
 
     def forward(
         self,
-        x_voxels: SparseTensor,
-        x_points: PointTensor,
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
         intermediates: List[SPVCNNIntermediateDict],
-    ) -> Tuple[SparseTensor, PointTensor]:
+    ) -> Tuple["SparseTensor", "PointTensor"]:
         for i, intermediate in enumerate(reversed(intermediates)):
             block = self.get_submodule(self.block_name.format(i=i))
             x_voxels, x_points = block(x_voxels, x_points, intermediate["x_voxels"])
