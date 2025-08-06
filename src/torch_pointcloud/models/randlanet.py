@@ -204,7 +204,7 @@ class RandLANetClassification(nn.Module):
         intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.encoder_blocks):
             features, coords, batch = block(features, coords, batch)
-            (features, coords), batch = decimate((features, coords), batch, self.decimation)  # type: ignore[arg-type]
+            (features, coords), batch = decimate((features, coords), batch, self.decimation)
             if return_intermediates and i < len(self.encoder_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
                 intermediates.append({"features": features, "coords": coords, "batch": batch})
@@ -358,7 +358,7 @@ class RandLANetSegmentation(nn.Module):
         intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.encoder_blocks):
             features, coords, batch = block(features, coords, batch)
-            (features, coords), batch = decimate((features, coords), batch, self.decimation)  # type: ignore[arg-type]
+            (features, coords), batch = decimate((features, coords), batch, self.decimation)
             if return_intermediates and i < len(self.encoder_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
                 intermediates.append({"features": features, "coords": coords, "batch": batch})
