@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ShapeNetPart
-from torch_pointcloud.loss import LovaszLoss
 from torch_pointcloud.models import PointNetSegmentation
 from torch_pointcloud.utils.random import seed_everything
 
@@ -89,8 +88,6 @@ def train_one_epoch(
     log_interval: int = 5,
 ) -> Dict[str, float]:
     model.train()
-    lovasz_loss = LovaszLoss(mode="multiclass", ignore_index=-1)
-
     total_loss = total_correct = total_points = 0.0
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
@@ -101,7 +98,8 @@ def train_one_epoch(
 
         optimizer.zero_grad()
         logits = model(coords, None, batch)
-        loss = F.nll_loss(F.log_softmax(logits, dim=1), target) + lovasz_loss(logits, target)
+        logits = F.log_softmax(logits, dim=1)
+        loss = F.nll_loss(logits, target)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
