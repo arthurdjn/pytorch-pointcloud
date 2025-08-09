@@ -204,6 +204,9 @@ class GridPool(nn.Module):
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
         features = self.act(self.norm(self.fc(features)))
+
+        # NOTE: evaluate difference with this version
+        # and the consecutive_cluster version in kpconv.py
         start = segment_csr(
             coords,
             torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)]),

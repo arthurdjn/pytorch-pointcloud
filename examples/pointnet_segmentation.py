@@ -88,7 +88,6 @@ def train_one_epoch(
     log_interval: int = 5,
 ) -> Dict[str, float]:
     model.train()
-
     total_loss = total_correct = total_points = 0.0
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
