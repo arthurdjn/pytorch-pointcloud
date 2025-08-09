@@ -1,9 +1,18 @@
 from collections.abc import Iterable
-from typing import Any, List, Tuple, Type, TypeVar
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple, Type, TypeVar
 
 import numpy as np
 import torch
-from torch import Tensor
+from torch import IntTensor, LongTensor, Tensor
+
+from torch_pointcloud.utils.imports import optional_import
+
+if TYPE_CHECKING:
+    import spconv.pytorch as spconv
+    from spconv.pytorc import SparseConvTensor
+
+spconv, _ = optional_import("spconv.pytorch")
+SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
 
 
 def is_iterable(value: Any) -> bool:
@@ -442,3 +451,44 @@ def cu_seqlens_to_batch(cu_seqlens: Tensor) -> Tensor:
     """
     offset = cu_seqlens_to_offset(cu_seqlens)
     return offset_to_batch(offset)
+
+
+def packed_to_spconv_tensor(
+    x: Tensor,
+    pos: IntTensor,
+    batch: Tensor,
+    spatial_shape: Optional[Sequence[int]] = None,
+    padding: int = 96,
+) -> SparseConvTensor:
+    """Convert point features and coordinates to `spconv.SparseConvTensor` sparse tensor.
+
+    Args:
+        x: The point features.
+        pos: The point coordinates.
+        batch: The batch indices of the points.
+        spatial_shape: The spatial shape of the sparse tensor.
+
+    Returns:
+        The `spconv.SparseConvTensor` sparse tensor.
+    """
+    if spatial_shape is None:
+        spatial_shape = torch.add(torch.max(pos, dim=0).values, padding).tolist()
+
+    return spconv.SparseConvTensor(
+        features=x,
+        indices=torch.cat([batch.unsqueeze(-1).int(), pos.int()], dim=1).contiguous(),
+        spatial_shape=spatial_shape,
+        batch_size=batch[-1].item() + 1,
+    )
+
+
+def spconv_tensor_to_packed(spconv_tensor: SparseConvTensor) -> Tuple[Tensor, IntTensor, LongTensor]:
+    x = spconv_tensor.features
+    indices = spconv_tensor.indices
+
+    batch = indices[:, 0]
+    pos = indices[:, 1:]
+
+    pos = pos.int()
+    batch = batch.long()
+    return x, pos, batch
