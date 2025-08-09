@@ -15,15 +15,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-flash-attn = ["flash-attn>=2.4.1"]
+torchsparse = [
+    "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git",
+]
 ocnn = ["ocnn>=2.2.6"]
+build = ["setuptools", "wheel", "rootpath"]
+flash-attn = ["flash-attn>=2.4.1"]
 spconv = ["spconv>=2.2.1"]
 pyg-lib = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
 
 [tool.uv]
 package = true
 find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
-no-build-isolation-package = ["flash-attn"]
+no-build-isolation-package = ["flash-attn", "torchsparse"]
 dev-dependencies = [
     "mypy>=1.14.1",
     "pytest>=8.3.4",
@@ -44,7 +48,12 @@ dev-dependencies = [
 [[tool.uv.dependency-metadata]]
 name = "flash-attn"
 version = "2.4.1"
-requires-dist = ["torch", "einops"]
+requires-dist = ["torch", "einops", "setuptools"]
+
+[[tool.uv.dependency-metadata]]
+name = "torchsparse"
+version = "2.1.0"
+requires-dist = ["torch", "setuptools", "rootpath", "wheel"]
 
 [tool.ruff]
 target-version = "py310"
