@@ -272,6 +272,45 @@ class PointNeXtDecoder(nn.Module):
 
 
 class PointNeXtClassification(ClassificationModel):
+    r"""
+    PointNeXt classification model as described in the paper
+    [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
+    by Guocheng Qian, Yuchen Li, Houwen Peng, Jinjie Mai, Hasan Abed Al Kader Hammoud, Mohamed Elhoseiny, Bernard Ghanem.
+
+    PointNeXt modernizes PointNet++ through improved training strategies and architectural enhancements,
+    achieving state-of-the-art performance while maintaining efficiency. The model introduces Inverted
+    Residual MLP (InvResMLP) blocks, separable MLPs, and relative position normalization to enable
+    effective model scaling.
+
+    Args:
+        in_channels: Number of input channels (typically 3 for XYZ coordinates,
+            or 6 for XYZ + RGB, or more with additional features like normals).
+        num_classes: Number of output classes for classification.
+        stem_channels: Number of channels in the stem MLP layer(s) that map input to higher dimension.
+            If None, no stem is used.
+        encoder_channels: Channel dimensions for each encoder block.
+            The number of channels should be equal to the number of blocks + 1.
+        encoder_depths: Number of blocks in each encoder stage after the initial SA block.
+        encoder_expansion: Expansion ratio to determine the hidden channels of the encoder blocks.
+        ratios: Downsampling sampling ratios for each encoder stage.
+            The number of ratios should be equal to the number of blocks + 1.
+        radiuses: Query radius for neighborhood grouping in each stage.
+            The number of radiuses should be equal to the number of blocks + 1.
+        num_neighbors: Maximum number of neighbors for each encoder stage.
+            The number of num_neighbors should be equal to the number of blocks + 1.
+        add_self_loops: Whether to include the center point as its
+            own neighbor in grouping operations.
+        spatial_dim: Spatial dimensionality of point clouds (typically 3).
+        act: Activation function.
+        act_kwargs: Additional arguments for the activation function.
+        act_first: Whether to apply activation before normalization.
+        norm: Normalization layer type.
+        norm_kwargs: Additional arguments for normalization layer.
+        bias: Whether to use bias in linear / MLP layers.
+        dropout: Dropout probability before the classification head.
+        global_pool: Global pooling operation for final feature aggregation.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -386,6 +425,47 @@ class PointNeXtClassification(ClassificationModel):
 
 
 class PointNeXtSegmentation(SegmentationModel):
+    r"""
+    PointNeXt segmentation model as described in the paper
+    [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
+    by Guocheng Qian, Yuchen Li, Houwen Peng, Jinjie Mai, Hasan Abed Al Kader Hammoud, Mohamed Elhoseiny, Bernard Ghanem.
+
+    PointNeXt modernizes PointNet++ through improved training strategies and architectural enhancements,
+    achieving state-of-the-art performance while maintaining efficiency. The model introduces Inverted
+    Residual MLP (InvResMLP) blocks, separable MLPs, and relative position normalization to enable
+    effective model scaling.
+
+    Args:
+        in_channels: Number of input channels (typically 3 for XYZ coordinates,
+            or 6 for XYZ + RGB, or more with additional features like normals).
+        num_classes: Number of output classes for segmentation.
+        stem_channels: Number of channels in the stem MLP layer(s) that map input to higher dimension.
+            If None, no stem is used.
+        encoder_channels: Channel dimensions for each encoder block.
+            The number of channels should be equal to the number of blocks + 1.
+        encoder_depths: Number of layers in each encoder block after the initial SA block.
+        encoder_expansion: Expansion ratio to determine the hidden channels of the encoder blocks.
+        decoder_channels: Channel dimensions for each decoder block.
+            The number of channels should be equal to the number of decoder blocks + 1.
+        decoder_depths: Number of layers in each decoder stage.
+        ratios: Downsampling sampling ratios for each encoder stage.
+            The number of ratios should be equal to the number of blocks + 1.
+        radiuses: Query radius for neighborhood grouping in each stage.
+            The number of radiuses should be equal to the number of blocks + 1.
+        num_neighbors: Maximum number of neighbors for each encoder stage.
+            The number of num_neighbors should be equal to the number of blocks + 1.
+        add_self_loops: Whether to include the center point as its
+            own neighbor in grouping operations.
+        spatial_dim: Spatial dimensionality of point clouds (typically 3).
+        act: Activation function.
+        act_kwargs: Additional arguments for the activation function.
+        act_first: Whether to apply activation before normalization.
+        norm: Normalization layer type.
+        norm_kwargs: Additional arguments for normalization layer.
+        bias: Whether to use bias in linear / MLP layers.
+        dropout: Dropout probability before the classification head.
+    """
+
     def __init__(
         self,
         in_channels: int,

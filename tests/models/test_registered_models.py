@@ -13,11 +13,7 @@ def data() -> dict:
     features = torch.randn(int(lengths.sum()), 3)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
 
-    return dict(
-        features=features,
-        pos=pos,
-        batch=batch,
-    )
+    return dict(features=features, pos=pos, batch=batch)
 
 
 @pytest.mark.skipif(
@@ -37,8 +33,8 @@ def data() -> dict:
         "pointnext-xl",
     ],
 )
-def test_pointnext_classification_model_forward(model_name: str, data: dict) -> None:
-    """Test that all registered PointNeXt models can be created and work."""
+def test_classification_model_forward(model_name: str, data: dict) -> None:
+    """Test that all registered models can be created and work."""
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
     logits = model(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, 10)
@@ -63,8 +59,8 @@ def test_pointnext_classification_model_forward(model_name: str, data: dict) -> 
         "pointnext-xl",
     ],
 )
-def test_pointnext_segmentation_model_forward(model_name: str, data: dict) -> None:
-    """Test that all registered PointNeXt models can be created and work."""
+def test_segmentation_model_forward(model_name: str, data: dict) -> None:
+    """Test that all registered models can be created and work."""
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     logits = model(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 10)
