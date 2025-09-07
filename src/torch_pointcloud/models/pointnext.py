@@ -191,7 +191,7 @@ class PointNeXtEncoder(nn.Module):
             x, pos, batch = block(x, pos, batch)
 
         if return_intermediates:
-            return x, pos, batch, reversed(intermediates)
+            return x, pos, batch, intermediates[::-1]
         return x, pos, batch
 
 
@@ -238,7 +238,7 @@ class PointNeXtDecoder(nn.Module):
 
         extra_msg = (
             f"Invalid {self.__class__.__name__} parameter: "
-            f"expected `{{param}}` to have the same length as the number of channels ({size})."
+            f"expected `{{param}}` to have the same length as the number of blocks ({size})."
         )
         self.depths = ensure_tuple_size(depths, size, extra_msg=extra_msg.format(param="depths"))
         self.skip_channels = ensure_tuple_size(skip_channels, size, extra_msg=extra_msg.format(param="skip_channels"))
@@ -525,7 +525,7 @@ class PointNeXtSegmentation(SegmentationModel):
         return self.forward_head(x)
 
 
-@register_model("pointnext-sm", task="unspecified")
+@register_model("pointnext-sm", task="classification")
 def pointnext_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
     hparams = dict(
         in_channels=in_channels,
