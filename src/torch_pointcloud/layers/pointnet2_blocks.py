@@ -213,8 +213,8 @@ class PointNet2GlobalSetAbstraction(nn.Module):
 class PointNet2FeaturePropagation(nn.Module):
     def __init__(
         self,
-        in_channels: int,
         channels: Sequence[int],
+        k: int,
         dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_first: bool = False,
@@ -224,6 +224,7 @@ class PointNet2FeaturePropagation(nn.Module):
         bias: Union[bool, List[bool]] = True,
     ) -> None:
         super().__init__()
+        self.k = k
         self.mlp = MLP(
             channels,
             act=act,
