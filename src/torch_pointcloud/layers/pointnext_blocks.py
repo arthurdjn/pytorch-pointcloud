@@ -200,8 +200,7 @@ class PointNeXtResidualBlock(nn.Module):
         self.num_neighbors = num_neighbors
         self.act = activation_resolver(act, **act_kwargs)
 
-        # NOTE: use the PointNeXtConv instead of the PointNeXtSetAbstraction layer,
-        # to create a larger skip connection:
+        # NOTE: use the PointNeXtConv instead of the PointNeXtSetAbstraction layer to create a larger skip connection:
         # x -> conv -> mlp -> x + identity
         # |                          ^
         # +--------------------------+
