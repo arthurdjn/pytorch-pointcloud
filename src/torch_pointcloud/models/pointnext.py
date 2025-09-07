@@ -11,6 +11,8 @@ from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, Poi
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
+from ._registry import register_model
+
 
 class PointNeXtIntermediate(NamedTuple):
     x: Tensor
@@ -99,13 +101,22 @@ class PointNeXtEncoder(nn.Module):
         size = len(self.channels) - 1
         extra_msg = (
             f"Invalid {self.__class__.__name__} parameter: "
-            f"expected `{{param}}` to have the same length as the number of channels ({size})."
+            f"expected `{{param}}` to have the same length as the number of blocks ({size})."
         )
         self.depths = ensure_tuple_size(depths, size, extra_msg=extra_msg.format(param="depths"))
-        self.ratios = ensure_tuple_size(ratios, size, extra_msg=extra_msg.format(param="ratios"))
-        self.radiuses = ensure_tuple_size(radiuses, size, extra_msg=extra_msg.format(param="radiuses"))
-        self.num_neighbors = ensure_tuple_size(num_neighbors, size, extra_msg=extra_msg.format(param="num_neighbors"))
         self.expansion = ensure_tuple_size(expansion, size, extra_msg=extra_msg.format(param="expansion"))
+
+        extra_msg = (
+            f"Invalid {self.__class__.__name__} parameter: "
+            f"expected `{{param}}` to have the same length as the number of channels ({size + 1})."
+        )
+        self.ratios = ensure_tuple_size(ratios, size + 1, extra_msg=extra_msg.format(param="ratios"))
+        self.radiuses = ensure_tuple_size(radiuses, size + 1, extra_msg=extra_msg.format(param="radiuses"))
+        self.num_neighbors = ensure_tuple_size(
+            num_neighbors,
+            size + 1,
+            extra_msg=extra_msg.format(param="num_neighbors"),
+        )
 
         self.blocks = nn.ModuleList()
         for i in range(size):
@@ -130,9 +141,9 @@ class PointNeXtEncoder(nn.Module):
                 channels=channels[i + 1],
                 depth=self.depths[i],
                 expansion=self.expansion[i],
-                ratio=self.ratios[i],
-                radius=self.radiuses[i],
-                num_neighbors=self.num_neighbors[i],
+                ratio=self.ratios[i + 1],
+                radius=self.radiuses[i + 1],
+                num_neighbors=self.num_neighbors[i + 1],
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -292,7 +303,7 @@ class PointNeXtClassification(nn.Module):
         self.stem: Optional[nn.Module] = None
         if stem_channels:
             self.stem = MLP(
-                stem_channels,
+                [in_channels] + stem_channels,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -301,7 +312,8 @@ class PointNeXtClassification(nn.Module):
                 bias=bias,
                 plain_last=False,
             )
-            in_channels = stem_channels
+            # Make sure to update the input channels with the last channel of the stem
+            in_channels = stem_channels[-1]
 
         self.encoder = PointNeXtEncoder(
             spatial_dim=spatial_dim,
@@ -332,6 +344,15 @@ class PointNeXtClassification(nn.Module):
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+
+    def configure_stem(self) -> Optional[nn.Module]:
+        raise NotImplementedError
+
+    def configure_encoder(self) -> PointNeXtEncoder:
+        raise NotImplementedError
+
+    def configure_head(self) -> nn.Module:
+        raise NotImplementedError
 
     @overload
     def forward_encoder(
@@ -403,13 +424,17 @@ class PointNeXtSegmentation(nn.Module):
         stem_channels = ensure_list(stem_channels, none_as_empty=True)
         encoder_channels = ensure_list(encoder_channels)
         decoder_channels = ensure_list(decoder_channels)
+        ratios = ensure_tuple(ratios)
+        radiuses = ensure_tuple(radiuses)
+        num_neighbors = ensure_tuple(num_neighbors)
+
         self.in_channels = in_channels
         self.num_classes = num_classes
 
         self.stem: Optional[nn.Module] = None
         if stem_channels:
             self.stem = MLP(
-                stem_channels,
+                [in_channels] + stem_channels,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -418,7 +443,8 @@ class PointNeXtSegmentation(nn.Module):
                 bias=bias,
                 plain_last=False,
             )
-            in_channels = stem_channels
+            # Make sure to update the input channels with the last channel of the stem
+            in_channels = stem_channels[-1]
 
         self.encoder = PointNeXtEncoder(
             spatial_dim=spatial_dim,
@@ -461,6 +487,18 @@ class PointNeXtSegmentation(nn.Module):
         self.num_classes = num_classes
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
+    def configure_stem(self) -> Optional[nn.Module]:
+        raise NotImplementedError
+
+    def configure_encoder(self) -> PointNeXtEncoder:
+        raise NotImplementedError
+
+    def configure_decoder(self) -> PointNeXtDecoder:
+        raise NotImplementedError
+
+    def configure_head(self) -> nn.Module:
+        raise NotImplementedError
+
     @overload
     def forward_encoder(
         self,
@@ -489,6 +527,7 @@ class PointNeXtSegmentation(nn.Module):
         x = x if x is not None else pos
         if self.stem is not None:
             x = self.stem(x)
+
         return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
     def forward_decoder(
@@ -509,3 +548,50 @@ class PointNeXtSegmentation(nn.Module):
         x, pos, batch, intermediates = self.forward_encoder(x, pos, batch, return_intermediates=True)
         x, pos, batch = self.forward_decoder(x, pos, batch, intermediates)
         return self.forward_head(x)
+
+
+@register_model("pointnext-base", task="classification")
+def pointnext_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[2, 3, 2, 2],
+        encoder_expansion=4,
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtClassification(**hparams)
+
+
+@register_model("pointnext-base", task="segmentation")
+def pointnext_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[2, 3, 2, 2],
+        encoder_expansion=4,
+        decoder_channels=[256, 128, 64, 32],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
