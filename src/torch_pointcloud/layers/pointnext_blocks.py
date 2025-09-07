@@ -1,0 +1,240 @@
+r"""
+PointNeXt convolution layer introduced in the
+[PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
+by Guocheng Qian et al.
+
+> [!NOTE]
+> This layer is also referred to Local Aggregation in different papers and implementations.
+
+This layer implements the `torch_geometric.nn.conv.MessagePassing` interface from PyTorch Geometric,
+which allows for local aggregation of features.
+
+> [!TIP]
+> This layer is similar to the `torch_geometric.nn.conv.PointNetConv` layer from PyTorch Geometric,
+> and introduces relative position normalization.
+
+You can use it as follows:
+
+```python
+import torch
+from torch_geometric.nn import MLP, radius_graph
+from torch_pointcloud.layers.point_next_conv import PointNeXtConv
+
+torch.manual_seed(0)
+x = torch.randn(10, 10)
+pos = torch.randn(10, 3)
+batch = torch.zeros(10, dtype=torch.long)
+edge_index = radius_graph(pos, r=1.5, batch=batch, max_num_neighbors=16)
+
+conv = PointNeXtConv(MLP([10 + 3, 10]))
+
+# Normalize the relative position by the query radius
+out = conv(x, pos, edge_index, pos_divisor=1.5)
+
+# This will be equivalent to the PointNetConv layer
+out = conv(x, pos, edge_index)
+```
+"""
+
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
+import torch
+import torch.nn as nn
+from torch import Tensor
+from torch_geometric.nn import MLP, MessagePassing, fps, radius, radius_graph
+from torch_geometric.nn.inits import reset
+from torch_geometric.nn.resolver import activation_resolver
+from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
+from torch_geometric.utils import add_self_loops, remove_self_loops
+from typing_extensions import Unpack
+
+from torch_pointcloud.utils.types import AggrType, MessagePassingParams
+
+from .pointnet2_blocks import PointNet2SetAbstraction
+
+
+class PointNeXtConv(MessagePassing):
+    def __init__(self, local_nn: nn.Module, add_self_loops: bool = True, **kwargs: Unpack[MessagePassingParams]):
+        kwargs.setdefault("aggr", "max")
+        super().__init__(**kwargs)
+        self.local_nn = local_nn
+        self.add_self_loops = add_self_loops
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        super().reset_parameters()
+        reset(self.local_nn)
+
+    def forward(
+        self,
+        x: Union[OptTensor, PairOptTensor],
+        pos: Union[Tensor, PairTensor],
+        edge_index: Adj,
+        pos_divisor: Optional[float] = None,
+    ) -> Tensor:
+        if not isinstance(x, tuple):
+            x = (x, None)
+
+        if isinstance(pos, Tensor):
+            pos = (pos, pos)
+
+        if self.add_self_loops:
+            if isinstance(edge_index, Tensor):
+                edge_index, _ = remove_self_loops(edge_index)
+                edge_index, _ = add_self_loops(edge_index, num_nodes=min(pos[0].size(0), pos[1].size(0)))
+            elif isinstance(edge_index, SparseTensor):
+                edge_index = torch_sparse.set_diag(edge_index)
+
+        return self.propagate(edge_index, x=x, pos=pos, pos_divisor=pos_divisor)
+
+    def message(
+        self,
+        x_j: Optional[Tensor],
+        pos_i: Tensor,
+        pos_j: Tensor,
+        pos_divisor: Optional[float] = None,
+    ) -> Tensor:
+        msg = pos_j - pos_i
+        if pos_divisor is not None:
+            msg = msg / pos_divisor
+        if x_j is not None:
+            msg = torch.cat([x_j, msg], dim=1)
+
+        return self.local_nn(msg)
+
+    def extra_repr(self) -> str:
+        return f"local_nn={self.local_nn}"
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.extra_repr()})"
+
+
+class PointNeXtSetAbstraction(PointNet2SetAbstraction):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        self.skip_convs = nn.ModuleList()
+        for i, channels in enumerate(self.channels):
+            out_channels = channels[-1]
+            skip_conv = self.configure_skip_conv(out_channels, i)
+            self.skip_convs.append(skip_conv)
+
+    def configure_conv(self, channels: Sequence[Any], index: int) -> MessagePassing:
+        in_channels = self.in_channels + self.spatial_dim
+        local_nn = MLP(
+            [in_channels] + list(channels),
+            act=self.act,
+            act_first=self.act_first,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=False,
+        )
+
+        return PointNeXtConv(
+            local_nn=local_nn,
+            add_self_loops=self.add_self_loops,
+            aggr=self.aggr,
+        )
+
+    def configure_skip_conv(self, out_channels: int, index: int) -> MessagePassing:
+        if out_channels == self.in_channels:
+            return nn.Identity()
+
+        return MLP(
+            [self.in_channels, out_channels],
+            act=self.act,
+            act_first=self.act_first,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=False,
+        )
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        idx = fps(pos, batch, ratio=self.ratio)
+        x_dst = None if x is None else x[idx]
+        pos_dst = pos[idx]
+        batch_dst = batch[idx]
+
+        msg_x = []
+        for r, num_neighbors, conv, skip_conv in zip(self.radius, self.num_neighbors, self.convs, self.skip_convs):
+            row, col = radius(pos, pos_dst, r=r, batch_x=batch, batch_y=batch_dst, max_num_neighbors=num_neighbors)
+            edge_index = torch.stack([col, row], dim=0)
+            out_x = conv((x, x_dst), (pos, pos_dst), edge_index, pos_divisor=r)
+            out_x = self.act(out_x + skip_conv(x_dst))
+            msg_x.append(out_x)
+
+        return torch.cat(msg_x, dim=1), pos_dst, batch_dst
+
+
+class PointNeXtResidualBlock(nn.Module):
+    def __init__(
+        self,
+        spatial_dim: int,
+        channels: int,
+        expansion: int,
+        ratio: float,
+        radius: float,
+        num_neighbors: int,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: Union[bool, List[bool]] = True,
+        add_self_loops: bool = False,
+        aggr: AggrType = "max",
+    ):
+        super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+
+        self.spatial_dim = spatial_dim
+        self.ratio = ratio
+        self.radius = radius
+        self.num_neighbors = num_neighbors
+        self.act = activation_resolver(act, **act_kwargs)
+
+        # NOTE: use the PointNeXtConv instead of the PointNeXtSetAbstraction layer to create a larger skip connection:
+        # x -> conv -> mlp -> x + identity
+        # |                          ^
+        # +--------------------------+
+        local_nn = MLP(
+            [channels + self.spatial_dim, channels],
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+        )
+        self.conv = PointNeXtConv(
+            local_nn=local_nn,
+            add_self_loops=add_self_loops,
+            aggr=aggr,
+        )
+
+        mid_channels = channels * expansion
+        self.mlp = MLP(
+            [channels, mid_channels, channels],
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            plain_last=False,
+        )
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        identity = x
+        edge_index = radius_graph(pos, r=self.radius, batch=batch, max_num_neighbors=self.num_neighbors)
+        x = self.conv(x, pos, edge_index, pos_divisor=self.radius)
+        x = self.mlp(x)
+        x = self.act(x + identity)
+        return x
