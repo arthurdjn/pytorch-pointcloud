@@ -28,6 +28,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import OptTensor
 
+from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 from .pointnet2 import create_fp_blocks
 
@@ -634,7 +635,7 @@ def create_encoder_blocks(
 
 
 # TODO: Make KPConv stem
-class KPConvNetClassification(nn.Module):
+class KPConvNetClassification(ClassificationModel):
     """KPConv Network for classification tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -708,9 +709,7 @@ class KPConvNetClassification(nn.Module):
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels, num_classes)
         kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
         kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
 
@@ -853,7 +852,7 @@ class KPConvNetClassification(nn.Module):
 # TODO: Do not use FP channels, but use a simple decoder_channels
 # TODO: param that will be used to create the FP blocks,
 # TODO: i.e. from fp_channels=[[256], [128], [64], [32]] -> decoder_channels=[256, 128, 64, 32]
-class KPConvNetSegmentation(nn.Module):
+class KPConvNetSegmentation(SegmentationModel):
     """KPConv Network for segmentation tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -926,9 +925,7 @@ class KPConvNetSegmentation(nn.Module):
         bias: bool = False,
         dropout: float = 0.0,
     ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels, num_classes)
         kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
         kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
 
