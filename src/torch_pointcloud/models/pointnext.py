@@ -11,6 +11,7 @@ from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, Poi
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
+from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 
@@ -159,7 +160,7 @@ class PointNeXtEncoder(nn.Module):
     @overload
     def forward(
         self,
-        x: OptTensor,
+        x: Tensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
@@ -168,7 +169,7 @@ class PointNeXtEncoder(nn.Module):
     @overload
     def forward(
         self,
-        x: OptTensor,
+        x: Tensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
@@ -176,7 +177,7 @@ class PointNeXtEncoder(nn.Module):
 
     def forward(
         self,
-        x: OptTensor,
+        x: Tensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
@@ -260,7 +261,7 @@ class PointNeXtDecoder(nn.Module):
 
     def forward(
         self,
-        x: OptTensor,
+        x: Tensor,
         pos: Tensor,
         batch: Tensor,
         intermediates: List[PointNeXtIntermediate],
@@ -270,7 +271,7 @@ class PointNeXtDecoder(nn.Module):
         return x, pos, batch
 
 
-class PointNeXtClassification(nn.Module):
+class PointNeXtClassification(ClassificationModel):
     def __init__(
         self,
         in_channels: int,
@@ -294,11 +295,9 @@ class PointNeXtClassification(nn.Module):
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
-        super().__init__()
+        super().__init__(in_channels, num_classes)
         stem_channels = ensure_list(stem_channels, none_as_empty=True)
         encoder_channels = ensure_list(encoder_channels)
-        self.in_channels = in_channels
-        self.num_classes = num_classes
 
         self.stem: Optional[nn.Module] = None
         if stem_channels:
@@ -346,7 +345,7 @@ class PointNeXtClassification(nn.Module):
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -355,7 +354,7 @@ class PointNeXtClassification(nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -363,7 +362,7 @@ class PointNeXtClassification(nn.Module):
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -382,11 +381,11 @@ class PointNeXtClassification(nn.Module):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, _, batch = self.forward_encoder(x, pos, batch)
+        x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
 
 
-class PointNeXtSegmentation(nn.Module):
+class PointNeXtSegmentation(SegmentationModel):
     def __init__(
         self,
         in_channels: int,
@@ -411,16 +410,13 @@ class PointNeXtSegmentation(nn.Module):
         bias: Union[bool, List[bool]] = True,
         dropout: float = 0.0,
     ):
-        super().__init__()
+        super().__init__(in_channels, num_classes)
         stem_channels = ensure_list(stem_channels, none_as_empty=True)
         encoder_channels = ensure_list(encoder_channels)
         decoder_channels = ensure_list(decoder_channels)
         ratios = ensure_tuple(ratios)
         radiuses = ensure_tuple(radiuses)
         num_neighbors = ensure_tuple(num_neighbors)
-
-        self.in_channels = in_channels
-        self.num_classes = num_classes
 
         self.stem: Optional[nn.Module] = None
         if stem_channels:
@@ -479,7 +475,7 @@ class PointNeXtSegmentation(nn.Module):
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -488,7 +484,7 @@ class PointNeXtSegmentation(nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -496,7 +492,7 @@ class PointNeXtSegmentation(nn.Module):
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -524,12 +520,12 @@ class PointNeXtSegmentation(nn.Module):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, pos, batch, intermediates = self.forward_encoder(x, pos, batch, return_intermediates=True)
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, pos, batch = self.forward_decoder(x, pos, batch, intermediates)
         return self.forward_head(x)
 
 
-@register_model("pointnext-sm", task="classification")
+@register_model("pointnext-sm", task="unspecified")
 def pointnext_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
     hparams = dict(
         in_channels=in_channels,
@@ -550,7 +546,7 @@ def pointnext_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Point
     )
     hparams.update(kwargs)
 
-    return PointNeXtClassification(**hparams)
+    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-base", task="classification")
@@ -574,7 +570,7 @@ def pointnext_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Poi
     )
     hparams.update(kwargs)
 
-    return PointNeXtClassification(**hparams)
+    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-lg", task="classification")
@@ -598,7 +594,7 @@ def pointnext_lg_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Point
     )
     hparams.update(kwargs)
 
-    return PointNeXtClassification(**hparams)
+    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-xl", task="classification")
@@ -622,7 +618,7 @@ def pointnext_xl_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Point
     )
     hparams.update(kwargs)
 
-    return PointNeXtClassification(**hparams)
+    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-sm", task="segmentation")
@@ -648,7 +644,7 @@ def pointnext_sm_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Point
     )
     hparams.update(kwargs)
 
-    return PointNeXtSegmentation(**hparams)
+    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-base", task="segmentation")
@@ -674,7 +670,7 @@ def pointnext_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Poi
     )
     hparams.update(kwargs)
 
-    return PointNeXtSegmentation(**hparams)
+    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-lg", task="segmentation")
@@ -700,7 +696,7 @@ def pointnext_lg_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Point
     )
     hparams.update(kwargs)
 
-    return PointNeXtSegmentation(**hparams)
+    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
 
 
 @register_model("pointnext-xl", task="segmentation")
@@ -726,4 +722,4 @@ def pointnext_xl_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Point
     )
     hparams.update(kwargs)
 
-    return PointNeXtSegmentation(**hparams)
+    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]

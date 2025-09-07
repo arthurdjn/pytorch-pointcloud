@@ -1,3 +1,4 @@
+from ._base import ClassificationModel, DetectionModel, SegmentationModel
 from ._registry import create_model, register_model
 from .kpconv import KPConvNetClassification, KPConvNetSegmentation
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation

@@ -20,7 +20,7 @@ from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, Sp
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
-from torch_pointcloud.layers.pools import create_pool
+from torch_pointcloud.layers.pools import PoolLike, create_pool
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
@@ -33,7 +33,7 @@ class PointNet2Conv(MessagePassing):
         self.add_self_loops = add_self_loops
         self.reset_parameters()
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         super().reset_parameters()
         reset(self.local_nn)
 
@@ -142,10 +142,10 @@ class PointNet2SetAbstraction(nn.Module):
             conv = self.configure_conv(channels, i)
             self.convs.append(conv)
 
-    def configure_conv(self, channels: Sequence[int], index: int) -> MessagePassing:
+    def configure_conv(self, channels: Sequence[Any], index: int) -> MessagePassing:
         in_channels = self.in_channels + self.spatial_dim
         local_nn = MLP(
-            [in_channels] + list(channels),
+            [in_channels] + ensure_list(channels),
             act=self.act,
             act_first=self.act_first,
             act_kwargs=self.act_kwargs,
@@ -186,7 +186,7 @@ class PointNet2GlobalSetAbstraction(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
-        aggr: str = "max",
+        aggr: PoolLike = "max",
     ) -> None:
         super().__init__()
         channels = [in_channels] + ensure_list(channels)

@@ -61,7 +61,7 @@ class PointNeXtConv(MessagePassing):
         self.add_self_loops = add_self_loops
         self.reset_parameters()
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         super().reset_parameters()
         reset(self.local_nn)
 
@@ -110,7 +110,7 @@ class PointNeXtConv(MessagePassing):
 
 
 class PointNeXtSetAbstraction(PointNet2SetAbstraction):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         self.skip_convs = nn.ModuleList()
@@ -119,7 +119,7 @@ class PointNeXtSetAbstraction(PointNet2SetAbstraction):
             skip_conv = self.configure_skip_conv(out_channels, i)
             self.skip_convs.append(skip_conv)
 
-    def configure_conv(self, channels: Sequence[int], index: int) -> MessagePassing:
+    def configure_conv(self, channels: Sequence[Any], index: int) -> MessagePassing:
         in_channels = self.in_channels + self.spatial_dim
         local_nn = MLP(
             [in_channels] + list(channels),
