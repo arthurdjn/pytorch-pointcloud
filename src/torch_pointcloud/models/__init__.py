@@ -1,3 +1,4 @@
+from ._base import ClassificationModel, DetectionModel, SegmentationModel
 from ._registry import create_model, register_model
 from .kpconv import KPConvNetClassification, KPConvNetSegmentation
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
@@ -5,6 +6,7 @@ from .point_transformer_v2 import PointTransformerV2Classification, PointTransfo
 from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Segmentation
+from .pointnext import PointNeXtClassification, PointNeXtSegmentation
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
