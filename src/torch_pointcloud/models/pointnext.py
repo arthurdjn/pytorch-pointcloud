@@ -345,15 +345,6 @@ class PointNeXtClassification(nn.Module):
         self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
-    def configure_stem(self) -> Optional[nn.Module]:
-        raise NotImplementedError
-
-    def configure_encoder(self) -> PointNeXtEncoder:
-        raise NotImplementedError
-
-    def configure_head(self) -> nn.Module:
-        raise NotImplementedError
-
     @overload
     def forward_encoder(
         self,
@@ -487,18 +478,6 @@ class PointNeXtSegmentation(nn.Module):
         self.num_classes = num_classes
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
 
-    def configure_stem(self) -> Optional[nn.Module]:
-        raise NotImplementedError
-
-    def configure_encoder(self) -> PointNeXtEncoder:
-        raise NotImplementedError
-
-    def configure_decoder(self) -> PointNeXtDecoder:
-        raise NotImplementedError
-
-    def configure_head(self) -> nn.Module:
-        raise NotImplementedError
-
     @overload
     def forward_encoder(
         self,
@@ -550,6 +529,30 @@ class PointNeXtSegmentation(nn.Module):
         return self.forward_head(x)
 
 
+@register_model("pointnext-sm", task="classification")
+def pointnext_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[1, 1, 1, 1],
+        encoder_expansion=4,
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtClassification(**hparams)
+
+
 @register_model("pointnext-base", task="classification")
 def pointnext_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
     hparams = dict(
@@ -574,9 +577,83 @@ def pointnext_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Poi
     return PointNeXtClassification(**hparams)
 
 
+@register_model("pointnext-lg", task="classification")
+def pointnext_lg_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[3, 5, 3, 3],
+        encoder_expansion=4,
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtClassification(**hparams)
+
+
+@register_model("pointnext-xl", task="classification")
+def pointnext_xl_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[4, 7, 4, 4],
+        encoder_expansion=4,
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtClassification(**hparams)
+
+
+@register_model("pointnext-sm", task="segmentation")
+def pointnext_sm_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[1, 1, 1, 1],
+        encoder_expansion=4,
+        decoder_channels=[256, 128, 64, 32],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtSegmentation(**hparams)
+
+
 @register_model("pointnext-base", task="segmentation")
 def pointnext_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
-    return PointNeXtSegmentation(
+    hparams = dict(
         in_channels=in_channels,
         num_classes=num_classes,
         spatial_dim=3,
@@ -595,3 +672,58 @@ def pointnext_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Poi
         bias=True,
         add_self_loops=False,
     )
+    hparams.update(kwargs)
+
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model("pointnext-lg", task="segmentation")
+def pointnext_lg_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[3, 5, 3, 3],
+        encoder_expansion=4,
+        decoder_channels=[256, 128, 64, 32],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model("pointnext-xl", task="segmentation")
+def pointnext_xl_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128, 256],
+        encoder_depths=[4, 7, 4, 4],
+        encoder_expansion=4,
+        decoder_channels=[256, 128, 64, 32],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+
+    return PointNeXtSegmentation(**hparams)
