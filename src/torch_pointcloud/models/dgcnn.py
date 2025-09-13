@@ -1,17 +1,18 @@
-from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, NamedTuple, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn import MLP, DynamicEdgeConv
+from torch_geometric.nn import MLP, DynamicEdgeConv, global_max_pool
 
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.tnet import TNet
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
-from ._base import ClassificationModel
+from ._base import ClassificationModel, SegmentationModel
+from ._registry import register_model
 
 
 class DGCNNIntermediate(NamedTuple):
@@ -83,37 +84,13 @@ class DGCNNEncoder(nn.Module):
             )
             self.blocks.append(block)
 
-    @overload
-    def forward(
-        self,
-        x: Tensor,
-        batch: Tensor,
-        return_intermediates: Literal[True] = True,
-    ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, List[DGCNNIntermediate]]]: ...
-
-    @overload
-    def forward(
-        self,
-        x: Tensor,
-        batch: Tensor,
-        return_intermediates: Literal[False] = False,
-    ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, List[DGCNNIntermediate]]]: ...
-
-    def forward(
-        self,
-        x: Tensor,
-        batch: Tensor,
-        return_intermediates: bool = False,
-    ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, List[DGCNNIntermediate]]]:
-        intermediates = []
+    def forward(self, x: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+        x_list = []
         for block in self.blocks:
-            if return_intermediates:
-                intermediates.append(DGCNNIntermediate(x, batch))
-
             x = block(x, batch)
+            x_list.append(x)
 
-        if return_intermediates:
-            return x, batch, intermediates[::-1]
+        x = torch.cat(x_list, dim=1)
         return x, batch
 
 
@@ -152,6 +129,9 @@ class DGCNNClassification(ClassificationModel):
         num_classes: int,
         *,
         spatial_dim: int = 3,
+        stnet_local_channels: Sequence[int],
+        stnet_global_channels: Sequence[int],
+        head_channels: Optional[Union[int, Sequence[int]]] = None,
         channels: Sequence[int],
         num_neighbors: Union[int, Sequence[int]],
         act: Union[str, Callable, None] = "relu",
@@ -160,82 +140,86 @@ class DGCNNClassification(ClassificationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        stnet_local_channels: Sequence[int],
-        stnet_global_channels: Sequence[int],
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
         super().__init__(in_channels=in_channels + spatial_dim, num_classes=num_classes)
         self.spatial_dim = spatial_dim
+        self.stnet_local_channels = ensure_list(stnet_local_channels)
+        self.stnet_global_channels = ensure_list(stnet_global_channels)
+        self.head_channels = ensure_list(head_channels, none_as_empty=True)
+        self.channels = ensure_list(channels)
+        self.num_neighbors = ensure_list(num_neighbors)
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
 
         self.stnet = TNet(
-            local_channels=stnet_local_channels,
-            global_channels=stnet_global_channels,
-            k=spatial_dim,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            dropout=dropout,
+            local_channels=self.stnet_local_channels,
+            global_channels=self.stnet_global_channels,
+            k=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
             aggr="max",
         )
 
-        channels = [self.in_channels] + ensure_list(channels)
         self.encoder = DGCNNEncoder(
-            channels=channels,
-            num_neighbors=num_neighbors,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
+            channels=[self.in_channels] + self.channels,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
             aggr="max",
         )
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = MLP(
+            [self.embedding_dim] + self.head_channels + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=[0] * len(self.head_channels) + [self.dropout],
+            plain_last=True,
+        )
 
     @property
     def embedding_dim(self) -> int:
-        return sum(self.encoder.channels[1:])
+        return sum(self.channels)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = MLP(
+            [self.embedding_dim] + self.head_channels + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=[0] * len(self.head_channels) + [self.dropout],
+            plain_last=True,
+        )
 
-    @overload
-    def forward_features(
-        self,
-        x: OptTensor,
-        pos: Tensor,
-        batch: Tensor,
-        return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, List[DGCNNIntermediate]]: ...
-
-    @overload
-    def forward_features(
-        self,
-        x: OptTensor,
-        pos: Tensor,
-        batch: Tensor,
-        return_intermediates: Literal[False] = False,
-    ) -> Tuple[Tensor, Tensor]: ...
-
-    def forward_features(
-        self,
-        x: OptTensor,
-        pos: Tensor,
-        batch: Tensor,
-        return_intermediates: bool = False,
-    ) -> Any:
+    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         pos = self.stnet(pos, batch)
         x = torch.cat([x, pos], dim=1) if x is not None else pos
-        return self.encoder(x, batch, return_intermediates=return_intermediates)
+        x, batch = self.encoder(x, batch)
+        return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
@@ -244,6 +228,172 @@ class DGCNNClassification(ClassificationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
-        x = torch.cat([x] + [intermediate.x for intermediate in intermediates[:-1]], dim=1)
+        x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
+
+
+class DGCNNSemanticSegmentation(SegmentationModel):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        spatial_dim: int = 3,
+        stnet_local_channels: Union[int, Sequence[int]],
+        stnet_global_channels: Union[int, Sequence[int]],
+        embedding_channels: int = 1024,
+        channels: Sequence[int],
+        head_channels: Optional[Union[int, Sequence[int]]] = None,
+        num_neighbors: Union[int, Sequence[int]],
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        dropout: float = 0.0,
+    ):
+        super().__init__(in_channels=in_channels + spatial_dim, num_classes=num_classes)
+        self.spatial_dim = spatial_dim
+        self.stnet_local_channels = ensure_list(stnet_local_channels)
+        self.stnet_global_channels = ensure_list(stnet_global_channels)
+        self.embedding_channels = embedding_channels
+        self.channels = ensure_list(channels)
+        self.head_channels = ensure_list(head_channels, none_as_empty=True)
+        self.num_neighbors = ensure_list(num_neighbors)
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.dropout = dropout
+
+        self.stnet = TNet(
+            local_channels=self.stnet_local_channels,
+            global_channels=self.stnet_global_channels,
+            k=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            aggr="max",
+        )
+
+        self.encoder = DGCNNEncoder(
+            channels=[self.in_channels] + self.channels,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            aggr="max",
+        )
+        self.embed = nn.Linear(sum(self.channels), self.embedding_channels)
+
+        self.head = MLP(
+            [self.embedding_dim] + self.head_channels + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=True,
+        )
+
+    @property
+    def embedding_dim(self) -> int:
+        return sum(self.channels) + self.embedding_channels
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        kwargs.setdefault("act", self.act)
+        kwargs.setdefault("act_kwargs", self.act_kwargs)
+        kwargs.setdefault("act_first", self.act_first)
+        kwargs.setdefault("norm", self.norm)
+        kwargs.setdefault("norm_kwargs", self.norm_kwargs)
+        kwargs.setdefault("bias", self.bias)
+        kwargs.setdefault("dropout", self.dropout)
+        self.head = MLP(
+            [self.embedding_dim] + self.head_channels + [self.num_classes],
+            plain_last=True,
+            **kwargs,
+        )
+
+    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        pos = self.stnet(pos, batch)
+        x = torch.cat([x, pos], dim=1) if x is not None else pos
+        x, batch = self.encoder(x, batch)
+
+        x_embed = self.embed(x)
+        x_global = global_max_pool(x_embed, batch)  # (B, embedding_channels)
+        x_global = x_global[batch]  # (N, embedding_channels)
+        x = torch.cat([x_global, x], dim=1)
+
+        return x, pos, batch
+
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        return self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x, _, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, batch)
+
+
+@register_model("dgcnn-base", task="classification")
+def dgcnn_base_cls(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNClassification:
+    """Base classification model as described in [original paper](https://arxiv.org/abs/1801.07829)
+    and [official implementation](https://github.com/WangYueFt/dgcnn).
+    """
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stnet_local_channels=[64],
+        stnet_global_channels=[128, 1024],
+        head_channels=[512, 256],
+        channels=[64, 64, 128, 256],
+        num_neighbors=20,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        dropout=0.5,
+        global_pool="max",
+    )
+    hparams.update(kwargs)
+    return DGCNNClassification(**hparams)  # type: ignore[arg-type]
+
+
+@register_model("dgcnn-base", task="segmentation")
+def dgcnn_base_semseg(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNSemanticSegmentation:
+    """Base semantic segmentation model as described in [original paper](https://arxiv.org/abs/1801.07829)
+    and [official implementation](https://github.com/WangYueFt/dgcnn).
+    """
+    hparams = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        stnet_local_channels=[64],
+        stnet_global_channels=[128, 1024],
+        embedding_channels=1024,
+        channels=[64, 64, 128],
+        head_channels=[256, 256, 128],
+        num_neighbors=20,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        dropout=0.5,
+    )
+    hparams.update(kwargs)
+    return DGCNNSemanticSegmentation(**hparams)  # type: ignore[arg-type]
