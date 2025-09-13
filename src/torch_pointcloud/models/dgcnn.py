@@ -108,7 +108,10 @@ class DGCNNClassification(ClassificationModel):
         in_channels: Number of input channels.
         num_classes: Number of output classes.
         spatial_dim: Spatial dimension of the input point cloud.
+        stnet_local_channels: List of channels for the local spatial transformer network.
+        stnet_global_channels: List of channels for the global spatial transformer network.
         channels: List of channels for each encoder block.
+        head_channels: List of channels for each head block.
         num_neighbors: Maximum number of neighbors for each encoder block.
         act: Activation function.
         act_kwargs: Additional arguments for the activation function.
@@ -116,8 +119,6 @@ class DGCNNClassification(ClassificationModel):
         norm: Normalization layer type.
         norm_kwargs: Additional arguments for the normalization layer.
         bias: Whether to use bias in linear / MLP layers.
-        stnet_local_channels: List of channels for the local spatial transformer network.
-        stnet_global_channels: List of channels for the global spatial transformer network.
         dropout: Dropout probability before the classification head.
         global_pool: Global pooling operation for final feature aggregation.
 
@@ -233,6 +234,34 @@ class DGCNNClassification(ClassificationModel):
 
 
 class DGCNNSegmentation(SegmentationModel):
+    """
+    Semantic segmentation model as described in the paper
+    ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
+    by Yue Wang, Yongbin Sun, Ziwei Liu, Sanjay E. Sarma, Michael M. Bronstein, Justin M. Solomon.
+
+    DGCNN introduces the EdgeConv operator, which computes features on dynamically constructed
+    k-nearest neighbor (k-NN) graphs at each layer. Graphs are recomputed in the learned feature space,
+    allowing the network to capture both local geometric relationships and long-range semantic structures.
+
+    Args:
+        in_channels: Number of input channels.
+        num_classes: Number of output classes.
+        spatial_dim: Spatial dimension of the input point cloud.
+        stnet_local_channels: List of channels for the local spatial transformer network.
+        stnet_global_channels: List of channels for the global spatial transformer network.
+        global_channels: Number of embedding channels.
+        channels: List of channels for each encoder block.
+        head_channels: List of channels for each head block.
+        num_neighbors: Maximum number of neighbors for each encoder block.
+        act: Activation function.
+        act_kwargs: Additional arguments for the activation function.
+        act_first: Whether to apply activation before normalization.
+        norm: Normalization layer type.
+        norm_kwargs: Additional arguments for the normalization layer.
+        bias: Whether to use bias in linear / MLP layers.
+        dropout: Dropout probability before the classification head.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -241,7 +270,7 @@ class DGCNNSegmentation(SegmentationModel):
         spatial_dim: int = 3,
         stnet_local_channels: Union[int, Sequence[int]],
         stnet_global_channels: Union[int, Sequence[int]],
-        embedding_channels: int = 1024,
+        global_channels: int = 1024,
         channels: Sequence[int],
         head_channels: Optional[Union[int, Sequence[int]]] = None,
         num_neighbors: Union[int, Sequence[int]],
@@ -257,7 +286,7 @@ class DGCNNSegmentation(SegmentationModel):
         self.spatial_dim = spatial_dim
         self.stnet_local_channels = ensure_list(stnet_local_channels)
         self.stnet_global_channels = ensure_list(stnet_global_channels)
-        self.embedding_channels = embedding_channels
+        self.global_channels = global_channels
         self.channels = ensure_list(channels)
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.num_neighbors = ensure_list(num_neighbors)
@@ -294,7 +323,7 @@ class DGCNNSegmentation(SegmentationModel):
             bias=self.bias,
             aggr="max",
         )
-        self.embed = nn.Linear(sum(self.channels), self.embedding_channels)
+        self.embed = nn.Linear(sum(self.channels), self.global_channels)
 
         self.head = MLP(
             [self.embedding_dim] + self.head_channels + [self.num_classes],
@@ -310,7 +339,7 @@ class DGCNNSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
-        return sum(self.channels) + self.embedding_channels
+        return sum(self.channels) + self.global_channels
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -333,8 +362,8 @@ class DGCNNSegmentation(SegmentationModel):
         x, batch = self.encoder(x, batch)
 
         x_embed = self.embed(x)
-        x_global = global_max_pool(x_embed, batch)  # (B, embedding_channels)
-        x_global = x_global[batch]  # (N, embedding_channels)
+        x_global = global_max_pool(x_embed, batch)  # (B, global_channels)
+        x_global = x_global[batch]  # (N, global_channels)
         x = torch.cat([x_global, x], dim=1)
 
         return x, pos, batch
@@ -384,7 +413,7 @@ def dgcnn_base_semseg(in_channels: int, num_classes: int, **kwargs: Any) -> DGCN
         spatial_dim=3,
         stnet_local_channels=[64, 128, 1024],
         stnet_global_channels=[512, 256],
-        embedding_channels=1024,
+        global_channels=1024,
         channels=[64, 64, 128],
         head_channels=[256, 256, 128],
         num_neighbors=20,
