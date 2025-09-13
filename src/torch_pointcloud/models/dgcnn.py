@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, DynamicEdgeConv, global_max_pool
 
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.tnet import TNet
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, OptTensor
@@ -232,7 +232,7 @@ class DGCNNClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class DGCNNSemanticSegmentation(SegmentationModel):
+class DGCNNSegmentation(SegmentationModel):
     def __init__(
         self,
         in_channels: int,
@@ -374,7 +374,7 @@ def dgcnn_base_cls(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNCl
 
 
 @register_model("dgcnn-base", task="segmentation")
-def dgcnn_base_semseg(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNSemanticSegmentation:
+def dgcnn_base_semseg(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNSegmentation:
     """Base semantic segmentation model as described in [original paper](https://arxiv.org/abs/1801.07829)
     and [official implementation](https://github.com/WangYueFt/dgcnn).
     """
@@ -396,4 +396,4 @@ def dgcnn_base_semseg(in_channels: int, num_classes: int, **kwargs: Any) -> DGCN
         dropout=0.5,
     )
     hparams.update(kwargs)
-    return DGCNNSemanticSegmentation(**hparams)  # type: ignore[arg-type]
+    return DGCNNSegmentation(**hparams)  # type: ignore[arg-type]
