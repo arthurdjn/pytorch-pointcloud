@@ -323,7 +323,7 @@ class DGCNNSegmentation(SegmentationModel):
             bias=self.bias,
             aggr="max",
         )
-        self.embed = nn.Linear(sum(self.channels), self.global_channels)
+        self.global_proj = nn.Linear(sum(self.channels), self.global_channels)
 
         self.head = MLP(
             [self.embedding_dim] + self.head_channels + [self.num_classes],
@@ -361,7 +361,7 @@ class DGCNNSegmentation(SegmentationModel):
         x = torch.cat([x, pos], dim=1) if x is not None else pos
         x, batch = self.encoder(x, batch)
 
-        x_embed = self.embed(x)
+        x_embed = self.global_proj(x)
         x_global = global_max_pool(x_embed, batch)  # (B, global_channels)
         x_global = x_global[batch]  # (N, global_channels)
         x = torch.cat([x_global, x], dim=1)
