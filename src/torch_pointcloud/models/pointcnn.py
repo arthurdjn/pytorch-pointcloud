@@ -471,7 +471,7 @@ class PointCNNSegmentation(SegmentationModel):
     def embedding_dim(self) -> int:
         return self.decoder.channels[-1]
 
-    def configure_encoder(self) -> nn.Module:
+    def configure_encoder(self) -> PointCNNEncoder:
         return PointCNNEncoder(
             channels=[self.in_channels] + self.channels,
             kernel_sizes=self.kernel_sizes,
@@ -485,7 +485,7 @@ class PointCNNSegmentation(SegmentationModel):
             add_self_loops=self.add_self_loops,
         )
 
-    def configure_decoder(self) -> nn.Module:
+    def configure_decoder(self) -> PointCNNDecoder:
         channels = []
         skip_channels = []
         kernel_sizes = []
