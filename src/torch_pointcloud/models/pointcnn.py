@@ -27,7 +27,7 @@ class FPS(nn.Module):
         return f"ratio={self.ratio}"
 
 
-class PointCNNEncoderBlock(nn.Module):
+class PointCNNBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -63,7 +63,7 @@ class PointCNNEncoderBlock(nn.Module):
         return x, pos, batch
 
 
-class PointCNNEncoder(nn.Module):
+class PointCNNBackbone(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
@@ -96,7 +96,7 @@ class PointCNNEncoder(nn.Module):
             if self.ratios[i]:
                 downsample = FPS(self.ratios[i])
 
-            block = PointCNNEncoderBlock(
+            block = PointCNNBlock(
                 in_channels=self.channels[i],
                 out_channels=self.channels[i + 1],
                 spatial_dim=spatial_dim,
@@ -112,7 +112,7 @@ class PointCNNEncoder(nn.Module):
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         for block in self.blocks:
-            x = block(x, pos, batch)
+            x, pos, batch = block(x, pos, batch)
         return x, pos, batch
 
 
@@ -121,6 +121,9 @@ class PointCNNClassification(ClassificationModel):
     Classification model as described in the paper
     ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
     by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.
+
+    This classification model consists of a backbone of XConv layers and FPS downsampling layers,
+    and a MLP classification head.
 
     """
 
@@ -159,59 +162,75 @@ class PointCNNClassification(ClassificationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
-
-        self.encoder = PointCNNEncoder(
-            channels=[self.in_channels] + self.channels,
-            kernel_sizes=kernel_sizes,
-            spatial_dim=spatial_dim,
-            ratios=ratios,
-            hidden_channels=hidden_channels,
-            dilations=dilations,
-            bias=bias,
-            act=act,
-            act_kwargs=act_kwargs,
-        )
-
         self.dropout = dropout
+
+        self.backbone = self.configure_backbone()
         self.global_pool = create_pool(global_pool)
-        self.head = MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            dropout=[0] * len(self.head_channels) + [self.dropout],
-            plain_last=True,
-        )
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return self.channels[-1]
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
-        self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
-        self.head = MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
+    def configure_backbone(self) -> nn.Module:
+        return PointCNNBackbone(
+            channels=[self.in_channels] + self.channels,
+            kernel_sizes=self.kernel_sizes,
+            spatial_dim=self.spatial_dim,
+            ratios=self.ratios,
+            hidden_channels=self.hidden_channels,
+            dilations=self.dilations,
+            bias=self.bias,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+        )
+
+    def configure_head(self) -> nn.Module:
+        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        dropout_list = [0.0] * (len(channels_list) - 1)
+        if len(channels_list) > 2:
+            dropout_list[-2] = self.dropout
+
+        return MLP(
+            channels_list,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            dropout=[0] * len(self.head_channels) + [self.dropout],
+            dropout=dropout_list,
+            plain_last=True,
+        )
+
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.global_pool = create_pool(global_pool)
+
+        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        dropout_list = [0.0] * (len(channels_list) - 1)
+        if len(channels_list) > 2:
+            dropout_list[-2] = self.dropout
+
+        self.head = MLP(
+            channels_list,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=dropout_list,
             plain_last=True,
         )
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        x, pos, batch = self.encoder(x, pos, batch)
+        x, pos, batch = self.backbone(x, pos, batch)
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
-        if self.dropout:
+        if len(self.head_channels) == 0:
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
