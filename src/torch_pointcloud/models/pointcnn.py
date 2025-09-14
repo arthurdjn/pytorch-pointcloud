@@ -10,7 +10,7 @@ from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import ClassificationModel
+from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 
@@ -27,7 +27,7 @@ class FPS(nn.Module):
         return f"ratio={self.ratio}"
 
 
-class PointCNNBlock(nn.Module):
+class PointCNNEncoderBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -63,7 +63,7 @@ class PointCNNBlock(nn.Module):
         return x, pos, batch
 
 
-class PointCNNBackbone(nn.Module):
+class PointCNNEncoder(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
@@ -96,7 +96,7 @@ class PointCNNBackbone(nn.Module):
             if self.ratios[i]:
                 downsample = FPS(self.ratios[i])
 
-            block = PointCNNBlock(
+            block = PointCNNEncoderBlock(
                 in_channels=self.channels[i],
                 out_channels=self.channels[i + 1],
                 spatial_dim=spatial_dim,
@@ -122,7 +122,7 @@ class PointCNNClassification(ClassificationModel):
     ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
     by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.
 
-    This classification model consists of a backbone of XConv layers and FPS downsampling layers,
+    This classification model consists of a encoder of XConv layers and FPS downsampling layers,
     and a MLP classification head.
 
     """
@@ -164,7 +164,7 @@ class PointCNNClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.dropout = dropout
 
-        self.backbone = self.configure_backbone()
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
@@ -172,8 +172,8 @@ class PointCNNClassification(ClassificationModel):
     def embedding_dim(self) -> int:
         return self.channels[-1]
 
-    def configure_backbone(self) -> nn.Module:
-        return PointCNNBackbone(
+    def configure_encoder(self) -> nn.Module:
+        return PointCNNEncoder(
             channels=[self.in_channels] + self.channels,
             kernel_sizes=self.kernel_sizes,
             spatial_dim=self.spatial_dim,
@@ -209,7 +209,7 @@ class PointCNNClassification(ClassificationModel):
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        x, pos, batch = self.backbone(x, pos, batch)
+        x, pos, batch = self.encoder(x, pos, batch)
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
@@ -221,6 +221,29 @@ class PointCNNClassification(ClassificationModel):
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
+
+
+class PointCNNSegmentation(SegmentationModel):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        spatial_dim: int = 3,
+        channels: Sequence[int],
+        hidden_channels: Optional[Union[int, Sequence[int]]] = None,
+        kernel_sizes: Sequence[int],
+        dilations: Sequence[int] = (1, 1, 1, 1),
+        ratios: Sequence[float],
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        dropout: float = 0.0,
+    ):
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
 
 
 @register_model("pointcnn-base", task="classification")
