@@ -29,11 +29,10 @@ from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 if TYPE_CHECKING:
-    from torch_cluster import knn, knn_graph
+    from torch_cluster import knn
 
 fps, _ = optional_import("torch_cluster", name="fps")
 knn, _ = optional_import("torch_cluster", name="knn")
-knn_graph, _ = optional_import("torch_cluster", name="knn_graph")
 
 
 class PointCNNIntermediate(NamedTuple):
@@ -77,7 +76,7 @@ class PointCNNEncoderBlock(nn.Module):
             x, pos, batch = x[idx], pos[idx], batch[idx]
 
         num_neighbors = self.conv.kernel_size * self.conv.dilation
-        edge_index = knn_graph(pos, k=num_neighbors, batch=batch, flow="target_to_source")
+        edge_index = knn(pos, pos, k=num_neighbors, batch_x=batch, batch_y=batch)
         x = self.conv(x, pos, edge_index)
         x = self.act(x)
         return x, pos, batch
@@ -216,7 +215,7 @@ class PointCNNEncoder(nn.Module):
     ) -> Any:
         intermediates = []
         for block in self.blocks:
-            if return_intermediates:
+            if return_intermediates and hasattr(block, "downsample") and block.downsample is not None:
                 intermediate = PointCNNIntermediate(x, pos, batch)
                 intermediates.append(intermediate)
 
@@ -286,7 +285,7 @@ class PointCNNDecoder(nn.Module):
         batch: Tensor,
         intermediates: List[PointCNNIntermediate],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for i, (block, intermediate) in enumerate(zip(self.blocks, intermediates)):
+        for block, intermediate in zip(self.blocks, intermediates):
             x, pos, batch = block(x, pos, batch, *intermediate)
 
         return x, pos, batch
@@ -470,7 +469,7 @@ class PointCNNSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
-        return self.channels[0]
+        return self.decoder.channels[-1]
 
     def configure_encoder(self) -> nn.Module:
         return PointCNNEncoder(
@@ -487,13 +486,29 @@ class PointCNNSegmentation(SegmentationModel):
         )
 
     def configure_decoder(self) -> nn.Module:
+        channels = []
+        skip_channels = []
+        kernel_sizes = []
+        hidden_channels = []
+        dilations = []
+
+        for i in range(len(self.channels)):
+            if not self.ratios[i]:
+                continue
+
+            channels.append(self.channels[i])
+            skip_channels.append(self.channels[i - 1])
+            kernel_sizes.append(self.kernel_sizes[i])
+            hidden_channels.append(self.hidden_channels[i])
+            dilations.append(self.dilations[i])
+
         return PointCNNDecoder(
-            channels=[self.channels[-1]] + self.channels[::-1],
-            skip_channels=self.channels[:-1][::-1] + [self.in_channels],
-            kernel_sizes=self.kernel_sizes[::-1],
+            channels=[channels[-1]] + channels[::-1],
+            skip_channels=skip_channels[::-1],
+            kernel_sizes=kernel_sizes[::-1],
             spatial_dim=self.spatial_dim,
-            hidden_channels=self.hidden_channels[::-1],
-            dilations=self.dilations[::-1],
+            hidden_channels=hidden_channels[::-1],
+            dilations=dilations[::-1],
             depth_multipliers=1,
             bias=self.bias,
             act=self.act,
@@ -604,7 +619,7 @@ def pointcnn_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Poin
         hidden_channels=[32, 64, 128, 256],
         kernel_sizes=[8, 12, 16, 16],
         dilations=[1, 2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.0, 0.375, 0.5, 0.334],
         act="relu",
         act_first=False,
         norm="batch_norm",

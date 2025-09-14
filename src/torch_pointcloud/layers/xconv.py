@@ -98,7 +98,10 @@ class XConv(nn.Module):
             nn.init.zeros_(module.bias)
 
     def forward(
-        self, x: Union[Tensor, Tuple[Tensor, OptTensor]], pos: Union[Tensor, PairTensor], edge_index: Tensor
+        self,
+        x: Union[Tensor, Tuple[Tensor, OptTensor]],
+        pos: Union[Tensor, PairTensor],
+        edge_index: Tensor,
     ) -> Tensor:
         if isinstance(x, Tensor):
             x = (x, None)
