@@ -8,7 +8,7 @@ from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCAT
 @pytest.fixture
 def data() -> dict:
     torch.manual_seed(42)
-    lengths = torch.tensor([256, 512])
+    lengths = torch.tensor([512, 768])
     pos = torch.randn(int(lengths.sum()), 3)
     features = torch.randn(int(lengths.sum()), 3)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
@@ -23,6 +23,7 @@ def data() -> dict:
 @pytest.mark.parametrize(
     "model_name",
     [
+        "dgcnn-base",
         "pointnext-sm",
         "pointnext-base",
         "pointnext-lg",
@@ -31,6 +32,7 @@ def data() -> dict:
         "pointnext-base",
         "pointnext-lg",
         "pointnext-xl",
+        "pointcnn-base",
     ],
 )
 def test_classification_model_forward(model_name: str, data: dict) -> None:
@@ -49,6 +51,7 @@ def test_classification_model_forward(model_name: str, data: dict) -> None:
 @pytest.mark.parametrize(
     "model_name",
     [
+        "dgcnn-base",
         "pointnext-sm",
         "pointnext-base",
         "pointnext-lg",
@@ -57,6 +60,7 @@ def test_classification_model_forward(model_name: str, data: dict) -> None:
         "pointnext-base",
         "pointnext-lg",
         "pointnext-xl",
+        "pointcnn-base",
     ],
 )
 def test_segmentation_model_forward(model_name: str, data: dict) -> None:
