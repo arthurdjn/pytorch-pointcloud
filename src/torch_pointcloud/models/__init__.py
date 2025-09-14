@@ -5,6 +5,7 @@ from .kpconv import KPConvNetClassification, KPConvNetSegmentation
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
 from .point_transformer_v2 import PointTransformerV2Classification, PointTransformerV2Segmentation
 from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
+from .pointcnn import PointCNNClassification, PointCNNSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtSegmentation
