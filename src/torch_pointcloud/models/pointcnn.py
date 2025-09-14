@@ -77,7 +77,7 @@ class PointCNNEncoderBlock(nn.Module):
             x, pos, batch = x[idx], pos[idx], batch[idx]
 
         num_neighbors = self.conv.kernel_size * self.conv.dilation
-        edge_index = knn_graph(pos, k=num_neighbors, batch=batch, flow="source_to_target")
+        edge_index = knn_graph(pos, k=num_neighbors, batch=batch, flow="target_to_source")
         x = self.conv(x, pos, edge_index)
         x = self.act(x)
         return x, pos, batch
@@ -132,9 +132,8 @@ class PointCNNDecoderBlock(nn.Module):
         batch_skip: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         num_neighbors = self.conv.kernel_size * self.conv.dilation
-        edge_index = knn(pos_skip, pos, k=num_neighbors, batch_x=batch_skip, batch_y=batch)  # flow: source -> target
-        # edge_index = knn(pos, pos_skip, k=num_neighbors, batch_x=batch, batch_y=batch_skip)  # flow: source -> target
-        x = self.conv(x, (pos, pos_skip), edge_index)
+        edge_index = knn(pos, pos_skip, k=num_neighbors, batch_x=batch, batch_y=batch_skip)  # flow: source -> target
+        x = self.conv((x, None), (pos, pos_skip), edge_index)
         x = torch.cat([x, x_skip], dim=-1)
         x = self.fuse(x)
         return x, pos_skip, batch_skip
@@ -287,7 +286,7 @@ class PointCNNDecoder(nn.Module):
         batch: Tensor,
         intermediates: List[PointCNNIntermediate],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.blocks, intermediates):
+        for i, (block, intermediate) in enumerate(zip(self.blocks, intermediates)):
             x, pos, batch = block(x, pos, batch, *intermediate)
 
         return x, pos, batch
@@ -489,12 +488,12 @@ class PointCNNSegmentation(SegmentationModel):
 
     def configure_decoder(self) -> nn.Module:
         return PointCNNDecoder(
-            channels=self.channels[::-1],
-            skip_channels=self.channels[:-1][::-1],
-            kernel_sizes=self.kernel_sizes[:-1][::-1],
+            channels=[self.channels[-1]] + self.channels[::-1],
+            skip_channels=self.channels[:-1][::-1] + [self.in_channels],
+            kernel_sizes=self.kernel_sizes[::-1],
             spatial_dim=self.spatial_dim,
-            hidden_channels=self.hidden_channels[:-1][::-1],
-            dilations=self.dilations[:-1][::-1],
+            hidden_channels=self.hidden_channels[::-1],
+            dilations=self.dilations[::-1],
             depth_multipliers=1,
             bias=self.bias,
             act=self.act,
@@ -568,8 +567,6 @@ class PointCNNSegmentation(SegmentationModel):
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
-        for i in intermediates:
-            print(f"{i.x.shape=}, {i.pos.shape=}, {i.batch.shape=}")
         x, _, _ = self.forward_decoder(x, pos, batch, intermediates)
         return self.forward_head(x)
 

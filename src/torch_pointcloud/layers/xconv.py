@@ -117,14 +117,13 @@ class XConv(nn.Module):
         # This is step is usually done inside the message passing class,
         # however here we do not want to do the final aggregation (not supported by this layer)
         # so we extract source / target nodes manually.
+        # IMPORTANT: the flow for the edge_index is expected to be target -> source
         row, col = edge_index
         pos_src, pos_dst = pos
         x_src, _ = x
 
-        pos_j, pos_i = pos_src[row], pos_dst[col]
-        print(f"{pos_src.shape=}, {pos_dst.shape=}")
-        print(f"{pos_j.shape=}, {pos_i.shape=}")
-        x_j = x_src[row] if x_src is not None else None
+        pos_j, pos_i = pos_src[col], pos_dst[row]
+        x_j = x_src[col] if x_src is not None else None
 
         # Compute relative neighbor positions (message)
         msg = pos_j - pos_i
@@ -136,10 +135,8 @@ class XConv(nn.Module):
             x_star = torch.cat([x_star, x_j], dim=-1)
 
         x_star = x_star.transpose(1, 2).contiguous()
-        print(f"{x_star.shape=}")
         transform_matrix = self.mlp2(msg.view(-1, self.kernel_size * self.spatial_dim))
         x_transformed = torch.matmul(x_star, transform_matrix)
-        print(f"{x_transformed.shape=}")
 
         return self.conv(x_transformed)
 
