@@ -185,36 +185,34 @@ class DGCNNClassification(ClassificationModel):
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            dropout=[0] * len(self.head_channels) + [self.dropout],
-            plain_last=True,
-        )
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return sum(self.channels)
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
-        self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
-        self.head = MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
+    def configure_head(self) -> nn.Module:
+        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        dropout_list = [0.0] * (len(channels_list) - 1)
+        if len(channels_list) > 2:
+            dropout_list[-2] = self.dropout
+
+        return MLP(
+            channels_list,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            dropout=[0] * len(self.head_channels) + [self.dropout],
+            dropout=dropout_list,
             plain_last=True,
         )
+
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         pos = self.stnet(pos, batch)
@@ -224,7 +222,7 @@ class DGCNNClassification(ClassificationModel):
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
-        if self.dropout:
+        if len(self.head_channels) == 0:
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
