@@ -206,23 +206,7 @@ class PointCNNClassification(ClassificationModel):
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-
-        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
-        dropout_list = [0.0] * (len(channels_list) - 1)
-        if len(channels_list) > 2:
-            dropout_list[-2] = self.dropout
-
-        self.head = MLP(
-            channels_list,
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            dropout=dropout_list,
-            plain_last=True,
-        )
+        self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         x, pos, batch = self.backbone(x, pos, batch)
