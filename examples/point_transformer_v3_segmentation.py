@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets import ShapeNetPart
+from torch_pointcloud.datasets import S3DIS, ShapeNetPart
 from torch_pointcloud.models import PointTransformerV3Segmentation
 from torch_pointcloud.utils.random import seed_everything
 
@@ -36,6 +36,19 @@ def main() -> None:
             categories=args.categories,
             transform=transform,
             pre_transform=pre_transform,
+        )
+    elif args.dataset.lower() == "s3dis":
+        train_dataset = S3DIS(
+            args.root,
+            areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
+            transform=None,
+            pre_transform=None,
+        )
+        test_dataset = S3DIS(
+            args.root,
+            areas=["Area_5"],
+            transform=None,
+            pre_transform=None,
         )
     else:
         raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
@@ -90,8 +103,8 @@ def main() -> None:
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, train_loader, args.device)
-        val_metrics = eval_one_epoch(model, test_loader, args.device)
+        train_metrics = train_one_epoch(model, optimizer, train_loader, device=args.device)
+        val_metrics = eval_one_epoch(model, test_loader, num_classes=args.num_classes, device=args.device)
         metrics = {**train_metrics, **val_metrics}
 
         print("Scores:", end=" ")
@@ -154,10 +167,13 @@ def train_one_epoch(
     }
 
 
-def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> Dict[str, float]:
+def eval_one_epoch(model: Module, loader: DataLoader, num_classes: int, device: str = "cuda") -> Dict[str, float]:
     model.eval()
 
-    total_correct = total_points = 0.0
+    val_intersection: Any = []
+    val_union: Any = []
+    val_target: Any = []
+
     for data in tqdm(loader, total=len(loader), desc="Evaluating"):
         coords = data["coords"].to(device)
         target = data["target"].to(device)
@@ -170,16 +186,37 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
             logits = model(None, grid_coords, batch)
             preds = logits.argmax(dim=1)
 
-        total_correct += preds.eq(target).sum().item()
-        total_points += len(target)
+        preds = preds.view(-1)
+        target = target.view(-1)
+        preds[target == -1] = -1
 
-    return {"val/acc": total_correct / total_points}
+        intersection = preds[preds == target]
+        area_intersection = torch.histc(intersection, bins=num_classes, min=0, max=num_classes - 1)
+        area_preds = torch.histc(preds, bins=num_classes, min=0, max=num_classes - 1)
+        area_target = torch.histc(target, bins=num_classes, min=0, max=num_classes - 1)
+        area_union = area_preds + area_target - area_intersection
+
+        val_intersection.append(area_intersection)
+        val_union.append(area_union)
+        val_target.append(area_target)
+
+    val_union = torch.cat(val_union)
+    val_intersection = torch.cat(val_intersection)
+    val_target = torch.cat(val_target)
+
+    iou_class = val_intersection / (val_union + 1e-10)
+    acc_class = val_intersection / (val_target + 1e-10)
+    m_iou = iou_class.mean()
+    m_acc = acc_class.mean()
+    all_acc = val_intersection.sum() / (val_target.sum() + 1e-10)
+
+    return {"val/mIoU": m_iou, "val/mAcc": m_acc, "val/allAcc": all_acc}
 
 
 def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
     batch = torch.cat([torch.ones(len(d["coords"])) * i for i, d in enumerate(data_list)]).long()
     coords = torch.cat([d["coords"] for d in data_list]).float()
-    target = torch.cat([d["segmentation"] for d in data_list])
+    target = torch.cat([d["segmentation"] if "segmentation" in d else d["semantic"] for d in data_list])
 
     return {"coords": coords, "target": target, "batch": batch}
 
