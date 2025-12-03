@@ -250,7 +250,7 @@ class InversePool(nn.Module):
             order="lna",
         )
         self.proj_skip = linear_block(
-            in_features=in_channels,
+            in_features=skip_channels,
             out_features=out_channels,
             bias=bias,
             norm=norm,
@@ -667,9 +667,9 @@ class PointTransformerV2Classification(nn.Module):
         for i, block in enumerate(self.encoder):
             intermediate = {"features": features, "coords": coords, "batch": batch}
 
-            features, coords, batch, pooling_inverse = block(features, coords, batch, return_inverse=True)
+            features, coords, batch, *rest = block(features, coords, batch, return_inverse=i > 0)
             if i > 0:
-                intermediate["pooling_inverse"] = pooling_inverse
+                intermediate["pooling_inverse"] = rest[0]
                 intermediates.append(intermediate)
 
         if return_intermediates:
@@ -878,9 +878,9 @@ class PointTransformerV2Segmentation(nn.Module):
         for i, block in enumerate(self.encoder):
             intermediate = {"features": features, "coords": coords, "batch": batch}
 
-            features, coords, batch, *pooling_inverse = block(features, coords, batch, return_inverse=i > 0)
+            features, coords, batch, *rest = block(features, coords, batch, return_inverse=i > 0)
             if i > 0:
-                intermediate["pooling_inverse"] = pooling_inverse[0]
+                intermediate["pooling_inverse"] = rest[0]
                 intermediates.append(intermediate)
 
         if return_intermediates:
