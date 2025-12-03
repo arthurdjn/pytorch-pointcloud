@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
@@ -69,6 +69,12 @@ def main() -> None:
         )
     else:
         raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10' or 'ModelNet40'.")
+
+    # Limit the size of the dataset if specified
+    if args.limit_train_batches is not None:
+        train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
+    if args.limit_test_batches is not None:
+        test_dataset = Subset(test_dataset, range(args.limit_test_batches * args.batch_size))
 
     train_loader = DataLoader(
         train_dataset,
@@ -134,6 +140,8 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--limit-train-batches", type=int, default=None)
+    parser.add_argument("--limit-test-batches", type=int, default=None)
     return parser.parse_args()
 
 
@@ -144,7 +152,7 @@ def train_one_epoch(
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
-    cum_loss = 0.0
+    total_correct = total_loss = 0.0
     model.train()
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
@@ -157,16 +165,23 @@ def train_one_epoch(
 
         optimizer.zero_grad()
         logits = model(features, coords, batch)
-        preds = F.log_softmax(logits, dim=1)
-        loss = F.nll_loss(preds, target)
+        probs = F.log_softmax(logits, dim=1)
+
+        loss = F.nll_loss(probs, target)
         loss.backward()
         optimizer.step()
-        cum_loss += loss.item()
+        total_loss += loss.item()
+
+        correct = logits.argmax(dim=1).eq(target).sum()
+        total_correct += correct.item()
 
         if i % log_interval == 0:
-            pbar.set_postfix({"train/loss_step": loss.item()})
+            pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": correct.item() / len(target)})
 
-    return {"train/loss_epoch": cum_loss / len(loader)}
+    return {
+        "train/loss_epoch": total_loss / len(loader),
+        "train/acc_epoch": int(total_correct) / len(loader.dataset),  # type: ignore[arg-type]
+    }
 
 
 def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> Dict[str, float]:
