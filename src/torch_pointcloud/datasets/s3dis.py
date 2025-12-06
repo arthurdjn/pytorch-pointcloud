@@ -399,9 +399,12 @@ class S3DIS(PointCloudDataset):
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
         data = []
-        for area in self.areas:
+        pbar = tqdm(self.areas, desc="Loading")
+        for area in pbar:
+            pbar.set_postfix({"area": area})
             file_path = Path(self.processed_dir, f"{area}.pt")
             data.extend(torch.load(file_path, weights_only=True))
+
         return data
 
     @override
