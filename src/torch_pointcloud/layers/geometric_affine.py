@@ -92,13 +92,24 @@ class GeometricAffineConv(MessagePassing):
         pos_j: OptTensor,
         batch: Tensor,
     ) -> Tensor:
-        msg = x_j - x_i
+        ensure_option(self.normalize, NormalizeType, name="normalize")
+
+        msg_i, msg_j = x_i, x_j
+
         if self.use_pos:
             if pos_i is None or pos_j is None:
                 raise ValueError("pos_i and pos_j must be provided if `use_pos` is True")
 
-            msg = torch.cat([msg, pos_j - pos_i], dim=1)
+            msg_j = torch.cat([msg_j, pos_j], dim=1)
+            msg_i = torch.cat([msg_i, pos_i], dim=1)
 
+        if self.normalize == "anchor":
+            mean = msg_i
+        elif self.normalize == "center":
+            local_mean = scatter_mean(msg_j, index, dim=0)
+            mean = local_mean[index]
+
+        msg = msg_j - mean
         edge_batch = batch[index]
 
         sq_msg_mean_c = msg.pow(2).mean(dim=-1)
@@ -107,7 +118,6 @@ class GeometricAffineConv(MessagePassing):
 
         msg = msg / sigma[edge_batch].view(-1, 1)
         msg = self.alpha * msg + self.beta
-
         msg = torch.cat([msg, x_i], dim=1)
 
         return self.local_nn(msg)
