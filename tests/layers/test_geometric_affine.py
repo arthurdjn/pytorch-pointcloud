@@ -9,11 +9,6 @@ from torch_geometric.nn import MLP, knn, knn_graph
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
-DEVICES = [
-    "cpu",
-    pytest.param("cuda", marks=pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA not available")),
-]
-
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -29,12 +24,10 @@ def data() -> Dict[str, Tensor]:
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-@pytest.mark.parametrize("device", DEVICES)
 @pytest.mark.parametrize("use_pos", [True, False])
 @pytest.mark.parametrize("normalize", ["center", "anchor"])
 def test_geometric_affine_conv_basic(
     data: Dict[str, Tensor],
-    device: Literal["cpu", "cuda"],
     use_pos: bool,
     normalize: Literal["center", "anchor"],
 ) -> None:
@@ -49,9 +42,6 @@ def test_geometric_affine_conv_basic(
         normalize=normalize,
     )
 
-    conv = conv.to(device)
-    data = {k: v.to(device) for k, v in data.items()}
-
     output = conv(data["x"], data["pos"], data["batch"], data["edge_index"])
     assert output.shape == (len(data["pos"]), 32)
     assert output.dtype == data["x"].dtype
@@ -61,8 +51,7 @@ def test_geometric_affine_conv_basic(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-@pytest.mark.parametrize("device", DEVICES)
-def test_geometric_affine_conv_with_self_loops(data: Dict[str, Tensor], device: Literal["cpu", "cuda"]) -> None:
+def test_geometric_affine_conv_with_self_loops(data: Dict[str, Tensor]) -> None:
     """Test GeometricAffineConv with self loops."""
     local_nn = MLP([2 * 3 + 3, 32])
     conv = GeometricAffineConv(
@@ -73,9 +62,6 @@ def test_geometric_affine_conv_with_self_loops(data: Dict[str, Tensor], device: 
         normalize="center",
         add_self_loops=True,
     )
-
-    conv = conv.to(device)
-    data = {k: v.to(device) for k, v in data.items()}
 
     output = conv(data["x"], data["pos"], data["batch"], data["edge_index"])
     assert output.shape == (len(data["pos"]), 32)
@@ -135,3 +121,23 @@ def test_geometric_affine_conv_reset_parameters() -> None:
 
     torch.testing.assert_close(conv.alpha, torch.ones_like(conv.alpha))
     torch.testing.assert_close(conv.beta, torch.zeros_like(conv.beta))
+
+
+@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA not available")
+def test_geometric_affine_conv_cuda(data: Dict[str, Tensor]) -> None:
+    """Test GeometricAffineConv on CUDA."""
+    local_nn = MLP([2 * 3 + 3, 32])
+    conv = GeometricAffineConv(
+        local_nn=local_nn,
+        channels=3,
+        spatial_dim=3,
+        use_pos=True,
+        normalize="center",
+    )
+
+    conv = conv.to("cuda")
+    data = {k: v.to("cuda") for k, v in data.items()}
+
+    output = conv(data["x"], data["pos"], data["batch"], data["edge_index"])
+    assert output.shape == (len(data["pos"]), 32)
+    assert output.dtype == data["x"].dtype
