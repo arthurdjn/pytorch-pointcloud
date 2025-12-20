@@ -1,0 +1,869 @@
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    overload,
+)
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
+from torch_geometric.nn import MLP
+from torch_geometric.nn.inits import reset
+from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
+
+from torch_pointcloud.layers import FPS, ActLike, PoolLike, create_pool
+from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
+from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.ops import knn_interpolate
+from torch_pointcloud.utils.types import OptTensor
+
+from ._base import ClassificationModel, SegmentationModel
+
+if TYPE_CHECKING:
+    from torch_cluster import fps, knn, scatter_mean, scatter_std
+
+
+fps, _ = optional_import("torch_cluster", "fps")
+scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
+scatter_std, _ = optional_import("torch_scatter", "scatter_std")
+knn, _ = optional_import("torch_cluster", "knn")
+
+
+class PointMLPIntermediate(NamedTuple):
+    x: Tensor
+    pos: Tensor
+    batch: Tensor
+
+
+class LinearBlock(nn.Module):
+    r"""A linear block consisting of a linear layer, normalization and activation.
+    Activation and normalization are optional and customizable.
+
+    The default flow is:
+
+    ```text
+    x -> Lin -> Norm -> Act -> y
+    ```
+
+    Note:
+        The activation can be applied before or after the normalization with the `act_first` parameter.
+        As a general practice, the activation is applied after the normalization by default.
+
+    Shape:
+        - Input: $(N, *, \text{in\_channels})$ where $*$ means any number of additional dimensions.
+        - Output: $(N, *, \text{out\_channels})$ where $*$ means any number of additional dimensions.
+
+    Args:
+        in_channels: The number of input channels.
+        out_channels: The number of output channels.
+        act: The activation function to use. If `None`, no activation is applied.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Whether to apply the activation function before the normalization.
+        norm: The normalization function to use. If `None`, no normalization is applied.
+        norm_kwargs: Keyword arguments for the normalization function.
+        bias: Whether to use a bias for the linear layer.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.layers import LinearBlock
+        >>> block = LinearBlock(64, 128, act="relu", norm="batch_norm1d", bias=False)
+        >>> x = torch.randn(32, 64)
+        >>> y = block(x)
+        >>> print(y.shape)
+        torch.Size([32, 128])
+
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
+    ):
+        super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+
+        self.lin = nn.Linear(in_channels, out_channels, bias=bias)
+        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.act = activation_resolver(act, **act_kwargs)
+        self.act_first = act_first
+
+    def reset_parameters(self) -> None:
+        reset(self.lin)
+        reset(self.norm)
+        reset(self.act)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.lin(x)
+        if self.act is not None and self.act_first:
+            x = self.act(x)
+        if self.norm is not None:
+            x = self.norm(x)
+        if self.act is not None and not self.act_first:
+            x = self.act(x)
+        return x
+
+
+class ResidualLinearBlock(nn.Module):
+    r"""A residual linear block consisting of two linear layers, normalization and activation.
+
+    The default flow is:
+
+    ```text
+    x -> Lin1 -> Norm1 -> Act -> Lin2 -> Norm2 -> Act -> y
+    |                                          ^
+    +------------------------------------------+
+    ```
+
+    Args:
+        channels: The number of input and output channels.
+        expansion: The expansion factor for the hidden channels.
+        act: The activation function to use. If `None`, no activation is applied.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Whether to apply the activation function before the normalization.
+        norm: The normalization function to use. If `None`, no normalization is applied.
+        norm_kwargs: Keyword arguments for the normalization function.
+        bias: Whether to use a bias for the linear layers.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.layers import ResidualLinearBlock
+        >>> block = ResidualLinearBlock(64, expansion=2, act="relu", norm="batch_norm", bias=False)
+        >>> x = torch.randn(32, 64)
+        >>> y = block(x)
+        >>> print(y.shape)
+        torch.Size([32, 64])
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        expansion: float = 1.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+    ):
+        super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+        hidden_channels = int(channels * expansion)
+
+        self.lin1 = nn.Linear(channels, hidden_channels, bias=bias)
+        self.norm1 = normalization_resolver(norm, hidden_channels, **norm_kwargs)
+        self.lin2 = nn.Linear(hidden_channels, channels, bias=bias)
+        self.norm2 = normalization_resolver(norm, channels, **norm_kwargs)
+        self.act = activation_resolver(act, **act_kwargs)
+        self.act_first = act_first
+
+    def reset_parameters(self) -> None:
+        reset(self.lin1)
+        reset(self.norm1)
+        reset(self.lin2)
+        reset(self.norm2)
+        reset(self.act)
+
+    def forward(self, x: Tensor) -> Tensor:
+        identity = x
+
+        x = self.lin1(x)
+        if self.act is not None and self.act_first:
+            x = self.act(x)
+        x = self.norm1(x)
+        if self.act is not None and not self.act_first:
+            x = self.act(x)
+
+        x = self.lin2(x)
+        if self.act is not None and self.act_first:
+            x = self.act(x + identity)
+        x = self.norm2(x)
+        if self.act is not None and not self.act_first:
+            x = self.act(x + identity)
+
+        return x
+
+
+def create_residual_linear_blocks(channels: int, num_blocks: int, **kwargs: Any) -> nn.Sequential:
+    return nn.Sequential(*[ResidualLinearBlock(channels, **kwargs) for _ in range(num_blocks)])
+
+
+class PointMLPEncoderBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        k: int,
+        spatial_dim: int = 3,
+        num_pre_blocks: int = 2,
+        num_pos_blocks: int = 2,
+        normalize: Literal["center", "anchor"] = "center",
+        res_expansion: float = 1.0,
+        dropout: float = 0.0,
+        act: ActLike = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
+        add_self_loops: bool = False,
+        downsample: Optional[nn.Module] = None,
+    ):
+        super().__init__()
+        kwargs: Dict[str, Any] = dict(
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+        )
+
+        self.downsample = downsample
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.k = k
+
+        pre_mlp = nn.Sequential(
+            LinearBlock(2 * in_channels + spatial_dim, out_channels, **kwargs),
+            create_residual_linear_blocks(out_channels, num_pre_blocks, expansion=res_expansion, **kwargs),
+        )
+
+        self.conv = GeometricAffineConv(
+            local_nn=pre_mlp,
+            channels=in_channels,
+            spatial_dim=spatial_dim,
+            normalize=normalize,
+            add_self_loops=add_self_loops,
+            aggr="max",
+        )
+
+        self.pos_mlp = create_residual_linear_blocks(out_channels, num_pos_blocks, **kwargs)
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        x_dst, pos_dst, batch_dst = x, pos, batch
+        if self.downsample is not None:
+            idx = self.downsample(pos, batch)
+            x_dst, pos_dst, batch_dst = x[idx], pos[idx], batch[idx]
+
+        row, col = knn(x=pos, y=pos_dst, k=self.k, batch_x=batch, batch_y=batch_dst)
+        edge_index = torch.stack([col, row], dim=0)
+
+        x_out = self.conv(
+            x=(x, x_dst),
+            pos=(pos, pos_dst),
+            batch=(batch, batch_dst),
+            edge_index=edge_index,
+        )
+
+        x_out = self.pos_mlp(x_out)
+        return x_out, pos_dst, batch_dst
+
+
+class ResidualFeaturePropagation(torch.nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channel: int,
+        *,
+        num_layers: int = 1,
+        k: int,
+        expansion: float = 1.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        kwargs: Dict[str, Any] = dict(
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+        )
+
+        self.k = k
+        self.mlp = nn.Sequential(
+            LinearBlock(in_channels, out_channel, **kwargs),
+            *[ResidualLinearBlock(out_channel, expansion=expansion, **kwargs) for _ in range(num_layers)],
+        )
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        x_skip: Tensor,
+        pos_skip: Tensor,
+        batch_skip: Tensor,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        x = knn_interpolate(x, pos, pos_skip, batch, batch_skip, k=self.k)
+        if x_skip is not None:
+            x = torch.cat([x, x_skip], dim=1)
+        x = self.mlp(x)
+        return x, pos_skip, batch_skip
+
+
+class PointMLPEncoder(nn.Module):
+    def __init__(
+        self,
+        *,
+        channels: Sequence[int],
+        spatial_dim: int = 3,
+        num_neighbors: Union[int, Sequence[int]],
+        ratios: Union[float, Sequence[float]],
+        num_pre_blocks: Union[int, Sequence[int]] = 2,
+        num_pos_blocks: Union[int, Sequence[int]] = 2,
+        normalize: Literal["center", "anchor"] = "center",
+        res_expansion: float = 1.0,
+        act: ActLike = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        add_self_loops: bool = False,
+        aggr: str = "max",
+    ):
+        super().__init__()
+        self.channels = ensure_tuple(channels)
+        self.spatial_dim = spatial_dim
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.add_self_loops = add_self_loops
+        self.normalize = normalize
+        self.res_expansion = res_expansion
+
+        depth = len(self.channels) - 1
+        msg = f"Invalid parameter for {self.__class__.__name__}. Expected `{{param}}` to have length {depth}."
+        self.ratios = ensure_tuple_size(ratios, size=depth, extra_msg=msg.format(param="ratios"))
+        self.num_neighbors = ensure_tuple_size(num_neighbors, size=depth, extra_msg=msg.format(param="k_neighbors"))
+        self.num_pre_blocks = ensure_tuple_size(
+            num_pre_blocks,
+            size=depth,
+            extra_msg=msg.format(param="num_pre_blocks"),
+        )
+        self.num_pos_blocks = ensure_tuple_size(
+            num_pos_blocks,
+            size=depth,
+            extra_msg=msg.format(param="num_pos_blocks"),
+        )
+
+        self.blocks = nn.ModuleList()
+        for i in range(depth):
+            block = self.configure_block(i)
+            self.blocks.append(block)
+
+    def configure_block(self, index: int) -> nn.Module:
+        downsample: Optional[nn.Module] = None
+        if self.ratios[index]:
+            downsample = FPS(ratio=self.ratios[index])
+
+        return PointMLPEncoderBlock(
+            in_channels=self.channels[index],
+            out_channels=self.channels[index + 1],
+            spatial_dim=self.spatial_dim,
+            k=self.num_neighbors[index],
+            num_pre_blocks=self.num_pre_blocks[index],
+            num_pos_blocks=self.num_pos_blocks[index],
+            normalize=self.normalize,
+            res_expansion=self.res_expansion,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+            downsample=downsample,
+        )
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PointMLPIntermediate]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        intermediates: List[PointMLPIntermediate] = []
+        for block in self.blocks:
+            if return_intermediates:
+                intermediate = PointMLPIntermediate(x, pos, batch)
+                intermediates.append(intermediate)
+
+            x, pos, batch = block(x, pos, batch)
+
+        if return_intermediates:
+            return x, pos, batch, intermediates[::-1]
+        return x, pos, batch
+
+
+class PointMLPDecoder(nn.Module):
+    def __init__(
+        self,
+        channels: Sequence[int],
+        skip_channels: Sequence[int],
+        depths: Sequence[int],
+        *,
+        spatial_dim: int = 3,
+        dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.channels = ensure_list(channels)
+        depth = len(self.channels) - 1
+        self.skip_channels = ensure_list_size(skip_channels, depth + 1)
+        self.depths = ensure_list_size(depths, depth)
+
+        self.spatial_dim = spatial_dim
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.dropout = dropout
+
+        self.blocks = nn.ModuleList()
+        for i in range(depth):
+            block = self.configure_block(i)
+            self.blocks.append(block)
+
+    def configure_block(self, index: int) -> nn.Module:
+        in_channels = self.channels[index] + self.skip_channels[index]
+        return ResidualFeaturePropagation(
+            in_channels=in_channels,
+            out_channel=self.channels[index + 1],
+            k=1 if index == 0 else self.spatial_dim,
+            num_layers=self.depths[index],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        intermediates: List[PointMLPIntermediate],
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        for block, intermediate in zip(self.blocks, intermediates):
+            x, pos, batch = block(x, pos, batch, *intermediate)
+        return x, pos, batch
+
+
+class PointMLPClassification(ClassificationModel):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        spatial_dim: int = 3,
+        channels: Sequence[int],
+        num_neighbors: Union[int, Sequence[int]],
+        ratios: Union[float, Sequence[float]],
+        num_pre_blocks: Union[int, Sequence[int]] = 2,
+        num_pos_blocks: Union[int, Sequence[int]] = 2,
+        normalize: Literal["center", "anchor"] = "center",
+        res_expansion: float = 1.0,
+        act: ActLike = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        add_self_loops: bool = False,
+        dropout: float = 0.0,
+        global_pool: PoolLike = "max",
+    ):
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.channels = ensure_list(channels)
+        self.spatial_dim = spatial_dim
+        self.num_neighbors = num_neighbors
+        self.ratios = ratios
+        self.num_pre_blocks = num_pre_blocks
+        self.num_pos_blocks = num_pos_blocks
+        self.normalize = normalize
+        self.res_expansion = res_expansion
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.add_self_loops = add_self_loops
+        self.dropout = dropout
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.channels[-1]
+
+    def configure_stem(self) -> nn.Module:
+        return MLP(
+            [self.in_channels, self.channels[0]],
+            dropout=0.0,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            plain_last=False,
+            bias=self.bias,
+        )
+
+    def configure_encoder(self) -> PointMLPEncoder:
+        return PointMLPEncoder(
+            channels=self.channels,
+            spatial_dim=self.spatial_dim,
+            num_neighbors=self.num_neighbors,
+            ratios=self.ratios,
+            num_pre_blocks=self.num_pre_blocks,
+            num_pos_blocks=self.num_pos_blocks,
+            normalize=self.normalize,
+            res_expansion=self.res_expansion,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+        )
+
+    def configure_head(self) -> nn.Module:
+        return nn.Linear(self.embedding_dim, self.num_classes)
+
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PointMLPIntermediate]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        x = x if x is not None else pos
+        x = self.stem(x)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
+
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        x = self.global_pool(x, batch)
+        if self.dropout:
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x, _, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, batch)
+
+
+class PointMLPSegmentation(SegmentationModel):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        spatial_dim: int = 3,
+        encoder_channels: Sequence[int],
+        num_neighbors: Union[int, Sequence[int]],
+        ratios: Union[float, Sequence[float]],
+        num_pre_blocks: Union[int, Sequence[int]] = 2,
+        num_pos_blocks: Union[int, Sequence[int]] = 2,
+        decoder_channels: Sequence[int],
+        decoder_blocks: Sequence[nn.Module],
+        normalize: Literal["center", "anchor"] = "center",
+        res_expansion: float = 1.0,
+        act: ActLike = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        add_self_loops: bool = False,
+        dropout: float = 0.0,
+    ):
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.decoder_channels = ensure_list(decoder_channels)
+        self.decoder_blocks = ensure_list(decoder_blocks)
+        self.spatial_dim = spatial_dim
+        self.num_neighbors = num_neighbors
+        self.ratios = ratios
+        self.num_pre_blocks = num_pre_blocks
+        self.num_pos_blocks = num_pos_blocks
+        self.normalize = normalize
+        self.res_expansion = res_expansion
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.add_self_loops = add_self_loops
+        self.dropout = dropout
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
+        self.head = self.configure_head()
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.decoder_channels[-1]
+
+    def configure_stem(self) -> nn.Module:
+        return MLP(
+            [self.in_channels, self.encoder_channels[0]],
+            dropout=0.0,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            plain_last=False,
+            bias=self.bias,
+        )
+
+    def configure_encoder(self) -> PointMLPEncoder:
+        return PointMLPEncoder(
+            channels=self.encoder_channels,
+            spatial_dim=self.spatial_dim,
+            num_neighbors=self.num_neighbors,
+            ratios=self.ratios,
+            num_pre_blocks=self.num_pre_blocks,
+            num_pos_blocks=self.num_pos_blocks,
+            normalize=self.normalize,
+            res_expansion=self.res_expansion,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+        )
+
+    def configure_decoder(self) -> PointMLPDecoder:
+        return PointMLPDecoder(
+            channels=[self.encoder_channels[-1]] + self.decoder_channels,
+            skip_channels=self.encoder_channels[:-1][::-1] + [self.in_channels],
+            spatial_dim=self.spatial_dim,
+            depths=self.decoder_blocks,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_head(self) -> nn.Module:
+        return nn.Linear(self.embedding_dim, self.num_classes)
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PointMLPIntermediate]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        x = x if x is not None else pos
+        x = self.stem(x)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
+
+    def forward_decoder(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        intermediates: List[PointMLPIntermediate],
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        return self.decoder(x, pos, batch, intermediates)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.dropout:
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x, pos, batch = self.forward_decoder(x, pos, batch, intermediates)
+        return self.forward_head(x)
+
+
+@register_model("pointmlp-base", task="classification")
+def pointmlp_base_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPClassification:
+    hparams: Dict[str, Any] = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        channels=(64, 128, 256, 512, 1024),
+        ratios=(0.5, 0.5, 0.5, 0.5),
+        num_neighbors=(24, 24, 24, 24),
+        num_pre_blocks=(2, 2, 2, 2),
+        num_pos_blocks=(2, 2, 2, 2),
+        normalize="anchor",
+        res_expansion=1.0,
+        act="relu",
+        act_first=True,
+        norm="batch_norm",
+        bias=False,
+        dropout=0.0,
+        global_pool="max",
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+    return PointMLPClassification(**hparams)
+
+
+@register_model("pointmlp-elite", task="classification")
+def pointmlp_elite_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPClassification:
+    hparams: Dict[str, Any] = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        channels=(64, 128, 256, 512, 512),
+        ratios=(0.5, 0.5, 0.5, 0.5),
+        num_neighbors=(24, 24, 24, 24),
+        num_pre_blocks=(1, 1, 2, 1),
+        num_pos_blocks=(1, 1, 2, 1),
+        normalize="anchor",
+        res_expansion=0.25,
+        act="relu",
+        act_first=True,
+        norm="batch_norm",
+        bias=False,
+        dropout=0.0,
+        global_pool="max",
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+    return PointMLPClassification(**hparams)
+
+
+@register_model("pointmlp-original", task="segmentation")
+def pointmlp_original_seg(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPSegmentation:
+    hparams: Dict[str, Any] = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        spatial_dim=3,
+        encoder_channels=(64, 128, 256, 512, 1024),
+        decoder_channels=(512, 256, 128, 128),
+        decoder_blocks=(4, 4, 4, 4),
+        ratios=(0.25, 0.25, 0.25, 0.25),
+        num_neighbors=(32, 32, 32, 32),
+        num_pre_blocks=(2, 2, 2, 2),
+        num_pos_blocks=(2, 2, 2, 2),
+        normalize="anchor",
+        res_expansion=1.0,
+        act="relu",
+        act_first=True,
+        norm="batch_norm",
+        bias=False,
+        dropout=0.0,
+        add_self_loops=False,
+    )
+    hparams.update(kwargs)
+    return PointMLPSegmentation(**hparams)

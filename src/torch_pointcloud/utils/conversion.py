@@ -1,5 +1,19 @@
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple, Type, TypeVar
+from enum import Enum
+from inspect import isclass
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    get_args,
+    get_origin,
+)
 
 import numpy as np
 import torch
@@ -194,6 +208,48 @@ def ensure_tuple_size(
         none_as_empty=none_as_empty,
         extra_msg=extra_msg,
     )
+
+
+def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
+    r"""Ensure that the provided value is one of the given options.
+    This function will return the value if it is one of the given options.
+    If the value is not a member of the options, a `ValueError` will be raised.
+
+    Supported options are iterables of hashable values, enums, or literal types.
+
+    Args:
+        value: The value to check.
+        options: The options to check against.
+        name: The name of the option displayed in error messages.
+            This is used to track which parameter is invalid.
+
+    Returns:
+        The option.
+
+    Examples:
+        >>> ensure_option("one", ["one", "two"])  # Ok
+        "one"
+        >>> ensure_option("one", Literal["one", "two"])  # Ok
+        "one"
+        >>> ensure_option(1, Enum("Number", "ONE, TWO"))  # Ok
+        1
+        >>> ensure_option("three", ["one", "two"])  # Error
+        ValueError: Invalid option: "three". Valid options are: "one", "two".
+    """
+
+    if is_iterable(options):
+        values = tuple(options)
+    elif isclass(options) and issubclass(options, Enum):
+        values = tuple(opt.value for opt in options)
+    elif get_origin(options) is Literal:
+        values = get_args(options)
+    else:
+        raise ValueError(f"Invalid options type: {type(options).__name__}. Expected one of: Literal, Enum, Iterable.")
+
+    if value not in values:
+        options = ", ".join([f"{v!r}" for v in values])
+        raise ValueError(f"Invalid {name}: {value!r}. Valid options are: {options}.")
+    return value
 
 
 @torch.no_grad()
