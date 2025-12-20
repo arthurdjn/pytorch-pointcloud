@@ -1,13 +1,3 @@
-"""_summary_
-
-Raises:
-    ValueError: _description_
-    ValueError: _description_
-
-Returns:
-    _description_
-"""
-
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
