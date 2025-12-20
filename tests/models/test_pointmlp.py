@@ -17,12 +17,12 @@ from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCAT
 def data() -> Dict[str, Tensor]:
     torch.manual_seed(42)
     lengths = torch.tensor([256, 512])
+    x = torch.randn(int(lengths.sum()), 6)
     pos = torch.randn(int(lengths.sum()), 3)
-    features = torch.randn(int(lengths.sum()), 6)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
 
     return dict(
-        features=features,
+        x=x,
         pos=pos,
         batch=batch,
     )
@@ -71,7 +71,7 @@ def test_pointmlp_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
     )
 
     _, _, _, intermediates = encoder(
-        data["features"],
+        data["x"],
         data["pos"],
         data["batch"],
         return_intermediates=True,
@@ -105,7 +105,7 @@ def test_pointmlp_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
         depths=[2, 2],
     )
 
-    x, pos, batch, intermediates = encoder(data["features"], data["pos"], data["batch"], return_intermediates=True)
+    x, pos, batch, intermediates = encoder(data["x"], data["pos"], data["batch"], return_intermediates=True)
     x, pos, batch = decoder(x, pos, batch, intermediates)
 
     assert x.shape[0] == pos.shape[0] == batch.shape[0]
@@ -119,9 +119,9 @@ def test_pointmlp_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
 )
 def test_pointmlp_classification_forward(model_clf: PointMLPClassification, data: Dict[str, Tensor]) -> None:
     """Test PointMLPClassification forward pass."""
-    logits = model_clf(data["features"], data["pos"], data["batch"])
+    logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
-    assert logits.dtype == data["features"].dtype
+    assert logits.dtype == data["x"].dtype
 
 
 @pytest.mark.skipif(
@@ -138,7 +138,7 @@ def test_pointmlp_classification_reset_classifier(
 
     assert model_clf.num_classes == new_num_classes
     assert model_clf.head.out_features == new_num_classes
-    logits = model_clf(data["features"], data["pos"], data["batch"])
+    logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
@@ -151,14 +151,14 @@ def test_pointmlp_classification_forward_features(
     data: Dict[str, Tensor],
 ) -> None:
     """Test PointMLPClassification forward_features."""
-    x, pos, batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
+    x, pos, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.dim() == 2
     assert pos.dim() == 2
     assert batch.dim() == 1
 
     # Test forward features with intermediates
     x, pos, batch, intermediates = model_clf.forward_features(
-        data["features"],
+        data["x"],
         data["pos"],
         data["batch"],
         return_intermediates=True,
@@ -179,7 +179,7 @@ def test_pointmlp_classification_forward_features_and_head(
     data: Dict[str, Tensor],
 ) -> None:
     """Test PointMLPClassification forward_features and forward_head."""
-    x, _, batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
+    x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     logits = model_clf.forward_head(x, batch)
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
@@ -190,9 +190,9 @@ def test_pointmlp_classification_forward_features_and_head(
 )
 def test_pointmlp_segmentation_forward(model_seg: PointMLPSegmentation, data: Dict[str, Tensor]) -> None:
     """Test PointMLPSegmentation forward pass."""
-    logits = model_seg(data["features"], data["pos"], data["batch"])
+    logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
-    assert logits.dtype == data["features"].dtype
+    assert logits.dtype == data["x"].dtype
 
 
 @pytest.mark.skipif(
@@ -209,7 +209,7 @@ def test_pointmlp_segmentation_reset_classifier(
 
     assert model_seg.num_classes == new_num_classes
     assert model_seg.head.out_features == new_num_classes
-    logits = model_seg(data["features"], data["pos"], data["batch"])
+    logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], new_num_classes)
 
 
@@ -222,7 +222,7 @@ def test_pointmlp_segmentation_forward_features(
     data: Dict[str, Tensor],
 ) -> None:
     """Test PointMLPSegmentation forward_features."""
-    x, pos, batch = model_seg.forward_features(data["features"], data["pos"], data["batch"])
+    x, pos, batch = model_seg.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == pos.shape[0] == batch.shape[0]
     assert x.dim() == 2
     assert pos.dim() == 2
@@ -239,7 +239,7 @@ def test_pointmlp_segmentation_forward_features_and_head(
 ) -> None:
     """Test PointMLPSegmentation forward_features, forward_decoder, and forward_head."""
     x, pos, batch, intermediates = model_seg.forward_features(
-        data["features"],
+        data["x"],
         data["pos"],
         data["batch"],
         return_intermediates=True,
