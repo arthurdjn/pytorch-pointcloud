@@ -88,7 +88,6 @@ class SAModule(nn.Module):
             row, col = radius(coords, new_coords, r, batch, new_batch, max_num_neighbors=k)
             # row: Tensor of shape (N,) containing neighbor indices in the the new point cloud
             # col: Tensor of shape (N,) containing neighbor indices in the original point cloud
-
             rel_coords = coords[col] - new_coords[row]
             if self.normalize_coords:
                 rel_coords = rel_coords / r
@@ -96,6 +95,7 @@ class SAModule(nn.Module):
             new_features = features[col]
             if self.use_coords:
                 new_features = torch.cat([new_features, rel_coords], dim=1)
+
             new_features = mlp(new_features)
             new_features = self.pool(new_features, row)
             msg_features.append(new_features)
