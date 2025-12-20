@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Literal, Union
 
 import torch
 import torch.nn as nn
+import torch_geometric.nn.inits as inits
 from torch import Tensor
 from torch_geometric.nn import MessagePassing
-from torch_geometric.nn.inits import reset
 from torch_geometric.typing import Adj, SparseTensor
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
@@ -54,7 +54,9 @@ class GeometricAffineConv(MessagePassing):
 
     def reset_parameters(self) -> None:
         super().reset_parameters()
-        reset(self.local_nn)
+        inits.reset(self.local_nn)
+        inits.ones(self.alpha)
+        inits.zeros(self.beta)
 
     def forward(
         self,
