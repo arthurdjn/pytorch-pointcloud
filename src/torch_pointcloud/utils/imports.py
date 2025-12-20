@@ -4,6 +4,7 @@ from importlib import import_module
 from importlib.util import find_spec
 from typing import Any, Optional, Tuple
 
+import torch
 from packaging.requirements import Requirement
 from packaging.version import Version
 
@@ -154,7 +155,7 @@ _SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
 _TORCH_CLUSTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_cluster"
 _TORCH_SCATTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_scatter"
 
-
+_CUDA_AVAILABLE = torch.cuda.is_available()
 _FLASH_ATTN_AVAILABLE = module_available("flash_attn")
 _OCNN_AVAILABLE = module_available("ocnn")
 _SPCONV_AVAILABLE = module_available("spconv.pytorch")
