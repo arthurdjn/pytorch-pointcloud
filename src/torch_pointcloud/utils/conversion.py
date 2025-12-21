@@ -236,13 +236,12 @@ def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
         >>> ensure_option("three", ["one", "two"])  # Error
         ValueError: Invalid option: "three". Valid options are: "one", "two".
     """
-
-    if is_iterable(options):
-        values = tuple(options)
+    if get_origin(options) is Literal:
+        values = get_args(options)
     elif isclass(options) and issubclass(options, Enum):
         values = tuple(opt.value for opt in options)
-    elif get_origin(options) is Literal:
-        values = get_args(options)
+    elif is_iterable(options):
+        values = tuple(options)
     else:
         raise ValueError(f"Invalid options type: {type(options).__name__}. Expected one of: Literal, Enum, Iterable.")
 
