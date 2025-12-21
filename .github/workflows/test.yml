@@ -22,19 +22,24 @@ jobs:
       - name: Add ocnn dependency for python ${{ matrix.python-version }}
         # NOTE: ocnn depends on torchvision, which is not fully compatible with python 3.13 yet
         if: matrix.python-version != '3.13'
-        run: uv sync --extra ocnn
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra ocnn" >> $GITHUB_ENV
 
       - name: Install torch-geometric dependencies (torch==2.6.0)
         # NOTE: `pyg-lib` has no wheels for python 3.13 yet
         if: matrix.python-version != '3.13'
-        run: uv sync --extra pyg-lib
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra pyg-lib" >> $GITHUB_ENV
 
       - name: Install spconv dependency
-        run: uv sync --extra spconv
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra spconv" >> $GITHUB_ENV
 
       - name: Install flash-attn dependency
         if: runner.os == 'Linux' && contains(runner.name, 'gpu')
-        run: uv sync --extra flash-attn
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra flash-attn" >> $GITHUB_ENV
+
+      - name: Install all dependencies
+        run: |
+          echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }}"
+          uv sync ${{ env.UV_SYNC_ARGS }} --frozen
 
       - name: Test with python ${{ matrix.python-version }}
         run: uv run --frozen pytest
