@@ -1,5 +1,6 @@
+import fnmatch
 import functools
-from typing import Any, Callable, Dict, Literal, Optional, TypedDict, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, overload
 
 from torch import nn
 
@@ -137,3 +138,18 @@ def create_model(name: str, *args: Any, task: Task = "unspecified", **kwargs: An
 
     model_fn = model_dict["fn"]
     return model_fn(*args, **kwargs)
+
+
+def list_models(name: str = "*", task: Task = "unspecified") -> List[str]:
+    if task not in _REGISTERED_MODELS.keys():
+        expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
+        raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
+
+    model_names = []
+    if task == "unspecified":
+        for task in _REGISTERED_MODELS.keys():
+            model_names.extend(list(_REGISTERED_MODELS[task].keys()))
+    else:
+        model_names.extend(list(_REGISTERED_MODELS[task].keys()))
+
+    return sorted(fnmatch.filter(model_names, name))

@@ -1048,8 +1048,8 @@ class KPConvNetSegmentation(SegmentationModel):
         return self.forward_head(features)
 
 
-def _kpconvnet_small_clf(in_channels: int, num_classes: int) -> KPConvNetClassification:
-    return KPConvNetClassification(
+def _kpconvnet_small_clf(in_channels: int, num_classes: int, **kwargs: Any) -> KPConvNetClassification:
+    hparams: Dict[str, Any] = dict(
         in_channels=in_channels,
         num_classes=num_classes,
         stem_channels=32,
@@ -1065,13 +1065,16 @@ def _kpconvnet_small_clf(in_channels: int, num_classes: int) -> KPConvNetClassif
         act="leaky_relu",
         norm=partial(torch.nn.BatchNorm1d, momentum=0.05),
     )
+    hparams.update(kwargs)
+
+    return KPConvNetClassification(**hparams)
 
 
 @register_model("kpconv-original.modelnet40", task="classification")
-def kpconvnet_original_clf() -> KPConvNetClassification:
-    return _kpconvnet_small_clf(in_channels=6, num_classes=40)
+def kpconvnet_original_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
+    return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)
 
 
 @register_model("kpconv-sm.modelnet40", task="classification")
-def kpconvnet_small_clf() -> KPConvNetClassification:
-    return _kpconvnet_small_clf(in_channels=6, num_classes=40)
+def kpconvnet_small_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
+    return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)

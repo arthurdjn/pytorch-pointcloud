@@ -203,10 +203,6 @@ class ResidualLinearBlock(nn.Module):
         return x
 
 
-def create_residual_linear_blocks(channels: int, num_blocks: int, **kwargs: Any) -> nn.Sequential:
-    return nn.Sequential(*[ResidualLinearBlock(channels, **kwargs) for _ in range(num_blocks)])
-
-
 class PointMLPEncoderBlock(nn.Module):
     def __init__(
         self,
@@ -245,7 +241,7 @@ class PointMLPEncoderBlock(nn.Module):
 
         pre_mlp = nn.Sequential(
             LinearBlock(2 * in_channels + spatial_dim, out_channels, **kwargs),
-            create_residual_linear_blocks(out_channels, num_pre_blocks, expansion=res_expansion, **kwargs),
+            *[ResidualLinearBlock(out_channels, expansion=res_expansion, **kwargs) for _ in range(num_pre_blocks)],
         )
 
         self.conv = GeometricAffineConv(
@@ -257,7 +253,9 @@ class PointMLPEncoderBlock(nn.Module):
             aggr="max",
         )
 
-        self.pos_mlp = create_residual_linear_blocks(out_channels, num_pos_blocks, **kwargs)
+        self.pos_mlp = nn.Sequential(
+            *[ResidualLinearBlock(out_channels, expansion=res_expansion, **kwargs) for _ in range(num_pos_blocks)]
+        )
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         x_dst, pos_dst, batch_dst = x, pos, batch
@@ -843,7 +841,7 @@ def pointmlp_elite_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: An
     return PointMLPClassification(**hparams)
 
 
-@register_model("pointmlp-original", task="segmentation")
+@register_model("pointmlp-base", task="segmentation")
 def pointmlp_original_seg(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPSegmentation:
     hparams: Dict[str, Any] = dict(
         in_channels=in_channels,
