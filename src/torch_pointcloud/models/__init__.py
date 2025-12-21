@@ -1,5 +1,5 @@
 from ._base import ClassificationModel, DetectionModel, SegmentationModel
-from ._registry import create_model, register_model
+from ._registry import create_model, list_models, register_model
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPConvNetClassification, KPConvNetSegmentation
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
