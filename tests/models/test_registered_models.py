@@ -10,6 +10,8 @@ CLASSIFICATION_MODELS = [
     "dgcnn-base",
     "kpconv-original.modelnet40",
     "kpconv-sm.modelnet40",
+    "octformer-base",
+    "octformer-sm",
     "pointcnn-base",
     "pointmlp-base",
     "pointmlp-elite",
@@ -24,6 +26,7 @@ CLASSIFICATION_MODELS = [
 ]
 SEGMENTATION_MODELS = [
     "dgcnn-base",
+    "octformer-base",
     "pointcnn-base",
     "pointmlp-base",
     "pointnext-base",
