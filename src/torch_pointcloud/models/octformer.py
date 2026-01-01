@@ -377,15 +377,11 @@ class OctFormerDecoder(LayerContainer):
         x_list = [x, *intermediates]
         min_depth = depth - len(x_list) + 1
 
-        x_fpn = None
+        x_fpn = 0
         for i, (layer, x_skip) in enumerate(zip(self.iter_layers(), x_list)):
             depth_i = min_depth + i
             x = layer(x, x_skip, octree, depth_i)
-
-            if x_fpn is None:
-                x_fpn = self.upsample(x, octree, depth_i, depth)
-            else:
-                x_fpn = x_fpn + self.upsample(x, octree, depth_i, depth)
+            x_fpn += self.upsample(x, octree, depth_i, depth)
 
         return x_fpn  # type: ignore[return-value]
 
