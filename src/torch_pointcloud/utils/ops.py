@@ -299,3 +299,43 @@ def decimate(
     idx_decim, batch_decim = decimate_indices(batch, factor, generator=generator)
     tensors_decim = tuple(tensor[idx_decim] for tensor in tensors)
     return tensors_decim, batch_decim
+
+
+def pad_tail(tensor: Tensor, pad_size: int, dim: int, fill_value: float = 0) -> Tensor:
+    r"""Pad the tail of a tensor with a fill value.
+
+    Args:
+        tensor: The tensor to pad.
+        pad_size: The size of the padding that will be added to the tail of the tensor.
+        dim: The dimension along which to pad the tensor.
+        fill_value: The value to fill the padding with.
+
+    Returns:
+        The padded tensor.
+
+    Examples:
+        >>> tensor = torch.tensor([1, 2, 3])
+        >>> pad_tail(tensor, pad_size=2, dim=0, fill_value=0)
+        tensor([1, 2, 3, 0, 0])
+
+        >>> tensor = torch.tensor([[1, 2, 3], [4, 5, 6]])
+        >>> pad_tail(tensor, pad_size=2, dim=0, fill_value=0)
+        tensor([[1, 2, 3],
+                [4, 5, 6],
+                [0, 0, 0],
+                [0, 0, 0]])
+
+        >>> tensor = torch.tensor([[1, 2, 3], [4, 5, 6]])
+        >>> pad_tail(tensor, pad_size=2, dim=1, fill_value=0)
+        tensor([[1, 2, 3, 0, 0],
+                [4, 5, 6, 0, 0]])
+    """
+    if pad_size < 0:
+        raise ValueError(f"The padding size must be non-negative, but got {pad_size}.")
+    elif pad_size == 0:
+        return tensor
+
+    tail_shape = list(tensor.shape)
+    tail_shape[dim] = pad_size
+    tail = tensor.new_full(tail_shape, fill_value)
+    return torch.cat([tensor, tail], dim=dim)
