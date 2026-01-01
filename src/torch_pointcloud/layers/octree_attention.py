@@ -36,8 +36,8 @@ class OctreeT(Octree):
         >>> octree_t = OctreeT.from_octree(octree, patch_size=26, dilation=4)
         >>> octree_t.construct_all_attention_context(
         ...     nempty=True,
-        ...     start_depth=6,
-        ...     end_depth=10,
+        ...     min_depth=6,
+        ...     max_depth=10,
         ... )
         >>> octree_t.masks[6].shape
         >>> octree_t.dilated_masks[6].shape
@@ -112,22 +112,22 @@ class OctreeT(Octree):
     def construct_all_attention_context(
         self,
         nempty: bool = False,
-        start_depth: Optional[int] = None,
-        end_depth: Optional[int] = None,
+        min_depth: Optional[int] = None,
+        max_depth: Optional[int] = None,
     ) -> None:
         r"""Constructs all attention context for the octree.
 
         Args:
             nempty: Whether to use non-empty nodes.
-            start_depth: The start depth of the octree to construct the context for.
-            end_depth: The end depth of the octree to construct the context for.
+            min_depth: The start depth of the octree to construct the context for.
+            max_depth: The end depth of the octree to construct the context for.
         """
         self.nnum_t = self.nnum_nempty if nempty else self.nnum
         self.nnum_a = ((self.nnum_t / self.block_size).ceil() * self.block_size).int()
 
-        start_depth = start_depth or self.full_depth
-        end_depth = end_depth or self.depth
-        for d in range(start_depth, end_depth + 1):
+        min_depth = min_depth or self.full_depth
+        max_depth = max_depth or self.depth
+        for d in range(min_depth, max_depth + 1):
             self.construct_attention_context(d, nempty)
 
     def construct_attention_context(self, depth: int, nempty: bool = False) -> None:

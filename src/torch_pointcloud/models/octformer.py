@@ -22,6 +22,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.resolver import normalization_resolver
 
 from torch_pointcloud.layers import PoolLike, create_cls_head
+from torch_pointcloud.layers.layer_container import LayerContainer
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
@@ -29,6 +30,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel
+from ._registry import register_model
 
 if TYPE_CHECKING:
     import dwconv  # pyright: ignore[reportMissingImports]
@@ -150,7 +152,7 @@ class OctFormerBlock(nn.Module):
         return x
 
 
-class OctFormerEncoderBlock(nn.Module):
+class OctFormerEncoderLayer(nn.Module):
     def __init__(
         self,
         channels: int,
@@ -209,7 +211,7 @@ class OctFormerEncoderBlock(nn.Module):
 
         for block in self.blocks:
             if self.use_checkpoint and self.training:
-                block = partial(torch.utils.checkpoint.checkpoint, block)
+                block = partial(torch.utils.checkpoint.checkpoint, block, use_reentrant=False)
 
             x = block(x, octree, depth)
 
@@ -248,7 +250,7 @@ class OctreeConvNorm(nn.Module):
         return x
 
 
-class PatchEmbed(nn.Module):
+class OctreePatchEmbed(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
@@ -262,9 +264,12 @@ class PatchEmbed(nn.Module):
     ):
         super().__init__()
         channels = ensure_list(channels)
-        num_blocks = len(channels) - 2
-        if num_blocks <= 0:
-            raise ValueError(f"The number of channels must be greater than 2, but got {len(channels)} channels.")
+        self.num_layers = len(channels) - 1
+        if self.num_layers <= 1:
+            raise ValueError(
+                f"The number of layers must be greater than 1, but got {self.num_layers} layers. "
+                f"Make sure to increase the number of channels, got {channels} channels."
+            )
 
         block_hparams: Dict[str, Any] = dict(
             act=act,
@@ -272,10 +277,11 @@ class PatchEmbed(nn.Module):
             act_first=act_first,
             norm=norm,
             norm_kwargs=norm_kwargs,
+            bias=bias,
         )
 
         self.convs = nn.ModuleList()
-        for i in range(num_blocks):
+        for i in range(self.num_layers):
             conv = OctreeConvBlock(
                 in_channels=channels[i] if i == 0 else channels[i + 1],
                 out_channels=channels[i + 1],
@@ -287,10 +293,10 @@ class PatchEmbed(nn.Module):
             self.convs.append(conv)
 
         self.downsamples = nn.ModuleList()
-        for i in range(num_blocks):
+        for i in range(1, self.num_layers):
             downsample = OctreeConvBlock(
-                in_channels=channels[i + 1],
-                out_channels=channels[i + 2],
+                in_channels=channels[i],
+                out_channels=channels[i + 1],
                 kernel_size=2,
                 stride=2,
                 nempty=nempty,
@@ -298,35 +304,24 @@ class PatchEmbed(nn.Module):
             )
             self.downsamples.append(downsample)
 
-        self.proj = OctreeConvBlock(
-            in_channels=channels[-1],
-            out_channels=channels[-1],
-            kernel_size=3,
-            stride=1,
-            nempty=nempty,
-            **block_hparams,
-        )
-
     def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:
-        if not len(self.convs) == len(self.downsamples):
-            raise ValueError(
-                "The number of convs and downsamples should be the same, "
-                f"but got {len(self.convs)} convs and {len(self.downsamples)} downsample blocks."
-            )
-
-        for i, (conv, down) in enumerate(zip(self.convs, self.downsamples)):
+        for i in range(self.num_layers):
+            # Decrease the depth depending the deeper the block is.
             depth_i = depth - i
-            # TODO: Downsample first, then conv.
-            # TODO: Also, the proj attribute is not necessary
-            x = conv(x, octree, depth_i)
-            x = down(x, octree, depth_i)
 
-        x = self.proj(x, octree, depth_i - 1)
+            # Apply downsample for all conv blocks except the first one.
+            # NOTE: The associated depth for the downsampling block is the depth of the previous block,
+            # such that the features are downsampled between block at depth i + 1 -> i (i.e. the depth decreases).
+            if i > 0:
+                x = self.downsamples[i - 1](x, octree, depth_i + 1)
+
+            x = self.convs[i](x, octree, depth_i)
+
         return x
 
 
-class OctFormerEncoder(nn.Module):
-    block_name = "stage{i}"
+class OctFormerEncoder(LayerContainer):
+    layer_name = "layer"
 
     def __init__(
         self,
@@ -354,7 +349,6 @@ class OctFormerEncoder(nn.Module):
         super().__init__()
         drop_paths = torch.linspace(0, drop_path, sum(num_blocks)).tolist()
 
-        self.blocks = nn.ModuleList()
         for i in range(len(channels)):
             downsample: Optional[nn.Module] = None
             if i > 0:
@@ -370,7 +364,7 @@ class OctFormerEncoder(nn.Module):
                     bias=bias,
                 )
 
-            block = OctFormerEncoderBlock(
+            layer = OctFormerEncoderLayer(
                 channels=channels[i],
                 num_heads=num_heads[i],
                 patch_size=patch_size,
@@ -393,14 +387,13 @@ class OctFormerEncoder(nn.Module):
                 use_checkpoint=use_checkpoint,
                 downsample=downsample,
             )
-            # Register the block as a module with the name "stage{i}"
-            self.blocks.add_module(self.block_name.format(i=i), block)
+            self.add_layer(layer)
 
     def forward(self, x: Tensor, octree: OctreeT, start_depth: int = 0, return_intermediates: bool = False) -> Tensor:
         max_depth = octree.depth - start_depth
-        for i, block in enumerate(self.blocks):
+        for i, layer in enumerate(self.iter_layers()):
             depth_i = max_depth - i
-            x = block(x, octree, depth_i)
+            x = layer(x, octree, depth_i)
         return x
 
 
@@ -410,10 +403,10 @@ class OctFormerClassification(ClassificationModel):
         in_channels: int,
         num_classes: int,
         *,
-        stem_channels: Union[int, Sequence[int]] = (24, 48, 96),
-        encoder_channels: Sequence[int] = (96, 192, 384, 384),
-        num_blocks: Sequence[int] = (2, 2, 18, 2),
-        num_heads: Sequence[int] = (6, 12, 24, 24),
+        stem_channels: Union[int, Sequence[int]],
+        encoder_channels: Sequence[int],
+        num_blocks: Sequence[int],
+        num_heads: Sequence[int],
         patch_size: int = 26,
         dilation: int = 4,
         mlp_ratio: float = 4.0,
@@ -431,9 +424,6 @@ class OctFormerClassification(ClassificationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        octree_scale_factor: float = 10.24,
-        octree_depth: int = 11,
-        octree_full_depth: int = 2,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
@@ -461,10 +451,6 @@ class OctFormerClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
 
-        self.octree_scale_factor = octree_scale_factor
-        self.octree_depth = octree_depth
-        self.octree_full_depth = octree_full_depth
-
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
         self.global_pool = ocnn.nn.OctreeGlobalPool(self.nempty)
@@ -472,7 +458,7 @@ class OctFormerClassification(ClassificationModel):
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
     def configure_stem(self) -> nn.Module:
-        return PatchEmbed([self.in_channels, *self.stem_channels], nempty=self.nempty)
+        return OctreePatchEmbed([self.in_channels, *self.stem_channels], nempty=self.nempty)
 
     def configure_encoder(self) -> nn.Module:
         return OctFormerEncoder(
@@ -529,30 +515,37 @@ class OctFormerClassification(ClassificationModel):
         octree: Octree,
         return_intermediates: bool = False,
     ) -> Any:
-        depth = octree.depth - len(self.stem_channels)
         x = self.stem(octree.features[octree.depth], octree, octree.depth)
 
-        octree = OctreeT.from_octree(
+        octree_t = OctreeT.from_octree(
             octree,
             patch_size=self.patch_size,
             dilation=self.dilation,
             nempty=self.nempty,
         )
 
-        start_depth = depth - len(self.encoder_channels) + 2
-        end_depth = depth + 1
-        octree.construct_all_attention_context(
+        # Precompute the attention context for each stage / depth of the encoder.
+        # While the octree may have more depths, here we only precompute context
+        # required at the different depths of the encoder.
+        stem_depth = len(self.stem_channels) - 1
+        encoder_depth = len(self.encoder_channels) - 1
+        max_depth = octree_t.depth - stem_depth
+        min_depth = max_depth - encoder_depth
+        octree_t.construct_all_attention_context(
             nempty=self.nempty,
-            start_depth=start_depth,
-            end_depth=end_depth,
+            min_depth=min_depth,
+            max_depth=max_depth,
         )
 
-        print(f"[OctreeT] {start_depth = }, {end_depth = }")
-        return self.encoder(x, octree, 2, return_intermediates=return_intermediates)
+        return self.encoder(x, octree_t, stem_depth, return_intermediates=return_intermediates)
 
     def forward_head(self, x: Tensor, octree: Octree, pre_logits: bool = False) -> Tensor:
-        depth = octree.depth - len(self.stem_channels) + 1
-        x = self.global_pool(x, octree, depth)
+        stem_depth = len(self.stem_channels) - 1
+        encoder_depth = len(self.encoder_channels) - 1
+        max_depth = octree.depth - stem_depth
+        min_depth = max_depth - encoder_depth
+
+        x = self.global_pool(x, octree, min_depth)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
@@ -560,3 +553,69 @@ class OctFormerClassification(ClassificationModel):
     def forward(self, x: OptTensor, octree: Octree) -> Tensor:
         x = self.forward_features(x, octree, return_intermediates=False)
         return self.forward_head(x, octree)
+
+
+@register_model(name="octformer-base", task="classification")
+def octformer_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFormerClassification:
+    hparams: Dict[str, Any] = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        stem_channels=(24, 48, 96),
+        encoder_channels=(96, 192, 384, 384),
+        num_blocks=(2, 2, 18, 2),
+        num_heads=(6, 12, 24, 24),
+        patch_size=26,
+        dilation=4,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.5,
+        nempty=True,
+        use_checkpoint=True,
+        use_rpe=True,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.5,
+        global_pool="max",
+    )
+    hparams.update(kwargs)
+    return OctFormerClassification(**hparams)
+
+
+@register_model(name="octformer-sm", task="classification")
+def octformer_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFormerClassification:
+    hparams: Dict[str, Any] = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        stem_channels=(24, 48, 96),
+        encoder_channels=(96, 192, 384, 384),
+        num_blocks=(2, 2, 6, 2),
+        num_heads=(6, 12, 24, 24),
+        patch_size=26,
+        dilation=4,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.5,
+        nempty=True,
+        use_checkpoint=True,
+        use_rpe=True,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.5,
+        global_pool="max",
+    )
+    hparams.update(kwargs)
+    return OctFormerClassification(**hparams)
