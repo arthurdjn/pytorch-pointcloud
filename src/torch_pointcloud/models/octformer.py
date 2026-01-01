@@ -1,35 +1,21 @@
 from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import normalization_resolver
 
 from torch_pointcloud.layers import PoolLike, create_cls_head
 from torch_pointcloud.layers.layer_container import LayerContainer
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
-from torch_pointcloud.layers.octree_blocks import OctreeConvBlock
+from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import ClassificationModel
+from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 if TYPE_CHECKING:
@@ -41,17 +27,6 @@ dwconv, _DWCONV_AVAILABLE = optional_import("dwconv")
 ocnn, _ = optional_import("ocnn")
 Octree, _ = optional_import("ocnn.octree", "Octree")
 Points, _ = optional_import("ocnn.octree", "Points")
-
-
-class OctFormerIntermediate(NamedTuple):
-    x: Tensor
-    depth: int
-
-
-def points_to_octree(points: Points, **kwargs: Any) -> "Octree":
-    octree = ocnn.octree.Octree(**kwargs)
-    octree.build_octree(points)
-    return octree
 
 
 class CPE(nn.Module):
@@ -218,108 +193,6 @@ class OctFormerEncoderLayer(nn.Module):
         return x
 
 
-class OctreeConvNorm(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Sequence[int] = (2,),
-        stride: int = 2,
-        nempty: bool = True,
-        use_bias: bool = True,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__()
-        norm_kwargs = norm_kwargs or {}
-        kernel_size = ensure_list(kernel_size)
-
-        self.conv = ocnn.nn.OctreeConv(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            nempty=nempty,
-            use_bias=use_bias,
-        )
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
-
-    def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:
-        x = self.conv(x, octree, depth)
-        x = self.norm(x)
-        return x
-
-
-class OctreePatchEmbed(nn.Module):
-    def __init__(
-        self,
-        channels: Sequence[int],
-        nempty: bool = True,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        act_first: bool = False,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = True,
-    ):
-        super().__init__()
-        channels = ensure_list(channels)
-        self.num_layers = len(channels) - 1
-        if self.num_layers <= 1:
-            raise ValueError(
-                f"The number of layers must be greater than 1, but got {self.num_layers} layers. "
-                f"Make sure to increase the number of channels, got {channels} channels."
-            )
-
-        block_hparams: Dict[str, Any] = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-
-        self.convs = nn.ModuleList()
-        for i in range(self.num_layers):
-            conv = OctreeConvBlock(
-                in_channels=channels[i] if i == 0 else channels[i + 1],
-                out_channels=channels[i + 1],
-                kernel_size=3,
-                stride=1,
-                nempty=nempty,
-                **block_hparams,
-            )
-            self.convs.append(conv)
-
-        self.downsamples = nn.ModuleList()
-        for i in range(1, self.num_layers):
-            downsample = OctreeConvBlock(
-                in_channels=channels[i],
-                out_channels=channels[i + 1],
-                kernel_size=2,
-                stride=2,
-                nempty=nempty,
-                **block_hparams,
-            )
-            self.downsamples.append(downsample)
-
-    def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:
-        for i in range(self.num_layers):
-            # Decrease the depth depending the deeper the block is.
-            depth_i = depth - i
-
-            # Apply downsample for all conv blocks except the first one.
-            # NOTE: The associated depth for the downsampling block is the depth of the previous block,
-            # such that the features are downsampled between block at depth i + 1 -> i (i.e. the depth decreases).
-            if i > 0:
-                x = self.downsamples[i - 1](x, octree, depth_i + 1)
-
-            x = self.convs[i](x, octree, depth_i)
-
-        return x
-
-
 class OctFormerEncoder(LayerContainer):
     layer_name = "layer"
 
@@ -389,11 +262,201 @@ class OctFormerEncoder(LayerContainer):
             )
             self.add_layer(layer)
 
-    def forward(self, x: Tensor, octree: OctreeT, start_depth: int = 0, return_intermediates: bool = False) -> Tensor:
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        octree: OctreeT,
+        start_depth: int = 0,
+        return_intermediates: Literal[True] = ...,
+    ) -> Tuple[Tensor, List[Tensor]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        octree: OctreeT,
+        start_depth: int = 0,
+        return_intermediates: Literal[False] = False,
+    ) -> Tensor: ...
+
+    def forward(self, x: Tensor, octree: OctreeT, start_depth: int = 0, return_intermediates: bool = False) -> Any:
         max_depth = octree.depth - start_depth
+        intermediates = []
         for i, layer in enumerate(self.iter_layers()):
+            if return_intermediates and i > 0:
+                # Track only intermediate features (i.e. not the input or output, but everything in between)
+                intermediates.append(x)
+
             depth_i = max_depth - i
             x = layer(x, octree, depth_i)
+
+        if return_intermediates:
+            return x, intermediates[::-1]
+        return x
+
+
+class OctFormerDecoderLayer(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        fpn_channels: int,
+        nempty: bool,
+        head_up: int = 1,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        upsample: Optional[nn.Module] = None,
+    ):
+        super().__init__()
+
+        self.upsample = upsample
+        self.lin = nn.Linear(channels, fpn_channels, bias=bias)
+        self.conv = OctreeDeconvBlock(
+            fpn_channels,
+            fpn_channels,
+            kernel_size=3,
+            stride=1,
+            nempty=nempty,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+        )
+
+    def forward(self, x: Tensor, x_skip: Tensor, octree: Octree, depth: int) -> Tensor:
+        if self.upsample is not None:
+            x = self.upsample(x, octree, depth - 1)
+
+        # If the upsample is defined, use a residual connection
+        x = self.lin(x_skip) if self.upsample is None else self.lin(x_skip) + x
+        x = self.conv(x, octree, depth)
+        return x
+
+
+class OctFormerDecoder(LayerContainer):
+    layer_name = "layer"
+
+    def __init__(
+        self,
+        channels: Sequence[int],
+        fpn_channels: int,
+        nempty: bool,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.upsample = ocnn.nn.OctreeUpsample("nearest", nempty)
+        for i in range(len(channels)):
+            upsample = ocnn.nn.OctreeUpsample("nearest", nempty) if i > 0 else None
+            layer = OctFormerDecoderLayer(
+                channels=channels[i],
+                fpn_channels=fpn_channels,
+                nempty=nempty,
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                upsample=upsample,
+            )
+            self.add_layer(layer)
+
+    def forward(self, x: Tensor, octree: Octree, depth: int, intermediates: List[Tensor]) -> Tensor:
+        # List containing all features from the encoder, from the deepest to the shallowest.
+        x_list = [x, *intermediates]
+        min_depth = depth - len(x_list) + 1
+
+        x_fpn = None
+        for i, (layer, x_skip) in enumerate(zip(self.iter_layers(), x_list)):
+            depth_i = min_depth + i
+            x = layer(x, x_skip, octree, depth_i)
+
+            if x_fpn is None:
+                x_fpn = self.upsample(x, octree, depth_i, depth)
+            else:
+                x_fpn = x_fpn + self.upsample(x, octree, depth_i, depth)
+
+        return x_fpn  # type: ignore[return-value]
+
+
+class OctreePatchEmbed(nn.Module):
+    def __init__(
+        self,
+        channels: Sequence[int],
+        nempty: bool = True,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+    ):
+        super().__init__()
+        channels = ensure_list(channels)
+        self.num_layers = len(channels) - 1
+        if self.num_layers <= 1:
+            raise ValueError(
+                f"The number of layers must be greater than 1, but got {self.num_layers} layers. "
+                f"Make sure to increase the number of channels, got {channels} channels."
+            )
+
+        block_hparams: Dict[str, Any] = dict(
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+        )
+
+        self.convs = nn.ModuleList()
+        for i in range(self.num_layers):
+            conv = OctreeConvBlock(
+                in_channels=channels[i] if i == 0 else channels[i + 1],
+                out_channels=channels[i + 1],
+                kernel_size=3,
+                stride=1,
+                nempty=nempty,
+                **block_hparams,
+            )
+            self.convs.append(conv)
+
+        self.downsamples = nn.ModuleList()
+        for i in range(1, self.num_layers):
+            downsample = OctreeConvBlock(
+                in_channels=channels[i],
+                out_channels=channels[i + 1],
+                kernel_size=2,
+                stride=2,
+                nempty=nempty,
+                **block_hparams,
+            )
+            self.downsamples.append(downsample)
+
+    def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:
+        for i in range(self.num_layers):
+            # Decrease the depth depending the deeper the block is.
+            depth_i = depth - i
+
+            # Apply downsample for all conv blocks except the first one.
+            # NOTE: The associated depth for the downsampling block is the depth of the previous block,
+            # such that the features are downsampled between block at depth i + 1 -> i (i.e. the depth decreases).
+            if i > 0:
+                x = self.downsamples[i - 1](x, octree, depth_i + 1)
+
+            x = self.convs[i](x, octree, depth_i)
+
         return x
 
 
@@ -499,7 +562,7 @@ class OctFormerClassification(ClassificationModel):
         x: OptTensor,
         octree: Octree,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, List[OctFormerIntermediate]]: ...
+    ) -> Tuple[Tensor, List[Tensor]]: ...
 
     @overload
     def forward_features(
@@ -553,6 +616,179 @@ class OctFormerClassification(ClassificationModel):
     def forward(self, x: OptTensor, octree: Octree) -> Tensor:
         x = self.forward_features(x, octree, return_intermediates=False)
         return self.forward_head(x, octree)
+
+
+class OctFormerSegmentation(SegmentationModel):
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        stem_channels: Union[int, Sequence[int]],
+        encoder_channels: Sequence[int],
+        encoder_num_blocks: Sequence[int],
+        encoder_num_heads: Sequence[int],
+        decoder_channels: Sequence[int],
+        fpn_channels: int,
+        patch_size: int = 26,
+        dilation: int = 4,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.5,
+        nempty: bool = True,
+        use_checkpoint: bool = True,
+        use_rpe: bool = True,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+    ):
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.stem_channels = ensure_list(stem_channels)
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.encoder_num_blocks = ensure_list(encoder_num_blocks)
+        self.encoder_num_heads = ensure_list(encoder_num_heads)
+        self.decoder_channels = ensure_list(decoder_channels)
+        self.fpn_channels = fpn_channels
+
+        self.patch_size = patch_size
+        self.dilation = dilation
+        self.mlp_ratio = mlp_ratio
+        self.qkv_bias = qkv_bias
+        self.qk_scale = qk_scale
+        self.attn_drop = attn_drop
+        self.proj_drop = proj_drop
+        self.drop_path = drop_path
+        self.nempty = nempty
+        self.use_checkpoint = use_checkpoint
+        self.use_rpe = use_rpe
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
+        self.head = self.configure_head()
+
+    def configure_stem(self) -> nn.Module:
+        return OctreePatchEmbed([self.in_channels, *self.stem_channels], nempty=self.nempty)
+
+    def configure_encoder(self) -> nn.Module:
+        return OctFormerEncoder(
+            channels=self.encoder_channels,
+            num_blocks=self.encoder_num_blocks,
+            num_heads=self.encoder_num_heads,
+            patch_size=self.patch_size,
+            dilation=self.dilation,
+            mlp_ratio=self.mlp_ratio,
+            qkv_bias=self.qkv_bias,
+            qk_scale=self.qk_scale,
+            attn_drop=self.attn_drop,
+            proj_drop=self.proj_drop,
+            drop_path=self.drop_path,
+            nempty=self.nempty,
+            use_checkpoint=self.use_checkpoint,
+            use_rpe=self.use_rpe,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_decoder(self) -> nn.Module:
+        return OctFormerDecoder(
+            channels=self.decoder_channels,
+            fpn_channels=self.fpn_channels,
+            nempty=self.nempty,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_head(self) -> nn.Module:
+        return create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.fpn_channels
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        octree: Octree,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, List[Tensor]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        octree: Octree,
+        return_intermediates: Literal[False] = False,
+    ) -> Tensor: ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        octree: Octree,
+        return_intermediates: bool = False,
+    ) -> Any:
+        x = self.stem(octree.features[octree.depth], octree, octree.depth)
+
+        octree_t = OctreeT.from_octree(
+            octree,
+            patch_size=self.patch_size,
+            dilation=self.dilation,
+            nempty=self.nempty,
+        )
+
+        # Precompute the attention context for each stage / depth of the encoder.
+        # While the octree may have more depths, here we only precompute context
+        # required at the different depths of the encoder.
+        stem_depth = len(self.stem_channels) - 1
+        encoder_depth = len(self.encoder_channels) - 1
+        max_depth = octree_t.depth - stem_depth
+        min_depth = max_depth - encoder_depth
+        octree_t.construct_all_attention_context(
+            nempty=self.nempty,
+            min_depth=min_depth,
+            max_depth=max_depth,
+        )
+
+        return self.encoder(x, octree_t, stem_depth, return_intermediates=return_intermediates)
+
+    def forward_decoder(self, x: Tensor, octree: Octree, intermediates: List[Tensor]) -> Tensor:
+        stem_depth = len(self.stem_channels) - 1
+        max_depth = octree.depth - stem_depth
+
+        return self.decoder(x, octree, max_depth, intermediates)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, octree: Octree) -> Tensor:
+        x, intermediates = self.forward_features(x, octree, return_intermediates=True)
+        x = self.forward_decoder(x, octree, intermediates)
+        return self.forward_head(x)
 
 
 @register_model(name="octformer-base", task="classification")
@@ -619,3 +855,19 @@ def octformer_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFo
     )
     hparams.update(kwargs)
     return OctFormerClassification(**hparams)
+
+
+@register_model(name="octformer-base", task="segmentation")
+def octformer_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> OctFormerSegmentation:
+    hparams: Dict[str, Any] = dict(
+        in_channels=in_channels,
+        num_classes=num_classes,
+        stem_channels=(24, 48, 96),
+        encoder_channels=(96, 192, 384, 384),
+        encoder_num_blocks=(2, 2, 18, 2),
+        encoder_num_heads=(6, 12, 24, 24),
+        decoder_channels=(384, 384, 192, 96),
+        fpn_channels=168,
+    )
+    hparams.update(kwargs)
+    return OctFormerSegmentation(**hparams)

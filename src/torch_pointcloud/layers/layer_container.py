@@ -22,8 +22,7 @@ class LayerContainer(nn.Module):
         return len(layer_names)
 
     def add_layer(self, layer: nn.Module) -> None:
-        num_layers = len(self._modules)
-        layer_name = f"{self.layer_name}{num_layers}"
+        layer_name = f"{self.layer_name}{self.num_layers}"
         self.add_module(layer_name, layer)
 
     def get_layer(self, index: int) -> nn.Module:

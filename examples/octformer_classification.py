@@ -138,7 +138,7 @@ def parse_args() -> Namespace:
         "--model",
         type=str,
         default="octformer-base",
-        choices=["octformer-base"],
+        choices=["octformer-base", "octformer-sm"],
     )
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--num-points", type=int, default=1024)
