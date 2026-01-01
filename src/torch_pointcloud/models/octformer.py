@@ -209,7 +209,7 @@ class OctFormerEncoderBlock(nn.Module):
 
         for block in self.blocks:
             if self.use_checkpoint and self.training:
-                block = partial(torch.utils.checkpoint.checkpoint, block)  # type: ignore[assignment]
+                block = partial(torch.utils.checkpoint.checkpoint, block)
 
             x = block(x, octree, depth)
 
