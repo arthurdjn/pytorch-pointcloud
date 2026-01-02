@@ -622,10 +622,9 @@ class OctFormerSegmentation(SegmentationModel):
         num_classes: int,
         *,
         stem_channels: Union[int, Sequence[int]],
-        encoder_channels: Sequence[int],
-        encoder_num_blocks: Sequence[int],
-        encoder_num_heads: Sequence[int],
-        decoder_channels: Sequence[int],
+        channels: Sequence[int],
+        num_blocks: Sequence[int],
+        num_heads: Sequence[int],
         head_channels: Optional[Union[int, Sequence[int]]] = None,
         fpn_channels: int,
         patch_size: int = 26,
@@ -650,10 +649,9 @@ class OctFormerSegmentation(SegmentationModel):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = ensure_list(stem_channels)
-        self.encoder_channels = ensure_list(encoder_channels)
-        self.encoder_num_blocks = ensure_list(encoder_num_blocks)
-        self.encoder_num_heads = ensure_list(encoder_num_heads)
-        self.decoder_channels = ensure_list(decoder_channels)
+        self.channels = ensure_list(channels)
+        self.num_blocks = ensure_list(num_blocks)
+        self.num_heads = ensure_list(num_heads)
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.fpn_channels = fpn_channels
 
@@ -697,9 +695,9 @@ class OctFormerSegmentation(SegmentationModel):
 
     def configure_encoder(self) -> nn.Module:
         return OctFormerEncoder(
-            channels=self.encoder_channels,
-            num_blocks=self.encoder_num_blocks,
-            num_heads=self.encoder_num_heads,
+            channels=self.channels,
+            num_blocks=self.num_blocks,
+            num_heads=self.num_heads,
             patch_size=self.patch_size,
             dilation=self.dilation,
             mlp_ratio=self.mlp_ratio,
@@ -723,7 +721,7 @@ class OctFormerSegmentation(SegmentationModel):
         # The original OctFormer decoder uses hard-coded ReLU activation.
         num_ups = len(self.stem_channels) - 1
         return OctFormerDecoder(
-            channels=self.decoder_channels,
+            channels=self.channels[::-1],
             fpn_channels=self.fpn_channels,
             num_ups=num_ups,
             nempty=self.nempty,
@@ -792,7 +790,7 @@ class OctFormerSegmentation(SegmentationModel):
         # While the octree may have more depths, here we only precompute context
         # required at the different depths of the encoder.
         stem_depth = len(self.stem_channels) - 1
-        encoder_depth = len(self.encoder_channels) - 1
+        encoder_depth = len(self.channels) - 1
         max_depth = octree_t.depth - stem_depth
         min_depth = max_depth - encoder_depth
         octree_t.construct_all_attention_context(
@@ -805,7 +803,7 @@ class OctFormerSegmentation(SegmentationModel):
 
     def forward_decoder(self, x: Tensor, octree: "Octree", intermediates: List[Tensor]) -> Tensor:
         stem_depth = len(self.stem_channels) - 1
-        encoder_depth = len(self.encoder_channels) - 1
+        encoder_depth = len(self.channels) - 1
         max_depth = octree.depth - stem_depth
         min_depth = max_depth - encoder_depth
         return self.decoder(x, octree, min_depth, intermediates)
@@ -899,12 +897,29 @@ def octformer_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         in_channels=in_channels,
         num_classes=num_classes,
         stem_channels=(24, 48, 96),
-        encoder_channels=(96, 192, 384, 384),
-        encoder_num_blocks=(2, 2, 18, 2),
-        encoder_num_heads=(6, 12, 24, 24),
-        decoder_channels=(384, 384, 192, 96),
+        channels=(96, 192, 384, 384),
+        num_blocks=(2, 2, 18, 2),
+        num_heads=(6, 12, 24, 24),
         head_channels=168,
         fpn_channels=168,
+        patch_size=26,
+        dilation=4,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.5,
+        nempty=True,
+        use_checkpoint=True,
+        use_rpe=True,
+        act="gelu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.5,
     )
     hparams.update(kwargs)
     return OctFormerSegmentation(**hparams)
