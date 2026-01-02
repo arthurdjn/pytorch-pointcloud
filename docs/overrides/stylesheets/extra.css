@@ -49,6 +49,13 @@ div.highlight {
   max-height: 75vh;
 }
 
+/* ----------- Start Admonition ----------- */
+/* Change the color for "Example" admonitions */
+.md-typeset .admonition.example, .md-typeset details.example {
+  background-color: #f0f0f0;
+}
+/* ----------- End Admonition ----------- */
+
 /* ----------- Start Jupyter Notebook ----------- */
 .md-content article.md-content__inner {
   position: relative;

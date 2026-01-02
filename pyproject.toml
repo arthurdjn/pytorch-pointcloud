@@ -9,7 +9,7 @@ dependencies = [
     "numpy>=2.0.0",
     "pandas>=2.2.3",
     "plyfile>=1.1",
-    "torch>=2.0.0,<2.7.0",
+    "torch>=2.0.0,<2.9.0",
     "torch-geometric>=2.6.1",
     "tqdm>=4.67.1",
 ]
@@ -29,7 +29,6 @@ package = true
 find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
 no-build-isolation-package = ["flash-attn", "torchsparse"]
 dev-dependencies = [
-    "mypy>=1.14.1",
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
     "ruff>=0.9.1",
@@ -43,6 +42,8 @@ dev-dependencies = [
     "mkdocs-material>=9.5.50",
     "mkdocstrings-python>=1.13.0",
     "types-requests>=2.32.0.20241016",
+    "mypy>=1.19.0",
+    "zensical>=0.0.15",
 ]
 
 [[tool.uv.dependency-metadata]]
@@ -81,4 +82,4 @@ ignore_missing_imports = true
 check_untyped_defs = true
 implicit_reexport = true
 # Because multiple files in the tests/data/**/scripts have the same name
-exclude = ["tests/data/"]
+exclude = ["tests/data/", "notebooks"]
