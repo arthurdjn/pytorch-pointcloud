@@ -645,6 +645,7 @@ class OctFormerSegmentation(SegmentationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
+        dropout: float = 0.5,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -677,6 +678,7 @@ class OctFormerSegmentation(SegmentationModel):
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
         self.decoder = self.configure_decoder()
+        self.dropout = dropout
         self.head = self.configure_head()
 
     def configure_stem(self) -> nn.Module:
@@ -813,6 +815,8 @@ class OctFormerSegmentation(SegmentationModel):
         # the destination points are expected to be in the format $(x, y, z, batch)$.
         pts = torch.cat([pos, batch.unsqueeze(-1)], dim=1).contiguous()
         x = octree_interpolate(x, octree, octree.depth, pts, method="nearest", nempty=self.nempty)
+        if self.dropout:
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, octree: "Octree", pos: Tensor, batch: Tensor) -> Tensor:
