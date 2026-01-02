@@ -399,12 +399,7 @@ class OctreePatchEmbed(nn.Module):
     ):
         super().__init__()
         channels = ensure_list(channels)
-        self.num_layers = len(channels) - 1
-        if self.num_layers <= 1:
-            raise ValueError(
-                f"The number of layers must be greater than 1, but got {self.num_layers} layers. "
-                f"Make sure to increase the number of channels, got {channels} channels."
-            )
+        num_layers = len(channels) - 1
 
         kwargs: Dict[str, Any] = dict(
             nempty=nempty,
@@ -417,7 +412,7 @@ class OctreePatchEmbed(nn.Module):
         )
 
         self.convs = nn.ModuleList()
-        for i in range(self.num_layers):
+        for i in range(num_layers):
             conv = OctreeConvBlock(
                 in_channels=channels[i] if i == 0 else channels[i + 1],
                 out_channels=channels[i + 1],
@@ -428,7 +423,7 @@ class OctreePatchEmbed(nn.Module):
             self.convs.append(conv)
 
         self.downsamples = nn.ModuleList()
-        for i in range(1, self.num_layers):
+        for i in range(1, num_layers):
             downsample = OctreeConvBlock(
                 in_channels=channels[i],
                 out_channels=channels[i + 1],
@@ -439,8 +434,7 @@ class OctreePatchEmbed(nn.Module):
             self.downsamples.append(downsample)
 
     def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:
-        for i in range(self.num_layers):
-            # Decrease the depth depending the deeper the block is.
+        for i in range(len(self.convs)):
             depth_i = depth - i
 
             # Apply downsample for all conv blocks except the first one.
