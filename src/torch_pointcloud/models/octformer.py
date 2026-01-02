@@ -8,7 +8,6 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import PoolLike, create_pool
-from torch_pointcloud.layers.layer_container import LayerContainer
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
@@ -22,12 +21,11 @@ from ._registry import register_model
 if TYPE_CHECKING:
     import dwconv  # pyright: ignore[reportMissingImports]
     import ocnn  # pyright: ignore[reportMissingImports]
-    from ocnn.octree import Octree, Points  # pyright: ignore[reportMissingImports]
+    from ocnn.octree import Octree  # pyright: ignore[reportMissingImports]
 
 dwconv, _DWCONV_AVAILABLE = optional_import("dwconv")
 ocnn, _ = optional_import("ocnn")
 Octree, _ = optional_import("ocnn.octree", "Octree")
-Points, _ = optional_import("ocnn.octree", "Points")
 
 
 class CPE(nn.Module):
@@ -196,9 +194,7 @@ class OctFormerEncoderLayer(nn.Module):
         return x
 
 
-class OctFormerEncoder(LayerContainer):
-    layer_name = "layer"
-
+class OctFormerEncoder(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
@@ -226,6 +222,7 @@ class OctFormerEncoder(LayerContainer):
         self.nempty = nempty
         drop_paths = torch.linspace(0, drop_path, sum(num_blocks)).tolist()
 
+        self.layers = nn.ModuleList()
         for i in range(len(channels)):
             downsample: Optional[nn.Module] = None
             if i > 0:
@@ -264,7 +261,7 @@ class OctFormerEncoder(LayerContainer):
                 use_checkpoint=use_checkpoint,
                 downsample=downsample,
             )
-            self.add_layer(layer)
+            self.layers.append(layer)
 
     @overload
     def forward(
@@ -286,7 +283,7 @@ class OctFormerEncoder(LayerContainer):
 
     def forward(self, x: Tensor, octree: OctreeT, depth: int, return_intermediates: bool = False) -> Any:
         intermediates = []
-        for i, layer in enumerate(self.iter_layers()):
+        for i, layer in enumerate(self.layers):
             # Track only intermediate features (i.e. not the input or output, but everything in between)
             if return_intermediates and i > 0:
                 intermediates.append(x)
