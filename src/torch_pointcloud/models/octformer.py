@@ -88,6 +88,7 @@ class OctFormerBlock(nn.Module):
         **kwargs: Any,
     ):
         super().__init__()
+        self.cpe = CPE(channels, nempty=nempty)
         self.norm1 = nn.LayerNorm(channels)
         self.attention = OctreeAttention(
             channels=channels,
@@ -109,14 +110,12 @@ class OctFormerBlock(nn.Module):
             act=act,
             act_kwargs=act_kwargs,
             act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+            norm=None,
             bias=bias,
             dropout=proj_drop,
-            plain_last=False,
+            plain_last=True,
         )
         self.drop_path = ocnn.nn.OctreeDropPath(drop_path, nempty)
-        self.cpe = CPE(channels, nempty=nempty)
 
     def forward(self, x: Tensor, octree: OctreeT, depth: int) -> Tensor:
         x = self.cpe(x, octree, depth) + x
@@ -407,7 +406,8 @@ class OctreePatchEmbed(nn.Module):
                 f"Make sure to increase the number of channels, got {channels} channels."
             )
 
-        block_hparams: Dict[str, Any] = dict(
+        kwargs: Dict[str, Any] = dict(
+            nempty=nempty,
             act=act,
             act_kwargs=act_kwargs,
             act_first=act_first,
@@ -423,8 +423,7 @@ class OctreePatchEmbed(nn.Module):
                 out_channels=channels[i + 1],
                 kernel_size=3,
                 stride=1,
-                nempty=nempty,
-                **block_hparams,
+                **kwargs,
             )
             self.convs.append(conv)
 
@@ -435,8 +434,7 @@ class OctreePatchEmbed(nn.Module):
                 out_channels=channels[i + 1],
                 kernel_size=2,
                 stride=2,
-                nempty=nempty,
-                **block_hparams,
+                **kwargs,
             )
             self.downsamples.append(downsample)
 
@@ -477,7 +475,7 @@ class OctFormerClassification(ClassificationModel):
         nempty: bool = True,
         use_checkpoint: bool = True,
         use_rpe: bool = True,
-        act: Union[str, Callable, None] = "relu",
+        act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -517,7 +515,18 @@ class OctFormerClassification(ClassificationModel):
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
     def configure_stem(self) -> nn.Module:
-        return OctreePatchEmbed([self.in_channels, *self.stem_channels], nempty=self.nempty)
+        # NOTE: The original OctFormer stem uses hard-coded ReLU activation.
+        # For reproducibility, we use ReLU also here.
+        return OctreePatchEmbed(
+            [self.in_channels, *self.stem_channels],
+            nempty=self.nempty,
+            act="relu",
+            act_kwargs=None,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=False,
+        )
 
     def configure_encoder(self) -> nn.Module:
         return OctFormerEncoder(
@@ -575,7 +584,6 @@ class OctFormerClassification(ClassificationModel):
         return_intermediates: bool = False,
     ) -> Any:
         x = self.stem(octree.features[octree.depth], octree, octree.depth)
-
         octree_t = OctreeT.from_octree(
             octree,
             patch_size=self.patch_size,
@@ -637,7 +645,7 @@ class OctFormerSegmentation(SegmentationModel):
         nempty: bool = True,
         use_checkpoint: bool = True,
         use_rpe: bool = True,
-        act: Union[str, Callable, None] = "relu",
+        act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -676,7 +684,18 @@ class OctFormerSegmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def configure_stem(self) -> nn.Module:
-        return OctreePatchEmbed([self.in_channels, *self.stem_channels], nempty=self.nempty)
+        # NOTE: The original OctFormer stem uses hard-coded ReLU activation.
+        # For reproducibility, we use ReLU also here.
+        return OctreePatchEmbed(
+            [self.in_channels, *self.stem_channels],
+            nempty=self.nempty,
+            act="relu",
+            act_kwargs=None,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=False,
+        )
 
     def configure_encoder(self) -> nn.Module:
         return OctFormerEncoder(
@@ -807,7 +826,7 @@ def octformer_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         nempty=True,
         use_checkpoint=True,
         use_rpe=True,
-        act="relu",
+        act="gelu",
         act_kwargs=None,
         act_first=False,
         norm="batch_norm",
@@ -840,7 +859,7 @@ def octformer_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFo
         nempty=True,
         use_checkpoint=True,
         use_rpe=True,
-        act="relu",
+        act="gelu",
         act_kwargs=None,
         act_first=False,
         norm="batch_norm",
