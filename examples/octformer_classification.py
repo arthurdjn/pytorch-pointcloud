@@ -194,7 +194,7 @@ def train_one_epoch(
         octree.construct_all_neigh()
 
         optimizer.zero_grad()
-        logits = model(features, octree)
+        logits = model(None, octree)
         probs = F.log_softmax(logits, dim=1)
 
         loss = F.nll_loss(probs, target)
@@ -244,7 +244,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
         octree.construct_all_neigh()
 
         with torch.no_grad():
-            preds = model(features, octree).max(1)[1]
+            preds = model(None, octree).max(1)[1]
         correct += preds.eq(target).sum().item()
 
     return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
