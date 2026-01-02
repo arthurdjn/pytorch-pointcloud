@@ -455,6 +455,11 @@ class OctFormerClassification(ClassificationModel):
         bias: bool = True,
         dropout: float = 0.0,
         global_pool: PoolLike = "mean",
+        # Extra parameters, used to reproduce exactly the original OctFormer architecture.
+        stem_act: Optional[Union[str, Callable, None]] = None,
+        stem_act_kwargs: Optional[Dict[str, Any]] = None,
+        head_act: Optional[Union[str, Callable, None]] = None,
+        head_act_kwargs: Optional[Dict[str, Any]] = None,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -482,6 +487,11 @@ class OctFormerClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
 
+        self.stem_act = stem_act
+        self.stem_act_kwargs = stem_act_kwargs
+        self.head_act = head_act
+        self.head_act_kwargs = head_act_kwargs
+
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
@@ -494,8 +504,8 @@ class OctFormerClassification(ClassificationModel):
         return OctreePatchEmbed(
             [self.in_channels, *self.stem_channels],
             nempty=self.nempty,
-            act="relu",
-            act_kwargs=None,
+            act=self.stem_act or self.act,
+            act_kwargs=self.stem_act_kwargs or self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -532,8 +542,8 @@ class OctFormerClassification(ClassificationModel):
         biases = [False] * max(0, len(channels) - 2) + [True]
         return MLP(
             channels,
-            act="relu",
-            act_kwargs=None,
+            act=self.head_act or self.act,
+            act_kwargs=self.head_act_kwargs or self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -645,7 +655,13 @@ class OctFormerSegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         dropout: float = 0.5,
-        **kwargs: Any,
+        # Extra parameters, used to reproduce exactly the original OctFormer architecture.
+        stem_act: Optional[Union[str, Callable, None]] = None,
+        stem_act_kwargs: Optional[Dict[str, Any]] = None,
+        decoder_act: Optional[Union[str, Callable, None]] = None,
+        decoder_act_kwargs: Optional[Dict[str, Any]] = None,
+        head_act: Optional[Union[str, Callable, None]] = None,
+        head_act_kwargs: Optional[Dict[str, Any]] = None,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -674,8 +690,12 @@ class OctFormerSegmentation(SegmentationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
 
-        # Store extra keyword arguments that will be used to configure / override specific layers.
-        self.kwargs = kwargs
+        self.stem_act = stem_act
+        self.stem_act_kwargs = stem_act_kwargs
+        self.decoder_act = decoder_act
+        self.decoder_act_kwargs = decoder_act_kwargs
+        self.head_act = head_act
+        self.head_act_kwargs = head_act_kwargs
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -685,13 +705,11 @@ class OctFormerSegmentation(SegmentationModel):
 
     def configure_stem(self) -> nn.Module:
         # NOTE: The original OctFormer stem uses hard-coded ReLU activation.
-        act = self.kwargs.get("stem_act", self.act)
-        act_kwargs = self.kwargs.get("stem_act_kwargs", None)
         return OctreePatchEmbed(
             [self.in_channels, *self.stem_channels],
             nempty=self.nempty,
-            act=act,
-            act_kwargs=act_kwargs,
+            act=self.stem_act or self.act,
+            act_kwargs=self.stem_act_kwargs or self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -724,16 +742,14 @@ class OctFormerSegmentation(SegmentationModel):
 
     def configure_decoder(self) -> nn.Module:
         # The original OctFormer decoder uses hard-coded ReLU activation.
-        act = self.kwargs.get("decoder_act", self.act)
-        act_kwargs = self.kwargs.get("decoder_act_kwargs", self.act_kwargs)
         num_ups = len(self.stem_channels) - 1
         return OctFormerDecoder(
             channels=self.channels[::-1],
             fpn_channels=self.fpn_channels,
             num_ups=num_ups,
             nempty=self.nempty,
-            act=act,
-            act_kwargs=act_kwargs,
+            act=self.decoder_act or self.act,
+            act_kwargs=self.decoder_act_kwargs or self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -742,12 +758,10 @@ class OctFormerSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         channels = [self.embedding_dim, *self.head_channels, self.num_classes]
-        act = self.kwargs.get("head_act", "relu")
-        act_kwargs = self.kwargs.get("head_act_kwargs", None)
         return MLP(
             channels,
-            act=act,
-            act_kwargs=act_kwargs,
+            act=self.head_act or self.act,
+            act_kwargs=self.head_act_kwargs or self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -863,6 +877,17 @@ def octformer_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         global_pool="mean",
     )
     hparams.update(kwargs)
+
+    # Override specific parameters to match the original OctFormer implementation,
+    # only if no global activation is provided when creating the model.
+    if "act" not in kwargs:
+        kwargs.update(
+            stem_act="relu",
+            stem_act_kwargs=None,
+            head_act="relu",
+            head_act_kwargs=None,
+        )
+
     return OctFormerClassification(**hparams)
 
 
@@ -897,6 +922,17 @@ def octformer_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFo
         global_pool="mean",
     )
     hparams.update(kwargs)
+
+    # Override specific parameters to match the original OctFormer implementation,
+    # only if no global activation is provided when creating the model.
+    if "act" not in kwargs:
+        kwargs.update(
+            stem_act="relu",
+            stem_act_kwargs=None,
+            head_act="relu",
+            head_act_kwargs=None,
+        )
+
     return OctFormerClassification(**hparams)
 
 
@@ -929,13 +965,19 @@ def octformer_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         norm_kwargs=None,
         bias=True,
         dropout=0.5,
-        # Override specific parameters to match the original OctFormer implementation.
-        stem_act="relu",
-        stem_act_kwargs=None,
-        decoder_act="relu",
-        decoder_act_kwargs=None,
-        head_act="relu",
-        head_act_kwargs=None,
     )
     hparams.update(kwargs)
+
+    # Override specific parameters to match the original OctFormer implementation,
+    # only if no global activation is provided when creating the model.
+    if "act" not in kwargs:
+        hparams.update(
+            stem_act="relu",
+            stem_act_kwargs=None,
+            decoder_act="relu",
+            decoder_act_kwargs=None,
+            head_act="relu",
+            head_act_kwargs=None,
+        )
+
     return OctFormerSegmentation(**hparams)
