@@ -462,6 +462,7 @@ class OctFormerClassification(ClassificationModel):
         *,
         stem_channels: Union[int, Sequence[int]],
         encoder_channels: Sequence[int],
+        head_channels: Optional[Union[int, Sequence[int]]] = None,
         num_blocks: Sequence[int],
         num_heads: Sequence[int],
         patch_size: int = 26,
@@ -482,11 +483,12 @@ class OctFormerClassification(ClassificationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         dropout: float = 0.0,
-        global_pool: PoolLike = "max",
+        global_pool: PoolLike = "mean",
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = ensure_list(stem_channels)
         self.encoder_channels = ensure_list(encoder_channels)
+        self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.num_blocks = ensure_list(num_blocks)
         self.num_heads = ensure_list(num_heads)
 
@@ -512,7 +514,7 @@ class OctFormerClassification(ClassificationModel):
         self.encoder = self.configure_encoder()
         self.global_pool = ocnn.nn.OctreeGlobalPool(self.nempty)
         self.dropout = dropout
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = self.configure_head()
 
     def configure_stem(self) -> nn.Module:
         # NOTE: The original OctFormer stem uses hard-coded ReLU activation.
@@ -552,14 +554,30 @@ class OctFormerClassification(ClassificationModel):
             bias=self.bias,
         )
 
+    def configure_head(self) -> nn.Module:
+        # NOTE: The original OctFormer uses a linear bias only for the last layer, with ReLU activation.
+        channels = [self.embedding_dim, *self.head_channels, self.num_classes]
+        biases = [False] * max(0, len(channels) - 2) + [True]
+        return MLP(
+            channels,
+            act="relu",
+            act_kwargs=None,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=biases,
+            dropout=self.dropout,
+            plain_last=True,
+        )
+
     @property
     def embedding_dim(self) -> int:
         return self.encoder_channels[-1]
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "mean", **kwargs: Any) -> None:
+        # TODO: Allow changing the global pooling method.
         self.num_classes = num_classes
-        self.global_pool = ocnn.nn.OctreeGlobalPool(self.nempty)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -813,6 +831,7 @@ def octformer_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         num_classes=num_classes,
         stem_channels=(24, 48, 96),
         encoder_channels=(96, 192, 384, 384),
+        head_channels=256,
         num_blocks=(2, 2, 18, 2),
         num_heads=(6, 12, 24, 24),
         patch_size=26,
@@ -846,6 +865,7 @@ def octformer_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFo
         num_classes=num_classes,
         stem_channels=(24, 48, 96),
         encoder_channels=(96, 192, 384, 384),
+        head_channels=256,
         num_blocks=(2, 2, 6, 2),
         num_heads=(6, 12, 24, 24),
         patch_size=26,
