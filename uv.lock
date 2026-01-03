@@ -3608,6 +3608,7 @@ torchsparse = [
 dev = [
     { name = "ipykernel" },
     { name = "mkdocs" },
+    { name = "mkdocs-autorefs" },
     { name = "mkdocs-exclude" },
     { name = "mkdocs-jupyter" },
     { name = "mkdocs-material" },
@@ -3648,6 +3649,7 @@ provides-extras = ["torchsparse", "ocnn", "build", "flash-attn", "spconv", "pyg-
 dev = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-autorefs", specifier = ">=1.4.3" },
     { name = "mkdocs-exclude", specifier = ">=1.0.2" },
     { name = "mkdocs-jupyter", specifier = ">=0.25.1" },
     { name = "mkdocs-material", specifier = ">=9.5.50" },

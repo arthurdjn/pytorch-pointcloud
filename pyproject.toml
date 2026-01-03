@@ -44,6 +44,7 @@ dev-dependencies = [
     "types-requests>=2.32.0.20241016",
     "mypy>=1.19.0",
     "zensical>=0.0.15",
+    "mkdocs-autorefs>=1.4.3",
 ]
 
 [[tool.uv.dependency-metadata]]
