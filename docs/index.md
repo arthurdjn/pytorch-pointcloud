@@ -1,8 +1,3 @@
----
-template: home.html
-hide:
-  - navigation
-  - toc
----
-
 # Home
+
+![PyTorch PointCloud](/assets/medias/pytorch-pointcloud.png)

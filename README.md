@@ -24,3 +24,11 @@ uv sync --extra build
 # Install all extras (NOTE: Some extras are Linux and CPU only)
 uv sync --all-extras
 ```
+
+### All in one
+
+```bash
+uv sync --all-extras --dev
+uv pip uninstall torch torchvision torch_scatter torch_cluster pyg_lib torch_spline_conv
+uv pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu126 && uv pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.8.0+cu126.html && uv pip install spconv-cu126
+```

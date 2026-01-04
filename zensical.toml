@@ -64,6 +64,7 @@ extra_css = [
 # Read more: https://zensical.org/docs/customization/#additional-javascript
 extra_javascript = [
     "overrides/javascripts/extra.js",
+    "overrides/javascripts/links.js",
     "overrides/javascripts/tablesort.js",
     "overrides/javascripts/katex.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
@@ -71,9 +72,14 @@ extra_javascript = [
 ]
 
 nav = [
-    { "Home" = "index.md" },
-    { "Get Started" = "get-started.md" },
+    { "Get Started" = [
+        "index.md",
+        "about.md",
+        "installation.md",
+        "get-started.md",
+    ] },
     { "Models" = [
+        "models/overview.md",
         "models/pointnet.md",
         "models/pointnext.md",
     ] },
@@ -304,9 +310,9 @@ toggle.name = "Switch to dark mode"
 # of suitably licensed fonts. There are options for a normal text font and for
 # a monospaced font used in code blocks.
 # ----------------------------------------------------------------------------
-#[project.theme.font]
-#text = "Inter"
-#code = "Jetbrains Mono"
+[project.theme.font]
+text = "Inter"
+code = "Jetbrains Mono"
 
 # ----------------------------------------------------------------------------
 # You can configure your own logo to be shown in the header using the "logo"
