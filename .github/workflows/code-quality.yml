@@ -18,7 +18,7 @@ jobs:
       - name: Install all extras (torch==2.6.0)
         # NOTE: Do not install flash-attn here, as it requires CUDA
         run: |
-          uv pip install torch==2.6.0
+          uv add torch==2.6.0
           uv sync --extra spconv --extra ocnn --extra pyg-lib --frozen
 
       - name: Check types
