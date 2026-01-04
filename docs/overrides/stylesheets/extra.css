@@ -4,25 +4,66 @@
   --md-typeset-a-color: var(--md-default-fg-color) !important;
   --md-typeset-table-color: var(--md-code-bg-color);
 
-  --admonition-example-fg-color: var(--md-code-hl-operator-color);
-  --admonition-example-bg-color: var(--md-code-bg-color);
+  /* Admonition colors */
   --admonition-note-fg-color: #448aff;
   --admonition-note-bg-color: #448aff1a;
+  --admonition-abstract-fg-color: #00b0ff;
+  --admonition-abstract-bg-color: #00b0ff1a;
+  --admonition-info-fg-color: #00b8d4;
+  --admonition-info-bg-color: #00b8d41a;
+  --admonition-tip-fg-color: #00bfa5;
+  --admonition-tip-bg-color: #00bfa51a;
+  --admonition-success-fg-color: #00c853;
+  --admonition-success-bg-color: #00c8531a;
+  --admonition-question-fg-color: #64dd17;
+  --admonition-question-bg-color: #64dd171a;
+  --admonition-warning-fg-color: #ff9100;
+  --admonition-warning-bg-color: #ff91001a;
+  --admonition-failure-fg-color: #ff5252;
+  --admonition-failure-bg-color: #ff52521a;
+  --admonition-danger-fg-color: #ff1744;
+  --admonition-danger-bg-color: #ff17441a;
+  --admonition-bug-fg-color: #f50057;
+  --admonition-bug-bg-color: #f500571a;
+  --admonition-important-fg-color: #7c4dff;
+  --admonition-important-bg-color: #7c4dff1a;
+  --admonition-example-fg-color: var(--md-code-hl-operator-color);
+  --admonition-example-bg-color: var(--md-code-bg-color);
+  --admonition-quote-fg-color: var(--md-code-hl-operator-color);
+  --admonition-quote-bg-color: var(--md-code-bg-color);
 }
-
 [data-md-color-scheme="slate"] {
-  /* --color-background: black;
-  --md-default-bg-color: black;
-  --md-default-bg-color--light: black; */
-
   --md-default-fg-color--lightest: var(--md-code-bg-color);
   --md-typeset-a-color: hsla(var(--md-hue), 0%, 100%, .9) !important;
   --md-typeset-table-color: var(--md-code-bg-color);
 
-  --admonition-example-fg-color: var(--md-code-hl-operator-color);
-  --admonition-example-bg-color: var(--md-code-bg-color);
+  /* Admonition colors */
   --admonition-note-fg-color: #448aff;
   --admonition-note-bg-color: #448aff1a;
+  --admonition-abstract-fg-color: #00b0ff;
+  --admonition-abstract-bg-color: #00b0ff1a;
+  --admonition-info-fg-color: #00b8d4;
+  --admonition-info-bg-color: #00b8d41a;
+  --admonition-tip-fg-color: #00bfa5;
+  --admonition-tip-bg-color: #00bfa51a;
+  --admonition-success-fg-color: #00c853;
+  --admonition-success-bg-color: #00c8531a;
+  --admonition-question-fg-color: #64dd17;
+  --admonition-question-bg-color: #64dd171a;
+  --admonition-warning-fg-color: #ff9100;
+  --admonition-warning-bg-color: #ff91001a;
+  --admonition-failure-fg-color: #ff5252;
+  --admonition-failure-bg-color: #ff52521a;
+  --admonition-danger-fg-color: #ff1744;
+  --admonition-danger-bg-color: #ff17441a;
+  --admonition-bug-fg-color: #f50057;
+  --admonition-bug-bg-color: #f500571a;
+  --admonition-important-fg-color: #7c4dff;
+  --admonition-important-bg-color: #7c4dff1a;
+  --admonition-example-fg-color: var(--md-code-hl-operator-color);
+  --admonition-example-bg-color: var(--md-code-bg-color);
+  --admonition-quote-fg-color: var(--md-code-hl-operator-color);
+  --admonition-quote-bg-color: var(--md-code-bg-color);
 }
 
 /* ----------- Start Header & Footer ----------- */
@@ -45,7 +86,7 @@ p, li {
   line-height: 1.7;
 }
 /* Small border around inline code */
-p > code, li > code, td > code {
+p > code, a > code, li > code, td > code {
   border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
 }
 .md-content__inner a {
@@ -97,12 +138,11 @@ div > div.n {
 
 section#hero {
   display: grid;
-  grid-template-columns: 1fr 2fr; 
+  grid-template-columns: 2fr 3fr; 
   align-items: end;
   gap: 4rem;
   width: 100%;
-  max-width: 1200px;
-  margin: 10vh 0;
+  max-width: 1080px;
 }
 
 .hero-logo {
@@ -112,7 +152,6 @@ section#hero {
 }
 .hero-logo svg {
   padding: 0 0 1.5em 0;
-  /* margin-top: -2em; */
 }
 
 .hero-content {
@@ -224,12 +263,61 @@ a.pill.hero-pill {
   --admonition-fg-color: var(--admonition-note-fg-color) !important;
   --admonition-bg-color: var(--admonition-note-bg-color) !important;
 }
+.md-typeset details.note, .admonition.note {
+  --admonition-fg-color: var(--admonition-note-fg-color) !important;
+  --admonition-bg-color: var(--admonition-note-bg-color) !important;
+}
+.md-typeset details.abstract, .admonition.abstract {
+  --admonition-fg-color: var(--admonition-abstract-fg-color) !important;
+  --admonition-bg-color: var(--admonition-abstract-bg-color) !important;
+}
+.md-typeset details.info, .admonition.info {
+  --admonition-fg-color: var(--admonition-info-fg-color) !important;
+  --admonition-bg-color: var(--admonition-info-bg-color) !important;
+}
+.md-typeset details.tip, .admonition.tip {
+  --admonition-fg-color: var(--admonition-tip-fg-color) !important;
+  --admonition-bg-color: var(--admonition-tip-bg-color) !important;
+}
+.md-typeset details.success, .admonition.success {
+  --admonition-fg-color: var(--admonition-success-fg-color) !important;
+  --admonition-bg-color: var(--admonition-success-bg-color) !important;
+}
+.md-typeset details.question, .admonition.question {
+  --admonition-fg-color: var(--admonition-question-fg-color) !important;
+  --admonition-bg-color: var(--admonition-question-bg-color) !important;
+}
+.md-typeset details.warning, .admonition.warning {
+  --admonition-fg-color: var(--admonition-warning-fg-color) !important;
+  --admonition-bg-color: var(--admonition-warning-bg-color) !important;
+}
+.md-typeset details.failure, .admonition.failure {
+  --admonition-fg-color: var(--admonition-failure-fg-color) !important;
+  --admonition-bg-color: var(--admonition-failure-bg-color) !important;
+}
+.md-typeset details.danger, .admonition.danger {
+  --admonition-fg-color: var(--admonition-danger-fg-color) !important;
+  --admonition-bg-color: var(--admonition-danger-bg-color) !important;
+}
+.md-typeset details.bug, .admonition.bug {
+  --admonition-fg-color: var(--admonition-bug-fg-color) !important;
+  --admonition-bg-color: var(--admonition-bug-bg-color) !important;
+}
 .md-typeset details.example, .admonition.example {
   --admonition-fg-color: var(--admonition-example-fg-color) !important;
   --admonition-bg-color: var(--admonition-example-bg-color) !important;
 }
+.md-typeset details.quote, .admonition.quote {
+  --admonition-fg-color: var(--admonition-quote-fg-color) !important;
+  --admonition-bg-color: var(--admonition-quote-bg-color) !important;
+}
+.md-typeset details.important, .admonition.important {
+  --admonition-fg-color: var(--admonition-important-fg-color) !important;
+  --admonition-bg-color: var(--admonition-important-bg-color) !important;
+}
 
-.md-typeset details summary::before, .md-typeset details summary::after {
+.md-typeset details summary::before, .md-typeset details summary::after,
+.admonition .admonition-title::before, .admonition .admonition-title::after {
   background-color: var(--admonition-fg-color) !important;
 }
 .md-typeset details pre code, .admonition pre code {
@@ -242,18 +330,4 @@ a.pill.hero-pill {
 .md-typeset details summary, .admonition .admonition-title {
   color: var(--admonition-fg-color) !important;
 }
-
-
-/* .md-typeset details.example summary::before, .md-typeset details.example summary::after {
-  background-color: var(--admonition-example-fg) !important;
-}
-.md-typeset details.example pre code {
-  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
-}
-.md-typeset details.example {
-    background-color: var(--admonition-example-bg) !important;
-}
-.md-typeset details.example summary {
-  color: var(--admonition-example-fg) !important;
-} */
 /* ----------- End Admonition ----------- */

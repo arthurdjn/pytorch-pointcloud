@@ -15,7 +15,7 @@ site_name = "PyTorch PointCloud"
 # The site_description is included in the HTML head and should contain a
 # meaningful description of the site content for use by search engines.
 # Read more: https://zensical.org/docs/setup/basics/#site_description
-site_description = "A new project generated from the default template project."
+site_description = "PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards."
 
 # The site_author attribute. This is used in the HTML head element.
 # Read more: https://zensical.org/docs/setup/basics/#site_author
@@ -324,7 +324,7 @@ toggle.name = "Switch to dark mode"
 # - https://zensical.org/docs/authoring/icons-emojis/#search
 # ----------------------------------------------------------------------------
 [project.theme.icon]
-logo = "lucide/flame"
+logo = "pytorch"
 repo = "fontawesome/brands/git-alt"
 edit = "material/pencil"
 view = "material/eye"
@@ -338,19 +338,37 @@ icon = "fontawesome/brands/github"
 link = "https://github.com/arthurdjn/pytorch-pointcloud"
 
 # ----------------------------------------------------------------------------
+# Markdown extensions
+# ----------------------------------------------------------------------------
 [project.markdown_extensions.tables]
 [project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.toc]
+title = "On this page"
+permalink = true
+permalink_title = "Anchor link to this section"
+
+# PyMdown extensions
 [project.markdown_extensions.pymdownx.details]
 [project.markdown_extensions.pymdownx.superfences]
 [project.markdown_extensions.pymdownx.highlight]
 pygments_lang_class = true
+anchor_linenums = true
+[project.markdown_extensions.pymdownx.keys]
 [project.markdown_extensions.pymdownx.extra]
 [project.markdown_extensions.pymdownx.emoji]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"
+options.custom_icons = ["docs/overrides/.icons"]
+[project.markdown_extensions.pymdownx.smartsymbols]
 [project.markdown_extensions.pymdownx.tabbed]
 alternate_style = true
 [project.markdown_extensions.pymdownx.arithmatex]
 generic = true
 
+# ----------------------------------------------------------------------------
+# Dynamically generate API documentation
 # ----------------------------------------------------------------------------
 [project.plugins.mkdocstrings.handlers.python]
 paths = ["src"]
@@ -369,8 +387,14 @@ show_source = false
 show_symbol_type_heading = true
 signature_crossrefs = true
 
-[project.plugins.exclude]
-glob = ["theme/announce.html", "plugins/*", "__pycache__/*"]
-
+# ----------------------------------------------------------------------------
+# Add support for github releases and versioning
+# ----------------------------------------------------------------------------
 [project.extra.version]
 provider = "mike"
+
+# ----------------------------------------------------------------------------
+# Exclude files from the build
+# ----------------------------------------------------------------------------
+[project.plugins.exclude]
+glob = ["plugins/*", "__pycache__/*"]

@@ -2,16 +2,38 @@
 
 ## About
 
-`torch_pointcloud` is a PyTorch library for deep learning on point clouds build on top of the `torch` package. It implements a wide range of State-of-the-Art models for point cloud classification, segmentation, and other tasks.
+:pytorch-pointcloud: [`torch-pointcloud`](https://github.com/arthurdjn/pytorch-pointcloud){: target="_blank" } is a PyTorch library for deep learning on point clouds build on top of popular and powerful libraries such as :pytorch: [`torch`](https://pytorch.org){: target="_blank" } and :pyg: [`torch-geometric`](https://pytorch-geometric.readthedocs.io/en/latest/){: target="_blank" }. It implements a wide range of State-of-the-Art models for point cloud classification, segmentation, and other tasks.
 
 ## Installation
 
-The `torch_pointcloud` package requires the `torch` package as a dependency.
+The :pytorch-pointcloud: `torch-pointcloud` package requires the :pytorch: `torch` package as a dependency.
 To install it, run:
 
-```bash
-pip install torch_pointcloud
-```
+=== "pip"
+
+    ```bash
+    pip install torch_pointcloud
+    ```
+
+=== "uv"
+
+    ```bash
+    uv add torch-pointcloud
+    ```
+
+To install all extras, run:
+
+=== "pip"
+
+    ```bash
+    pip install torch-pointcloud[all]
+    ```
+    
+=== "uv"
+
+    ```bash
+    uv add torch-pointcloud[all]
+    ```
 
 ## Contributing & Supporting
 
@@ -22,42 +44,6 @@ If you simply find the package useful, please consider giving it a star ⭐️ o
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE) file for details.
-
-!!! note
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! warning
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! danger
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! abstract
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! info
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! tip
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! important
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! success
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! failure
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! question
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! quote
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
-
-!!! bug
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla et euismod
 
 | **Model**                          | **Description**                                        |
 | :--------------------------------- | :----------------------------------------------------- |
