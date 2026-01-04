@@ -120,6 +120,15 @@ p > code, a > code, li > code, td > code {
 div > div.n {
   background-color: red !important;
 }
+.md-nav__link {
+  line-height: 1.4;
+}
+.md-nav__link .md-ellipsis {
+  line-height: 1.1;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important; 
+}
 /* ----------- End General ----------- */
 
 /* ----------- Start Homepage ----------- */
