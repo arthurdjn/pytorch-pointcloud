@@ -39,7 +39,7 @@ jobs:
       - name: Install all dependencies (torch==2.6.0)
         run: |
           echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }}"
-          uv add torch==2.6.0
+          uv pip install torch==2.6.0
           uv sync ${{ env.UV_SYNC_ARGS }} --frozen
 
       - name: Test with python ${{ matrix.python-version }}
