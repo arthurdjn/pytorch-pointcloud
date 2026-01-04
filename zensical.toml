@@ -473,4 +473,4 @@ provider = "mike"
 # Exclude files from the build
 # ----------------------------------------------------------------------------
 [project.plugins.exclude]
-glob = ["plugins/*", "__pycache__/*"]
+glob = ["plugins/*", "__pycache__/*", "scripts/*"]
