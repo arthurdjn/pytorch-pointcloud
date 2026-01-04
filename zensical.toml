@@ -71,6 +71,13 @@ extra_javascript = [
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
 ]
 
+# Zensical supports both implicit navigation and explicitly defined navigation.
+# If you decide not to define a navigation here then Zensical will simply
+# derive the navigation structure from the directory structure of your
+# "docs_dir". The definition below demonstrates how a navigation structure
+# can be defined using TOML syntax.
+#
+# Read more: https://zensical.org/docs/setup/navigation/
 nav = [
     { "Get Started" = [
         "index.md",
@@ -80,26 +87,89 @@ nav = [
     ] },
     { "Models" = [
         "models/overview.md",
-        "models/pointnet.md",
-        "models/pointnext.md",
     ] },
     { "Datasets" = [
-        "datasets/modelnet.md",
-        "datasets/s3dis.md",
-        "datasets/scannet.md",
-        "datasets/shapenet.md",
+        "datasets/overview.md",
     ] },
-    { "Transforms" = [
-        "transforms/transforms.md",
-        "transforms/dictionary.md",
+    { "API Reference" = [
+        "api/index.md",
+        { Datasets = [
+            "api/datasets/index.md",
+            "api/datasets/modelnet.md",
+            "api/datasets/pointcloud.md",
+            "api/datasets/s3dis.md",
+            "api/datasets/scannet.md",
+            "api/datasets/shapenet.md",
+            "api/datasets/utils.md",
+        ] },
+        { Layers = [
+            "api/layers/index.md",
+            "api/layers/activations.md",
+            "api/layers/blocks.md",
+            "api/layers/dropouts.md",
+            "api/layers/fps.md",
+            "api/layers/geometric_affine.md",
+            "api/layers/heads.md",
+            "api/layers/layer_container.md",
+            "api/layers/mlp.md",
+            "api/layers/norms.md",
+            "api/layers/octree_attention.md",
+            "api/layers/octree_blocks.md",
+            "api/layers/pointnet2_blocks.md",
+            "api/layers/pointnext_blocks.md",
+            "api/layers/pools.md",
+            "api/layers/reshape.md",
+            "api/layers/tnet.md",
+            "api/layers/view.md",
+            "api/layers/xconv.md",
+        ] },
+        { Models = [
+            "api/models/index.md",
+            "api/models/dgcnn.md",
+            "api/models/kpconv.md",
+            "api/models/octformer.md",
+            "api/models/point_transformer.md",
+            "api/models/point_transformer_v2.md",
+            "api/models/point_transformer_v3.md",
+            "api/models/pointcnn.md",
+            "api/models/pointmlp.md",
+            "api/models/pointnet.md",
+            "api/models/pointnet2.md",
+            "api/models/pointnext.md",
+            "api/models/pvcnn.md",
+            "api/models/pvcnn2.md",
+            "api/models/randlanet.md",
+            "api/models/spvcnn.md",
+        ] },
+        { Transforms = [
+            "api/transforms/index.md",
+            "api/transforms/transforms.md",
+            "api/transforms/functional.md",
+            { Dictionary = [
+                "api/transforms/dictionary/index.md",
+                "api/transforms/dictionary/functional.md",
+                "api/transforms/dictionary/transforms.md",
+            ] },
+        ] },
+        { Utils = [
+            "api/utils/index.md",
+            "api/utils/config.md",
+            "api/utils/conversion.md",
+            "api/utils/geometry.md",
+            "api/utils/hilbert.md",
+            "api/utils/imports.md",
+            "api/utils/io.md",
+            "api/utils/misc.md",
+            "api/utils/octree.md",
+            "api/utils/ops.md",
+            "api/utils/random.md",
+            "api/utils/serialization.md",
+            "api/utils/state_dict.md",
+            "api/utils/types.md",
+            "api/utils/voxelization.md",
+        ] },
     ] },
-] # Zensical supports both implicit navigation and explicitly defined navigation.
-# If you decide not to define a navigation here then Zensical will simply
-# derive the navigation structure from the directory structure of your
-# "docs_dir". The definition below demonstrates how a navigation structure
-# can be defined using TOML syntax.
-#
-# Read more: https://zensical.org/docs/setup/navigation/
+]
 
 # ----------------------------------------------------------------------------
 # Section for configuring theme options
