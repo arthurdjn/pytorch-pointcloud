@@ -1,0 +1,342 @@
+:root, 
+[data-md-color-scheme="default"] {
+  --md-default-fg-color--lightest: var(--md-code-bg-color);
+  --md-typeset-a-color: var(--md-default-fg-color) !important;
+  --md-typeset-table-color: var(--md-code-bg-color);
+
+  /* Admonition colors */
+  --admonition-note-fg-color: #448aff;
+  --admonition-note-bg-color: #448aff1a;
+  --admonition-abstract-fg-color: #00b0ff;
+  --admonition-abstract-bg-color: #00b0ff1a;
+  --admonition-info-fg-color: #00b8d4;
+  --admonition-info-bg-color: #00b8d41a;
+  --admonition-tip-fg-color: #00bfa5;
+  --admonition-tip-bg-color: #00bfa51a;
+  --admonition-success-fg-color: #00c853;
+  --admonition-success-bg-color: #00c8531a;
+  --admonition-question-fg-color: #64dd17;
+  --admonition-question-bg-color: #64dd171a;
+  --admonition-warning-fg-color: #ff9100;
+  --admonition-warning-bg-color: #ff91001a;
+  --admonition-failure-fg-color: #ff5252;
+  --admonition-failure-bg-color: #ff52521a;
+  --admonition-danger-fg-color: #ff1744;
+  --admonition-danger-bg-color: #ff17441a;
+  --admonition-bug-fg-color: #f50057;
+  --admonition-bug-bg-color: #f500571a;
+  --admonition-important-fg-color: #7c4dff;
+  --admonition-important-bg-color: #7c4dff1a;
+  --admonition-example-fg-color: var(--md-code-hl-operator-color);
+  --admonition-example-bg-color: var(--md-code-bg-color);
+  --admonition-quote-fg-color: var(--md-code-hl-operator-color);
+  --admonition-quote-bg-color: var(--md-code-bg-color);
+}
+[data-md-color-scheme="slate"] {
+  --md-default-fg-color--lightest: var(--md-code-bg-color);
+  --md-typeset-a-color: hsla(var(--md-hue), 0%, 100%, .9) !important;
+  --md-typeset-table-color: var(--md-code-bg-color);
+
+  /* Admonition colors */
+  --admonition-note-fg-color: #448aff;
+  --admonition-note-bg-color: #448aff1a;
+  --admonition-abstract-fg-color: #00b0ff;
+  --admonition-abstract-bg-color: #00b0ff1a;
+  --admonition-info-fg-color: #00b8d4;
+  --admonition-info-bg-color: #00b8d41a;
+  --admonition-tip-fg-color: #00bfa5;
+  --admonition-tip-bg-color: #00bfa51a;
+  --admonition-success-fg-color: #00c853;
+  --admonition-success-bg-color: #00c8531a;
+  --admonition-question-fg-color: #64dd17;
+  --admonition-question-bg-color: #64dd171a;
+  --admonition-warning-fg-color: #ff9100;
+  --admonition-warning-bg-color: #ff91001a;
+  --admonition-failure-fg-color: #ff5252;
+  --admonition-failure-bg-color: #ff52521a;
+  --admonition-danger-fg-color: #ff1744;
+  --admonition-danger-bg-color: #ff17441a;
+  --admonition-bug-fg-color: #f50057;
+  --admonition-bug-bg-color: #f500571a;
+  --admonition-important-fg-color: #7c4dff;
+  --admonition-important-bg-color: #7c4dff1a;
+  --admonition-example-fg-color: var(--md-code-hl-operator-color);
+  --admonition-example-bg-color: var(--md-code-bg-color);
+  --admonition-quote-fg-color: var(--md-code-hl-operator-color);
+  --admonition-quote-bg-color: var(--md-code-bg-color);
+}
+
+/* ----------- Start Header & Footer ----------- */
+header.md-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--md-default-fg-color--lightest) 75%, transparent);
+}
+
+footer.md-footer {
+  border-top: 1px solid color-mix(in srgb, var(--md-default-fg-color--lightest) 75%, transparent);
+}
+[data-md-color-scheme="slate"] footer.md-footer .md-footer-meta {
+  /* background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 25%, transparent); */
+  background-color: black;
+}
+/* ----------- End Header & Footer ----------- */
+
+/* ----------- Start General ----------- */
+/* Text spacing */
+p, li {
+  line-height: 1.7;
+}
+/* Small border around inline code */
+p > code, a > code, li > code, td > code {
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
+}
+.md-content__inner a {
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+.md-content__inner b {
+  font-weight: 700;
+  color: var(--md-typeset-a-color) !important;
+}
+.md-content__inner p > a:hover {
+  text-decoration-color: var(--md-accent-fg-color) !important;
+}
+/* Larger font size for code blocks */
+.md-typeset code {
+  font-size: 0.9em !important;
+}
+/* Better spacing for lists */
+.md-typeset ol li, .md-typeset ul li {
+  margin-bottom: 0.25em !important;
+}
+/* Navbar link colors */
+.md-sidebar.md-sidebar--secondary .md-nav__link--active {
+  color: var(--md-accent-fg-color);
+}
+/* Search button */
+.md-search button.md-search__button:hover {
+  background-color: var(--md-default-fg-color--lightest);
+}
+/* Search combobox */
+div > div.n {
+  background-color: red !important;
+}
+.md-nav__link {
+  line-height: 1.4;
+}
+.md-nav__link .md-ellipsis {
+  line-height: 1.1;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important; 
+}
+/* ----------- End General ----------- */
+
+/* ----------- Start Homepage ----------- */
+#glowing-logo-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+#glowing-logo-container svg {
+  overflow: visible;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: 1 / 1; 
+}
+
+section#hero {
+  display: grid;
+  grid-template-columns: 2fr 3fr; 
+  align-items: end;
+  gap: 4rem;
+  width: 100%;
+  max-width: 1080px;
+}
+
+.hero-logo {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.hero-logo svg {
+  padding: 0 0 1.5em 0;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+}
+a.pill {
+  width: fit-content;
+  font-size: 0.64em;
+  font-family: var(--md-code-font-family);
+  padding: 0 1em;
+  color: var(--pill-color) !important;
+  background-color: var(--pill-bg-color);
+  border: 1px solid var(--pill-bg-color);
+  border-radius: 1.5em;
+  text-decoration: none !important;
+}
+a.pill.hero-pill {
+  --pill-color: #f04d28;
+  --pill-bg-color: color-mix(in srgb, #f04d28 10%, transparent);
+}
+.hero-title {
+  font-size: 6em !important;
+  font-weight: 300 !important;
+  line-height: 1 !important;
+  margin: 0.25em 0 0.5em 0 !important;
+}
+.hero-title b {
+  font-weight: 500 !important;
+}
+/* ----------- End Homepage ----------- */
+
+/* ----------- Start Docstrings ----------- */
+.doc.doc-object + .doc.doc-object {
+  margin-top: 2em !important;
+}
+.doc-object span.doc-section-title {
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme=slate] .doc-object span.doc-section-title {
+  color: hsla(var(--md-hue), 0%, 100%, 1);
+}
+.doc-heading .doc-heading {
+  display: flex;
+  align-items: flex-start;
+}
+.doc-heading code.doc-symbol {
+  padding: 0 0.4em;
+  border-color: color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 1em;
+  font-size: 0.85em;
+}
+.doc-heading span.doc-labels:first-child {
+  margin-left: 0;
+}
+.doc-heading span.doc-labels {
+  flex-shrink: 0;
+}
+.doc-heading span.doc-object-name > span.doc-object-path {
+  color: color-mix(in srgb, var(--md-default-fg-color) 75%, transparent);
+}
+.doc-object .doc-overloads {
+  display: none;
+}
+/* Color of the parameter names in the docstring signature */
+.doc-object .doc-signature span.n:not(:has(*)) {
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme=slate] .doc-object .doc-signature span.n:not(:has(*)) {
+  color: hsla(var(--md-hue), 0%, 100%, 0.85);
+}
+.doc-object .doc-signature span.n:has(*), 
+.doc-object .doc-signature span.p {
+  color: var(--md-default-fg-color--light);
+}
+.doc-object .doc-signature span.kc {
+  color: var(--md-code-hl-keyword-color);
+}
+/* Color of the parameter names in the docstring section */
+.doc-object ul li.doc-section-item b:first-of-type code {
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme=slate] .doc-object ul li.doc-section-item b:first-of-type code {
+  color: hsla(var(--md-hue), 0%, 100%, 0.9);
+}
+/* ----------- End Docstrings ----------- */
+
+/* ----------- Table format like GitHub ----------- */
+.md-typeset__table {
+  width: 100%;
+}
+.md-typeset__table table:not([class]) {
+  display: table
+}
+.md-typeset__table table {
+  line-height: 1.2;
+  font-size: .75rem !important;
+}
+.md-typeset__table table thead, .md-typeset__table table tbody {
+  width: 100%;
+}
+.md-typeset__table table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 25%, transparent) !important;
+}
+/* ----------- End Table format like GitHub ----------- */
+
+/* ----------- Start Admonition ----------- */
+.md-typeset details, .admonition {
+  --admonition-fg-color: var(--admonition-note-fg-color) !important;
+  --admonition-bg-color: var(--admonition-note-bg-color) !important;
+}
+.md-typeset details.note, .admonition.note {
+  --admonition-fg-color: var(--admonition-note-fg-color) !important;
+  --admonition-bg-color: var(--admonition-note-bg-color) !important;
+}
+.md-typeset details.abstract, .admonition.abstract {
+  --admonition-fg-color: var(--admonition-abstract-fg-color) !important;
+  --admonition-bg-color: var(--admonition-abstract-bg-color) !important;
+}
+.md-typeset details.info, .admonition.info {
+  --admonition-fg-color: var(--admonition-info-fg-color) !important;
+  --admonition-bg-color: var(--admonition-info-bg-color) !important;
+}
+.md-typeset details.tip, .admonition.tip {
+  --admonition-fg-color: var(--admonition-tip-fg-color) !important;
+  --admonition-bg-color: var(--admonition-tip-bg-color) !important;
+}
+.md-typeset details.success, .admonition.success {
+  --admonition-fg-color: var(--admonition-success-fg-color) !important;
+  --admonition-bg-color: var(--admonition-success-bg-color) !important;
+}
+.md-typeset details.question, .admonition.question {
+  --admonition-fg-color: var(--admonition-question-fg-color) !important;
+  --admonition-bg-color: var(--admonition-question-bg-color) !important;
+}
+.md-typeset details.warning, .admonition.warning {
+  --admonition-fg-color: var(--admonition-warning-fg-color) !important;
+  --admonition-bg-color: var(--admonition-warning-bg-color) !important;
+}
+.md-typeset details.failure, .admonition.failure {
+  --admonition-fg-color: var(--admonition-failure-fg-color) !important;
+  --admonition-bg-color: var(--admonition-failure-bg-color) !important;
+}
+.md-typeset details.danger, .admonition.danger {
+  --admonition-fg-color: var(--admonition-danger-fg-color) !important;
+  --admonition-bg-color: var(--admonition-danger-bg-color) !important;
+}
+.md-typeset details.bug, .admonition.bug {
+  --admonition-fg-color: var(--admonition-bug-fg-color) !important;
+  --admonition-bg-color: var(--admonition-bug-bg-color) !important;
+}
+.md-typeset details.example, .admonition.example {
+  --admonition-fg-color: var(--admonition-example-fg-color) !important;
+  --admonition-bg-color: var(--admonition-example-bg-color) !important;
+}
+.md-typeset details.quote, .admonition.quote {
+  --admonition-fg-color: var(--admonition-quote-fg-color) !important;
+  --admonition-bg-color: var(--admonition-quote-bg-color) !important;
+}
+.md-typeset details.important, .admonition.important {
+  --admonition-fg-color: var(--admonition-important-fg-color) !important;
+  --admonition-bg-color: var(--admonition-important-bg-color) !important;
+}
+
+.md-typeset details summary::before, .md-typeset details summary::after,
+.admonition .admonition-title::before, .admonition .admonition-title::after {
+  background-color: var(--admonition-fg-color) !important;
+}
+.md-typeset details pre code, .admonition pre code {
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
+}
+.md-typeset details, .admonition {
+    background-color: var(--admonition-bg-color) !important;
+    font-size: 0.75rem !important;
+}
+.md-typeset details summary, .admonition .admonition-title {
+  color: var(--admonition-fg-color) !important;
+}
+/* ----------- End Admonition ----------- */
