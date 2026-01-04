@@ -160,8 +160,11 @@ cython_debug/
 .idea/
 .vscode/
 
-# Project
+# Project 
 data/**
+docs/api/**
+
+# Notebooks
 notebooks/**
 !notebooks/*.ipynb
 notebooks/**/\[WIP\]*.ipynb

@@ -65,6 +65,8 @@ clean: ## Clear local caches and build artifacts
 	rm -rf build
 	rm -rf dist
 	rm -rf *.log
+	rm -rf site
+	rm -rf .cache
 
 .PHONY: help
 help: ## Show available commands
