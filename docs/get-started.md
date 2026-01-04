@@ -1,5 +1,7 @@
 # Get Started
 
+![PyTorch PointCloud](https://github.com/arthurdjn/pytorch-pointcloud/raw/main/docs/assets/medias/pytorch-pointcloud.png)
+
 ## About
 
 :pytorch-pointcloud: [`torch-pointcloud`](https://github.com/arthurdjn/pytorch-pointcloud){: target="_blank" } is a PyTorch library for deep learning on point clouds build on top of popular and powerful libraries such as :pytorch: [`torch`](https://pytorch.org){: target="_blank" } and :pyg: [`torch-geometric`](https://pytorch-geometric.readthedocs.io/en/latest/){: target="_blank" }. It implements a wide range of State-of-the-Art models for point cloud classification, segmentation, and other tasks.
