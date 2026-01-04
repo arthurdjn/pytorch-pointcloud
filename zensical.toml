@@ -24,7 +24,6 @@ site_author = "Arthur Dujardin"
 # The site_url is the canonical URL for your site. When building online
 # documentation you should set this.
 # Read more: https://zensical.org/docs/setup/basics/#site_url
-site_url = "https://github.com/arthurdjn/pytorch-pointcloud"
 
 repo_url = "https://github.com/arthurdjn/pytorch-pointcloud"
 repo_name = "arthurdjn/pytorch-pointcloud"
@@ -65,24 +64,18 @@ extra_css = [
 # Read more: https://zensical.org/docs/customization/#additional-javascript
 extra_javascript = [
     "overrides/javascripts/extra.js",
+    "overrides/javascripts/tablesort.js",
     "overrides/javascripts/katex.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
 ]
 
-# Zensical supports both implicit navigation and explicitly defined navigation.
-# If you decide not to define a navigation here then Zensical will simply
-# derive the navigation structure from the directory structure of your
-# "docs_dir". The definition below demonstrates how a navigation structure
-# can be defined using TOML syntax.
-#
-# Read more: https://zensical.org/docs/setup/navigation/
 nav = [
-    { "Get started" = [
-        "index.md",
-    ] },
+    { "Home" = "index.md" },
+    { "Get Started" = "get-started.md" },
     { "Models" = [
         "models/pointnet.md",
+        "models/pointnext.md",
     ] },
     { "Datasets" = [
         "datasets/modelnet.md",
@@ -94,7 +87,13 @@ nav = [
         "transforms/transforms.md",
         "transforms/dictionary.md",
     ] },
-]
+] # Zensical supports both implicit navigation and explicitly defined navigation.
+# If you decide not to define a navigation here then Zensical will simply
+# derive the navigation structure from the directory structure of your
+# "docs_dir". The definition below demonstrates how a navigation structure
+# can be defined using TOML syntax.
+#
+# Read more: https://zensical.org/docs/setup/navigation/
 
 # ----------------------------------------------------------------------------
 # Section for configuring theme options
@@ -290,13 +289,13 @@ features = [
 [[project.theme.palette]]
 scheme = "slate"
 accent = "deep orange"
-toggle.icon = "lucide/moon"
+toggle.icon = "lucide/eclipse"
 toggle.name = "Switch to light mode"
 
 [[project.theme.palette]]
 scheme = "default"
 accent = "deep orange"
-toggle.icon = "lucide/sun"
+toggle.icon = "lucide/eclipse"
 toggle.name = "Switch to dark mode"
 
 # ----------------------------------------------------------------------------
@@ -357,28 +356,21 @@ generic = true
 paths = ["src"]
 
 [project.plugins.mkdocstrings.handlers.python.options]
+docstring_section_style = "list"
 docstring_style = "google"
 inherited_members = true
-show_source = false
-show_root_heading = true
 members_order = "source"
-separate_signature = true
 merge_init_into_class = true
-show_signature_annotations = true
-signature_crossrefs = true
+separate_signature = true
 show_labels = true
+show_root_heading = true
+show_signature_annotations = true
+show_source = false
 show_symbol_type_heading = true
-
-[project.plugins.autorefs]
-resolve_closest = true
-link_titles = "external"
-link_target = "_blank"
+signature_crossrefs = true
 
 [project.plugins.exclude]
 glob = ["theme/announce.html", "plugins/*", "__pycache__/*"]
 
-# extra:
-#   version:
-#     provider: mike
 [project.extra.version]
 provider = "mike"

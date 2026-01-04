@@ -34,7 +34,6 @@ dev-dependencies = [
     "ruff>=0.9.1",
     "ipykernel>=6.29.5",
     "mkdocs-jupyter>=0.25.1",
-    "mkdocs-simple-hooks>=0.1.5",
     "mkdocs-exclude>=1.0.2",
     "nbconvert>=7.16.5",
     "mkdocstrings>=0.27.0",
@@ -44,7 +43,6 @@ dev-dependencies = [
     "types-requests>=2.32.0.20241016",
     "mypy>=1.19.0",
     "zensical>=0.0.15",
-    "mkdocs-autorefs>=1.4.3",
 ]
 
 [[tool.uv.dependency-metadata]]

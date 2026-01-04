@@ -1,0 +1,66 @@
+.dot {
+    fill: var(--md-default-fg-color--lightest);
+    transition: fill 0.3s ease;
+    cursor: pointer;
+}
+.glowing-clone {
+    pointer-events: none;
+    z-index: 100;
+}
+
+@keyframes torchGlow1 {
+    0% {
+        opacity: 0;
+        fill: #f04d28;
+        filter: drop-shadow(0 0 0px transparent);
+    }
+    15% { opacity: 1; }
+    25% {
+        fill: #ff5533;
+        filter: drop-shadow(0 0 9px #ff5533) drop-shadow(0 0 19px #ff4444);
+    }
+    50% {
+        fill: #ff4444;
+        filter: drop-shadow(0 0 17px #ff4444) drop-shadow(0 0 32px #ff3355);
+    }
+    75% {
+        fill: #ff5533;
+        filter: drop-shadow(0 0 9px #ff5533) drop-shadow(0 0 19px #ff4444);
+    }
+    90% { opacity: 1; } 
+    100% {
+        opacity: 0;
+        fill: #f04d28;
+        filter: drop-shadow(0 0 0px transparent);
+    }
+}
+
+@keyframes torchGlow2 {
+    0% { opacity: 0; fill: #f04d28; filter: drop-shadow(0 0 0px transparent); }
+    15% { opacity: 1; }
+    25% { fill: #ff5533; filter: drop-shadow(0 0 9px #ff5533) drop-shadow(0 0 19px #ff4444); }
+    50% { fill: #ff4444; filter: drop-shadow(0 0 17px #ff4444) drop-shadow(0 0 32px #ff3355); }
+    75% { fill: #ff5533; filter: drop-shadow(0 0 9px #ff5533) drop-shadow(0 0 19px #ff4444); }
+    90% { opacity: 1; }
+    100% { opacity: 0; fill: #f04d28; filter: drop-shadow(0 0 0px transparent); }
+}
+
+@keyframes torchGlow3 {
+    0% { opacity: 0; fill: #f04d28; filter: drop-shadow(0 0 0px transparent); }
+    15% { opacity: 1; }
+    25% { fill: #ff5533; filter: drop-shadow(0 0 9px #ff5533) drop-shadow(0 0 19px #ff4444); }
+    50% { fill: #ff4444; filter: drop-shadow(0 0 17px #ff4444) drop-shadow(0 0 32px #ff3355); }
+    75% { fill: #ff5533; filter: drop-shadow(0 0 9px #ff5533) drop-shadow(0 0 19px #ff4444); }
+    90% { opacity: 1; }
+    100% { opacity: 0; fill: #f04d28; filter: drop-shadow(0 0 0px transparent); }
+}
+
+@keyframes torchGlow4 {
+    0% { opacity: 0; fill: #f04d28; filter: drop-shadow(0 0 0px transparent); }
+    15% { opacity: 1; }
+    25% { fill: #ff5533; filter: drop-shadow(0 0 11px #ff5533) drop-shadow(0 0 22px #ff4444); }
+    50% { fill: #ff2266; filter: drop-shadow(0 0 23px #ff2266) drop-shadow(0 0 42px #ff1177); }
+    75% { fill: #ff5533; filter: drop-shadow(0 0 11px #ff5533) drop-shadow(0 0 22px #ff4444); }
+    90% { opacity: 1; }
+    100% { opacity: 0; fill: #f04d28; filter: drop-shadow(0 0 0px transparent); }
+}

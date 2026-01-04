@@ -1,0 +1,42 @@
+{% extends "main.html" %}
+
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ 'assets/css/glowing-logo.css' | url }}" />
+  <style>
+    footer.md-footer nav.md-footer__inner {
+      display: none;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<main id="homepage" class="md-content__inner">
+  
+  <section id="hero" class="cols-2">
+    <div id="glowing-logo-container" class="hero-logo"></div>
+
+    <div class="hero-content">
+      <a href="https://github.com/your-repo/releases" class="pill hero-pill">
+        New v0.1.0: Initial Release &rarr;
+      </a>
+
+      <h1 class="hero-title">
+        PyTorch <br /> <b>PointCloud</b>
+      </h1>
+      
+      <p class="hero-subtitle">
+        <a href="https://github.com/arthurdjn/pytorch-pointcloud">PyTorch PointCloud</a> 
+        is the modular library for <b>point cloud deep learning</b>. <br />
+        Production-ready models for classification, segmentation, 
+        and detection matching <b>timm</b> standards.
+      </p>
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ 'assets/js/glowing-logo.js' | url }}"></script>
+{% endblock %}

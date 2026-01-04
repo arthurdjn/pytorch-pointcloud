@@ -15,4 +15,15 @@ document$.subscribe(function() {
         }
     });
 
+    document.querySelectorAll('.doc-object code.doc-symbol').forEach(el => {
+        const spanWrapper = document.createElement('span');
+        spanWrapper.className = 'doc doc-labels';
+
+        const smallWrapper = document.createElement('small');
+        smallWrapper.className = 'doc doc-label doc-label-symbol';
+
+        el.parentNode.insertBefore(spanWrapper, el);
+        spanWrapper.appendChild(smallWrapper);
+        smallWrapper.appendChild(el);
+    });
 });
