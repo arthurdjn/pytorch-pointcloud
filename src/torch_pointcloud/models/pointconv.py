@@ -1,19 +1,25 @@
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
 
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
-from torch_pointcloud.layers import FPS, PointConvSetAbstraction, PoolLike, create_pool
+from torch_pointcloud.layers import FPS, PoolLike, create_pool
+from torch_pointcloud.layers.pointconv_sa import PointConvDensitySetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list
 
-from ._base import ClassificationModel
+from ._base import ClassificationModel, SegmentationModel
+from ._registry import register_model
 
 
-class PointConvEncoder(nn.Module):
+class PointConvIntermediate(NamedTuple):
+    x: Tensor
+    pos: Tensor
+    batch: Tensor
+
+
+class PointConvDensityEncoder(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -21,8 +27,10 @@ class PointConvEncoder(nn.Module):
         num_neighbors: Sequence[int],
         bandwidths: Sequence[float],
         ratios: Sequence[float],
-        density_channels: Sequence[Sequence[int]],
-        weight_channels: Sequence[Sequence[int]],
+        weight_channels: Union[Sequence[int], Sequence[Sequence[int]]] = (8, 8),
+        density_channels: Union[Sequence[int], Sequence[Sequence[int]]] = (16, 8),
+        expansion: int = 16,
+        spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -31,41 +39,16 @@ class PointConvEncoder(nn.Module):
         bias: bool = True,
     ):
         super().__init__()
-        self.in_channels = in_channels
+        num_layers = len(channels) - 1
 
-        # Validate input lengths
-        num_layers = len(channels)
-        assert len(num_neighbors) == num_layers
-        assert len(bandwidths) == num_layers
-        assert len(ratios) == num_layers
-
-        # Handle default list-of-lists expansion if single lists are provided
-        if not isinstance(density_channels[0], (list, tuple)):
-            density_channels = [density_channels] * num_layers  # type: ignore
-        if not isinstance(weight_channels[0], (list, tuple)):
-            weight_channels = [weight_channels] * num_layers  # type: ignore
-
-        self.blocks = nn.ModuleList()
-
-        current_in_channels = in_channels
-
+        self.layers = nn.ModuleList()
         for i in range(num_layers):
-            # If ratio is 1.0 or 0.0 (global), we typically don't downsample via FPS here
-            # or we handle it inside the block.
-            # Here we assume ratio < 1.0 triggers downsampling.
-            downsample = None
-            if ratios[i] < 1.0 and ratios[i] > 0.0:
+            downsample: Optional[nn.Module] = None
+            if ratios[i] > 0.0:
                 downsample = FPS(ratios[i])
 
-            # The original PointConv often groups ALL points in the last layer.
-            # If ratio is 0.0, we treat it as grouping all (no downsampling module needed
-            # if the aggregation handles it, or downsample to 1 point).
-            # The provided PointConvSetAbstraction handles generic KNN.
-            # To mimic "Group All" (Global SA), we typically set k=Large or handle it via Global Pooling.
-            # Here, we assume the user provides appropriate k (e.g., None or total points) for global layers.
-
-            block = PointConvSetAbstraction(
-                in_channels=current_in_channels,
+            layer = PointConvDensitySetAbstraction(
+                in_channels=in_channels,
                 num_neighbors=num_neighbors[i],
                 bandwidth=bandwidths[i],
                 channels=channels[i],
@@ -77,22 +60,43 @@ class PointConvEncoder(nn.Module):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
                 bias=bias,
+                spatial_dim=spatial_dim,
                 downsample=downsample,
             )
-            self.blocks.append(block)
-            current_in_channels = channels[i][-1]
+            self.layers.append(layer)
+            in_channels = channels[i][-1]
 
-        self.out_channels = current_in_channels
+    @overload
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Any]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
     ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, List[Any]]]:
         intermediates = []
-
-        for block in self.blocks:
-            x, pos, batch = block(x, pos, batch)
+        for layer in self.layers:
             if return_intermediates:
                 intermediates.append((x, pos, batch))
+
+            x, pos, batch = layer(x, pos, batch)
 
         if return_intermediates:
             return x, pos, batch, intermediates
@@ -108,7 +112,7 @@ class PointConvClassification(ClassificationModel):
         channels: Sequence[Sequence[int]] = ([64, 64, 128], [128, 128, 256], [256, 512, 1024]),
         num_neighbors: Sequence[int] = (32, 64, 1024),
         bandwidths: Sequence[float] = (0.1, 0.2, 0.4),
-        ratios: Sequence[float] = (0.5, 0.25, 0.0),  # 0.0 implies global aggregation or last layer
+        ratios: Sequence[float] = (0.5, 0.25, 0.0),
         density_channels: Sequence[int] = (16, 8),
         weight_channels: Sequence[int] = (8, 8),
         act: Union[str, Callable, None] = "relu",
@@ -228,3 +232,8 @@ class PointConvClassification(ClassificationModel):
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
+
+
+@register_model("pointconv-density-clf", task="classification")
+def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointConvClassification:
+    return PointConvClassification(in_channels=in_channels, num_classes=num_classes, **kwargs)
