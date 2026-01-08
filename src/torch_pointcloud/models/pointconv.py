@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Type, Union, overload
 
 import torch.nn as nn
 from torch import Tensor
@@ -6,10 +6,10 @@ from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
 from torch_pointcloud.layers import FPS, PoolLike, create_pool
-from torch_pointcloud.layers.pointconv_sa import PointConvDensitySetAbstraction
+from torch_pointcloud.layers.pointconv_sa import PointConvDensityGlobalSetAbstraction, PointConvDensitySetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel
 from ._registry import register_model
 
 
@@ -27,8 +27,8 @@ class PointConvDensityEncoder(nn.Module):
         num_neighbors: Sequence[int],
         bandwidths: Sequence[float],
         ratios: Sequence[float],
-        weight_channels: Union[Sequence[int], Sequence[Sequence[int]]] = (8, 8),
-        density_channels: Union[Sequence[int], Sequence[Sequence[int]]] = (16, 8),
+        weight_channels: Union[Sequence[int]] = (8, 8),
+        density_channels: Union[Sequence[int]] = (16, 8),
         expansion: int = 16,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
@@ -37,23 +37,29 @@ class PointConvDensityEncoder(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
+        global_pool: Optional[PoolLike] = None,
     ):
         super().__init__()
-        num_layers = len(channels) - 1
+        num_layers = len(channels)
 
         self.layers = nn.ModuleList()
         for i in range(num_layers):
-            downsample: Optional[nn.Module] = None
-            if ratios[i] > 0.0:
-                downsample = FPS(ratios[i])
+            layer_type: Type[nn.Module] = PointConvDensitySetAbstraction
+            kwargs: Dict[str, Any] = {
+                "num_neighbors": num_neighbors[i],
+                "downsample": FPS(ratios[i]) if ratios[i] > 0.0 else None,
+            }
 
-            layer = PointConvDensitySetAbstraction(
+            if i == num_layers - 1 and global_pool is not None:
+                layer_type = PointConvDensityGlobalSetAbstraction
+                kwargs = {"pool": global_pool}
+
+            layer = layer_type(
                 in_channels=in_channels,
-                num_neighbors=num_neighbors[i],
                 bandwidth=bandwidths[i],
                 channels=channels[i],
-                density_channels=density_channels[i],
-                weight_channels=weight_channels[i],
+                density_channels=density_channels,
+                weight_channels=weight_channels,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -61,8 +67,9 @@ class PointConvDensityEncoder(nn.Module):
                 norm_kwargs=norm_kwargs,
                 bias=bias,
                 spatial_dim=spatial_dim,
-                downsample=downsample,
+                **kwargs,
             )
+
             self.layers.append(layer)
             in_channels = channels[i][-1]
 
@@ -94,7 +101,7 @@ class PointConvDensityEncoder(nn.Module):
         intermediates = []
         for layer in self.layers:
             if return_intermediates:
-                intermediates.append((x, pos, batch))
+                intermediates.append(PointConvIntermediate(x, pos, batch))
 
             x, pos, batch = layer(x, pos, batch)
 
@@ -103,7 +110,7 @@ class PointConvDensityEncoder(nn.Module):
         return x, pos, batch
 
 
-class PointConvClassification(ClassificationModel):
+class PointConvDensityClassification(ClassificationModel):
     def __init__(
         self,
         in_channels: int,
@@ -115,6 +122,7 @@ class PointConvClassification(ClassificationModel):
         ratios: Sequence[float] = (0.5, 0.25, 0.0),
         density_channels: Sequence[int] = (16, 8),
         weight_channels: Sequence[int] = (8, 8),
+        expansion: int = 16,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -122,8 +130,8 @@ class PointConvClassification(ClassificationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         dropout: float = 0.5,
-        global_pool: PoolLike = "max",
-        classifier_channels: Sequence[int] = (512, 256),
+        global_pool: PoolLike = "mean",
+        head_channels: Sequence[int] = (512, 256),
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.channels = channels
@@ -132,7 +140,7 @@ class PointConvClassification(ClassificationModel):
         self.ratios = ensure_list(ratios)
         self.density_channels = ensure_list(density_channels)
         self.weight_channels = ensure_list(weight_channels)
-
+        self.expansion = expansion
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
@@ -140,18 +148,18 @@ class PointConvClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
         self.dropout = dropout
-        self.classifier_channels = classifier_channels
+        self.global_pool = global_pool
+        self.head_channels = ensure_list(head_channels)
 
         self.encoder = self.configure_encoder()
-        self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder.out_channels
+        return self.encoder.layers[-1].fc.lin.out_features  # type: ignore[return-value,union-attr]
 
-    def configure_encoder(self) -> PointConvEncoder:
-        return PointConvEncoder(
+    def configure_encoder(self) -> PointConvDensityEncoder:
+        return PointConvDensityEncoder(
             in_channels=self.in_channels,
             channels=self.channels,
             num_neighbors=self.num_neighbors,
@@ -159,34 +167,33 @@ class PointConvClassification(ClassificationModel):
             ratios=self.ratios,
             density_channels=self.density_channels,
             weight_channels=self.weight_channels,
+            expansion=self.expansion,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
+            global_pool=self.global_pool,
         )
 
     def configure_head(self) -> nn.Module:
-        layers = []
-        in_dim = self.embedding_dim
+        channels = [self.embedding_dim] + ensure_list(self.head_channels) + [self.num_classes]
+        return MLP(
+            channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=True,
+        )
 
-        for out_dim in self.classifier_channels:
-            layers.append(nn.Linear(in_dim, out_dim))
-            if self.norm is not None:
-                layers.append(nn.BatchNorm1d(out_dim))
-            if self.act is not None:
-                layers.append(nn.ReLU(inplace=True))  # Simpler access to ReLU, or use factory
-            if self.dropout > 0:
-                layers.append(nn.Dropout(p=self.dropout))
-            in_dim = out_dim
-
-        layers.append(nn.Linear(in_dim, self.num_classes))
-        return nn.Sequential(*layers)
-
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "mean", **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        self.encoder.layers[-1].pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -217,16 +224,7 @@ class PointConvClassification(ClassificationModel):
         return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        # If the last encoder layer reduced to 1 point per batch (global SA),
-        # x is (B, C). If not, x is (N_out, C), and we need to pool.
-
-        # Check if x is already pooled (B, C) or still dense (B*N, C)
-        if x.dim() == 2 and x.size(0) == batch.max().item() + 1:
-            # Already one point per batch (likely from a global SA layer)
-            pass
-        else:
-            x = self.global_pool(x, batch)
-
+        # NOTE: In PointConv, the global pooling is performed in the encoder.
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -234,6 +232,20 @@ class PointConvClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-@register_model("pointconv-density-clf", task="classification")
-def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointConvClassification:
-    return PointConvClassification(in_channels=in_channels, num_classes=num_classes, **kwargs)
+@register_model("pointconv-original", task="classification")
+def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointConvDensityClassification:
+    hparams: Dict[str, Any] = dict(
+        channels=[[64, 64, 128], [128, 128, 256], [256, 512, 1024]],
+        ratios=[0.5, 0.25, 0.125],
+        num_neighbors=[32, 64, 128],
+        bandwidths=[0.1, 0.2, 0.4],
+        head_channels=[512, 256],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        global_pool="mean",
+        dropout=0.7,
+    )
+    hparams.update(kwargs)
+    return PointConvDensityClassification(in_channels=in_channels, num_classes=num_classes, **hparams)

@@ -7,6 +7,7 @@ from .point_transformer import PointTransformerClassification, PointTransformerS
 from .point_transformer_v2 import PointTransformerV2Classification, PointTransformerV2Segmentation
 from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
 from .pointcnn import PointCNNClassification, PointCNNSegmentation
+from .pointconv import PointConvDensityClassification
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Segmentation

@@ -42,47 +42,23 @@ class PointConvSetAbstraction(nn.Module):
         downsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.channels = channels
-        self.weight_channels = weight_channels
-        self.expansion = expansion
-        self.num_neighbors = num_neighbors
-        self.act = act
-        self.act_kwargs = act_kwargs
-        self.act_first = act_first
-        self.norm = norm
-        self.norm_kwargs = norm_kwargs
-        self.bias = bias
-        self.spatial_dim = spatial_dim
-        self.downsample = downsample
-
-        self.conv = self.configure_conv()
-        self.fc = LinearBlock(
-            in_channels=self.channels[-1] * self.expansion,
-            out_channels=self.channels[-1],
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-        )
-
-    def configure_conv(self) -> nn.Module:
+        # Common parameters for MLP blocks
         kwargs: Dict[str, Any] = dict(
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            plain_last=False,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
         )
 
-        in_channels = self.in_channels + self.spatial_dim
-        local_nn = MLP([in_channels] + ensure_list(self.channels), **kwargs)
-        weight_nn = MLP([self.spatial_dim] + ensure_list(self.weight_channels) + [self.expansion], **kwargs)
-        return PointConv(local_nn=local_nn, weight_nn=weight_nn)
+        local_nn = MLP([in_channels + spatial_dim] + ensure_list(channels), plain_last=False, **kwargs)
+        weight_nn = MLP([spatial_dim] + ensure_list(weight_channels) + [expansion], plain_last=False, **kwargs)
+
+        self.num_neighbors = num_neighbors
+        self.downsample = downsample
+        self.conv = PointConv(local_nn=local_nn, weight_nn=weight_nn)
+        self.fc = LinearBlock(in_channels=channels[-1] * expansion, out_channels=channels[-1], **kwargs)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         x_dst, pos_dst, batch_dst = x, pos, batch
@@ -118,54 +94,25 @@ class PointConvDensitySetAbstraction(nn.Module):
         downsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.channels = channels
-        self.weight_channels = weight_channels
-        self.density_channels = density_channels
-        self.expansion = expansion
+        # Common parameters for MLP blocks
+        kwargs: Dict[str, Any] = dict(
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+        )
+
+        local_nn = MLP([in_channels + spatial_dim] + ensure_list(channels), plain_last=False, **kwargs)
+        weight_nn = MLP([spatial_dim] + ensure_list(weight_channels) + [expansion], plain_last=False, **kwargs)
+        density_nn = MLP([1] + ensure_list(density_channels) + [1], plain_last=False, **kwargs)
+
         self.num_neighbors = num_neighbors
         self.bandwidth = bandwidth
-        self.act = act
-        self.act_kwargs = act_kwargs
-        self.act_first = act_first
-        self.norm = norm
-        self.norm_kwargs = norm_kwargs
-        self.bias = bias
-        self.spatial_dim = spatial_dim
         self.downsample = downsample
-
-        self.conv = self.configure_conv()
-        self.fc = LinearBlock(
-            in_channels=self.channels[-1] * self.expansion,
-            out_channels=self.channels[-1],
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-        )
-
-    def configure_conv(self) -> nn.Module:
-        kwargs: Dict[str, Any] = dict(
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            plain_last=False,
-        )
-
-        in_channels = self.in_channels + self.spatial_dim
-        local_nn = MLP([in_channels] + ensure_list(self.channels), **kwargs)
-        weight_nn = MLP([self.spatial_dim] + ensure_list(self.weight_channels) + [self.expansion], **kwargs)
-        density_nn = MLP([1] + ensure_list(self.density_channels) + [1], **kwargs)
-        return PointConvDensity(
-            local_nn=local_nn,
-            weight_nn=weight_nn,
-            density_nn=density_nn,
-        )
+        self.conv = PointConvDensity(local_nn=local_nn, weight_nn=weight_nn, density_nn=density_nn)
+        self.fc = LinearBlock(in_channels=channels[-1] * expansion, out_channels=channels[-1], **kwargs)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         kde = gaussian_kernel_density(pos, batch, self.bandwidth)
@@ -207,50 +154,22 @@ class PointConvGlobalSetAbstraction(nn.Module):
         spatial_dim: int = 3,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.channels = channels
-        self.weight_channels = weight_channels
-        self.expansion = expansion
-        self.act = act
-        self.act_kwargs = act_kwargs
-        self.act_first = act_first
-        self.norm = norm
-        self.norm_kwargs = norm_kwargs
-        self.bias = bias
-        self.spatial_dim = spatial_dim
-
-        self.conv = self.configure_conv()
-        self.pool = create_pool(aggr)
-        self.fc = LinearBlock(
-            in_channels=self.out_channels * self.expansion,
-            out_channels=self.out_channels,
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-        )
-
-    @property
-    def out_channels(self) -> int:
-        return self.channels[-1]
-
-    def configure_conv(self) -> nn.Module:
+        # Common parameters for MLP blocks
         kwargs: Dict[str, Any] = dict(
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            plain_last=False,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
         )
 
-        in_channels = self.in_channels + self.spatial_dim
-        local_nn = MLP([in_channels] + ensure_list(self.channels), **kwargs)
-        weight_nn = MLP([self.spatial_dim] + ensure_list(self.weight_channels) + [self.expansion], **kwargs)
-        return PointConv(local_nn=local_nn, weight_nn=weight_nn)
+        local_nn = MLP([in_channels + spatial_dim] + ensure_list(channels), plain_last=False, **kwargs)
+        weight_nn = MLP([spatial_dim] + ensure_list(weight_channels) + [expansion], plain_last=False, **kwargs)
+
+        self.pool = create_pool(aggr)
+        self.conv = PointConv(local_nn=local_nn, weight_nn=weight_nn)
+        self.fc = LinearBlock(in_channels=channels[-1] * expansion, out_channels=channels[-1], **kwargs)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         pos_dst = self.pool(pos, batch)
@@ -280,57 +199,28 @@ class PointConvDensityGlobalSetAbstraction(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        aggr: PoolLike = "mean",
+        pool: PoolLike = "mean",
         spatial_dim: int = 3,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.channels = channels
-        self.weight_channels = weight_channels
-        self.density_channels = density_channels
-        self.expansion = expansion
-        self.bandwidth = bandwidth
-        self.act = act
-        self.act_kwargs = act_kwargs
-        self.act_first = act_first
-        self.norm = norm
-        self.norm_kwargs = norm_kwargs
-        self.bias = bias
-        self.spatial_dim = spatial_dim
-
-        self.conv = self.configure_conv()
-        self.pool = create_pool(aggr)
-        self.fc = LinearBlock(
-            in_channels=self.channels[-1] * self.expansion,
-            out_channels=self.channels[-1],
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-        )
-
-    def configure_conv(self) -> nn.Module:
+        # Common parameters for MLP blocks
         kwargs: Dict[str, Any] = dict(
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            plain_last=False,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
         )
 
-        in_channels = self.in_channels + self.spatial_dim
-        local_nn = MLP([in_channels] + ensure_list(self.channels), **kwargs)
-        weight_nn = MLP([self.spatial_dim] + ensure_list(self.weight_channels) + [self.expansion], **kwargs)
-        density_nn = MLP([1] + ensure_list(self.density_channels) + [1], **kwargs)
-        return PointConvDensity(
-            local_nn=local_nn,
-            weight_nn=weight_nn,
-            density_nn=density_nn,
-        )
+        local_nn = MLP([in_channels + spatial_dim] + ensure_list(channels), plain_last=False, **kwargs)
+        weight_nn = MLP([spatial_dim] + ensure_list(weight_channels) + [expansion], plain_last=False, **kwargs)
+        density_nn = MLP([1] + ensure_list(density_channels) + [1], plain_last=False, **kwargs)
+
+        self.bandwidth = bandwidth
+        self.pool = create_pool(pool)
+        self.conv = PointConvDensity(local_nn=local_nn, weight_nn=weight_nn, density_nn=density_nn)
+        self.fc = LinearBlock(in_channels=channels[-1] * expansion, out_channels=channels[-1], **kwargs)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         kde = gaussian_kernel_density(pos, batch, self.bandwidth)
