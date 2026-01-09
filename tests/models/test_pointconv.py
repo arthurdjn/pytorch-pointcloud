@@ -112,12 +112,14 @@ def test_pointconv_classification_forward(model_clf: PointConvDensityClassificat
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_pointconv_classification_reset_classifier(model_clf: PointConvDensityClassification, data: Dict[str, Tensor]) -> None:
+def test_pointconv_classification_reset_classifier(
+    model_clf: PointConvDensityClassification, data: Dict[str, Tensor]
+) -> None:
     """Test PointConvDensityClassification reset_classifier."""
     new_num_classes = 5
     model_clf.reset_classifier(num_classes=new_num_classes)
     assert model_clf.num_classes == new_num_classes
-    
+
     logits = model_clf(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
@@ -126,14 +128,16 @@ def test_pointconv_classification_reset_classifier(model_clf: PointConvDensityCl
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_pointconv_classification_forward_features(model_clf: PointConvDensityClassification, data: Dict[str, Tensor]) -> None:
+def test_pointconv_classification_forward_features(
+    model_clf: PointConvDensityClassification, data: Dict[str, Tensor]
+) -> None:
     """Test PointConvDensityClassification forward_features."""
     out_features, out_pos, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
-    
+
     assert out_features.dim() == 2
     assert out_pos.dim() == 2
     assert out_batch.dim() == 1
-    
+
     # Test with intermediates
     out_features, out_pos, out_batch, intermediates = model_clf.forward_features(
         data["features"], data["pos"], data["batch"], return_intermediates=True
