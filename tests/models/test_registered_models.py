@@ -13,6 +13,7 @@ CLASSIFICATION_MODELS = [
     "octformer-base",
     "octformer-sm",
     "pointcnn-base",
+    "pointconv-original",
     "pointmlp-base",
     "pointmlp-elite",
     "pointnext-base",
