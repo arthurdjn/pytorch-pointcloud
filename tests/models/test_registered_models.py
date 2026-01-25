@@ -4,7 +4,7 @@ import pytest
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _MAMBA_SSM_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 CLASSIFICATION_MODELS = [
     "dgcnn-base",
@@ -14,6 +14,7 @@ CLASSIFICATION_MODELS = [
     "octformer-sm",
     "pointcnn-base",
     "pointconv-original",
+    "point-mamba-base.modelnet40",
     "pointmlp-base",
     "pointmlp-elite",
     "pointnext-base",
@@ -68,6 +69,9 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
 @pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
 def test_classification_model_forward(model_name: str) -> None:
     """Test that all registered models can be created and work."""
+    if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
+        pytest.skip("mamba_ssm is not installed")
+
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
     assert isinstance(model, ClassificationModel)
 
@@ -79,5 +83,8 @@ def test_classification_model_forward(model_name: str) -> None:
 @pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
 def test_segmentation_model_forward(model_name: str) -> None:
     """Test that all registered models can be created and work."""
+    if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
+        pytest.skip("mamba_ssm is not installed")
+
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     assert isinstance(model, SegmentationModel)

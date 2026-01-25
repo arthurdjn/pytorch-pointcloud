@@ -93,7 +93,13 @@ PoolName = Literal[
     "log_softmax",
 ]
 
+AdaptivePoolName = Literal[
+    "mean",
+    "max",
+]
+
 PoolLike = ModuleLike[PoolName]
+AdaptivePoolLike = ModuleLike[AdaptivePoolName]
 
 _POOL_REGISTRY: Dict[PoolName, RegisteredModuleLike] = dict(
     max=MaxPool,
@@ -105,6 +111,16 @@ _POOL_REGISTRY: Dict[PoolName, RegisteredModuleLike] = dict(
     log_softmax=LogSoftmaxPool,
 )
 
+_ADAPTIVE_POOL_REGISTRY: Dict[AdaptivePoolName, RegisteredModuleLike] = dict(
+    mean=nn.AdaptiveAvgPool1d,
+    max=nn.AdaptiveMaxPool1d,
+)
+
 
 def create_pool(name: PoolLike, *args: Any, **kwargs: Any) -> nn.Module:
     return create_module(name, *args, registry=_POOL_REGISTRY, **kwargs)
+
+
+def create_adaptive_pool(name: AdaptivePoolLike, *args: Any, **kwargs: Any) -> nn.Module:
+    kwargs.setdefault("output_size", 1)
+    return create_module(name, *args, registry=_ADAPTIVE_POOL_REGISTRY, **kwargs)
