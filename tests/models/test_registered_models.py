@@ -14,7 +14,7 @@ CLASSIFICATION_MODELS = [
     "octformer-sm",
     "pointcnn-base",
     "pointconv-original",
-    "pointmamba-base.modelnet40",
+    "point-mamba-base.modelnet40",
     "pointmlp-base",
     "pointmlp-elite",
     "pointnext-base",
