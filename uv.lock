@@ -3822,7 +3822,7 @@ mamba = [
 ocnn = [
     { name = "ocnn" },
 ]
-pyg = [
+pyg-lib = [
     { name = "torch-cluster", version = "1.6.3", source = { registry = "https://data.pyg.org/whl/torch-2.6.0+cpu.html" }, marker = "(python_full_version >= '3.13' and sys_platform == 'linux') or (python_full_version >= '3.13' and sys_platform == 'win32') or (platform_machine != 'x86_64' and sys_platform == 'linux') or (platform_machine != 'AMD64' and sys_platform == 'win32') or (platform_python_implementation != 'CPython' and sys_platform == 'linux') or (platform_python_implementation != 'CPython' and sys_platform == 'win32') or (sys_platform != 'linux' and sys_platform != 'win32')" },
     { name = "torch-cluster", version = "1.6.3+pt26cpu", source = { registry = "https://data.pyg.org/whl/torch-2.6.0+cpu.html" }, marker = "(python_full_version < '3.13' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.13' and platform_machine == 'AMD64' and platform_python_implementation == 'CPython' and sys_platform == 'win32')" },
     { name = "torch-scatter", version = "2.1.2", source = { registry = "https://data.pyg.org/whl/torch-2.6.0+cpu.html" }, marker = "(python_full_version >= '3.13' and sys_platform == 'linux') or (python_full_version >= '3.13' and sys_platform == 'win32') or (platform_machine != 'x86_64' and sys_platform == 'linux') or (platform_machine != 'AMD64' and sys_platform == 'win32') or (platform_python_implementation != 'CPython' and sys_platform == 'linux') or (platform_python_implementation != 'CPython' and sys_platform == 'win32') or (sys_platform != 'linux' and sys_platform != 'win32')" },
@@ -3866,14 +3866,14 @@ requires-dist = [
     { name = "setuptools", marker = "extra == 'build'" },
     { name = "spconv", marker = "extra == 'spconv'", specifier = ">=2.2.1" },
     { name = "torch", specifier = ">=2.0.0,<2.9.0" },
-    { name = "torch-cluster", marker = "extra == 'pyg'", specifier = ">=1.6.3" },
+    { name = "torch-cluster", marker = "extra == 'pyg-lib'", specifier = ">=1.6.3" },
     { name = "torch-geometric", specifier = ">=2.6.1" },
-    { name = "torch-scatter", marker = "extra == 'pyg'", specifier = ">=2.1.2" },
+    { name = "torch-scatter", marker = "extra == 'pyg-lib'", specifier = ">=2.1.2" },
     { name = "torchsparse", marker = "extra == 'torchsparse'", git = "https://github.com/mit-han-lab/torchsparse.git" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "wheel", marker = "extra == 'build'" },
 ]
-provides-extras = ["torchsparse", "ocnn", "build", "flash-attn", "mamba", "spconv", "pyg"]
+provides-extras = ["torchsparse", "ocnn", "build", "flash-attn", "mamba", "spconv", "pyg-lib"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -23,7 +23,7 @@ build = ["setuptools", "wheel", "rootpath"]
 flash-attn = ["flash-attn>=2.4.1"]
 mamba = ["mamba-ssm>=2.2.0"]
 spconv = ["spconv>=2.2.1"]
-pyg = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
+pyg-lib = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
 
 [tool.uv]
 package = true
