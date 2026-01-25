@@ -39,6 +39,7 @@ class Affine(nn.Module):
     ):
         super().__init__()
         factory_kwargs: Dict[str, Any] = {"device": device, "dtype": dtype}
+        self.num_features = num_features
         self.weight = nn.Parameter(torch.empty(num_features, **factory_kwargs))
         if bias:
             self.bias = nn.Parameter(torch.empty(num_features, **factory_kwargs))

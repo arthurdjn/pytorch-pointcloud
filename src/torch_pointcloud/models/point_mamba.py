@@ -42,7 +42,7 @@ PAPER_TITLE = "PointMamba: A Simple State Space Model for Point Cloud Analysis"
 PAPER_URL = "https://arxiv.org/abs/2402.10739"
 PAPER_AUTHORS = "Dingkang Liang, Xin Zhou, Wei Xu, Xingkui Zhu, Zhikang Zou, Xiaoqing Ye, Xiao Tan, Xiang Bai"
 PAPER_CITATION = f"[{PAPER_TITLE}]({PAPER_URL}) by {PAPER_AUTHORS}"
-OFFICIAL_REPO_URL = "https://github.com/LMD0311/PointMamba"
+REPO_URL = "https://github.com/LMD0311/PointMamba"
 
 
 def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Tensor:
@@ -55,7 +55,7 @@ def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Te
 class PointMambaBlock(nn.Module):
     __doc__ = (
         rf"""Implementation of the PointMamba block as described in the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {OFFICIAL_REPO_URL}.
+        This implementation is adapted from the official repository :github: {REPO_URL}.
         """
         r"""
         The `PointMambaBlock` is a residual block that consists of a normalization layer, 
@@ -109,7 +109,7 @@ class PointPatchEmbedding(nn.Module):
     __doc__ = (
         rf"""
         Defines the patch-level encoding based on the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {OFFICIAL_REPO_URL}.
+        This implementation is adapted from the official repository :github: {REPO_URL}.
         """
         r"""
         This module encodes features and positions to a patch-level embedding, 
@@ -164,6 +164,7 @@ class PointPatchEmbedding(nn.Module):
 
         self.num_patches = num_patches
         self.group_size = group_size
+        self.spatial_dim = spatial_dim
 
         # In case we do not provide input features (i.e. `in_channels==0`), we use relative positions as features.
         # Otherwise, we concatenate the input features of the centroids (local features),
@@ -213,6 +214,7 @@ class PointPatchEmbedding(nn.Module):
         x_patch = scatter(x_final, row, dim=0, dim_size=num_centroids, reduce=self.reduce)
 
         if return_pos_rel:
+            pos_rel = pos_rel.view(num_centroids, self.group_size, self.spatial_dim)
             return x_patch, pos_centroid, batch_centroid, pos_rel
         return x_patch, pos_centroid, batch_centroid
 
@@ -220,7 +222,7 @@ class PointPatchEmbedding(nn.Module):
 class PointMambaEncoder(nn.Module):
     __doc__ = (
         rf"""Implementation of the PointMamba encoder as described in the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {OFFICIAL_REPO_URL}.
+        This implementation is adapted from the official repository :github: {REPO_URL}.
         """
         r"""
         This encoder consists of a patch-level embedding, 
@@ -393,7 +395,6 @@ class PointMambaEncoderMAE(nn.Module):
         group_size: int,
         mask_ratio: float,
         drop_path_rate: float = 0.0,
-        use_cls_token: bool = False,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -403,7 +404,6 @@ class PointMambaEncoderMAE(nn.Module):
         bias: Union[bool, List[bool]] = True,
     ):
         super().__init__()
-        # Common parameters for all MLPs and associated blocks
         factory_kwargs: Dict[str, Any] = dict(
             act=act,
             act_kwargs=act_kwargs,
@@ -424,7 +424,10 @@ class PointMambaEncoderMAE(nn.Module):
             **factory_kwargs,
         )
 
+        # Encoder-specific positional embedding
         self.pos_embed = MLP([spatial_dim, 128, self.embedding_dim], act="gelu", norm=None, bias=bias)
+
+        # Order scale indicators
         self.order_h = Affine(self.embedding_dim)
         self.order_th = Affine(self.embedding_dim)
 
@@ -432,73 +435,107 @@ class PointMambaEncoderMAE(nn.Module):
         self.blocks = nn.ModuleList([PointMambaBlock(self.embedding_dim, dropout=dpr[i]) for i in range(depth)])
         self.norm_f = nn.LayerNorm(self.embedding_dim)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Dict[str, Any]]:
-        # 1. Patch Embedding & GT Extraction
-        # We explicitly ask for pos_rel (targets)
-        patch_feat, patch_pos, patch_batch, pos_rel_gt = self.patch_embed(x, pos, batch, return_pos_rel=True)
-
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Any]:
+        patch_feat, patch_pos, patch_batch, target_pos_rel = self.patch_embed(x, pos, batch, return_pos_rel=True)
         B = int(patch_batch.max() + 1)
         patch_pos_grid = local_grid(patch_pos, batch=patch_batch, size=0.02)
 
-        # 2. Random Serialization (MAE Specific)
-        # Randomly choose between Hilbert and Trans-Hilbert
+        # Random serialization
         use_trans = torch.rand(1, device=pos.device) < 0.5
         order_key: SerializationOrder = "hilbert-trans" if use_trans else "hilbert"
         order_scale = self.order_th if use_trans else self.order_h
         idx_sort = order_sort(patch_pos_grid, patch_batch, order=order_key)
 
-        # Sort all data to dense tensors (B, P, ...)
+        # Densify to (B, P, ...) for the Mamba blocks
         feat_dense = patch_feat[idx_sort].view(B, -1, self.embedding_dim)
         pos_dense = patch_pos[idx_sort].view(B, -1, 3)
-        target_dense = pos_rel_gt[idx_sort].view(B, -1, self.patch_embed.group_size, 3)
+        target_pos_dense = target_pos_rel[idx_sort].view(B, -1, self.patch_embed.group_size, 3)
 
-        # Apply Affine Transformation (Order Scale) to features
+        # Apply associated random order scale (affine transformation)
         feat_dense = order_scale(feat_dense)
 
-        # 3. Masking
+        # Mask random tokens
         P = feat_dense.size(1)
-        num_mask = int(self.mask_ratio * P)
-        len_keep = P - num_mask
-
-        # Generate random mask indices
+        seq_len = P - int(self.mask_ratio * P)
         noise = torch.rand(B, P, device=feat_dense.device)
-        ids_shuffle = torch.argsort(noise, dim=1)
-        ids_restore = torch.argsort(ids_shuffle, dim=1)
-        ids_keep = ids_shuffle[:, :len_keep]
+        noise_idx = torch.argsort(noise, dim=1)
+        vis_idx = noise_idx[:, :seq_len]
+        vis_idx, _ = torch.sort(vis_idx, dim=1)
+        mask_idx = noise_idx[:, seq_len:]
+        mask_idx, _ = torch.sort(mask_idx, dim=1)
 
         # Gather visible tokens
-        x_vis = torch.gather(feat_dense, 1, ids_keep.unsqueeze(-1).expand(-1, -1, self.embedding_dim))
+        x_vis = torch.gather(feat_dense, 1, vis_idx.unsqueeze(-1).expand(-1, -1, self.embedding_dim))
 
-        # Get position embeddings for visible tokens (using base pos_embed)
-        # Embed raw positions -> sort -> gather visible
+        # Get position embeddings for visible tokens
         pos_emb_all = self.pos_embed(patch_pos)
         pos_emb_sorted = pos_emb_all[idx_sort].view(B, -1, self.embedding_dim)
-        pos_emb_vis = torch.gather(pos_emb_sorted, 1, ids_keep.unsqueeze(-1).expand(-1, -1, self.embedding_dim))
+        pos_emb_vis = torch.gather(pos_emb_sorted, 1, vis_idx.unsqueeze(-1).expand(-1, -1, self.embedding_dim))
 
-        # Add Pos Embed to visible features
+        # Mamba blocks (process only visible tokens)
         x_vis = x_vis + pos_emb_vis
-
-        # 4. Mamba Blocks (Process only visible)
         for block in self.blocks:
             x_vis = block(x_vis)
+
         x_vis = self.norm_f(x_vis)
 
-        # Pack metadata needed by decoder
-        mask_info = {
-            "ids_restore": ids_restore,
+        return {
+            "x_vis": x_vis,
             "pos_dense": pos_dense,
-            "len_keep": len_keep,
-            "num_mask": num_mask,
+            "target_pos_dense": target_pos_dense,
+            "mask_idx": mask_idx,
+            "vis_idx": vis_idx,
             "P": P,
         }
 
-        return x_vis, target_dense, mask_info
+
+class PointMambaDecoderMAE(nn.Module):
+    def __init__(
+        self,
+        embedding_dim: int,
+        depth: int,
+        drop_path_rate: float,
+        spatial_dim: int = 3,
+        bias: Union[bool, List[bool]] = True,
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.pos_embed = MLP([spatial_dim, 128, embedding_dim], act="gelu", norm=None, bias=bias)
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
+
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
+        self.blocks = nn.ModuleList([PointMambaBlock(embedding_dim, dropout=dpr[i]) for i in range(depth)])
+        self.norm_f = nn.LayerNorm(embedding_dim)
+
+    def reset_parameters(self) -> None:
+        nn.init.trunc_normal_(self.mask_token, std=0.02)
+
+    def forward(
+        self,
+        x_vis: Tensor,
+        pos_dense: Tensor,
+        ids_keep: Tensor,
+    ) -> Tensor:
+        B, P, *_ = pos_dense.shape
+
+        pos_emb_all = self.pos_embed(pos_dense)
+
+        x_full = self.mask_token.expand(B, P, -1).clone()
+        scatter_indices = ids_keep.unsqueeze(-1).expand(-1, -1, self.embedding_dim)
+        x_full.scatter_(dim=1, index=scatter_indices, src=x_vis)
+
+        x_full = x_full + pos_emb_all
+        for block in self.blocks:
+            x_full = block(x_full)
+
+        x_full = self.norm_f(x_full)
+        return x_full
 
 
 class PointMambaClassification(ClassificationModel):
     __doc__ = (
         rf"""Implementation of the PointMamba encoder as described in the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {OFFICIAL_REPO_URL}.
+        This implementation is adapted from the official repository :github: {REPO_URL}.
         """
         r"""
         This classification model consists of a PointMamba encoder and a MLP classification head.
@@ -673,24 +710,102 @@ class PointMambaMAE(nn.Module):
         in_channels: int,
         *,
         embedding_dim: int = 384,
-        decoder_dim: int = 384,
-        depth: int = 12,
+        encoder_depth: int = 12,
         decoder_depth: int = 4,
         num_patches: int = 64,
         group_size: int = 32,
         mask_ratio: float = 0.6,
         drop_path_rate: float = 0.1,
         spatial_dim: int = 3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: Union[bool, List[bool]] = True,
     ):
         super().__init__()
+        self.in_channels = in_channels
         self.embedding_dim = embedding_dim
-        self.decoder_dim = decoder_dim
-        self.mask_ratio = mask_ratio
+        self.encoder_depth = encoder_depth
+        self.decoder_depth = decoder_depth
+        self.num_patches = num_patches
         self.group_size = group_size
+        self.mask_ratio = mask_ratio
+        self.drop_path_rate = drop_path_rate
         self.spatial_dim = spatial_dim
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
+        self.head = self.configure_head()
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        pass
+
+    def configure_encoder(self) -> PointMambaEncoderMAE:
+        return PointMambaEncoderMAE(
+            in_channels=self.in_channels,
+            embedding_dim=self.embedding_dim,
+            depth=self.encoder_depth,
+            num_patches=self.num_patches,
+            group_size=self.group_size,
+            mask_ratio=self.mask_ratio,
+            drop_path_rate=self.drop_path_rate,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_decoder(self) -> PointMambaDecoderMAE:
+        return PointMambaDecoderMAE(
+            embedding_dim=self.embedding_dim,
+            depth=self.decoder_depth,
+            drop_path_rate=self.drop_path_rate,
+            spatial_dim=self.spatial_dim,
+            bias=self.bias,
+        )
+
+    def configure_head(self) -> nn.Module:
+        return nn.Linear(self.embedding_dim, 3 * self.group_size)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+        out = self.encoder(x, pos, batch)
+        x_vis, pos_dense, target_pos_dense, mask_idx, vis_idx = (
+            out["x_vis"],
+            out["pos_dense"],
+            out["target_pos_dense"],
+            out["mask_idx"],
+            out["vis_idx"],
+        )
+
+        x_rec_dense = self.decoder(x_vis, pos_dense, vis_idx)
+
+        gather_ids_feat = mask_idx.unsqueeze(-1).expand(-1, -1, self.embedding_dim)
+        x_rec_masked = torch.gather(x_rec_dense, 1, gather_ids_feat)
+
+        pred_masked = self.head(x_rec_masked)
+
+        pred_masked = pred_masked.view(x_rec_masked.shape[0], x_rec_masked.shape[1], self.group_size, 3)
+        gather_ids_target = mask_idx.view(x_rec_masked.shape[0], -1, 1, 1).expand(-1, -1, self.group_size, 3)
+        target_masked = torch.gather(target_pos_dense, 1, gather_ids_target)
+
+        pred = pred_masked.view(-1, self.group_size, self.spatial_dim)
+        target = target_masked.view(-1, self.group_size, self.spatial_dim)
+        return pred, target
 
 
-@register_model("point-mamba.original.modelnet40", task="classification")
+@register_model("point-mamba-base.modelnet40", task="classification")
 def point_mamba_modelnet40_clf(in_channels: int = 0, num_classes: int = 40, **kwargs: Any) -> PointMambaClassification:
     hparams: Dict[str, Any] = dict(
         in_channels=in_channels,
@@ -714,3 +829,22 @@ def point_mamba_modelnet40_clf(in_channels: int = 0, num_classes: int = 40, **kw
     )
     hparams.update(kwargs)
     return PointMambaClassification(**hparams)
+
+
+# @register_model("point-mamba-base.pretrain", task="???")
+# def point_mamba_modelnet40_seg(in_channels: int = 0, **kwargs: Any) -> PointMambaMAE:
+#     hparams: Dict[str, Any] = dict(
+#         in_channels=in_channels,
+#         embedding_dim=384,
+#         encoder_depth=12,
+#         decoder_depth=4,
+#         num_patches=64,
+#         group_size=32,
+#         mask_ratio=0.6,
+#         drop_path_rate=0.1,
+#         spatial_dim=3,
+#         act="relu",
+#         norm="batch_norm",
+#     )
+#     hparams.update(kwargs)
+#     return PointMambaMAE(**hparams)

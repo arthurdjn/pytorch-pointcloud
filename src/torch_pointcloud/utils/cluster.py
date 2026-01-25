@@ -59,7 +59,14 @@ def fps(
     if ratio is not None and num_nodes is not None:
         raise ValueError("Only one of `ratio` or `num_nodes` can be provided.")
     if ratio is not None:
-        return torch_cluster.fps(src, batch, ratio, random_start, batch_size, ptr)
+        return torch_cluster.fps(
+            src,
+            batch=batch,
+            ratio=ratio,
+            random_start=random_start,
+            batch_size=batch_size,
+            ptr=ptr,
+        )
 
     if ptr is not None:
         ptr = torch.as_tensor(ptr, dtype=torch.long, device=src.device)
@@ -90,7 +97,7 @@ def fps(
             raise ValueError(f"Size of `num_nodes` ({req_nodes.size(0)}) must match batch size ({batch_size}).")
 
     req_ratios = req_nodes.float() / node_counts.float()
-    idx = torch_cluster.fps(src, ptr=ptr, ratio=req_ratios, random_start=True)
+    idx = torch_cluster.fps(src, ratio=req_ratios, random_start=random_start, ptr=ptr)
 
     sampled_batch = torch.searchsorted(ptr, idx, right=True) - 1
     sampled_counts = sampled_batch.bincount(minlength=batch_size)
