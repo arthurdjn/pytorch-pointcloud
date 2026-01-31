@@ -111,7 +111,7 @@ def test_shapenet_dataset_process_split_forced(
 ) -> None:
     """Test that the dataset is processed correctly for different splits regardless of whether the processed data already exists"""
     mock_load.side_effect = load_shapenet_part_data
-    data_dir = data_dir_factory("ShapeNetPart/**/*")
+    data_dir = data_dir_factory("ShapeNetPart/**/*", symlinks=False)
 
     dataset = ShapeNetPart(root=data_dir, split=split, show_progress=False, force_process=True)
     assert len(dataset) > 0

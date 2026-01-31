@@ -133,7 +133,7 @@ def test_content_file(tmp_path: Path) -> Path:
         ),
     ],
 )
-def test_is_hash_valid_sha256(test_content_file: Path, hash_type: str, expected_hash: str) -> None:
+def test_is_hash_valid(test_content_file: Path, hash_type: str, expected_hash: str) -> None:
     """Test that hash validation works correctly."""
     assert is_hash_valid(test_content_file, expected_hash, hash_type)  # type: ignore[arg-type]
 
