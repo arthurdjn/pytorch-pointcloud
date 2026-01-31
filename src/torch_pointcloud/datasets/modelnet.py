@@ -435,12 +435,6 @@ class ModelNetNormalResampled(PointCloudDataset):
         data_list = [data for data in data_list if data is not None]
 
         dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
-
-        # General safety: remove the file first,
-        # this can avoid removing symlinked files and modifying the original file.
-        if dst_path.exists() and dst_path.is_symlink():
-            dst_path.unlink()
-
         dst_path.parent.mkdir(parents=True, exist_ok=True)
         with open(dst_path, "wb") as f:
             pickle.dump(data_list, f)

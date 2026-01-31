@@ -603,9 +603,9 @@ class ScanNet(PointCloudDataset):
             if self.pre_transform is not None:
                 data = self.pre_transform(data)
 
-            out_path = Path(self.processed_dir, self.split, f"{scene_id}.pt")
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(data, out_path)
+            dst_path = Path(self.processed_dir, self.split, f"{scene_id}.pt")
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(data, dst_path)
 
     def _load_processed_data(self) -> Any:
         data_list = []

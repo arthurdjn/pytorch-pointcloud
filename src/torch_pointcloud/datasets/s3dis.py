@@ -346,9 +346,9 @@ class S3DIS(PointCloudDataset):
                 room_blocks = [block for block in room_blocks if block is not None]
                 blocks.extend(room_blocks)
 
-            out_path = Path(self.processed_dir, f"{area}.pt")
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(blocks, out_path)
+            dst_path = Path(self.processed_dir, f"{area}.pt")
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(blocks, dst_path)
 
     def _process_room(
         self,

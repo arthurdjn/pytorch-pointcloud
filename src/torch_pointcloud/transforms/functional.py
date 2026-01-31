@@ -109,7 +109,7 @@ def random_sample_face_vertices(
         If `return_normals` is `True`, the function returns a tuple of the sampled vertices and their normals.
         Otherwise, it returns the sampled vertices.
     """
-    rng = torch.Generator()
+    rng = torch.Generator(device=vertices.device)
     if seed is not None:
         rng.manual_seed(seed)
 
@@ -162,8 +162,10 @@ def normalize_scale(points: Tensor, eps: float = 1e-8) -> Tensor:
     Returns:
         The normalized tensor.
     """
-    points -= points.mean(dim=-2, keepdim=True)
-    points = points / (points.abs().max() + eps)
+    centroid = points.mean(dim=-2, keepdim=True)
+    points -= centroid
+    scale = torch.norm(points, dim=-1, keepdim=True).max().clamp(min=eps)
+    points = points / scale
     return points
 
 

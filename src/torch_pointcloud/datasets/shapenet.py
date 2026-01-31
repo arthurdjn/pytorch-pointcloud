@@ -237,8 +237,9 @@ class ShapeNetPart(PointCloudDataset):
         data_list = parallel_map(func, pbar, num_workers=self.num_workers)
         data_list = [data for data in data_list if data is not None]
 
-        Path(self.processed_dir).mkdir(parents=True, exist_ok=True)
-        torch.save(data_list, Path(self.processed_dir, f"{self.split}.pt"))
+        dst_path = Path(self.processed_dir, f"{self.split}.pt")
+        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(data_list, dst_path)
 
     def _process_data(self, file_name: str, category_id_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         file_path = Path(self.raw_dir, file_name.replace("shape_data/", "")).with_suffix(".txt")
