@@ -547,3 +547,109 @@ def spconv_tensor_to_packed(spconv_tensor: SparseConvTensor) -> Tuple[Tensor, In
     pos = pos.int()
     batch = batch.long()
     return x, pos, batch
+
+
+def convert_to_tensor(data: Any, /, strict: bool = True) -> Any:
+    r"""Utility function to convert data to a tensor object. It will convert data following these rules:
+
+    - If the data is a tensor, it will be returned as is.
+    - If the data is a numpy array, it will be converted to a tensor.
+    - If the data is a scalar, it will be converted to a tensor scalar.
+    - If the data is a dictionary, each value will be converted recursively.
+    - If the data is not supported, a `TypeError` will be raised unless `strict` is False.
+
+    Args:
+        data: The data to convert.
+        strict: If True, a `TypeError` will be raised if the data type is not supported.
+            If False, the data will be returned as is.
+
+    Returns:
+        The converted data.
+
+    Examples:
+        >>> convert_to_tensor([1, 2, 3])
+        tensor([1, 2, 3])
+        >>> convert_to_tensor(np.array([1, 2, 3]))
+        tensor([1, 2, 3])
+        >>> convert_to_tensor(torch.tensor([1, 2, 3]))
+        tensor([1, 2, 3])
+        >>> convert_to_tensor({"a": [1, 2, 3], "b": 4})
+        {"a": tensor([1, 2, 3]), "b": tensor(4)}
+        >>> convert_to_tensor(None)
+        TypeError: Unsupported data type...
+        >>> convert_to_tensor(None, strict=False)
+        None
+        >>> convert_to_tensor("value", strict=False)
+        "value"
+    """
+    if isinstance(data, Tensor):
+        return data
+    elif isinstance(data, np.ndarray):
+        return torch.from_numpy(data)
+    elif isinstance(data, (int, float)):
+        return torch.tensor(data)
+    elif isinstance(data, (list, tuple)):
+        return torch.tensor(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v, strict=strict) for k, v in data.items()}
+
+    if strict:
+        raise TypeError(
+            f"Unsupported data type. Got {type(data)!r}, "
+            "expected 'list', 'tuple', 'torch.Tensor', 'numpy.ndarray' or 'dict'."
+        )
+
+    return data
+
+
+def convert_to_numpy(data: Any, /, strict: bool = True) -> Any:
+    """Convert data to a numpy array. It will convert data following these rules:
+
+    - If the data is a numpy array, it will be returned as is.
+    - If the data is a tensor, it will be converted to a numpy array.
+    - If the data is a scalar, it will be converted to a numpy scalar.
+    - If the data is a dictionary, each value will be converted recursively.
+    - If the data is not supported, a `TypeError` will be raised unless `strict` is False.
+
+    Args:
+        data: The data to convert.
+        strict: If True, a `TypeError` will be raised if the data type is not supported.
+            If False, the data will be returned as is.
+
+    Returns:
+        The converted data.
+
+    Examples:
+        >>> convert_to_numpy([1, 2, 3])
+        array([1, 2, 3])
+        >>> convert_to_numpy(np.array([1, 2, 3]))
+        array([1, 2, 3])
+        >>> convert_to_numpy(torch.tensor([1, 2, 3]))
+        array([1, 2, 3])
+        >>> convert_to_numpy({"a": [1, 2, 3], "b": 4})
+        {"a": array([1, 2, 3]), "b": np.array(4)}
+        >>> convert_to_numpy(None)
+        TypeError: Unsupported data type...
+        >>> convert_to_numpy(None, strict=False)
+        None
+        >>> convert_to_numpy("value", strict=False)
+        "value"
+    """
+    if isinstance(data, np.ndarray):
+        return data
+    elif isinstance(data, torch.Tensor):
+        return data.detach().cpu().numpy()
+    elif isinstance(data, (int, float)):
+        return np.array(data)
+    elif isinstance(data, (list, tuple)):
+        return np.asarray(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v, strict=strict) for k, v in data.items()}
+
+    if strict:
+        raise TypeError(
+            f"Unsupported data type. Got {type(data)!r}, "
+            "expected 'list', 'tuple', 'torch.Tensor', 'numpy.ndarray' or 'dict'."
+        )
+
+    return data
