@@ -18,6 +18,62 @@ from torch_pointcloud.utils.types import PathLike
 from .pointcloud import PointCloudDataset
 from .utils import download_url, extract_tar, extract_zip, is_hash_valid
 
+MODELNET10_CLASSES = (
+    "bathtub",
+    "bed",
+    "chair",
+    "desk",
+    "dresser",
+    "monitor",
+    "night_stand",
+    "sofa",
+    "table",
+    "toilet",
+)
+
+MODELNET40_CLASSES = (
+    "airplane",
+    "bathtub",
+    "bed",
+    "bench",
+    "bookshelf",
+    "bottle",
+    "bowl",
+    "car",
+    "chair",
+    "cone",
+    "cup",
+    "curtain",
+    "desk",
+    "door",
+    "dresser",
+    "flower_pot",
+    "glass_box",
+    "guitar",
+    "keyboard",
+    "lamp",
+    "laptop",
+    "mantel",
+    "monitor",
+    "night_stand",
+    "person",
+    "piano",
+    "plant",
+    "radio",
+    "range_hood",
+    "sink",
+    "sofa",
+    "stairs",
+    "stool",
+    "table",
+    "tent",
+    "toilet",
+    "tv_stand",
+    "vase",
+    "wardrobe",
+    "xbox",
+)
+
 
 class ModelNetData(TypedDict):
     coords: Tensor
@@ -216,18 +272,7 @@ class ModelNet10(_ModelNet):
     resource = "ModelNet10.zip"
     md5 = "18f4c73879802c35aa6178f8e773a99e"
 
-    original_classes = (
-        "bathtub",
-        "bed",
-        "chair",
-        "desk",
-        "dresser",
-        "monitor",
-        "night_stand",
-        "sofa",
-        "table",
-        "toilet",
-    )
+    original_classes = MODELNET10_CLASSES
 
 
 class ModelNet40(_ModelNet):
@@ -265,48 +310,7 @@ class ModelNet40(_ModelNet):
     resource = "ModelNet40.zip"
     md5 = "79bcee68fdf02f581938ba15f4cdca51"
 
-    original_classes = (
-        "airplane",
-        "bathtub",
-        "bed",
-        "bench",
-        "bookshelf",
-        "bottle",
-        "bowl",
-        "car",
-        "chair",
-        "cone",
-        "cup",
-        "curtain",
-        "desk",
-        "door",
-        "dresser",
-        "flower_pot",
-        "glass_box",
-        "guitar",
-        "keyboard",
-        "lamp",
-        "laptop",
-        "mantel",
-        "monitor",
-        "night_stand",
-        "person",
-        "piano",
-        "plant",
-        "radio",
-        "range_hood",
-        "sink",
-        "sofa",
-        "stairs",
-        "stool",
-        "table",
-        "tent",
-        "toilet",
-        "tv_stand",
-        "vase",
-        "wardrobe",
-        "xbox",
-    )
+    original_classes = MODELNET40_CLASSES
 
 
 class ModelNetNormalResampled(PointCloudDataset):
@@ -335,6 +339,8 @@ class ModelNetNormalResampled(PointCloudDataset):
         super().__init__(root)
         self.variant = variant
         self.train = train
+        classes = self.original_classes if classes == "all" else ensure_tuple(classes)
+        self.classes = tuple(sorted(classes))
         self.transform = transform
         self.pre_transform = pre_transform
         self.pre_filter = pre_filter
@@ -353,9 +359,7 @@ class ModelNetNormalResampled(PointCloudDataset):
 
     @property
     def original_classes(self) -> Tuple[str, ...]:
-        shape_name_path = Path(self.raw_dir, f"modelnet{self.variant}_shape_names.txt")
-        original_classes = shape_name_path.read_text().splitlines()
-        return tuple(sorted(original_classes))
+        return MODELNET10_CLASSES if self.variant == "10" else MODELNET40_CLASSES
 
     @property
     def split(self) -> str:
