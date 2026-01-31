@@ -15,10 +15,10 @@ class Transform(metaclass=ABCMeta):
     While any callable can be used as a transform, this class
     provides a common interface and some convenience features, such as:
 
-    - a :func:`torch_pointcloud.transforms.transforms.Transform.transform` method,
+    - a `torch_pointcloud.transforms.transforms.Transform.transform` method,
       which implements the actual transformation logic. It will be called by the
       `__call__` method to apply the transform.
-    - a :func:`torch_pointcloud.transforms.transforms.Transform.extra_repr` method,
+    - a `torch_pointcloud.transforms.transforms.Transform.extra_repr` method,
       which returns a string that describes the transform. This will be used by the
       `__repr__` method to represent the transform as a string.
 
@@ -29,13 +29,13 @@ class Transform(metaclass=ABCMeta):
         If the transform is in-place, it should be clearly stated in its documentation.
 
     See Also:
-        :func:`torch_pointcloud.transforms.dictionary.Transformd` for a version of this class
+        `torch_pointcloud.transforms.dictionary.Transformd` for a version of this class
         that operates on dictionaries.
 
     Example:
         For example, to create a transform that scales the points in a point cloud,
-        we can subclass the :class:`torch_pointcloud.transforms.Transform` class
-        and implement the :func:`torch_pointcloud.transforms.Transform.transform` method
+        we can subclass the `torch_pointcloud.transforms.Transform` class
+        and implement the `torch_pointcloud.transforms.Transform.transform` method
         as follows:
 
         ```python
@@ -136,7 +136,7 @@ class Compose(Transform):
         """Apply the transforms to the input data.
 
         This method will apply each transform in the order they were added to the
-        :class:`torch_pointcloud.transforms.Compose` object.
+        `torch_pointcloud.transforms.Compose` object.
         """
         for transform in self.transforms:
             if isinstance(data, (list, tuple)):
@@ -153,7 +153,7 @@ class RandomSample(Transform):
     """Randomly sample a fixed number of points from a tensor.
 
     See Also:
-        :func:`torch_pointcloud.transforms.functional.random_sample` for more details.
+        `torch_pointcloud.transforms.functional.random_sample` for more details.
 
     Args:
         num_samples: The number of values to sample.
@@ -187,7 +187,7 @@ class RandomSampleFaceVertices(Transform):
     """Randomly sample a fixed number of vertices from a 3D mesh (vertices, faces).
 
     See Also:
-        :func:`torch_pointcloud.transforms.functional.random_sample_face_vertices` for more details.
+        `torch_pointcloud.transforms.functional.random_sample_face_vertices` for more details.
 
     Args:
         num_samples: The number of vertices to sample.
@@ -232,7 +232,7 @@ class NormalizeScale(Transform):
     $$
 
     See Also:
-        :func:`torch_pointcloud.transforms.functional.normalize_scale`.
+        `torch_pointcloud.transforms.functional.normalize_scale`.
 
     Args:
         eps: The epsilon value to use to avoid division by zero.
