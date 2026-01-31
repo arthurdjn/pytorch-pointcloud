@@ -105,6 +105,7 @@ nav = [
         { Layers = [
             "api/layers/index.md",
             "api/layers/activations.md",
+            "api/layers/affine.md",
             "api/layers/blocks.md",
             "api/layers/dropouts.md",
             "api/layers/fps.md",
@@ -115,6 +116,8 @@ nav = [
             "api/layers/norms.md",
             "api/layers/octree_attention.md",
             "api/layers/octree_blocks.md",
+            "api/layers/pointconv.md",
+            "api/layers/pointconv_sa.md",
             "api/layers/pointnet2_blocks.md",
             "api/layers/pointnext_blocks.md",
             "api/layers/pools.md",
@@ -128,10 +131,12 @@ nav = [
             "api/models/dgcnn.md",
             "api/models/kpconv.md",
             "api/models/octformer.md",
+            "api/models/point_mamba.md",
             "api/models/point_transformer.md",
             "api/models/point_transformer_v2.md",
             "api/models/point_transformer_v3.md",
             "api/models/pointcnn.md",
+            "api/models/pointconv.md",
             "api/models/pointmlp.md",
             "api/models/pointnet.md",
             "api/models/pointnet2.md",
@@ -153,6 +158,7 @@ nav = [
         ] },
         { Utils = [
             "api/utils/index.md",
+            "api/utils/cluster.md",
             "api/utils/config.md",
             "api/utils/conversion.md",
             "api/utils/geometry.md",
@@ -160,6 +166,7 @@ nav = [
             "api/utils/imports.md",
             "api/utils/io.md",
             "api/utils/misc.md",
+            "api/utils/neighbors.md",
             "api/utils/octree.md",
             "api/utils/ops.md",
             "api/utils/random.md",
@@ -462,6 +469,7 @@ show_signature_annotations = true
 show_source = false
 show_symbol_type_heading = true
 signature_crossrefs = true
+allow_inspection = true
 
 # ----------------------------------------------------------------------------
 # Add support for github releases and versioning
