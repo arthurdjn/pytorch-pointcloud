@@ -1,6 +1,7 @@
 import hashlib
 import shutil
 import ssl
+import tarfile
 import zipfile
 from pathlib import Path
 from ssl import SSLContext
@@ -146,7 +147,7 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
         >>> extract_zip("A.zip", "A")
         "A"
     """
-    out_dir = Path(out_dir)
+    out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
@@ -159,13 +160,56 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
             if relative_to and member_path.is_relative_to(relative_to):
                 member_path = member_path.relative_to(relative_to)
 
-            out_path = Path(out_dir) / member_path
-            out_path.parent.mkdir(parents=True, exist_ok=True)
+            dst_path = Path(out_dir, member_path).resolve()
+            if not dst_path.is_relative_to(out_dir):
+                continue
 
-            with zip_ref.open(member) as source, open(out_path, "wb") as dest:
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with zip_ref.open(member) as source, open(dst_path, "wb") as dest:
                 shutil.copyfileobj(source, dest)
 
     return out_dir.as_posix()
+
+
+def extract_tar(
+    tar_path: PathLike,
+    dst_dir: PathLike,
+    /,
+    relative_to: PathLike = "",
+    show_progress: bool = True,
+) -> str:
+    """Extract a tar file to a directory.
+
+    Args:
+        tar_path: The path to the tar file to extract.
+        dst_dir: The directory to extract the tar file to.
+        relative_to: If provided, extract the tar file relative to this directory.
+        show_progress: Whether to display a progress bar.
+    """
+    dst_dir = Path(dst_dir).resolve()
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    with tarfile.open(tar_path, "r:gz") as tar_ref:
+        members = tar_ref.getmembers()
+
+        for member in tqdm(members, total=len(members), desc="Extracting", disable=not show_progress):
+            if member.isdir():
+                continue
+
+            member_path = Path(member.name)
+            if relative_to and member_path.is_relative_to(relative_to):
+                member_path = member_path.relative_to(relative_to)
+
+            dst_path = Path(dst_dir, member_path).resolve()
+            if not dst_path.is_relative_to(dst_dir):
+                continue
+
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            with tar_ref.extractfile(member) as src, open(dst_path, "wb") as dst:  # type: ignore[union-attr]
+                shutil.copyfileobj(src, dst)
+
+    return dst_dir.as_posix()
 
 
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py
