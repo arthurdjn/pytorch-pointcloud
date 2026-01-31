@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Callable
 
@@ -19,6 +20,7 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
 
     Args:
         pattern: The pattern to match the data files to be copied.
+        symlinks: Whether to create symlinks to the data files.
 
     Returns:
         The path to the test `data` directory.
@@ -45,7 +47,7 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
         ```
     """
 
-    def data_dir(pattern: str = "*") -> Path:
+    def data_dir(pattern: str = "*", symlinks: bool = True) -> Path:
         out_dir = tmp_path / "data"
         for file_path in DATA_DIR.rglob(pattern):
             if not file_path.is_file():
@@ -57,7 +59,10 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
             if out_path.exists():
                 out_path.unlink()
 
-            out_path.symlink_to(file_path.absolute())
+            if symlinks:
+                out_path.symlink_to(file_path.absolute())
+            else:
+                shutil.copy(file_path, out_path)
 
         return out_dir
 

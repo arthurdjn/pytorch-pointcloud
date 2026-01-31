@@ -203,9 +203,15 @@ class _ModelNet(PointCloudDataset):
         data_list = parallel_map(func, pbar, num_workers=self.num_workers)
         data_list = [data for data in data_list if data is not None]
 
-        out_path = Path(self.processed_dir, f"{self.split}.pt")
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(data_list, out_path)
+        dst_path = Path(self.processed_dir, f"{self.split}.pt")
+
+        # General safety: remove the file first,
+        # this can avoid removing symlinked files and modifying the original file.
+        if dst_path.exists() and dst_path.is_symlink():
+            dst_path.unlink()
+
+        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(data_list, dst_path)
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.parent.name
@@ -428,9 +434,15 @@ class ModelNetNormalResampled(PointCloudDataset):
         # Ignore None data (could have been discarded, filtered, etc. with `pre_transform` or `pre_filter`)
         data_list = [data for data in data_list if data is not None]
 
-        out_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, "wb") as f:
+        dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
+
+        # General safety: remove the file first,
+        # this can avoid removing symlinked files and modifying the original file.
+        if dst_path.exists() and dst_path.is_symlink():
+            dst_path.unlink()
+
+        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(dst_path, "wb") as f:
             pickle.dump(data_list, f)
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
