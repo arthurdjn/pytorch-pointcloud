@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from unittest.mock import Mock, sentinel
+from unittest.mock import Mock, call, sentinel
 
 from torch_pointcloud.utils.state_dict import transform_state_dict
 
@@ -83,28 +83,33 @@ def test_state_dict_unmatched_keys_preserved() -> None:
 
 def test_state_dict_value_transform_applied() -> None:
     """value_transform is applied to each value."""
-    state_dict = {"a": sentinel.value}
-    mapping = {"a": "b"}
-    value_transform = Mock(return_value=sentinel.other_value)
+    state_dict = {"a": sentinel.a, "b": sentinel.b}
+    mapping = {"a": "new_a", "b": "new_b"}
+    value_transform = Mock(side_effect=[sentinel.new_a, sentinel.new_b])
     result = transform_state_dict(state_dict, mapping, value_transform=value_transform)
 
-    assert list(result.keys()) == ["b"]
-    assert result["b"] is sentinel.other_value
+    assert list(result.keys()) == ["new_a", "new_b"]
+    assert result["new_a"] is sentinel.new_a
+    assert result["new_b"] is sentinel.new_b
+    assert value_transform.call_args_list == [call(sentinel.a), call(sentinel.b)]
 
 
 def test_state_dict_order_preserved() -> None:
     """Output order follows input state_dict order."""
     state_dict = OrderedDict(
         [
-            ("first", sentinel.value),
-            ("second", sentinel.value),
-            ("third", sentinel.value),
+            ("first", sentinel.first),
+            ("second", sentinel.second),
+            ("third", sentinel.third),
         ]
     )
     mapping = {"third": "x", "second": "y", "first": "z"}
     result = transform_state_dict(state_dict, mapping)
 
     assert list(result.keys()) == ["z", "y", "x"]
+    assert result["z"] is sentinel.first
+    assert result["y"] is sentinel.second
+    assert result["x"] is sentinel.third
 
 
 def test_state_dict_int_placeholder_explicit() -> None:
