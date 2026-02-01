@@ -19,15 +19,15 @@ class PointCloudDataset(Dataset):
 
     @property
     def data_dir(self) -> str:
-        return Path(self.root, f"{self.name}").as_posix()
+        return Path(self.root, f"{self.name}").absolute().as_posix()
 
     @property
     def raw_dir(self) -> str:
-        return Path(self.data_dir, "raw").as_posix()
+        return Path(self.data_dir, "raw").absolute().as_posix()
 
     @property
     def processed_dir(self) -> str:
-        return Path(self.data_dir, "processed").as_posix()
+        return Path(self.data_dir, "processed").absolute().as_posix()
 
     def raw_files_exist(self) -> bool:
         return Path(self.raw_dir).exists()
