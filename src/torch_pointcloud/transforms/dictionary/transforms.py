@@ -47,8 +47,8 @@ class Transformd(Transform, metaclass=ABCMeta):
         ```
     """
 
-    def __init__(self, keys: KeyCollection, allow_missing_keys: bool = False) -> None:
-        self.keys = ensure_tuple(keys)
+    def __init__(self, keys: Optional[KeyCollection] = None, allow_missing_keys: bool = False) -> None:
+        self.keys = ensure_tuple(keys, none_as_empty=True)
         self.allow_missing_keys = allow_missing_keys
 
     def key_iterator(
@@ -173,6 +173,53 @@ class RandomSampleFaceVerticesd(Transformd):
         )
 
 
+class SampleFarthestPointsd(Transformd):
+    """Dictionary transform version of :class:`torch_pointcloud.transforms.SampleFarthestPoints`.
+
+    Args:
+        pos_key: The key to store the positions in.
+        keys: The keys to sample the farthest points from.
+        num_samples: The number of points to sample.
+        ratio: The ratio of points to sample.
+        random_start: Whether to start the sampling from a random point.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        keys: Optional[KeyCollection] = None,
+        num_samples: Optional[int] = None,
+        ratio: Optional[float] = None,
+        random_start: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.pos_key = pos_key
+        self.num_samples = num_samples
+        self.ratio = ratio
+        self.random_start = random_start
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply the transform to the dictionary data.
+
+        Args:
+            data: The dictionary data to apply the transform to.
+
+        Returns:
+            The transformed dictionary data.
+        """
+        return F.sample_farthest_pointsd(
+            data,
+            pos_key=self.pos_key,
+            keys=self.keys,
+            num_samples=self.num_samples,
+            ratio=self.ratio,
+            random_start=self.random_start,
+            allow_missing_keys=self.allow_missing_keys,
+        )
+
+
 class NormalizeScaled(Transformd):
     """Dictionary transform version of :class:`torch_pointcloud.transforms.NormalizeScale`.
 
@@ -196,5 +243,48 @@ class NormalizeScaled(Transformd):
         return F.normalize_scaled(
             data,
             keys=self.keys,
+            allow_missing_keys=self.allow_missing_keys,
+        )
+
+
+class RemoveNearOrigind(Transformd):
+    """Dict-based class transform of `torch_pointcloud.transforms.dictionary.functional.remove_near_origind`.
+    This transform is designed to remove points that are within a given radius of the origin.
+
+    Args:
+        pos_key: The key containing the positions / coordinates, used to compute the distance from the origin.
+        keys: The keys to remove the near origin points from.
+        radius: The radius of the sphere.
+        return_mask: Whether to return the mask of the points removed.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        keys: Optional[KeyCollection] = None,
+        radius: float = 1e-3,
+        return_mask: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.pos_key = pos_key
+        self.radius = radius
+        self.return_mask = return_mask
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply the transform to the dictionary data.
+
+        Args:
+            data: The dictionary data to apply the transform to.
+
+        Returns:
+            The transformed dictionary data.
+        """
+        return F.remove_near_origind(
+            data,
+            pos_key=self.pos_key,
+            keys=self.keys,
+            radius=self.radius,
             allow_missing_keys=self.allow_missing_keys,
         )

@@ -1,7 +1,9 @@
-from typing import Literal, Optional, Tuple, Union, overload
+from typing import Any, Literal, Optional, Tuple, Union, overload
 
 import torch
 from torch import Tensor
+
+from torch_pointcloud.utils.cluster import fps
 
 
 @overload
@@ -143,6 +145,39 @@ def random_sample_face_vertices(
     if return_normals:
         return vertices, normals
     return vertices
+
+
+def sample_farthest_points(
+    pos: Tensor,
+    num_samples: Optional[int] = None,
+    ratio: Optional[float] = None,
+    random_start: bool = False,
+) -> Tensor:
+    """Sample the farthest points from a tensor.
+    This function is a wrapper around the `torch_pointcloud.utils.cluster.fps` function,
+    and is provided here for convenience.
+
+    See Also:
+        `torch_pointcloud.utils.cluster.fps` for more details and advanced usage.
+
+    Args:
+        pos: The input tensor.
+        num_samples: The number of points to sample.
+        ratio: The ratio of points to sample.
+        random_start: Whether to start the sampling from a random point.
+
+    Returns:
+        The indices of the sampled points.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.transforms.functional import sample_farthest_points
+        >>> pos = torch.randn(100, 3)
+        >>> idx = sample_farthest_points(pos, num_samples=10)
+        >>> print(idx.shape)
+        torch.Size([10])
+    """
+    return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
 
 def normalize_scale(points: Tensor, eps: float = 1e-8) -> Tensor:
@@ -331,3 +366,31 @@ def split_batch(batch: Tensor, max_size: int) -> Tensor:
         offset += batch_count
 
     return sub_idxs
+
+
+@overload
+def remove_near_origin(pos: Tensor, radius: float, return_mask: Literal[True]) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def remove_near_origin(pos: Tensor, radius: float, return_mask: Literal[False] = False) -> Tensor: ...
+
+
+@overload
+def remove_near_origin(pos: Tensor, radius: float, return_mask: bool) -> Union[Tensor, Tuple[Tensor, Tensor]]: ...
+
+
+def remove_near_origin(pos: Tensor, radius: float = 1e-3, return_mask: bool = False) -> Any:
+    """Remove points that are within a given radius of the origin.
+
+    Args:
+        pos: The input tensor.
+        radius: The radius of the sphere.
+
+    Returns:
+        The tensor with the points removed.
+    """
+    mask = pos.norm(dim=-1) > radius
+    if return_mask:
+        return pos[mask], mask
+    return pos[mask]

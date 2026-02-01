@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from torch_pointcloud.config import CACHE_DIR
 from torch_pointcloud.layers import (
     MLP,
     ActLike,
@@ -21,7 +22,6 @@ from torch_pointcloud.layers import (
     create_pool,
 )
 from torch_pointcloud.layers.blocks import linear_block
-from torch_pointcloud.utils.config import CACHE_DIR
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.imports import optional_import

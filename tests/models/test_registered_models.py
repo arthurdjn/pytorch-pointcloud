@@ -15,6 +15,9 @@ CLASSIFICATION_MODELS = [
     "pointcnn-base",
     "pointconv-original",
     "point-mamba-base.modelnet40",
+    "point-mamba-base.scanobjectnn",
+    "point-mamba-base.scanobjectnn-nobg",
+    "point-mamba-base.scanobjectnn-augmentedrot-scale75",
     "pointmlp-base",
     "pointmlp-elite",
     "pointnext-base",
@@ -51,8 +54,8 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
     models = list_models(task=task)  # type: ignore[arg-type]
 
     if set(models) != set(expected_models):
-        missing_models = set(models) - set(expected_models)
-        extra_models = set(expected_models) - set(models)
+        extra_models = set(models) - set(expected_models)
+        missing_models = set(expected_models) - set(models)
         err_msg = f"Expected {len(expected_models)} {task} models, got {len(models)}. "
         if missing_models:
             err_msg += f"\nMissing models: {', '.join(sorted(missing_models))}"
