@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Literal, Optional, Sequence, Tuple, Union, overload
 
 from torch import Tensor
 
@@ -224,6 +224,35 @@ class RandomSampleFaceVertices(Transform):
         )
 
 
+class SampleFarthestPoints(Transform):
+    """Sample the farthest points from a tensor.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.sample_farthest_points` for more details.
+
+    Args:
+        num_samples: The number of points to sample.
+        ratio: The ratio of points to sample.
+        random_start: Whether to start the sampling from a random point.
+
+    Returns:
+        The indices of the sampled points.
+    """
+
+    def __init__(self, num_samples: Optional[int] = None, ratio: Optional[float] = None, random_start: bool = False):
+        self.num_samples = num_samples
+        self.ratio = ratio
+        self.random_start = random_start
+
+    def transform(self, pos: Tensor) -> Tensor:
+        return F.sample_farthest_points(
+            pos,
+            num_samples=self.num_samples,
+            ratio=self.ratio,
+            random_start=self.random_start,
+        )
+
+
 class NormalizeScale(Transform):
     r"""Normalize the scale of a 3D tensor as follows:
 
@@ -251,3 +280,29 @@ class NormalizeScale(Transform):
             The transformed tensor.
         """
         return F.normalize_scale(tensor, eps=self.eps)
+
+
+class RemoveNearOrigin(Transform):
+    """Remove points that are within a given radius of the origin.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.remove_near_origin` for more details.
+
+    Args:
+        radius: The radius of the sphere.
+
+    Returns:
+        The tensor with the points removed, and optionally the mask of the points removed.
+    """
+
+    def __init__(self, radius: float = 1e-3):
+        self.radius = radius
+
+    @overload
+    def transform(self, pos: Tensor, return_mask: Literal[True]) -> Tuple[Tensor, Tensor]: ...
+
+    @overload
+    def transform(self, pos: Tensor, return_mask: Literal[False] = False) -> Tensor: ...
+
+    def transform(self, pos: Tensor, return_mask: bool = False) -> Any:
+        return F.remove_near_origin(pos, radius=self.radius, return_mask=return_mask)
