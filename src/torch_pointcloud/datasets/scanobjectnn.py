@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import torch
 from torch import Tensor
-from typing_extensions import override
+from typing_extensions import get_args, override
 
 from torch_pointcloud.utils.conversion import convert_to_numpy, convert_to_tensor, ensure_tuple
 from torch_pointcloud.utils.types import PathLike
@@ -21,6 +21,10 @@ PAPER_URL = "https://arxiv.org/abs/1908.04616"
 PAPER_AUTHORS = "Mikaela Angelina Uy, Quang-Hieu Pham, Binh-Son Hua, Duc Thanh Nguyen, Sai-Kit Yeung"
 PAPER_YEAR = "2019"
 PAPER_CITATION = f":arxiv: [{PAPER_TITLE}]({PAPER_URL}) by {PAPER_AUTHORS} (submitted on {PAPER_YEAR})"
+
+
+ScanObjectNNSplit = Literal["main", "split1", "split2", "split3", "split4"]
+ScanObjectNNVariant = Literal["augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 
 
 class ScanObjectNN(PointCloudDataset):
@@ -55,10 +59,10 @@ class ScanObjectNN(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        split: Literal["main", "split1", "split2", "split3", "split4"] = "main",
+        split: ScanObjectNNSplit = "main",
         background: bool = False,
         train: bool = False,
-        variant: Literal[None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"] = None,
+        variant: Optional[ScanObjectNNVariant] = None,
         classes: Union[str, Sequence[str]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -69,6 +73,14 @@ class ScanObjectNN(PointCloudDataset):
         show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
+        valid_splits = get_args(ScanObjectNNSplit)
+        if split not in valid_splits:
+            raise ValueError(f"Invalid split {split!r}, expected one of {', '.join(valid_splits)}.")
+
+        valid_variants = [None] + list(get_args(ScanObjectNNVariant))
+        if variant not in valid_variants:
+            raise ValueError(f"Invalid variant {variant!r}, expected one of {', '.join(valid_variants)}.")
+
         super().__init__(root)
         classes = self.original_classes if classes == "all" else ensure_tuple(classes)
         self.split = split
@@ -110,8 +122,8 @@ class ScanObjectNN(PointCloudDataset):
 
     @property
     def processed_file(self) -> str:
-        raw_dir = Path(self.raw_dir).resolve()
-        raw_file = Path(self.raw_file).resolve()
+        raw_dir = Path(self.raw_dir).absolute()
+        raw_file = Path(self.raw_file).absolute()
         processed_file = Path(self.processed_dir, raw_file.relative_to(raw_dir))
         return processed_file.with_suffix(".dat").as_posix()
 
@@ -121,9 +133,7 @@ class ScanObjectNN(PointCloudDataset):
 
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"{self.split}.pt").exists():
-            return False
-        return True
+        return Path(self.processed_file).exists()
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
