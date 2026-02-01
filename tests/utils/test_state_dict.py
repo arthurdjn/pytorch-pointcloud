@@ -1,8 +1,6 @@
 from collections import OrderedDict
 from unittest.mock import Mock, sentinel
 
-import torch
-
 from torch_pointcloud.utils.state_dict import transform_state_dict
 
 
