@@ -4,6 +4,12 @@ from typing import Any
 import torch.nn as nn
 
 
+class BaseModel(nn.Module, metaclass=ABCMeta):
+    def __init__(self, in_channels: int) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+
+
 class ClassificationModel(nn.Module, metaclass=ABCMeta):
     def __init__(self, in_channels: int, num_classes: int) -> None:
         super().__init__()

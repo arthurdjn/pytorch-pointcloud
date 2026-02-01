@@ -17,6 +17,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.utils.cluster import fps, local_grid
@@ -25,7 +26,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import ClassificationModel
+from ._base import BaseModel, ClassificationModel
 from ._registry import register_model
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ PAPER_URL = "https://arxiv.org/abs/2402.10739"
 PAPER_AUTHORS = "Dingkang Liang, Xin Zhou, Wei Xu, Xingkui Zhu, Zhikang Zou, Xiaoqing Ye, Xiao Tan, Xiang Bai"
 PAPER_CITATION = f"[{PAPER_TITLE}]({PAPER_URL}) by {PAPER_AUTHORS}"
 REPO_URL = "https://github.com/LMD0311/PointMamba"
+RADIUS = 0.03162277660168379  # sqrt(1e-3)
 
 
 def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Tensor:
@@ -193,7 +195,7 @@ class PointPatchEmbedding(nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, return_pos_rel: bool = False) -> Any:
-        idx_centroid = fps(pos, batch, num_nodes=self.num_patches)
+        idx_centroid = fps(pos, batch, num_nodes=self.num_patches, random_start=self.training)
         pos_centroid = pos[idx_centroid]
         x_centroid = x[idx_centroid] if x is not None else torch.empty(0, device=pos.device)
         batch_centroid = batch[idx_centroid]
@@ -704,7 +706,7 @@ class PointMambaClassification(ClassificationModel):
         return self.forward_head(x)
 
 
-class PointMambaMAE(nn.Module):
+class PointMambaMAE(BaseModel):
     def __init__(
         self,
         in_channels: int,
@@ -724,8 +726,7 @@ class PointMambaMAE(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
     ):
-        super().__init__()
-        self.in_channels = in_channels
+        super().__init__(in_channels=in_channels)
         self.embedding_dim = embedding_dim
         self.encoder_depth = encoder_depth
         self.decoder_depth = decoder_depth
@@ -805,11 +806,19 @@ class PointMambaMAE(nn.Module):
         return pred, target
 
 
-@register_model("point-mamba-base.modelnet40", task="classification")
-def point_mamba_modelnet40_clf(in_channels: int = 0, num_classes: int = 40, **kwargs: Any) -> PointMambaClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "point-mamba-base.modelnet40",
+    task="classification",
+    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.modelnet40.pth",
+    transforms=T.Compose(
+        [
+            T.NormalizeScaled(keys="pos"),
+            T.SampleFarthestPointsd(pos_key="pos", num_samples=1024, random_start=False),
+        ]
+    ),
+    params=dict(
+        in_channels=0,
+        num_classes=40,
         embedding_dim=384,
         depth=12,
         num_patches=64,
@@ -819,32 +828,145 @@ def point_mamba_modelnet40_clf(in_channels: int = 0, num_classes: int = 40, **kw
         spatial_dim=3,
         act="relu",
         act_kwargs=None,
-        act_first=True,
+        act_first=False,
         norm="batch_norm",
         norm_kwargs=None,
-        bias=False,
+        bias=True,
         dropout=0.5,
         global_pool="mean",
         head_channels=(256, 256),
-    )
-    hparams.update(kwargs)
-    return PointMambaClassification(**hparams)
+    ),
+)
+def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
+    return PointMambaClassification(**kwargs)
 
 
-# @register_model("point-mamba-base.pretrain", task="???")
-# def point_mamba_modelnet40_seg(in_channels: int = 0, **kwargs: Any) -> PointMambaMAE:
-#     hparams: Dict[str, Any] = dict(
-#         in_channels=in_channels,
-#         embedding_dim=384,
-#         encoder_depth=12,
-#         decoder_depth=4,
-#         num_patches=64,
-#         group_size=32,
-#         mask_ratio=0.6,
-#         drop_path_rate=0.1,
-#         spatial_dim=3,
-#         act="relu",
-#         norm="batch_norm",
-#     )
-#     hparams.update(kwargs)
-#     return PointMambaMAE(**hparams)
+@register_model(
+    "point-mamba-base.scanobjectnn",
+    task="classification",
+    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn.pth",
+    transforms=T.Compose(
+        [
+            T.RemoveNearOrigind(pos_key="pos", radius=RADIUS),
+            T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
+        ]
+    ),
+    params=dict(
+        in_channels=0,
+        num_classes=15,
+        embedding_dim=384,
+        depth=12,
+        num_patches=128,
+        group_size=32,
+        drop_path_rate=0.5,
+        use_cls_token=False,
+        spatial_dim=3,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.1,
+        global_pool="mean",
+        head_channels=(256, 256),
+    ),
+)
+def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification:
+    return PointMambaClassification(**kwargs)
+
+
+@register_model(
+    "point-mamba-base.scanobjectnn-nobg",
+    task="classification",
+    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-nobg.pth",
+    transforms=T.Compose(
+        [
+            T.RemoveNearOrigind(pos_key="pos", radius=RADIUS),
+            T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
+        ]
+    ),
+    params=dict(
+        in_channels=0,
+        num_classes=15,
+        embedding_dim=384,
+        depth=12,
+        num_patches=128,
+        group_size=32,
+        drop_path_rate=0.5,
+        use_cls_token=False,
+        spatial_dim=3,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.1,
+        global_pool="mean",
+        head_channels=(256, 256),
+    ),
+)
+def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassification:
+    return PointMambaClassification(**kwargs)
+
+
+@register_model(
+    "point-mamba-base.scanobjectnn-augmentedrot-scale75",
+    task="classification",
+    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-augmentedrot-scale75.pth",
+    transforms=T.Compose(
+        [
+            T.RemoveNearOrigind(pos_key="pos", radius=RADIUS),
+            T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
+        ]
+    ),
+    params=dict(
+        in_channels=0,
+        num_classes=15,
+        embedding_dim=384,
+        depth=12,
+        num_patches=128,
+        group_size=32,
+        drop_path_rate=0.5,
+        use_cls_token=False,
+        spatial_dim=3,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.1,
+        global_pool="mean",
+        head_channels=(256, 256),
+    ),
+)
+def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> PointMambaClassification:
+    return PointMambaClassification(**kwargs)
+
+
+@register_model(
+    "point-mamba-base.pretrain",
+    task="base",
+    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.pretrain.pth",
+    params=dict(
+        in_channels=0,
+        embedding_dim=384,
+        encoder_depth=12,
+        decoder_depth=4,
+        num_patches=64,
+        group_size=32,
+        mask_ratio=0.6,
+        drop_path_rate=0.1,
+        spatial_dim=3,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+    ),
+)
+def point_mamba_base_pretrain(**kwargs: Any) -> PointMambaMAE:
+    return PointMambaMAE(**kwargs)

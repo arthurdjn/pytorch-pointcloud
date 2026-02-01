@@ -275,6 +275,17 @@ wheels = [
 ]
 
 [[package]]
+name = "causal-conv1d"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ninja" },
+    { name = "packaging" },
+    { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/db/df/63a384c49743b9fc8fec4c05dbd0b515e1c1c2b07e4559acc4fc37c69223/causal_conv1d-1.6.0.tar.gz", hash = "sha256:4eae3220d08e1e88238f3a0a88783147cbdf47f612cc610add75127c7a37ca3e", size = 29356, upload-time = "2026-01-12T17:33:32.794Z" }
+
+[[package]]
 name = "ccimport"
 version = "0.4.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1408,6 +1419,11 @@ dependencies = [
     { name = "triton" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/54/69/a87f06d9dba78c041adb81f2228e978aab179477c64f1a210c0fe0d63e8d/mamba_ssm-2.3.0.tar.gz", hash = "sha256:8294e12125f76021e4e190f4137e84a84935920eeda5d0037a6917524456b303", size = 121116, upload-time = "2026-01-12T17:07:22.152Z" }
+
+[package.optional-dependencies]
+causal-conv1d = [
+    { name = "causal-conv1d" },
+]
 
 [[package]]
 name = "markdown"
@@ -3869,7 +3885,7 @@ flash-attn = [
     { name = "flash-attn" },
 ]
 mamba = [
-    { name = "mamba-ssm" },
+    { name = "mamba-ssm", extra = ["causal-conv1d"] },
 ]
 ocnn = [
     { name = "ocnn" },
@@ -3910,7 +3926,7 @@ requires-dist = [
     { name = "flash-attn", marker = "extra == 'flash-attn'", specifier = ">=2.4.1" },
     { name = "h5py", specifier = ">=3.15.1" },
     { name = "joblib", specifier = ">=1.4.2" },
-    { name = "mamba-ssm", marker = "extra == 'mamba'", specifier = ">=2.2.0" },
+    { name = "mamba-ssm", extras = ["causal-conv1d"], marker = "extra == 'mamba'", specifier = ">=2.2.0" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "ocnn", marker = "extra == 'ocnn'", specifier = ">=2.2.6" },
     { name = "pandas", specifier = ">=2.2.3" },

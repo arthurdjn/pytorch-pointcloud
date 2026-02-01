@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, List, Optional, Union
 import torch
 from torch import Tensor
 
+from torch_pointcloud.config import FPS_RANDOM_START
+
 from .imports import optional_import
 
 if TYPE_CHECKING:
@@ -54,6 +56,8 @@ def fps(
         >>> print(idx.shape)
         torch.Size([10])
     """
+    random_start = random_start if FPS_RANDOM_START is None else FPS_RANDOM_START
+
     if ratio is None and num_nodes is None:
         raise ValueError("Either `ratio` or `num_nodes` must be provided.")
     if ratio is not None and num_nodes is not None:
