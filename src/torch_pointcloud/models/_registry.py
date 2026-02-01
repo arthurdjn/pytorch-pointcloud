@@ -109,53 +109,74 @@ def register_model(
 
 @overload
 def create_model(
-    name: str, task: Literal["base"], pretrained: bool, return_info: Literal[True], **kwargs: Any
+    name: str, task: Literal["base"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
 ) -> tuple[BaseModel, Dict[str, Any]]: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["base"], pretrained: bool, return_info: Literal[False] = False, **kwargs: Any
+    name: str, task: Literal["base"], *, pretrained: bool = False, return_info: Literal[False] = False, **kwargs: Any
 ) -> BaseModel: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["classification"], pretrained: bool, return_info: Literal[True], **kwargs: Any
+    name: str, task: Literal["classification"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
 ) -> tuple[ClassificationModel, Dict[str, Any]]: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["classification"], pretrained: bool, return_info: Literal[False] = False, **kwargs: Any
+    name: str,
+    task: Literal["classification"],
+    *,
+    pretrained: bool = False,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
 ) -> ClassificationModel: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["segmentation"], pretrained: bool, return_info: Literal[True], **kwargs: Any
+    name: str, task: Literal["segmentation"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
 ) -> tuple[SegmentationModel, Dict[str, Any]]: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["segmentation"], pretrained: bool, return_info: Literal[False] = False, **kwargs: Any
+    name: str,
+    task: Literal["segmentation"],
+    *,
+    pretrained: bool = False,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
 ) -> SegmentationModel: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["detection"], pretrained: bool, return_info: Literal[True], **kwargs: Any
+    name: str, task: Literal["detection"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
 ) -> tuple[DetectionModel, Dict[str, Any]]: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["detection"], pretrained: bool, return_info: Literal[False] = False, **kwargs: Any
+    name: str,
+    task: Literal["detection"],
+    *,
+    pretrained: bool = False,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
 ) -> DetectionModel: ...
 
 
-def create_model(name: str, task: Task, pretrained: bool = False, return_info: bool = False, **kwargs: Any) -> Any:
+@overload
+def create_model(
+    name: str, task: Task, *, pretrained: bool = False, return_info: bool = False, **kwargs: Any
+) -> Any: ...
+
+
+def create_model(name: str, task: Task, *, pretrained: bool = False, return_info: bool = False, **kwargs: Any) -> Any:
     if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
