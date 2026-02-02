@@ -19,9 +19,9 @@ from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 if TYPE_CHECKING:
-    import dwconv  # pyright: ignore[reportMissingImports]
-    import ocnn  # pyright: ignore[reportMissingImports]
-    from ocnn.octree import Octree  # pyright: ignore[reportMissingImports]
+    import dwconv
+    import ocnn
+    from ocnn.octree import Octree
 
 dwconv, _DWCONV_AVAILABLE = optional_import("dwconv")
 ocnn, _ = optional_import("ocnn")
@@ -144,6 +144,7 @@ class OctFormerEncoderLayer(nn.Module):
         nempty: bool = False,
         use_checkpoint: bool = True,
         use_rpe: bool = True,
+        use_dwconv: bool = False,
         num_blocks: int = 2,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -172,6 +173,7 @@ class OctFormerEncoderLayer(nn.Module):
                 drop_path=(drop_path[i] if isinstance(drop_path, list) else drop_path),
                 nempty=nempty,
                 use_rpe=use_rpe,
+                use_dwconv=use_dwconv,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -185,6 +187,7 @@ class OctFormerEncoderLayer(nn.Module):
         if self.downsample is not None:
             x = self.downsample(x, octree, depth + 1)
 
+        block: Union[nn.Module, Callable[[Tensor, OctreeT, int], Tensor]]  # For type hinting with partial
         for block in self.blocks:
             if self.use_checkpoint and self.training:
                 block = partial(torch.utils.checkpoint.checkpoint, block, use_reentrant=False)
@@ -211,6 +214,7 @@ class OctFormerEncoder(nn.Module):
         nempty: bool = False,
         use_checkpoint: bool = True,
         use_rpe: bool = True,
+        use_dwconv: bool = False,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -250,6 +254,7 @@ class OctFormerEncoder(nn.Module):
                 proj_drop=proj_drop,
                 drop_path=drop_paths[sum(num_blocks[:i]) : sum(num_blocks[: i + 1])],
                 use_rpe=use_rpe,
+                use_dwconv=use_dwconv,
                 nempty=nempty,
                 num_blocks=num_blocks[i],
                 act=act,
@@ -444,6 +449,7 @@ class OctFormerClassification(ClassificationModel):
         nempty: bool = True,
         use_checkpoint: bool = True,
         use_rpe: bool = True,
+        use_dwconv: bool = False,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -452,11 +458,6 @@ class OctFormerClassification(ClassificationModel):
         bias: bool = True,
         dropout: float = 0.0,
         global_pool: PoolLike = "mean",
-        # Extra parameters, used to reproduce exactly the original OctFormer architecture.
-        stem_act: Optional[Union[str, Callable, None]] = None,
-        stem_act_kwargs: Optional[Dict[str, Any]] = None,
-        head_act: Optional[Union[str, Callable, None]] = None,
-        head_act_kwargs: Optional[Dict[str, Any]] = None,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -477,17 +478,13 @@ class OctFormerClassification(ClassificationModel):
         self.nempty = nempty
         self.use_checkpoint = use_checkpoint
         self.use_rpe = use_rpe
+        self.use_dwconv = use_dwconv
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
-
-        self.stem_act = stem_act
-        self.stem_act_kwargs = stem_act_kwargs
-        self.head_act = head_act
-        self.head_act_kwargs = head_act_kwargs
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -501,8 +498,8 @@ class OctFormerClassification(ClassificationModel):
         return OctreePatchEmbed(
             [self.in_channels, *self.stem_channels],
             nempty=self.nempty,
-            act=self.stem_act or self.act,
-            act_kwargs=self.stem_act_kwargs or self.act_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -525,6 +522,7 @@ class OctFormerClassification(ClassificationModel):
             nempty=self.nempty,
             use_checkpoint=self.use_checkpoint,
             use_rpe=self.use_rpe,
+            use_dwconv=self.use_dwconv,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -539,8 +537,8 @@ class OctFormerClassification(ClassificationModel):
         biases = [False] * max(0, len(channels) - 2) + [True]
         return MLP(
             channels,
-            act=self.head_act or self.act,
-            act_kwargs=self.head_act_kwargs or self.act_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -563,6 +561,7 @@ class OctFormerClassification(ClassificationModel):
         self,
         x: OptTensor,
         octree: "Octree",
+        depth: int,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, List[Tensor]]: ...
 
@@ -571,6 +570,7 @@ class OctFormerClassification(ClassificationModel):
         self,
         x: OptTensor,
         octree: "Octree",
+        depth: int,
         return_intermediates: Literal[False] = False,
     ) -> Tensor: ...
 
@@ -578,6 +578,7 @@ class OctFormerClassification(ClassificationModel):
         self,
         x: OptTensor,
         octree: "Octree",
+        depth: int,
         return_intermediates: bool = False,
     ) -> Any:
         x = x if x is not None else octree.features[octree.depth]
@@ -593,33 +594,36 @@ class OctFormerClassification(ClassificationModel):
 
         # While the octree may have more depths, here we only precompute context
         # required at the different depths of the encoder.
-        stem_depth = len(self.stem_channels) - 1
-        encoder_depth = len(self.encoder_channels) - 1
-        max_depth = octree_t.depth - stem_depth
-        min_depth = max_depth - encoder_depth
+        max_depth = self.get_stem_depth(depth)
+        min_depth = self.get_encoding_depth(depth)
         octree_t.construct_all_attention_context(
             nempty=self.nempty,
-            min_depth=min_depth,
             max_depth=max_depth,
+            min_depth=min_depth,
         )
 
         return self.encoder(x, octree_t, max_depth, return_intermediates=return_intermediates)
 
-    def forward_head(self, x: Tensor, octree: "Octree", pre_logits: bool = False) -> Tensor:
-        stem_depth = len(self.stem_channels) - 1
-        encoder_depth = len(self.encoder_channels) - 1
-        max_depth = octree.depth - stem_depth
-        min_depth = max_depth - encoder_depth
-
-        batch = octree.batch_id(min_depth, self.nempty)
+    def forward_head(self, x: Tensor, octree: "Octree", depth: int, pre_logits: bool = False) -> Tensor:
+        batch = octree.batch_id(depth, self.nempty)
         x = self.global_pool(x, batch)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, octree: "Octree") -> Tensor:
-        x = self.forward_features(x, octree, return_intermediates=False)
-        return self.forward_head(x, octree)
+    def forward(self, x: OptTensor, octree: "Octree", depth: int) -> Tensor:
+        x = self.forward_features(x, octree, depth, return_intermediates=False)
+        min_depth = self.get_encoding_depth(depth)
+        return self.forward_head(x, octree, min_depth)
+
+    def get_stem_depth(self, depth: int) -> int:
+        stem_depth = len(self.stem_channels) - 1
+        return depth - stem_depth
+
+    def get_encoding_depth(self, depth: int) -> int:
+        max_depth = self.get_stem_depth(depth)
+        encoder_depth = len(self.encoder_channels) - 1
+        return max_depth - encoder_depth
 
 
 class OctFormerSegmentation(SegmentationModel):
@@ -645,6 +649,7 @@ class OctFormerSegmentation(SegmentationModel):
         nempty: bool = True,
         use_checkpoint: bool = True,
         use_rpe: bool = True,
+        use_dwconv: bool = False,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -652,13 +657,6 @@ class OctFormerSegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         dropout: float = 0.5,
-        # Extra parameters, used to reproduce exactly the original OctFormer architecture.
-        stem_act: Optional[Union[str, Callable, None]] = None,
-        stem_act_kwargs: Optional[Dict[str, Any]] = None,
-        decoder_act: Optional[Union[str, Callable, None]] = None,
-        decoder_act_kwargs: Optional[Dict[str, Any]] = None,
-        head_act: Optional[Union[str, Callable, None]] = None,
-        head_act_kwargs: Optional[Dict[str, Any]] = None,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -680,19 +678,13 @@ class OctFormerSegmentation(SegmentationModel):
         self.nempty = nempty
         self.use_checkpoint = use_checkpoint
         self.use_rpe = use_rpe
+        self.use_dwconv = use_dwconv
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
-
-        self.stem_act = stem_act
-        self.stem_act_kwargs = stem_act_kwargs
-        self.decoder_act = decoder_act
-        self.decoder_act_kwargs = decoder_act_kwargs
-        self.head_act = head_act
-        self.head_act_kwargs = head_act_kwargs
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -705,8 +697,8 @@ class OctFormerSegmentation(SegmentationModel):
         return OctreePatchEmbed(
             [self.in_channels, *self.stem_channels],
             nempty=self.nempty,
-            act=self.stem_act or self.act,
-            act_kwargs=self.stem_act_kwargs or self.act_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -729,6 +721,7 @@ class OctFormerSegmentation(SegmentationModel):
             nempty=self.nempty,
             use_checkpoint=self.use_checkpoint,
             use_rpe=self.use_rpe,
+            use_dwconv=self.use_dwconv,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -745,8 +738,8 @@ class OctFormerSegmentation(SegmentationModel):
             fpn_channels=self.fpn_channels,
             num_ups=num_ups,
             nempty=self.nempty,
-            act=self.decoder_act or self.act,
-            act_kwargs=self.decoder_act_kwargs or self.act_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -757,8 +750,8 @@ class OctFormerSegmentation(SegmentationModel):
         channels = [self.embedding_dim, *self.head_channels, self.num_classes]
         return MLP(
             channels,
-            act=self.head_act or self.act,
-            act_kwargs=self.head_act_kwargs or self.act_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
@@ -843,27 +836,30 @@ class OctFormerSegmentation(SegmentationModel):
         return self.forward_head(x, octree, pos, batch)
 
 
-@register_model(name="octformer-base", task="classification")
-def octformer_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFormerClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    name="octformer-base.modelnet40",
+    task="classification",
+    weights="hf://torch-pointcloud/octformer/octformer-base.modelnet40.pth",
+    params=dict(
+        in_channels=4,
+        num_classes=40,
         stem_channels=(24, 48, 96),
-        encoder_channels=(96, 192, 384, 384),
-        head_channels=256,
-        num_blocks=(2, 2, 18, 2),
-        num_heads=(6, 12, 24, 24),
-        patch_size=26,
-        dilation=4,
+        encoder_channels=(96, 192),
+        head_channels=(256,),
+        num_blocks=(6, 6),
+        num_heads=(6, 12),
+        patch_size=32,
+        dilation=2,
         mlp_ratio=4.0,
         qkv_bias=True,
         qk_scale=None,
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.5,
-        nempty=True,
+        nempty=False,
         use_checkpoint=True,
         use_rpe=True,
+        use_dwconv=True,
         act="gelu",
         act_kwargs=None,
         act_first=False,
@@ -872,72 +868,32 @@ def octformer_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         bias=True,
         dropout=0.5,
         global_pool="mean",
-    )
-    hparams.update(kwargs)
+    ),
+)
+def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
+    model = OctFormerClassification(**hparams)
 
-    # Override specific parameters to match the original OctFormer implementation,
-    # only if no global activation is provided when creating the model.
-    if "act" not in kwargs:
-        kwargs.update(
-            stem_act="relu",
-            stem_act_kwargs=None,
-            head_act="relu",
-            head_act_kwargs=None,
-        )
+    # The original OctFormer uses a hard-coded ReLU activation in the stem and head,
+    # so for exact reproducibility we will override these activations manually.
+    for name, _ in model.stem.named_modules():
+        if not name.endswith(".act"):
+            continue
 
-    return OctFormerClassification(**hparams)
+        model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
 
+    # ...same for the head (which is a MLP/Linear layer)
+    if hasattr(model.head, "act"):
+        model.head.act = nn.ReLU(inplace=True)
 
-@register_model(name="octformer-sm", task="classification")
-def octformer_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> OctFormerClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
-        stem_channels=(24, 48, 96),
-        encoder_channels=(96, 192, 384, 384),
-        head_channels=256,
-        num_blocks=(2, 2, 6, 2),
-        num_heads=(6, 12, 24, 24),
-        patch_size=26,
-        dilation=4,
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.5,
-        nempty=True,
-        use_checkpoint=True,
-        use_rpe=True,
-        act="gelu",
-        act_kwargs=None,
-        act_first=False,
-        norm="batch_norm",
-        norm_kwargs=None,
-        bias=True,
-        dropout=0.5,
-        global_pool="mean",
-    )
-    hparams.update(kwargs)
-
-    # Override specific parameters to match the original OctFormer implementation,
-    # only if no global activation is provided when creating the model.
-    if "act" not in kwargs:
-        kwargs.update(
-            stem_act="relu",
-            stem_act_kwargs=None,
-            head_act="relu",
-            head_act_kwargs=None,
-        )
-
-    return OctFormerClassification(**hparams)
+    return model
 
 
-@register_model(name="octformer-base", task="segmentation")
-def octformer_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> OctFormerSegmentation:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    name="octformer-base",
+    task="segmentation",
+    params=dict(
+        in_channels=3,
+        num_classes=40,
         stem_channels=(24, 48, 96),
         channels=(96, 192, 384, 384),
         num_blocks=(2, 2, 18, 2),
@@ -962,19 +918,7 @@ def octformer_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Oct
         norm_kwargs=None,
         bias=True,
         dropout=0.5,
-    )
-    hparams.update(kwargs)
-
-    # Override specific parameters to match the original OctFormer implementation,
-    # only if no global activation is provided when creating the model.
-    if "act" not in kwargs:
-        hparams.update(
-            stem_act="relu",
-            stem_act_kwargs=None,
-            decoder_act="relu",
-            decoder_act_kwargs=None,
-            head_act="relu",
-            head_act_kwargs=None,
-        )
-
+    ),
+)
+def octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     return OctFormerSegmentation(**hparams)

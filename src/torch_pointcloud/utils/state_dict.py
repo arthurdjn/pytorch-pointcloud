@@ -1,6 +1,6 @@
 import re
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Set
 
 from torch import Tensor
 
@@ -9,6 +9,7 @@ def transform_state_dict(
     state_dict: Dict[str, Any],
     mapping: Dict[str, str],
     value_transform: Optional[Callable[[Tensor], Tensor]] = None,
+    strict: bool = False,
 ) -> Dict[str, Any]:
     """Transform a pytorch module state dict by remapping keys and optionally transforming associated tensors.
     This function is designed to map the state dict of a pytorch module to a different state dict,
@@ -62,9 +63,18 @@ def transform_state_dict(
         pattern = re.sub(r"\{(\w+)\}", r"(?P<\1>[^.]+)", pattern)
         rules.append((re.compile(f"^{pattern}$"), dst))
 
+    # we keep track of the rules that were used to transform a given key,
+    # which is mostly used to help debugging -- we likely would like to be informed
+    # if some keys were provided but were not used,
+    # meaning the mapping is too verbose and could be simplified.
+    used_rule_idxs: Set[int] = set()
+
     def key_transform(key: str) -> str:
-        for pattern, template in rules:
+        for i, (pattern, template) in enumerate(rules):
             if match := pattern.match(key):
+                # track which rule (i.e. mapping pattern) was used
+                used_rule_idxs.add(i)
+
                 # cast to int if possible to allow for arithmetic operations
                 # e.g. "param.{i}.weights" -> "param.{i+1}.weights"
                 ctx = {k: (int(v) if v.isdigit() else v) for k, v in match.groupdict().items()}
@@ -72,4 +82,17 @@ def transform_state_dict(
                 return re.sub(r"\{([^}]+)\}", lambda m: str(eval(m.group(1), {}, ctx)), template)
         return key
 
-    return OrderedDict((key_transform(k), value_transform(v)) for k, v in state_dict.items())
+    transformed_state_dict = [(key_transform(k), value_transform(v)) for k, v in state_dict.items()]
+    mapping_keys = list(mapping.keys())
+    unused_keys = [mapping_keys[i] for i in range(len(rules)) if i not in used_rule_idxs]
+
+    if strict and unused_keys:
+        # TODO: Maybe provide a better exception, just like how pytorch does when loading a state dict with unexpected keys.
+        # TODO: This way it will be possible to programmatically catch the keys that were not used.
+        raise ValueError(
+            f"Unused keys found in mapping: {', '.join([f'{k!r}' for k in unused_keys])}.\n"
+            "These patterns did not match any keys in the provided state_dict. "
+            "You can disable this behavior by setting `strict=False`."
+        )
+
+    return OrderedDict(transformed_state_dict)
