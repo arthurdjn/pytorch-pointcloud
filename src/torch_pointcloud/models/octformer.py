@@ -594,8 +594,8 @@ class OctFormerClassification(ClassificationModel):
 
         # While the octree may have more depths, here we only precompute context
         # required at the different depths of the encoder.
-        max_depth = self.get_stem_depth(depth)
-        min_depth = self.get_encoding_depth(depth)
+        max_depth = self.get_encoding_depth(depth)
+        min_depth = self.get_head_depth(depth)
         octree_t.construct_all_attention_context(
             nempty=self.nempty,
             max_depth=max_depth,
@@ -613,15 +613,15 @@ class OctFormerClassification(ClassificationModel):
 
     def forward(self, x: OptTensor, octree: "Octree", depth: int) -> Tensor:
         x = self.forward_features(x, octree, depth, return_intermediates=False)
-        min_depth = self.get_encoding_depth(depth)
+        min_depth = self.get_head_depth(depth)
         return self.forward_head(x, octree, min_depth)
 
-    def get_stem_depth(self, depth: int) -> int:
+    def get_encoding_depth(self, depth: int) -> int:
         stem_depth = len(self.stem_channels) - 1
         return depth - stem_depth
 
-    def get_encoding_depth(self, depth: int) -> int:
-        max_depth = self.get_stem_depth(depth)
+    def get_head_depth(self, depth: int) -> int:
+        max_depth = self.get_encoding_depth(depth)
         encoder_depth = len(self.encoder_channels) - 1
         return max_depth - encoder_depth
 
