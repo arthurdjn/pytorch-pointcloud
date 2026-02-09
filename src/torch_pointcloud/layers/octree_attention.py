@@ -203,9 +203,7 @@ class RPE(nn.Module):
         self.dilation = dilation
         self.pos_bnd = int(0.8 * patch_size * dilation**0.5)
         self.rpe_num = 2 * self.pos_bnd + 1
-
-        self.rpe_table: Tensor
-        self.register_parameter("rpe_table", nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads)))
+        self.rpe_table = nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads))
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.rpe_table, std=0.02)
