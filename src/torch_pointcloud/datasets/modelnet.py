@@ -2,7 +2,7 @@ import pickle
 import shutil
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -75,13 +75,7 @@ MODELNET40_CLASSES = (
 )
 
 
-class ModelNetData(TypedDict):
-    coords: Tensor
-    faces: Tensor
-    target: Tensor
-
-
-def load_modelnet_data(file_path: PathLike, target: int) -> ModelNetData:
+def load_modelnet_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
     coords, faces = load_off(file_path)
     return {
         "coords": coords,
@@ -204,12 +198,6 @@ class _ModelNet(PointCloudDataset):
         data_list = [data for data in data_list if data is not None]
 
         dst_path = Path(self.processed_dir, f"{self.split}.pt")
-
-        # General safety: remove the file first,
-        # this can avoid removing symlinked files and modifying the original file.
-        if dst_path.exists() and dst_path.is_symlink():
-            dst_path.unlink()
-
         dst_path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(data_list, dst_path)
 
@@ -219,7 +207,7 @@ class _ModelNet(PointCloudDataset):
         if target is None:
             return None
 
-        data: Dict[str, Any] = load_modelnet_data(file_path, target)  # type: ignore[assignment]
+        data = load_modelnet_data(file_path, target)
 
         if self.pre_filter is not None and not self.pre_filter(data):
             return None
@@ -460,13 +448,11 @@ class ModelNetNormalResampled(PointCloudDataset):
     def _load_processed_data(self) -> List[Dict[str, Any]]:
         file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
         with open(file_path, "rb") as f:
-            return pickle.load(f)
+            data_list = pickle.load(f)
+            return [convert_to_tensor(data, strict=False) for data in data_list]
 
     def __getitem__(self, index: int) -> Any:
         data = self.data[index]
-
-        # Convert back the processed data to tensor-compatible format
-        data = convert_to_tensor(data, strict=False)
 
         if self.transform is not None:
             data = self.transform(data)
