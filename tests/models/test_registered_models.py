@@ -4,7 +4,12 @@ import pytest
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
-from torch_pointcloud.utils.imports import _MAMBA_SSM_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import (
+    _DWCONV_AVAILABLE,
+    _MAMBA_SSM_AVAILABLE,
+    _TORCH_CLUSTER_AVAILABLE,
+    _TORCH_SCATTER_AVAILABLE,
+)
 
 CLASSIFICATION_MODELS = [
     "dgcnn-base",
@@ -30,16 +35,15 @@ CLASSIFICATION_MODELS = [
 ]
 SEGMENTATION_MODELS = [
     "dgcnn-base",
-    "octformer-base",
+    "octformer-base.lg",
+    "octformer-base.sm",
+    "octformer-base.scannet",
+    "octformer-base.scannet200",
     "pointcnn-base",
     "pointmlp-base",
     "pointnext-base",
-    "pointnext-base",
-    "pointnext-lg",
     "pointnext-lg",
     "pointnext-sm",
-    "pointnext-sm",
-    "pointnext-xl",
     "pointnext-xl",
 ]
 
@@ -53,8 +57,8 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
     models = list_models(task=task)  # type: ignore[arg-type]
 
     if set(models) != set(expected_models):
-        extra_models = set(models) - set(expected_models)
-        missing_models = set(expected_models) - set(models)
+        missing_models = set(models) - set(expected_models)
+        extra_models = set(expected_models) - set(models)
         err_msg = f"Expected {len(expected_models)} {task} models, got {len(models)}. "
         if missing_models:
             err_msg += f"\nMissing models: {', '.join(sorted(missing_models))}"
@@ -73,6 +77,8 @@ def test_classification_model_forward(model_name: str) -> None:
     """Test that all registered models can be created and work."""
     if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
+    if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
+        pytest.skip("dwconv is not installed")
 
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
     assert isinstance(model, ClassificationModel)
@@ -87,6 +93,8 @@ def test_segmentation_model_forward(model_name: str) -> None:
     """Test that all registered models can be created and work."""
     if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
+    if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
+        pytest.skip("dwconv is not installed")
 
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     assert isinstance(model, SegmentationModel)
