@@ -4,6 +4,23 @@ from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.types import KeyCollection
 
 
+def assert_keys_in_data(
+    data: Dict[str, Any],
+    *keys: str,
+    extra_msg: str = "",
+) -> None:
+    missing_keys = []
+    for key in keys:
+        if key not in data:
+            missing_keys.append(key)
+
+    if missing_keys:
+        raise KeyError(
+            f"Found {len(missing_keys)} missing keys in input data: {', '.join([f'{k!r}' for k in missing_keys])} "
+            f"(available keys are: {', '.join(data.keys())}) {extra_msg}"
+        )
+
+
 def key_iterator(
     data: Dict[str, Any],
     keys: KeyCollection,
