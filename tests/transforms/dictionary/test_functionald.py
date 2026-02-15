@@ -16,7 +16,7 @@ def test_random_sampled(mock_fn: Mock) -> None:
     }
     num_samples = sentinel.num_samples
     allow_missing_keys = sentinel.allow_missing_keys
-    seed = sentinel.seed
+    generator = sentinel.generator
     sampled_tensor = sentinel.sampled_tensor
     sampled_indices = sentinel.indices
     mock_fn.return_value = (sampled_tensor, sampled_indices)
@@ -27,14 +27,14 @@ def test_random_sampled(mock_fn: Mock) -> None:
         data,
         keys,
         num_samples=num_samples,
-        seed=seed,
+        generator=generator,
         allow_missing_keys=allow_missing_keys,
     )
 
     mock_fn.assert_called_once_with(
         data["points"],
         num_samples,
-        seed=seed,
+        generator=generator,
         return_indices=True,
     )
 
@@ -51,7 +51,7 @@ def test_random_sampled_does_not_mutate_original() -> None:
     data = {"pos": pos, "labels": labels, "other": "keep"}
     original_data = dict(data)
 
-    F.random_sampled(data, keys=["pos", "labels"], num_samples=3, seed=0)
+    F.random_sampled(data, keys=["pos", "labels"], num_samples=3)
 
     assert data["pos"] is original_data["pos"]
     assert data["labels"] is original_data["labels"]
@@ -68,9 +68,8 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
         "other": MagicMock(),
     }
     num_samples = sentinel.num_samples
-    include_normals = sentinel.include_normals
     allow_missing_keys = sentinel.allow_missing_keys
-    seed = sentinel.seed
+    generator = sentinel.generator
     sampled_vertices = sentinel.sampled_vertices
     sampled_normals = sentinel.sampled_normals
     mock_fn.return_value = (sampled_vertices, sampled_normals)
@@ -78,11 +77,10 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     result = F.random_sample_face_verticesd(
         data,
         keys=["vertices"],
-        face_keys=["faces"],
+        face_key="faces",
         num_samples=num_samples,
-        include_normals=include_normals,
-        normals_key="normals",
-        seed=seed,
+        normal_key="normals",
+        generator=generator,
         allow_missing_keys=allow_missing_keys,
     )
 
@@ -90,8 +88,8 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
         data["vertices"],
         data["faces"],
         num_samples,
-        return_normals=include_normals,
-        seed=seed,
+        return_normals=True,
+        generator=generator,
     )
 
     assert result["vertices"] is sampled_vertices
@@ -110,10 +108,9 @@ def test_random_sample_face_verticesd_does_not_mutate_original() -> None:
     F.random_sample_face_verticesd(
         data,
         keys=["vertices"],
-        face_keys=["faces"],
+        face_key="faces",
         num_samples=5,
-        include_normals=False,
-        seed=0,
+        normal_key=None,
     )
 
     assert data["vertices"] is original_data["vertices"]
@@ -133,7 +130,7 @@ def test_normalize_scaled(mock_fn: Mock) -> None:
     normalized_tensor = sentinel.normalized_tensor
     mock_fn.return_value = normalized_tensor
 
-    result = F.normalize_scaled(data, keys, allow_missing_keys=allow_missing_keys)
+    result = F.normalize_scaled(data, keys=keys, allow_missing_keys=allow_missing_keys)
 
     mock_fn.assert_called_once_with(data["points"])
 

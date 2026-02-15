@@ -20,8 +20,8 @@ def test_random_sample_transform(mock_fn: Mock) -> None:
     tensor = sentinel.tensor
     num_samples = sentinel.num_samples
     return_indices = sentinel.return_indices
-    seed = sentinel.seed
-    transform = RandomSample(num_samples=num_samples, return_indices=return_indices, seed=seed)
+    generator = sentinel.generator
+    transform = RandomSample(num_samples=num_samples, return_indices=return_indices, generator=generator)
 
     result = transform(tensor)
 
@@ -29,7 +29,7 @@ def test_random_sample_transform(mock_fn: Mock) -> None:
         tensor,
         num_samples=num_samples,
         return_indices=return_indices,
-        seed=seed,
+        generator=generator,
     )
 
     assert result is mock_fn.return_value
@@ -42,12 +42,18 @@ def test_random_sample_face_vertices_transform(mock_fn: Mock) -> None:
     faces = sentinel.faces
     num_samples = sentinel.num_samples
     return_normals = sentinel.return_normals
-    seed = sentinel.seed
+    generator = sentinel.generator
 
-    transform = RandomSampleFaceVertices(num_samples=num_samples, return_normals=return_normals, seed=seed)
+    transform = RandomSampleFaceVertices(num_samples=num_samples, return_normals=return_normals, generator=generator)
     result = transform(vertices, faces)
 
-    mock_fn.assert_called_once_with(vertices, faces, num_samples=num_samples, return_normals=return_normals, seed=seed)
+    mock_fn.assert_called_once_with(
+        vertices,
+        faces,
+        num_samples=num_samples,
+        return_normals=return_normals,
+        generator=generator,
+    )
 
     assert result is mock_fn.return_value
 

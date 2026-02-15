@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Optional
 
+import torch
+
 from torch_pointcloud.transforms.transforms import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import KeyCollection
@@ -49,11 +51,15 @@ class RandomSampled(Transformd):
     """
 
     def __init__(
-        self, keys: KeyCollection, num_samples: int, seed: Optional[int] = None, allow_missing_keys: bool = False
+        self,
+        keys: KeyCollection,
+        num_samples: int,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.num_samples = num_samples
-        self.seed = seed
+        self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Apply the transform to the dictionary data.
@@ -68,7 +74,7 @@ class RandomSampled(Transformd):
             data,
             keys=self.keys,
             num_samples=self.num_samples,
-            seed=self.seed,
+            generator=self.generator,
             allow_missing_keys=self.allow_missing_keys,
         )
 
@@ -78,30 +84,29 @@ class RandomSampleFaceVerticesd(Transformd):
 
     Args:
         keys: The keys to sample from.
-        face_keys: The keys to sample the faces from.
+        face_key: The keys to sample the faces from.
         num_samples: The number of vertices to sample.
         include_normals: If ``True``, the normals will be included in the output.
-        normals_key: The key to store the normals in.
-        seed: The seed for the random number generator.
+        normal_key: The key to store the normals in.
+        generator: The generator for the random number generator.
         allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
     """
 
     def __init__(
         self,
+        *,
         keys: KeyCollection,
-        face_keys: KeyCollection,
+        face_key: KeyCollection,
+        normal_key: Optional[KeyCollection] = "normal",
         num_samples: int,
-        include_normals: bool = True,
-        normals_key: str = "normals",
-        seed: Optional[int] = None,
+        generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.face_keys = ensure_tuple_size(face_keys, len(self.keys))
+        self.face_key = ensure_tuple_size(face_key, len(self.keys))
         self.num_samples = num_samples
-        self.include_normals = include_normals
-        self.normals_key = normals_key
-        self.seed = seed
+        self.normal_key = normal_key
+        self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Apply the transform to the dictionary data.
@@ -115,11 +120,10 @@ class RandomSampleFaceVerticesd(Transformd):
         return F.random_sample_face_verticesd(
             data,
             keys=self.keys,
-            face_keys=self.face_keys,
+            face_key=self.face_key,
+            normal_key=self.normal_key,
             num_samples=self.num_samples,
-            include_normals=self.include_normals,
-            normals_key=self.normals_key,
-            seed=self.seed,
+            generator=self.generator,
             allow_missing_keys=self.allow_missing_keys,
         )
 

@@ -61,14 +61,10 @@ def test_random_sample_with_seed(mock_randint: Mock, mock_generator: Mock) -> No
     """Test that the random sample uses torch.randint correctly to sample indices with seed."""
     tensor = MagicMock()
     num_samples = 10
-    seed = 42
     generator = MagicMock()
     mock_generator.return_value = generator
 
-    result = F.random_sample(tensor, num_samples, seed=seed)
-
-    mock_generator.assert_called_once()
-    generator.manual_seed.assert_called_once_with(seed)
+    result = F.random_sample(tensor, num_samples, generator=generator)
     mock_randint.assert_called_once_with(0, tensor.size(0), (num_samples,), generator=generator)
     assert tensor[mock_randint.return_value] is result
 
@@ -76,7 +72,7 @@ def test_random_sample_with_seed(mock_randint: Mock, mock_generator: Mock) -> No
 def test_random_sample_return_indices() -> None:
     """Test that random_sample returns both the sampled tensor and indices when return_indices=True."""
     tensor = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
-    sampled, indices = F.random_sample(tensor, num_samples=3, return_indices=True, seed=0)
+    sampled, indices = F.random_sample(tensor, num_samples=3, return_indices=True)
 
     assert sampled.shape == (3, 2)
     assert indices.shape == (3,)
@@ -86,15 +82,19 @@ def test_random_sample_return_indices() -> None:
 def test_random_sample_oversampling() -> None:
     """Test that random_sample allows num_samples > tensor size (sampling with replacement)."""
     tensor = torch.tensor([[1.0], [2.0]])
-    result = F.random_sample(tensor, num_samples=10, seed=0)
+    result = F.random_sample(tensor, num_samples=10)
     assert result.shape == (10, 1)
 
 
 def test_random_sample_seed_reproducibility() -> None:
     """Test that random_sample produces identical results with the same seed."""
     tensor = torch.randn(100, 3)
-    a = F.random_sample(tensor, num_samples=20, seed=42)
-    b = F.random_sample(tensor, num_samples=20, seed=42)
+    generator = torch.Generator()
+
+    generator.manual_seed(42)
+    a = F.random_sample(tensor, num_samples=20, generator=generator)
+    generator.manual_seed(42)
+    b = F.random_sample(tensor, num_samples=20, generator=generator)
     assert torch.equal(a, b)
 
 
@@ -122,8 +122,12 @@ def test_random_sample_face_vertices_with_normals(sample_mesh: Tuple[Tensor, Ten
 def test_random_sample_face_vertices_seed_reproducibility(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that random_sample_face_vertices produces identical results with the same seed."""
     vertices, faces = sample_mesh
-    a = F.random_sample_face_vertices(vertices, faces, num_samples=10, seed=42)
-    b = F.random_sample_face_vertices(vertices, faces, num_samples=10, seed=42)
+    generator = torch.Generator()
+
+    generator.manual_seed(42)
+    a = F.random_sample_face_vertices(vertices, faces, num_samples=10, generator=generator)
+    generator.manual_seed(42)
+    b = F.random_sample_face_vertices(vertices, faces, num_samples=10, generator=generator)
     assert torch.equal(a, b)
 
 
@@ -131,7 +135,7 @@ def test_random_sample_face_vertices_single_face() -> None:
     """Test random_sample_face_vertices with a single-face mesh."""
     vertices = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
     faces = torch.tensor([[0, 1, 2]])
-    sampled = F.random_sample_face_vertices(vertices, faces, num_samples=5, seed=0)
+    sampled = F.random_sample_face_vertices(vertices, faces, num_samples=5)
     assert sampled.shape == (5, 3)
 
 

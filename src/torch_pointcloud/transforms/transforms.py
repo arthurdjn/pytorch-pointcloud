@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Any, Literal, Optional, Sequence, Tuple, Union, overload
 
+import torch
 from torch import Tensor
 
 from . import functional as F
@@ -65,7 +66,7 @@ class Transform(metaclass=ABCMeta):
     _repr_indent = 2
 
     @abstractmethod
-    def transform(self, *_: Any, **__: Any) -> Any:
+    def transform(self, *args: Any, **kwargs: Any) -> Any:
         """Apply the transform to the input data.
 
         This method should be implemented by all subclasses, and do not
@@ -158,13 +159,13 @@ class RandomSample(Transform):
     Args:
         num_samples: The number of values to sample.
         return_indices: Whether to return the indices of the sampled values.
-        seed: The seed for the random number generator.
+        generator: The generator for the random number generator.
     """
 
-    def __init__(self, num_samples: int, return_indices: bool = False, seed: Optional[int] = None):
+    def __init__(self, num_samples: int, return_indices: bool = False, generator: Optional[torch.Generator] = None):
         self.num_samples = num_samples
         self.return_indices = return_indices
-        self.seed = seed
+        self.generator = generator
 
     def transform(self, tensor: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """Apply the transform to the input tensor.
@@ -179,7 +180,7 @@ class RandomSample(Transform):
             tensor,
             num_samples=self.num_samples,
             return_indices=self.return_indices,
-            seed=self.seed,
+            generator=self.generator,
         )
 
 
@@ -192,18 +193,18 @@ class RandomSampleFaceVertices(Transform):
     Args:
         num_samples: The number of vertices to sample.
         return_normals: Whether to return the normals of the sampled vertices.
-        seed: The seed for the random number generator.
+        generator: The generator for the random number generator.
     """
 
     def __init__(
         self,
         num_samples: int,
         return_normals: bool = True,
-        seed: Optional[int] = None,
+        generator: Optional[torch.Generator] = None,
     ):
         self.num_samples = num_samples
         self.return_normals = return_normals
-        self.seed = seed
+        self.generator = generator
 
     def transform(self, points: Tensor, faces: Tensor) -> Any:
         """Apply the transform to the input tensor.
@@ -220,7 +221,7 @@ class RandomSampleFaceVertices(Transform):
             faces,
             num_samples=self.num_samples,
             return_normals=self.return_normals,
-            seed=self.seed,
+            generator=self.generator,
         )
 
 

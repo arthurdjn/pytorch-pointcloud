@@ -19,14 +19,14 @@ def test_random_sample_dict_transform(mock_fn: Mock) -> None:
     data = sentinel.data
     num_samples = sentinel.num_samples
     keys = (sentinel.key,)
+    generator = sentinel.generator
     allow_missing_keys = sentinel.allow_missing_keys
-    seed = sentinel.seed
 
     transform = RandomSampled(
         num_samples=num_samples,
         keys=keys,
+        generator=generator,
         allow_missing_keys=allow_missing_keys,
-        seed=seed,
     )
 
     result = transform(data)
@@ -35,7 +35,7 @@ def test_random_sample_dict_transform(mock_fn: Mock) -> None:
         data,
         keys=keys,
         num_samples=num_samples,
-        seed=seed,
+        generator=generator,
         allow_missing_keys=allow_missing_keys,
     )
     assert result is mock_fn.return_value
@@ -47,19 +47,17 @@ def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
     data = sentinel.data
     num_samples = sentinel.num_samples
     keys = (sentinel.key,)
-    face_keys = (sentinel.face_key,)
-    include_normals = sentinel.include_normals
-    normals_key = sentinel.normals_key
+    face_key = (sentinel.face_key,)
+    normal_key = sentinel.normal_key
+    generator = sentinel.generator
     allow_missing_keys = sentinel.allow_missing_keys
-    seed = sentinel.seed
 
     transform = RandomSampleFaceVerticesd(
         num_samples=num_samples,
         keys=keys,
-        face_keys=face_keys,
-        include_normals=include_normals,
-        normals_key=normals_key,
-        seed=seed,
+        face_key=face_key,
+        normal_key=normal_key,
+        generator=generator,
         allow_missing_keys=allow_missing_keys,
     )
 
@@ -68,11 +66,10 @@ def test_random_sample_face_vertices_dict_transform(mock_fn: Mock) -> None:
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
-        face_keys=face_keys,
+        face_key=face_key,
         num_samples=num_samples,
-        include_normals=include_normals,
-        normals_key=normals_key,
-        seed=seed,
+        normal_key=normal_key,
+        generator=generator,
         allow_missing_keys=allow_missing_keys,
     )
     assert result is mock_fn.return_value
