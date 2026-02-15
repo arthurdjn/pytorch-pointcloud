@@ -72,6 +72,13 @@ class Transform(metaclass=ABCMeta):
         have any constraints on the input data.
         """
 
+    def extra_repr(self) -> str:
+        """Return a string that describes the transform.
+
+        This will be used by the `__repr__` method to represent the transform as a string.
+        """
+        return ", ".join([f"{k}={v!r}" for k, v in self.__dict__.items() if not k.startswith("_")])
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.transform(*args, **kwargs)
 
@@ -89,13 +96,6 @@ class Transform(metaclass=ABCMeta):
 
         main_str += ")"
         return main_str
-
-    def extra_repr(self) -> str:
-        """Return a string that describes the transform.
-
-        This will be used by the `__repr__` method to represent the transform as a string.
-        """
-        return ""
 
 
 class Compose(Transform):
@@ -306,3 +306,82 @@ class RemoveNearOrigin(Transform):
 
     def transform(self, pos: Tensor, return_mask: bool = False) -> Any:
         return F.remove_near_origin(pos, radius=self.radius, return_mask=return_mask)
+
+
+class Abs(Transform):
+    """Make the input tensor absolute.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.abs` for more details.
+
+    Args:
+        inplace: Whether to perform the operation in place.
+
+    Returns:
+        The absolute tensor.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.transforms.transforms import Abs
+        >>> x = torch.tensor([-1.0, 2.0, -3.0])
+        >>> transform = Abs()
+        >>> transform(x)
+        tensor([1.0, 2.0, 3.0])
+    """
+
+    def __init__(self, inplace: bool = False):
+        self.inplace = inplace
+
+    def transform(self, tensor: Tensor) -> Tensor:
+        return F.abs(tensor, inplace=self.inplace)
+
+
+class BoundingBox(Transform):
+    """Compute the bounding box of a tensor.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.bounding_box` for more details.
+
+    Args:
+        dim: The dimension to compute the bounding box over.
+    """
+
+    def __init__(self, dim: int = -1):
+        self.dim = dim
+
+    def transform(self, tensor: Tensor) -> tuple[float, ...]:
+        return F.bounding_box(tensor, dim=self.dim)
+
+
+class InboxMask(Transform):
+    """Create a mask for the input tensor that is within a given bounding box.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.inbox_mask` for more details.
+
+    Args:
+        bbox: The bounding box.
+    """
+
+    def __init__(self, dim: int = -1):
+        self.dim = dim
+
+    def transform(self, tensor: Tensor, bbox: tuple[float, ...]) -> Tensor:
+        return F.inbox_mask(tensor, bbox, dim=self.dim)
+
+
+class ApplyMask(Transform):
+    """Apply a mask to a tensor.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.apply_mask` for more details.
+
+    Args:
+        mask: The mask.
+    """
+
+    def __init__(self, mask: Tensor):
+        self.mask = mask
+
+    def transform(self, tensor: Tensor) -> Tensor:
+        return F.apply_mask(tensor, self.mask)

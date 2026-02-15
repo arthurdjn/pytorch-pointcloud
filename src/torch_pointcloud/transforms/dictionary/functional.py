@@ -4,7 +4,7 @@ import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import DictStr, KeyCollection
 
-from ._utils import key_iterator
+from ._utils import assert_keys_in_data, key_iterator
 
 
 def random_sampled(
@@ -164,9 +164,131 @@ def remove_near_origind(
     Returns:
         The transformed dictionary data.
     """
+    assert_keys_in_data(data, pos_key)
+
     d = dict(data)  # avoid modifying the original data
     keys = [pos_key] + ensure_list(keys, none_as_empty=True)
     _, mask = F.remove_near_origin(d[pos_key], radius=radius, return_mask=True)
     for key in key_iterator(d, keys, allow_missing_keys=allow_missing_keys):
         d[key] = d[key][mask]
+    return d
+
+
+def absd(data: DictStr, keys: KeyCollection, inplace: bool = False, allow_missing_keys: bool = False) -> DictStr:
+    """Make the input tensor absolute.
+
+    Args:
+        data: The dictionary data to apply the transform to.
+        keys: The keys to make the tensor absolute.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Returns:
+        The transformed dictionary data.
+
+    Examples:
+        >>> import torch
+        >>> import torch_pointcloud.transforms.dictionary.functional as F
+        >>> data = {"pos": torch.tensor([-1.0, 2.0, -3.0])}
+        >>> F.absd(data, keys=["pos"])
+        {"pos": tensor([1.0, 2.0, 3.0])}
+    """
+    d = dict(data)  # avoid modifying the original data
+    iterator = key_iterator(d, keys, allow_missing_keys=allow_missing_keys)
+    for key in iterator:
+        d[key] = F.abs(d[key], inplace=inplace)
+    return d
+
+
+def bounding_boxd(
+    data: DictStr,
+    keys: KeyCollection,
+    dst_keys: Optional[KeyCollection] = None,
+    dim: int = -1,
+    allow_missing_keys: bool = False,
+) -> DictStr:
+    """Compute the bounding box of a dictionary.
+
+    Args:
+        data: The dictionary data to apply the transform to.
+        keys: The keys to compute the bounding box of.
+        dst_keys: The keys to store the bounding box in.
+        dim: The dimension to compute the bounding box over.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+    d = dict(data)  # avoid modifying the original data
+    keys = ensure_tuple(keys)
+    dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
+
+    iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
+    for key, dst_key in iterator:
+        d[dst_key] = F.bounding_box(d[key], dim=dim)
+    return d
+
+
+def inbox_maskd(
+    data: DictStr,
+    keys: KeyCollection,
+    bbox_key: str,
+    dst_keys: Optional[KeyCollection] = None,
+    dim: int = -1,
+    allow_missing_keys: bool = False,
+) -> DictStr:
+    """Create a mask for the input tensor that is within a given bounding box.
+
+    Args:
+        data: The dictionary data to apply the transform to.
+        keys: The keys to create the mask for.
+        bbox_key: The key to store the bounding box in.
+        dst_keys: The keys to store the mask in.
+        dim: The dimension to create the mask over.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+    d = dict(data)  # avoid modifying the original data
+    keys = ensure_tuple(keys)
+    dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
+    if bbox_key not in d:
+        raise KeyError(f"Bounding box key {bbox_key!r} was missing in the data (available keys: {', '.join(d.keys())})")
+
+    bbox = d[bbox_key]
+    iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
+    for key, dst_key in iterator:
+        d[dst_key] = F.inbox_mask(d[key], bbox, dim=dim)
+    return d
+
+
+def apply_maskd(
+    data: DictStr,
+    keys: KeyCollection,
+    mask_key: str,
+    dst_keys: Optional[KeyCollection] = None,
+    allow_missing_keys: bool = False,
+) -> DictStr:
+    """Functional transform to apply a mask to input tensors stored in a dictionary.
+
+    Args:
+        data: The dictionary data to apply the transform to.
+        keys: The keys to apply the mask to.
+        mask_key: The key to store the mask in.
+        dst_keys: The keys to store the transformed data in.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Returns:
+        The transformed dictionary data.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.transforms.dictionary.functional import apply_maskd
+        >>> data = {"pos": torch.tensor([1.0, 2.0, 3.0]), "mask": torch.tensor([True, False, True])}
+        >>> apply_maskd(data, keys=["pos"], mask_key="mask", dst_keys=["pos"])
+        {"pos": tensor([1.0, 3.0])}
+    """
+    d = dict(data)  # avoid modifying the original data
+    keys = ensure_tuple(keys)
+    dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
+    iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
+    assert_keys_in_data(d, mask_key)
+
+    mask = d[mask_key]
+    for key, dst_key in iterator:
+        d[dst_key] = F.apply_mask(d[key], mask)
     return d

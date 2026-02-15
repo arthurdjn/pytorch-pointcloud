@@ -209,8 +209,8 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
-    return_inverse: Literal[True] = True,
-) -> Tuple[Tensor, Tensor, Tensor]: ...
+    return_inverse: Literal[False] = False,
+) -> Tuple[Tensor, Tensor]: ...
 
 
 @overload
@@ -218,8 +218,8 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
-    return_inverse: bool = False,
-) -> Tuple[Tensor, Tensor]: ...
+    return_inverse: Literal[True] = ...,
+) -> Tuple[Tensor, Tensor, Tensor]: ...
 
 
 @torch.no_grad()
@@ -394,3 +394,82 @@ def remove_near_origin(pos: Tensor, radius: float = 1e-3, return_mask: bool = Fa
     if return_mask:
         return pos[mask], mask
     return pos[mask]
+
+
+def abs(x: Tensor, inplace: bool = False) -> Tensor:
+    """Make the input tensor absolute.
+
+    Args:
+        x: The input tensor.
+
+    Returns:
+        The absolute tensor.
+
+    Examples:
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> x = torch.tensor([-1.0, 2.0, -3.0])
+        >>> F.abs(x)
+        tensor([1.0, 2.0, 3.0])
+    """
+    if inplace:
+        x.abs_()
+        return x
+
+    return x.abs()
+
+
+def bounding_box(x: Tensor, dim: int = -1) -> tuple[float, ...]:
+    """Returns the min and max values along a given dimension.
+
+    Args:
+        x: The input tensor of shape (..., D, ...).
+        dim: The dimension to compute bounds over. Default: -1.
+
+    Returns:
+        A tuple of (*min, *max) values.
+    """
+    bbmin = x.min(dim=dim).values.detach().cpu().tolist()
+    bbmax = x.max(dim=dim).values.detach().cpu().tolist()
+    return (*bbmin, *bbmax)
+
+
+def inbox_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
+    """Create a mask for the input tensor that is within a given bounding box.
+
+    Args:
+        x: The input tensor.
+        bbox: The bounding box.
+        dim: The dimension to compute the mask over.
+
+    Returns:
+        The mask.
+    """
+    size = len(bbox)
+    if not size == x.shape[dim] * 2:
+        raise ValueError(f"Bounding box size mismatch, got {size} for dimension {dim} but expected {x.shape[dim] * 2}.")
+
+    bbmin = torch.tensor(bbox[: size // 2], device=x.device, dtype=x.dtype)
+    bbmax = torch.tensor(bbox[size // 2 :], device=x.device, dtype=x.dtype)
+    return (x > bbmin).all(dim=dim) & (x < bbmax).all(dim=dim)
+
+
+def apply_mask(x: Tensor, mask: Tensor) -> Tensor:
+    """Apply a mask to a tensor.
+
+    Args:
+        x: The input tensor.
+        mask: The mask.
+
+    Returns:
+        The tensor with the mask applied.
+
+    Examples:
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> x = torch.tensor([1.0, 2.0, 3.0])
+        >>> mask = torch.tensor([True, False, True])
+        >>> F.apply_mask(x, mask)
+        tensor([1.0, 3.0])
+    """
+    return x[mask]
