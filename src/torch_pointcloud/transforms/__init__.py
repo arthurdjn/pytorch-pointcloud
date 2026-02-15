@@ -1,4 +1,8 @@
 from .dictionary import (
+    Absd,
+    ApplyMaskd,
+    BoundingBoxd,
+    InboxMaskd,
     NormalizeScaled,
     RandomSampled,
     RandomSampleFaceVerticesd,
@@ -7,7 +11,11 @@ from .dictionary import (
     Transformd,
 )
 from .transforms import (
+    Abs,
+    ApplyMask,
+    BoundingBox,
     Compose,
+    InboxMask,
     NormalizeScale,
     RandomSample,
     RandomSampleFaceVertices,

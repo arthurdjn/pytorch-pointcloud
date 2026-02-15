@@ -1,12 +1,13 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Generator, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Optional
+
+import torch
 
 from torch_pointcloud.transforms.transforms import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import KeyCollection
 
 from . import functional as F
-from ._utils import key_iterator
 
 
 class Transformd(Transform, metaclass=ABCMeta):
@@ -19,59 +20,11 @@ class Transformd(Transform, metaclass=ABCMeta):
         keys: The keys to apply the transform to.
         allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
 
-    Example:
-        To create a transform that scales the points in a point cloud (in dict format),
-        we can subclass the :class:`Transformd` class and implement the :func:`Transformd.transform` method as follows:
-
-        ```python
-        from torch_pointcloud.transforms import Transformd
-
-        # 1. Subclass the Transformd class
-        class ScalePoints(Transformd):
-            def __init__(self, keys: KeyCollection, scale: float = 1.0, allow_missing_keys: bool = False):
-                super().__init__(keys, allow_missing_keys)
-                self.scale = scale
-
-            def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-                d = dict(data)  # Avoid modifying the input data in place
-                for key in self.key_iterator(data):
-                    d[key] = d[key] * self.scale
-                return d
-
-        # 2. Initialize the transform
-        transform = ScalePoints(keys=["points", "normals])
-
-        # 3. Apply the transform
-        data = {"points": torch.randn(10, 3), "normals": torch.randn(10, 3)}
-        data = transform(data)
-        ```
     """
 
     def __init__(self, keys: Optional[KeyCollection] = None, allow_missing_keys: bool = False) -> None:
         self.keys = ensure_tuple(keys, none_as_empty=True)
         self.allow_missing_keys = allow_missing_keys
-
-    def key_iterator(
-        self, data: Dict[str, Any], *extra_iterables: Iterable[Any]
-    ) -> Generator[Union[str, Tuple], None, None]:
-        """Utility method to iterate over the keys of the data.
-        If extra iterables are provided, they will be iterated over in parallel.
-
-        Args:
-            data: The data to iterate over.
-            *extra_iterables: Additional iterables to iterate over.
-
-        Returns:
-            A generator of the keys.
-        """
-        expected_keys = ", ".join(self.keys)
-        return key_iterator(
-            data,
-            self.keys,
-            *extra_iterables,
-            allow_missing_keys=self.allow_missing_keys,
-            extra_msg=f"Hint: The transform {self.__class__.__name__!r} expects the following keys: {expected_keys!r}.",
-        )
 
     @abstractmethod
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -98,11 +51,15 @@ class RandomSampled(Transformd):
     """
 
     def __init__(
-        self, keys: KeyCollection, num_samples: int, seed: Optional[int] = None, allow_missing_keys: bool = False
+        self,
+        keys: KeyCollection,
+        num_samples: int,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.num_samples = num_samples
-        self.seed = seed
+        self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Apply the transform to the dictionary data.
@@ -117,7 +74,7 @@ class RandomSampled(Transformd):
             data,
             keys=self.keys,
             num_samples=self.num_samples,
-            seed=self.seed,
+            generator=self.generator,
             allow_missing_keys=self.allow_missing_keys,
         )
 
@@ -127,30 +84,29 @@ class RandomSampleFaceVerticesd(Transformd):
 
     Args:
         keys: The keys to sample from.
-        face_keys: The keys to sample the faces from.
+        face_key: The keys to sample the faces from.
         num_samples: The number of vertices to sample.
         include_normals: If ``True``, the normals will be included in the output.
-        normals_key: The key to store the normals in.
-        seed: The seed for the random number generator.
+        normal_key: The key to store the normals in.
+        generator: The generator for the random number generator.
         allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
     """
 
     def __init__(
         self,
+        *,
         keys: KeyCollection,
-        face_keys: KeyCollection,
+        face_key: KeyCollection,
+        normal_key: Optional[KeyCollection] = "normal",
         num_samples: int,
-        include_normals: bool = True,
-        normals_key: str = "normals",
-        seed: Optional[int] = None,
+        generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.face_keys = ensure_tuple_size(face_keys, len(self.keys))
+        self.face_key = ensure_tuple_size(face_key, len(self.keys))
         self.num_samples = num_samples
-        self.include_normals = include_normals
-        self.normals_key = normals_key
-        self.seed = seed
+        self.normal_key = normal_key
+        self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Apply the transform to the dictionary data.
@@ -164,11 +120,10 @@ class RandomSampleFaceVerticesd(Transformd):
         return F.random_sample_face_verticesd(
             data,
             keys=self.keys,
-            face_keys=self.face_keys,
+            face_key=self.face_key,
+            normal_key=self.normal_key,
             num_samples=self.num_samples,
-            include_normals=self.include_normals,
-            normals_key=self.normals_key,
-            seed=self.seed,
+            generator=self.generator,
             allow_missing_keys=self.allow_missing_keys,
         )
 
@@ -286,5 +241,155 @@ class RemoveNearOrigind(Transformd):
             pos_key=self.pos_key,
             keys=self.keys,
             radius=self.radius,
+            allow_missing_keys=self.allow_missing_keys,
+        )
+
+
+class Absd(Transformd):
+    """Dictionary transform version of :class:`torch_pointcloud.transforms.Absolute`.
+
+    Args:
+        keys: The keys to make the tensor absolute.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Returns:
+        The transformed dictionary data.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.transforms.dictionary.transforms import Absd
+        >>> data = {"pos": torch.tensor([-1.0, 2.0, -3.0])}
+        >>> transform = Absd(keys=["pos"])
+        >>> transform(data)
+        {"pos": tensor([1.0, 2.0, 3.0])}
+    """
+
+    def __init__(self, keys: KeyCollection, inplace: bool = False, allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.inplace = inplace
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return F.absd(
+            data,
+            keys=self.keys,
+            inplace=self.inplace,
+            allow_missing_keys=self.allow_missing_keys,
+        )
+
+
+class BoundingBoxd(Transformd):
+    """Dictionary transform version of :class:`torch_pointcloud.transforms.BoundingBox`.
+
+    Args:
+        keys: The keys to compute the bounding box of.
+        dst_keys: The keys to store the bounding box in.
+        dim: The dimension to compute the bounding box over.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        dim: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = dst_keys
+        self.dim = dim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return F.bounding_boxd(
+            data,
+            keys=self.keys,
+            dst_keys=self.dst_keys,
+            dim=self.dim,
+            allow_missing_keys=self.allow_missing_keys,
+        )
+
+
+class InboxMaskd(Transformd):
+    """Dictionary transform version of :class:`torch_pointcloud.transforms.InboxMask`.
+
+    Args:
+        keys: The keys to create the mask for.
+        bbox_key: The key to store the bounding box in.
+        dst_keys: The keys to store the mask in.
+        dim: The dimension to create the mask over.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.transforms.dictionary.transforms import InboxMaskd
+        >>> data = {
+        ...     "pos": torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]),
+        ...     "bbox": (0.0, 10.0, 0.0, 10.0, 0.0, 10.0),
+        ... }
+        >>> transform = InboxMaskd(keys=["pos"], bbox_key="bbox", dst_keys=["mask"])
+        >>> transform(data)
+        {"pos": tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]),
+         "mask": tensor([[True, True, True], [True, True, True], [True, True, True]])}
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        bbox_key: str,
+        dst_keys: Optional[KeyCollection] = None,
+        dim: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.bbox_key = bbox_key
+        self.dst_keys = dst_keys
+        self.dim = dim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return F.inbox_maskd(
+            data,
+            keys=self.keys,
+            bbox_key=self.bbox_key,
+            dst_keys=self.dst_keys,
+            dim=self.dim,
+            allow_missing_keys=self.allow_missing_keys,
+        )
+
+
+class ApplyMaskd(Transformd):
+    """Class based variant of the dictionary transform `torch_pointcloud.transforms.dictionary.functional.apply_maskd`.
+    This transform is designed to apply a mask to input tensors stored in a dictionary.
+
+    Args:
+        keys: The keys to apply the mask to.
+        mask_key: The key to store the mask in.
+        dst_keys: The keys to store the transformed data in.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Examples:
+        >>> import torch
+        >>> from torch_pointcloud.transforms.dictionary.transforms import ApplyMaskd
+        >>> data = {"pos": torch.tensor([1.0, 2.0, 3.0]), "mask": torch.tensor([True, False, True])}
+        >>> transform = ApplyMaskd(keys=["pos"], mask_key="mask")
+        >>> transform(data)
+        {"pos": tensor([1.0, 3.0])}
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        mask_key: str,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
+        self.dst_keys = dst_keys
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return F.apply_maskd(
+            data,
+            keys=self.keys,
+            mask_key=self.mask_key,
+            dst_keys=self.dst_keys,
             allow_missing_keys=self.allow_missing_keys,
         )

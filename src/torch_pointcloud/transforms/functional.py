@@ -11,7 +11,7 @@ def random_sample(
     tensor: Tensor,
     num_samples: int,
     return_indices: Literal[True] = True,
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Tensor: ...
 
 
@@ -20,7 +20,7 @@ def random_sample(
     tensor: Tensor,
     num_samples: int,
     return_indices: bool = False,
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Tensor: ...
 
 
@@ -28,7 +28,7 @@ def random_sample(
     tensor: Tensor,
     num_samples: int,
     return_indices: bool = False,
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     """Randomly sample a fixed number of values from a tensor.
 
@@ -39,18 +39,13 @@ def random_sample(
         tensor: The input tensor.
         num_samples: The number of values to sample.
         return_indices: Whether to return the indices of the sampled values.
-        seed: The seed for the random number generator.
+        generator: The generator for the random number generator.
 
     Returns:
         If `return_indices` is `True`, the function returns a tuple of the sampled values and their indices.
         Otherwise, it returns the sampled values.
     """
-    rng = None
-    if seed is not None:
-        rng = torch.Generator(device=tensor.device)
-        rng.manual_seed(seed)
-
-    indices = torch.randint(0, tensor.size(0), (num_samples,), generator=rng)
+    indices = torch.randint(0, tensor.size(0), (num_samples,), generator=generator)
 
     if return_indices:
         return tensor[indices], indices
@@ -63,7 +58,7 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: Literal[True],
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Tuple[Tensor, Tensor]: ...
 
 
@@ -73,7 +68,7 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: Literal[False] = False,
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Tensor: ...
 
 
@@ -83,7 +78,7 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: bool,
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]: ...
 
 
@@ -92,7 +87,7 @@ def random_sample_face_vertices(
     faces: Tensor,
     num_samples: int,
     return_normals: bool = False,
-    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     """Randomly sample a fixed number of vertices from a 3D mesh (vertices, faces),
     using:
@@ -105,16 +100,12 @@ def random_sample_face_vertices(
         faces: The input tensor.
         num_samples: The number of vertices to sample.
         return_normals: Whether to return the normals of the sampled vertices.
-        seed: The seed for the random number generator.
+        generator: The generator for the random number generator.
 
     Returns:
         If `return_normals` is `True`, the function returns a tuple of the sampled vertices and their normals.
         Otherwise, it returns the sampled vertices.
     """
-    rng = torch.Generator(device=vertices.device)
-    if seed is not None:
-        rng.manual_seed(seed)
-
     pos_max = vertices.abs().max()
     vertices = vertices / pos_max
 
@@ -124,10 +115,10 @@ def random_sample_face_vertices(
     areas = areas.norm(p=2, dim=1).abs() / 2
 
     probs = areas / areas.sum()
-    samples = torch.multinomial(probs, num_samples, replacement=True, generator=rng)
+    samples = torch.multinomial(probs, num_samples, replacement=True, generator=generator)
     faces = faces[samples]
 
-    frac = torch.rand(num_samples, 2, device=vertices.device, generator=rng)
+    frac = torch.rand(num_samples, 2, device=vertices.device, generator=generator)
     mask = frac.sum(dim=-1) > 1
     frac[mask] = 1 - frac[mask]
 
@@ -209,8 +200,8 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
-    return_inverse: Literal[True] = True,
-) -> Tuple[Tensor, Tensor, Tensor]: ...
+    return_inverse: Literal[False] = False,
+) -> Tuple[Tensor, Tensor]: ...
 
 
 @overload
@@ -218,8 +209,8 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
-    return_inverse: bool = False,
-) -> Tuple[Tensor, Tensor]: ...
+    return_inverse: Literal[True] = ...,
+) -> Tuple[Tensor, Tensor, Tensor]: ...
 
 
 @torch.no_grad()
@@ -394,3 +385,82 @@ def remove_near_origin(pos: Tensor, radius: float = 1e-3, return_mask: bool = Fa
     if return_mask:
         return pos[mask], mask
     return pos[mask]
+
+
+def abs(x: Tensor, inplace: bool = False) -> Tensor:
+    """Make the input tensor absolute.
+
+    Args:
+        x: The input tensor.
+
+    Returns:
+        The absolute tensor.
+
+    Examples:
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> x = torch.tensor([-1.0, 2.0, -3.0])
+        >>> F.abs(x)
+        tensor([1.0, 2.0, 3.0])
+    """
+    if inplace:
+        x.abs_()
+        return x
+
+    return x.abs()
+
+
+def bounding_box(x: Tensor, dim: int = -1) -> tuple[float, ...]:
+    """Returns the min and max values along a given dimension.
+
+    Args:
+        x: The input tensor of shape (..., D, ...).
+        dim: The dimension to compute bounds over. Default: -1.
+
+    Returns:
+        A tuple of (*min, *max) values.
+    """
+    bbmin = x.min(dim=dim).values.detach().cpu().tolist()
+    bbmax = x.max(dim=dim).values.detach().cpu().tolist()
+    return (*bbmin, *bbmax)
+
+
+def inbox_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
+    """Create a mask for the input tensor that is within a given bounding box.
+
+    Args:
+        x: The input tensor.
+        bbox: The bounding box.
+        dim: The dimension to compute the mask over.
+
+    Returns:
+        The mask.
+    """
+    size = len(bbox)
+    if not size == x.shape[dim] * 2:
+        raise ValueError(f"Bounding box size mismatch, got {size} for dimension {dim} but expected {x.shape[dim] * 2}.")
+
+    bbmin = torch.tensor(bbox[: size // 2], device=x.device, dtype=x.dtype)
+    bbmax = torch.tensor(bbox[size // 2 :], device=x.device, dtype=x.dtype)
+    return (x > bbmin).all(dim=dim) & (x < bbmax).all(dim=dim)
+
+
+def apply_mask(x: Tensor, mask: Tensor) -> Tensor:
+    """Apply a mask to a tensor.
+
+    Args:
+        x: The input tensor.
+        mask: The mask.
+
+    Returns:
+        The tensor with the mask applied.
+
+    Examples:
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> x = torch.tensor([1.0, 2.0, 3.0])
+        >>> mask = torch.tensor([True, False, True])
+        >>> F.apply_mask(x, mask)
+        tensor([1.0, 3.0])
+    """
+    return x[mask]

@@ -30,11 +30,10 @@ def main() -> None:
     transform = T.Compose(
         [
             T.RandomSampleFaceVerticesd(
-                keys=["coords"],
-                face_keys=["faces"],
+                keys="coords",
+                face_key="faces",
+                normal_key="normals",
                 num_samples=args.num_points,
-                include_normals=True,
-                normals_key="normals",
             )
         ]
     )
