@@ -410,12 +410,12 @@ def abs(x: Tensor, inplace: bool = False) -> Tensor:
     return x.abs()
 
 
-def bounding_box(x: Tensor, dim: int = -1) -> tuple[float, ...]:
+def bounding_box(x: Tensor, dim: int = 0) -> tuple[float, ...]:
     """Returns the min and max values along a given dimension.
 
     Args:
         x: The input tensor of shape (..., D, ...).
-        dim: The dimension to compute bounds over. Default: -1.
+        dim: The dimension to compute bounds over.
 
     Returns:
         A tuple of (*min, *max) values.

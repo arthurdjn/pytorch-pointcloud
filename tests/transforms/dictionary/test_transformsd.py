@@ -264,7 +264,7 @@ def test_bounding_boxd_transform(mock_fn: Mock) -> None:
         data,
         keys=keys,
         dst_keys=None,
-        dim=-1,
+        dim=0,
         allow_missing_keys=allow_missing_keys,
     )
     assert result is mock_fn.return_value

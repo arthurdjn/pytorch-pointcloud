@@ -396,7 +396,7 @@ def test_bounding_boxd_basic(mock_fn: Mock) -> None:
     data = {"pos": MagicMock(), "other": sentinel.other}
     result = F.bounding_boxd(data, keys=["pos"])
 
-    mock_fn.assert_called_once_with(data["pos"], dim=-1)
+    mock_fn.assert_called_once_with(data["pos"], dim=0)
     assert result["pos"] == bbox_result
     assert result["other"] is sentinel.other
 
@@ -410,7 +410,7 @@ def test_bounding_boxd_with_dst_keys(mock_fn: Mock) -> None:
     data = {"pos": MagicMock(), "other": sentinel.other}
     result = F.bounding_boxd(data, keys=["pos"], dst_keys=["bbox"])
 
-    mock_fn.assert_called_once_with(data["pos"], dim=-1)
+    mock_fn.assert_called_once_with(data["pos"], dim=0)
     assert result["bbox"] == bbox_result
     assert result["pos"] is data["pos"]  # original key untouched when dst_keys given
     assert result["other"] is sentinel.other
@@ -495,7 +495,7 @@ def test_inbox_maskd_missing_bbox_key_raises(mock_fn: Mock) -> None:
     """Test that inbox_maskd raises KeyError when bbox_key is missing."""
     data = {"pos": MagicMock()}
 
-    with pytest.raises(KeyError, match="Bounding box key"):
+    with pytest.raises(KeyError, match="bounding box key"):
         F.inbox_maskd(data, keys=["pos"], bbox_key="bbox")
 
 

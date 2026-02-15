@@ -405,24 +405,16 @@ def test_abs_multidimensional() -> None:
 
 def test_bounding_box_basic() -> None:
     """Test bounding_box returns correct min and max values."""
-    x = torch.tensor(
-        [
-            [1.0, 2.0, 3.0],
-            [4.0, 5.0, 6.0],
-            [0.0, -1.0, 7.0],
-        ]
-    )
-    result = F.bounding_box(x, dim=-1)
-    # min per row: [1, 4, -1], max per row: [3, 6, 7]
-    assert result == (1.0, 4.0, -1.0, 3.0, 6.0, 7.0)
+    x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+    result = F.bounding_box(x, dim=0)
+    assert result == (1.0, 2.0, 3.0, 7.0, 8.0, 9.0)
 
 
 def test_bounding_box_default_dim() -> None:
-    """Test bounding_box with default dim=-1."""
+    """Test bounding_box with default dim=0."""
     x = torch.tensor([[0.0, 10.0], [-5.0, 5.0]])
     result = F.bounding_box(x)
-    # min per row: [0, -5], max per row: [10, 5]
-    assert result == (0.0, -5.0, 10.0, 5.0)
+    assert result == (-5.0, 5.0, 0.0, 10.0)
 
 
 def test_bounding_box_dim0() -> None:
@@ -434,55 +426,34 @@ def test_bounding_box_dim0() -> None:
         ]
     )
     result = F.bounding_box(x, dim=0)
-    # min along dim 0: [1, 0, 3], max along dim 0: [4, 2, 6]
     assert result == (1.0, 0.0, 3.0, 4.0, 2.0, 6.0)
 
 
 def test_bounding_box_single_point() -> None:
     """Test bounding_box with a single point returns that point as min and max."""
     x = torch.tensor([[3.0, 5.0, 7.0]])
-    result = F.bounding_box(x, dim=-1)
-    assert result == (3.0, 7.0)
+    result = F.bounding_box(x, dim=0)
+    assert result == (3.0, 5.0, 7.0, 3.0, 5.0, 7.0)
 
 
 def test_bounding_box_negative_coords() -> None:
     """Test bounding_box with all-negative coordinates."""
-    x = torch.tensor(
-        [
-            [-5.0, -3.0, -1.0],
-            [-10.0, -7.0, -2.0],
-        ]
-    )
-    result = F.bounding_box(x, dim=-1)
-    # min per row: [-5, -10], max per row: [-1, -2]
-    assert result == (-5.0, -10.0, -1.0, -2.0)
+    x = torch.tensor([[-5.0, -3.0, -1.0], [-10.0, -7.0, -2.0]])
+    result = F.bounding_box(x, dim=0)
+    assert result == (-10.0, -7.0, -2.0, -5.0, -3.0, -1.0)
 
 
 def test_bounding_box_composable_with_inbox_mask() -> None:
     """Test that bounding_box output can be directly fed into inbox_mask."""
-    x = torch.tensor(
-        [
-            [1.0, 2.0, 3.0],
-            [4.0, 5.0, 6.0],
-            [0.0, -1.0, 7.0],
-        ]
-    )
+    x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [0.0, -1.0, 7.0]])
     bbox = F.bounding_box(x, dim=0)
-    # All original points should be on the boundary (strict inequality excludes them)
     mask = F.inbox_mask(x, bbox, dim=-1)
-    # Points at min/max boundaries are excluded due to strict < / >
-    # Only interior points pass; with 3 points forming the bbox itself, none are strictly interior
     assert mask.shape == (3,)
 
 
 def test_inbox_mask_all_inside() -> None:
     """Test that all points inside the bounding box produce True mask."""
-    x = torch.tensor(
-        [
-            [1.0, 1.0, 1.0],
-            [2.0, 2.0, 2.0],
-        ]
-    )
+    x = torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]])
     bbox = (0.0, 0.0, 0.0, 3.0, 3.0, 3.0)  # min x,y,z=0, max x,y,z=3
     result = F.inbox_mask(x, bbox, dim=-1)
     assert torch.equal(result, torch.tensor([True, True]))

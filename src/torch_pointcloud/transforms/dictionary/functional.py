@@ -275,7 +275,7 @@ def bounding_boxd(
     *,
     keys: KeyCollection,
     dst_keys: Optional[KeyCollection] = None,
-    dim: int = -1,
+    dim: int = 0,
     allow_missing_keys: bool = False,
 ) -> DictStr:
     """Compute the bounding box of a tensor.
@@ -316,7 +316,8 @@ def inbox_maskd(
     data: DictStr,
     *,
     keys: KeyCollection,
-    bbox_key: str,
+    bbox_key: Optional[str] = None,
+    bbox: Optional[tuple[float, ...]] = None,
     dst_keys: Optional[KeyCollection] = None,
     dim: int = -1,
     allow_missing_keys: bool = False,
@@ -334,13 +335,23 @@ def inbox_maskd(
         dim: The dimension to create the mask over.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
+    if bbox_key is None and bbox is None:
+        raise ValueError("Either `bbox_key` or `bbox` must be provided.")
+    if bbox_key is not None and bbox is not None:
+        raise ValueError("Only one of `bbox_key` or `bbox` can be provided.")
+    if bbox_key is not None and bbox_key not in data:
+        raise KeyError(
+            f"The bounding box key {bbox_key!r} was missing in the data "
+            f"and no bounding box was provided (available keys: {', '.join(data.keys())})"
+        )
+
     d = dict(data)  # avoid modifying the original data
+    bbox = d[bbox_key] if bbox_key is not None else bbox
+    assert bbox is not None  # For typing, sanity checks are handled above
+
     keys = ensure_tuple(keys)
     dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
-    if bbox_key not in d:
-        raise KeyError(f"Bounding box key {bbox_key!r} was missing in the data (available keys: {', '.join(d.keys())})")
 
-    bbox = d[bbox_key]
     iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
     for key, dst_key in iterator:
         d[dst_key] = F.inbox_mask(d[key], bbox, dim=dim)

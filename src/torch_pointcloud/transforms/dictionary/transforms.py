@@ -291,7 +291,7 @@ class BoundingBoxd(Transformd):
         self,
         keys: KeyCollection,
         dst_keys: Optional[KeyCollection] = None,
-        dim: int = -1,
+        dim: int = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -334,13 +334,15 @@ class InboxMaskd(Transformd):
     def __init__(
         self,
         keys: KeyCollection,
-        bbox_key: str,
+        bbox_key: Optional[str] = None,
+        bbox: Optional[tuple[float, ...]] = None,
         dst_keys: Optional[KeyCollection] = None,
         dim: int = -1,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.bbox_key = bbox_key
+        self.bbox = bbox
         self.dst_keys = dst_keys
         self.dim = dim
 
@@ -393,3 +395,22 @@ class ApplyMaskd(Transformd):
             dst_keys=self.dst_keys,
             allow_missing_keys=self.allow_missing_keys,
         )
+
+
+class SetValued(Transformd):
+    """Set a value to a key in the dictionary.
+
+    Args:
+        keys: The keys to set the values to.
+        values: The values to set.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(self, keys: KeyCollection, values: Any) -> None:
+        super().__init__(keys, False)
+        self.values = ensure_tuple_size(values, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        for key, value in zip(self.keys, self.values):
+            data[key] = value
+        return data

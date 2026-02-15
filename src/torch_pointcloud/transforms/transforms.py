@@ -347,7 +347,7 @@ class BoundingBox(Transform):
         dim: The dimension to compute the bounding box over.
     """
 
-    def __init__(self, dim: int = -1):
+    def __init__(self, dim: int = 0):
         self.dim = dim
 
     def transform(self, tensor: Tensor) -> tuple[float, ...]:
