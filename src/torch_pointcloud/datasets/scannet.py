@@ -6,6 +6,7 @@ The ScanNet dataset as described in the paper
 
 import warnings
 from collections import defaultdict
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union
 from urllib.parse import urljoin
@@ -15,30 +16,32 @@ import numpy as np
 import pandas as pd
 import plyfile
 import torch
+from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import NotRequired, override
 
 from torch_pointcloud.utils.geometry import transform_points, vertex_normals
-from torch_pointcloud.utils.io import load_json
+from torch_pointcloud.utils.io import load_json, load_safetensors, save_safetensors
+from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
 from .utils import download_url
 
 UNK_CLS = "<unk>"
-UNK_IDX = -1
+UNK_IDX = 0
 
 
 class ScanNetData(TypedDict):
-    points: torch.Tensor
-    colors: torch.Tensor
-    normals: torch.Tensor
-    instances: NotRequired[torch.Tensor]
-    labels: NotRequired[torch.Tensor]
+    pos: Tensor
+    colors: Tensor
+    normals: Tensor
+    instances: NotRequired[Tensor]
+    labels: NotRequired[Tensor]
     scene: NotRequired[str]
 
 
-def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
+def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[Tensor, Tensor]:
     """Load a ScanNet PLY file and return the vertices and faces.
 
     Args:
@@ -58,56 +61,107 @@ def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[torch.Tensor, torch.Te
     return torch.from_numpy(vertices), torch.from_numpy(faces).long()
 
 
-def load_scannet_scene_metadata(file_path: PathLike) -> Dict[str, Any]:
+def load_scannet_scene_metadata(meta_path: PathLike, /) -> Dict[str, Any]:
     """Load a ScanNet metadata file and return the metadata.
 
     Args:
-        file_path: The path to the metadata file.
+        meta_path: The path to the metadata file, usually saved as `data/ScanNet/raw/v2/scans/{scan_id}/{scan_id}.txt`.
 
     Returns:
         The metadata.
 
     Examples:
-        >>> metadata = load_scannet_scene_metadata("data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.txt")
+        >>> meta = load_scannet_scene_meta("data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.txt")
+        >>> meta.keys()
+        dict_keys(['axisAlignment', 'colorToDepthExtrinsics', 'colorHeight', 'colorWidth', 'depthHeight', 'depthWidth',
+         'fx_color', 'fy_color', 'mx_color', 'my_color', 'numColorFrames', 'numDepthFrames', 'numIMUmeasurements',
+         'sceneType'])
     """
-    meta = {}
-    with open(file_path) as f:
+    with open(meta_path) as f:
         lines = f.readlines()
 
+    meta: Dict[str, Any] = {}
     for line in lines:
-        raw_key, raw_value = line.strip().split(" = ")
-        key: str = raw_key.strip()
-        value: Any = raw_value.strip()
-        if key in ["axisAlignment", "colorToDepthExtrinsics"]:
-            value = [float(x) for x in value.split(" ")]
-            value = torch.tensor(value, dtype=torch.float32).reshape((4, 4))
-        elif key in [
-            "colorHeight",
-            "colorWidth",
-            "depthHeight",
-            "depthWidth",
-            "numColorFrames",
-            "numDepthFrames",
-            "numIMUmeasurements",
-        ]:
-            value = int(value)
-        elif key in [
-            "fx_color",
-            "fx_depth",
-            "fy_color",
-            "fy_depth",
-            "mx_color",
-            "mx_depth",
-            "my_color",
-            "my_depth",
-        ]:
-            value = float(value)
-        elif key in ["sceneType"]:
-            value = value
-        else:
+        if "=" not in line:
             continue
-        meta[key] = value
+
+        key, val = line.split("=", 1)
+        key, val = key.strip(), val.strip()
+
+        if key in ["axisAlignment", "colorToDepthExtrinsics"]:
+            matrix = np.fromstring(val, sep=" ", dtype=np.float32).reshape(4, 4)
+            meta[key] = torch.from_numpy(matrix)
+        elif val.isdigit():
+            meta[key] = int(val)
+        elif val.replace(".", "").isdigit():
+            meta[key] = float(val)
+        else:
+            meta[key] = val
+
     return meta
+
+
+def load_scannet_scene_aggregation_and_segs(
+    aggregation_path: PathLike,
+    segs_path: PathLike,
+    label_to_idx: Optional[Dict[str, int]] = None,
+) -> Tuple[Tensor, Optional[Tensor]]:
+    """Read per-vertex instance ids and semantic labels from aggregation + segments.
+
+    Args:
+        aggregation_path: Path to the aggregation JSON file.
+        segments_path: Path to the segments JSON file.
+        label_to_idx: Optional mapping from `raw_category` string to NYU40 id
+            (or any integer label). Built from the TSV with e.g.
+            `{row["raw_category"]: int(row["nyu40id"]) for _, row in df.iterrows()}`.
+            If provided, per-vertex semantic labels are returned.
+            Unrecognized categories map to 0 (unlabeled).
+
+    Returns:
+        The instances and labels.
+
+    Examples:
+        >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
+        >>> instances, labels = load_scannet_scene_aggregation_and_segs(
+        ...     f"{scene_dir}/scene0000_00.aggregation.json",
+        ...     f"{scene_dir}/scene0000_00.segs.json",
+        ...     label_to_idx={
+        ...         "chair": 1,
+        ...         "floor": 2,
+        ...         "wall": 3,
+        ...         ...,
+        ...     },
+        ... )
+    """
+    aggregation = load_json(aggregation_path)
+    segments = load_json(segs_path)
+
+    seg_indices = np.array(segments["segIndices"])
+    num_vertices = len(seg_indices)
+
+    # segment id -> list of vertex indices
+    seg_to_verts: Dict[int, list[int]] = defaultdict(list)
+    for vi, seg_id in enumerate(seg_indices):
+        seg_to_verts[seg_id].append(vi)
+
+    instances = np.full(num_vertices, UNK_IDX, dtype=np.int32)
+    labels = np.full(num_vertices, UNK_IDX, dtype=np.int32) if label_to_idx is not None else None
+
+    for group in aggregation["segGroups"]:
+        object_id = group["objectId"]
+        raw_label = group["label"]
+        label = label_to_idx.get(raw_label, 0) if label_to_idx is not None else raw_label
+
+        for seg_id in group["segments"]:
+            for vi in seg_to_verts.get(seg_id, []):
+                instances[vi] = object_id
+                if labels is not None:
+                    labels[vi] = label
+
+    return (
+        torch.from_numpy(instances),
+        torch.from_numpy(labels) if labels is not None else None,
+    )
 
 
 def load_scannet_labels(file_path: PathLike) -> pd.DataFrame:
@@ -168,11 +222,10 @@ def select_scannet_classes(
 
         return list(values)
 
-    else:
-        raise ValueError(
-            f"Invalid values, expected 'all' or a sequence of strings associated to {name!r}, "
-            f"but got {type(values).__name__}."
-        )
+    raise ValueError(
+        f"Invalid values, expected 'all' or a sequence of strings associated to {name!r}, "
+        f"but got {type(values).__name__}."
+    )
 
 
 def load_scannet_scene(
@@ -199,86 +252,56 @@ def load_scannet_scene(
         The loaded scene.
 
     Examples:
-        >>> mesh_path = "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.ply"
-        >>> meta_path = "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.txt"
-        >>> aggregation_path = "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.aggregation.json"
-        >>> segments_path = "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.segs.json"
         >>> labels_path = "data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv"
         >>> labels = load_scannet_labels(labels_path)
         >>> label_to_idx = {label: idx for idx, label in enumerate(labels["raw_category"].unique())}
-        >>> scene = load_scannet_scene(mesh_path, meta_path, aggregation_path, segments_path, label_to_idx)
+        >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
+        >>> scene = load_scannet_scene(
+        ...     mesh_path=f"{scene_dir}/scene0000_00_vh_clean_2.ply",
+        ...     meta_path=f"{scene_dir}/scene0000_00.txt",
+        ...     aggregation_path=f"{scene_dir}/scene0000_00.aggregation.json",
+        ...     segments_path=f"{scene_dir}/scene0000_00.segs.json",
+        ...     label_to_idx=label_to_idx,
+        ... )
+        >>> scene
+        {'points': tensor([[...]]), 'colors': tensor([[...]]), 'normals': tensor([[...]]),
+         'instances': tensor([...]), 'labels': tensor([...])}}
     """
     label_to_idx = label_to_idx or {}
 
     # Load the points
     vertices, faces = load_scannet_scene_mesh(mesh_path)
-    points, colors = vertices[:, :3], vertices[:, 3:6]
-    normals = vertex_normals(points, faces)
+    pos, colors = vertices[:, :3], vertices[:, 3:6]
 
     # Optionally transform the points with the axis alignment matrix
     metadata = load_scannet_scene_metadata(meta_path) if meta_path else {}
     if "axisAlignment" in metadata:
         # The axis alignment matrix is a 4x4 matrix that transforms the points
         # that is provided in the v2 version of the dataset
-        points = transform_points(points, metadata["axisAlignment"])
+        pos = transform_points(pos, metadata["axisAlignment"])
+
+    normals = vertex_normals(pos, faces)
 
     if not aggregation_path or not segments_path:
         # If no aggregation or segments are provided,
         # return the points and colors
-        return {"points": points, "colors": colors, "normals": normals}
+        return {"pos": pos, "colors": colors, "normals": normals}
 
-    # Create mappings from object_id to label / segments
-    aggregation_data = load_json(aggregation_path)
-    object_id_to_label = {}
-    object_id_to_segments = defaultdict(list)
-    for seg_group in aggregation_data["segGroups"]:
-        object_id = seg_group["objectId"]
-        # The label corresponds to the `category` (v1) or `raw_category` (v2)
-        # column in the labels CSV file
-        label = seg_group["label"]
-        segments = seg_group["segments"]
-        object_id_to_label[object_id] = label
-        object_id_to_segments[object_id].extend(segments)
-
-    # Process the segments
-    segments_data = load_json(segments_path)
-    segment_to_vertices = defaultdict(list)
-    num_vertices = len(segments_data["segIndices"])
-    for idx, seg_id in enumerate(segments_data["segIndices"]):
-        segment_to_vertices[seg_id].append(idx)
-
-    # Sanity checks
-    assert len(points) == num_vertices, "Invalid number of vertices in the point cloud."
-
-    # Create the targets associated to each points (semantic labels between [-1, num_classes-1])
-    instances = torch.full((num_vertices,), -1, dtype=torch.int32)
-    labels = torch.full((num_vertices,), -1, dtype=torch.int32)
-
-    for object_id, segments in object_id_to_segments.items():
-        label = object_id_to_label[object_id]
-        label_idx = label_to_idx.get(label, -1)
-
-        for segment in segments:
-            vertices = torch.tensor(segment_to_vertices[segment], dtype=torch.int32)
-            instances[vertices] = object_id
-            labels[vertices] = label_idx
-
-    # Filter out unlabelled points
-    mask = labels != -1
-    points = points[mask]
-    colors = colors[mask]
-    normals = normals[mask]
-    instances = instances[mask]
-    labels = labels[mask]
+    instances, labels = load_scannet_scene_aggregation_and_segs(
+        aggregation_path,
+        segments_path,
+        label_to_idx=label_to_idx,
+    )
 
     data: ScanNetData = {
-        "points": points,
+        "pos": pos,
         "colors": colors,
         "normals": normals,
         "instances": instances,
-        "labels": labels,
     }
 
+    if labels is not None:
+        data["labels"] = labels
     if scene_id:
         data["scene"] = scene_id
 
@@ -308,7 +331,7 @@ class ScanNet(PointCloudDataset):
         returns a dictionary mapping the class name to the contiguous index, and indices
         may not correspond to the `nyu40id` values.
 
-        In most cases, if you set `classes="all"` and `with_unk=True`, the labels will be contiguous and
+        In most cases, if you set `classes="all"`, the labels will be contiguous and
         the `class_to_idx` property will match the `nyu40id` (or more generally, the `label_id` column) values.
 
     Args:
@@ -318,10 +341,7 @@ class ScanNet(PointCloudDataset):
         classes: The classes to load.
         label_name: The name of the label column in the labels CSV file.
         label_id: The id of the label column in the labels CSV file.
-        with_unk: Whether to include the unknown class in the classes.
         transform: A callable that transforms the data when retrieved from the dataset.
-        pre_transform: Used to transform the data before saving it in the processed directory.
-        pre_filter: Used to filter the data before saving it in the processed directory.
         download: Whether to download the raw data.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
@@ -348,8 +368,6 @@ class ScanNet(PointCloudDataset):
             root="data/ScanNet/raw",
             version="v2",
             train=True,
-            classes=["wall", "floor"],
-            with_unk=True,  # All other classes will be mapped to the unknown class
         )
         ```
 
@@ -370,23 +388,25 @@ class ScanNet(PointCloudDataset):
         ```
     """
 
+    unk_cls = "<unk>"
+    unk_idx = 0
+
     data_url = "http://kaldir.vc.in.tum.de/scannet/"
     meta_url = "https://raw.githubusercontent.com/facebookresearch/votenet/master/scannet/meta_data/"
     label_resources = [
         "v1/tasks/scannet-labels.combined.tsv",  # v1 raw labels
         "v2/tasks/scannetv2-labels.combined.tsv",  # v2 raw labels
     ]
-
     scan_ids_resource = "{version}/scans.txt"
     scan_resources = [
         # "v1/scans/{scan_id}/{scan_id}.sens",  # NOTE: The `.sens` file from the v2 version is the same as the v1
-        "{version}/scans/{scan_id}/{scan_id}.aggregation.json",  # File used during processing
-        "{version}/scans/{scan_id}/{scan_id}.txt",  # File used during processing
-        "{version}/scans/{scan_id}/{scan_id}_vh_clean_2.0.010000.segs.json",  # File used during processing
-        "{version}/scans/{scan_id}/{scan_id}_vh_clean_2.ply",  # File used during processing
+        "{version}/scans/{scan_id}/{scan_id}.aggregation.json",
+        "{version}/scans/{scan_id}/{scan_id}.txt",
+        "{version}/scans/{scan_id}/{scan_id}_vh_clean_2.0.010000.segs.json",
+        "{version}/scans/{scan_id}/{scan_id}_vh_clean_2.ply",
         # "{version}/scans/{scan_id}/{scan_id}_vh_clean.ply",
         # "{version}/scans/{scan_id}/{scan_id}_vh_clean.segs.json",
-        # "{version}/scans/{scan_id}/{scan_id}_vh_clean.aggregation.json",
+        "{version}/scans/{scan_id}/{scan_id}_vh_clean.aggregation.json",
         # "{version}/scans/{scan_id}/{scan_id}_vh_clean_2.labels.ply",
         # "{version}/scans/{scan_id}/{scan_id}_2d-instance.zip",
         # "{version}/scans/{scan_id}/{scan_id}_2d-instance-filt.zip",
@@ -412,17 +432,14 @@ class ScanNet(PointCloudDataset):
         root: str,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
-        classes: Union[Sequence[str], Literal["all"]] = "all",
         label_name: str = "nyu40class",
         label_id: str = "nyu40id",
-        with_unk: Optional[bool] = None,
         transform: Optional[Callable] = None,
-        pre_transform: Optional[Callable] = None,
-        pre_filter: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
         force_process: bool = False,
         show_progress: bool = True,
+        num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
         if split not in ["train", "val", "test"]:
@@ -433,45 +450,46 @@ class ScanNet(PointCloudDataset):
         self.label_name = label_name
         self.label_id = label_id
         self.transform = transform
-        self.pre_transform = pre_transform
-        self.pre_filter = pre_filter
         self.show_progress = show_progress
 
         if download or force_download:
             self.download(force=force_download)
 
-        # Get associated raw labels from the CSV file
+        self.process(force=force_process, num_workers=num_workers)
+        self.data = self._load_processed_data()
+
+    @cached_property
+    def labels(self) -> pd.DataFrame:
         resource_path = self.label_resources[int(self.version == "v2")]
         resource_path = resource_path.format(version=self.version)
         labels_path = Path(self.raw_dir, resource_path)
-        if labels_path.exists():
-            # Load the labels and select the desired classes
-            self.labels = load_scannet_labels(labels_path)
-            self.classes = select_scannet_classes(self.labels, self.label_name, sort_by=self.label_id, values=classes)
+        return load_scannet_labels(labels_path)
+
+    @cached_property
+    def classes(self) -> List[str]:
+        if self.labels is None:
+            classes = []
         else:
-            # Fallback to empty labels and classes
-            self.labels = None
-            self.classes = []
+            df = self.labels.sort_values(self.label_id)
+            classes = df[self.label_name].unique().tolist()
 
-        if with_unk:
-            self.classes.insert(0, UNK_CLS)
+        classes.insert(0, self.unk_cls)
+        return classes
 
-        self.process(force=force_process)
-
-        self.data = self._load_processed_data()
-
-    @property
+    @cached_property
     def class_to_idx(self) -> Dict[str, int]:
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     def raw_files_exist(self) -> bool:
         # Check that the labels file exists
-        labels_path = Path(self.raw_dir, self.label_resources[int(self.version == "v2")].format(version=self.version))
+        label_resource = self.label_resources[int(self.version == "v2")].format(version=self.version)
+        labels_path = Path(self.raw_dir, label_resource)
         if not labels_path.exists():
             return False
 
         # Check that the scans directory exists
-        scans_dir = Path(self.raw_dir, self.version if self.split in ["train", "val"] else "v2", "scans")
+        version_dir = self.version if self.split in ["train", "val"] else "v2"
+        scans_dir = Path(self.raw_dir, version_dir, "scans")
         if not scans_dir.exists():
             return False
 
@@ -482,9 +500,12 @@ class ScanNet(PointCloudDataset):
 
         return True
 
+    @property
+    def processed_files(self) -> List[Path]:
+        return sorted(list(Path(self.processed_dir, self.split).glob("*.safetensors")))
+
     def processed_files_exist(self) -> bool:
-        # Checks that the processed files exist for the specified split
-        return len(list(Path(self.processed_dir, self.split).glob("*.pt"))) > 0
+        return len(self.processed_files) > 0
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -541,7 +562,7 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def process(self, force: bool = False) -> None:
+    def process(self, force: bool = False, num_workers: Optional[int] = None) -> None:
         if self.processed_files_exist() and not force:
             return
         elif not self.raw_files_exist():
@@ -555,11 +576,14 @@ class ScanNet(PointCloudDataset):
 
         # Create the mapping between object labels (also named "raw_category" in the CSV labels) and indices
         # NOTE: indices must be contiguous positive integers to be ready to use for training purposes
-        class_to_idx = self.class_to_idx
-        unk_idx = class_to_idx.get(UNK_CLS, -1)
-        label_col = "raw_category" if self.version == "v2" else "category"
-        label_to_id = dict(zip(self.labels[label_col], self.labels[self.label_id]))
-        label_to_idx = {label: class_to_idx.get(label, unk_idx) for label in label_to_id.keys()}
+        raw_col = "raw_category" if self.version == "v2" else "category"
+
+        # Two-step mapping: raw_category → self.label_name (e.g. nyu40class) → contiguous index.
+        # A direct raw_category lookup in class_to_idx is wrong when label_name != label_col
+        # (e.g. label_name="nyu40class"): "couch" would miss "sofa", "fridge" would miss
+        # "refrigerator", etc. Iterating the TSV rows provides the correct intermediate mapping.
+        label_to_idx = dict(zip(self.labels[raw_col].values, self.labels[self.label_id].values))
+        label_to_idx[self.unk_cls] = self.unk_idx
 
         # Look for the associated scene IDs for the specified split
         is_train_val = self.split in ["train", "val"]
@@ -568,8 +592,7 @@ class ScanNet(PointCloudDataset):
         with open(split_file) as f:
             scene_ids = sorted([line.strip() for line in f])
 
-        # Process each scene
-        for scene_id in tqdm(scene_ids, desc="Processing", total=len(scene_ids), disable=not self.show_progress):
+        def process_scene(scene_id: str) -> None:
             meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"), None)
             mesh_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.ply"), None)
             aggregation_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.aggregation.json"), None)
@@ -581,7 +604,7 @@ class ScanNet(PointCloudDataset):
                     f"Make sure the scene has a {scene_id}_vh_clean_2.ply file.",
                     category=RuntimeWarning,
                 )
-                continue
+                return
 
             try:
                 # If for some reason a scene cannot be loaded (or corrupted), skip it
@@ -595,26 +618,24 @@ class ScanNet(PointCloudDataset):
                 )
             except Exception as e:
                 warnings.warn(f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning)
-                continue
+                return
 
-            if self.pre_filter is not None and not self.pre_filter(data):
-                continue
-
-            if self.pre_transform is not None:
-                data = self.pre_transform(data)
-
-            dst_path = Path(self.processed_dir, self.split, f"{scene_id}.pt")
+            dst_path = Path(self.processed_dir, self.split, f"{scene_id}.safetensors")
             dst_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save(data, dst_path)
+            save_safetensors(dst_path, data)
+
+        parallel_map(
+            process_scene,
+            tqdm(scene_ids, desc="Processing", total=len(scene_ids), disable=not self.show_progress),
+            num_workers=num_workers,
+        )
 
     def _load_processed_data(self) -> Any:
         data_list = []
-        for path in Path(self.processed_dir, self.split).glob("*.pt"):
-            data = torch.load(path, weights_only=True)
-            if isinstance(data, dict):
-                data_list.append(data)
-            else:
-                data_list.extend(data)
+        for path in self.processed_files:
+            data = load_safetensors(path)
+            data_list.append(data)
         return data_list
 
     @override

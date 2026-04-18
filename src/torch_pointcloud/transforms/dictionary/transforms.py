@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import torch
 
@@ -413,4 +413,58 @@ class SetValued(Transformd):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         for key, value in zip(self.keys, self.values):
             data[key] = value
+        return data
+
+
+class Centerd:
+    def __init__(
+        self,
+        keys: KeyCollection,
+        method: Literal["bbox", "mean"] = "bbox",
+    ) -> None:
+        self.keys = [keys] if isinstance(keys, str) else list(keys)
+        self.method = method
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        pts = data[self.keys[0]]
+        if not torch.is_tensor(pts):
+            raise TypeError(f"Expected a tensor, got {type(pts).__name__!r}.")
+
+        if self.method == "bbox":
+            center = (pts.min(dim=0).values + pts.max(dim=0).values) / 2
+        else:
+            center = pts.mean(dim=0)
+
+        for key in self.keys:
+            if key in data:
+                data[key] = data[key] - center
+        return data
+
+
+class AlignAxisd(Transformd):
+    def __init__(
+        self,
+        keys: KeyCollection,
+        dim: int = -1,
+        inplace: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dim = dim
+        self.inplace = inplace
+
+    def __call__(self, data: dict) -> dict:
+        data = dict(data)
+        for key in self.keys:
+            pts = data[key]
+            if not torch.is_tensor(pts):
+                raise TypeError(f"Expected a tensor, got {type(pts).__name__!r}.")
+
+            if not self.inplace:
+                pts = pts.clone()
+
+            pts[:, self.dim] -= pts[:, self.dim].min()
+            data[key] = pts
+
         return data
