@@ -1,9 +1,11 @@
 import json
 import re
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Mapping, Tuple
 
 import numpy as np
 import torch
+from safetensors.torch import safe_open, save_file
+from torch import Tensor
 
 from .types import PathLike
 
@@ -60,3 +62,17 @@ def load_off(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
             faces.append([face_vertices[0], face_vertices[2], face_vertices[3]])
 
     return torch.from_numpy(nodes), torch.tensor(faces, dtype=torch.int64)
+
+
+def save_safetensors(file_path: PathLike, data: Mapping[str, Any]) -> None:
+    data = {k: torch.tensor(v) if isinstance(v, (int, float, bool)) else v for k, v in data.items()}
+    metadata = {k: v for k, v in data.items() if isinstance(v, str)}
+    tensors = {k: v.contiguous() for k, v in data.items() if isinstance(v, Tensor)}
+    save_file(tensors, file_path, metadata=metadata)
+
+
+def load_safetensors(file_path: PathLike) -> Dict[str, Tensor | str]:
+    with safe_open(file_path, framework="pt") as f:  # type: ignore[no-untyped-call]
+        metadata = f.metadata()
+        tensors = {k: f.get_tensor(k) for k in f.keys()}
+    return {**metadata, **tensors}

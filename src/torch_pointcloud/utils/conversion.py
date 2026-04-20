@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from spconv.pytorc import SparseConvTensor
 
+
 spconv, _ = optional_import("spconv.pytorch")
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
 

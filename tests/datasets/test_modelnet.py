@@ -26,12 +26,12 @@ def test_load_modelnet_data(data_dir: Path, dataset_name: str) -> None:
     file_path = data_dir / dataset_name / "raw" / "chair" / "train" / "chair_0001.off"
     data = load_modelnet_data(file_path, 0)
 
-    assert isinstance(data["coords"], torch.Tensor)
+    assert isinstance(data["pos"], torch.Tensor)
     assert isinstance(data["faces"], torch.Tensor)
     assert isinstance(data["target"], torch.Tensor)
 
     assert data["target"].item() == 0
-    assert data["coords"].shape == torch.Size([10, 3])
+    assert data["pos"].shape == torch.Size([10, 3])
     assert data["faces"].shape == torch.Size([10, 3])
 
 

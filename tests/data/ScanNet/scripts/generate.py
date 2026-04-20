@@ -94,7 +94,6 @@ def generate_processed(args: Namespace) -> None:
     _ = ScanNet(
         root=root,
         version=args.version,
-        with_unk=True,
         classes="all",
         split=args.split,
         show_progress=True,

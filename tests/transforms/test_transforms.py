@@ -67,7 +67,7 @@ def test_normalize_scale_transform(mock_fn: Mock) -> None:
 
     result = transform(tensor)
 
-    mock_fn.assert_called_once_with(tensor, eps=eps)
+    mock_fn.assert_called_once_with(tensor, eps=eps, method="centroid")
     assert result is mock_fn.return_value
 
 
@@ -223,13 +223,13 @@ def test_abs_transform_inplace(mock_fn: Mock) -> None:
 
 @patch("torch_pointcloud.transforms.functional.bounding_box")
 def test_bounding_box_transform_default_dim(mock_fn: Mock) -> None:
-    """Test that BoundingBox transform delegates with default dim=-1."""
+    """Test that BoundingBox transform delegates with default dim=0."""
     tensor = sentinel.tensor
 
     transform = BoundingBox()
     result = transform(tensor)
 
-    mock_fn.assert_called_once_with(tensor, dim=-1)
+    mock_fn.assert_called_once_with(tensor, dim=0)
     assert result is mock_fn.return_value
 
 
