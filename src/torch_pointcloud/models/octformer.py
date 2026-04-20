@@ -8,6 +8,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.scannet import SCANNET20_LABELS, SCANNET200_LABELS
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
@@ -936,7 +937,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
 
 
 @register_model(
-    name="octformer-base.scannet",
+    name="octformer-base.scannet20",
     weights="hf://torch-pointcloud/octformer/segmentation/octformer-base.scannet.pth",
     task="segmentation",
     params=dict(
@@ -972,7 +973,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         [
             T.Relabeld(
                 keys=DataKeys.LABEL,
-                labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39],
+                labels=SCANNET20_LABELS,
             ),
             T.Centerd(keys=DataKeys.POS, method="bbox"),
             T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
@@ -1027,6 +1028,28 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         norm_kwargs=None,
         bias=True,
         dropout=0.5,
+    ),
+    transforms=T.Compose(
+        [
+            T.Relabeld(
+                keys=DataKeys.LABEL,
+                labels=SCANNET200_LABELS,
+            ),
+            T.Centerd(keys=DataKeys.POS, method="bbox"),
+            T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
+            T.AlignAxisd(keys=DataKeys.POS, dim=-1),
+            T.BuildOctreed(
+                pos_key=DataKeys.POS,
+                normal_key=DataKeys.NORMAL,
+                feature_key=DataKeys.COLOR,
+                label_key=DataKeys.LABEL,
+                points_key=DataKeys.POINTS,
+                octree_key=DataKeys.OCTREE,
+                depth=11,
+                full_depth=2,
+                batch_size=1,
+            ),
+        ]
     ),
 )
 def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
