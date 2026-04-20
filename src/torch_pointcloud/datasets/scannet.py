@@ -34,10 +34,10 @@ UNK_IDX = 0
 
 class ScanNetData(TypedDict):
     pos: Tensor
-    colors: Tensor
-    normals: Tensor
-    instances: NotRequired[Tensor]
-    labels: NotRequired[Tensor]
+    color: Tensor
+    normal: Tensor
+    instance: NotRequired[Tensor]
+    label: NotRequired[Tensor]
     scene: NotRequired[str]
 
 
@@ -271,7 +271,7 @@ def load_scannet_scene(
 
     # Load the points
     vertices, faces = load_scannet_scene_mesh(mesh_path)
-    pos, colors = vertices[:, :3], vertices[:, 3:6]
+    pos, color = vertices[:, :3], vertices[:, 3:6]
 
     # Optionally transform the points with the axis alignment matrix
     metadata = load_scannet_scene_metadata(meta_path) if meta_path else {}
@@ -280,14 +280,14 @@ def load_scannet_scene(
         # that is provided in the v2 version of the dataset
         pos = transform_points(pos, metadata["axisAlignment"])
 
-    normals = vertex_normals(pos, faces)
+    normal = vertex_normals(pos, faces)
 
     if not aggregation_path or not segments_path:
         # If no aggregation or segments are provided,
         # return the points and colors
-        return {"pos": pos, "colors": colors, "normal": normals}
+        return {"pos": pos, "color": color, "normal": normal}
 
-    instances, labels = load_scannet_scene_aggregation_and_segs(
+    instance, label = load_scannet_scene_aggregation_and_segs(
         aggregation_path,
         segments_path,
         label_to_idx=label_to_idx,
@@ -295,13 +295,13 @@ def load_scannet_scene(
 
     data: ScanNetData = {
         "pos": pos,
-        "colors": colors,
-        "normal": normals,
-        "instances": instances,
+        "color": color,
+        "normal": normal,
+        "instance": instance,
     }
 
-    if labels is not None:
-        data["label"] = labels
+    if label is not None:
+        data["label"] = label
     if scene_id:
         data["scene"] = scene_id
 
