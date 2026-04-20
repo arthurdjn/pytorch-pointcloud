@@ -689,12 +689,9 @@ class BuildOctreed(Transformd):
         batch_key: str | None = None,
         points_key: str | None = None,
     ) -> None:
-        if not _OCNN_AVAILABLE:
-            raise ImportError("`ocnn` is not installed. Please install `ocnn` to use this transform.")
-
         super().__init__([], False)
         if points_key is not None and points_key == octree_key:
-            raise ValueError("`points_key` and `octree_key` must differ.")
+            raise ValueError(f"`points_key` and `octree_key` must be different, got {points_key!r}.")
 
         self.pos_key = pos_key
         self.depth = depth
