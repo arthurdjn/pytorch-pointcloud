@@ -37,7 +37,7 @@ SEGMENTATION_MODELS = [
     "dgcnn-base",
     "octformer-base.lg",
     "octformer-base.sm",
-    "octformer-base.scannet",
+    "octformer-base.scannet20",
     "octformer-base.scannet200",
     "pointcnn-base",
     "pointmlp-base",
