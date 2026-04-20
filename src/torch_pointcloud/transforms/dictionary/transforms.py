@@ -6,7 +6,6 @@ import torch
 from torch_pointcloud.transforms.dictionary._utils import key_iterator
 from torch_pointcloud.transforms.transforms import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
 from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
