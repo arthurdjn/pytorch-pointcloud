@@ -320,8 +320,7 @@ def inbox_maskd(
     data: DictStr,
     *,
     keys: KeyCollection,
-    bbox_key: Optional[str] = None,
-    bbox: Optional[tuple[float, ...]] = None,
+    bbox: tuple[float, ...],
     dst_keys: Optional[KeyCollection] = None,
     dim: int = -1,
     allow_missing_keys: bool = False,
@@ -334,24 +333,12 @@ def inbox_maskd(
     Args:
         data: The dictionary data to apply the transform to.
         keys: The keys to create the mask for.
-        bbox_key: The key to store the bounding box in.
+        bbox: The bounding box used to mask input tensors.
         dst_keys: The keys to store the mask in.
         dim: The dimension to create the mask over.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
-    if bbox_key is None and bbox is None:
-        raise ValueError("Either `bbox_key` or `bbox` must be provided.")
-    if bbox_key is not None and bbox is not None:
-        raise ValueError("Only one of `bbox_key` or `bbox` can be provided.")
-    if bbox_key is not None and bbox_key not in data:
-        raise KeyError(
-            f"The bounding box key {bbox_key!r} was missing in the data "
-            f"and no bounding box was provided (available keys: {', '.join(data.keys())})"
-        )
-
     d = dict(data)  # avoid modifying the original data
-    bbox = d[bbox_key] if bbox_key is not None else bbox
-    assert bbox is not None  # For typing, sanity checks are handled above
 
     keys = ensure_tuple(keys)
     dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))

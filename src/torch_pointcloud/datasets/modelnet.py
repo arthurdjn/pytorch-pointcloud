@@ -76,9 +76,9 @@ MODELNET40_CLASSES = (
 
 
 def load_modelnet_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
-    coords, faces = load_off(file_path)
+    pos, faces = load_off(file_path)
     return {
-        "coords": coords,
+        "pos": pos,
         "faces": faces,
         "target": torch.tensor(target, dtype=torch.long),
     }

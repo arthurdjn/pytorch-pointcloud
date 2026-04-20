@@ -30,7 +30,7 @@ def main() -> None:
     args = parse_args()
     seed_everything(42)
 
-    pre_transform = T.NormalizeScaled(keys="coords")
+    pre_transform = T.NormalizeScaled(keys="pos")
     transform = None
     train_dataset: Dataset
     test_dataset: Dataset
@@ -120,7 +120,7 @@ def train_one_epoch(
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
     for i, data in pbar:
-        coords = data["coords"].to(device)
+        coords = data["pos"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
         batch_size = batch.max().item() + 1
@@ -166,7 +166,7 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
 
     total_correct = total_points = 0.0
     for data in tqdm(loader, total=len(loader), desc="Evaluating"):
-        coords = data["coords"].to(device)
+        coords = data["pos"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
         batch_size = batch.max().item() + 1
@@ -198,11 +198,11 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
 
 
 def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["coords"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["coords"] for d in data_list]).float()
+    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
+    coords = torch.cat([d["pos"] for d in data_list]).float()
     target = torch.cat([d["segmentation"] for d in data_list])
 
-    return {"coords": coords, "target": target, "batch": batch}
+    return {"pos": coords, "target": target, "batch": batch}
 
 
 if __name__ == "__main__":

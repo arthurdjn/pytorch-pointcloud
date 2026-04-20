@@ -285,7 +285,7 @@ def load_scannet_scene(
     if not aggregation_path or not segments_path:
         # If no aggregation or segments are provided,
         # return the points and colors
-        return {"pos": pos, "colors": colors, "normals": normals}
+        return {"pos": pos, "colors": colors, "normal": normals}
 
     instances, labels = load_scannet_scene_aggregation_and_segs(
         aggregation_path,
@@ -296,12 +296,12 @@ def load_scannet_scene(
     data: ScanNetData = {
         "pos": pos,
         "colors": colors,
-        "normals": normals,
+        "normal": normals,
         "instances": instances,
     }
 
     if labels is not None:
-        data["labels"] = labels
+        data["label"] = labels
     if scene_id:
         data["scene"] = scene_id
 

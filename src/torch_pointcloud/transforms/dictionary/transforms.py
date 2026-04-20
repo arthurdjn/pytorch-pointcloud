@@ -17,6 +17,7 @@ __all__ = [
     "ApplyMaskd",
     "BallMaskd",
     "BoundingBoxd",
+    "BuildOctreed",
     "Centerd",
     "Divided",
     "InboxMaskd",
@@ -25,12 +26,13 @@ __all__ = [
     "RandomSampleFaceVerticesd",
     "Relabeld",
     "RemoveNearOrigind",
+    "RenameItemsd",
     "SampleFarthestPointsd",
     "Scaled",
     "SetValued",
     "ToDeviced",
-    "BuildOctreed",
     "Transformd",
+    "ToTensord",
 ]
 
 
@@ -363,7 +365,7 @@ class InboxMaskd(Transformd):
 
     Args:
         keys: The keys to create the mask for.
-        bbox_key: The key to store the bounding box in.
+        bbox: The bounding box used to mask input tensors.
         dst_keys: The keys to store the mask in.
         dim: The dimension to create the mask over.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
@@ -373,9 +375,8 @@ class InboxMaskd(Transformd):
         >>> from torch_pointcloud.transforms.dictionary.transforms import InboxMaskd
         >>> data = {
         ...     "pos": torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]),
-        ...     "bbox": (0.0, 10.0, 0.0, 10.0, 0.0, 10.0),
         ... }
-        >>> transform = InboxMaskd(keys=["pos"], bbox_key="bbox", dst_keys=["mask"])
+        >>> transform = InboxMaskd(keys=["pos"], bbox=(0.0, 10.0, 0.0, 10.0, 0.0, 10.0), dst_keys=["mask"])
         >>> transform(data)
         {"pos": tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]),
          "mask": tensor([[True, True, True], [True, True, True], [True, True, True]])}
@@ -384,15 +385,13 @@ class InboxMaskd(Transformd):
     def __init__(
         self,
         keys: KeyCollection,
-        bbox_key: Optional[str] = None,
-        bbox: Optional[tuple[float, ...]] = None,
+        bbox: tuple[float, ...],
         dst_keys: Optional[KeyCollection] = None,
         dim: int = -1,
         strict: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.bbox_key = bbox_key
         self.bbox = bbox
         self.dst_keys = dst_keys
         self.dim = dim
@@ -402,7 +401,7 @@ class InboxMaskd(Transformd):
         return F.inbox_maskd(
             data,
             keys=self.keys,
-            bbox_key=self.bbox_key,
+            bbox=self.bbox,
             dst_keys=self.dst_keys,
             dim=self.dim,
             allow_missing_keys=self.allow_missing_keys,
@@ -764,4 +763,40 @@ class Relabeld(Transformd):
             dst_labels[mask] = lookup[labels[mask]]
             data[key] = dst_labels.to(data[key].dtype)
 
+        return data
+
+
+class RenameItemsd(Transformd):
+    def __init__(
+        self,
+        keys: KeyCollection,
+        names: KeyCollection,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.names = ensure_tuple_size(names, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.names):
+            data[dst_key] = data.pop(key)
+        return data
+
+
+class ToTensord(Transformd):
+    def __init__(
+        self,
+        keys: KeyCollection,
+        dtype: ValueCollection[str | torch.dtype] | None = None,
+        device: ValueCollection[str | torch.device] | None = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dtype = ensure_tuple_size(dtype, len(self.keys))
+        self.device = ensure_tuple_size(device, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dtype, device in self.iter_keys(data, self.dtype, self.device):
+            data[key] = torch.as_tensor(data[key], dtype=dtype, device=device)
         return data

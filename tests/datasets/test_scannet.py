@@ -22,14 +22,14 @@ def test_load_scannet_scene(data_dir: Path) -> None:
 
     assert isinstance(data["pos"], torch.Tensor)
     assert isinstance(data["colors"], torch.Tensor)
-    assert isinstance(data["normals"], torch.Tensor)
+    assert isinstance(data["normal"], torch.Tensor)
     assert isinstance(data["instances"], torch.Tensor)
-    assert isinstance(data["labels"], torch.Tensor)
+    assert isinstance(data["label"], torch.Tensor)
     assert data["pos"].shape[1] == 3
     assert data["colors"].shape[1] == 3
-    assert data["normals"].shape[1] == 3
+    assert data["normal"].shape[1] == 3
     assert data["instances"].ndim == 1
-    assert data["labels"].ndim == 1
+    assert data["label"].ndim == 1
 
 
 def test_scannet_dataset_not_found() -> None:

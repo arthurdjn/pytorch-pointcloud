@@ -11,7 +11,7 @@ def test_random_sampled(mock_fn: Mock) -> None:
     """Test that random_sampled correctly applies random_sample to specified keys."""
     data = {
         "points": MagicMock(),
-        "normals": MagicMock(),
+        "normal": MagicMock(),
         "other": MagicMock(),
     }
     num_samples = sentinel.num_samples
@@ -21,7 +21,7 @@ def test_random_sampled(mock_fn: Mock) -> None:
     sampled_indices = sentinel.indices
     mock_fn.return_value = (sampled_tensor, sampled_indices)
 
-    keys = ["points", "normals"]
+    keys = ["points", "normal"]
 
     result = F.random_sampled(
         data,
@@ -39,7 +39,7 @@ def test_random_sampled(mock_fn: Mock) -> None:
     )
 
     assert result["points"] is sampled_tensor
-    assert result["normals"] is data["normals"][sampled_indices]
+    assert result["normal"] is data["normal"][sampled_indices]
     # Check that non-specified keys are unchanged
     assert result["other"] is data["other"]
 
@@ -48,13 +48,13 @@ def test_random_sampled_does_not_mutate_original() -> None:
     """Test that random_sampled does not modify the original dictionary."""
     pos = torch.randn(10, 3)
     labels = torch.arange(10)
-    data = {"pos": pos, "labels": labels, "other": "keep"}
+    data = {"pos": pos, "label": labels, "other": "keep"}
     original_data = dict(data)
 
-    F.random_sampled(data, keys=["pos", "labels"], num_samples=3)
+    F.random_sampled(data, keys=["pos", "label"], num_samples=3)
 
     assert data["pos"] is original_data["pos"]
-    assert data["labels"] is original_data["labels"]
+    assert data["label"] is original_data["label"]
     assert data["other"] is original_data["other"]
 
 
@@ -79,7 +79,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
         keys=["vertices"],
         face_key="faces",
         num_samples=num_samples,
-        normal_key="normals",
+        normal_key="normal",
         generator=generator,
         allow_missing_keys=allow_missing_keys,
     )
@@ -93,7 +93,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     )
 
     assert result["vertices"] is sampled_vertices
-    assert result["normals"] is sampled_normals
+    assert result["normal"] is sampled_normals
     assert result["other"] is data["other"]
     assert result["colors"] is data["colors"]  # Unchanged
 
@@ -158,13 +158,13 @@ def test_sample_farthest_pointsd_basic(mock_fps: Mock) -> None:
 
     pos = torch.randn(10, 3)
     labels = torch.arange(10)
-    data = {"pos": pos, "labels": labels, "other": sentinel.other}
+    data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    result = F.sample_farthest_pointsd(data, pos_key="pos", keys=["labels"], num_samples=3)
+    result = F.sample_farthest_pointsd(data, pos_key="pos", keys=["label"], num_samples=3)
 
     mock_fps.assert_called_once_with(pos, num_samples=3, ratio=None, random_start=False)
     assert torch.equal(result["pos"], pos[indices])
-    assert torch.equal(result["labels"], labels[indices])
+    assert torch.equal(result["label"], labels[indices])
     assert result["other"] is sentinel.other
 
 
@@ -249,13 +249,13 @@ def test_remove_near_origind_basic(mock_fn: Mock) -> None:
 
     pos = torch.randn(4, 3)
     labels = torch.tensor([0, 1, 2, 3])
-    data = {"pos": pos, "labels": labels, "other": sentinel.other}
+    data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    result = F.remove_near_origind(data, pos_key="pos", keys=["labels"], radius=0.01)
+    result = F.remove_near_origind(data, pos_key="pos", keys=["label"], radius=0.01)
 
     mock_fn.assert_called_once_with(pos, radius=0.01, return_mask=True)
     assert torch.equal(result["pos"], pos[mask])
-    assert torch.equal(result["labels"], labels[mask])
+    assert torch.equal(result["label"], labels[mask])
     assert result["other"] is sentinel.other
 
 
@@ -466,11 +466,10 @@ def test_inbox_maskd_basic(mock_fn: Mock) -> None:
     mask_result = sentinel.mask
     mock_fn.return_value = mask_result
 
-    bbox = (0.0, 0.0, 0.0, 1.0, 1.0, 1.0)
-    data = {"pos": MagicMock(), "bbox": bbox, "other": sentinel.other}
-    result = F.inbox_maskd(data, keys=["pos"], bbox_key="bbox")
+    data = {"pos": MagicMock(), "other": sentinel.other}
+    result = F.inbox_maskd(data, keys=["pos"], bbox=sentinel.bbox)
 
-    mock_fn.assert_called_once_with(data["pos"], bbox, dim=-1)
+    mock_fn.assert_called_once_with(data["pos"], sentinel.bbox, dim=-1)
     assert result["pos"] is mask_result
     assert result["other"] is sentinel.other
 
@@ -481,38 +480,28 @@ def test_inbox_maskd_with_dst_keys(mock_fn: Mock) -> None:
     mask_result = sentinel.mask
     mock_fn.return_value = mask_result
 
-    bbox = (0.0, 1.0)
-    data = {"pos": MagicMock(), "bbox": bbox}
-    result = F.inbox_maskd(data, keys=["pos"], bbox_key="bbox", dst_keys=["mask"])
+    data = {"pos": MagicMock()}
+    result = F.inbox_maskd(data, keys=["pos"], bbox=sentinel.bbox, dst_keys=["mask"])
 
-    mock_fn.assert_called_once_with(data["pos"], bbox, dim=-1)
+    mock_fn.assert_called_once_with(data["pos"], sentinel.bbox, dim=-1)
     assert result["mask"] is mask_result
     assert result["pos"] is data["pos"]  # original untouched
 
 
 @patch("torch_pointcloud.transforms.dictionary.functional.F.inbox_mask")
-def test_inbox_maskd_missing_bbox_key_raises(mock_fn: Mock) -> None:
-    """Test that inbox_maskd raises KeyError when bbox_key is missing."""
-    data = {"pos": MagicMock()}
-
-    with pytest.raises(KeyError, match="bounding box key"):
-        F.inbox_maskd(data, keys=["pos"], bbox_key="bbox")
-
-
-@patch("torch_pointcloud.transforms.dictionary.functional.F.inbox_mask")
 def test_inbox_maskd_missing_key_raises(mock_fn: Mock) -> None:
     """Test that inbox_maskd raises KeyError for missing source keys."""
-    data = {"bbox": sentinel.bbox}
+    data: dict = {}
 
     with pytest.raises(KeyError, match="missing"):
-        F.inbox_maskd(data, keys=["pos"], bbox_key="bbox")
+        F.inbox_maskd(data, keys=["pos"], bbox=(0.0, 1.0))
 
 
 @patch("torch_pointcloud.transforms.dictionary.functional.F.inbox_mask")
 def test_inbox_maskd_allow_missing_keys(mock_fn: Mock) -> None:
     """Test inbox_maskd skips missing source keys when allow_missing_keys=True."""
-    data = {"bbox": sentinel.bbox}
-    _ = F.inbox_maskd(data, keys=["missing"], bbox_key="bbox", allow_missing_keys=True)
+    data: dict = {}
+    _ = F.inbox_maskd(data, keys=["missing"], bbox=(0.0, 1.0), allow_missing_keys=True)
 
     mock_fn.assert_not_called()
 
@@ -523,8 +512,8 @@ def test_inbox_maskd_custom_dim(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.mask
 
     bbox = (0.0, 1.0)
-    data = {"pos": MagicMock(), "bbox": bbox}
-    F.inbox_maskd(data, keys=["pos"], bbox_key="bbox", dim=0)
+    data = {"pos": MagicMock()}
+    F.inbox_maskd(data, keys=["pos"], bbox=bbox, dim=0)
 
     mock_fn.assert_called_once_with(data["pos"], bbox, dim=0)
 
@@ -535,10 +524,10 @@ def test_inbox_maskd_does_not_mutate_original(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.mask
 
     bbox = (0.0, 0.0, 1.0, 1.0)
-    data = {"pos": MagicMock(), "bbox": bbox, "other": "keep"}
+    data = {"pos": MagicMock(), "other": "keep"}
     original_data = dict(data)
 
-    F.inbox_maskd(data, keys=["pos"], bbox_key="bbox", dst_keys=["mask"])
+    F.inbox_maskd(data, keys=["pos"], bbox=bbox, dst_keys=["mask"])
 
     assert data["pos"] is original_data["pos"]
     assert data["other"] is original_data["other"]
