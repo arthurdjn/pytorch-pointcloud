@@ -1,3 +1,6 @@
+# Imports annotations to support string based types (Octree, Points, etc.) in case ocnn is not installed.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Literal, Optional, overload
 
 import torch
