@@ -506,12 +506,12 @@ class Centerd(Transformd):
     def __init__(
         self,
         keys: KeyCollection,
-        method: Literal["midrange", "mean"] = "midrange",
+        method: Literal["bbox", "mean"] = "bbox",
         dim: int = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        if method not in ["midrange", "mean"]:
+        if method not in ["bbox", "mean"]:
             raise ValueError(f"Invalid method: {method!r}. Expected 'midrange' or 'mean'.")
 
         self.method = method
@@ -527,7 +527,7 @@ class Centerd(Transformd):
         if not torch.is_tensor(x):
             raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
 
-        if self.method == "midrange":
+        if self.method == "bbox":
             center = (x.min(dim=self.dim).values + x.max(dim=self.dim).values) / 2
         else:
             center = x.mean(dim=self.dim)
@@ -681,9 +681,9 @@ class BuildOctreed(Transformd):
         depth: int,
         full_depth: int = 2,
         batch_size: int = 1,
-        normals_key: str | None = None,
-        features_key: str | None = None,
-        labels_key: str | None = None,
+        normal_key: str | None = None,
+        feature_key: str | None = None,
+        label_key: str | None = None,
         batch_key: str | None = None,
         points_key: str | None = None,
     ) -> None:
@@ -696,9 +696,9 @@ class BuildOctreed(Transformd):
         self.octree_key = octree_key
         self.full_depth = full_depth
         self.batch_size = batch_size
-        self.normals_key = normals_key
-        self.features_key = features_key
-        self.labels_key = labels_key
+        self.normal_key = normal_key
+        self.feature_key = feature_key
+        self.label_key = label_key
         self.batch_key = batch_key
         self.points_key = points_key
 
@@ -706,10 +706,10 @@ class BuildOctreed(Transformd):
         data = dict(data)
 
         pos = data[self.pos_key]
-        normals = data[self.normals_key] if self.normals_key is not None else None
-        features = data[self.features_key] if self.features_key is not None else None
+        normals = data[self.normal_key] if self.normal_key is not None else None
+        features = data[self.feature_key] if self.feature_key is not None else None
         batch_id = data[self.batch_key] if self.batch_key is not None else None
-        labels = data[self.labels_key] if self.labels_key is not None else None
+        labels = data[self.label_key] if self.label_key is not None else None
 
         octree, points = build_octree(
             pos=pos,

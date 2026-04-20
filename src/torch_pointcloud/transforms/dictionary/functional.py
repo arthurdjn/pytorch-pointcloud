@@ -47,7 +47,7 @@ def random_sample_face_verticesd(
     *,
     keys: KeyCollection,
     face_key: KeyCollection,
-    normal_key: Optional[KeyCollection] = "normals",
+    normal_key: Optional[KeyCollection] = "normal",
     dst_keys: Optional[KeyCollection] = None,
     num_samples: int,
     generator: Optional[torch.Generator] = None,

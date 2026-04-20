@@ -12,6 +12,7 @@ from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import octree_interpolate, octree_upsample
 from torch_pointcloud.utils.types import OptTensor
@@ -838,6 +839,40 @@ class OctFormerSegmentation(SegmentationModel):
         return self.forward_head(x, octree, pos, batch)
 
 
+def _octformer_base_clf(**hparams: Any) -> OctFormerClassification:
+    model = OctFormerClassification(**hparams)
+
+    # The original OctFormer for classification uses a hard-coded ReLU activation in the stem and head.
+    # For exact reproducibility we override these activations manually.
+    for name, _ in model.stem.named_modules():
+        if name.endswith(".act"):
+            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
+
+    if hasattr(model.head, "act"):
+        model.head.act = nn.ReLU(inplace=True)
+
+    return model
+
+
+def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
+    model = OctFormerSegmentation(**hparams)
+
+    # The original OctFormer for segmentation uses a hard-coded ReLU activation in the stem, decoder and head.
+    # For exact reproducibility we override these activations manually.
+    for name, _ in model.stem.named_modules():
+        if name.endswith(".act"):
+            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
+
+    for name, _ in model.decoder.named_modules():
+        if name.endswith(".act"):
+            model.set_submodule(f"decoder.{name}", nn.ReLU(inplace=True))
+
+    if hasattr(model.head, "act"):
+        model.head.act = nn.ReLU(inplace=True)
+
+    return model
+
+
 @register_model(
     name="octformer-base.modelnet40",
     task="classification",
@@ -871,20 +906,33 @@ class OctFormerSegmentation(SegmentationModel):
         dropout=0.5,
         global_pool="mean",
     ),
+    transforms=T.Compose(
+        [
+            T.RandomSampleFaceVerticesd(
+                keys=DataKeys.POS,
+                face_key=DataKeys.FACE,
+                normal_key=DataKeys.NORMAL,
+                num_samples=8000,
+            ),
+            T.Centerd(keys=DataKeys.POS, method="bbox"),
+            T.NormalizeScaled(keys=DataKeys.POS, method="bbox"),
+            T.InboxMaskd(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
+            T.ApplyMaskd(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
+            T.Absd(keys=DataKeys.NORMAL),
+            T.ToTensord(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
+            T.BuildOctreed(
+                pos_key=DataKeys.POS,
+                octree_key=DataKeys.OCTREE,
+                depth=6,
+                full_depth=2,
+                batch_size=1,
+                normal_key=DataKeys.NORMAL,
+            ),
+        ]
+    ),
 )
 def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
-    model = OctFormerClassification(**hparams)
-
-    # The original OctFormer uses a hard-coded ReLU activation in the stem and head,
-    # so for exact reproducibility we will override these activations manually.
-    for name, _ in model.stem.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
-
-    return model
+    return _octformer_base_clf(**hparams)
 
 
 @register_model(
@@ -923,20 +971,19 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     transforms=T.Compose(
         [
             T.Relabeld(
-                keys="labels",
+                keys=DataKeys.LABEL,
                 labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39],
             ),
-            T.Centerd(keys="pos", method="midrange"),
-            T.Divided(keys=["pos", "colors"], divisor=[10.24, 255]),
-            T.AlignAxisd(keys="pos", dim=-1),
-            T.ToDeviced(keys=["pos", "colors", "normals", "labels"], device="cuda"),
+            T.Centerd(keys=DataKeys.POS, method="bbox"),
+            T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
+            T.AlignAxisd(keys=DataKeys.POS, dim=-1),
             T.BuildOctreed(
-                pos_key="pos",
-                normals_key="normals",
-                features_key="colors",
-                labels_key="labels",
-                points_key="points",
-                octree_key="octree",
+                pos_key=DataKeys.POS,
+                normal_key=DataKeys.NORMAL,
+                feature_key=DataKeys.COLOR,
+                label_key=DataKeys.LABEL,
+                points_key=DataKeys.POINTS,
+                octree_key=DataKeys.OCTREE,
                 depth=11,
                 full_depth=2,
                 batch_size=1,
@@ -945,22 +992,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     ),
 )
 def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
-    model = OctFormerSegmentation(**hparams)
-
-    # The original OctFormer uses a hard-coded ReLU activation in the stem, decoder and head,
-    # so for exact reproducibility we will override these activations manually.
-    for name, _ in model.stem.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
-
-    for name, _ in model.decoder.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"decoder.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
-
-    return model
+    return _octformer_base_seg(**hparams)
 
 
 @register_model(
@@ -998,22 +1030,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
 )
 def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
-    model = OctFormerSegmentation(**hparams)
-
-    # The original OctFormer uses a hard-coded ReLU activation in the stem, decoder and head,
-    # so for exact reproducibility we will override these activations manually.
-    for name, _ in model.stem.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
-
-    for name, _ in model.decoder.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"decoder.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
-
-    return model
+    return _octformer_base_seg(**hparams)
 
 
 @register_model(
@@ -1048,22 +1065,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
 )
 def octformer_base_lg_seg(**hparams: Any) -> OctFormerSegmentation:
-    model = OctFormerSegmentation(**hparams)
-
-    # The original OctFormer uses a hard-coded ReLU activation in the stem, decoder and head,
-    # so for exact reproducibility we will override these activations manually.
-    for name, _ in model.stem.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
-
-    for name, _ in model.decoder.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"decoder.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
-
-    return model
+    return _octformer_base_seg(**hparams)
 
 
 @register_model(
@@ -1098,19 +1100,4 @@ def octformer_base_lg_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
 )
 def octformer_base_sm_seg(**hparams: Any) -> OctFormerSegmentation:
-    model = OctFormerSegmentation(**hparams)
-
-    # The original OctFormer uses a hard-coded ReLU activation in the stem, decoder and head,
-    # so for exact reproducibility we will override these activations manually.
-    for name, _ in model.stem.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
-
-    for name, _ in model.decoder.named_modules():
-        if name.endswith(".act"):
-            model.set_submodule(f"decoder.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
-
-    return model
+    return _octformer_base_seg(**hparams)

@@ -63,7 +63,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     """Test that random_sample_face_verticesd correctly processes mesh data."""
     data = {
         "vertices": MagicMock(),
-        "colors": MagicMock(),
+        "color": MagicMock(),
         "faces": MagicMock(),
         "other": MagicMock(),
     }
@@ -95,7 +95,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     assert result["vertices"] is sampled_vertices
     assert result["normal"] is sampled_normals
     assert result["other"] is data["other"]
-    assert result["colors"] is data["colors"]  # Unchanged
+    assert result["color"] is data["color"]  # Unchanged
 
 
 def test_random_sample_face_verticesd_does_not_mutate_original() -> None:

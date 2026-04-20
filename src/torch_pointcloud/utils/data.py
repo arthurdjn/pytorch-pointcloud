@@ -17,11 +17,17 @@ Points, _ = optional_import("ocnn.octree", "Points")
 
 
 class DataKeys(StrEnum):
+    # General keys (PyG convention)
     POS = "pos"
-    COLORS = "color"
-    NORMALS = "normal"
-    LABELS = "label"
+    COLOR = "color"
+    NORMAL = "normal"
+    FACE = "face"
+    LABEL = "label"
     BATCH = "batch"
+    # Octree-based keys (OCNN convention)
+    OCTREE = "octree"
+    POINTS = "points"
+    INBOX_MASK = "inbox_mask"
 
 
 def _tails_equal(tensors: List[Tensor]) -> bool:
