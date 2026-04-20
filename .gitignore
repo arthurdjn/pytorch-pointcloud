@@ -161,6 +161,7 @@ cython_debug/
 .vscode/
 
 # Project 
+weights/**
 data/**
 docs/api/**
 

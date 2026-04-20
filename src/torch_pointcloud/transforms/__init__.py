@@ -1,25 +1,2 @@
-from .dictionary import (
-    Absd,
-    ApplyMaskd,
-    BoundingBoxd,
-    InboxMaskd,
-    NormalizeScaled,
-    RandomSampled,
-    RandomSampleFaceVerticesd,
-    RemoveNearOrigind,
-    SampleFarthestPointsd,
-    Transformd,
-)
-from .transforms import (
-    Abs,
-    ApplyMask,
-    BoundingBox,
-    Compose,
-    InboxMask,
-    NormalizeScale,
-    RandomSample,
-    RandomSampleFaceVertices,
-    RemoveNearOrigin,
-    SampleFarthestPoints,
-    Transform,
-)
+from .dictionary.transforms import *
+from .transforms import *

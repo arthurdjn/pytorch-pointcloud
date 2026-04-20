@@ -92,6 +92,8 @@ def test_normalize_scale_dict_transform(mock_fn: Mock) -> None:
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
+        eps=1e-6,
+        method="centroid",
         allow_missing_keys=allow_missing_keys,
     )
     assert result is mock_fn.return_value
@@ -102,7 +104,7 @@ def test_sample_farthest_pointsd_transform(mock_fn: Mock) -> None:
     """Test that SampleFarthestPointsd delegates to functional API correctly."""
     data = sentinel.data
     pos_key = "pos"
-    keys = ("labels",)
+    keys = ("label",)
     num_samples = 10
     allow_missing_keys = sentinel.allow_missing_keys
 
@@ -172,7 +174,7 @@ def test_remove_near_origind_transform(mock_fn: Mock) -> None:
     """Test that RemoveNearOrigind delegates to functional API correctly."""
     data = sentinel.data
     pos_key = "pos"
-    keys = ("labels",)
+    keys = ("label",)
     radius = 0.01
     allow_missing_keys = sentinel.allow_missing_keys
 
@@ -264,7 +266,7 @@ def test_bounding_boxd_transform(mock_fn: Mock) -> None:
         data,
         keys=keys,
         dst_keys=None,
-        dim=-1,
+        dim=0,
         allow_missing_keys=allow_missing_keys,
     )
     assert result is mock_fn.return_value
@@ -295,16 +297,15 @@ def test_inbox_maskd_transform(mock_fn: Mock) -> None:
     """Test that InboxMaskd delegates to functional API correctly."""
     data = sentinel.data
     keys = ("pos",)
-    bbox_key = "bbox"
     allow_missing_keys = sentinel.allow_missing_keys
 
-    transform = InboxMaskd(keys=keys, bbox_key=bbox_key, allow_missing_keys=allow_missing_keys)
+    transform = InboxMaskd(keys=keys, bbox=sentinel.bbox, allow_missing_keys=allow_missing_keys)
     result = transform(data)
 
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
-        bbox_key=bbox_key,
+        bbox=sentinel.bbox,
         dst_keys=None,
         dim=-1,
         allow_missing_keys=allow_missing_keys,
@@ -319,13 +320,13 @@ def test_inbox_maskd_transform_with_dst_keys(mock_fn: Mock) -> None:
     keys = ("pos",)
     dst_keys = ("mask",)
 
-    transform = InboxMaskd(keys=keys, bbox_key="bbox", dst_keys=dst_keys, dim=0)
+    transform = InboxMaskd(keys=keys, bbox=sentinel.bbox, dst_keys=dst_keys, dim=0)
     result = transform(data)
 
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
-        bbox_key="bbox",
+        bbox=sentinel.bbox,
         dst_keys=dst_keys,
         dim=0,
         allow_missing_keys=False,

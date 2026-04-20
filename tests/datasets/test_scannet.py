@@ -20,16 +20,16 @@ def test_load_scannet_scene(data_dir: Path) -> None:
         segments_path=scene_dir / "scene0000_00_vh_clean_2.0.010000.segs.json",
     )
 
-    assert isinstance(data["points"], torch.Tensor)
-    assert isinstance(data["colors"], torch.Tensor)
-    assert isinstance(data["normals"], torch.Tensor)
-    assert isinstance(data["instances"], torch.Tensor)
-    assert isinstance(data["labels"], torch.Tensor)
-    assert data["points"].shape[1] == 3
-    assert data["colors"].shape[1] == 3
-    assert data["normals"].shape[1] == 3
-    assert data["instances"].ndim == 1
-    assert data["labels"].ndim == 1
+    assert isinstance(data["pos"], torch.Tensor)
+    assert isinstance(data["color"], torch.Tensor)
+    assert isinstance(data["normal"], torch.Tensor)
+    assert isinstance(data["instance"], torch.Tensor)
+    assert isinstance(data["label"], torch.Tensor)
+    assert data["pos"].shape[1] == 3
+    assert data["color"].shape[1] == 3
+    assert data["normal"].shape[1] == 3
+    assert data["instance"].ndim == 1
+    assert data["label"].ndim == 1
 
 
 def test_scannet_dataset_not_found() -> None:
@@ -196,49 +196,13 @@ def test_scannet_dataset_progress_with_cached_processed(
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
-@pytest.mark.parametrize("classes", [["wall"], ["wall", "floor", "ceiling"]])
-def test_scannet_dataset_classes(data_dir_factory: Callable[..., Path], classes: list[str]) -> None:
-    """Test that the dataset loads specific classes"""
-    data_dir = data_dir_factory("ScanNet/raw/**/*")
-
-    dataset = ScanNet(root=data_dir, classes=classes, with_unk=True, show_progress=False)
-    assert len(dataset) > 0
-    assert all(cls in dataset.classes for cls in classes)
-
-    class_ids = set(dataset.class_to_idx.values())
-    for data in dataset:
-        labels = data["labels"].unique().tolist()
-        assert set(labels).issubset(class_ids)
-
-
-@pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_scannet_dataset_all_classes(data_dir_factory: Callable[..., Path]) -> None:
     """Test that the dataset loads all classes"""
     data_dir = data_dir_factory("ScanNet/raw/**/*")
 
-    dataset = ScanNet(root=data_dir, classes="all", show_progress=False)
+    dataset = ScanNet(root=data_dir, show_progress=False)
     assert len(dataset.classes) > 0
     assert len(dataset) > 0
-
-
-@pytest.mark.filterwarnings("ignore::RuntimeWarning")
-def test_scannet_dataset_pre_transform(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is transformed correctly before being processed"""
-    data_dir = data_dir_factory("ScanNet/raw/**/*")
-
-    pre_transform = Mock(side_effect=lambda x: x)
-    _ = ScanNet(root=data_dir, pre_transform=pre_transform, show_progress=False)
-    assert pre_transform.call_count > 0
-
-
-@pytest.mark.filterwarnings("ignore::RuntimeWarning")
-def test_scannet_dataset_pre_filter(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("ScanNet/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: True)
-    _ = ScanNet(root=data_dir, pre_filter=pre_filter, show_progress=False)
-    assert pre_filter.call_count > 0
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")

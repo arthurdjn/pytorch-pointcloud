@@ -32,13 +32,13 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    pre_transform = T.NormalizeScaled(keys="coords")
+    pre_transform = T.NormalizeScaled(keys="pos")
     transform = T.Compose(
         [
             T.RandomSampleFaceVerticesd(
-                keys="coords",
+                keys="pos",
                 face_key="faces",
-                normal_key="normals",
+                normal_key="normal",
                 num_samples=args.num_points,
             )
         ]
@@ -169,8 +169,8 @@ def train_one_epoch(
 
     pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
     for i, data in pbar:
-        coords = data["coords"].to(device)
-        normals = data["normals"].to(device)
+        coords = data["pos"].to(device)
+        normals = data["normal"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
         features = torch.cat([coords, normals], dim=1)
@@ -219,8 +219,8 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
     model.eval()
     correct = 0
     for data in tqdm(loader, total=len(loader), desc="Evaluating"):
-        coords = data["coords"].to(device)
-        normals = data["normals"].to(device)
+        coords = data["pos"].to(device)
+        normals = data["normal"].to(device)
         target = data["target"].to(device)
         batch = data["batch"].to(device)
         features = torch.cat([coords, normals], dim=1)
@@ -250,12 +250,12 @@ def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> D
 
 
 def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["coords"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["coords"] for d in data_list]).float()
-    normals = torch.cat([d["normals"] for d in data_list]).float()
+    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
+    coords = torch.cat([d["pos"] for d in data_list]).float()
+    normals = torch.cat([d["normal"] for d in data_list]).float()
     target = torch.stack([d["target"] for d in data_list])
 
-    return {"coords": coords, "normals": normals, "target": target, "batch": batch}
+    return {"pos": coords, "normal": normals, "target": target, "batch": batch}
 
 
 if __name__ == "__main__":
