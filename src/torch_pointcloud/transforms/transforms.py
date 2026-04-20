@@ -6,6 +6,20 @@ from torch import Tensor
 
 from . import functional as F
 
+__all__ = [
+    "Abs",
+    "ApplyMask",
+    "BoundingBox",
+    "Compose",
+    "InboxMask",
+    "NormalizeScale",
+    "RandomSample",
+    "RandomSampleFaceVertices",
+    "RemoveNearOrigin",
+    "SampleFarthestPoints",
+    "Transform",
+]
+
 
 class Transform(metaclass=ABCMeta):
     """Base class for all point cloud transforms.
@@ -255,21 +269,20 @@ class SampleFarthestPoints(Transform):
 
 
 class NormalizeScale(Transform):
-    r"""Normalize the scale of a 3D tensor as follows:
-
-    $$
-    \mathbf{x} = \frac{\mathbf{x} - \mathbf{\mu}}{\max(\sqrt{\sum_{i=1}^3 x_i^2}, \epsilon)}
-    $$
+    r"""Normalize point coordinates along the point dimension (see `functional.normalize_scale`).
 
     See Also:
         `torch_pointcloud.transforms.functional.normalize_scale`.
 
     Args:
-        eps: The epsilon value to use to avoid division by zero.
+        eps: Small constant added to the scale denominator.
+        method: ``"centroid"`` (mean centering and max $\ell_2$ radius) or ``"bbox"`` (midrange
+            centering and half the longest axis-aligned box edge).
     """
 
-    def __init__(self, eps: float = 1e-8):
+    def __init__(self, eps: float = 1e-8, method: Literal["centroid", "bbox"] = "centroid") -> None:
         self.eps = eps
+        self.method = method
 
     def transform(self, tensor: Tensor) -> Tensor:
         """Apply the transform to the input tensor.
@@ -280,7 +293,7 @@ class NormalizeScale(Transform):
         Returns:
             The transformed tensor.
         """
-        return F.normalize_scale(tensor, eps=self.eps)
+        return F.normalize_scale(tensor, eps=self.eps, method=self.method)
 
 
 class RemoveNearOrigin(Transform):

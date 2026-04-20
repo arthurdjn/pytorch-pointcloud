@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 import torch
 
@@ -146,6 +146,8 @@ def normalize_scaled(
     *,
     keys: KeyCollection,
     dst_keys: Optional[KeyCollection] = None,
+    eps: float = 1e-8,
+    method: Literal["centroid", "bbox"] = "centroid",
     allow_missing_keys: bool = False,
 ) -> DictStr:
     """Normalize the scale of a dictionary.
@@ -157,6 +159,8 @@ def normalize_scaled(
         data: The dictionary data to apply the transform to.
         keys: The keys to normalize the scale of.
         dst_keys: The keys to store the normalized scale in.
+        eps: Small constant passed to `normalize_scale`.
+        method: ``"centroid"`` or ``"bbox"``; see `normalize_scale`.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Returns:
@@ -176,7 +180,7 @@ def normalize_scaled(
     dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
     iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
     for key, dst_key in iterator:
-        d[dst_key] = F.normalize_scale(d[key])
+        d[dst_key] = F.normalize_scale(d[key], eps=eps, method=method)
 
     return d
 

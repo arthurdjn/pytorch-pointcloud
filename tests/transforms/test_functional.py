@@ -187,6 +187,31 @@ def test_normalize_scale_output_unit_scale() -> None:
     assert norms.max() <= 1.0 + 1e-6
 
 
+def test_normalize_scale_bbox_matches_midrange_scale() -> None:
+    """Axis-aligned bbox: center (4,5,6), longest edge 6, radius 3 + eps."""
+    points = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+    eps = 1e-6
+    out = F.normalize_scale(points, eps=eps, method="bbox")
+    radius = 3.0 + eps
+    expected = (points - torch.tensor([4.0, 5.0, 6.0])) / radius
+    assert torch.allclose(out, expected)
+
+
+def test_normalize_scale_bbox_all_zeros() -> None:
+    """Degenerate bbox: radius is ``eps`` only."""
+    points = torch.zeros(4, 3)
+    eps = 1e-6
+    out = F.normalize_scale(points, eps=eps, method="bbox")
+    assert torch.allclose(out, torch.zeros_like(points))
+    assert not torch.isnan(out).any()
+
+
+def test_normalize_scale_invalid_method_raises() -> None:
+    points = torch.randn(3, 3)
+    with pytest.raises(ValueError, match="Invalid method"):
+        F.normalize_scale(points, method="typo")  # type: ignore[arg-type]
+
+
 def test_divisible_pad() -> None:
     """Test that the divisible pad functions pads the batch correctly and returns the correct inverse indices."""
     batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 3])

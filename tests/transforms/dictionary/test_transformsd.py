@@ -92,6 +92,8 @@ def test_normalize_scale_dict_transform(mock_fn: Mock) -> None:
     mock_fn.assert_called_once_with(
         data,
         keys=keys,
+        eps=1e-6,
+        method="centroid",
         allow_missing_keys=allow_missing_keys,
     )
     assert result is mock_fn.return_value

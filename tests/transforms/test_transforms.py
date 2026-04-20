@@ -67,7 +67,7 @@ def test_normalize_scale_transform(mock_fn: Mock) -> None:
 
     result = transform(tensor)
 
-    mock_fn.assert_called_once_with(tensor, eps=eps)
+    mock_fn.assert_called_once_with(tensor, eps=eps, method="centroid")
     assert result is mock_fn.return_value
 
 

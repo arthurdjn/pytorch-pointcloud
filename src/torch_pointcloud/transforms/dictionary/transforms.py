@@ -1,13 +1,38 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Generator, Iterable, Literal, Optional, Sequence
 
 import torch
 
+from torch_pointcloud.transforms.dictionary._utils import key_iterator
 from torch_pointcloud.transforms.transforms import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.types import KeyCollection
+from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
+from torch_pointcloud.utils.octree import build_octree
+from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
 from . import functional as F
+
+__all__ = [
+    "Absd",
+    "AlignAxisd",
+    "ApplyMaskd",
+    "BallMaskd",
+    "BoundingBoxd",
+    "Centerd",
+    "Divided",
+    "InboxMaskd",
+    "NormalizeScaled",
+    "RandomSampled",
+    "RandomSampleFaceVerticesd",
+    "Relabeld",
+    "RemoveNearOrigind",
+    "SampleFarthestPointsd",
+    "Scaled",
+    "SetValued",
+    "ToDeviced",
+    "BuildOctreed",
+    "Transformd",
+]
 
 
 class Transformd(Transform, metaclass=ABCMeta):
@@ -36,6 +61,20 @@ class Transformd(Transform, metaclass=ABCMeta):
         Returns:
             The transformed dictionary data.
         """
+
+    def iter_keys(
+        self,
+        data: Dict[str, Any],
+        *extra_iterables: Iterable[Any],
+        extra_msg: str = "",
+    ) -> Generator[Any, None, None]:
+        return key_iterator(
+            data,
+            self.keys,
+            *extra_iterables,
+            allow_missing_keys=self.allow_missing_keys,
+            extra_msg=extra_msg,
+        )
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return super().__call__(data)
@@ -180,11 +219,21 @@ class NormalizeScaled(Transformd):
 
     Args:
         keys: The keys to normalize the scale of.
+        eps: Small constant passed to `normalize_scale`.
+        method: ``"centroid"`` or ``"bbox"``; see `functional.normalize_scale`.
         allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
     """
 
-    def __init__(self, keys: KeyCollection, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeyCollection,
+        eps: float = 1e-6,
+        method: Literal["centroid", "bbox"] = "centroid",
+        allow_missing_keys: bool = False,
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
+        self.eps = eps
+        self.method = method
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Apply the transform to the dictionary data.
@@ -198,6 +247,8 @@ class NormalizeScaled(Transformd):
         return F.normalize_scaled(
             data,
             keys=self.keys,
+            eps=self.eps,
+            method=self.method,
             allow_missing_keys=self.allow_missing_keys,
         )
 
@@ -338,6 +389,7 @@ class InboxMaskd(Transformd):
         bbox: Optional[tuple[float, ...]] = None,
         dst_keys: Optional[KeyCollection] = None,
         dim: int = -1,
+        strict: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -345,6 +397,7 @@ class InboxMaskd(Transformd):
         self.bbox = bbox
         self.dst_keys = dst_keys
         self.dim = dim
+        self.strict = strict
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return F.inbox_maskd(
@@ -411,34 +464,82 @@ class SetValued(Transformd):
         self.values = ensure_tuple_size(values, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
         for key, value in zip(self.keys, self.values):
             data[key] = value
         return data
 
 
-class Centerd:
+class Scaled(Transformd):
     def __init__(
         self,
         keys: KeyCollection,
-        method: Literal["bbox", "mean"] = "bbox",
+        scale: float | Sequence[float],
+        allow_missing_keys: bool = False,
     ) -> None:
-        self.keys = [keys] if isinstance(keys, str) else list(keys)
-        self.method = method
+        super().__init__(keys, allow_missing_keys)
+        self.scale = ensure_tuple_size(scale, len(self.keys))
 
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        pts = data[self.keys[0]]
-        if not torch.is_tensor(pts):
-            raise TypeError(f"Expected a tensor, got {type(pts).__name__!r}.")
+        for key, scale in self.iter_keys(data, self.scale):
+            data[key] = data[key] * scale
+        return data
 
-        if self.method == "bbox":
-            center = (pts.min(dim=0).values + pts.max(dim=0).values) / 2
+
+class Divided(Transformd):
+    def __init__(
+        self,
+        keys: KeyCollection,
+        divisor: float | Sequence[float],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.divisor = ensure_tuple_size(divisor, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, divisor in self.iter_keys(data, self.divisor):
+            data[key] = data[key] / divisor
+        return data
+
+
+class Centerd(Transformd):
+    def __init__(
+        self,
+        keys: KeyCollection,
+        method: Literal["midrange", "mean"] = "midrange",
+        dim: int = 0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if method not in ["midrange", "mean"]:
+            raise ValueError(f"Invalid method: {method!r}. Expected 'midrange' or 'mean'.")
+
+        self.method = method
+        self.dim = dim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+
+        iterator = self.iter_keys(data)
+        first_key = next(iterator)
+
+        x = data[first_key]
+        if not torch.is_tensor(x):
+            raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
+        if self.method == "midrange":
+            center = (x.min(dim=self.dim).values + x.max(dim=self.dim).values) / 2
         else:
-            center = pts.mean(dim=0)
+            center = x.mean(dim=self.dim)
 
-        for key in self.keys:
-            if key in data:
-                data[key] = data[key] - center
+        for key in self.iter_keys(data):
+            x = data[key]
+            if not torch.is_tensor(x):
+                raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
+            data[key] = x - center
         return data
 
 
@@ -454,17 +555,217 @@ class AlignAxisd(Transformd):
         self.dim = dim
         self.inplace = inplace
 
-    def __call__(self, data: dict) -> dict:
+    def transform(self, data: dict) -> dict:
         data = dict(data)
-        for key in self.keys:
-            pts = data[key]
-            if not torch.is_tensor(pts):
-                raise TypeError(f"Expected a tensor, got {type(pts).__name__!r}.")
+
+        for key in self.iter_keys(data):
+            x = data[key]
+            if not torch.is_tensor(x):
+                raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
 
             if not self.inplace:
-                pts = pts.clone()
+                x = x.clone()
 
-            pts[:, self.dim] -= pts[:, self.dim].min()
-            data[key] = pts
+            x[:, self.dim] -= x[:, self.dim].min()
+            data[key] = x
+
+        return data
+
+
+class BallMaskd(Transformd):
+    """Create a ball mask (Chebyshev ball) for the input tensors.
+    The ball is defined as the set of points that are within a given radius
+    of a center point, i.e. the set of points that satisfy the inequality:
+
+    $$
+    \| x - c \|_{\infty} \leq r
+    $$
+
+    where $x$ is the point, $c$ is the center of the ball, and $r$ is the radius of the ball.
+
+    Args:
+        keys: The keys to create the mask for.
+        center: The center of the ball.
+        radius: The radius of the ball.
+        dim: The dimension to create the mask over.
+        dst_keys: The keys to store the mask in.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        center: ValueCollection[float],
+        radius: float,
+        dim: int = -1,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or keys, len(self.keys))
+        self.center = center
+        self.radius = radius
+        self.dim = dim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            if not torch.is_tensor(x):
+                raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
+            center = torch.as_tensor(self.center, device=x.device)
+            data[dst_key] = (x - center).abs().amax(dim=self.dim) <= self.radius
+
+        return data
+
+
+class ToDeviced(Transformd):
+    """Convert the input tensors to the given device.
+
+    Args:
+        keys: The keys to convert the tensors to the given device.
+        device: The device to convert the tensors to.
+        non_blocking: If `True`, the transfer will be done asynchronously.
+        copy: If `True`, the tensor will be copied to the new device.
+        memory_format: The memory format to use for the tensor.
+        dst_keys: The keys to store the converted tensors in.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        device: ValueCollection[str | torch.device],
+        non_blocking: ValueCollection[bool] = False,
+        copy: ValueCollection[bool] = True,
+        memory_format: ValueCollection[torch.memory_format | None] = None,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or keys, len(self.keys))
+        self.device = ensure_tuple_size(device, len(self.keys))
+        self.non_blocking = ensure_tuple_size(non_blocking, len(self.keys))
+        self.copy = ensure_tuple_size(copy, len(self.keys))
+        self.memory_format = ensure_tuple_size(memory_format, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key, device, non_blocking, copy, memory_format in self.iter_keys(
+            data,
+            self.dst_keys,
+            self.device,
+            self.non_blocking,
+            self.copy,
+            self.memory_format,
+        ):
+            x = data[key]
+            if not torch.is_tensor(x):
+                raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
+            data[dst_key] = x.to(
+                device,
+                non_blocking=non_blocking,
+                copy=copy,
+                memory_format=memory_format,
+            )
+
+        return data
+
+
+class BuildOctreed(Transformd):
+    def __init__(
+        self,
+        *,
+        pos_key: str,
+        octree_key: str,
+        depth: int,
+        full_depth: int = 2,
+        batch_size: int = 1,
+        normals_key: str | None = None,
+        features_key: str | None = None,
+        labels_key: str | None = None,
+        batch_key: str | None = None,
+        points_key: str | None = None,
+    ) -> None:
+        if not _OCNN_AVAILABLE:
+            raise ImportError("`ocnn` is not installed. Please install `ocnn` to use this transform.")
+
+        super().__init__([], False)
+        if points_key is not None and points_key == octree_key:
+            raise ValueError("`points_key` and `octree_key` must differ.")
+
+        self.pos_key = pos_key
+        self.depth = depth
+        self.octree_key = octree_key
+        self.full_depth = full_depth
+        self.batch_size = batch_size
+        self.normals_key = normals_key
+        self.features_key = features_key
+        self.labels_key = labels_key
+        self.batch_key = batch_key
+        self.points_key = points_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+
+        pos = data[self.pos_key]
+        normals = data[self.normals_key] if self.normals_key is not None else None
+        features = data[self.features_key] if self.features_key is not None else None
+        batch_id = data[self.batch_key] if self.batch_key is not None else None
+        labels = data[self.labels_key] if self.labels_key is not None else None
+
+        octree, points = build_octree(
+            pos=pos,
+            normals=normals,
+            features=features,
+            batch=batch_id,
+            labels=labels,
+            depth=self.depth,
+            full_depth=self.full_depth,
+            batch_size=self.batch_size,
+            return_points=True,
+        )
+
+        data[self.octree_key] = octree
+        if self.points_key is not None:
+            data[self.points_key] = points
+
+        return data
+
+
+class Relabeld(Transformd):
+    def __init__(
+        self,
+        keys: KeyCollection,
+        labels: Sequence[int],
+        default: int = 0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.labels = ensure_tuple(labels)
+        self.default = default
+
+        num_labels = max(self.labels) + 1
+        self._lookup = torch.full((num_labels,), self.default)
+        self._lookup[torch.tensor(self.labels)] = torch.arange(len(self.labels))
+
+    def transform(self, data: dict) -> dict:
+        data = dict(data)
+
+        for key in self.iter_keys(data):
+            labels = data[key].long()
+
+            if not isinstance(labels, torch.Tensor):
+                raise TypeError(f"Expected torch.Tensor for key {key!r}, got {type(labels).__name__}")
+
+            lookup = self._lookup.to(labels.device)
+
+            # out-of-range source labels (255, etc.) route to default
+            mask = (labels >= 0) & (labels < lookup.numel())
+            dst_labels = torch.full_like(labels, self.default)
+            dst_labels[mask] = lookup[labels[mask]]
+            data[key] = dst_labels.to(data[key].dtype)
 
         return data

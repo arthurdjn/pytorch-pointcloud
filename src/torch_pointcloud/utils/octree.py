@@ -1,9 +1,10 @@
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional, overload
 
 import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
     import ocnn
@@ -22,6 +23,69 @@ octree_nearest_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest
 octree_nearest_upsample, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest_upsample")
 Octree, _ = optional_import("ocnn.octree", "Octree")
 Points, _ = optional_import("ocnn.octree", "Points")
+
+
+@overload
+def build_octree(
+    pos: Tensor,
+    normals: OptTensor = None,
+    features: OptTensor = None,
+    batch: OptTensor = None,
+    labels: OptTensor = None,
+    depth: int = 11,
+    full_depth: int = 2,
+    batch_size: int = 1,
+    *,
+    return_points: Literal[False] = False,
+) -> Octree: ...
+
+
+@overload
+def build_octree(
+    pos: Tensor,
+    normals: OptTensor = None,
+    features: OptTensor = None,
+    batch: OptTensor = None,
+    labels: OptTensor = None,
+    depth: int = 11,
+    full_depth: int = 2,
+    batch_size: int = 1,
+    *,
+    return_points: Literal[True],
+) -> tuple[Octree, Points]: ...
+
+
+def build_octree(
+    pos: Tensor,
+    normals: OptTensor = None,
+    features: OptTensor = None,
+    batch: OptTensor = None,
+    labels: OptTensor = None,
+    depth: int = 11,
+    full_depth: int = 2,
+    batch_size: int = 1,
+    *,
+    return_points: bool = False,
+) -> Octree | tuple[Octree, Points]:
+    points = Points(
+        points=pos,
+        normals=normals,
+        features=features,
+        labels=labels,
+        batch_id=batch,
+        batch_size=batch_size,
+    )
+
+    octree = Octree(
+        depth=depth,
+        full_depth=full_depth,
+        batch_size=batch_size,
+    )
+    octree.build_octree(points)
+
+    if return_points:
+        return octree, points
+    return octree
 
 
 def octree_interpolate(

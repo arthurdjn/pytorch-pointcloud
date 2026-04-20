@@ -171,28 +171,52 @@ def sample_farthest_points(
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
 
-def normalize_scale(points: Tensor, eps: float = 1e-8) -> Tensor:
-    r"""Normalize the scale of a 3D tensor as follows:
-
-    $$
-    \mathbf{x} = \frac{\mathbf{x} - \mathbf{\mu}}{\max(\sqrt{\sum_{i=1}^3 x_i^2}, \epsilon)}
-    $$
-
-    Note:
-        The data is normalized to have a unit scale.
+def normalize_scale(
+    points: Tensor,
+    eps: float = 1e-6,
+    method: Literal["centroid", "bbox"] = "centroid",
+) -> Tensor:
+    r"""Normalize the scale of a point set along the point dimension ``dim=-2``.
 
     Args:
-        points: The input tensor.
-        eps: The epsilon value to avoid division by zero.
+        points: Tensor of shape ``(..., N, C)`` with $C \geq 1$; min/max and means are over $N$.
+        eps: Small constant added to the scale denominator for numerical stability.
+        method:
+
+            * ``"centroid"`` — subtract the mean over points, then divide by
+              $\max(\max_i \|\mathbf{x}_i - \mathbf{\mu}\|_2, \epsilon)$ (max Euclidean distance
+              from the centroid, clamped from below by ``eps``).
+
+            * ``"bbox"`` — subtract the axis-aligned bounding-box midpoint (midrange center),
+              then divide by half the longest edge of that box plus $\epsilon$ (matches common
+              ModelNet-style normalization):
+
+              $$
+              \mathbf{c} = \frac{\mathbf{x}_{\min} + \mathbf{x}_{\max}}{2}, \quad
+              r = \frac{1}{2}\max_j (x_{\max,j} - x_{\min,j}) + \epsilon, \quad
+              \mathbf{x} \leftarrow \frac{\mathbf{x} - \mathbf{c}}{r}
+              $$
 
     Returns:
-        The normalized tensor.
+        Normalized tensor, same shape as ``points``.
+
+    Raises:
+        ValueError: If ``method`` is not ``"centroid"`` or ``"bbox"``.
     """
+    if method not in ["centroid", "bbox"]:
+        raise ValueError(f"Invalid method: {method!r}. Expected 'centroid' or 'bbox'.")
+
+    if method == "bbox":
+        bbmin = points.min(dim=-2).values
+        bbmax = points.max(dim=-2).values
+        center = (bbmin + bbmax) / 2
+        radius = (bbmax - bbmin).max() / 2
+        return (points - center) / (radius + eps)
+
     centroid = points.mean(dim=-2, keepdim=True)
-    points -= centroid
-    scale = torch.norm(points, dim=-1, keepdim=True).max().clamp(min=eps)
-    points = points / scale
-    return points
+    points = points - centroid
+    scale = torch.norm(points, dim=-1, keepdim=True).max()
+    return points / (scale + eps)
 
 
 @overload
@@ -432,6 +456,7 @@ def inbox_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
         x: The input tensor.
         bbox: The bounding box.
         dim: The dimension to compute the mask over.
+        strict: Whether to use strict inequality.
 
     Returns:
         The mask.

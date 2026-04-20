@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
@@ -918,6 +919,29 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         norm_kwargs=None,
         bias=True,
         dropout=0.5,
+    ),
+    transforms=T.Compose(
+        [
+            T.Relabeld(
+                keys="labels",
+                labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39],
+            ),
+            T.Centerd(keys="pos", method="midrange"),
+            T.Divided(keys=["pos", "colors"], divisor=[10.24, 255]),
+            T.AlignAxisd(keys="pos", dim=-1),
+            T.ToDeviced(keys=["pos", "colors", "normals", "labels"], device="cuda"),
+            T.BuildOctreed(
+                pos_key="pos",
+                normals_key="normals",
+                features_key="colors",
+                labels_key="labels",
+                points_key="points",
+                octree_key="octree",
+                depth=11,
+                full_depth=2,
+                batch_size=1,
+            ),
+        ]
     ),
 )
 def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:

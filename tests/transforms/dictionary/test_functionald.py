@@ -132,7 +132,7 @@ def test_normalize_scaled(mock_fn: Mock) -> None:
 
     result = F.normalize_scaled(data, keys=keys, allow_missing_keys=allow_missing_keys)
 
-    mock_fn.assert_called_once_with(data["points"])
+    mock_fn.assert_called_once_with(data["points"], eps=1e-8, method="centroid")
 
     assert result["points"] is normalized_tensor
     assert result["other"] is data["other"]
