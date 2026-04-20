@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=2.0.0",
     "pandas>=2.2.3",
     "plyfile>=1.1",
+    "safetensors>=0.7.0",
     "torch>=2.0.0,<2.9.0",
     "torch-geometric>=2.6.1",
     "tqdm>=4.67.1",

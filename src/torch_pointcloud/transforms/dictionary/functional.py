@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 import torch
 
@@ -47,7 +47,7 @@ def random_sample_face_verticesd(
     *,
     keys: KeyCollection,
     face_key: KeyCollection,
-    normal_key: Optional[KeyCollection] = "normals",
+    normal_key: Optional[KeyCollection] = "normal",
     dst_keys: Optional[KeyCollection] = None,
     num_samples: int,
     generator: Optional[torch.Generator] = None,
@@ -146,6 +146,8 @@ def normalize_scaled(
     *,
     keys: KeyCollection,
     dst_keys: Optional[KeyCollection] = None,
+    eps: float = 1e-8,
+    method: Literal["centroid", "bbox"] = "centroid",
     allow_missing_keys: bool = False,
 ) -> DictStr:
     """Normalize the scale of a dictionary.
@@ -157,6 +159,8 @@ def normalize_scaled(
         data: The dictionary data to apply the transform to.
         keys: The keys to normalize the scale of.
         dst_keys: The keys to store the normalized scale in.
+        eps: Small constant passed to `normalize_scale`.
+        method: ``"centroid"`` or ``"bbox"``; see `normalize_scale`.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Returns:
@@ -176,7 +180,7 @@ def normalize_scaled(
     dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
     iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
     for key, dst_key in iterator:
-        d[dst_key] = F.normalize_scale(d[key])
+        d[dst_key] = F.normalize_scale(d[key], eps=eps, method=method)
 
     return d
 
@@ -275,7 +279,7 @@ def bounding_boxd(
     *,
     keys: KeyCollection,
     dst_keys: Optional[KeyCollection] = None,
-    dim: int = -1,
+    dim: int = 0,
     allow_missing_keys: bool = False,
 ) -> DictStr:
     """Compute the bounding box of a tensor.
@@ -316,7 +320,7 @@ def inbox_maskd(
     data: DictStr,
     *,
     keys: KeyCollection,
-    bbox_key: str,
+    bbox: tuple[float, ...],
     dst_keys: Optional[KeyCollection] = None,
     dim: int = -1,
     allow_missing_keys: bool = False,
@@ -329,18 +333,16 @@ def inbox_maskd(
     Args:
         data: The dictionary data to apply the transform to.
         keys: The keys to create the mask for.
-        bbox_key: The key to store the bounding box in.
+        bbox: The bounding box used to mask input tensors.
         dst_keys: The keys to store the mask in.
         dim: The dimension to create the mask over.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
     d = dict(data)  # avoid modifying the original data
+
     keys = ensure_tuple(keys)
     dst_keys = ensure_tuple_size(dst_keys or keys, size=len(keys))
-    if bbox_key not in d:
-        raise KeyError(f"Bounding box key {bbox_key!r} was missing in the data (available keys: {', '.join(d.keys())})")
 
-    bbox = d[bbox_key]
     iterator = key_iterator(d, keys, dst_keys, allow_missing_keys=allow_missing_keys)
     for key, dst_key in iterator:
         d[dst_key] = F.inbox_mask(d[key], bbox, dim=dim)
