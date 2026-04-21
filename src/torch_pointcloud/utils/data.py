@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Literal
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import torch
 from torch import Tensor
