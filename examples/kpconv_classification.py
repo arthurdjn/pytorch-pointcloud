@@ -1,17 +1,19 @@
 from argparse import ArgumentParser, Namespace
 from functools import partial
-from typing import Any, Dict, List
+from typing import Dict
 
 import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet10, ModelNet40
 from torch_pointcloud.models import KPConvNetClassification
+from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.random import seed_everything
 
 
@@ -21,61 +23,11 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    pre_transform = T.NormalizeScaled(keys="pos")
-    transform = T.Compose(
-        [
-            T.RandomSampleFaceVerticesd(
-                keys="pos",
-                face_key="face",
-                normal_key="normal",
-                num_samples=args.num_points,
-            )
-        ]
-    )
+    print(f"Loading {args.dataset} dataloaders...", end=" ")
+    train_dataloader, test_dataloader = load_dataloaders(args)
+    print("Done!")
 
-    print(f"Loading {args.dataset} dataset...")
-
-    train_dataset: Dataset
-    test_dataset: Dataset
-    if args.dataset.lower() == "modelnet10":
-        train_dataset = ModelNet10(args.root, True, transform=transform, pre_transform=pre_transform, download=True)
-        test_dataset = ModelNet10(args.root, False, transform=transform, pre_transform=pre_transform, download=True)
-    elif args.dataset.lower() == "modelnet40":
-        train_dataset = ModelNet40(
-            args.root,
-            True,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-        test_dataset = ModelNet40(
-            args.root,
-            False,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10'.")
-
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-
-    print("Building model...")
+    print("Loading model, optimizer, and scheduler...", end=" ")
     model = KPConvNetClassification(
         in_channels=6,
         num_classes=args.num_classes,
@@ -102,7 +54,7 @@ def main() -> None:
         final_div_factor=1000.0,
         total_steps=len(train_dataloader) * args.epochs,
     )
-    # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.1 ** (1 / 100))
+    print("Done!")
 
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
@@ -119,7 +71,7 @@ def main() -> None:
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--root", type=str, default="data")
+    parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="modelnet10", choices=["modelnet10", "modelnet40"])
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--num-points", type=int, default=4096)
@@ -129,6 +81,8 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--limit-train-batches", type=int, default=None)
+    parser.add_argument("--limit-test-batches", type=int, default=None)
     return parser.parse_args()
 
 
@@ -139,61 +93,117 @@ def train_one_epoch(
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
-    cum_loss = 0.0
+    total_correct = total_loss = 0.0
     model.train()
 
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        coords = data["pos"].to(device)
-        target = data["label"].to(device)
-        features = data["normal"].to(device)
-        batch = data["batch"].to(device)
-        features = torch.cat([features, coords], dim=1)
+        pos = data[DataKeys.POS].to(device)
+        normal = data[DataKeys.NORMAL].to(device)
+        target = data[DataKeys.LABEL].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        x = torch.cat([pos, normal], dim=1)
 
         optimizer.zero_grad()
-        logits = model(features, coords, batch)
-        logits = F.log_softmax(logits, dim=1)
-        loss = F.nll_loss(logits, target)
+        logits = model(x, pos, batch)
+        probs = F.log_softmax(logits, dim=1)
+
+        loss = F.nll_loss(probs, target)
         loss.backward()
         optimizer.step()
-        cum_loss += loss.item()
+        total_loss += loss.item()
+
+        correct = logits.argmax(dim=1).eq(target).sum()
+        total_correct += correct.item()
 
         if i % log_interval == 0:
-            preds = logits.argmax(dim=1)
-            acc = preds.eq(target).sum().item() / len(preds)
-            pbar.set_postfix(
-                {
-                    "train/loss_step": f"{loss.item():.3f}",
-                    "train/acc_step": f"{acc:.3f}",
-                }
-            )
+            loss_step = loss.item()
+            acc_step = correct.item() / len(target)
+            pbar.set_postfix({"train/loss_step": f"{loss_step:.3f}", "train/acc_step": f"{acc_step:.3f}"})
 
-    return {"train/loss_epoch": cum_loss / len(dataloader)}
+    return {
+        "train/loss_epoch": total_loss / len(dataloader),
+        "train/acc_epoch": int(total_correct) / len(dataloader.dataset),  # type: ignore[arg-type]
+    }
 
 
 def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") -> Dict[str, float]:
     model.eval()
     correct = 0
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
-        coords = data["pos"].to(device)
-        target = data["label"].to(device)
-        features = data["normal"].to(device)
-        batch = data["batch"].to(device)
-        features = torch.cat([features, coords], dim=1)
+        pos = data[DataKeys.POS].to(device)
+        target = data[DataKeys.LABEL].to(device)
+        normal = data[DataKeys.NORMAL].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        x = torch.cat([pos, normal], dim=1)
 
         with torch.no_grad():
-            preds = model(features, coords, batch).max(1)[1]
+            preds = model(x, pos, batch).max(1)[1]
         correct += preds.eq(target).sum().item()
+
     return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
 
 
-def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["pos"] for d in data_list]).float()
-    normal = torch.cat([d["normal"] for d in data_list]).float()
-    target = torch.stack([d["label"] for d in data_list])
+def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
+    transform = T.Compose(
+        [
+            T.NormalizeScaled(keys=DataKeys.POS),
+            T.RandomSampleFaceVerticesd(
+                keys=DataKeys.POS,
+                face_key=DataKeys.FACE,
+                normal_key=DataKeys.NORMAL,
+                num_samples=args.num_points,
+            ),
+        ]
+    )
 
-    return {"pos": coords, "normal": normal, "label": target, "batch": batch}
+    train_dataset: Dataset
+    test_dataset: Dataset
+    if args.dataset.lower() == "modelnet10":
+        train_dataset = ModelNet10(args.root, True, transform=transform, download=True)
+        test_dataset = ModelNet10(args.root, False, transform=transform, download=True)
+    elif args.dataset.lower() == "modelnet40":
+        train_dataset = ModelNet40(
+            args.root,
+            True,
+            transform=transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+        test_dataset = ModelNet40(
+            args.root,
+            False,
+            transform=transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+    else:
+        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10'.")
+
+    # Limit the size of the dataset if specified
+    if args.limit_train_batches is not None:
+        n = min(args.limit_train_batches * args.batch_size, len(train_dataset))
+        train_dataset = Subset(train_dataset, range(n))
+    if args.limit_test_batches is not None:
+        n = min(args.limit_test_batches * args.batch_size, len(test_dataset))
+        test_dataset = Subset(test_dataset, range(n))
+
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+
+    return train_dataloader, test_dataloader
 
 
 if __name__ == "__main__":

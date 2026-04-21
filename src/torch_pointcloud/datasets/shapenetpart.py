@@ -1,7 +1,6 @@
 import json
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, TypedDict, Union
 
 import numpy as np
 import torch
@@ -9,6 +8,7 @@ from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
@@ -36,72 +36,46 @@ ShapeNetCategory = Literal[
 
 
 class ShapeNetPartData(TypedDict):
-    pos: torch.Tensor
-    normal: torch.Tensor
-    segmentation: torch.Tensor
-    category: torch.Tensor
+    pos: np.ndarray
+    normal: np.ndarray
+    segment: np.ndarray
 
 
-def load_shapenet_part_data(file_path: PathLike, category: int) -> ShapeNetPartData:
+def load_shapenet_part_data(file_path: PathLike) -> Optional[ShapeNetPartData]:
     data = np.loadtxt(file_path, delimiter=" ")
-    pos = data[:, :3]
-    normal = data[:, 3:6]
-    segmentation = data[:, -1]
+    if data.shape[0] == 0:
+        return None
 
     return ShapeNetPartData(
-        pos=torch.from_numpy(pos).float(),
-        normal=torch.from_numpy(normal).float(),
-        segmentation=torch.from_numpy(segmentation).long(),
-        category=torch.tensor(category),
+        pos=data[:, :3].astype(np.float32),
+        normal=data[:, 3:6].astype(np.float32),
+        segment=data[:, -1].astype(np.int16),
     )
 
 
 class ShapeNetPart(PointCloudDataset):
-    """The ShapeNetPart dataset as described in the original paper
-    [A Scalable Active Framework for Region Annotation in 3D Shape Collections](http://web.stanford.edu/~ericyi/papers/part_annotation_16_small.pdf).
+    """ShapeNetPart dataset packed into per-split `.npy` files.
 
-    You can download the raw dataset from https://shapenet.org/ official website.
+    Each split is packed once into:
 
-    The ShapeNetPart dataset is a subset of the ShapeNetCore dataset.
-    It contains approximately 17,000 3D shapes from 16 categories.
-    Each category is annotated with 2 to 6 semantic parts.
+        <processed_dir>/<split>/
+            pos.npy           # float32, (total_points, 3)
+            normal.npy        # float32, (total_points, 3)
+            segment.npy       # int16,   (total_points,)
+            offset.npy        # int64,   (n_samples + 1,)
+            category.npy      # int16,   (n_samples,)
 
-    The dataset will be processed automatically and saved in the `ShapeNetPart/processed` directory.
-    If the processed data already exists, it will be loaded from the `ShapeNetPart/processed` directory
-    and processing steps will be skipped.
+    The packed files contain every category; `categories` filters the
+    sample index at load time, so changing the subset is free.
 
     Args:
-        root: The root directory of the dataset, where the raw and processed data will be stored.
-        split: The split to load, one of "train", "val", or "test".
-        categories: The categories to load, either a list of ShapeNetPart categories or a single category.
-        transform: A callable that transforms the data when retrieved from the dataset.
-        pre_transform: Used to transform the data before saving it in the processed directory.
-        pre_filter: Used to filter the data before saving it in the processed directory.
-        force_process: Whether to process the raw data and save it in the processed directory.
-            If `False`, the processed data will be loaded from the processed directory.
-            If `True`, the raw data will be processed and saved in the processed directory,
-            regardless of whether the processed data already exists.
-        show_progress: Whether to show a progress bar during processing.
-        num_workers: If specified, the number of workers to use for processing the data.
-            If unspecified or `None`, the data will be processed sequentially.
-
-    Example:
-        Assuming you have downloaded the raw dataset from https://shapenet.org/,
-        and extracted it under `data/ShapeNetPart/raw`, you can load the dataset as follows:
-
-        ```python
-        from torch_pointcloud.datasets import ShapeNetPart
-
-        dataset = ShapeNetPart(
-            root="data",
-            split="train",
-            categories=["Airplane", "Chair"],
-            progress=False,
-        )
-        ```
-
-        This will process the raw data and save it in the `data/ShapeNetPart/processed` directory,
-        and re-running the above code will load the processed data from the `data/ShapeNetPart/processed` directory.
+        root: Dataset root directory.
+        split: One of "train", "val", "test".
+        categories: Which categories to expose. Defaults to all 16.
+        transform: Callable applied to each sample in `__getitem__`.
+        force_process: Re-pack raw data even if processed files exist.
+        show_progress: Show a progress bar during processing.
+        num_workers: Parallelism for raw-file reading during processing.
     """
 
     data_url = "https://shapenet.org/"
@@ -151,34 +125,34 @@ class ShapeNetPart(PointCloudDataset):
         split: Literal["train", "val", "test"],
         categories: Optional[Union[List[ShapeNetCategory], ShapeNetCategory]] = None,
         transform: Optional[TransformLike] = None,
-        pre_transform: Optional[TransformLike] = None,
-        pre_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
         force_process: bool = False,
         show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-
-        if split not in ["train", "val", "test"]:
-            raise ValueError(f"Invalid split: {split}. Must be one of 'train', 'val' or 'test'.")
+        if split not in ("train", "val", "test"):
+            raise ValueError(f"Invalid split: {split!r}. Must be one of 'train', 'val', 'test'.")
 
         self.root = Path(root).as_posix()
         self.split = split
         self.categories = ensure_tuple(categories or self.category_ids.keys())
         self.transform = transform
-        self.pre_filter = pre_filter
-        self.pre_transform = pre_transform
         self.show_progress = show_progress
         self.num_workers = num_workers
 
-        self.process(force=force_process)
+        for category in self.categories:
+            if category not in self.category_ids:
+                raise KeyError(f"Unknown {self.__class__.__name__} category: {category!r}")
 
-        self.data = self._load_processed_data()
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.load(show_progress=show_progress)
 
+    @override
     @property
     def data_dir(self) -> str:
-        return Path(self.root, f"{self.__class__.__name__}").as_posix()
+        return Path(self.root, self.__class__.__name__).as_posix()
 
+    @override
     @property
     def raw_dir(self) -> str:
         return Path(self.data_dir, "raw").as_posix()
@@ -199,78 +173,112 @@ class ShapeNetPart(PointCloudDataset):
     def raw_files_exist(self) -> bool:
         if not Path(self.raw_dir).exists():
             return False
-
         if not Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json").exists():
             return False
-
         for category_id in self.category_ids.values():
-            if not Path(self.raw_dir, category_id).exists():
+            cat_dir = Path(self.raw_dir, category_id)
+            if not cat_dir.exists() or not any(cat_dir.rglob("*.txt")):
                 return False
-
-            if not any(Path(self.raw_dir, category_id).rglob("*.txt")):
-                return False
-
         return True
 
     @override
     def processed_files_exist(self) -> bool:
-        return Path(self.processed_dir, f"{self.split}.pt").exists()
+        split_dir = Path(self.processed_dir, self.split)
+        file_names = ["pos.npy", "normal.npy", "segment.npy", "offset.npy", "category.npy"]
+        return all((split_dir / name).exists() for name in file_names)
 
-    def process(self, force: bool = False) -> None:
+    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if self.processed_files_exist() and not force:
             return
-        elif not self.raw_files_exist():
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
-                f"You can download the raw dataset from {self.data_url!r}, "
+                f"You can download it from {self.data_url!r} "
                 f"and extract it under {self.raw_dir!r}."
             )
 
         split_path = Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json")
-
         with open(split_path, "r") as f:
             split_files = json.load(f)
 
-        pbar = tqdm(split_files, total=len(split_files), desc="Processing", disable=not self.show_progress)
-        category_id_to_idx = {self.category_ids[cat]: i for i, cat in enumerate(self.categories)}
-        func = partial(self._process_data, category_id_to_idx=category_id_to_idx)
-        data_list = parallel_map(func, pbar, num_workers=self.num_workers)
-        data_list = [data for data in data_list if data is not None]
+        samples = parallel_map(
+            self._load_raw_file,
+            split_files,
+            num_workers=num_workers,
+            total=len(split_files),
+            desc="Reading",
+            show_progress=show_progress,
+        )
+        samples = [s for s in samples if s is not None]
+        if not samples:
+            raise RuntimeError(f"Found no samples in split {self.split!r}.")
 
-        dst_path = Path(self.processed_dir, f"{self.split}.pt")
-        dst_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(data_list, dst_path)
+        split_dir = Path(self.processed_dir, self.split)
+        split_dir.mkdir(parents=True, exist_ok=True)
 
-    def _process_data(self, file_name: str, category_id_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
-        file_path = Path(self.raw_dir, file_name.replace("shape_data/", "")).with_suffix(".txt")
+        sizes = np.array([s["pos"].shape[0] for s in samples], dtype=np.int64)  # type: ignore[index]
+        offsets = np.concatenate(([0], np.cumsum(sizes))).astype(np.int64)
+        pos = np.concatenate([s["pos"] for s in samples], dtype=np.float32)  # type: ignore[index]
+        normal = np.concatenate([s["normal"] for s in samples], dtype=np.float32)  # type: ignore[index]
+        segment = np.concatenate([s["segment"] for s in samples], dtype=np.int16)  # type: ignore[index]
+        category = np.asarray([s["category"] for s in samples], dtype=np.int16)  # type: ignore[index]
+
+        np.save(split_dir / "pos.npy", pos)
+        np.save(split_dir / "normal.npy", normal)
+        np.save(split_dir / "segment.npy", segment)
+        np.save(split_dir / "offset.npy", offsets)
+        np.save(split_dir / "category.npy", category)
+
+    def _load_raw_file(self, file_name: str) -> Optional[Dict[str, Any]]:
+        file_path = Path(self.raw_dir, file_name.lstrip("shape_data/")).with_suffix(".txt")
+        data = load_shapenet_part_data(file_path)
+        if not data:
+            return None
 
         category_id = file_path.parent.name
-        category = category_id_to_idx.get(category_id)
+        category_idx = list(self.category_ids.values()).index(category_id)
+        return {
+            **data,
+            "category": category_idx,
+        }
 
-        if category is None:
-            return None
+    def load(self, show_progress: bool = True) -> None:
+        split_dir = Path(self.processed_dir, self.split)
+        offsets = np.load(split_dir / "offset.npy")
+        category_idxs = np.load(split_dir / "category.npy")
 
-        data: Dict[str, Any] = load_shapenet_part_data(file_path, category)  # type: ignore[assignment]
+        category_name_to_idx = {name: i for i, name in enumerate(self.category_ids)}
+        selected_category_idxs = np.array(
+            [category_name_to_idx[c] for c in self.categories],
+            dtype=category_idxs.dtype,
+        )
 
-        if self.pre_filter is not None and not self.pre_filter(data):
-            return None
+        indices = np.nonzero(np.isin(category_idxs, selected_category_idxs))[0]
+        pos = np.load(split_dir / "pos.npy")
+        normal = np.load(split_dir / "normal.npy")
+        segment = np.load(split_dir / "segment.npy")
 
-        if self.pre_transform is not None:
-            data = self.pre_transform(data)
+        self.samples = [
+            {
+                # NOTE: We use a copy to avoid modifying the original array
+                # in case a transform is modifying data in-place.
+                DataKeys.POS: torch.from_numpy(pos[offsets[i] : offsets[i + 1]].copy()),
+                DataKeys.NORMAL: torch.from_numpy(normal[offsets[i] : offsets[i + 1]].copy()),
+                DataKeys.SEGMENT: torch.from_numpy(segment[offsets[i] : offsets[i + 1]].astype(np.int64)),
+                # The category index is NOT remapped to the new selected categories subset (if specified)
+                # meaning that one MUST relabel the categories if the subset changed for classification tasks.
+                DataKeys.CATEGORY: torch.tensor(category_idxs[i], dtype=torch.long),
+            }
+            for i in tqdm(indices, total=len(indices), desc="Loading", disable=not show_progress)
+        ]
 
-        return data
+    @override
+    def __len__(self) -> int:
+        return len(self.samples)
 
-    def _load_processed_data(self) -> Any:
-        file_path = Path(self.processed_dir, f"{self.split}.pt")
-        return torch.load(file_path, weights_only=True)
-
-    def __getitem__(self, index: int) -> Dict[str, Any]:
-        data = self.data[index]
-
+    @override
+    def __getitem__(self, index: int) -> Mapping:
+        data: dict = self.samples[index]
         if self.transform is not None:
             data = self.transform(data)
-
         return data
-
-    def __len__(self) -> int:
-        return len(self.data)

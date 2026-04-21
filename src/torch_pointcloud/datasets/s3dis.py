@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Literal, Optional, Sequence, Tuple, TypedDict, Union
 from urllib.parse import urljoin
 
 import numpy as np
@@ -44,7 +44,7 @@ class S3DISRoomData(TypedDict, total=False):
 def load_s3dis_room_data(
     room_dir: PathLike,
     alignment_angle: float | None = None,
-    class_to_idx: Optional[Dict[str, int]] = None,
+    class_to_idx: Optional[dict[str, int]] = None,
     unk_id: Optional[int] = None,
 ) -> S3DISRoomData:
     class_to_idx = class_to_idx or S3DIS_CLASS_TO_IDX
@@ -84,7 +84,7 @@ def load_s3dis_room_data(
     return S3DISRoomData(**room)  # type: ignore[typeddict-item]
 
 
-def load_s3dis_alignment_angles(file_path: PathLike) -> Dict[str, float]:
+def load_s3dis_alignment_angles(file_path: PathLike) -> dict[str, float]:
     with open(file_path, "r") as f:
         lines = f.readlines()
 
@@ -162,7 +162,7 @@ class S3DIS(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        areas: Union[List[str], Literal["all"]] = "all",
+        areas: Union[list[str], Literal["all"]] = "all",
         classes: Optional[Union[str, Sequence[str]]] = "all",
         unk_id: Optional[int] = None,
         transform: Optional[Callable] = None,
@@ -188,7 +188,7 @@ class S3DIS(PointCloudDataset):
         self.data = self._load_processed_data()
 
     @property
-    def class_to_idx(self) -> Dict[str, int]:
+    def class_to_idx(self) -> dict[str, int]:
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     @override
@@ -291,7 +291,7 @@ class S3DIS(PointCloudDataset):
                 f"and extract it under {self.raw_dir!r}."
             )
 
-        jobs: List[Tuple[Path, Path, Optional[float]]] = []
+        jobs: list[Tuple[Path, Path, Optional[float]]] = []
         for area in self.areas:
             area_dir = Path(self.raw_dir, area)
             out_area_dir = Path(self.processed_dir, area)
@@ -304,7 +304,7 @@ class S3DIS(PointCloudDataset):
             lambda job: self._process_room(*job),
             jobs,
             num_workers=self.num_workers,
-            desc="Processing rooms",
+            desc="Processing",
             show_progress=self.show_progress,
         )
 
@@ -329,22 +329,33 @@ class S3DIS(PointCloudDataset):
         np.save(out_dir / "segment.npy", room["semantic"].numpy().astype(np.int16))
         np.save(out_dir / "instance.npy", room["instance"].numpy().astype(np.int16))
 
-    def _load_processed_data(self) -> List[Path]:
-        rooms: List[Path] = []
+    def _load_processed_data(self) -> list[dict[str, Any]]:
+        def _load_processed_room_data(room_dir: Path) -> dict[str, Any]:
+            pos = np.load(room_dir / "coord.npy")
+            color = np.load(room_dir / "color.npy")
+            semantic = np.load(room_dir / "segment.npy")
+            instance = np.load(room_dir / "instance.npy")
+            return {
+                DataKeys.POS: torch.from_numpy(pos).float(),
+                DataKeys.COLOR: torch.from_numpy(color).to(torch.uint8),
+                DataKeys.SEMANTIC: torch.from_numpy(semantic).long(),
+                DataKeys.INSTANCE: torch.from_numpy(instance).long(),
+            }
+
+        room_dirs = []
         for area in self.areas:
             area_dir = Path(self.processed_dir, area)
-            rooms.extend(sorted(p for p in area_dir.iterdir() if p.is_dir()))
-        return rooms
+            room_dirs.extend(sorted(p for p in area_dir.iterdir() if p.is_dir()))
+
+        return parallel_map(
+            _load_processed_room_data,
+            room_dirs,
+            num_workers=self.num_workers,
+        )
 
     @override
-    def __getitem__(self, index: int) -> Dict[str, Any]:
-        room_dir = self.data[index]
-        data: Dict[str, Any] = {
-            DataKeys.POS: torch.from_numpy(np.load(room_dir / "coord.npy")),
-            DataKeys.COLOR: torch.from_numpy(np.load(room_dir / "color.npy")),
-            DataKeys.SEMANTIC: torch.from_numpy(np.load(room_dir / "segment.npy")).long(),
-            DataKeys.INSTANCE: torch.from_numpy(np.load(room_dir / "instance.npy")).long(),
-        }
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        data = self.data[index]
         if self.transform is not None:
             data = self.transform(data)
         return data

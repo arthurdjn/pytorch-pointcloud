@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Callable, List
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pytest
-import torch
 
 from torch_pointcloud.datasets.shapenetpart import ShapeNetPart, load_shapenet_part_data
 
@@ -13,17 +13,16 @@ def test_load_shapenet_part(data_dir_factory: Callable[..., Path]) -> None:
     """Test that the shapenet part is loaded correctly"""
     data_dir = data_dir_factory("ShapeNetPart/raw/**/*")
     file_path = data_dir / "ShapeNetPart" / "raw" / "02691156" / "103c9e43cdf6501c62b600da24e0965.txt"
-    data = load_shapenet_part_data(file_path, 0)
+    data = load_shapenet_part_data(file_path)
 
-    assert isinstance(data["category"], torch.Tensor)
-    assert isinstance(data["segmentation"], torch.Tensor)
-    assert isinstance(data["pos"], torch.Tensor)
-    assert isinstance(data["normal"], torch.Tensor)
+    assert data is not None
+    assert isinstance(data["pos"], np.ndarray)
+    assert isinstance(data["normal"], np.ndarray)
+    assert isinstance(data["segment"], np.ndarray)
 
-    assert data["category"].item() == 0
-    assert data["segmentation"].shape == (10,)
     assert data["pos"].shape == (10, 3)
     assert data["normal"].shape == (10, 3)
+    assert data["segment"].shape == (10,)
 
 
 def test_shapenet_dataset_not_found() -> None:
@@ -134,7 +133,7 @@ def test_shapenet_dataset_progress(data_dir_factory: Callable[..., Path], capsys
     dataset = ShapeNetPart(root=data_dir, split="train", show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
-    assert "Processing" in captured.err
+    assert "Reading" in captured.err
     assert captured.out == ""
 
 
@@ -156,13 +155,13 @@ def test_shapenet_dataset_progress_with_cached_processed(
     data_dir_factory: Callable[..., Path],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test that no progress bar is shown if the processed dataset already exists"""
+    """Test that no processing progress bar is shown if the processed dataset already exists"""
     data_dir = data_dir_factory("ShapeNetPart/processed/**/*")
 
     dataset = ShapeNetPart(root=data_dir, split="train", show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert "Reading" not in captured.err
     assert captured.out == ""
 
 
@@ -214,34 +213,6 @@ def test_shapenet_dataset_invalid_category(data_dir_factory: Callable[..., Path]
 
     with pytest.raises(KeyError):
         _ = ShapeNetPart(root=data_dir, split="train", categories="Not a category", show_progress=False)
-
-
-def test_shapenet_dataset_pre_transform(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is transformed correctly before being processed"""
-    data_dir = data_dir_factory("ShapeNetPart/raw/**/*")
-
-    pre_transform = Mock(side_effect=lambda x: x)
-    dataset = ShapeNetPart(root=data_dir, split="train", pre_transform=pre_transform, show_progress=False)
-    assert pre_transform.call_count == len(dataset)
-
-
-def test_shapenet_dataset_pre_filter_called(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("ShapeNetPart/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: True)
-    dataset = ShapeNetPart(root=data_dir, split="train", pre_filter=pre_filter, show_progress=False)
-    assert pre_filter.call_count == len(dataset)
-
-
-def test_shapenet_dataset_pre_filter(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("ShapeNetPart/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: False)
-    dataset = ShapeNetPart(root=data_dir, split="train", pre_filter=pre_filter, show_progress=False)
-    assert len(dataset) == 0
-    pre_filter.assert_called()
 
 
 def test_shapenet_dataset_transform_called(data_dir_factory: Callable[..., Path]) -> None:

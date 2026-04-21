@@ -163,14 +163,14 @@ def train_one_epoch(
 
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        pos = data["pos"].to(device)
-        normal = data["normal"].to(device)
-        target = data["label"].to(device)
-        batch = data["batch"].to(device)
-        features = torch.cat([pos, normal], dim=1)
+        pos = data[DataKeys.POS].to(device)
+        normal = data[DataKeys.NORMAL].to(device)
+        target = data[DataKeys.LABEL].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        x = torch.cat([pos, normal], dim=1)
 
         optimizer.zero_grad()
-        logits = model(features, pos, batch)
+        logits = model(x, pos, batch)
         probs = F.log_softmax(logits, dim=1)
 
         loss = F.nll_loss(probs, target)
@@ -200,10 +200,10 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") 
         normal = data[DataKeys.NORMAL].to(device)
         target = data[DataKeys.LABEL].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        features = torch.cat([pos, normal], dim=1)
+        x = torch.cat([pos, normal], dim=1)
 
         with torch.no_grad():
-            preds = model(features, pos, batch).max(1)[1]
+            preds = model(x, pos, batch).max(1)[1]
         correct += preds.eq(target).sum().item()
 
     return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]

@@ -103,7 +103,7 @@ def train_one_epoch(
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
         pos = data[DataKeys.POS].to(device)
-        target = data[DataKeys.SEMANTIC].to(device)
+        target = data[DataKeys.SEGMENT].to(device)
         batch = data[DataKeys.BATCH].to(device)
 
         optimizer.zero_grad()
@@ -138,14 +138,14 @@ def eval_one_epoch(
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         pos = data[DataKeys.POS].to(device)
-        target = data[DataKeys.SEMANTIC].to(device)
+        target = data[DataKeys.SEGMENT].to(device)
         batch = data[DataKeys.BATCH].to(device)
 
         with torch.no_grad():
             logits = model(None, pos, batch)
             preds = logits.argmax(dim=1)
 
-        intersection, union = compute_intersection_union_stats(
+        intersection, union = compute_intersection_union(
             preds,
             target,
             num_classes=num_classes,
@@ -188,7 +188,7 @@ def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
             [
                 T.NormalizeScaled(keys=DataKeys.POS),
                 T.RandomSampled(
-                    keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEMANTIC, DataKeys.INSTANCE],
+                    keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
                     num_samples=4096,
                 ),
             ]
@@ -232,7 +232,7 @@ def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     return train_dataloader, test_dataloader
 
 
-def compute_intersection_union_stats(
+def compute_intersection_union(
     preds: Tensor,
     target: Tensor,
     num_classes: int,

@@ -195,7 +195,7 @@ def eval_one_epoch(
             logits = model(None, coords, batch)
             preds = logits.argmax(dim=1)
 
-        intersection, union = compute_intersection_union_stats(
+        intersection, union = compute_intersection_union(
             preds,
             target,
             num_classes=num_classes,
@@ -223,7 +223,7 @@ def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
     return {"pos": coords, "label": target, "batch": batch}
 
 
-def compute_intersection_union_stats(
+def compute_intersection_union(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
