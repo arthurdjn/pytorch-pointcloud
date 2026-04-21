@@ -6,8 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 import torch
 
-from torch_pointcloud.datasets import ShapeNetPart
-from torch_pointcloud.datasets.shapenet import load_shapenet_part_data
+from torch_pointcloud.datasets.shapenetpart import ShapeNetPart, load_shapenet_part_data
 
 
 def test_load_shapenet_part(data_dir_factory: Callable[..., Path]) -> None:
@@ -67,7 +66,7 @@ def test_shapenet_dataset_processed_files_not_exist(split: str) -> None:
 
 
 @pytest.mark.parametrize("split", ["train", "val", "test"])
-@patch("torch_pointcloud.datasets.shapenet.load_shapenet_part_data")
+@patch("torch_pointcloud.datasets.shapenetpart.load_shapenet_part_data")
 def test_shapenet_dataset_split(
     mock_load: Mock,
     data_dir_factory: Callable[..., Path],
@@ -85,7 +84,7 @@ def test_shapenet_dataset_split(
 
 
 @pytest.mark.parametrize("split", ["train", "val", "test"])
-@patch("torch_pointcloud.datasets.shapenet.load_shapenet_part_data")
+@patch("torch_pointcloud.datasets.shapenetpart.load_shapenet_part_data")
 def test_shapenet_dataset_process_split(
     mock_load: Mock,
     data_dir_factory: Callable[..., Path],
@@ -103,7 +102,7 @@ def test_shapenet_dataset_process_split(
 
 
 @pytest.mark.parametrize("split", ["train", "val", "test"])
-@patch("torch_pointcloud.datasets.shapenet.load_shapenet_part_data")
+@patch("torch_pointcloud.datasets.shapenetpart.load_shapenet_part_data")
 def test_shapenet_dataset_process_split_forced(
     mock_load: Mock,
     data_dir_factory: Callable[..., Path],

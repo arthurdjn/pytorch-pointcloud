@@ -1,5 +1,5 @@
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -24,62 +24,14 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    pre_transform = T.NormalizeScaled(keys="pos")
-    transform = None
+    print(f"Loading {args.dataset} dataloaders...", end=" ")
+    train_dataloader, test_dataloader = load_dataloaders(args)
+    print("Done!")
 
-    print(f"Loading {args.dataset} dataset...")
-    train_dataset: Dataset
-    test_dataset: Dataset
-    if args.dataset.lower() == "shapenetpart":
-        train_dataset = ShapeNetPart(
-            args.root,
-            split="train",
-            categories=args.categories,
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-        test_dataset = ShapeNetPart(
-            args.root,
-            split="test",
-            categories=args.categories,
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-    elif args.dataset.lower() == "s3dis":
-        train_dataset = S3DIS(
-            args.root,
-            areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-        test_dataset = S3DIS(
-            args.root,
-            areas=["Area_5"],
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
-
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-
-    print("Building model...")
+    print("Loading model, optimizer, and scheduler...", end=" ")
     model = create_model(
         args.model,
-        in_channels=3,
+        in_channels=0,
         num_classes=args.num_classes,
         task="segmentation",
     ).to(args.device)
@@ -94,6 +46,7 @@ def main() -> None:
         final_div_factor=1000.0,
         total_steps=len(train_dataloader) * args.epochs,
     )
+    print("Done!")
 
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
@@ -150,7 +103,7 @@ def train_one_epoch(
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
         pos = data[DataKeys.POS].to(device)
-        target = data[DataKeys.LABEL].to(device)
+        target = data[DataKeys.SEMANTIC].to(device)
         batch = data[DataKeys.BATCH].to(device)
 
         optimizer.zero_grad()
@@ -212,11 +165,12 @@ def eval_one_epoch(
 
 
 def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
-    transform = T.NormalizeScaled(keys=DataKeys.POS)
-
     train_dataset: Dataset
     test_dataset: Dataset
+    transform: Callable
+
     if args.dataset.lower() == "shapenetpart":
+        transform = T.NormalizeScaled(keys=DataKeys.POS)
         train_dataset = ShapeNetPart(
             args.root,
             split="train",
@@ -230,6 +184,15 @@ def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
             transform=transform,
         )
     elif args.dataset.lower() == "s3dis":
+        transform = T.Compose(
+            [
+                T.NormalizeScaled(keys=DataKeys.POS),
+                T.RandomSampled(
+                    keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEMANTIC, DataKeys.INSTANCE],
+                    num_samples=4096,
+                ),
+            ]
+        )
         train_dataset = S3DIS(
             args.root,
             areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
@@ -245,9 +208,11 @@ def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
 
     # Limit the size of the dataset if specified
     if args.limit_train_batches is not None:
+        n = min(args.limit_train_batches * args.batch_size, len(train_dataset))
         train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
     if args.limit_test_batches is not None:
-        test_dataset = Subset(test_dataset, range(args.limit_test_batches * args.batch_size))
+        n = min(args.limit_test_batches * args.batch_size, len(test_dataset))
+        test_dataset = Subset(test_dataset, range(n))
 
     train_dataloader = DataLoader(
         train_dataset,

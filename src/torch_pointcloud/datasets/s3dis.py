@@ -1,18 +1,17 @@
-import math
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union
 from urllib.parse import urljoin
 
 import numpy as np
 import torch
 from torch import Tensor
-from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix
+from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -70,10 +69,10 @@ def load_s3dis_room_data(
             R = rodrigues_rotation_matrix(torch.tensor([0, 0, 1]), alignment_angle)
             points[:, 0:3] = coords @ R
 
-        room[DataKeys.POS].append(points[:, 0:3])
-        room[DataKeys.COLOR].append(points[:, 3:6].to(torch.uint8))
-        room[DataKeys.SEMANTIC].append(torch.full((N,), category_idx, dtype=torch.int64))
-        room[DataKeys.INSTANCE].append(torch.full((N,), obj_idx, dtype=torch.int64))
+        room["pos"].append(points[:, 0:3])
+        room["color"].append(points[:, 3:6].to(torch.uint8))
+        room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
+        room["instance"].append(torch.full((N,), obj_idx, dtype=torch.int64))
 
     # Stack the data
     for key, values in room.items():
@@ -93,33 +92,6 @@ def load_s3dis_alignment_angles(file_path: PathLike) -> Dict[str, float]:
     return {room_name: float(angle) for room_name, angle in [line.split() for line in lines]}
 
 
-def iter_blocks(
-    coords: Tensor,
-    block_size: float,
-    stride: float,
-) -> Generator[Tuple[Tensor, Tensor], None, None]:
-    x_max, y_max, _ = torch.max(coords, dim=0).values
-    x_min, y_min, _ = torch.min(coords, dim=0).values
-    num_block_x = abs(math.ceil((x_max - block_size) / stride)) + 1
-    num_block_y = abs(math.ceil((y_max - block_size) / stride)) + 1
-
-    x_starts, y_starts = np.meshgrid(np.arange(num_block_x), np.arange(num_block_y))
-    x_starts = torch.from_numpy(x_starts.flatten() * stride) + x_min
-    y_starts = torch.from_numpy(y_starts.flatten() * stride) + y_min
-    indices = torch.arange(coords.size(0))
-
-    # Collect blocks
-    for x_start, y_start in zip(x_starts, y_starts):
-        x_cond = (coords[:, 0] >= x_start) & (coords[:, 0] <= x_start + block_size)
-        y_cond = (coords[:, 1] >= y_start) & (coords[:, 1] <= y_start + block_size)
-        cond = x_cond & y_cond
-
-        if cond.sum() == 0:
-            continue
-
-        yield coords[cond], indices[cond]
-
-
 class S3DIS(PointCloudDataset):
     """
     The Stanford 3D Indoor Spaces Dataset (S3DIS) dataset, as described in the original paper
@@ -132,9 +104,11 @@ class S3DIS(PointCloudDataset):
     (e.g. wall, floor, ceiling, etc.) with instance-level annotations.
 
     The dataset will be processed automatically and saved in the `S3DIS/processed` directory.
-    If the processed data already exists, it will be loaded from the `S3DIS/processed` directory
-    and processing steps will be skipped.
-    The raw dataset is processed by blocks of size `block_size` with a stride of `block_stride`.
+    Each room is stored as its own folder, mirroring
+    [Pointcept's preprocessing layout](https://github.com/Pointcept/Pointcept/blob/main/pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py):
+    `<processed_dir>/<Area_i>/<room_name>/{coord,color,segment,instance}.npy`. If the processed
+    data already exists, it will be loaded from the `S3DIS/processed` directory and processing
+    will be skipped.
 
     > [!TIP]
     > If you change the preprocessing parameters, you can delete the processed data to reprocess the dataset
@@ -145,14 +119,13 @@ class S3DIS(PointCloudDataset):
         areas: The areas to load, either a list of area names or "all".
         classes: The classes to load, either a list of class names or "all".
         unk_id: The id to use for unknown classes.
-        block_size: The size of the blocks to process.
-        block_stride: The stride of the blocks to process.
         transform: A callable that transforms the data when retrieved from the dataset.
-        normalize_coords: Whether to normalize and center the coordinates of the block.
         download: Whether to download the raw data.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
+        num_workers: Number of worker processes for parallel room processing. If `None`,
+            rooms are processed sequentially.
 
     Example:
         Assuming you have downloaded the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/,
@@ -164,17 +137,6 @@ class S3DIS(PointCloudDataset):
         dataset = S3DIS(
             root="data",
             areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
-        )
-        ```
-
-        You can select the block size to process the dataset by passing the `block_size` argument.
-        For example, to process blocks of size 1 meter, you can do:
-
-        ```python
-        dataset = S3DIS(
-            root="data",
-            block_size=1,  # The size of the blocks to process.
-            block_stride=0.5,  # The stride of the blocks to process.
         )
         ```
 
@@ -203,25 +165,21 @@ class S3DIS(PointCloudDataset):
         areas: Union[List[str], Literal["all"]] = "all",
         classes: Optional[Union[str, Sequence[str]]] = "all",
         unk_id: Optional[int] = None,
-        block_size: float = 1,
-        block_stride: float = 0.5,
         transform: Optional[Callable] = None,
-        normalize_coords: bool = True,
         download: bool = False,
         force_download: bool = False,
         force_process: bool = False,
         show_progress: bool = True,
+        num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
 
         self.areas = areas if areas != "all" else ["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"]
         self.classes = ensure_tuple(S3DIS_CLASS_TO_IDX.keys() if classes == "all" else classes)
         self.unk_id = unk_id
-        self.block_size = block_size
-        self.block_stride = block_stride
         self.transform = transform
-        self.normalize_coords = normalize_coords
         self.show_progress = show_progress
+        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
@@ -243,13 +201,23 @@ class S3DIS(PointCloudDataset):
             for room_dir in room_dirs:
                 if not any(room_dir.rglob("Annotations/*.txt")):
                     return False
+
         return True
 
     @override
     def processed_files_exist(self) -> bool:
+        def is_room_processed(room_dir: Path) -> bool:
+            return all((room_dir / f"{name}.npy").exists() for name in ("coord", "color", "segment", "instance"))
+
         for area in self.areas:
-            if not Path(self.processed_dir, f"{area}.pt").exists():
+            area_dir = Path(self.processed_dir, area)
+            if not area_dir.is_dir():
                 return False
+
+            room_dirs = [p for p in area_dir.iterdir() if p.is_dir()]
+            if not room_dirs or not all(is_room_processed(p) for p in room_dirs):
+                return False
+
         return True
 
     def download(self, force: bool = False) -> None:
@@ -316,86 +284,67 @@ class S3DIS(PointCloudDataset):
     def process(self, force: bool = False) -> None:
         if self.processed_files_exist() and not force:
             return
-        elif not self.raw_files_exist():
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
                 f"and extract it under {self.raw_dir!r}."
             )
 
+        jobs: List[Tuple[Path, Path, Optional[float]]] = []
         for area in self.areas:
             area_dir = Path(self.raw_dir, area)
+            out_area_dir = Path(self.processed_dir, area)
+            angle_path = area_dir / f"{area}_alignmentAngle.txt"
+            angles = load_s3dis_alignment_angles(angle_path) if angle_path.exists() else {}
+            for room_dir in sorted(p for p in area_dir.iterdir() if p.is_dir()):
+                jobs.append((room_dir, out_area_dir / room_dir.name, angles.get(room_dir.name)))
 
-            alignment_angles = {}
-            alignment_angle_path = area_dir / f"{area}_alignmentAngle.txt"
-            if alignment_angle_path.exists():
-                alignment_angles = load_s3dis_alignment_angles(alignment_angle_path)
-
-            blocks = []
-
-            room_dirs = [path for path in area_dir.iterdir() if path.is_dir()]
-            pbar = tqdm(room_dirs, total=len(room_dirs), desc=f"Processing {area}", disable=not self.show_progress)
-            for room_dir in pbar:
-                alignment_angle = alignment_angles.get(room_dir.name, None)
-                room_blocks = self._process_room(room_dir, alignment_angle, self.class_to_idx)
-                room_blocks = [block for block in room_blocks if block is not None]
-                blocks.extend(room_blocks)
-
-            dst_path = Path(self.processed_dir, f"{area}.pt")
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(blocks, dst_path)
+        parallel_map(
+            lambda job: self._process_room(*job),
+            jobs,
+            num_workers=self.num_workers,
+            desc="Processing rooms",
+            show_progress=self.show_progress,
+        )
 
     def _process_room(
         self,
         room_dir: PathLike,
-        alignment_angle: float | None = None,
-        class_to_idx: Optional[Dict[str, int]] = None,
-    ) -> List[Optional[Dict[str, Any]]]:
+        out_dir: Path,
+        alignment_angle: Optional[float] = None,
+    ) -> None:
         room = load_s3dis_room_data(
             room_dir,
             alignment_angle=alignment_angle,
-            class_to_idx=class_to_idx,
+            class_to_idx=self.class_to_idx,
             unk_id=self.unk_id,
         )
-
-        # If the room do not contain any points (e.g. filtering), return None
         if not room:
-            return [None]
+            return
 
-        blocks: List[Optional[Dict[str, Any]]] = []
+        out_dir.mkdir(parents=True, exist_ok=True)
+        np.save(out_dir / "coord.npy", room["pos"].numpy().astype(np.float32))
+        np.save(out_dir / "color.npy", room["color"].numpy().astype(np.uint8))
+        np.save(out_dir / "segment.npy", room["semantic"].numpy().astype(np.int16))
+        np.save(out_dir / "instance.npy", room["instance"].numpy().astype(np.int16))
 
-        for block_coords, block_idxs in iter_blocks(
-            room[DataKeys.POS],
-            block_size=self.block_size,
-            stride=self.block_stride,
-        ):
-            block_data = {
-                DataKeys.POS: block_coords,
-                DataKeys.COLOR: room[DataKeys.COLOR][block_idxs],
-                DataKeys.SEMANTIC: room[DataKeys.SEMANTIC][block_idxs],
-                DataKeys.INSTANCE: room[DataKeys.INSTANCE][block_idxs],
-            }
-
-            # TODO: move to a transform
-            if self.normalize_coords:
-                x_min, y_min, _ = torch.min(block_data[DataKeys.POS], dim=0).values
-                delta = self.block_size / 2
-                block_data[DataKeys.POS] = block_data[DataKeys.POS] - torch.tensor([x_min + delta, y_min + delta, 0])
-
-            blocks.append(block_data)
-
-        return blocks
-
-    def _load_processed_data(self) -> List[Dict[str, Tensor]]:
-        data = []
+    def _load_processed_data(self) -> List[Path]:
+        rooms: List[Path] = []
         for area in self.areas:
-            file_path = Path(self.processed_dir, f"{area}.pt")
-            data.extend(torch.load(file_path, weights_only=True))
-        return data
+            area_dir = Path(self.processed_dir, area)
+            rooms.extend(sorted(p for p in area_dir.iterdir() if p.is_dir()))
+        return rooms
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        data = self.data[index]
+        room_dir = self.data[index]
+        data: Dict[str, Any] = {
+            DataKeys.POS: torch.from_numpy(np.load(room_dir / "coord.npy")),
+            DataKeys.COLOR: torch.from_numpy(np.load(room_dir / "color.npy")),
+            DataKeys.SEMANTIC: torch.from_numpy(np.load(room_dir / "segment.npy")).long(),
+            DataKeys.INSTANCE: torch.from_numpy(np.load(room_dir / "instance.npy")).long(),
+        }
         if self.transform is not None:
             data = self.transform(data)
         return data

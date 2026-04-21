@@ -152,24 +152,6 @@ def test_s3dis_dataset_all_classes(data_dir_factory: Callable[..., Path]) -> Non
     assert len(dataset) > 0
 
 
-def test_s3dis_dataset_pre_transform(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is transformed correctly before being processed"""
-    data_dir = data_dir_factory("S3DIS/raw/**/*")
-
-    pre_transform = Mock(side_effect=lambda x: x)
-    _ = S3DIS(root=data_dir, pre_transform=pre_transform, show_progress=False)
-    assert pre_transform.call_count > 0
-
-
-def test_s3dis_dataset_pre_filter(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("S3DIS/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: True)
-    _ = S3DIS(root=data_dir, pre_filter=pre_filter, show_progress=False)
-    assert pre_filter.call_count > 0
-
-
 def test_s3dis_dataset_transform(data_dir_factory: Callable[..., Path]) -> None:
     """Test that the dataset is transformed correctly after being processed"""
     data_dir = data_dir_factory("S3DIS/processed/**/*")
@@ -178,21 +160,3 @@ def test_s3dis_dataset_transform(data_dir_factory: Callable[..., Path]) -> None:
     dataset = S3DIS(root=data_dir, transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
-
-
-@pytest.mark.parametrize("block_size, block_stride", [(1.0, 0.5), (2.0, 1.0)])
-def test_s3dis_dataset_block_parameters(
-    data_dir_factory: Callable[..., Path],
-    block_size: float,
-    block_stride: float,
-) -> None:
-    """Test that the dataset is processed correctly with different block parameters"""
-    data_dir = data_dir_factory("S3DIS/raw/**/*")
-
-    dataset = S3DIS(
-        root=data_dir,
-        block_size=block_size,
-        block_stride=block_stride,
-        show_progress=False,
-    )
-    assert len(dataset) > 0
