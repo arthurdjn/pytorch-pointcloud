@@ -1,89 +1,32 @@
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, List
+from typing import Dict
 
 import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet10, ModelNet40
 from torch_pointcloud.models import PointTransformerClassification
+from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.random import seed_everything
 
 
 def main() -> None:
     args = parse_args()
-    seed_everything(42)
 
-    pre_transform = T.NormalizeScaled(keys="pos")
-    transform = T.Compose(
-        [
-            T.RandomSampleFaceVerticesd(
-                keys="pos",
-                face_key="face",
-                normal_key="normal",
-                num_samples=args.num_points,
-            )
-        ]
-    )
+    print(f"Seeding everything to {args.seed}!")
+    seed_everything(args.seed)
 
-    train_dataset: Dataset
-    test_dataset: Dataset
-    if args.dataset.lower() == "modelnet10":
-        train_dataset = ModelNet10(
-            args.root,
-            True,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-        test_dataset = ModelNet10(
-            args.root,
-            False,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-    elif args.dataset.lower() == "modelnet40":
-        train_dataset = ModelNet40(
-            args.root,
-            True,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-        test_dataset = ModelNet40(
-            args.root,
-            False,
-            transform=transform,
-            pre_transform=pre_transform,
-            download=True,
-            num_workers=args.num_workers,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10' or 'ModelNet40'.")
+    print(f"Loading {args.dataset} dataloaders...", end=" ")
+    train_dataloader, test_dataloader = configure_dataloaders(args)
+    print("Done!")
 
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-
+    print("Loading model, optimizer, and scheduler...", end=" ")
     model = PointTransformerClassification(
         num_classes=args.num_classes,
         in_channels=6,
@@ -105,6 +48,7 @@ def main() -> None:
         total_steps=len(train_dataloader) * args.epochs,
     )
 
+    print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
         train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
@@ -118,7 +62,8 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser()
-    parser.add_argument("--root", type=str, default="data")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="modelnet10", choices=["modelnet10", "modelnet40"])
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--num-points", type=int, default=1024)
@@ -128,6 +73,8 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--limit-train-batches", type=int, default=None)
+    parser.add_argument("--limit-test-batches", type=int, default=None)
     return parser.parse_args()
 
 
@@ -179,13 +126,78 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") 
     return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
 
 
-def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["pos"] for d in data_list]).float()
-    normal = torch.cat([d["normal"] for d in data_list]).float()
-    target = torch.stack([d["label"] for d in data_list])
+def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
+    transform = T.Compose(
+        [
+            T.NormalizeScaled(keys=DataKeys.POS),
+            T.RandomSampleFaceVerticesd(
+                keys=DataKeys.POS,
+                face_key=DataKeys.FACE,
+                normal_key=DataKeys.NORMAL,
+                num_samples=args.num_points,
+            ),
+        ]
+    )
 
-    return {"pos": coords, "normal": normal, "label": target, "batch": batch}
+    train_dataset: Dataset
+    test_dataset: Dataset
+    if args.dataset.lower() == "modelnet10":
+        train_dataset = ModelNet10(
+            args.root,
+            True,
+            transform=transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+        test_dataset = ModelNet10(
+            args.root,
+            False,
+            transform=transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+    elif args.dataset.lower() == "modelnet40":
+        train_dataset = ModelNet40(
+            args.root,
+            True,
+            transform=transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+        test_dataset = ModelNet40(
+            args.root,
+            False,
+            transform=transform,
+            download=True,
+            num_workers=args.num_workers,
+        )
+    else:
+        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'ModelNet10' or 'ModelNet40'.")
+
+    # Limit the size of the dataset if specified
+    if args.limit_train_batches is not None:
+        n = min(args.limit_train_batches * args.batch_size, len(train_dataset))
+        train_dataset = Subset(train_dataset, range(n))
+    if args.limit_test_batches is not None:
+        n = min(args.limit_test_batches * args.batch_size, len(test_dataset))
+        test_dataset = Subset(test_dataset, range(n))
+
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+
+    return train_dataloader, test_dataloader
 
 
 if __name__ == "__main__":

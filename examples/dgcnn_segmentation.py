@@ -1,12 +1,11 @@
 from argparse import ArgumentParser, Namespace
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
@@ -25,7 +24,7 @@ def main() -> None:
     seed_everything(args.seed)
 
     print(f"Loading {args.dataset} dataloaders...", end=" ")
-    train_dataloader, test_dataloader = load_dataloaders(args)
+    train_dataloader, test_dataloader = configure_dataloaders(args)
     print("Done!")
 
     print("Loading model, optimizer, and scheduler...", end=" ")
@@ -51,20 +50,10 @@ def main() -> None:
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(
-            model=model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            dataloader=train_dataloader,
-            device=args.device,
-        )
-        val_metrics = eval_one_epoch(
-            model=model,
-            dataloader=test_dataloader,
-            num_classes=args.num_classes,
-            device=args.device,
-        )
+        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        val_metrics = eval_one_epoch(model, test_dataloader, args.num_classes, args.device)
         metrics = {**train_metrics, **val_metrics}
+        scheduler.step()
 
         print("Scores:", end=" ")
         print(" | ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
@@ -92,11 +81,10 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
-    scheduler: LRScheduler,
     dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     model.train()
     total_loss = 0.0
 
@@ -114,7 +102,6 @@ def train_one_epoch(
         loss.backward()
         optimizer.step()
 
-        scheduler.step()
         total_loss += loss.item()
 
         if (i + 1) % log_interval == 0:
@@ -130,7 +117,7 @@ def eval_one_epoch(
     dataloader: DataLoader,
     num_classes: int,
     device: str = "cuda",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     model.eval()
 
     val_intersection: Any = []
@@ -164,7 +151,7 @@ def eval_one_epoch(
     return {"val/mIoU": m_iou}
 
 
-def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
+def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     train_dataset: Dataset
     test_dataset: Dataset
     transform: Callable
@@ -237,7 +224,7 @@ def compute_intersection_union(
     target: Tensor,
     num_classes: int,
     ignore_index: int = -1,
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     valid_mask = target != ignore_index
     preds = preds[valid_mask]
     target = target[valid_mask]

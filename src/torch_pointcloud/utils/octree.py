@@ -72,7 +72,7 @@ def build_octree(
 ) -> Octree | tuple[Octree, Points]:
     points = Points(
         points=pos,
-        normal=normal,
+        normals=normal,
         features=features,
         labels=labels,
         batch_id=batch,

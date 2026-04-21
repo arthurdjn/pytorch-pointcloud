@@ -87,20 +87,20 @@ class GroupedVectorAttention(nn.Module):
 
         self.attn_drop = nn.Dropout(attn_drop)
 
-    def forward(self, features: Tensor, coords: Tensor, edge_index: Tensor) -> Tensor:
-        query, key, value = self.q(features), self.k(features), self.v(features)
+    def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
+        query, key, value = self.q(x), self.k(x), self.v(x)
 
         row, col = edge_index
         value = value[row]
-        coords = coords[row] - coords[col]
+        pos = pos[row] - pos[col]
         relation_qk = key[row] - query[col]
 
         if self.pe_multiplier is not None:
-            factor = self.pe_multiplier(coords)
+            factor = self.pe_multiplier(pos)
             relation_qk = relation_qk * factor
 
         if self.pe_bias is not None:
-            bias = self.pe_bias(coords)
+            bias = self.pe_bias(pos)
             relation_qk = relation_qk + bias
             value = value + bias
 
@@ -108,10 +108,10 @@ class GroupedVectorAttention(nn.Module):
         weight = self.attn_drop(softmax(weight, col))
 
         value = value.reshape(-1, self.num_groups, self.channels // self.num_groups)
-        features = value * weight.unsqueeze(-1)
-        features = features.reshape(-1, self.channels)
-        features = scatter_sum(features, col, dim=0)
-        return features
+        x = value * weight.unsqueeze(-1)
+        x = x.reshape(-1, self.channels)
+        x = scatter_sum(x, col, dim=0)
+        return x
 
 
 class Block(nn.Module):
@@ -146,15 +146,15 @@ class Block(nn.Module):
         self.act = create_act(act)
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def forward(self, features: Tensor, coords: Tensor, edge_index: Tensor) -> Tensor:
-        shortcut = features
-        features = self.act(self.norm1(self.fc1(features)))
-        features = self.attn(features, coords, edge_index)
-        features = self.act(self.norm2(features))
-        features = self.norm3(self.fc3(features))
-        features = self.drop_path(features) + shortcut
-        features = self.act(features)
-        return features
+    def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
+        shortcut = x
+        x = self.act(self.norm1(self.fc1(x)))
+        x = self.attn(x, pos, edge_index)
+        x = self.act(self.norm2(x))
+        x = self.norm3(self.fc3(x))
+        x = self.drop_path(x) + shortcut
+        x = self.act(x)
+        return x
 
 
 class GridPool(nn.Module):
@@ -181,8 +181,8 @@ class GridPool(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[True] = True,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
@@ -190,39 +190,39 @@ class GridPool(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
-        features = self.act(self.norm(self.fc(features)))
+        x = self.act(self.norm(self.fc(x)))
 
         # NOTE: evaluate difference with this version
         # and the consecutive_cluster version in kpconv.py
         start = segment_csr(
-            coords,
+            pos,
             torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)]),
             reduce="min",
         )
-        cluster = voxel_grid(coords - start[batch], size=self.grid_size, batch=batch, start=0)
+        cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)
         _, cluster, counts = torch.unique(cluster, sorted=True, return_inverse=True, return_counts=True)
         _, sorted_cluster_indices = torch.sort(cluster)
         idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
-        coords = segment_csr(coords[sorted_cluster_indices], idx_ptr, reduce="mean")
-        features = segment_csr(features[sorted_cluster_indices], idx_ptr, reduce=self.reduce)
+        pos = segment_csr(pos[sorted_cluster_indices], idx_ptr, reduce="mean")
+        x = segment_csr(x[sorted_cluster_indices], idx_ptr, reduce=self.reduce)
         batch = batch[idx_ptr[:-1]]
 
         if return_inverse:
-            return features, coords, batch, cluster
-        return features, coords, batch
+            return x, pos, batch, cluster
+        return x, pos, batch
 
 
 class InversePool(nn.Module):
@@ -259,10 +259,10 @@ class InversePool(nn.Module):
             order="lna",
         )
 
-    def forward(self, features: Tensor, skip_features: Tensor, inverse: Tensor) -> Tensor:
-        features = self.proj(features)
-        skip_features = self.proj_skip(skip_features)
-        return skip_features + features[inverse]
+    def forward(self, x: Tensor, x_skip: Tensor, inverse: Tensor) -> Tensor:
+        x = self.proj(x)
+        x_skip = self.proj_skip(x_skip)
+        return x_skip + x[inverse]
 
 
 class EncoderBlock(nn.Module):
@@ -306,8 +306,8 @@ class EncoderBlock(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[True] = True,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
@@ -315,16 +315,16 @@ class EncoderBlock(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
@@ -332,15 +332,15 @@ class EncoderBlock(nn.Module):
             raise ValueError("`return_inverse` is only supported if `downsample` is provided")
 
         if self.downsample is not None:
-            features, coords, batch, pooling_inverse = self.downsample(features, coords, batch, return_inverse=True)
+            x, pos, batch, pooling_inverse = self.downsample(x, pos, batch, return_inverse=True)
 
-        edge_index = knn_graph(coords, self.num_neighbors, batch, loop=True)
+        edge_index = knn_graph(pos, self.num_neighbors, batch, loop=True)
         for block in self.blocks:
-            features = block(features, coords, edge_index)
+            x = block(x, pos, edge_index)
 
         if return_inverse:
-            return features, coords, batch, pooling_inverse
-        return features, coords, batch
+            return x, pos, batch, pooling_inverse
+        return x, pos, batch
 
 
 class DecoderBlock(nn.Module):
@@ -383,19 +383,19 @@ class DecoderBlock(nn.Module):
 
     def forward(
         self,
-        features: Tensor,
-        skip_features: Tensor,
-        skip_coords: Tensor,
-        skip_batch: Tensor,
+        x: Tensor,
+        x_skip: Tensor,
+        pos_skip: Tensor,
+        batch_skip: Tensor,
         pooling_inverse: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if self.upsample is not None:
-            features = self.upsample(features, skip_features, pooling_inverse)
+            x = self.upsample(x, x_skip, pooling_inverse)
 
-        edge_index = knn_graph(skip_coords, self.num_neighbors, skip_batch, loop=True)
+        edge_index = knn_graph(pos_skip, self.num_neighbors, batch_skip, loop=True)
         for block in self.blocks:
-            features = block(features, skip_coords, edge_index)
-        return features, skip_coords, skip_batch
+            x = block(x, pos_skip, edge_index)
+        return x, pos_skip, batch_skip
 
 
 def create_encoder_blocks(
@@ -544,8 +544,8 @@ class PointTransformerV2Classification(nn.Module):
         global_pool: Global pooling method to use.
 
     Inputs:
-        features: Float tensor of shape $(N, \text{in_channels})$.
-        coords: Float tensor of shape $(N, 3)$.
+        x: Float tensor of shape $(N, \text{in_channels})$.
+        pos: Float tensor of shape $(N, 3)$.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -613,7 +613,7 @@ class PointTransformerV2Classification(nn.Module):
 
         Args:
             num_classes: Number of output classes.
-            global_pool: Pooling method to aggregate point features ("max" or "mean").
+            global_pool: Pooling method to aggregate point x ("max" or "mean").
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
@@ -623,8 +623,8 @@ class PointTransformerV2Classification(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -632,79 +632,79 @@ class PointTransformerV2Classification(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
         r"""Forward features through the encoder blocks, before the global pooling.
 
         Args:
-            features: Additional point features of shape $(N, \text{features_dim})$.
-            coords: Coordinates of shape $(N, 3)$.
+            x: Additional point features of shape $(N, \text{features_dim})$.
+            pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             return_intermediates: Whether to return the intermediate features.
 
         Returns:
-            features: Pre-pooling features of shape $(N, \text{embedding_dim})$.
-            coords: Coordinates of shape $(N, 3)$.
+            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             intermediates: If `return_intermediates` is `True`, a list of dictionaries containing the intermediate features,
                 coordinates, batch indices and pooling inverse for each encoder block.
         """
-        features = features if features is not None else coords
-        features = self.embedding(features)
+        x = x if x is not None else pos
+        x = self.embedding(x)
 
         intermediates = []
         for i, block in enumerate(self.encoder):
-            intermediate = {"features": features, "pos": coords, "batch": batch}
+            intermediate = {"x": x, "pos": pos, "batch": batch}
 
-            features, coords, batch, *rest = block(features, coords, batch, return_inverse=i > 0)
+            x, pos, batch, *rest = block(x, pos, batch, return_inverse=i > 0)
             if i > 0:
                 intermediate["pooling_inverse"] = rest[0]
                 intermediates.append(intermediate)
 
         if return_intermediates:
-            return features, coords, batch, intermediates
-        return features, coords, batch
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
-    def forward_head(self, features: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        r"""Forward pass of the classification head from pre-pooling features.
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        r"""Forward pass of the classification head from pre-pooling x.
 
         Args:
-            features: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits.
 
         Returns:
             Classification logits of shape $(B, \text{num_classes})$.
         """
-        features = self.global_pool(features, batch)
+        x = self.global_pool(x, batch)
         if self.dropout:
-            features = F.dropout(features, p=float(self.dropout), training=self.training)
-        return features if pre_logits else self.head(features)
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
 
-    def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         r"""Forward pass of the classification network.
 
         Args:
-            features: Additional point features of shape $(N, \text{features_dim})$.
-            coords: Coordinates of shape $(N, 3)$.
+            x: Additional point features of shape $(N, \text{features_dim})$.
+            pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Classification logits of shape $(B, \text{num_classes})$.
         """
-        features, _, batch = self.forward_features(features, coords, batch)
-        return self.forward_head(features, batch)
+        x, _, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, batch)
 
 
 class PointTransformerV2Segmentation(nn.Module):
@@ -736,8 +736,8 @@ class PointTransformerV2Segmentation(nn.Module):
         global_pool: Global pooling method to use.
 
     Inputs:
-        features: Float tensor of shape $(N, \text{in_channels})$.
-        coords: Float tensor of shape $(N, 3)$.
+        x: Float tensor of shape $(N, \text{in_channels})$.
+        pos: Float tensor of shape $(N, 3)$.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -834,8 +834,8 @@ class PointTransformerV2Segmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -843,85 +843,85 @@ class PointTransformerV2Segmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
         r"""Forward features through the encoder blocks, before the global pooling.
 
         Args:
-            features: Additional point features of shape $(N, \text{features_dim})$.
-            coords: Coordinates of shape $(N, 3)$.
+            x: Additional point features of shape $(N, \text{features_dim})$.
+            pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             return_intermediates: Whether to return the intermediate features.
 
         Returns:
-            features: Pre-pooling features of shape $(N, \text{embedding_dim})$.
-            coords: Coordinates of shape $(N, 3)$.
+            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             intermediates: If `return_intermediates` is `True`, a list of dictionaries containing the intermediate features,
                 coordinates, batch indices and pooling inverse for each encoder block.
         """
-        features = features if features is not None else coords
-        features = self.embedding(features)
+        x = x if x is not None else pos
+        x = self.embedding(x)
 
         intermediates = []
         for i, block in enumerate(self.encoder):
-            intermediate = {"features": features, "pos": coords, "batch": batch}
+            intermediate = {"x": x, "pos": pos, "batch": batch}
 
-            features, coords, batch, *rest = block(features, coords, batch, return_inverse=i > 0)
+            x, pos, batch, *rest = block(x, pos, batch, return_inverse=i > 0)
             if i > 0:
                 intermediate["pooling_inverse"] = rest[0]
                 intermediates.append(intermediate)
 
         if return_intermediates:
-            return features, coords, batch, intermediates
-        return features, coords, batch
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
     def forward_decoder(
         self,
-        features: Tensor,
+        x: Tensor,
         intermediates: List[Dict[str, Tensor]],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         for block, intermediate in zip(self.decoder, reversed(intermediates)):
-            intermediate = {f"skip_{k}" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
-            features, coords, batch = block(features, **intermediate)
-        return features, coords, batch
+            intermediate = {f"{k}_skip" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
+            x, pos, batch = block(x, **intermediate)
+        return x, pos, batch
 
-    def forward_head(self, features: Tensor, pre_logits: bool = False) -> Tensor:
-        r"""Forward pass of the classification head from up-sampled features.
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        r"""Forward pass of the classification head from up-sampled x.
 
         Args:
-            features: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
             pre_logits: Whether to return pre-logits.
 
         Returns:
             Segmentation logits of shape $(N, \text{num_classes})$.
         """
         if self.dropout:
-            features = F.dropout(features, p=float(self.dropout), training=self.training)
-        return features if pre_logits else self.head(features)
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
 
-    def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         r"""Forward pass of the model.
 
         Args:
-            features: Additional point features of shape $(N, \text{features_dim})$.
-            coords: Coordinates of shape $(N, 3)$.
+            x: Additional point features of shape $(N, \text{features_dim})$.
+            pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Segmentation logits of shape $(N, \text{num_classes})$.
         """
-        features, _, _, intermediates = self.forward_features(features, coords, batch, return_intermediates=True)
-        features, _, _ = self.forward_decoder(features, intermediates)
-        return self.forward_head(features)
+        x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x, _, _ = self.forward_decoder(x, intermediates)
+        return self.forward_head(x)

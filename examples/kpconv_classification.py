@@ -24,7 +24,7 @@ def main() -> None:
     seed_everything(args.seed)
 
     print(f"Loading {args.dataset} dataloaders...", end=" ")
-    train_dataloader, test_dataloader = load_dataloaders(args)
+    train_dataloader, test_dataloader = configure_dataloaders(args)
     print("Done!")
 
     print("Loading model, optimizer, and scheduler...", end=" ")
@@ -144,7 +144,7 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") 
     return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
 
 
-def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
+def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     transform = T.Compose(
         [
             T.NormalizeScaled(keys=DataKeys.POS),

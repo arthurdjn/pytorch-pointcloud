@@ -1,5 +1,5 @@
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable
 
 import torch
 import torch.nn.functional as F
@@ -7,13 +7,14 @@ import torchsparse
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, ShapeNetPart
 from torch_pointcloud.models import SPVCNNSegmentation
+from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.random import seed_everything
 
 # Set torchsparse configurations, see:
@@ -23,6 +24,8 @@ ts_config = torchsparse.nn.functional.conv_config.get_default_conv_config()
 ts_config.kmap_mode = "hashmap"
 torchsparse.nn.functional.conv_config.set_global_conv_config(ts_config)
 
+GRID_SIZE = 0.04
+
 
 def main() -> None:
     args = parse_args()
@@ -30,61 +33,13 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    pre_transform = T.NormalizeScaled(keys="pos")
-    transform = None
+    print(f"Loading {args.dataset} dataloaders...", end=" ")
+    train_dataloader, test_dataloader = configure_dataloaders(args)
+    print("Done!")
 
-    print(f"Loading {args.dataset} dataset...")
-    train_dataset: Dataset
-    test_dataset: Dataset
-    if args.dataset.lower() == "shapenetpart":
-        train_dataset = ShapeNetPart(
-            args.root,
-            split="train",
-            categories=args.categories,
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-        test_dataset = ShapeNetPart(
-            args.root,
-            split="test",
-            categories=args.categories,
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-    elif args.dataset.lower() == "s3dis":
-        train_dataset = S3DIS(
-            args.root,
-            areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-        test_dataset = S3DIS(
-            args.root,
-            areas=["Area_5"],
-            transform=transform,
-            pre_transform=pre_transform,
-        )
-    else:
-        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
-
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-        collate_fn=collate,
-    )
-
-    print("Building model...")
+    print("Loading model, optimizer, and scheduler...", end=" ")
     model = SPVCNNSegmentation(
-        in_channels=3,
+        in_channels=0,
         num_classes=args.num_classes,
         stem_channels=32,
         encoder_channels=(32, 64, 128, 256),
@@ -99,7 +54,6 @@ def main() -> None:
         norm="batch_norm",
         norm_kwargs={"eps": 1e-5, "momentum": 0.1},
     ).to(args.device)
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
@@ -110,24 +64,15 @@ def main() -> None:
         final_div_factor=1000.0,
         total_steps=len(train_dataloader) * args.epochs,
     )
+    print("Done!")
 
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(
-            model=model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            dataloader=train_dataloader,
-            device=args.device,
-        )
-        val_metrics = eval_one_epoch(
-            model=model,
-            dataloader=test_dataloader,
-            num_classes=args.num_classes,
-            device=args.device,
-        )
+        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        val_metrics = eval_one_epoch(model, test_dataloader, args.num_classes, args.device)
         metrics = {**train_metrics, **val_metrics}
+        scheduler.step()
 
         print("Scores:", end=" ")
         print(" | ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
@@ -136,8 +81,8 @@ def main() -> None:
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--root", type=str, default="data")
-    parser.add_argument("--dataset", type=str, default="ShapeNetPart", choices=["ShapeNetPart", "S3DIS"])
+    parser.add_argument("--root", type=str, default=DATA_DIR)
+    parser.add_argument("--dataset", type=str, default="shapenetpart", choices=["shapenetpart", "s3dis"])
     parser.add_argument("--num-classes", type=int, default=50)
     parser.add_argument("--categories", nargs="+", default=None)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -146,40 +91,36 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.006)
     parser.add_argument("--weight-decay", type=float, default=0.05)
+    parser.add_argument("--limit-train-batches", type=int, default=None)
+    parser.add_argument("--limit-test-batches", type=int, default=None)
     return parser.parse_args()
 
 
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
-    scheduler: LRScheduler,
     dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     model.train()
     total_loss = 0.0
 
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        coords = data["pos"].to(device)
-        # color = data["color"].to(device)
-        target = data["label"].to(device)
-        batch = data["batch"].to(device)
-
-        grid_size = 0.04
-        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
+        pos = data[DataKeys.POS].to(device)
+        target = data[DataKeys.SEGMENT].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        pos_grid = torch.div(pos - pos.min(0)[0], GRID_SIZE, rounding_mode="trunc").int()
 
         optimizer.zero_grad()
-
-        logits = model(None, grid_coords, batch)
+        logits = model(None, pos_grid, batch)
         logits = F.log_softmax(logits, dim=1)
         loss = F.nll_loss(logits, target)
 
         loss.backward()
         optimizer.step()
 
-        scheduler.step()
         total_loss += loss.item()
 
         if (i + 1) % log_interval == 0:
@@ -195,26 +136,23 @@ def eval_one_epoch(
     dataloader: DataLoader,
     num_classes: int,
     device: str = "cuda",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     model.eval()
 
     val_intersection: Any = []
     val_union: Any = []
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
-        coords = data["pos"].to(device)
-        # color = data["color"].to(device)
-        target = data["label"].to(device)
-        batch = data["batch"].to(device)
-
-        grid_size = 0.04
-        grid_coords = torch.div(coords - coords.min(0)[0], grid_size, rounding_mode="trunc").int()
+        pos = data[DataKeys.POS].to(device)
+        target = data[DataKeys.SEGMENT].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        pos_grid = torch.div(pos - pos.min(0)[0], GRID_SIZE, rounding_mode="trunc").int()
 
         with torch.no_grad():
-            logits = model(None, grid_coords, batch)
+            logits = model(None, pos_grid, batch)
             preds = logits.argmax(dim=1)
 
-        intersection, union = compute_intersection_union_stats(
+        intersection, union = compute_intersection_union(
             preds,
             target,
             num_classes=num_classes,
@@ -233,21 +171,80 @@ def eval_one_epoch(
     return {"val/mIoU": m_iou}
 
 
-def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["pos"] for d in data_list]).float()
-    target = torch.cat([d["segmentation"] if "segmentation" in d else d["semantic"] for d in data_list])
-    # color = torch.cat([d["color"] for d in data_list]).int() / 255.0
+def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
+    train_dataset: Dataset
+    test_dataset: Dataset
+    transform: Callable
 
-    return {"pos": coords, "label": target, "batch": batch}
+    if args.dataset.lower() == "shapenetpart":
+        transform = T.NormalizeScaled(keys=DataKeys.POS)
+        train_dataset = ShapeNetPart(
+            args.root,
+            split="train",
+            categories=args.categories,
+            transform=transform,
+        )
+        test_dataset = ShapeNetPart(
+            args.root,
+            split="test",
+            categories=args.categories,
+            transform=transform,
+        )
+    elif args.dataset.lower() == "s3dis":
+        transform = T.Compose(
+            [
+                T.NormalizeScaled(keys=DataKeys.POS),
+                T.RandomSampled(
+                    keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
+                    num_samples=4096,
+                ),
+            ]
+        )
+        train_dataset = S3DIS(
+            args.root,
+            areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
+            transform=transform,
+        )
+        test_dataset = S3DIS(
+            args.root,
+            areas=["Area_5"],
+            transform=transform,
+        )
+    else:
+        raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
+
+    # Limit the size of the dataset if specified
+    if args.limit_train_batches is not None:
+        n = min(args.limit_train_batches * args.batch_size, len(train_dataset))
+        train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
+    if args.limit_test_batches is not None:
+        n = min(args.limit_test_batches * args.batch_size, len(test_dataset))
+        test_dataset = Subset(test_dataset, range(n))
+
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+
+    return train_dataloader, test_dataloader
 
 
-def compute_intersection_union_stats(
+def compute_intersection_union(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
     ignore_index: int = -1,
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     valid_mask = target != ignore_index
     preds = preds[valid_mask]
     target = target[valid_mask]

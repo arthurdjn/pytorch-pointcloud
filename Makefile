@@ -3,7 +3,7 @@
 SRC:=src
 TESTS:=tests
 EXAMPLES:=examples
-CMD:=uv run
+CMD:=uv run --no-sync
 
 # Linting, formatting, etc.
 

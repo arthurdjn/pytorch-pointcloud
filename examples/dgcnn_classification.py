@@ -1,5 +1,4 @@
 from argparse import ArgumentParser, Namespace
-from typing import Dict
 
 import torch
 import torch.nn.functional as F
@@ -23,7 +22,7 @@ def main() -> None:
     seed_everything(args.seed)
 
     print(f"Loading {args.dataset} dataloaders...", end=" ")
-    train_dataloader, test_dataloader = load_dataloaders(args)
+    train_dataloader, test_dataloader = configure_dataloaders(args)
     print("Done!")
 
     print("Loading model, optimizer, and scheduler...", end=" ")
@@ -46,7 +45,7 @@ def main() -> None:
     )
     print("Done!")
 
-    print("\nStarting training!")
+    print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
         train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
@@ -77,7 +76,65 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
+def train_one_epoch(
+    model: Module,
+    optimizer: Optimizer,
+    dataloader: DataLoader,
+    device: str = "cuda",
+    log_interval: int = 5,
+) -> dict[str, float]:
+    total_correct = total_loss = 0.0
+    model.train()
+
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
+    for i, data in pbar:
+        pos = data[DataKeys.POS].to(device)
+        normal = data[DataKeys.NORMAL].to(device)
+        target = data[DataKeys.LABEL].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        x = torch.cat([pos, normal], dim=1)
+
+        optimizer.zero_grad()
+        logits = model(x, pos, batch)
+        probs = F.log_softmax(logits, dim=1)
+
+        loss = F.nll_loss(probs, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+
+        correct = logits.argmax(dim=1).eq(target).sum()
+        total_correct += correct.item()
+
+        if i % log_interval == 0:
+            loss_step = loss.item()
+            acc_step = correct.item() / len(target)
+            pbar.set_postfix({"train/loss_step": f"{loss_step:.3f}", "train/acc_step": f"{acc_step:.3f}"})
+
+    return {
+        "train/loss_epoch": total_loss / len(dataloader),
+        "train/acc_epoch": int(total_correct) / len(dataloader.dataset),  # type: ignore[arg-type]
+    }
+
+
+def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") -> dict[str, float]:
+    model.eval()
+    correct = 0
+    for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
+        pos = data[DataKeys.POS].to(device)
+        normal = data[DataKeys.NORMAL].to(device)
+        target = data[DataKeys.LABEL].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        x = torch.cat([pos, normal], dim=1)
+
+        with torch.no_grad():
+            preds = model(x, pos, batch).max(1)[1]
+        correct += preds.eq(target).sum().item()
+
+    return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
+
+
+def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     transform = T.Compose(
         [
             T.NormalizeScaled(keys=DataKeys.POS),
@@ -149,64 +206,6 @@ def load_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     )
 
     return train_dataloader, test_dataloader
-
-
-def train_one_epoch(
-    model: Module,
-    optimizer: Optimizer,
-    dataloader: DataLoader,
-    device: str = "cuda",
-    log_interval: int = 5,
-) -> Dict[str, float]:
-    total_correct = total_loss = 0.0
-    model.train()
-
-    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
-    for i, data in pbar:
-        pos = data[DataKeys.POS].to(device)
-        normal = data[DataKeys.NORMAL].to(device)
-        target = data[DataKeys.LABEL].to(device)
-        batch = data[DataKeys.BATCH].to(device)
-        x = torch.cat([pos, normal], dim=1)
-
-        optimizer.zero_grad()
-        logits = model(x, pos, batch)
-        probs = F.log_softmax(logits, dim=1)
-
-        loss = F.nll_loss(probs, target)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
-
-        correct = logits.argmax(dim=1).eq(target).sum()
-        total_correct += correct.item()
-
-        if i % log_interval == 0:
-            loss_step = loss.item()
-            acc_step = correct.item() / len(target)
-            pbar.set_postfix({"train/loss_step": f"{loss_step:.3f}", "train/acc_step": f"{acc_step:.3f}"})
-
-    return {
-        "train/loss_epoch": total_loss / len(dataloader),
-        "train/acc_epoch": int(total_correct) / len(dataloader.dataset),  # type: ignore[arg-type]
-    }
-
-
-def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") -> Dict[str, float]:
-    model.eval()
-    correct = 0
-    for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
-        pos = data[DataKeys.POS].to(device)
-        normal = data[DataKeys.NORMAL].to(device)
-        target = data[DataKeys.LABEL].to(device)
-        batch = data[DataKeys.BATCH].to(device)
-        x = torch.cat([pos, normal], dim=1)
-
-        with torch.no_grad():
-            preds = model(x, pos, batch).max(1)[1]
-        correct += preds.eq(target).sum().item()
-
-    return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":
