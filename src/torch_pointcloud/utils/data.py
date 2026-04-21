@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Literal
 
 import torch
 from torch import Tensor
@@ -22,6 +22,8 @@ class DataKeys(StrEnum):
     COLOR = "color"
     NORMAL = "normal"
     FACE = "face"
+    SEMANTIC = "semantic"
+    INSTANCE = "instance"
     LABEL = "label"
     BATCH = "batch"
     # Octree-based keys (OCNN convention)

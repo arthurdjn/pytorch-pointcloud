@@ -15,13 +15,13 @@ def test_load_s3dis_room_data(data_dir: Path) -> None:
     room_dir = data_dir / "S3DIS" / "raw" / "Area_1" / "conferenceRoom_1"
     data = load_s3dis_room_data(room_dir)
 
-    assert isinstance(data["coords"], torch.Tensor)
-    assert isinstance(data["colors"], torch.Tensor)
-    assert isinstance(data["instances"], torch.Tensor)
+    assert isinstance(data["pos"], torch.Tensor)
+    assert isinstance(data["color"], torch.Tensor)
+    assert isinstance(data["instance"], torch.Tensor)
     assert isinstance(data["semantic"], torch.Tensor)
-    assert data["coords"].shape[1] == 3
-    assert data["colors"].shape[1] == 3
-    assert data["instances"].ndim == 1
+    assert data["pos"].shape[1] == 3
+    assert data["color"].shape[1] == 3
+    assert data["instance"].ndim == 1
     assert data["semantic"].ndim == 1
 
 

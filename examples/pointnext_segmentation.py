@@ -22,7 +22,7 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    pre_transform = T.NormalizeScaled(keys="coords")
+    pre_transform = T.NormalizeScaled(keys="pos")
     transform = None
 
     print(f"Loading {args.dataset} dataset...")
@@ -59,14 +59,14 @@ def main() -> None:
     else:
         raise ValueError(f"Unrecognized dataset {args.dataset!r}. Must be 'shapenetpart'.")
 
-    train_loader = DataLoader(
+    train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
         collate_fn=collate,
     )
-    test_loader = DataLoader(
+    test_dataloader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
         shuffle=False,
@@ -90,7 +90,7 @@ def main() -> None:
         anneal_strategy="cos",
         div_factor=10.0,
         final_div_factor=1000.0,
-        total_steps=len(train_loader) * args.epochs,
+        total_steps=len(train_dataloader) * args.epochs,
     )
 
     print("\nStarting training!\n")
@@ -100,12 +100,12 @@ def main() -> None:
             model=model,
             optimizer=optimizer,
             scheduler=scheduler,
-            loader=train_loader,
+            dataloader=train_dataloader,
             device=args.device,
         )
         val_metrics = eval_one_epoch(
             model=model,
-            loader=test_loader,
+            dataloader=test_dataloader,
             num_classes=args.num_classes,
             device=args.device,
         )
@@ -141,18 +141,18 @@ def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
     scheduler: LRScheduler,
-    loader: DataLoader,
+    dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
     model.train()
     total_loss = 0.0
 
-    pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        coords = data["coords"].to(device)
-        # colors = data["colors"].to(device)
-        target = data["target"].to(device)
+        coords = data["pos"].to(device)
+        # color = data["color"].to(device)
+        target = data["label"].to(device)
         batch = data["batch"].to(device)
 
         optimizer.zero_grad()
@@ -171,12 +171,12 @@ def train_one_epoch(
             metrics = {"train/loss_step": f"{loss_step:.3f}"}
             pbar.set_postfix(metrics)
 
-    return {"train/loss_epoch": total_loss / len(loader)}
+    return {"train/loss_epoch": total_loss / len(dataloader)}
 
 
 def eval_one_epoch(
     model: Module,
-    loader: DataLoader,
+    dataloader: DataLoader,
     num_classes: int,
     device: str = "cuda",
 ) -> Dict[str, float]:
@@ -185,10 +185,10 @@ def eval_one_epoch(
     val_intersection: Any = []
     val_union: Any = []
 
-    for data in tqdm(loader, total=len(loader), desc="Evaluating"):
-        coords = data["coords"].to(device)
-        # colors = data["colors"].to(device)
-        target = data["target"].to(device)
+    for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
+        coords = data["pos"].to(device)
+        # color = data["color"].to(device)
+        target = data["label"].to(device)
         batch = data["batch"].to(device)
 
         with torch.no_grad():
@@ -215,12 +215,12 @@ def eval_one_epoch(
 
 
 def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["coords"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["coords"] for d in data_list]).float()
+    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
+    coords = torch.cat([d["pos"] for d in data_list]).float()
     target = torch.cat([d["segmentation"] if "segmentation" in d else d["semantic"] for d in data_list])
-    # colors = torch.cat([d["colors"] for d in data_list]).int() / 255.0
+    # color = torch.cat([d["color"] for d in data_list]).int() / 255.0
 
-    return {"coords": coords, "target": target, "batch": batch}
+    return {"pos": coords, "label": target, "batch": batch}
 
 
 def compute_intersection_union_stats(

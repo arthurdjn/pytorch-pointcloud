@@ -36,21 +36,21 @@ ShapeNetCategory = Literal[
 
 
 class ShapeNetPartData(TypedDict):
-    coords: torch.Tensor
-    normals: torch.Tensor
+    pos: torch.Tensor
+    normal: torch.Tensor
     segmentation: torch.Tensor
     category: torch.Tensor
 
 
 def load_shapenet_part_data(file_path: PathLike, category: int) -> ShapeNetPartData:
-    points = np.loadtxt(file_path, delimiter=" ")
-    coords = points[:, :3]
-    normals = points[:, 3:6]
-    segmentation = points[:, -1]
+    data = np.loadtxt(file_path, delimiter=" ")
+    pos = data[:, :3]
+    normal = data[:, 3:6]
+    segmentation = data[:, -1]
 
     return ShapeNetPartData(
-        coords=torch.from_numpy(coords).float(),
-        normals=torch.from_numpy(normals).float(),
+        pos=torch.from_numpy(pos).float(),
+        normal=torch.from_numpy(normal).float(),
         segmentation=torch.from_numpy(segmentation).long(),
         category=torch.tensor(category),
     )

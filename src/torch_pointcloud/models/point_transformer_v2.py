@@ -665,7 +665,7 @@ class PointTransformerV2Classification(nn.Module):
 
         intermediates = []
         for i, block in enumerate(self.encoder):
-            intermediate = {"features": features, "coords": coords, "batch": batch}
+            intermediate = {"features": features, "pos": coords, "batch": batch}
 
             features, coords, batch, *rest = block(features, coords, batch, return_inverse=i > 0)
             if i > 0:
@@ -876,7 +876,7 @@ class PointTransformerV2Segmentation(nn.Module):
 
         intermediates = []
         for i, block in enumerate(self.encoder):
-            intermediate = {"features": features, "coords": coords, "batch": batch}
+            intermediate = {"features": features, "pos": coords, "batch": batch}
 
             features, coords, batch, *rest = block(features, coords, batch, return_inverse=i > 0)
             if i > 0:

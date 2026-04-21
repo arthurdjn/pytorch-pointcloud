@@ -11,6 +11,7 @@ from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix
 from torch_pointcloud.utils.types import PathLike
 
@@ -35,10 +36,10 @@ S3DIS_CLASS_TO_IDX = {
 
 
 class S3DISRoomData(TypedDict, total=False):
-    coords: torch.Tensor
-    colors: torch.Tensor
-    semantic: torch.Tensor
-    instances: torch.Tensor
+    pos: Tensor
+    color: Tensor
+    semantic: Tensor
+    instance: Tensor
 
 
 def load_s3dis_room_data(
@@ -69,15 +70,15 @@ def load_s3dis_room_data(
             R = rodrigues_rotation_matrix(torch.tensor([0, 0, 1]), alignment_angle)
             points[:, 0:3] = coords @ R
 
-        room["coords"].append(points[:, 0:3])
-        room["colors"].append(points[:, 3:6].to(torch.uint8))
-        room["semantic"].append(torch.full((N,), category_idx, dtype=torch.int64))
-        room["instances"].append(torch.full((N,), obj_idx, dtype=torch.int64))
+        room[DataKeys.POS].append(points[:, 0:3])
+        room[DataKeys.COLOR].append(points[:, 3:6].to(torch.uint8))
+        room[DataKeys.SEMANTIC].append(torch.full((N,), category_idx, dtype=torch.int64))
+        room[DataKeys.INSTANCE].append(torch.full((N,), obj_idx, dtype=torch.int64))
 
     # Stack the data
     for key, values in room.items():
         values = torch.cat(values, dim=0)  # type: ignore[assignment]
-        if key == "instances":
+        if key == "instance":
             _, values = torch.unique(values, return_inverse=True)
         room[key] = values
 
@@ -93,7 +94,7 @@ def load_s3dis_alignment_angles(file_path: PathLike) -> Dict[str, float]:
 
 
 def iter_blocks(
-    coords: torch.Tensor,
+    coords: Tensor,
     block_size: float,
     stride: float,
 ) -> Generator[Tuple[Tensor, Tensor], None, None]:
@@ -148,8 +149,6 @@ class S3DIS(PointCloudDataset):
         block_stride: The stride of the blocks to process.
         transform: A callable that transforms the data when retrieved from the dataset.
         normalize_coords: Whether to normalize and center the coordinates of the block.
-        pre_transform: Used to transform the data before saving it in the processed directory.
-        pre_filter: Used to filter the data before saving it in the processed directory.
         download: Whether to download the raw data.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
@@ -208,8 +207,6 @@ class S3DIS(PointCloudDataset):
         block_stride: float = 0.5,
         transform: Optional[Callable] = None,
         normalize_coords: bool = True,
-        pre_transform: Optional[Callable] = None,
-        pre_filter: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
         force_process: bool = False,
@@ -224,8 +221,6 @@ class S3DIS(PointCloudDataset):
         self.block_stride = block_stride
         self.transform = transform
         self.normalize_coords = normalize_coords
-        self.pre_transform = pre_transform
-        self.pre_filter = pre_filter
         self.show_progress = show_progress
 
         if download or force_download:
@@ -370,28 +365,22 @@ class S3DIS(PointCloudDataset):
         blocks: List[Optional[Dict[str, Any]]] = []
 
         for block_coords, block_idxs in iter_blocks(
-            room["coords"],
+            room[DataKeys.POS],
             block_size=self.block_size,
             stride=self.block_stride,
         ):
             block_data = {
-                "coords": block_coords,
-                "colors": room["colors"][block_idxs],
-                "semantic": room["semantic"][block_idxs],
-                "instances": room["instances"][block_idxs],
+                DataKeys.POS: block_coords,
+                DataKeys.COLOR: room[DataKeys.COLOR][block_idxs],
+                DataKeys.SEMANTIC: room[DataKeys.SEMANTIC][block_idxs],
+                DataKeys.INSTANCE: room[DataKeys.INSTANCE][block_idxs],
             }
-
-            if self.pre_filter is not None and not self.pre_filter(block_data):
-                continue
 
             # TODO: move to a transform
             if self.normalize_coords:
-                x_min, y_min, _ = torch.min(block_data["coords"], dim=0).values
+                x_min, y_min, _ = torch.min(block_data[DataKeys.POS], dim=0).values
                 delta = self.block_size / 2
-                block_data["coords"] = block_data["coords"] - torch.tensor([x_min + delta, y_min + delta, 0])
-
-            if self.pre_transform is not None:
-                block_data = self.pre_transform(block_data)
+                block_data[DataKeys.POS] = block_data[DataKeys.POS] - torch.tensor([x_min + delta, y_min + delta, 0])
 
             blocks.append(block_data)
 

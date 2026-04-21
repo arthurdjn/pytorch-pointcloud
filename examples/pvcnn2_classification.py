@@ -18,13 +18,13 @@ def main() -> None:
     args = parse_args()
     seed_everything(42)
 
-    pre_transform = T.NormalizeScaled(keys="coords")
+    pre_transform = T.NormalizeScaled(keys="pos")
     transform = T.Compose(
         [
             T.RandomSampleFaceVerticesd(
-                keys="coords",
-                face_key="faces",
-                normal_key="normals",
+                keys="pos",
+                face_key="face",
+                normal_key="normal",
                 num_samples=args.num_points,
             )
         ]
@@ -75,14 +75,14 @@ def main() -> None:
     if args.limit_test_batches is not None:
         test_dataset = Subset(test_dataset, range(args.limit_test_batches * args.batch_size))
 
-    train_loader = DataLoader(
+    train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
         collate_fn=collate,
     )
-    test_loader = DataLoader(
+    test_dataloader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
         shuffle=False,
@@ -113,13 +113,13 @@ def main() -> None:
         anneal_strategy="cos",
         div_factor=10.0,
         final_div_factor=1000.0,
-        total_steps=len(train_loader) * args.epochs,
+        total_steps=len(train_dataloader) * args.epochs,
     )
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, train_loader, args.device)
-        val_metrics = eval_one_epoch(model, test_loader, args.device)
+        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        val_metrics = eval_one_epoch(model, test_dataloader, args.device)
         metrics = {**train_metrics, **val_metrics}
         scheduler.step()
 
@@ -147,20 +147,20 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
-    loader: DataLoader,
+    dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
     total_correct = total_loss = 0.0
     model.train()
 
-    pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        coords = data["coords"].to(device)
-        normals = data["normals"].to(device)
-        target = data["target"].to(device)
+        coords = data["pos"].to(device)
+        normal = data["normal"].to(device)
+        target = data["label"].to(device)
         batch = data["batch"].to(device)
-        features = torch.cat([coords, normals], dim=1)
+        features = torch.cat([coords, normal], dim=1)
 
         optimizer.zero_grad()
         logits = model(features, coords, batch)
@@ -178,34 +178,34 @@ def train_one_epoch(
             pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": correct.item() / len(target)})
 
     return {
-        "train/loss_epoch": total_loss / len(loader),
-        "train/acc_epoch": int(total_correct) / len(loader.dataset),  # type: ignore[arg-type]
+        "train/loss_epoch": total_loss / len(dataloader),
+        "train/acc_epoch": int(total_correct) / len(dataloader.dataset),  # type: ignore[arg-type]
     }
 
 
-def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> Dict[str, float]:
+def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") -> Dict[str, float]:
     model.eval()
     correct = 0
-    for data in tqdm(loader, total=len(loader), desc="Evaluating"):
-        coords = data["coords"].to(device)
-        normals = data["normals"].to(device)
-        target = data["target"].to(device)
+    for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
+        coords = data["pos"].to(device)
+        normal = data["normal"].to(device)
+        target = data["label"].to(device)
         batch = data["batch"].to(device)
-        features = torch.cat([coords, normals], dim=1)
+        features = torch.cat([coords, normal], dim=1)
 
         with torch.no_grad():
             preds = model(features, coords, batch).max(1)[1]
         correct += preds.eq(target).sum().item()
-    return {"val/acc": correct / len(loader.dataset)}  # type: ignore[arg-type]
+    return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
 
 
 def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-    batch = torch.cat([torch.ones(len(d["coords"])) * i for i, d in enumerate(data_list)]).long()
-    coords = torch.cat([d["coords"] for d in data_list]).float()
-    normals = torch.cat([d["normals"] for d in data_list]).float()
-    target = torch.stack([d["target"] for d in data_list])
+    batch = torch.cat([torch.ones(len(d["pos"])) * i for i, d in enumerate(data_list)]).long()
+    coords = torch.cat([d["pos"] for d in data_list]).float()
+    normal = torch.cat([d["normal"] for d in data_list]).float()
+    target = torch.stack([d["label"] for d in data_list])
 
-    return {"coords": coords, "normals": normals, "target": target, "batch": batch}
+    return {"pos": coords, "normal": normal, "label": target, "batch": batch}
 
 
 if __name__ == "__main__":

@@ -216,7 +216,7 @@ class ScanObjectNN(PointCloudDataset):
         if target is None:
             return None
 
-        data = {"pos": torch.from_numpy(pos), "target": torch.tensor(target, dtype=torch.long)}
+        data = {"pos": torch.from_numpy(pos), "label": torch.tensor(target, dtype=torch.long)}
         if self.pre_filter is not None and not self.pre_filter(data):
             return None
 

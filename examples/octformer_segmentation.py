@@ -58,14 +58,14 @@ def main() -> None:
     if args.limit_test_batches is not None:
         test_dataset = Subset(test_dataset, range(args.limit_test_batches * args.batch_size))
 
-    train_loader = DataLoader(
+    train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
         collate_fn=collate,
     )
-    test_loader = DataLoader(
+    test_dataloader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
         shuffle=False,
@@ -83,8 +83,8 @@ def main() -> None:
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, train_loader, args.device)
-        val_metrics = eval_one_epoch(model, test_loader, args.device)
+        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        val_metrics = eval_one_epoch(model, test_dataloader, args.device)
         metrics = {**train_metrics, **val_metrics}
 
         print("Scores:", end=" ")
@@ -110,7 +110,7 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
-    loader: DataLoader,
+    dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
 ) -> Dict[str, float]:
@@ -118,16 +118,16 @@ def train_one_epoch(
 
     total_loss = total_correct = total_points = 0.0
 
-    pbar = tqdm(enumerate(loader), total=len(loader), desc="Training")
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
         coords = data["pos"].to(device)
-        target = data["target"].to(device)
+        target = data["label"].to(device)
         batch = data["batch"].to(device)
         batch_size = batch.max().item() + 1
 
         points = Points(
             points=coords / OCTREE_SCALE_FACTOR,
-            # normals=normals,
+            # normal=normal,
             features=coords,
             batch_id=batch.unsqueeze(-1),
             batch_size=batch_size,
@@ -156,24 +156,24 @@ def train_one_epoch(
             pbar.set_postfix({"train/loss_step": loss.item(), "train/acc_step": correct.item() / len(target)})
 
     return {
-        "train/loss_epoch": total_loss / len(loader),
+        "train/loss_epoch": total_loss / len(dataloader),
         "train/acc_epoch": total_correct / total_points,
     }
 
 
-def eval_one_epoch(model: Module, loader: DataLoader, device: str = "cuda") -> Dict[str, float]:
+def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") -> Dict[str, float]:
     model.eval()
 
     total_correct = total_points = 0.0
-    for data in tqdm(loader, total=len(loader), desc="Evaluating"):
+    for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         coords = data["pos"].to(device)
-        target = data["target"].to(device)
+        target = data["label"].to(device)
         batch = data["batch"].to(device)
         batch_size = batch.max().item() + 1
 
         points = Points(
             points=coords / OCTREE_SCALE_FACTOR,
-            # normals=normals,
+            # normal=normal,
             # features=features,
             batch_id=batch.unsqueeze(-1),
             batch_size=batch_size,
@@ -202,7 +202,7 @@ def collate(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
     coords = torch.cat([d["pos"] for d in data_list]).float()
     target = torch.cat([d["segmentation"] for d in data_list])
 
-    return {"pos": coords, "target": target, "batch": batch}
+    return {"pos": coords, "label": target, "batch": batch}
 
 
 if __name__ == "__main__":

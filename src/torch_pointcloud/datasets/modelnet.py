@@ -76,11 +76,11 @@ MODELNET40_CLASSES = (
 
 
 def load_modelnet_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
-    pos, faces = load_off(file_path)
+    pos, face = load_off(file_path)
     return {
-        "pos": pos,
-        "faces": faces,
-        "target": torch.tensor(target, dtype=torch.long),
+        "pos": torch.from_numpy(pos).float(),
+        "face": torch.from_numpy(face).long(),
+        "label": torch.tensor(target, dtype=torch.long),
     }
 
 
@@ -90,9 +90,9 @@ def load_modelnet_normal_resampled_data(file_path: PathLike, target: int) -> Dic
     # NOTE: we could directly return the data in numpy-format but for consistency
     # we convert it to tensors so that it is ready to be used in transforms.
     return {
-        "pos": torch.from_numpy(data[:, :3]),
-        "normal": torch.from_numpy(data[:, 3:]),
-        "target": torch.tensor(target, dtype=torch.long),
+        "pos": torch.from_numpy(data[:, :3]).float(),
+        "normal": torch.from_numpy(data[:, 3:]).float(),
+        "label": torch.tensor(target, dtype=torch.long),
     }
 
 

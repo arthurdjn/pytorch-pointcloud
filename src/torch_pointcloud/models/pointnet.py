@@ -23,14 +23,14 @@ scatter, _ = optional_import("torch_scatter", "scatter")
 
 
 class TNet(nn.Module):
-    """Transformation Network (T-Net) module as described in PointNet paper
-    [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
+    """Transformation Network (T-Net) module as described in the original PointNet paper
+    :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
     T-Net predicts an affine transformation matrix that helps align input point clouds
     or feature spaces to a canonical space. This network acts as a mini-PointNet that
     takes points/features as input and outputs a transformation matrix.
 
-    There are two instances of T-Net in PointNet:
+    There are two instance of T-Net in PointNet:
     1. Input transform network: Operates on raw point coordinates (k=3)
     2. Feature transform network: Operates on point features (k=64 typically)
 
@@ -46,8 +46,6 @@ class TNet(nn.Module):
         norm: Normalization to use. Default: "batch_norm1d".
         global_pool: Pooling method to use ("max" or "mean"). Default: "max".
 
-    Returns:
-        Transformation matrix of shape $(N, k, k)$ where $N$ is the batch size.
     """
 
     def __init__(
@@ -105,21 +103,22 @@ class TNet(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    """PointNet encoder module that processes point clouds to extract global feature vectors as described in PointNet paper
-    [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
+    """PointNet encoder module that processes point clouds to extract global feature vectors as described in the original PointNet paper
+    :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
     The encoder follows the PointNet architecture by:
-    1. Applying a spatial transformer network (T-Net) to align input point coordinates
-    2. Processing points through the first MLP to extract per-point features
-    3. Optionally applying a feature transformer network to align feature space
-    4. Processing through the second MLP to extract higher-level features
 
-    Note:
+    1. Applying a spatial transformer network (T-Net) to align input point coordinates,
+    2. Processing points through the first MLP to extract per-point features,
+    3. Optionally applying a feature transformer network to align feature space,
+    4. Processing through the second MLP to extract higher-level features.
+
+    Abstract:
         This is the core feature extraction component of PointNet. The global features can be used
         for classification tasks, while the combination of global and point features can be used
         for segmentation tasks.
 
-    Note:
+    Tip:
         To get actual global features, you should apply your own pooling operation on the output of this module,
         like:
 
@@ -142,8 +141,6 @@ class PointNetEncoder(nn.Module):
         tnet_act: Activation function for T-Net.
         tnet_norm: Normalization for T-Net.
 
-    Returns:
-        Pre-global features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
     """
 
     def __init__(
@@ -218,19 +215,21 @@ class PointNetEncoder(nn.Module):
         batch: torch.Tensor,
         return_point_features: bool = False,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        """Forward pass of the PointNet encoder.
+        r"""Forward pass of the PointNet encoder.
 
         Args:
-            coords: Point coordinates of shape $(N, coords_dim)$ where $N$ is the batch size.
-            features: Additional point features of shape $(N, features_dim)$.
+            coords: Point coordinates of shape $(N, D)$.
+            features: Additional point features of shape $(N, C)$.
             batch: Batch indices for each point of shape $(N,)$.
             return_point_features: Whether to return per-point features.
 
         Returns:
-            If `return_point_features=False`, returns global features of shape $(N, mlp2_dims[-1])$
-                where $N$ is the batch size.
-            If `return_point_features=True`, returns a tuple of $(global_features, point_features)$
-                where `point_features` is of shape $(N, mlp1_dims[-1])$.
+            (Tensor): If `return_point_features=False`, returns global features of shape $(N, C_1)$
+                where $N$ is the batch size and $C_1$ is the last dimension of the first MLP.
+            (Tuple[Tensor, Tensor]): If `return_point_features=True`, returns a tuple of:
+
+                - $\mathbf{x}_{\text{global}}$ is of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
+                - $\mathbf{x}$ is of shape $(N, C_2)$ where $C_2$ is the last dimension of the second MLP.
         """
 
         xt = self.stnet(coords, batch)
@@ -253,22 +252,22 @@ class PointNetEncoder(nn.Module):
 
 
 class PointNetClassification(nn.Module):
-    r"""PointNet architecture for 3D point cloud classification tasks as described in PointNet paper
-    [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
+    r"""PointNet architecture for 3D point cloud classification tasks as described in the original PointNet paper
+    :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
     This model implements the complete PointNet classification network as described in the
     original paper. It consists of a PointNet encoder to extract global features from point clouds,
     followed by a classification head to predict class probabilities.
 
-    Note:
+    Abstract:
         This implementation follows the official PointNet architecture for classification,
         achieving invariance to point permutation through max pooling and robustness to
         geometric transformations through the T-Net modules.
 
-    Note:
-        To set an empty classification head, use `num_classes=0`.
+    Tip:
+        To set an empty classification head, set `num_classes=0`.
 
-    Note:
+    Tip:
         You can control the activations, normalization, and dropout rate of the encoder and head.
         To skip them, set them to `None`.
 
@@ -277,7 +276,7 @@ class PointNetClassification(nn.Module):
         coords_dim: Dimension of point coordinates.
         features_dim: Dimension of additional point features.
         dropout: Dropout rate applied before classification head.
-        global_pool: Pooling method to aggregate point features ("max" or "mean").
+        global_pool: Pooling method to aggregate point features (`"max"` or `"mean"`).
         mlp1_dims: Dimensions of encoder's first MLP.
         mlp2_dims: Dimensions of encoder's second MLP.
         act: Activation function to use.
@@ -289,8 +288,8 @@ class PointNetClassification(nn.Module):
         tnet_norm: Normalization for T-Net.
 
     Shape:
-        - Input: points of shape $(N, \text{coords_dim})$ and optionally features of shape $(N, \text{features_dim})$
-        - Output: logits of shape $(N, \text{num_classes})$
+        - Input: points of shape $(N, \text{coords}_$\text{dim})$ and optionally features of shape $(N, \text{features}_$\text{dim})$
+        - Output: logits of shape $(N, \text{num}_$\text{classes})$
     """
 
     def __init__(
@@ -340,9 +339,6 @@ class PointNetClassification(nn.Module):
         **kwargs: Any,
     ) -> None:
         """Resets the classification head with new parameters.
-
-        Note:
-            To set an empty classification head, use `num_classes=0`.
 
         Args:
             num_classes: Number of output classes.
@@ -408,15 +404,15 @@ class PointNetClassification(nn.Module):
 
 
 class PointNetSegmentation(nn.Module):
-    r"""PointNet architecture for point cloud segmentation tasks as described in PointNet paper
-    [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
+    r"""PointNet architecture for point cloud segmentation tasks as described in the original PointNet paper
+    :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
     This model implements the segmentation variant of PointNet as described in the original paper.
     It extracts both local point features and global shape features, combines them for each point,
     and predicts per-point semantic labels. This architecture enables the network to consider
     both local geometry and global context for segmentation.
 
-    Note:
+    Abstract:
         The key innovation in the segmentation variant is the concatenation of global features
         with per-point features, allowing each point's classification to be informed by both
         local geometry and the global shape context. This enables part segmentation that is

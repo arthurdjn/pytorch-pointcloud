@@ -18,13 +18,13 @@ def test_load_shapenet_part(data_dir_factory: Callable[..., Path]) -> None:
 
     assert isinstance(data["category"], torch.Tensor)
     assert isinstance(data["segmentation"], torch.Tensor)
-    assert isinstance(data["coords"], torch.Tensor)
-    assert isinstance(data["normals"], torch.Tensor)
+    assert isinstance(data["pos"], torch.Tensor)
+    assert isinstance(data["normal"], torch.Tensor)
 
     assert data["category"].item() == 0
     assert data["segmentation"].shape == (10,)
-    assert data["coords"].shape == (10, 3)
-    assert data["normals"].shape == (10, 3)
+    assert data["pos"].shape == (10, 3)
+    assert data["normal"].shape == (10, 3)
 
 
 def test_shapenet_dataset_not_found() -> None:
