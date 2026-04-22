@@ -155,7 +155,7 @@ def test_scanobjectnn_dataset_labels(data_dir_factory: Callable[..., Path], labe
     """Test that the dataset is loaded correctly for a specific category"""
     data_dir = data_dir_factory("ScanObjectNN/processed/**/*")
 
-    dataset = ScanObjectNN(root=data_dir, split="main", train=False, classes=[label], show_progress=False)
+    dataset = ScanObjectNN(root=data_dir, split="main", train=False, classes=[label], show_progress=False)  # type: ignore[list-item]
     assert len(dataset) > 0
     assert len(dataset.classes) == 1
     assert dataset.classes[0] == label
