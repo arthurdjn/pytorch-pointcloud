@@ -37,8 +37,8 @@ S3DIS_CLASSES = [
 ]
 S3DIS_CLASS_TO_IDX = {cls: idx for idx, cls in enumerate(S3DIS_CLASSES)}
 # In S3DIS original convention, unknown classes are grouped into the 'clutter' class.
-S3DIS_UNK_IDX = S3DIS_CLASS_TO_IDX["clutter"]
-S3DIS_UNK_CLASS = "clutter"
+S3DIS_UNK_CLS = "clutter"
+S3DIS_UNK_IDX = S3DIS_CLASS_TO_IDX[S3DIS_UNK_CLS]
 
 
 class S3DISRoomData(TypedDict, total=False):

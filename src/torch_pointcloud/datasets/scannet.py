@@ -28,12 +28,12 @@ from torch_pointcloud.utils.types import PathLike
 from .pointcloud import PointCloudDataset
 from .utils import download_url
 
-UNK_CLS = "<unk>"
-UNK_LABEL = 0
+SCANNET_UNK_CLS = "<unk>"
+SCANNET_UNK_IDX = 0
 
-SCANNET20_LABELS = [UNK_LABEL, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+SCANNET20_LABELS = [SCANNET_UNK_IDX, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
 SCANNET200_LABELS = [
-    UNK_LABEL,
+    SCANNET_UNK_IDX,
     1,
     2,
     3,
@@ -349,8 +349,8 @@ def load_scannet_scene_aggregation_and_segs(
     for vi, seg_id in enumerate(seg_indices):
         seg_to_verts[seg_id].append(vi)
 
-    instance = np.full(num_vertices, UNK_LABEL, dtype=np.int32)
-    labels = np.full(num_vertices, UNK_LABEL, dtype=np.int32) if label_to_idx is not None else None
+    instance = np.full(num_vertices, SCANNET_UNK_IDX, dtype=np.int32)
+    labels = np.full(num_vertices, SCANNET_UNK_IDX, dtype=np.int32) if label_to_idx is not None else None
 
     for group in aggregation["segGroups"]:
         object_id = group["objectId"]
