@@ -7,6 +7,7 @@ import torch
 from typing_extensions import get_args, override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -219,10 +220,10 @@ class ScanObjectNN(PointCloudDataset):
             pos = pos[mask]
             labels = labels[mask]
 
-        self.data = [
+        self.data: list[dict[str, Any]] = [
             {
-                "pos": torch.from_numpy(pos[i].copy()).float(),
-                "label": torch.tensor(int(labels[i]), dtype=torch.long),
+                DataKeys.POS: torch.from_numpy(pos[i].copy()).float(),
+                DataKeys.LABEL: torch.tensor(int(labels[i]), dtype=torch.long),
             }
             for i in range(len(pos))
         ]
