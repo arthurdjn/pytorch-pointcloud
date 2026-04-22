@@ -20,6 +20,8 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import NotRequired, override
 
+import torch_pointcloud.transforms as T
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import transform_points, vertex_normals
 from torch_pointcloud.utils.io import load_json, load_safetensors, save_safetensors
 from torch_pointcloud.utils.misc import parallel_map
@@ -242,7 +244,7 @@ class ScanNetData(TypedDict):
     color: Tensor
     normal: Tensor
     instance: NotRequired[Tensor]
-    label: NotRequired[Tensor]
+    segment: NotRequired[Tensor]
     scene: NotRequired[str]
 
 
@@ -492,7 +494,7 @@ def load_scannet_scene(
         # return the points and color
         return {"pos": pos, "color": color, "normal": normal}
 
-    instance, label = load_scannet_scene_aggregation_and_segs(
+    instance, segment = load_scannet_scene_aggregation_and_segs(
         aggregation_path,
         segments_path,
         label_to_idx=label_to_idx,
@@ -505,8 +507,8 @@ def load_scannet_scene(
         "instance": instance,
     }
 
-    if label is not None:
-        data["label"] = label
+    if segment is not None:
+        data["segment"] = segment
     if scene_id:
         data["scene"] = scene_id
 
@@ -660,8 +662,8 @@ class ScanNet(PointCloudDataset):
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process, num_workers=num_workers)
-        self.data = self._load_processed_data()
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.load(show_progress=show_progress)
 
     @cached_property
     def labels(self) -> pd.DataFrame:
@@ -767,10 +769,10 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None) -> None:
+    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if self.processed_files_exist() and not force:
             return
-        elif not self.raw_files_exist():
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
@@ -780,10 +782,9 @@ class ScanNet(PointCloudDataset):
         raw_dir = Path(self.raw_dir)
 
         # Create the mapping between object labels (also named "raw_category" in the CSV labels) and indices
-        # NOTE: indices must be contiguous positive integers to be ready to use for training purposes
         raw_col = "raw_category" if self.version == "v2" else "category"
 
-        # Two-step mapping: raw_category → self.label_name (e.g. nyu40class) → contiguous index.
+        # Two-step mapping: raw_category -> self.label_name (e.g. nyu40class) -> contiguous index.
         # A direct raw_category lookup in class_to_idx is wrong when label_name != label_col
         # (e.g. label_name="nyu40class"): "couch" would miss "sofa", "fridge" would miss
         # "refrigerator", etc. Iterating the TSV rows provides the correct intermediate mapping.
@@ -832,16 +833,23 @@ class ScanNet(PointCloudDataset):
 
         parallel_map(
             process_scene,
-            tqdm(scene_ids, desc="Processing", total=len(scene_ids), disable=not self.show_progress),
+            scene_ids,
             num_workers=num_workers,
+            total=len(scene_ids),
+            desc="Processing",
+            show_progress=show_progress,
         )
 
-    def _load_processed_data(self) -> Any:
-        data_list = []
-        for path in self.processed_files:
+    def load(self, show_progress: bool = True) -> None:
+        self.data = []
+        for path in tqdm(
+            self.processed_files,
+            desc="Loading",
+            total=len(self.processed_files),
+            disable=not show_progress,
+        ):
             data = load_safetensors(path)
-            data_list.append(data)
-        return data_list
+            self.data.append(data)
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
@@ -853,3 +861,95 @@ class ScanNet(PointCloudDataset):
     @override
     def __len__(self) -> int:
         return len(self.data)
+
+
+class ScanNet20(ScanNet):
+    def __init__(
+        self,
+        root: str,
+        version: Literal["v1", "v2"] = "v2",
+        split: Literal["train", "test", "val"] = "train",
+        transform: Optional[Callable] = None,
+        download: bool = False,
+        force_download: bool = False,
+        force_process: bool = False,
+        show_progress: bool = True,
+        num_workers: Optional[int] = None,
+    ) -> None:
+        self.relabel = T.Relabeld(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
+        super().__init__(
+            root=root,
+            version=version,
+            split=split,
+            label_name="nyu40class",
+            label_id="nyu40id",
+            transform=transform,
+            download=download,
+            force_download=force_download,
+            force_process=force_process,
+            show_progress=show_progress,
+            num_workers=num_workers,
+        )
+
+    @override
+    @property
+    def name(self) -> str:
+        return "ScanNet"
+
+    @override
+    def load(self, show_progress: bool = True) -> None:
+        self.data = []
+        for path in tqdm(
+            self.processed_files,
+            desc="Loading",
+            total=len(self.processed_files),
+            disable=not show_progress,
+        ):
+            data = load_safetensors(path)
+            self.data.append(self.relabel(data))
+
+
+class ScanNet200(ScanNet):
+    def __init__(
+        self,
+        root: str,
+        version: Literal["v1", "v2"] = "v2",
+        split: Literal["train", "test", "val"] = "train",
+        transform: Optional[Callable] = None,
+        download: bool = False,
+        force_download: bool = False,
+        force_process: bool = False,
+        show_progress: bool = True,
+        num_workers: Optional[int] = None,
+    ) -> None:
+        self.relabel = T.Relabeld(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
+        super().__init__(
+            root=root,
+            version=version,
+            split=split,
+            label_name="raw",
+            label_id="id",
+            transform=transform,
+            download=download,
+            force_download=force_download,
+            force_process=force_process,
+            show_progress=show_progress,
+            num_workers=num_workers,
+        )
+
+    @override
+    @property
+    def name(self) -> str:
+        return "ScanNet"
+
+    @override
+    def load(self, show_progress: bool = True) -> None:
+        self.data = []
+        for path in tqdm(
+            self.processed_files,
+            desc="Loading",
+            total=len(self.processed_files),
+            disable=not show_progress,
+        ):
+            data = load_safetensors(path)
+            self.data.append(self.relabel(data))

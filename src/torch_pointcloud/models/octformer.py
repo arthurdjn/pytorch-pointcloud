@@ -8,7 +8,6 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.scannet import SCANNET20_LABELS, SCANNET200_LABELS
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
@@ -971,10 +970,6 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     ),
     transforms=T.Compose(
         [
-            T.Relabeld(
-                keys=DataKeys.LABEL,
-                labels=SCANNET20_LABELS,
-            ),
             T.Centerd(keys=DataKeys.POS, method="bbox"),
             T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
             T.AlignAxisd(keys=DataKeys.POS, dim=-1),
@@ -1031,10 +1026,6 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
     transforms=T.Compose(
         [
-            T.Relabeld(
-                keys=DataKeys.LABEL,
-                labels=SCANNET200_LABELS,
-            ),
             T.Centerd(keys=DataKeys.POS, method="bbox"),
             T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
             T.AlignAxisd(keys=DataKeys.POS, dim=-1),
