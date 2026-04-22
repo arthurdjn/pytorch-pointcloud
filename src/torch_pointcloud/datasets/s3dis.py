@@ -1,6 +1,7 @@
 from collections import defaultdict
+from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Literal, Optional, Sequence, TypedDict, Union
 from urllib.parse import urljoin
 
 import numpy as np
@@ -35,8 +36,9 @@ S3DIS_CLASSES = [
     "clutter",
 ]
 S3DIS_CLASS_TO_IDX = {cls: idx for idx, cls in enumerate(S3DIS_CLASSES)}
-S3DIS_UNK_IDX: int | None = None
-S3DIS_UNK_CLASS = "<unk>"
+# In S3DIS original convention, unknown classes are grouped into the 'clutter' class.
+S3DIS_UNK_IDX = S3DIS_CLASS_TO_IDX["clutter"]
+S3DIS_UNK_CLASS = "clutter"
 
 
 class S3DISRoomData(TypedDict, total=False):
@@ -60,24 +62,12 @@ def _check_classes(classes: Sequence[str]) -> None:
             raise ValueError(f"Unknown class: {cls_name!r}. Must be one of {available_classes}.")
 
 
-def load_s3dis_room_data(
-    room_dir: PathLike,
-    alignment_angle: float | None = None,
-    class_to_idx: dict[str, int] | None = None,
-    unk_idx: int | None = S3DIS_UNK_IDX,
-) -> S3DISRoomData:
-    class_to_idx = class_to_idx or S3DIS_CLASS_TO_IDX
+def load_s3dis_room_data(room_dir: PathLike, alignment_angle: float | None = None) -> S3DISRoomData:
     room = defaultdict(list)
 
     for obj_idx, obj_path in enumerate(Path(room_dir).rglob("./Annotations/*.txt")):
-        # Get the associated class (e.g. 'chair_24' -> 'chair')
-        # NOTE: some rooms have an unknown class 'stairs', that should be treated as 'clutter'
         class_name, *_ = obj_path.stem.split("_")
-        class_idx = class_to_idx.get(class_name, unk_idx)
-
-        if class_idx is None:
-            # Skip loading the data of the room if it has an unknown class
-            continue
+        class_idx = S3DIS_CLASS_TO_IDX.get(class_name, S3DIS_UNK_IDX)
 
         data = np.loadtxt(obj_path, dtype=np.float32, delimiter=" ")
         points = torch.from_numpy(data)
@@ -93,7 +83,6 @@ def load_s3dis_room_data(
         room["segment"].append(torch.full((N,), class_idx, dtype=torch.int64))
         room["instance"].append(torch.full((N,), obj_idx, dtype=torch.int64))
 
-    # Stack the data
     for key, values in room.items():
         values = torch.cat(values, dim=0)  # type: ignore[assignment]
         if key == "instance":
@@ -184,8 +173,6 @@ class S3DIS(PointCloudDataset):
         *,
         areas: Union[list[str], Literal["all"]] = "all",
         classes: Optional[Union[str, Sequence[str]]] = "all",
-        unk_idx: Optional[int] = None,
-        unk_class: str = S3DIS_UNK_CLASS,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
@@ -197,8 +184,6 @@ class S3DIS(PointCloudDataset):
 
         self.areas = areas if areas != "all" else S3DIS_AREAS
         self.classes = ensure_tuple(S3DIS_CLASS_TO_IDX.keys() if classes == "all" else classes)
-        self.unk_idx = unk_idx
-        self.unk_class = unk_class
         self.transform = transform
         self.show_progress = show_progress
         self.num_workers = num_workers
@@ -212,12 +197,9 @@ class S3DIS(PointCloudDataset):
         self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load(show_progress=show_progress)
 
-    @property
+    @cached_property
     def class_to_idx(self) -> dict[str, int]:
-        mapping = {cls: idx for idx, cls in enumerate(self.classes)}
-        if self.unk_idx is not None:
-            mapping[self.unk_class] = self.unk_idx
-        return mapping
+        return {cls: idx for idx, cls in enumerate(self.classes)}
 
     @override
     def raw_files_exist(self) -> bool:
@@ -330,11 +312,8 @@ class S3DIS(PointCloudDataset):
                 for room_dir in sorted(p for p in area_dir.iterdir() if p.is_dir())
             ]
 
-            def load_room(job: Tuple[Path, Optional[float]]) -> S3DISRoomData:
-                return load_s3dis_room_data(*job, self.class_to_idx, self.unk_idx)
-
             rooms = parallel_map(
-                load_room,
+                lambda job: load_s3dis_room_data(*job),
                 jobs,
                 num_workers=num_workers,
                 total=len(jobs),
@@ -357,8 +336,17 @@ class S3DIS(PointCloudDataset):
             np.save(area_dir / "offset.npy", offsets)
 
     def load(self, show_progress: bool = True) -> None:
-        self.samples: list[dict[str, Any]] = []
+        # Build the mapping between original classes and selected classes
+        remap: np.ndarray | None = None
+        if tuple(self.classes) == tuple(S3DIS_CLASSES):
+            remap = None
+        else:
+            remap = np.full(len(S3DIS_CLASSES), S3DIS_UNK_IDX, dtype=np.int64)
+            for new_id, cls_name in enumerate(self.classes):
+                remap[S3DIS_CLASS_TO_IDX[cls_name]] = new_id
 
+        # Load each room from all areas
+        self.samples: list[dict[str, Any]] = []
         for area in tqdm(self.areas, total=len(self.areas), desc="Loading", disable=not show_progress):
             area_dir = Path(self.processed_dir, area)
             offsets = np.load(area_dir / "offset.npy")
@@ -370,13 +358,17 @@ class S3DIS(PointCloudDataset):
             n_rooms = len(offsets) - 1
             for i in range(n_rooms):
                 s, e = int(offsets[i]), int(offsets[i + 1])
+                # Processed segment were using original classes,
+                # so we remap them to the selected classes (if provided)
+                seg = segment[s:e] if remap is None else remap[segment[s:e]]
+
                 self.samples.append(
                     {
                         # NOTE: We use a copy to avoid modifying the original array
                         # in case a transform is modifying data in-place.
                         DataKeys.POS: torch.from_numpy(pos[s:e].copy()),
                         DataKeys.COLOR: torch.from_numpy(color[s:e].copy()),
-                        DataKeys.SEGMENT: torch.from_numpy(segment[s:e].astype(np.int64)),
+                        DataKeys.SEGMENT: torch.from_numpy(seg.astype(np.int64)),
                         DataKeys.INSTANCE: torch.from_numpy(instance[s:e].astype(np.int64)),
                     }
                 )

@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.datasets.s3dis import load_s3dis_room_data
+from torch_pointcloud.datasets.s3dis import S3DIS_UNK_IDX, load_s3dis_room_data
 
 
 def test_load_s3dis_room_data(data_dir: Path) -> None:
@@ -134,11 +134,11 @@ def test_s3dis_dataset_classes(
     """Test that the dataset loads specific classes"""
     data_dir = data_dir_factory("S3DIS/raw/**/*")
 
-    dataset = S3DIS(root=data_dir, classes=classes, unk_idx=-1, show_progress=False)
+    dataset = S3DIS(root=data_dir, classes=classes, show_progress=False)
     assert len(dataset) > 0
     assert all(cls in dataset.classes for cls in classes)
 
-    class_ids = set([*dataset.class_to_idx.values(), dataset.unk_idx])
+    class_ids = set([*dataset.class_to_idx.values(), S3DIS_UNK_IDX])
     for data in dataset:
         labels = data["segment"].unique().tolist()
         assert set(labels).issubset(class_ids)
