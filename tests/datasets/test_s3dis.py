@@ -18,11 +18,11 @@ def test_load_s3dis_room_data(data_dir: Path) -> None:
     assert isinstance(data["pos"], torch.Tensor)
     assert isinstance(data["color"], torch.Tensor)
     assert isinstance(data["instance"], torch.Tensor)
-    assert isinstance(data["semantic"], torch.Tensor)
+    assert isinstance(data["segment"], torch.Tensor)
     assert data["pos"].shape[1] == 3
     assert data["color"].shape[1] == 3
     assert data["instance"].ndim == 1
-    assert data["semantic"].ndim == 1
+    assert data["segment"].ndim == 1
 
 
 def test_s3dis_dataset_not_found() -> None:
@@ -122,7 +122,7 @@ def test_s3dis_dataset_progress_with_cached_processed(
     dataset = S3DIS(root=data_dir, show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert "Processing" not in captured.err
     assert captured.out == ""
 
 
@@ -134,13 +134,13 @@ def test_s3dis_dataset_classes(
     """Test that the dataset loads specific classes"""
     data_dir = data_dir_factory("S3DIS/raw/**/*")
 
-    dataset = S3DIS(root=data_dir, classes=classes, unk_id=-1, show_progress=False)
+    dataset = S3DIS(root=data_dir, classes=classes, unk_idx=-1, show_progress=False)
     assert len(dataset) > 0
     assert all(cls in dataset.classes for cls in classes)
 
-    class_ids = set([*dataset.class_to_idx.values(), dataset.unk_id])
+    class_ids = set([*dataset.class_to_idx.values(), dataset.unk_idx])
     for data in dataset:
-        labels = data["semantic"].unique().tolist()
+        labels = data["segment"].unique().tolist()
         assert set(labels).issubset(class_ids)
 
 
