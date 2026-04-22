@@ -1,28 +1,19 @@
 import math
 import random
 import warnings
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch_geometric.nn import MLP
+from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
-from torch_pointcloud.layers import (
-    MLP,
-    ActLike,
-    NormLike,
-    PoolLike,
-    create_act,
-    create_cls_head,
-    create_norm,
-    create_pool,
-)
-from torch_pointcloud.layers.blocks import linear_block
+from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
@@ -308,8 +299,10 @@ class KPConvBlock(nn.Module):
         aggregation_mode: str = "sum",
         deformable: bool = False,
         modulated: bool = False,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
     ):
         super().__init__()
@@ -327,8 +320,8 @@ class KPConvBlock(nn.Module):
             modulated=modulated,
             bias=bias,
         )
-        self.norm = create_norm(norm, out_channels) if norm is not None else None
-        self.act = create_act(act) if act is not None else None
+        self.norm = normalization_resolver(norm, out_channels, **(norm_kwargs or {})) if norm is not None else None
+        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
 
     def forward(self, x: Tensor, pos_query: Tensor, pos_support: Tensor, edge_index: Tensor) -> Tensor:
         x = self.conv(x, pos_query, pos_support, edge_index)
@@ -354,20 +347,27 @@ class KPResidualBlock(nn.Module):
         deformable: bool = False,
         modulated: bool = False,
         strided: bool = False,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
     ):
         super().__init__()
-        # Avoid bottleneck if mid_channels is too small
         mid_channels = max(out_channels // 4, 8)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.strided = strided
 
-        self.unary1 = MLP(
-            in_channels=in_channels, out_channels=mid_channels, norm=norm, act=act, bias=bias, dropout=None
+        mlp_kwargs: Dict[str, Any] = dict(
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            plain_last=False,
         )
+        self.unary1 = MLP([in_channels, mid_channels], act=act, act_kwargs=act_kwargs, **mlp_kwargs)
         self.conv = KPConvBlock(
             spatial_dim=spatial_dim,
             in_channels=mid_channels,
@@ -380,19 +380,17 @@ class KPResidualBlock(nn.Module):
             aggregation_mode=aggregation_mode,
             deformable=deformable,
             modulated=modulated,
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
-        self.unary2 = MLP(
-            in_channels=mid_channels, out_channels=out_channels, norm=norm, act=None, bias=bias, dropout=None
-        )
+        self.unary2 = MLP([mid_channels, out_channels], act=None, **mlp_kwargs)
         self.shortcut = (
-            MLP(in_channels=in_channels, out_channels=out_channels, norm=norm, act=None, bias=bias, dropout=None)
-            if in_channels != out_channels
-            else nn.Identity()
+            MLP([in_channels, out_channels], act=None, **mlp_kwargs) if in_channels != out_channels else nn.Identity()
         )
-        self.act = create_act(act) if act is not None else None
+        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
 
     def forward(self, x: Tensor, pos_query: Tensor, pos_support: Tensor, edge_index: Tensor) -> Tensor:
         shortcut = x
@@ -478,8 +476,11 @@ class EncoderBlock(nn.Module):
         deformable: Union[bool, Sequence[bool]] = False,
         modulated: Union[bool, Sequence[bool]] = False,
         bias: bool = False,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         downsample: Optional[GridPool] = None,
     ):
         super().__init__()
@@ -509,8 +510,11 @@ class EncoderBlock(nn.Module):
                 deformable=deformable[i],
                 modulated=modulated[i],
                 strided=strided,
-                norm=norm,
                 act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
                 bias=bias,
             )
             self.blocks.append(block)
@@ -593,8 +597,11 @@ def create_encoder_blocks(
     aggregation_mode: str = "sum",
     deformable: Union[bool, Sequence] = False,
     modulated: Union[bool, Sequence] = False,
-    norm: NormLike = "batch_norm1d",
-    act: ActLike = "leaky_relu",
+    act: Union[str, Callable, None] = "leaky_relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    act_first: bool = False,
+    norm: Union[str, Callable, None] = "batch_norm",
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     bias: bool = False,
     spatial_dim: int = 3,
 ) -> nn.ModuleList:
@@ -636,8 +643,11 @@ def create_encoder_blocks(
             aggregation_mode=aggregation_mode,
             deformable=deformable[i],
             modulated=modulated[i],
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
         blocks.append(block)
@@ -713,8 +723,11 @@ class KPConvNetClassification(ClassificationModel):
         aggregation_mode: str = "sum",
         deformable: Union[bool, Sequence] = False,
         modulated: Union[bool, Sequence] = False,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -737,19 +750,18 @@ class KPConvNetClassification(ClassificationModel):
                     kp_influence=kp_influence,
                     fixed_position=fixed_position,
                     aggregation_mode=aggregation_mode,
-                    norm=norm,
                     act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
                     bias=bias,
                 )
                 self._stem_radius = radii[0]
                 self._stem_max_neighbors = encoder_num_neighbors[0]
             else:
-                self.stem = linear_block(
-                    in_features=in_channels,
-                    out_features=stem_channels,
-                    norm=norm,
-                    act=act,
-                )
+                stem_act = activation_resolver(act, **(act_kwargs or {}))
+                stem_norm = normalization_resolver(norm, stem_channels, **(norm_kwargs or {}))
+                self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
             in_channels = stem_channels
 
         self.encoder_blocks = create_encoder_blocks(
@@ -768,8 +780,11 @@ class KPConvNetClassification(ClassificationModel):
             aggregation_mode=aggregation_mode,
             deformable=deformable,
             modulated=modulated,
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
 
@@ -888,9 +903,6 @@ class KPConvNetClassification(ClassificationModel):
         return self.forward_head(x, batch, pre_logits=False)
 
 
-# TODO: Do not use FP channels, but use a simple decoder_channels
-# TODO: param that will be used to create the FP blocks,
-# TODO: i.e. from fp_channels=[[256], [128], [64], [32]] -> decoder_channels=[256, 128, 64, 32]
 class KPConvNetSegmentation(SegmentationModel):
     """KPConv Network for segmentation tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
@@ -959,8 +971,11 @@ class KPConvNetSegmentation(SegmentationModel):
         aggregation_mode: str = "sum",
         deformable: Union[bool, Sequence] = False,
         modulated: Union[bool, Sequence] = False,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
         dropout: float = 0.0,
         head_channels: Optional[Sequence[int]] = None,
@@ -983,19 +998,18 @@ class KPConvNetSegmentation(SegmentationModel):
                     kp_influence=kp_influence,
                     fixed_position=fixed_position,
                     aggregation_mode=aggregation_mode,
-                    norm=norm,
                     act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
                     bias=bias,
                 )
                 self._stem_radius = radii[0]
                 self._stem_max_neighbors = encoder_num_neighbors[0]
             else:
-                self.stem = linear_block(
-                    in_features=in_channels,
-                    out_features=stem_channels,
-                    norm=norm,
-                    act=act,
-                )
+                stem_act = activation_resolver(act, **(act_kwargs or {}))
+                stem_norm = normalization_resolver(norm, stem_channels, **(norm_kwargs or {}))
+                self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
             in_channels = stem_channels
 
         self.encoder_blocks = create_encoder_blocks(
@@ -1014,8 +1028,11 @@ class KPConvNetSegmentation(SegmentationModel):
             aggregation_mode=aggregation_mode,
             deformable=deformable,
             modulated=modulated,
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
 
@@ -1027,18 +1044,21 @@ class KPConvNetSegmentation(SegmentationModel):
             fp_channels=fp_channels,
             bias=bias,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
-            order="lnad",
+            norm_kwargs=norm_kwargs,
             k=1,
         )
 
         self.embedding_dim = fp_channels[-1][-1]
         self.dropout = dropout
         if head_channels:
+            head_act = activation_resolver(act, **(act_kwargs or {}))
             layers: List[nn.Module] = []
             ch_in = self.embedding_dim
             for ch in head_channels:
-                layers.append(linear_block(ch_in, ch, act=act, norm=None, bias=True))
+                layers.append(nn.Sequential(nn.Linear(ch_in, ch, bias=True), head_act))
                 ch_in = ch
             layers.append(nn.Linear(ch_in, num_classes))
             self.head: nn.Module = nn.Sequential(*layers)
@@ -1142,7 +1162,8 @@ def _kpconvnet_small_clf(in_channels: int, num_classes: int, **kwargs: Any) -> K
         kp_radius=[0.1, 0.2, 0.4, 0.8],
         kp_sigma=[0.05, 0.1, 0.2, 0.4],
         act="leaky_relu",
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.05),
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.05},
     )
     hparams.update(kwargs)
 
@@ -1202,8 +1223,10 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
         deformable=False,
         modulated=False,
         bias=False,
-        act=torch.nn.LeakyReLU(negative_slope=0.1),
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
     ),
 )
 def kpfcnn_base_sm_seg(**hparams: Any) -> KPConvNetSegmentation:
@@ -1236,8 +1259,10 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPConvNetSegmentation:
         deformable=False,
         modulated=False,
         bias=False,
-        act=torch.nn.LeakyReLU(negative_slope=0.1),
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
     ),
 )
 def kpfcnn_base_seg(**hparams: Any) -> KPConvNetSegmentation:
@@ -1270,8 +1295,10 @@ def kpfcnn_base_seg(**hparams: Any) -> KPConvNetSegmentation:
         deformable=[False, False, [False, True, True], True, True],
         modulated=False,
         bias=False,
-        act=torch.nn.LeakyReLU(negative_slope=0.1),
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
     ),
 )
 def kpfcnn_base_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
@@ -1304,8 +1331,10 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
         deformable=[False, False, False, [False, True, True], True],
         modulated=False,
         bias=False,
-        act=torch.nn.LeakyReLU(negative_slope=0.1),
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
     ),
 )
 def kpfcnn_base_sm_deform_seg(**hparams: Any) -> KPConvNetSegmentation:

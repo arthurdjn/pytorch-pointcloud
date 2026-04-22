@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch_geometric.nn import MLP
 
-from torch_pointcloud.layers import MLP, ActLike, NormLike, PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size, is_iterable
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import knn_interpolate
@@ -28,10 +29,12 @@ class SAModule(nn.Module):
         ratio: float,
         radii: Union[float, Sequence[float]],
         num_neighbors: Union[int, Sequence[int]],
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
-        order: str = "lan",
         use_coords: bool = True,
         normalize_coords: bool = True,
         pool: PoolLike = "max",
@@ -40,7 +43,6 @@ class SAModule(nn.Module):
         self.in_channels = in_channels
         self.channels = ensure_list(channels, recursive=True)
         self.ratio = ratio
-        self.order = order
         self.use_coords = use_coords
         self.normalize_coords = normalize_coords
 
@@ -60,13 +62,13 @@ class SAModule(nn.Module):
         self.mlps = nn.ModuleList()
         for i in range(len(self.channels)):
             mlp = MLP(
-                channels=self.channels[i],
-                in_channels=in_channels,
+                [in_channels, *self.channels[i]],
                 act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
                 norm=norm,
+                norm_kwargs=norm_kwargs,
                 bias=bias,
-                dropout=None,
-                order=order,
                 plain_last=False,
             )
             self.mlps.append(mlp)
@@ -108,15 +110,26 @@ class GlobalSAModule(nn.Module):
         self,
         in_channels: int,
         channels: Sequence[int],
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
-        order: str = "lan",
         pool: PoolLike = "max",
     ) -> None:
         super().__init__()
         channels = list(ensure_tuple(channels))
-        self.mlp = MLP(channels, in_channels=in_channels, act=act, norm=norm, bias=bias, dropout=None, order=order)
+        self.mlp = MLP(
+            [in_channels, *channels],
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            plain_last=False,
+        )
         self.pool = create_pool(pool)
 
     def forward(self, features: Tensor, coords: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -133,14 +146,25 @@ class FPModule(torch.nn.Module):
         in_channels: int,
         channels: Sequence[int],
         k: int,
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
-        order: str = "lan",
     ) -> None:
         super().__init__()
         self.k = k
-        self.mlp = MLP(channels, in_channels=in_channels, act=act, norm=norm, bias=bias, dropout=None, order=order)
+        self.mlp = MLP(
+            [in_channels, *channels],
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            plain_last=False,
+        )
 
     def forward(
         self,
@@ -165,10 +189,12 @@ def create_sa_blocks(
     ratios: Sequence[float],
     radii: Sequence[Union[float, Sequence[float]]],
     num_neighbors: Sequence[Union[int, Sequence[int]]],
-    act: ActLike = "relu",
-    norm: NormLike = "batch_norm1d",
+    act: Union[str, Callable, None] = "relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    act_first: bool = False,
+    norm: Union[str, Callable, None] = "batch_norm",
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     bias: bool = False,
-    order: str = "land",
     use_coords: bool = True,
     pool: PoolLike = "max",
 ) -> nn.ModuleList:
@@ -187,9 +213,11 @@ def create_sa_blocks(
             radii=radii[i],
             num_neighbors=num_neighbors[i],
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
-            order=order,
             use_coords=use_coords,
             pool=pool,
         )
@@ -203,10 +231,12 @@ def create_fp_blocks(
     in_channels: int,
     skip_channels: Sequence[int],
     fp_channels: Sequence[Sequence[int]],
-    act: ActLike = "relu",
-    norm: NormLike = "batch_norm1d",
+    act: Union[str, Callable, None] = "relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    act_first: bool = False,
+    norm: Union[str, Callable, None] = "batch_norm",
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     bias: bool = False,
-    order: str = "lan",
     k: int = 3,
 ) -> nn.ModuleList:
     if len(skip_channels) != len(fp_channels):
@@ -225,9 +255,11 @@ def create_fp_blocks(
             channels=fp_channels[i],
             k=1 if i == 0 else k,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
-            order=order,
         )
         blocks.append(block)
 
@@ -299,10 +331,12 @@ class PointNet2Classification(nn.Module):
             For MSG, provide a list of radii per block.
         num_neighbors: Max number of neighbors for each SA block.
             For MSG, provide a list of neighbor counts per block.
-        act: Activation function.
-        norm: Normalization layer.
+        act: Activation function type or callable.
+        act_kwargs: Additional keyword arguments for the activation function.
+        act_first: If ``True``, activation is applied before normalization.
+        norm: Normalization layer type or callable.
+        norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
-        order: Order of operations in MLPs.
         use_coords: Whether to use point coordinates as features.
         pool: Pooling operation for SA blocks.
         dropout: Dropout rate for classification head.
@@ -320,10 +354,12 @@ class PointNet2Classification(nn.Module):
         ratios: Sequence[float],
         radii: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
-        order: str = "lan",
         use_coords: bool = True,
         pool: PoolLike = "max",
         dropout: float = 0.0,
@@ -350,16 +386,30 @@ class PointNet2Classification(nn.Module):
             radii=radii,
             num_neighbors=num_neighbors,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
-            order=order,
             use_coords=use_coords,
             pool=pool,
         )
 
         in_channels = sum([c[-1] for c in sa_channels[-1]])
         aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
-        self.aggr = MLP(in_channels=in_channels, channels=aggr_channels, act=act, norm=norm) if aggr_channels else None
+        self.aggr = (
+            MLP(
+                [in_channels, *aggr_channels],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                plain_last=False,
+            )
+            if aggr_channels
+            else None
+        )
 
         self.global_pool = create_pool(global_pool)
         self.dropout = dropout
@@ -429,7 +479,6 @@ class PointNet2Classification(nn.Module):
 
 
 # TODO: Update the docstring (remove classification part)
-# TODO: Allow using the GlobalSA block (maybe add a global_pool parameter)
 class PointNet2Segmentation(nn.Module):
     """PointNet++ segmentation model from the paper
     [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
@@ -458,14 +507,15 @@ class PointNet2Segmentation(nn.Module):
             For MSG, provide a list of radii per block.
         num_neighbors: Max number of neighbors for each SA block.
             For MSG, provide a list of neighbor counts per block.
-        act: Activation function.
-        norm: Normalization layer.
+        act: Activation function type or callable.
+        act_kwargs: Additional keyword arguments for the activation function.
+        act_first: If ``True``, activation is applied before normalization.
+        norm: Normalization layer type or callable.
+        norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
-        order: Order of operations in MLPs.
         use_coords: Whether to use point coordinates as features.
         pool: Pooling operation for SA blocks.
         dropout: Dropout rate for classification head.
-        global_pool: Global pooling operation.
     """
 
     def __init__(
@@ -480,10 +530,12 @@ class PointNet2Segmentation(nn.Module):
         ratios: Sequence[float],
         radii: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
-        order: str = "lan",
         use_coords: bool = True,
         pool: PoolLike = "max",
         dropout: float = 0.0,
@@ -509,9 +561,11 @@ class PointNet2Segmentation(nn.Module):
             radii=radii,
             num_neighbors=num_neighbors,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
-            order=order,
             use_coords=use_coords,
             pool=pool,
         )
@@ -526,7 +580,19 @@ class PointNet2Segmentation(nn.Module):
         in_channels = sa_out_channels[-1]
 
         aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
-        self.aggr = MLP(in_channels=in_channels, channels=aggr_channels, act=act, norm=norm) if aggr_channels else None
+        self.aggr = (
+            MLP(
+                [in_channels, *aggr_channels],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                plain_last=False,
+            )
+            if aggr_channels
+            else None
+        )
 
         self.fp_blocks = create_fp_blocks(
             in_channels=aggr_channels[-1] if aggr_channels is not None else in_channels,
@@ -534,8 +600,10 @@ class PointNet2Segmentation(nn.Module):
             fp_channels=fp_channels,
             bias=bias,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
-            order=order,
+            norm_kwargs=norm_kwargs,
         )
 
         self.dropout = dropout

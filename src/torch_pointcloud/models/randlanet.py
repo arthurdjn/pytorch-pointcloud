@@ -268,9 +268,11 @@ class RandLANetSegmentation(nn.Module):
         num_neighbors: Number of neighbors for each point.
         aggr_channels: Number of channels in the aggregation layer.
         bias: Whether to use bias in the MLPs.
-        act: Activation function to use.
-        norm: Normalization function to use.
-        order: Order of the MLPs.
+        act: Activation function type or callable.
+        act_kwargs: Additional keyword arguments for the activation function.
+        act_first: If ``True``, activation is applied before normalization.
+        norm: Normalization layer type or callable.
+        norm_kwargs: Additional keyword arguments for the normalization layer.
         dropout: Dropout rate.
 
     """
@@ -287,9 +289,11 @@ class RandLANetSegmentation(nn.Module):
         num_neighbors: Union[int, Sequence[int]] = 16,
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         bias: bool = False,
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
-        order: str = "lan",
+        act: Union[str, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         dropout: float = 0.0,
     ):
         super().__init__()
@@ -313,8 +317,10 @@ class RandLANetSegmentation(nn.Module):
             fp_channels=fp_channels,
             bias=bias,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
-            order=order,
+            norm_kwargs=norm_kwargs,
         )
 
         self.dropout = dropout
