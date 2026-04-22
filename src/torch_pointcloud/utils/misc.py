@@ -41,9 +41,7 @@ def parallel_map(
     if num_workers is None:
         results: Iterable[T] = (func(item) for item in iterable)
     else:
-        results = Parallel(n_jobs=num_workers, return_as="generator")(
-            delayed(func)(item) for item in iterable
-        )
+        results = Parallel(n_jobs=num_workers, return_as="generator")(delayed(func)(item) for item in iterable)
 
     if show_progress:
         results = tqdm(results, total=total, desc=desc)
