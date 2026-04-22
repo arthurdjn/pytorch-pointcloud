@@ -39,17 +39,17 @@ def test_random_sample_transform(mock_fn: Mock) -> None:
 def test_random_sample_face_vertices_transform(mock_fn: Mock) -> None:
     """Test that RandomSampleFaceVertices transform calls the functional API correctly."""
     vertices = sentinel.vertices
-    faces = sentinel.faces
+    face = sentinel.face
     num_samples = sentinel.num_samples
     return_normals = sentinel.return_normals
     generator = sentinel.generator
 
     transform = RandomSampleFaceVertices(num_samples=num_samples, return_normals=return_normals, generator=generator)
-    result = transform(vertices, faces)
+    result = transform(vertices, face)
 
     mock_fn.assert_called_once_with(
         vertices,
-        faces,
+        face,
         num_samples=num_samples,
         return_normals=return_normals,
         generator=generator,

@@ -86,7 +86,7 @@ def generate_processed(args: Namespace) -> None:
     root = raw_dir.resolve().parent.parent.as_posix()
 
     for split in ["train", "val", "test"]:
-        _ = ShapeNetPart(root=root, split=split, progress=True, process=True)
+        _ = ShapeNetPart(root=root, split=split, show_progress=True, force_process=True)
 
 
 if __name__ == "__main__":

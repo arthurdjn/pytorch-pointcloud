@@ -24,12 +24,12 @@ def test_load_scannet_scene(data_dir: Path) -> None:
     assert isinstance(data["color"], torch.Tensor)
     assert isinstance(data["normal"], torch.Tensor)
     assert isinstance(data["instance"], torch.Tensor)
-    assert isinstance(data["label"], torch.Tensor)
+    assert isinstance(data["segment"], torch.Tensor)
     assert data["pos"].shape[1] == 3
     assert data["color"].shape[1] == 3
     assert data["normal"].shape[1] == 3
     assert data["instance"].ndim == 1
-    assert data["label"].ndim == 1
+    assert data["segment"].ndim == 1
 
 
 def test_scannet_dataset_not_found() -> None:
@@ -185,13 +185,14 @@ def test_scannet_dataset_progress_with_cached_processed(
     data_dir_factory: Callable[..., Path],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test that no progress bar is shown if the processed dataset already exists"""
+    """Test that no processing progress bar is shown if the processed dataset already exists"""
     data_dir = data_dir_factory("ScanNet/processed/**/*")
 
     dataset = ScanNet(root=data_dir, show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert "Processing" not in captured.err
+    assert "Loading" in captured.err
     assert captured.out == ""
 
 

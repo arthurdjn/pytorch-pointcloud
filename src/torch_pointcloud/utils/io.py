@@ -15,7 +15,7 @@ def load_json(file_path: PathLike) -> Dict[str, Any]:
         return json.load(f)
 
 
-def load_off(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
+def load_off(file_path: PathLike) -> Tuple[np.ndarray, np.ndarray]:
     with open(file_path, "r") as f:
         file_content = f.read()
 
@@ -27,7 +27,7 @@ def load_off(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
     # OFF header file can be in two formats:
     #
     # OFF           <- Mark the start of the file
-    # 8 6 12        <- Number of vertices, faces, and edges
+    # 8 6 12        <- Number of vertices, face, and edges
     # ...
     #
     # or
@@ -43,7 +43,7 @@ def load_off(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
     if not lines:
         raise ValueError("OFF file is empty")
 
-    # Parse number of vertices, faces, and edges (metadata)
+    # Parse number of vertices, face, and edges (metadata)
     num_nodes, num_faces, *_ = map(int, lines[0].split())
 
     # Load nodes (vertices) using numpy
@@ -61,7 +61,7 @@ def load_off(file_path: PathLike) -> Tuple[torch.Tensor, torch.Tensor]:
             faces.append([face_vertices[0], face_vertices[1], face_vertices[2]])
             faces.append([face_vertices[0], face_vertices[2], face_vertices[3]])
 
-    return torch.from_numpy(nodes), torch.tensor(faces, dtype=torch.int64)
+    return nodes, np.stack(faces)
 
 
 def save_safetensors(file_path: PathLike, data: Mapping[str, Any]) -> None:

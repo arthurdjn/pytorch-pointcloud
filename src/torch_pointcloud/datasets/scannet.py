@@ -20,6 +20,8 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import NotRequired, override
 
+import torch_pointcloud.transforms as T
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import transform_points, vertex_normals
 from torch_pointcloud.utils.io import load_json, load_safetensors, save_safetensors
 from torch_pointcloud.utils.misc import parallel_map
@@ -28,12 +30,12 @@ from torch_pointcloud.utils.types import PathLike
 from .pointcloud import PointCloudDataset
 from .utils import download_url
 
-UNK_CLS = "<unk>"
-UNK_LABEL = 0
+SCANNET_UNK_CLS = "<unk>"
+SCANNET_UNK_IDX = 0
 
-SCANNET20_LABELS = [UNK_LABEL, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+SCANNET20_LABELS = [SCANNET_UNK_IDX, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
 SCANNET200_LABELS = [
-    UNK_LABEL,
+    SCANNET_UNK_IDX,
     1,
     2,
     3,
@@ -242,28 +244,28 @@ class ScanNetData(TypedDict):
     color: Tensor
     normal: Tensor
     instance: NotRequired[Tensor]
-    label: NotRequired[Tensor]
+    segment: NotRequired[Tensor]
     scene: NotRequired[str]
 
 
 def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[Tensor, Tensor]:
-    """Load a ScanNet PLY file and return the vertices and faces.
+    """Load a ScanNet PLY file and return the vertices and face.
 
     Args:
         file_path: The path to the PLY file.
 
     Returns:
-        The vertices and faces.
+        The vertices and face.
 
     Examples:
-        >>> vertices, faces = load_ply("data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00_vh_clean_2.ply")
+        >>> vertices, face = load_ply("data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00_vh_clean_2.ply")
     """
     with open(file_path, "rb") as f:
         plydata = plyfile.PlyData.read(f)
 
     vertices = np.array([tuple(vertex) for vertex in plydata["vertex"].data], dtype=np.float32)
-    faces = np.stack(plydata["face"].data["vertex_indices"], axis=0)
-    return torch.from_numpy(vertices), torch.from_numpy(faces).long()
+    face = np.stack(plydata["face"].data["vertex_indices"], axis=0)
+    return torch.from_numpy(vertices), torch.from_numpy(face).long()
 
 
 def load_scannet_scene_metadata(meta_path: PathLike, /) -> Dict[str, Any]:
@@ -323,11 +325,11 @@ def load_scannet_scene_aggregation_and_segs(
             Unrecognized categories map to 0 (unlabeled).
 
     Returns:
-        The instances and labels.
+        The instance and labels.
 
     Examples:
         >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
-        >>> instances, labels = load_scannet_scene_aggregation_and_segs(
+        >>> instance, labels = load_scannet_scene_aggregation_and_segs(
         ...     f"{scene_dir}/scene0000_00.aggregation.json",
         ...     f"{scene_dir}/scene0000_00.segs.json",
         ...     label_to_idx={
@@ -349,8 +351,8 @@ def load_scannet_scene_aggregation_and_segs(
     for vi, seg_id in enumerate(seg_indices):
         seg_to_verts[seg_id].append(vi)
 
-    instances = np.full(num_vertices, UNK_LABEL, dtype=np.int32)
-    labels = np.full(num_vertices, UNK_LABEL, dtype=np.int32) if label_to_idx is not None else None
+    instance = np.full(num_vertices, SCANNET_UNK_IDX, dtype=np.int32)
+    labels = np.full(num_vertices, SCANNET_UNK_IDX, dtype=np.int32) if label_to_idx is not None else None
 
     for group in aggregation["segGroups"]:
         object_id = group["objectId"]
@@ -359,12 +361,12 @@ def load_scannet_scene_aggregation_and_segs(
 
         for seg_id in group["segments"]:
             for vi in seg_to_verts.get(seg_id, []):
-                instances[vi] = object_id
+                instance[vi] = object_id
                 if labels is not None:
                     labels[vi] = label
 
     return (
-        torch.from_numpy(instances),
+        torch.from_numpy(instance),
         torch.from_numpy(labels) if labels is not None else None,
     )
 
@@ -441,7 +443,7 @@ def load_scannet_scene(
     label_to_idx: Optional[Dict[str, int]] = None,
     scene_id: Optional[str] = None,
 ) -> ScanNetData:
-    """Load a ScanNet scene and return the parsed points, colors, normals, instances, and labels
+    """Load a ScanNet scene and return the parsed points, color, normal, instance, and labels
     in a dictionary format.
 
     Args:
@@ -469,13 +471,13 @@ def load_scannet_scene(
         ...     label_to_idx=label_to_idx,
         ... )
         >>> scene
-        {'points': tensor([[...]]), 'colors': tensor([[...]]), 'normals': tensor([[...]]),
-         'instances': tensor([...]), 'labels': tensor([...])}}
+        {'points': tensor([[...]]), 'color': tensor([[...]]), 'normal': tensor([[...]]),
+         'instance': tensor([...]), 'labels': tensor([...])}}
     """
     label_to_idx = label_to_idx or {}
 
     # Load the points
-    vertices, faces = load_scannet_scene_mesh(mesh_path)
+    vertices, face = load_scannet_scene_mesh(mesh_path)
     pos, color = vertices[:, :3], vertices[:, 3:6]
 
     # Optionally transform the points with the axis alignment matrix
@@ -485,14 +487,14 @@ def load_scannet_scene(
         # that is provided in the v2 version of the dataset
         pos = transform_points(pos, metadata["axisAlignment"])
 
-    normal = vertex_normals(pos, faces)
+    normal = vertex_normals(pos, face)
 
     if not aggregation_path or not segments_path:
         # If no aggregation or segments are provided,
-        # return the points and colors
+        # return the points and color
         return {"pos": pos, "color": color, "normal": normal}
 
-    instance, label = load_scannet_scene_aggregation_and_segs(
+    instance, segment = load_scannet_scene_aggregation_and_segs(
         aggregation_path,
         segments_path,
         label_to_idx=label_to_idx,
@@ -505,8 +507,8 @@ def load_scannet_scene(
         "instance": instance,
     }
 
-    if label is not None:
-        data["label"] = label
+    if segment is not None:
+        data["segment"] = segment
     if scene_id:
         data["scene"] = scene_id
 
@@ -518,7 +520,7 @@ class ScanNet(PointCloudDataset):
     [ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405).
     This dataset contains 2.5M views in 1513 scans acquired in 707 distinct spaces.
     Each scan is annotated with 3D camera poses, meshes, object segmentation, and scene semantics for
-    a total of 36,000 annotated object instances.
+    a total of 36,000 annotated object instance.
 
     The dataset is available in two versions:
 
@@ -527,7 +529,7 @@ class ScanNet(PointCloudDataset):
         with 100 more scans for test.
 
     Note:
-        It is recommended to use the `v2` version, as it contains more annotated object instances.
+        It is recommended to use the `v2` version, as it contains more annotated object instance.
         The `v1` version is kept for backward compatibility.
 
     Note:
@@ -660,8 +662,8 @@ class ScanNet(PointCloudDataset):
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process, num_workers=num_workers)
-        self.data = self._load_processed_data()
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.load(show_progress=show_progress)
 
     @cached_property
     def labels(self) -> pd.DataFrame:
@@ -767,10 +769,10 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None) -> None:
+    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if self.processed_files_exist() and not force:
             return
-        elif not self.raw_files_exist():
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
@@ -780,10 +782,9 @@ class ScanNet(PointCloudDataset):
         raw_dir = Path(self.raw_dir)
 
         # Create the mapping between object labels (also named "raw_category" in the CSV labels) and indices
-        # NOTE: indices must be contiguous positive integers to be ready to use for training purposes
         raw_col = "raw_category" if self.version == "v2" else "category"
 
-        # Two-step mapping: raw_category → self.label_name (e.g. nyu40class) → contiguous index.
+        # Two-step mapping: raw_category -> self.label_name (e.g. nyu40class) -> contiguous index.
         # A direct raw_category lookup in class_to_idx is wrong when label_name != label_col
         # (e.g. label_name="nyu40class"): "couch" would miss "sofa", "fridge" would miss
         # "refrigerator", etc. Iterating the TSV rows provides the correct intermediate mapping.
@@ -832,16 +833,23 @@ class ScanNet(PointCloudDataset):
 
         parallel_map(
             process_scene,
-            tqdm(scene_ids, desc="Processing", total=len(scene_ids), disable=not self.show_progress),
+            scene_ids,
             num_workers=num_workers,
+            total=len(scene_ids),
+            desc="Processing",
+            show_progress=show_progress,
         )
 
-    def _load_processed_data(self) -> Any:
-        data_list = []
-        for path in self.processed_files:
+    def load(self, show_progress: bool = True) -> None:
+        self.data = []
+        for path in tqdm(
+            self.processed_files,
+            desc="Loading",
+            total=len(self.processed_files),
+            disable=not show_progress,
+        ):
             data = load_safetensors(path)
-            data_list.append(data)
-        return data_list
+            self.data.append(data)
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
@@ -853,3 +861,95 @@ class ScanNet(PointCloudDataset):
     @override
     def __len__(self) -> int:
         return len(self.data)
+
+
+class ScanNet20(ScanNet):
+    def __init__(
+        self,
+        root: str,
+        version: Literal["v1", "v2"] = "v2",
+        split: Literal["train", "test", "val"] = "train",
+        transform: Optional[Callable] = None,
+        download: bool = False,
+        force_download: bool = False,
+        force_process: bool = False,
+        show_progress: bool = True,
+        num_workers: Optional[int] = None,
+    ) -> None:
+        self.relabel = T.Relabeld(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
+        super().__init__(
+            root=root,
+            version=version,
+            split=split,
+            label_name="nyu40class",
+            label_id="nyu40id",
+            transform=transform,
+            download=download,
+            force_download=force_download,
+            force_process=force_process,
+            show_progress=show_progress,
+            num_workers=num_workers,
+        )
+
+    @override
+    @property
+    def name(self) -> str:
+        return "ScanNet"
+
+    @override
+    def load(self, show_progress: bool = True) -> None:
+        self.data = []
+        for path in tqdm(
+            self.processed_files,
+            desc="Loading",
+            total=len(self.processed_files),
+            disable=not show_progress,
+        ):
+            data = load_safetensors(path)
+            self.data.append(self.relabel(data))
+
+
+class ScanNet200(ScanNet):
+    def __init__(
+        self,
+        root: str,
+        version: Literal["v1", "v2"] = "v2",
+        split: Literal["train", "test", "val"] = "train",
+        transform: Optional[Callable] = None,
+        download: bool = False,
+        force_download: bool = False,
+        force_process: bool = False,
+        show_progress: bool = True,
+        num_workers: Optional[int] = None,
+    ) -> None:
+        self.relabel = T.Relabeld(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
+        super().__init__(
+            root=root,
+            version=version,
+            split=split,
+            label_name="raw",
+            label_id="id",
+            transform=transform,
+            download=download,
+            force_download=force_download,
+            force_process=force_process,
+            show_progress=show_progress,
+            num_workers=num_workers,
+        )
+
+    @override
+    @property
+    def name(self) -> str:
+        return "ScanNet"
+
+    @override
+    def load(self, show_progress: bool = True) -> None:
+        self.data = []
+        for path in tqdm(
+            self.processed_files,
+            desc="Loading",
+            total=len(self.processed_files),
+            disable=not show_progress,
+        ):
+            data = load_safetensors(path)
+            self.data.append(self.relabel(data))

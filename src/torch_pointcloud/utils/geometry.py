@@ -131,26 +131,26 @@ def rodrigues_rotation_matrix(axis: Tensor, theta: float) -> Tensor:
     return R
 
 
-def vertex_normals(vertices: Tensor, faces: Tensor) -> Tensor:
-    """Compute the vertex normals of a mesh.
+def vertex_normals(vertices: Tensor, face: Tensor) -> Tensor:
+    """Compute the vertex normal of a mesh.
 
     Args:
         vertices: The vertices of the mesh. Shape: $(V, 3)$.
-        faces: The faces of the mesh. Shape: $(F, 3)$.
+        face: The face of the mesh. Shape: $(F, 3)$.
 
     Returns:
-        The vertex normals of the mesh. Shape: $(V, 3)$.
+        The vertex normal of the mesh. Shape: $(V, 3)$.
 
     Examples:
         >>> vertices = torch.tensor([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]])
-        >>> faces = torch.tensor([[0, 1, 2]])
-        >>> vertex_normals(vertices, faces)
+        >>> face = torch.tensor([[0, 1, 2]])
+        >>> vertex_normals(vertices, face)
         tensor([[0., 0., 1.],
                 [0., 0., 1.],
                 [0., 0., 1.]])
     """
-    v01 = vertices[faces[:, 1]] - vertices[faces[:, 0]]  # (F, 3)
-    v02 = vertices[faces[:, 2]] - vertices[faces[:, 0]]  # (F, 3)
+    v01 = vertices[face[:, 1]] - vertices[face[:, 0]]  # (F, 3)
+    v02 = vertices[face[:, 2]] - vertices[face[:, 0]]  # (F, 3)
     face_normals = torch.cross(v01, v02, dim=1)  # (F, 3)
     areas = face_normals.norm(dim=1, keepdim=True) * 0.5  # (F, 1)
     face_normals = safe_divide(face_normals, areas * 2, default=0.0)
@@ -158,9 +158,9 @@ def vertex_normals(vertices: Tensor, faces: Tensor) -> Tensor:
     weighted_normals = face_normals * areas  # (F, 3)
 
     vertex_normals = torch.zeros_like(vertices)  # (V, 3)
-    vertex_normals.index_add_(0, faces[:, 0], weighted_normals)
-    vertex_normals.index_add_(0, faces[:, 1], weighted_normals)
-    vertex_normals.index_add_(0, faces[:, 2], weighted_normals)
+    vertex_normals.index_add_(0, face[:, 0], weighted_normals)
+    vertex_normals.index_add_(0, face[:, 1], weighted_normals)
+    vertex_normals.index_add_(0, face[:, 2], weighted_normals)
 
     return torch.nn.functional.normalize(vertex_normals, dim=1)
 

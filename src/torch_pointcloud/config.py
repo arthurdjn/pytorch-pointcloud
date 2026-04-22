@@ -2,6 +2,10 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def asbool(value: Optional[str]) -> Optional[bool]:
     if value is None:

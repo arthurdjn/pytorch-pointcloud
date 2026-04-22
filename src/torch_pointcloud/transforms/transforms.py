@@ -199,14 +199,14 @@ class RandomSample(Transform):
 
 
 class RandomSampleFaceVertices(Transform):
-    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, faces).
+    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face).
 
     See Also:
         `torch_pointcloud.transforms.functional.random_sample_face_vertices` for more details.
 
     Args:
         num_samples: The number of vertices to sample.
-        return_normals: Whether to return the normals of the sampled vertices.
+        return_normals: Whether to return the normal of the sampled vertices.
         generator: The generator for the random number generator.
     """
 
@@ -220,19 +220,19 @@ class RandomSampleFaceVertices(Transform):
         self.return_normals = return_normals
         self.generator = generator
 
-    def transform(self, points: Tensor, faces: Tensor) -> Any:
+    def transform(self, points: Tensor, face: Tensor) -> Any:
         """Apply the transform to the input tensor.
 
         Args:
             points: The input tensor.
-            faces: The input tensor.
+            face: The input tensor.
 
         Returns:
             The transformed tensor.
         """
         return F.random_sample_face_vertices(
             points,
-            faces,
+            face,
             num_samples=self.num_samples,
             return_normals=self.return_normals,
             generator=self.generator,

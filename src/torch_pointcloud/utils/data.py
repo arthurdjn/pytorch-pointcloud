@@ -22,6 +22,10 @@ class DataKeys(StrEnum):
     COLOR = "color"
     NORMAL = "normal"
     FACE = "face"
+    SEGMENT = "segment"
+    SEMANTIC = "semantic"
+    INSTANCE = "instance"
+    CATEGORY = "category"
     LABEL = "label"
     BATCH = "batch"
     # Octree-based keys (OCNN convention)

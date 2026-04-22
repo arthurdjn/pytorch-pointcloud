@@ -807,7 +807,7 @@ class KPConvNetClassification(ClassificationModel):
 
         intermediates = []
         for i, block in enumerate(self.encoder_blocks):
-            intermediate = {"features": features, "coords": coords, "batch": batch}
+            intermediate = {"features": features, "pos": coords, "batch": batch}
             features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
 
             if i > 0:
@@ -1009,12 +1009,12 @@ class KPConvNetSegmentation(SegmentationModel):
         if self.stem is not None:
             features = self.stem(features)
 
-        intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
+        intermediates = [{"features": features, "pos": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.encoder_blocks):
             features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
             if return_intermediates and i < len(self.encoder_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
-                intermediates.append({"features": features, "coords": coords, "batch": batch})
+                intermediates.append({"features": features, "pos": coords, "batch": batch})
 
         if return_intermediates:
             return features, coords, batch, intermediates
@@ -1029,7 +1029,7 @@ class KPConvNetSegmentation(SegmentationModel):
     ) -> Tensor:
         for block, intermediate in zip(self.fp_blocks, reversed(intermediates)):
             features_skip = intermediate["features"]
-            coords_skip = intermediate["coords"]
+            coords_skip = intermediate["pos"]
             batch_skip = intermediate["batch"]
 
             features, coords, batch = block(features, coords, batch, features_skip, coords_skip, batch_skip)

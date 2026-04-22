@@ -103,13 +103,13 @@ def generate_processed(args: Namespace) -> None:
 
 def _generate_scene_points(scene_dir: PathLike, scene_id: str, num_points: int = 1000) -> None:
     points = np.random.uniform(-5, 5, (num_points, 3)).astype(np.float32)
-    colors = np.random.randint(0, 256, (num_points, 3)).astype(np.uint8)
-    normals = np.random.uniform(-1, 1, (num_points, 3)).astype(np.float32)
-    normals = normals / np.linalg.norm(normals, axis=1, keepdims=True)
+    color = np.random.randint(0, 256, (num_points, 3)).astype(np.uint8)
+    normal = np.random.uniform(-1, 1, (num_points, 3)).astype(np.float32)
+    normal = normal / np.linalg.norm(normal, axis=1, keepdims=True)
 
-    # Generate random faces (triangles)
-    num_faces = num_points * 2  # Arbitrary number of faces
-    faces = np.random.randint(0, num_points, (num_faces, 3))
+    # Generate random face (triangles)
+    num_faces = num_points * 2  # Arbitrary number of face
+    face = np.random.randint(0, num_points, (num_faces, 3))
 
     # Create PLY file
     vertex_data = np.empty(
@@ -130,22 +130,22 @@ def _generate_scene_points(scene_dir: PathLike, scene_id: str, num_points: int =
     vertex_data["x"] = points[:, 0]
     vertex_data["y"] = points[:, 1]
     vertex_data["z"] = points[:, 2]
-    vertex_data["red"] = colors[:, 0]
-    vertex_data["green"] = colors[:, 1]
-    vertex_data["blue"] = colors[:, 2]
-    vertex_data["nx"] = normals[:, 0]
-    vertex_data["ny"] = normals[:, 1]
-    vertex_data["nz"] = normals[:, 2]
+    vertex_data["red"] = color[:, 0]
+    vertex_data["green"] = color[:, 1]
+    vertex_data["blue"] = color[:, 2]
+    vertex_data["nx"] = normal[:, 0]
+    vertex_data["ny"] = normal[:, 1]
+    vertex_data["nz"] = normal[:, 2]
 
     # Create face data
     face_data = np.empty(num_faces, dtype=[("vertex_indices", "i4", (3,))])
-    face_data["vertex_indices"] = faces
+    face_data["vertex_indices"] = face
 
     # Create PLY elements
     vertex_element = plyfile.PlyElement.describe(vertex_data, "vertex")
     face_element = plyfile.PlyElement.describe(face_data, "face")
 
-    # Save PLY file with both vertices and faces
+    # Save PLY file with both vertices and face
     ply_path = Path(scene_dir, f"{scene_id}_vh_clean_2.ply")
     plyfile.PlyData([vertex_element, face_element], text=False).write(str(ply_path))
 

@@ -17,7 +17,7 @@ uv venv --clear
 uv pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu126
 # uv pip uninstall torch_scatter torch_cluster pyg_lib torch_spline_conv
 
-uv pip install --no-cache-dir --no-binary :all: --no-build-isolation 'mamba-ssm[causal-conv1d]'   
+uv pip install --no-cache-dir --no-build-isolation 'mamba-ssm[causal-conv1d]'   
 uv pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.8.0+cu126.html
 uv pip install spconv-cu126 
 
