@@ -52,7 +52,9 @@ def test_kpconv_module(data: Dict[str, Tensor]) -> None:
         kp_sigma=0.1,
     )
 
-    output = conv(data["features"], data["pos"], data["pos"], data["edge_index"])
+    x = data["features"]
+    pos = data["pos"]
+    output = conv(x, pos, pos, data["edge_index"])
     assert output.shape == (len(data["pos"]), 32)
 
     # Test with deformable and modulated options
@@ -67,7 +69,9 @@ def test_kpconv_module(data: Dict[str, Tensor]) -> None:
         modulated=True,
     )
 
-    output = conv(data["features"], data["pos"], data["pos"], data["edge_index"])
+    x = data["features"]
+    pos = data["pos"]
+    output = conv(x, pos, pos, data["edge_index"])
     assert output.shape == (len(data["pos"]), 32)
 
 
@@ -138,8 +142,8 @@ def test_encoder_block(data: Dict[str, Tensor]) -> None:
         downsample=None,
     )
 
-    out_features, out_pos, out_batch = block(data["features"], data["pos"], data["batch"])
-    assert out_features.shape == (len(data["pos"]), 32)
+    out_x, out_pos, out_batch = block(data["features"], data["pos"], data["batch"])
+    assert out_x.shape == (len(data["pos"]), 32)
     assert out_pos.shape == data["pos"].shape
     assert out_batch.shape == data["batch"].shape
 
@@ -156,14 +160,14 @@ def test_encoder_block(data: Dict[str, Tensor]) -> None:
         downsample=GridPool(grid_size=0.5),
     )
 
-    out_features, out_pos, out_batch, inverse = block(
+    out_x, out_pos, out_batch, inverse = block(
         data["features"],
         data["pos"],
         data["batch"],
         return_inverse=True,
     )
-    assert out_features.shape[1] == 32
-    assert out_features.shape[0] == out_pos.shape[0] == out_batch.shape[0]
+    assert out_x.shape[1] == 32
+    assert out_x.shape[0] == out_pos.shape[0] == out_batch.shape[0]
     assert len(out_pos) < len(data["pos"])  # Should be downsampled
     assert inverse.shape == (len(data["pos"]),)
 
@@ -229,13 +233,13 @@ def test_kpconv_clf_reset_classifier(model_clf: KPConvNetClassification, data: D
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
-    out_features, out_pos, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
-    assert out_features.dim() == 2
+    out_x, out_pos, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
+    assert out_x.dim() == 2
     assert out_pos.dim() == 2
     assert out_batch.dim() == 1
 
     # Test forward features with intermediates
-    out_features, out_pos, out_batch, intermediates = model_clf.forward_features(
+    out_x, out_pos, out_batch, intermediates = model_clf.forward_features(
         data["features"],
         data["pos"],
         data["batch"],
@@ -243,7 +247,7 @@ def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: D
     )
     assert len(intermediates) == len(model_clf.encoder_blocks) - 1
     for intermediate in intermediates:
-        assert "features" in intermediate
+        assert "x" in intermediate
         assert "pos" in intermediate
         assert "batch" in intermediate
         if "pooling_inverse" in intermediate:
@@ -255,8 +259,8 @@ def test_kpconv_clf_forward_features(model_clf: KPConvNetClassification, data: D
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_clf_forward_features_and_head(model_clf: KPConvNetClassification, data: Dict[str, Tensor]) -> None:
-    out_features, _, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
-    logits = model_clf.forward_head(out_features, out_batch)
+    out_x, _, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
+    logits = model_clf.forward_head(out_x, out_batch)
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
@@ -274,9 +278,9 @@ def test_kpconv_seg_forward(model_seg: KPConvNetSegmentation, data: Dict[str, Te
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_seg_forward_features(model_seg: KPConvNetSegmentation, data: Dict[str, Tensor]) -> None:
-    out_features, out_pos, out_batch = model_seg.forward_features(data["features"], data["pos"], data["batch"])
-    assert out_features.shape[0] == out_pos.shape[0] == out_batch.shape[0]
-    assert out_features.dim() == 2
+    out_x, out_pos, out_batch = model_seg.forward_features(data["features"], data["pos"], data["batch"])
+    assert out_x.shape[0] == out_pos.shape[0] == out_batch.shape[0]
+    assert out_x.dim() == 2
     assert out_pos.dim() == 2
     assert out_batch.dim() == 1
 
@@ -286,13 +290,13 @@ def test_kpconv_seg_forward_features(model_seg: KPConvNetSegmentation, data: Dic
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_kpconv_seg_forward_features_and_head(model_seg: KPConvNetSegmentation, data: Dict[str, Tensor]) -> None:
-    out_features, out_pos, out_batch, intermediates = model_seg.forward_features(
+    out_x, out_pos, out_batch, intermediates = model_seg.forward_features(
         data["features"],
         data["pos"],
         data["batch"],
         return_intermediates=True,
     )
 
-    out_features = model_seg.forward_decoder(out_features, out_pos, out_batch, intermediates)
-    logits = model_seg.forward_head(out_features)
+    out_x = model_seg.forward_decoder(out_x, out_pos, out_batch, intermediates)
+    logits = model_seg.forward_head(out_x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

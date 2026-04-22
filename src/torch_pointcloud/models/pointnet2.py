@@ -207,6 +207,7 @@ def create_fp_blocks(
     norm: NormLike = "batch_norm1d",
     bias: bool = False,
     order: str = "lan",
+    k: int = 3,
 ) -> nn.ModuleList:
     if len(skip_channels) != len(fp_channels):
         raise ValueError(
@@ -222,7 +223,7 @@ def create_fp_blocks(
         block = FPModule(
             in_channels=in_channels + skip_channels[i],
             channels=fp_channels[i],
-            k=1 if i == 0 else 3,  # TODO: replace with spatial_dim
+            k=1 if i == 0 else k,
             act=act,
             norm=norm,
             bias=bias,
