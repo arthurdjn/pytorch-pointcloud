@@ -6,10 +6,14 @@ import torch
 from torch_pointcloud.transforms.dictionary._utils import key_iterator
 from torch_pointcloud.transforms.transforms import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import build_octree
+from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
 from . import functional as F
+
+scatter, _ = optional_import("torch_scatter", name="scatter")
 
 __all__ = [
     "Absd",
@@ -18,10 +22,14 @@ __all__ = [
     "BallMaskd",
     "BoundingBoxd",
     "BuildOctreed",
+    "CatFeaturesd",
     "Centerd",
     "Divided",
+    "GridSubsamplingd",
+    "HeightAboveFloorFeaturesd",
     "InboxMaskd",
     "NormalizeScaled",
+    "OnesFeaturesd",
     "RandomSampled",
     "RandomSampleFaceVerticesd",
     "Relabeld",
@@ -800,3 +808,142 @@ class ToTensord(Transformd):
         for key, dtype, device in self.iter_keys(data, self.dtype, self.device):
             data[key] = torch.as_tensor(data[key], dtype=dtype, device=device)
         return data
+
+
+class GridSubsamplingd(Transformd):
+    """Voxel-grid subsampling for point cloud dictionaries.
+
+    Assigns each point to a voxel and aggregates within each voxel:
+    positions and float feature keys are averaged; label keys retain a single
+    representative point per voxel (the first point returned by the cluster).
+
+    Args:
+        pos_key: Key holding xyz positions ``(N, 3)``.
+        feature_keys: Keys for float features to average per voxel.
+        label_keys: Keys for integer labels — one representative value per voxel.
+        dl: Voxel edge length.
+        allow_missing_keys: If ``True``, silently skip absent feature/label keys.
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        feature_keys: Optional[KeyCollection] = None,
+        label_keys: Optional[KeyCollection] = None,
+        dl: float = 0.04,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(None, allow_missing_keys)
+        self.pos_key = pos_key
+        self.feature_keys: list = list(ensure_tuple(feature_keys)) if feature_keys is not None else []
+        self.label_keys: list = list(ensure_tuple(label_keys)) if label_keys is not None else []
+        self.dl = dl
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        pos = data[self.pos_key].float()
+
+        start = torch.floor(pos.min(dim=0).values / self.dl) * self.dl
+        cluster = voxel_grid(pos, size=self.dl, start=start)
+        cluster, perm = consecutive_cluster(cluster, return_permutation=True)
+
+        data[self.pos_key] = scatter(pos, cluster, dim=0, reduce="mean")
+
+        for key in self.feature_keys:
+            if key in data:
+                data[key] = scatter(data[key].float(), cluster, dim=0, reduce="mean")
+            elif not self.allow_missing_keys:
+                raise KeyError(f"Key {key!r} not found in data.")
+
+        for key in self.label_keys:
+            if key in data:
+                data[key] = data[key][perm]
+            elif not self.allow_missing_keys:
+                raise KeyError(f"Key {key!r} not found in data.")
+
+        return data
+
+    def extra_repr(self) -> str:
+        return f"pos_key={self.pos_key!r}, dl={self.dl}"
+
+
+class OnesFeaturesd(Transformd):
+    """Adds a column of ones ``(N, 1)`` to the data dictionary.
+
+    Args:
+        pos_key: Reference key used to determine the number of points ``N``.
+        dst_key: Key under which the ones tensor is stored.
+    """
+
+    def __init__(self, pos_key: str = "pos", dst_key: str = "ones") -> None:
+        super().__init__(None)
+        self.pos_key = pos_key
+        self.dst_key = dst_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        pos = data[self.pos_key]
+        data[self.dst_key] = torch.ones(pos.size(0), 1, dtype=pos.dtype, device=pos.device)
+        return data
+
+    def extra_repr(self) -> str:
+        return f"pos_key={self.pos_key!r}, dst_key={self.dst_key!r}"
+
+
+class HeightAboveFloorFeaturesd(Transformd):
+    """Computes per-point height above the local floor along one axis.
+
+    The height is ``pos[:, axis] - pos[:, axis].min()``, stored as ``(N, 1)``.
+
+    Args:
+        pos_key: Key holding xyz positions.
+        dst_key: Key under which the height tensor is stored.
+        axis: Coordinate axis for height (default ``2`` = z).
+    """
+
+    def __init__(self, pos_key: str = "pos", dst_key: str = "height", axis: int = 2) -> None:
+        super().__init__(None)
+        self.pos_key = pos_key
+        self.dst_key = dst_key
+        self.axis = axis
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        pos = data[self.pos_key]
+        col = pos[:, self.axis]
+        data[self.dst_key] = (col - col.min()).unsqueeze(-1).to(pos.dtype)
+        return data
+
+    def extra_repr(self) -> str:
+        return f"pos_key={self.pos_key!r}, dst_key={self.dst_key!r}, axis={self.axis}"
+
+
+class CatFeaturesd(Transformd):
+    """Concatenates tensors from multiple keys into a single feature tensor.
+
+    Args:
+        src_keys: Keys whose tensors are concatenated (in order).
+        dst_key: Key under which the result is stored.
+        dim: Dimension along which to concatenate (default ``-1``).
+        allow_missing_keys: If ``True``, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        src_keys: KeyCollection,
+        dst_key: str,
+        dim: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(src_keys, allow_missing_keys)
+        self.dst_key = dst_key
+        self.dim = dim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        tensors = [data[key].float() for key in self.iter_keys(data)]
+        data[self.dst_key] = torch.cat(tensors, dim=self.dim)
+        return data
+
+    def extra_repr(self) -> str:
+        return f"src_keys={list(self.keys)!r}, dst_key={self.dst_key!r}"

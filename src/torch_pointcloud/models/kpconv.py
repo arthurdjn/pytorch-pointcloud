@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
 from torch_pointcloud.layers import (
     MLP,
@@ -23,6 +24,7 @@ from torch_pointcloud.layers import (
 )
 from torch_pointcloud.layers.blocks import linear_block
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
@@ -1155,3 +1157,156 @@ def kpconvnet_original_clf(in_channels: int = 6, num_classes: int = 40, **kwargs
 @register_model("kpconv-sm.modelnet40", task="classification")
 def kpconvnet_small_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
     return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)
+
+
+_BASE_S3DIS_TRANSFORMS = T.Compose(
+    [
+        T.GridSubsamplingd(
+            pos_key=DataKeys.POS,
+            feature_keys=[DataKeys.COLOR],
+            label_keys=[DataKeys.SEGMENT, DataKeys.INSTANCE],
+            dl=0.03,
+        ),
+        T.OnesFeaturesd(pos_key=DataKeys.POS, dst_key="ones"),
+        T.Scaled(keys=DataKeys.COLOR, scale=1.0 / 255),
+        T.HeightAboveFloorFeaturesd(pos_key=DataKeys.POS, dst_key="height", axis=2),
+        T.CatFeaturesd(src_keys=["ones", DataKeys.COLOR, "height"], dst_key="x"),
+        T.RenameItemsd(keys=[DataKeys.SEGMENT], names=[DataKeys.LABEL]),
+    ]
+)
+
+
+@register_model(
+    "kpfcnn-base-sm.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 2, 2, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 128, 128, 128],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=False,
+        modulated=False,
+        bias=False,
+        act=torch.nn.LeakyReLU(negative_slope=0.1),
+        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+    ),
+)
+def kpfcnn_base_sm_seg(**hparams: Any) -> KPConvNetSegmentation:
+    return KPConvNetSegmentation(**hparams)
+
+
+@register_model(
+    "kpfcnn-base.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 128, 128, 128],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=False,
+        modulated=False,
+        bias=False,
+        act=torch.nn.LeakyReLU(negative_slope=0.1),
+        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+    ),
+)
+def kpfcnn_base_seg(**hparams: Any) -> KPConvNetSegmentation:
+    return KPConvNetSegmentation(**hparams)
+
+
+@register_model(
+    "kpfcnn-base-deform.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-deform.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 1024, 1024, 1024],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.72, 1.44, 2.88],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=[False, False, [False, True, True], True, True],
+        modulated=False,
+        bias=False,
+        act=torch.nn.LeakyReLU(negative_slope=0.1),
+        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+    ),
+)
+def kpfcnn_base_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
+    return KPConvNetSegmentation(**hparams)
+
+
+@register_model(
+    "kpfcnn-base-sm-deform.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm-deform.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 128, 1024, 1024],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.3, 1.2, 2.4],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=[False, False, False, [False, True, True], True],
+        modulated=False,
+        bias=False,
+        act=torch.nn.LeakyReLU(negative_slope=0.1),
+        norm=partial(torch.nn.BatchNorm1d, momentum=0.02),
+    ),
+)
+def kpfcnn_base_sm_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
+    return KPConvNetSegmentation(**hparams)

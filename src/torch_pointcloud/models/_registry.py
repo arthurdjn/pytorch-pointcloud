@@ -190,6 +190,8 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
     kwargs = {**model_info["params"], **kwargs}
     model = model_fn(**kwargs)
     if not pretrained:
+        if return_info:
+            return model, {k: v for k, v in model_info.items() if k != "fn"}
         return model
 
     weights_path = model_info["weights"]
