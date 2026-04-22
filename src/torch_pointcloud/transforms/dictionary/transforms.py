@@ -124,10 +124,10 @@ class RandomSampleFaceVerticesd(Transformd):
 
     Args:
         keys: The keys to sample from.
-        face_key: The keys to sample the faces from.
+        face_key: The keys to sample the face from.
         num_samples: The number of vertices to sample.
-        include_normals: If ``True``, the normals will be included in the output.
-        normal_key: The key to store the normals in.
+        include_normals: If ``True``, the normal will be included in the output.
+        normal_key: The key to store the normal in.
         generator: The generator for the random number generator.
         allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
     """
@@ -706,14 +706,14 @@ class BuildOctreed(Transformd):
         data = dict(data)
 
         pos = data[self.pos_key]
-        normals = data[self.normal_key] if self.normal_key is not None else None
+        normal = data[self.normal_key] if self.normal_key is not None else None
         features = data[self.feature_key] if self.feature_key is not None else None
         batch_id = data[self.batch_key] if self.batch_key is not None else None
         labels = data[self.label_key] if self.label_key is not None else None
 
         octree, points = build_octree(
             pos=pos,
-            normals=normals,
+            normal=normal,
             features=features,
             batch=batch_id,
             labels=labels,

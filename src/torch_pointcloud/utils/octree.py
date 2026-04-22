@@ -31,7 +31,7 @@ Points, _ = optional_import("ocnn.octree", "Points")
 @overload
 def build_octree(
     pos: Tensor,
-    normals: OptTensor = None,
+    normal: OptTensor = None,
     features: OptTensor = None,
     batch: OptTensor = None,
     labels: OptTensor = None,
@@ -46,7 +46,7 @@ def build_octree(
 @overload
 def build_octree(
     pos: Tensor,
-    normals: OptTensor = None,
+    normal: OptTensor = None,
     features: OptTensor = None,
     batch: OptTensor = None,
     labels: OptTensor = None,
@@ -60,7 +60,7 @@ def build_octree(
 
 def build_octree(
     pos: Tensor,
-    normals: OptTensor = None,
+    normal: OptTensor = None,
     features: OptTensor = None,
     batch: OptTensor = None,
     labels: OptTensor = None,
@@ -72,7 +72,7 @@ def build_octree(
 ) -> Octree | tuple[Octree, Points]:
     points = Points(
         points=pos,
-        normals=normals,
+        normals=normal,
         features=features,
         labels=labels,
         batch_id=batch,
@@ -184,7 +184,7 @@ def octree_grid(
         x: The features of the points.
         pos: The positions of the points.
         batch: The batch of the points.
-        normal: The normals of the points.
+        normal: The normal of the points.
         depth: The depth of the octree.
         full_depth: The full depth of the octree.
         scale_factor: The scale factor of the points.
@@ -216,7 +216,7 @@ def octree_grid(
 
     point = Points(
         points=pos,
-        normals=normal,
+        normal=normal,
         features=x,
         batch_id=batch.unsqueeze(-1),
         batch_size=batch_size,

@@ -30,13 +30,13 @@ def sample_mesh() -> Tuple[Tensor, Tensor]:
             [0.0, 0.0, 1.0],
         ]
     )
-    faces = torch.tensor(
+    face = torch.tensor(
         [
             [0, 1, 2],
             [0, 2, 3],
         ]
     )
-    return vertices, faces
+    return vertices, face
 
 
 @pytest.fixture
@@ -100,42 +100,42 @@ def test_random_sample_seed_reproducibility() -> None:
 
 def test_random_sample_face_vertices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that the random sample vertices function returns the correct shape."""
-    vertices, faces = sample_mesh
+    vertices, face = sample_mesh
     num_samples = 10
 
-    sampled = F.random_sample_face_vertices(vertices, faces, num_samples)
+    sampled = F.random_sample_face_vertices(vertices, face, num_samples)
     assert sampled.shape == (num_samples, 3)
 
 
 def test_random_sample_face_vertices_with_normals(sample_mesh: Tuple[Tensor, Tensor]) -> None:
-    """Test that the random sample vertices function returns the correct shape with normals."""
-    vertices, faces = sample_mesh
+    """Test that the random sample vertices function returns the correct shape with normal."""
+    vertices, face = sample_mesh
     num_samples = 10
 
-    sampled, normals = F.random_sample_face_vertices(vertices, faces, num_samples, return_normals=True)
+    sampled, normal = F.random_sample_face_vertices(vertices, face, num_samples, return_normals=True)
     assert sampled.shape == (num_samples, 3)
-    assert normals.shape == (num_samples, 3)
-    # Check normals are normalized
-    assert torch.allclose(torch.norm(normals, dim=1), torch.ones(num_samples))
+    assert normal.shape == (num_samples, 3)
+    # Check normal are normalized
+    assert torch.allclose(torch.norm(normal, dim=1), torch.ones(num_samples))
 
 
 def test_random_sample_face_vertices_seed_reproducibility(sample_mesh: Tuple[Tensor, Tensor]) -> None:
     """Test that random_sample_face_vertices produces identical results with the same seed."""
-    vertices, faces = sample_mesh
+    vertices, face = sample_mesh
     generator = torch.Generator()
 
     generator.manual_seed(42)
-    a = F.random_sample_face_vertices(vertices, faces, num_samples=10, generator=generator)
+    a = F.random_sample_face_vertices(vertices, face, num_samples=10, generator=generator)
     generator.manual_seed(42)
-    b = F.random_sample_face_vertices(vertices, faces, num_samples=10, generator=generator)
+    b = F.random_sample_face_vertices(vertices, face, num_samples=10, generator=generator)
     assert torch.equal(a, b)
 
 
 def test_random_sample_face_vertices_single_face() -> None:
     """Test random_sample_face_vertices with a single-face mesh."""
     vertices = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
-    faces = torch.tensor([[0, 1, 2]])
-    sampled = F.random_sample_face_vertices(vertices, faces, num_samples=5)
+    face = torch.tensor([[0, 1, 2]])
+    sampled = F.random_sample_face_vertices(vertices, face, num_samples=5)
     assert sampled.shape == (5, 3)
 
 

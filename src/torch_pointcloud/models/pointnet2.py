@@ -400,14 +400,14 @@ class PointNet2Classification(nn.Module):
             features = self.stem(features)
 
         # NOTE: We only store the intermediate results if specified with `return_intermediates=True`
-        intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
+        intermediates = [{"features": features, "pos": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.sa_blocks):
             features, coords, batch = block(features, coords, batch)
             if return_intermediates and i < len(self.sa_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
                 # TODO: We could move this up, before the forward block call,
                 # TODO: to avoid having the condition i < len(self.sa_blocks) - 1 etc.
-                intermediates.append({"features": features, "coords": coords, "batch": batch})
+                intermediates.append({"features": features, "pos": coords, "batch": batch})
 
         if self.aggr is not None:
             features = self.aggr(features)
@@ -575,12 +575,12 @@ class PointNet2Segmentation(nn.Module):
             features = self.stem(features)
 
         # NOTE: We only store the intermediate results if specified with `return_intermediates=True`
-        intermediates = [{"features": features, "coords": coords, "batch": batch}] if return_intermediates else []
+        intermediates = [{"features": features, "pos": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.sa_blocks):
             features, coords, batch = block(features, coords, batch)
             if return_intermediates and i < len(self.sa_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
-                intermediates.append({"features": features, "coords": coords, "batch": batch})
+                intermediates.append({"features": features, "pos": coords, "batch": batch})
 
         if self.aggr is not None:
             features = self.aggr(features)
@@ -598,7 +598,7 @@ class PointNet2Segmentation(nn.Module):
     ) -> Tensor:
         for block, intermediate in zip(self.fp_blocks, reversed(intermediates)):
             features_skip = intermediate["features"]
-            coords_skip = intermediate["coords"]
+            coords_skip = intermediate["pos"]
             batch_skip = intermediate["batch"]
 
             features, coords, batch = block(features, coords, batch, features_skip, coords_skip, batch_skip)

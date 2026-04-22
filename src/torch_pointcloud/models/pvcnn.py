@@ -10,6 +10,7 @@ from torch_geometric.utils import scatter
 
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.types import OptTensor
 
 
 def avg_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int) -> Tensor:
@@ -392,7 +393,7 @@ class PVCNNClassification(nn.Module):
     @overload
     def forward_features(
         self,
-        x: Tensor,
+        x: OptTensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
@@ -401,13 +402,14 @@ class PVCNNClassification(nn.Module):
     @overload
     def forward_features(
         self,
-        x: Tensor,
+        x: OptTensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tensor: ...
 
-    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+        x = x if x is not None else pos
         intermediates = []
         for block in self.blocks:
             x = block(x, pos, batch, return_intermediates=return_intermediates)
@@ -425,7 +427,7 @@ class PVCNNClassification(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x = self.forward_features(x, pos, batch)
         x = self.forward_head(x, batch)
         return x
@@ -522,7 +524,7 @@ class PVCNNSegmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        x: Tensor,
+        x: OptTensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
@@ -531,13 +533,14 @@ class PVCNNSegmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        x: Tensor,
+        x: OptTensor,
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tensor: ...
 
-    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+        x = x if x is not None else pos
         intermediates = []
         for block in self.blocks:
             x = block(x, pos, batch, return_intermediates=return_intermediates)
@@ -565,7 +568,7 @@ class PVCNNSegmentation(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x = self.forward_decoder(x, batch, intermediates)
         x = self.forward_head(x)
