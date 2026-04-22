@@ -55,7 +55,7 @@ def random_sample(
 @overload
 def random_sample_face_vertices(
     vertices: Tensor,
-    faces: Tensor,
+    face: Tensor,
     num_samples: int,
     return_normals: Literal[True],
     generator: Optional[torch.Generator] = None,
@@ -65,7 +65,7 @@ def random_sample_face_vertices(
 @overload
 def random_sample_face_vertices(
     vertices: Tensor,
-    faces: Tensor,
+    face: Tensor,
     num_samples: int,
     return_normals: Literal[False] = False,
     generator: Optional[torch.Generator] = None,
@@ -75,7 +75,7 @@ def random_sample_face_vertices(
 @overload
 def random_sample_face_vertices(
     vertices: Tensor,
-    faces: Tensor,
+    face: Tensor,
     num_samples: int,
     return_normals: bool,
     generator: Optional[torch.Generator] = None,
@@ -84,12 +84,12 @@ def random_sample_face_vertices(
 
 def random_sample_face_vertices(
     vertices: Tensor,
-    faces: Tensor,
+    face: Tensor,
     num_samples: int,
     return_normals: bool = False,
     generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, faces),
+    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face),
     using:
 
     Note:
@@ -97,44 +97,44 @@ def random_sample_face_vertices(
 
     Args:
         vertices: The input tensor.
-        faces: The input tensor.
+        face: The input tensor.
         num_samples: The number of vertices to sample.
-        return_normals: Whether to return the normals of the sampled vertices.
+        return_normals: Whether to return the normal of the sampled vertices.
         generator: The generator for the random number generator.
 
     Returns:
-        If `return_normals` is `True`, the function returns a tuple of the sampled vertices and their normals.
+        If `return_normals` is `True`, the function returns a tuple of the sampled vertices and their normal.
         Otherwise, it returns the sampled vertices.
     """
     pos_max = vertices.abs().max()
     vertices = vertices / pos_max
 
-    v01 = vertices[faces[:, 1]] - vertices[faces[:, 0]]
-    v02 = vertices[faces[:, 2]] - vertices[faces[:, 0]]
+    v01 = vertices[face[:, 1]] - vertices[face[:, 0]]
+    v02 = vertices[face[:, 2]] - vertices[face[:, 0]]
     areas = v01.cross(v02, dim=1)
     areas = areas.norm(p=2, dim=1).abs() / 2
 
     probs = areas / areas.sum()
     samples = torch.multinomial(probs, num_samples, replacement=True, generator=generator)
-    faces = faces[samples]
+    face = face[samples]
 
     frac = torch.rand(num_samples, 2, device=vertices.device, generator=generator)
     mask = frac.sum(dim=-1) > 1
     frac[mask] = 1 - frac[mask]
 
-    v01 = vertices[faces[:, 1]] - vertices[faces[:, 0]]
-    v02 = vertices[faces[:, 2]] - vertices[faces[:, 0]]
+    v01 = vertices[face[:, 1]] - vertices[face[:, 0]]
+    v02 = vertices[face[:, 2]] - vertices[face[:, 0]]
 
     if return_normals:
-        normals = torch.nn.functional.normalize(v01.cross(v02, dim=1), p=2)
+        normal = torch.nn.functional.normalize(v01.cross(v02, dim=1), p=2)
 
-    vertices = vertices[faces[:, 0]]
+    vertices = vertices[face[:, 0]]
     vertices += frac[:, :1] * v01
     vertices += frac[:, 1:] * v02
     vertices = vertices * pos_max
 
     if return_normals:
-        return vertices, normals
+        return vertices, normal
     return vertices
 
 

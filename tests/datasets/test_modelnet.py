@@ -27,12 +27,12 @@ def test_load_modelnet_data(data_dir: Path, dataset_name: str) -> None:
     data = load_modelnet_data(file_path, 0)
 
     assert isinstance(data["pos"], torch.Tensor)
-    assert isinstance(data["faces"], torch.Tensor)
-    assert isinstance(data["target"], torch.Tensor)
+    assert isinstance(data["face"], torch.Tensor)
+    assert isinstance(data["label"], torch.Tensor)
 
-    assert data["target"].item() == 0
+    assert data["label"].item() == 0
     assert data["pos"].shape == torch.Size([10, 3])
-    assert data["faces"].shape == torch.Size([10, 3])
+    assert data["face"].shape == torch.Size([10, 3])
 
 
 @pytest.mark.parametrize("dataset_name", ["ModelNetNormalResampled"])
@@ -43,11 +43,11 @@ def test_load_modelnet_normal_resampled_data(data_dir: Path, dataset_name: str) 
 
     assert isinstance(data["pos"], torch.Tensor)
     assert isinstance(data["normal"], torch.Tensor)
-    assert isinstance(data["target"], torch.Tensor)
+    assert isinstance(data["label"], torch.Tensor)
 
     assert data["pos"].shape == torch.Size([128, 3])
     assert data["normal"].shape == torch.Size([128, 3])
-    assert data["target"].item() == 0
+    assert data["label"].item() == 0
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])

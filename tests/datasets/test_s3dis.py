@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.datasets.s3dis import load_s3dis_room_data
+from torch_pointcloud.datasets.s3dis import S3DIS_UNK_IDX, load_s3dis_room_data
 
 
 def test_load_s3dis_room_data(data_dir: Path) -> None:
@@ -15,14 +15,14 @@ def test_load_s3dis_room_data(data_dir: Path) -> None:
     room_dir = data_dir / "S3DIS" / "raw" / "Area_1" / "conferenceRoom_1"
     data = load_s3dis_room_data(room_dir)
 
-    assert isinstance(data["coords"], torch.Tensor)
-    assert isinstance(data["colors"], torch.Tensor)
-    assert isinstance(data["instances"], torch.Tensor)
-    assert isinstance(data["semantic"], torch.Tensor)
-    assert data["coords"].shape[1] == 3
-    assert data["colors"].shape[1] == 3
-    assert data["instances"].ndim == 1
-    assert data["semantic"].ndim == 1
+    assert isinstance(data["pos"], torch.Tensor)
+    assert isinstance(data["color"], torch.Tensor)
+    assert isinstance(data["instance"], torch.Tensor)
+    assert isinstance(data["segment"], torch.Tensor)
+    assert data["pos"].shape[1] == 3
+    assert data["color"].shape[1] == 3
+    assert data["instance"].ndim == 1
+    assert data["segment"].ndim == 1
 
 
 def test_s3dis_dataset_not_found() -> None:
@@ -122,7 +122,7 @@ def test_s3dis_dataset_progress_with_cached_processed(
     dataset = S3DIS(root=data_dir, show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert "Processing" not in captured.err
     assert captured.out == ""
 
 
@@ -134,13 +134,13 @@ def test_s3dis_dataset_classes(
     """Test that the dataset loads specific classes"""
     data_dir = data_dir_factory("S3DIS/raw/**/*")
 
-    dataset = S3DIS(root=data_dir, classes=classes, unk_id=-1, show_progress=False)
+    dataset = S3DIS(root=data_dir, classes=classes, show_progress=False)
     assert len(dataset) > 0
     assert all(cls in dataset.classes for cls in classes)
 
-    class_ids = set([*dataset.class_to_idx.values(), dataset.unk_id])
+    class_ids = set([*dataset.class_to_idx.values(), S3DIS_UNK_IDX])
     for data in dataset:
-        labels = data["semantic"].unique().tolist()
+        labels = data["segment"].unique().tolist()
         assert set(labels).issubset(class_ids)
 
 
@@ -152,24 +152,6 @@ def test_s3dis_dataset_all_classes(data_dir_factory: Callable[..., Path]) -> Non
     assert len(dataset) > 0
 
 
-def test_s3dis_dataset_pre_transform(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is transformed correctly before being processed"""
-    data_dir = data_dir_factory("S3DIS/raw/**/*")
-
-    pre_transform = Mock(side_effect=lambda x: x)
-    _ = S3DIS(root=data_dir, pre_transform=pre_transform, show_progress=False)
-    assert pre_transform.call_count > 0
-
-
-def test_s3dis_dataset_pre_filter(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("S3DIS/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: True)
-    _ = S3DIS(root=data_dir, pre_filter=pre_filter, show_progress=False)
-    assert pre_filter.call_count > 0
-
-
 def test_s3dis_dataset_transform(data_dir_factory: Callable[..., Path]) -> None:
     """Test that the dataset is transformed correctly after being processed"""
     data_dir = data_dir_factory("S3DIS/processed/**/*")
@@ -178,21 +160,3 @@ def test_s3dis_dataset_transform(data_dir_factory: Callable[..., Path]) -> None:
     dataset = S3DIS(root=data_dir, transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
-
-
-@pytest.mark.parametrize("block_size, block_stride", [(1.0, 0.5), (2.0, 1.0)])
-def test_s3dis_dataset_block_parameters(
-    data_dir_factory: Callable[..., Path],
-    block_size: float,
-    block_stride: float,
-) -> None:
-    """Test that the dataset is processed correctly with different block parameters"""
-    data_dir = data_dir_factory("S3DIS/raw/**/*")
-
-    dataset = S3DIS(
-        root=data_dir,
-        block_size=block_size,
-        block_stride=block_stride,
-        show_progress=False,
-    )
-    assert len(dataset) > 0

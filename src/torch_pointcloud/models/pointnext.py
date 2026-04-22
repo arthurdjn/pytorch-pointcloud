@@ -284,7 +284,7 @@ class PointNeXtClassification(ClassificationModel):
 
     Args:
         in_channels: Number of input channels (typically 3 for XYZ coordinates,
-            or 6 for XYZ + RGB, or more with additional features like normals).
+            or 6 for XYZ + RGB, or more with additional features like normal).
         num_classes: Number of output classes for classification.
         stem_channels: Number of channels in the stem MLP layer(s) that map input to higher dimension.
             If None, no stem is used.
@@ -437,7 +437,7 @@ class PointNeXtSegmentation(SegmentationModel):
 
     Args:
         in_channels: Number of input channels (typically 3 for XYZ coordinates,
-            or 6 for XYZ + RGB, or more with additional features like normals).
+            or 6 for XYZ + RGB, or more with additional features like normal).
         num_classes: Number of output classes for segmentation.
         stem_channels: Number of channels in the stem MLP layer(s) that map input to higher dimension.
             If None, no stem is used.

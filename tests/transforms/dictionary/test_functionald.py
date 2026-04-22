@@ -64,7 +64,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     data = {
         "vertices": MagicMock(),
         "color": MagicMock(),
-        "faces": MagicMock(),
+        "face": MagicMock(),
         "other": MagicMock(),
     }
     num_samples = sentinel.num_samples
@@ -77,7 +77,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
     result = F.random_sample_face_verticesd(
         data,
         keys=["vertices"],
-        face_key="faces",
+        face_key="face",
         num_samples=num_samples,
         normal_key="normal",
         generator=generator,
@@ -86,7 +86,7 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
 
     mock_fn.assert_called_once_with(
         data["vertices"],
-        data["faces"],
+        data["face"],
         num_samples,
         return_normals=True,
         generator=generator,
@@ -101,20 +101,20 @@ def test_random_sample_face_verticesd(mock_fn: Mock) -> None:
 def test_random_sample_face_verticesd_does_not_mutate_original() -> None:
     """Test that random_sample_face_verticesd does not modify the original dictionary."""
     vertices = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    faces = torch.tensor([[0, 1, 2], [0, 2, 3]])
-    data = {"vertices": vertices, "faces": faces, "other": "keep"}
+    face = torch.tensor([[0, 1, 2], [0, 2, 3]])
+    data = {"vertices": vertices, "face": face, "other": "keep"}
     original_data = dict(data)
 
     F.random_sample_face_verticesd(
         data,
         keys=["vertices"],
-        face_key="faces",
+        face_key="face",
         num_samples=5,
         normal_key=None,
     )
 
     assert data["vertices"] is original_data["vertices"]
-    assert data["faces"] is original_data["faces"]
+    assert data["face"] is original_data["face"]
     assert data["other"] is original_data["other"]
 
 

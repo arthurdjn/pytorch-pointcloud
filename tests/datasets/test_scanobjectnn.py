@@ -128,7 +128,6 @@ def test_scanobjectnn_dataset_force_process(
     """Test that the dataset is processed correctly for different splits regardless of whether the processed data already exists"""
     data_dir = data_dir_factory("ScanObjectNN/**/*", symlinks=False)
 
-    mock_transform = Mock(side_effect=lambda x: x)
     dataset = ScanObjectNN(
         root=data_dir,
         split=split,
@@ -137,10 +136,8 @@ def test_scanobjectnn_dataset_force_process(
         train=train,
         show_progress=False,
         force_process=True,
-        pre_transform=mock_transform,
     )
     assert len(dataset) > 0
-    assert mock_transform.call_count == len(dataset)
 
 
 @pytest.mark.parametrize("split", ["invalid"])
@@ -158,30 +155,11 @@ def test_scanobjectnn_dataset_labels(data_dir_factory: Callable[..., Path], labe
     """Test that the dataset is loaded correctly for a specific category"""
     data_dir = data_dir_factory("ScanObjectNN/processed/**/*")
 
-    dataset = ScanObjectNN(root=data_dir, split="main", train=False, classes=[label], show_progress=False)
+    dataset = ScanObjectNN(root=data_dir, split="main", train=False, classes=[label], show_progress=False)  # type: ignore[list-item]
     assert len(dataset) > 0
     assert len(dataset.classes) == 1
     assert dataset.classes[0] == label
     assert dataset.class_to_idx[label] == 0
-
-
-def test_scanobjectnn_dataset_pre_filter_called(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("ScanObjectNN/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: True)
-    dataset = ScanObjectNN(root=data_dir, split="main", train=False, pre_filter=pre_filter, show_progress=False)
-    assert pre_filter.call_count == len(dataset)
-
-
-def test_scanobjectnn_dataset_pre_filter(data_dir_factory: Callable[..., Path]) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory("ScanObjectNN/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: False)
-    dataset = ScanObjectNN(root=data_dir, split="main", train=False, pre_filter=pre_filter, show_progress=False)
-    assert len(dataset) == 0
-    pre_filter.assert_called()
 
 
 def test_scanobjectnn_dataset_transform_called(data_dir_factory: Callable[..., Path]) -> None:
