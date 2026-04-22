@@ -23,7 +23,7 @@ from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
-from .pointnet2 import create_fp_blocks
+from .pointnet2 import PointNet2Decoder
 
 if TYPE_CHECKING:
     from torch_cluster import radius, radius_graph
@@ -1038,7 +1038,7 @@ class KPConvNetSegmentation(SegmentationModel):
 
         all_skip_channels = [in_channels] + list(encoder_channels[:-1])
         skip_channels = all_skip_channels[-len(fp_channels) :][::-1]
-        self.fp_blocks = create_fp_blocks(
+        self.decoder = PointNet2Decoder(
             in_channels=encoder_channels[-1],
             skip_channels=skip_channels,
             fp_channels=fp_channels,
@@ -1128,12 +1128,7 @@ class KPConvNetSegmentation(SegmentationModel):
         batch: Tensor,
         intermediates: List[Dict[str, Tensor]],
     ) -> Tensor:
-        for block, intermediate in zip(self.fp_blocks, reversed(intermediates)):
-            x_skip = intermediate["x"]
-            pos_skip = intermediate["pos"]
-            batch_skip = intermediate["batch"]
-
-            x, pos, batch = block(x, pos, batch, x_skip, pos_skip, batch_skip)
+        x, _, _ = self.decoder(x, pos, batch, intermediates)
         return x
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
