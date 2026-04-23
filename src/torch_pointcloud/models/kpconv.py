@@ -1,28 +1,21 @@
 import math
 import random
 import warnings
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch_geometric.nn import MLP
+from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
-from torch_pointcloud.layers import (
-    MLP,
-    ActLike,
-    NormLike,
-    PoolLike,
-    create_act,
-    create_cls_head,
-    create_norm,
-    create_pool,
-)
-from torch_pointcloud.layers.blocks import linear_block
+from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
@@ -30,7 +23,7 @@ from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
-from .pointnet2 import create_fp_blocks
+from .pointnet2 import PointNet2Decoder
 
 if TYPE_CHECKING:
     from torch_cluster import radius, radius_graph
@@ -193,33 +186,32 @@ class KPConv(nn.Module):
 
     def _compute_offsets(
         self,
-        features: Tensor,
-        coords_query: Tensor,
-        coords_support: Tensor,
+        x: Tensor,
+        pos_query: Tensor,
+        pos_support: Tensor,
         edge_index: Tensor,
     ) -> Tuple[OptTensor, OptTensor]:
         if self.offset_conv is None:
             return None, None
 
-        # Use the offset convolution to get offset features
-        offset_features = self.offset_conv(features, coords_query, coords_support, edge_index)
+        offset_x = self.offset_conv(x, pos_query, pos_support, edge_index)
         if self.offset_bias is not None:
-            offset_features = offset_features + self.offset_bias
+            offset_x = offset_x + self.offset_bias
 
         if self.track_running_stats:
-            self.running_offset_features = offset_features
+            self.running_offset_features = offset_x
 
         if self.modulated:
             # Split into offsets and modulations
-            unscaled_offsets = offset_features[:, : self.spatial_dim * self.kernel_size]
+            unscaled_offsets = offset_x[:, : self.spatial_dim * self.kernel_size]
             unscaled_offsets = unscaled_offsets.view(-1, self.kernel_size, self.spatial_dim)
 
             # Get modulations (sigmoid to keep between 0 and 2)
-            modulations = 2 * torch.sigmoid(offset_features[:, self.spatial_dim * self.kernel_size :])
+            modulations = 2 * torch.sigmoid(offset_x[:, self.spatial_dim * self.kernel_size :])
             modulations = modulations.view(-1, self.kernel_size)
         else:
             # Just offsets, no modulations
-            unscaled_offsets = offset_features.view(-1, self.kernel_size, self.spatial_dim)
+            unscaled_offsets = offset_x.view(-1, self.kernel_size, self.spatial_dim)
             modulations = None
 
         # Scale offsets by kp_sigma (equivalent to KP_extent in original)
@@ -229,16 +221,16 @@ class KPConv(nn.Module):
 
     def forward(
         self,
-        features: Tensor,
-        coords_query: Tensor,
-        coords_support: Tensor,
+        x: Tensor,
+        pos_query: Tensor,
+        pos_support: Tensor,
         edge_index: Tensor,
     ) -> Tensor:
         row, col = edge_index
-        coords_rel = coords_support[col] - coords_query[row]
+        pos_rel = pos_support[col] - pos_query[row]
 
         # For deformable KPConv, compute offsets and modulations
-        offsets, modulations = self._compute_offsets(features, coords_query, coords_support, edge_index)
+        offsets, modulations = self._compute_offsets(x, pos_query, pos_support, edge_index)
 
         # Get kernel points at each point
         if self.deformable and offsets is not None:
@@ -246,10 +238,10 @@ class KPConv(nn.Module):
             if self.track_running_stats:
                 self.running_deformed_kernel = kernel_points
         else:
-            kernel_points = self.kernel.unsqueeze(0).expand(coords_rel.size(0), -1, -1)  # type: ignore[operator]
+            kernel_points = self.kernel.unsqueeze(0).expand(pos_rel.size(0), -1, -1)  # type: ignore[operator]
 
-        coords_rel = coords_rel.unsqueeze(1)  # [E, 1, p_dim]
-        sq_distances = torch.sum((coords_rel - kernel_points) ** 2, dim=-1)  # [E, K]
+        pos_rel = pos_rel.unsqueeze(1)  # [E, 1, p_dim]
+        sq_distances = torch.sum((pos_rel - kernel_points) ** 2, dim=-1)  # [E, K]
 
         if self.track_running_stats and self.deformable:
             self.running_min_d2, _ = torch.min(sq_distances, dim=1)
@@ -266,13 +258,13 @@ class KPConv(nn.Module):
         if self.deformable and self.modulated and modulations is not None:
             weights = weights * modulations[row]
 
-        source_features = features[col]  # [E, in_channels]
-        output = torch.zeros(coords_query.size(0), self.out_channels, device=features.device, dtype=features.dtype)
+        source_x = x[col]  # [E, in_channels]
+        output = torch.zeros(pos_query.size(0), self.out_channels, device=x.device, dtype=x.dtype)
         for k in range(self.kernel_size):
             weights_k = weights[:, k].unsqueeze(1)  # [E, 1]
-            weighted_features = weights_k * source_features  # [E, in_channels]
-            transformed_features = torch.matmul(weighted_features, self.weight[k].to(features.dtype))
-            scatter(transformed_features, row, dim=0, out=output, reduce="sum")
+            weighted_x = weights_k * source_x  # [E, in_channels]
+            transformed_x = torch.matmul(weighted_x, self.weight[k].to(x.dtype))
+            scatter(transformed_x, row, dim=0, out=output, reduce="sum")
 
         return output
 
@@ -307,8 +299,10 @@ class KPConvBlock(nn.Module):
         aggregation_mode: str = "sum",
         deformable: bool = False,
         modulated: bool = False,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
     ):
         super().__init__()
@@ -326,16 +320,16 @@ class KPConvBlock(nn.Module):
             modulated=modulated,
             bias=bias,
         )
-        self.norm = create_norm(norm, out_channels) if norm is not None else None
-        self.act = create_act(act) if act is not None else None
+        self.norm = normalization_resolver(norm, out_channels, **(norm_kwargs or {})) if norm is not None else None
+        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
 
-    def forward(self, features: Tensor, coords_query: Tensor, coords_support: Tensor, edge_index: Tensor) -> Tensor:
-        features = self.conv(features, coords_query, coords_support, edge_index)
+    def forward(self, x: Tensor, pos_query: Tensor, pos_support: Tensor, edge_index: Tensor) -> Tensor:
+        x = self.conv(x, pos_query, pos_support, edge_index)
         if self.norm is not None:
-            features = self.norm(features)
+            x = self.norm(x)
         if self.act is not None:
-            features = self.act(features)
-        return features
+            x = self.act(x)
+        return x
 
 
 class KPResidualBlock(nn.Module):
@@ -353,18 +347,27 @@ class KPResidualBlock(nn.Module):
         deformable: bool = False,
         modulated: bool = False,
         strided: bool = False,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
     ):
         super().__init__()
-        # Avoid bottleneck if mid_channels is too small
         mid_channels = max(out_channels // 4, 8)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.strided = strided
 
-        self.unary1 = MLP(in_channels=in_channels, out_channels=mid_channels, norm=norm, act=act, dropout=None)
+        mlp_kwargs: Dict[str, Any] = dict(
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            plain_last=False,
+        )
+        self.unary1 = MLP([in_channels, mid_channels], act=act, act_kwargs=act_kwargs, **mlp_kwargs)
         self.conv = KPConvBlock(
             spatial_dim=spatial_dim,
             in_channels=mid_channels,
@@ -377,34 +380,34 @@ class KPResidualBlock(nn.Module):
             aggregation_mode=aggregation_mode,
             deformable=deformable,
             modulated=modulated,
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
-        self.unary2 = MLP(in_channels=mid_channels, out_channels=out_channels, norm=norm, act=None, dropout=None)
+        self.unary2 = MLP([mid_channels, out_channels], act=None, **mlp_kwargs)
         self.shortcut = (
-            MLP(in_channels=in_channels, out_channels=out_channels, norm=norm, act=None, dropout=None)
-            if in_channels != out_channels
-            else nn.Identity()
+            MLP([in_channels, out_channels], act=None, **mlp_kwargs) if in_channels != out_channels else nn.Identity()
         )
-        self.act = create_act(act) if act is not None else None
+        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
 
-    def forward(self, features: Tensor, coords_query: Tensor, coords_support: Tensor, edge_index: Tensor) -> Tensor:
-        shortcut = features
+    def forward(self, x: Tensor, pos_query: Tensor, pos_support: Tensor, edge_index: Tensor) -> Tensor:
+        shortcut = x
         if self.strided:
             row, col = edge_index
-            shortcut = scatter(features[col], row, dim=0, reduce="max")
+            shortcut = scatter(x[col], row, dim=0, dim_size=pos_query.size(0), reduce="max").clamp(min=0)
 
         shortcut = self.shortcut(shortcut)
-        features = self.unary1(features)
-        features = self.conv(features, coords_query, coords_support, edge_index)
-        features = self.unary2(features)
+        x = self.unary1(x)
+        x = self.conv(x, pos_query, pos_support, edge_index)
+        x = self.unary2(x)
 
-        features = features + shortcut
+        x = x + shortcut
         if self.act is not None:
-            features = self.act(features)
+            x = self.act(x)
 
-        return features
+        return x
 
 
 class GridPool(nn.Module):
@@ -416,8 +419,8 @@ class GridPool(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[True] = True,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
@@ -425,28 +428,29 @@ class GridPool(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
-        cluster = voxel_grid(coords, size=self.grid_size, batch=batch)
+        start = torch.floor(pos.min(dim=0).values / self.grid_size) * self.grid_size
+        cluster = voxel_grid(pos, size=self.grid_size, batch=batch, start=start)
         cluster, perm = consecutive_cluster(cluster, return_permutation=True)
-        coords = scatter(coords, cluster, dim=0, reduce="mean")
-        features = scatter(features, cluster, dim=0, reduce=self.reduce)
+        pos = scatter(pos, cluster, dim=0, reduce="mean")
+        x = scatter(x, cluster, dim=0, reduce=self.reduce)
         batch = batch[perm]
 
         if return_inverse:
-            return features, coords, batch, cluster
-        return features, coords, batch
+            return x, pos, batch, cluster
+        return x, pos, batch
 
     def extra_repr(self) -> str:
         return f"grid_size={self.grid_size}, reduce={self.reduce!r}"
@@ -458,6 +462,7 @@ class EncoderBlock(nn.Module):
         *,
         depth: int,
         radius: float,
+        pool_radius: Optional[float] = None,
         max_num_neighbors: int,
         spatial_dim: int,
         in_channels: int,
@@ -468,20 +473,26 @@ class EncoderBlock(nn.Module):
         kp_influence: str = "linear",
         fixed_position: Literal["none", "center", "vertical"] = "center",
         aggregation_mode: str = "sum",
-        deformable: bool = False,
-        modulated: bool = False,
+        deformable: Union[bool, Sequence[bool]] = False,
+        modulated: Union[bool, Sequence[bool]] = False,
         bias: bool = False,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "leaky_relu",
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         downsample: Optional[GridPool] = None,
     ):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
         self.radius = radius
+        self.pool_radius = pool_radius if pool_radius is not None else radius
         self.downsample = downsample
         extra_msg = "Expected encoder `{param_name}` to be of length `depth`."
         kp_radius = ensure_tuple_size(kp_radius, size=depth, extra_msg=extra_msg.format(param_name="kp_radius"))
         kp_sigma = ensure_tuple_size(kp_sigma, size=depth, extra_msg=extra_msg.format(param_name="kp_sigma"))
+        deformable = ensure_tuple_size(deformable, size=depth, extra_msg=extra_msg.format(param_name="deformable"))
+        modulated = ensure_tuple_size(modulated, size=depth, extra_msg=extra_msg.format(param_name="modulated"))
 
         self.blocks = nn.ModuleList()
         for i in range(depth):
@@ -496,11 +507,14 @@ class EncoderBlock(nn.Module):
                 kp_influence=kp_influence,
                 fixed_position=fixed_position,
                 aggregation_mode=aggregation_mode,
-                deformable=deformable,
-                modulated=modulated,
+                deformable=deformable[i],
+                modulated=modulated[i],
                 strided=strided,
-                norm=norm,
                 act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
                 bias=bias,
             )
             self.blocks.append(block)
@@ -508,41 +522,41 @@ class EncoderBlock(nn.Module):
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     @overload
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[True] = True,
     ) -> Tuple[Tensor, Tensor, Tensor, OptTensor]: ...
 
     def forward(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         return_inverse: bool = False,
     ) -> Any:
         inv = None
-        coords_down, batch_down = coords, batch
+        pos_down, batch_down = pos, batch
         if self.downsample is not None:
-            _, coords_down, batch_down, inv = self.downsample(features, coords, batch, return_inverse=True)
+            _, pos_down, batch_down, inv = self.downsample(x, pos, batch, return_inverse=True)
 
         # Pre-computed neighbors edge indices, for both strided and non-strided blocks.
         # For strided block (first block after downsampling),
         # compute edge indices between downsampled coords and original coords.
         # For non-strided blocks, then downsampled coords is the same as original coords, and corresponds to the
-        # `radius_graph(coords)` output.
+        # `radius_graph(pos)` output.
         edge_index = radius(
-            coords,
-            coords_down,
-            r=self.radius,
+            pos,
+            pos_down,
+            r=self.pool_radius if self.downsample is not None else self.radius,
             batch_x=batch,
             batch_y=batch_down,
             max_num_neighbors=self.max_num_neighbors,
@@ -550,23 +564,21 @@ class EncoderBlock(nn.Module):
 
         for i, block in enumerate(self.blocks):
             if i == 1 and self.downsample is not None:
-                # Edge indices between downsampled coords and original coords are computed
-                # only once for the first block after downsampling.
-                # After that, we compute neighboring edges between the downsampled coords just like
-                # in the non-strided blocks.
                 edge_index = radius_graph(
-                    coords_down,
+                    pos_down,
                     r=self.radius,
                     batch=batch_down,
                     max_num_neighbors=self.max_num_neighbors,
                     flow="target_to_source",
+                    loop=True,
                 )
+                pos = pos_down
 
-            features = block(features, coords_down, coords, edge_index)
+            x = block(x, pos_down, pos, edge_index)
 
         if return_inverse:
-            return features, coords_down, batch_down, inv
-        return features, coords_down, batch_down
+            return x, pos_down, batch_down, inv
+        return x, pos_down, batch_down
 
 
 def create_encoder_blocks(
@@ -583,10 +595,13 @@ def create_encoder_blocks(
     kp_influence: str = "linear",
     fixed_position: Literal["none", "center", "vertical"] = "center",
     aggregation_mode: str = "sum",
-    deformable: bool = False,
-    modulated: bool = False,
-    norm: NormLike = "batch_norm1d",
-    act: ActLike = "leaky_relu",
+    deformable: Union[bool, Sequence] = False,
+    modulated: Union[bool, Sequence] = False,
+    act: Union[str, Callable, None] = "leaky_relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    act_first: bool = False,
+    norm: Union[str, Callable, None] = "batch_norm",
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     bias: bool = False,
     spatial_dim: int = 3,
 ) -> nn.ModuleList:
@@ -602,6 +617,8 @@ def create_encoder_blocks(
     grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
     kp_radius = ensure_tuple_size(kp_radius, size=n, extra_msg=extra_msg.format(param_name="kp_radius"))
     kp_sigma = ensure_tuple_size(kp_sigma, size=n, extra_msg=extra_msg.format(param_name="kp_sigma"))
+    deformable = ensure_tuple_size(deformable, size=n, extra_msg=extra_msg.format(param_name="deformable"))
+    modulated = ensure_tuple_size(modulated, size=n, extra_msg=extra_msg.format(param_name="modulated"))
 
     blocks = nn.ModuleList()
     for i in range(n):
@@ -612,6 +629,7 @@ def create_encoder_blocks(
         block = EncoderBlock(
             downsample=downsample,
             radius=radii[i],
+            pool_radius=radii[i - 1] if i > 0 else None,
             max_num_neighbors=max_num_neighbors[i],
             spatial_dim=spatial_dim,
             depth=depths[i],
@@ -623,10 +641,13 @@ def create_encoder_blocks(
             kp_influence=kp_influence,
             fixed_position=fixed_position,
             aggregation_mode=aggregation_mode,
-            deformable=deformable,
-            modulated=modulated,
-            norm=norm,
+            deformable=deformable[i],
+            modulated=modulated[i],
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
         blocks.append(block)
@@ -634,8 +655,7 @@ def create_encoder_blocks(
     return blocks
 
 
-# TODO: Make KPConv stem
-class KPConvNetClassification(ClassificationModel):
+class KPFCNNClassification(ClassificationModel):
     """KPConv Network for classification tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -701,10 +721,13 @@ class KPConvNetClassification(ClassificationModel):
         kp_influence: str = "linear",
         fixed_position: Literal["none", "center", "vertical"] = "center",
         aggregation_mode: str = "sum",
-        deformable: bool = False,
-        modulated: bool = False,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "leaky_relu",
+        deformable: Union[bool, Sequence] = False,
+        modulated: Union[bool, Sequence] = False,
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -716,12 +739,29 @@ class KPConvNetClassification(ClassificationModel):
         self.stem_type = stem_type
         self.stem: Optional[nn.Module] = None
         if stem_channels is not None:
-            self.stem = linear_block(
-                in_features=in_channels,
-                out_features=stem_channels,
-                norm=norm,
-                act=act,
-            )
+            if stem_type == "kpconv":
+                self.stem = KPConvBlock(
+                    spatial_dim=spatial_dim,
+                    in_channels=in_channels,
+                    out_channels=stem_channels,
+                    kernel_size=kernel_size,
+                    kp_radius=kp_radius[0],
+                    kp_sigma=kp_sigma[0],
+                    kp_influence=kp_influence,
+                    fixed_position=fixed_position,
+                    aggregation_mode=aggregation_mode,
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                    bias=bias,
+                )
+                self._stem_radius = radii[0]
+                self._stem_max_neighbors = encoder_num_neighbors[0]
+            else:
+                stem_act = activation_resolver(act, **(act_kwargs or {}))
+                stem_norm = normalization_resolver(norm, stem_channels, **(norm_kwargs or {}))
+                self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
             in_channels = stem_channels
 
         self.encoder_blocks = create_encoder_blocks(
@@ -740,8 +780,11 @@ class KPConvNetClassification(ClassificationModel):
             aggregation_mode=aggregation_mode,
             deformable=deformable,
             modulated=modulated,
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
 
@@ -768,8 +811,8 @@ class KPConvNetClassification(ClassificationModel):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -777,82 +820,90 @@ class KPConvNetClassification(ClassificationModel):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
         """Forward pass of the encoder, returning pre-pooling features.
 
         Args:
-            features: Additional point features of shape $(N, features_dim)$.
-            coords: Point coordinates of shape $(N, coords_dim)$.
+            x: Point features of shape $(N, C)$. If ``None``, ``pos`` is used as features.
+            pos: Point coordinates of shape $(N, D)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
         """
-        features = features if features is not None else coords
+        x = x if x is not None else pos
 
         if self.stem is not None:
-            features = self.stem(features)
+            if self.stem_type == "kpconv":
+                edge_index = radius_graph(
+                    pos,
+                    r=self._stem_radius,
+                    batch=batch,
+                    max_num_neighbors=self._stem_max_neighbors,
+                    flow="target_to_source",
+                    loop=True,
+                )
+                x = self.stem(x, pos, pos, edge_index)
+            else:
+                x = self.stem(x)
 
         intermediates = []
         for i, block in enumerate(self.encoder_blocks):
-            intermediate = {"features": features, "pos": coords, "batch": batch}
-            features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
+            intermediate = {"x": x, "pos": pos, "batch": batch}
+            x, pos, batch, inv = block(x, pos, batch, return_inverse=True)
 
             if i > 0:
                 intermediate["pooling_inverse"] = inv
                 intermediates.append(intermediate)
 
         if return_intermediates:
-            return features, coords, batch, intermediates
-        return features, coords, batch
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
-    def forward_head(self, features: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         """Forward pass of the classification head from pre-pooling features.
 
         Args:
-            features: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
             Classification logits of shape $(B, num_classes)$.
         """
-        features = self.global_pool(features, batch)
+        x = self.global_pool(x, batch)
         if self.dropout:
-            features = F.dropout(features, p=float(self.dropout), training=self.training)
-        return features if pre_logits else self.head(features)
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
 
-    def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         """Forward pass of the classification model.
 
         Args:
-            features: Additional point features of shape $(N, features_dim)$.
-            coords: Point coordinates of shape $(N, coords_dim)$.
+            x: Point features of shape $(N, C)$. If ``None``, ``pos`` is used as features.
+            pos: Point coordinates of shape $(N, D)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Classification logits of shape $(B, num_classes)$.
         """
-        features, _, batch = self.forward_features(features, coords, batch)
-        return self.forward_head(features, batch, pre_logits=False)
+        x, _, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, batch, pre_logits=False)
 
 
-# TODO: Do not use FP channels, but use a simple decoder_channels
-# TODO: param that will be used to create the FP blocks,
-# TODO: i.e. from fp_channels=[[256], [128], [64], [32]] -> decoder_channels=[256, 128, 64, 32]
-class KPConvNetSegmentation(SegmentationModel):
+class KPFCNNSegmentation(SegmentationModel):
     """KPConv Network for segmentation tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -918,12 +969,16 @@ class KPConvNetSegmentation(SegmentationModel):
         kp_influence: str = "linear",
         fixed_position: Literal["none", "center", "vertical"] = "center",
         aggregation_mode: str = "sum",
-        deformable: bool = False,
-        modulated: bool = False,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "leaky_relu",
+        deformable: Union[bool, Sequence] = False,
+        modulated: Union[bool, Sequence] = False,
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
         dropout: float = 0.0,
+        head_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
         kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
@@ -932,12 +987,29 @@ class KPConvNetSegmentation(SegmentationModel):
         self.stem_type = stem_type
         self.stem: Optional[nn.Module] = None
         if stem_channels is not None:
-            self.stem = linear_block(
-                in_features=in_channels,
-                out_features=stem_channels,
-                norm=norm,
-                act=act,
-            )
+            if stem_type == "kpconv":
+                self.stem = KPConvBlock(
+                    spatial_dim=spatial_dim,
+                    in_channels=in_channels,
+                    out_channels=stem_channels,
+                    kernel_size=kernel_size,
+                    kp_radius=kp_radius[0],
+                    kp_sigma=kp_sigma[0],
+                    kp_influence=kp_influence,
+                    fixed_position=fixed_position,
+                    aggregation_mode=aggregation_mode,
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                    bias=bias,
+                )
+                self._stem_radius = radii[0]
+                self._stem_max_neighbors = encoder_num_neighbors[0]
+            else:
+                stem_act = activation_resolver(act, **(act_kwargs or {}))
+                stem_norm = normalization_resolver(norm, stem_channels, **(norm_kwargs or {}))
+                self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
             in_channels = stem_channels
 
         self.encoder_blocks = create_encoder_blocks(
@@ -956,24 +1028,42 @@ class KPConvNetSegmentation(SegmentationModel):
             aggregation_mode=aggregation_mode,
             deformable=deformable,
             modulated=modulated,
-            norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=bias,
         )
 
-        skip_channels = [in_channels] + list(encoder_channels[:-1])
-        self.fp_blocks = create_fp_blocks(
+        all_skip_channels = [in_channels] + list(encoder_channels[:-1])
+        skip_channels = all_skip_channels[-len(fp_channels) :][::-1]
+        self.decoder = PointNet2Decoder(
             in_channels=encoder_channels[-1],
-            skip_channels=skip_channels[::-1],
+            skip_channels=skip_channels,
             fp_channels=fp_channels,
             bias=bias,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
+            norm_kwargs=norm_kwargs,
+            k=1,
         )
 
         self.embedding_dim = fp_channels[-1][-1]
         self.dropout = dropout
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        if head_channels:
+            head_act = activation_resolver(act, **(act_kwargs or {}))
+            layers: List[nn.Module] = []
+            ch_in = self.embedding_dim
+            for ch in head_channels:
+                layers.append(nn.Sequential(nn.Linear(ch_in, ch, bias=True), head_act))
+                ch_in = ch
+            layers.append(nn.Linear(ch_in, num_classes))
+            self.head: nn.Module = nn.Sequential(*layers)
+        else:
+            self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -982,8 +1072,8 @@ class KPConvNetSegmentation(SegmentationModel):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -991,67 +1081,73 @@ class KPConvNetSegmentation(SegmentationModel):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
-        features: OptTensor,
-        coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        features = features if features is not None else coords
+        x = x if x is not None else pos
 
         if self.stem is not None:
-            features = self.stem(features)
+            if self.stem_type == "kpconv":
+                edge_index = radius_graph(
+                    pos,
+                    r=self._stem_radius,
+                    batch=batch,
+                    max_num_neighbors=self._stem_max_neighbors,
+                    flow="target_to_source",
+                    loop=True,
+                )
+                x = self.stem(x, pos, pos, edge_index)
+            else:
+                x = self.stem(x)
 
-        intermediates = [{"features": features, "pos": coords, "batch": batch}] if return_intermediates else []
+        intermediates = [{"x": x, "pos": pos, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.encoder_blocks):
-            features, coords, batch, inv = block(features, coords, batch, return_inverse=True)
+            x, pos, batch, inv = block(x, pos, batch, return_inverse=True)
             if return_intermediates and i < len(self.encoder_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
-                intermediates.append({"features": features, "pos": coords, "batch": batch})
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
         if return_intermediates:
-            return features, coords, batch, intermediates
-        return features, coords, batch
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
     def forward_decoder(
         self,
-        features: Tensor,
-        coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         intermediates: List[Dict[str, Tensor]],
     ) -> Tensor:
-        for block, intermediate in zip(self.fp_blocks, reversed(intermediates)):
-            features_skip = intermediate["features"]
-            coords_skip = intermediate["pos"]
-            batch_skip = intermediate["batch"]
+        x, _, _ = self.decoder(x, pos, batch, intermediates)
+        return x
 
-            features, coords, batch = block(features, coords, batch, features_skip, coords_skip, batch_skip)
-        return features
-
-    def forward_head(self, features: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout:
-            features = F.dropout(features, p=float(self.dropout), training=self.training)
-        return features if pre_logits else self.head(features)
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
 
-    def forward(self, features: OptTensor, coords: Tensor, batch: Tensor) -> Tensor:
-        features, coords, batch, intermediates = self.forward_features(
-            features, coords, batch, return_intermediates=True
-        )
-        features = self.forward_decoder(features, coords, batch, intermediates)
-        return self.forward_head(features)
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x = self.forward_decoder(x, pos, batch, intermediates)
+        return self.forward_head(x)
 
 
-def _kpconvnet_small_clf(in_channels: int, num_classes: int, **kwargs: Any) -> KPConvNetClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "kpfcnn.modelnet40",
+    task="classification",
+    params=dict(
+        in_channels=6,
+        num_classes=40,
         stem_channels=32,
         stem_type="kpconv",
         encoder_depths=[1, 3, 3, 3],
@@ -1063,18 +1159,171 @@ def _kpconvnet_small_clf(in_channels: int, num_classes: int, **kwargs: Any) -> K
         kp_radius=[0.1, 0.2, 0.4, 0.8],
         kp_sigma=[0.05, 0.1, 0.2, 0.4],
         act="leaky_relu",
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.05),
-    )
-    hparams.update(kwargs)
-
-    return KPConvNetClassification(**hparams)
-
-
-@register_model("kpconv-original.modelnet40", task="classification")
-def kpconvnet_original_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
-    return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.05},
+    ),
+)
+def kpfcnn_modelnet40_clf(**hparams: Any) -> KPFCNNClassification:
+    return KPFCNNClassification(**hparams)
 
 
-@register_model("kpconv-sm.modelnet40", task="classification")
-def kpconvnet_small_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
-    return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)
+_BASE_S3DIS_TRANSFORMS = T.Compose(
+    [
+        T.GridSubsamplingd(
+            pos_key=DataKeys.POS,
+            feature_keys=[DataKeys.COLOR],
+            label_keys=[DataKeys.SEGMENT, DataKeys.INSTANCE],
+            dl=0.03,
+        ),
+        T.Scaled(keys=DataKeys.COLOR, scale=1.0 / 255),
+        T.AxisMinOffsetd(keys=DataKeys.POS, dst_keys="height", axis=2),
+        T.OnesLiked(keys="height", dst_keys="ones"),
+        T.Catd(keys=["ones", DataKeys.COLOR, "height"], dst_key=DataKeys.X),
+        T.RenameItemsd(keys=[DataKeys.SEGMENT], names=[DataKeys.LABEL]),
+        T.KeepItemsd(keys=[DataKeys.X, DataKeys.POS, DataKeys.LABEL]),
+    ]
+)
+
+
+@register_model(
+    "kpfcnn-base-sm.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 2, 2, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 128, 128, 128],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=False,
+        modulated=False,
+        bias=False,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
+    ),
+)
+def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)
+
+
+@register_model(
+    "kpfcnn-base.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 128, 128, 128],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=False,
+        modulated=False,
+        bias=False,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
+    ),
+)
+def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)
+
+
+@register_model(
+    "kpfcnn-base-deform.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-deform.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 1024, 1024, 1024],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.72, 1.44, 2.88],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=[False, False, [False, True, True], True, True],
+        modulated=False,
+        bias=False,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
+    ),
+)
+def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)
+
+
+@register_model(
+    "kpfcnn-base-sm-deform.s3dis",
+    task="segmentation",
+    transforms=_BASE_S3DIS_TRANSFORMS,
+    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm-deform.s3dis.pth",
+    params=dict(
+        in_channels=5,
+        num_classes=13,
+        stem_channels=64,
+        stem_type="kpconv",
+        encoder_depths=[1, 3, 3, 3, 3],
+        encoder_channels=[128, 256, 512, 1024, 2048],
+        encoder_num_neighbors=[128, 128, 128, 1024, 1024],
+        fp_channels=[[1024], [512], [256], [128]],
+        head_channels=[128],
+        grid_sizes=[0.06, 0.12, 0.24, 0.48],
+        radii=[0.075, 0.15, 0.3, 1.2, 2.4],
+        kernel_size=15,
+        kp_radius=[0.075, 0.15, 0.3, 0.6, 1.2],
+        kp_sigma=[0.036, 0.072, 0.144, 0.288, 0.576],
+        kp_influence="linear",
+        fixed_position="center",
+        aggregation_mode="sum",
+        deformable=[False, False, False, [False, True, True], True],
+        modulated=False,
+        bias=False,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.1},
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.02},
+    ),
+)
+def kpfcnn_base_sm_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)

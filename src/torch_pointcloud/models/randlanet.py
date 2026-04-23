@@ -11,7 +11,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import decimate, softmax
 from torch_pointcloud.utils.types import OptTensor
 
-from .pointnet2 import create_fp_blocks
+from .pointnet2 import PointNet2Decoder
 
 if TYPE_CHECKING:
     from torch_cluster import knn_graph
@@ -201,13 +201,13 @@ class RandLANetClassification(nn.Module):
             features = self.stem(features)
 
         # Store the intermediate results if specified with `return_intermediates=True`
-        intermediates = [{"features": features, "pos": coords, "batch": batch}] if return_intermediates else []
+        intermediates = [{"x": features, "pos": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.encoder_blocks):
             features, coords, batch = block(features, coords, batch)
             (features, coords), batch = decimate((features, coords), batch, self.decimation)
             if return_intermediates and i < len(self.encoder_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
-                intermediates.append({"features": features, "pos": coords, "batch": batch})
+                intermediates.append({"x": features, "pos": coords, "batch": batch})
 
         if self.aggr is not None:
             features = self.aggr(features)
@@ -268,9 +268,11 @@ class RandLANetSegmentation(nn.Module):
         num_neighbors: Number of neighbors for each point.
         aggr_channels: Number of channels in the aggregation layer.
         bias: Whether to use bias in the MLPs.
-        act: Activation function to use.
-        norm: Normalization function to use.
-        order: Order of the MLPs.
+        act: Activation function type or callable.
+        act_kwargs: Additional keyword arguments for the activation function.
+        act_first: If ``True``, activation is applied before normalization.
+        norm: Normalization layer type or callable.
+        norm_kwargs: Additional keyword arguments for the normalization layer.
         dropout: Dropout rate.
 
     """
@@ -287,9 +289,11 @@ class RandLANetSegmentation(nn.Module):
         num_neighbors: Union[int, Sequence[int]] = 16,
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         bias: bool = False,
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
-        order: str = "lan",
+        act: Union[str, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         dropout: float = 0.0,
     ):
         super().__init__()
@@ -307,14 +311,16 @@ class RandLANetSegmentation(nn.Module):
         aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
         self.aggr = MLP(in_channels=encoder_channels[-1], channels=aggr_channels) if aggr_channels else None
 
-        self.fp_blocks = create_fp_blocks(
+        self.decoder = PointNet2Decoder(
             in_channels=aggr_channels[-1] if aggr_channels is not None else encoder_channels[-1],
             skip_channels=skip_channels[::-1],
             fp_channels=fp_channels,
             bias=bias,
             act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
-            order=order,
+            norm_kwargs=norm_kwargs,
         )
 
         self.dropout = dropout
@@ -355,13 +361,13 @@ class RandLANetSegmentation(nn.Module):
             features = self.stem(features)
 
         # NOTE: We only store the intermediate results if specified with `return_intermediates=True`
-        intermediates = [{"features": features, "pos": coords, "batch": batch}] if return_intermediates else []
+        intermediates = [{"x": features, "pos": coords, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.encoder_blocks):
             features, coords, batch = block(features, coords, batch)
             (features, coords), batch = decimate((features, coords), batch, self.decimation)
             if return_intermediates and i < len(self.encoder_blocks) - 1:
                 # NOTE: Do not store the last result, as it will be the returned output.
-                intermediates.append({"features": features, "pos": coords, "batch": batch})
+                intermediates.append({"x": features, "pos": coords, "batch": batch})
 
         if self.aggr is not None:
             features = self.aggr(features)
@@ -377,12 +383,7 @@ class RandLANetSegmentation(nn.Module):
         batch: Tensor,
         intermediates: List[Dict[str, Tensor]],
     ) -> Tensor:
-        for block, intermediate in zip(self.fp_blocks, reversed(intermediates)):
-            features_skip = intermediate["features"]
-            coords_skip = intermediate["pos"]
-            batch_skip = intermediate["batch"]
-
-            features, coords, batch = block(features, coords, batch, features_skip, coords_skip, batch_skip)
+        features, _, _ = self.decoder(features, coords, batch, intermediates)
         return features
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:

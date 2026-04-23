@@ -18,6 +18,7 @@ Points, _ = optional_import("ocnn.octree", "Points")
 
 class DataKeys(StrEnum):
     # General keys (PyG convention)
+    X = "x"
     POS = "pos"
     COLOR = "color"
     NORMAL = "normal"
