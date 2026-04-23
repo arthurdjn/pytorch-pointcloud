@@ -220,7 +220,7 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
                 f"got a mix of both at index {i} from {items}. {extra_msg}"
             )
 
-    return result
+    return result  # type: ignore[return-value]
 
 
 class PointNet2Encoder(nn.Module):
