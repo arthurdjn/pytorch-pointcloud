@@ -186,10 +186,16 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
         available_models = ", ".join(f"{m!r}" for m in _REGISTERED_MODELS[task].keys())
         raise ValueError(f"Model {name!r} not found in {task!r} registry. Available models: {available_models}.")
 
-    model_fn = model_info["fn"]
+    # create a copy of the model entry to avoid modifying the original entry stored in the registry
+    model_info = model_info.copy()
+    # the fn key is dropped and is not returned with the model info in case `return_info` is True
+    model_fn = model_info.pop("fn")  # type: ignore[misc]
+
     kwargs = {**model_info["params"], **kwargs}
     model = model_fn(**kwargs)
     if not pretrained:
+        if return_info:
+            return model, model_info
         return model
 
     weights_path = model_info["weights"]
@@ -212,7 +218,7 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
         )
 
     if return_info:
-        return model, {k: v for k, v in model_info.items() if k != "fn"}
+        return model, model_info
     return model
 
 
