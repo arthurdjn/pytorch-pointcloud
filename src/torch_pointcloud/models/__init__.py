@@ -1,7 +1,7 @@
 from ._base import ClassificationModel, DetectionModel, SegmentationModel
 from ._registry import create_model, list_models, register_model
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
-from .kpconv import KPConvNetClassification, KPConvNetSegmentation
+from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .point_mamba import PointMambaClassification, PointMambaMAE
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation

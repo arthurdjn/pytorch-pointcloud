@@ -10,6 +10,7 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.models import create_model
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.data import collate as collate_packed
 from torch_pointcloud.utils.metrics import confusion_matrix
 from torch_pointcloud.utils.random import seed_everything
@@ -106,10 +107,10 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, *, num_classes:
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
-        x = data["x"].to(device)
-        pos = data["pos"].to(device)
-        target = data["label"].to(device)
-        batch = data["batch"].to(device)
+        x = data[DataKeys.X].to(device)
+        pos = data[DataKeys.POS].to(device)
+        target = data[DataKeys.LABEL].to(device)
+        batch = data[DataKeys.BATCH].to(device)
 
         logits = model(x, pos, batch)
         preds = logits.argmax(dim=1)

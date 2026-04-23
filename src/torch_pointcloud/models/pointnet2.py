@@ -781,8 +781,6 @@ class PointNet2Segmentation(nn.Module):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, pos, batch, intermediates = self.forward_features(
-            x, pos, batch, return_intermediates=True
-        )
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x = self.forward_decoder(x, pos, batch, intermediates)
         return self.forward_head(x)

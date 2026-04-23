@@ -14,7 +14,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, ShapeNetPart
-from torch_pointcloud.models import KPConvNetSegmentation
+from torch_pointcloud.models import KPFCNNSegmentation
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.random import seed_everything
 
@@ -30,7 +30,7 @@ def main() -> None:
     print("Done!")
 
     print("Loading model, optimizer, and scheduler...", end=" ")
-    model = KPConvNetSegmentation(
+    model = KPFCNNSegmentation(
         in_channels=3,
         num_classes=args.num_classes,
         stem_channels=32,

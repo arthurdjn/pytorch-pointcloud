@@ -655,7 +655,7 @@ def create_encoder_blocks(
     return blocks
 
 
-class KPConvNetClassification(ClassificationModel):
+class KPFCNNClassification(ClassificationModel):
     """KPConv Network for classification tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -903,7 +903,7 @@ class KPConvNetClassification(ClassificationModel):
         return self.forward_head(x, batch, pre_logits=False)
 
 
-class KPConvNetSegmentation(SegmentationModel):
+class KPFCNNSegmentation(SegmentationModel):
     """KPConv Network for segmentation tasks as described in the paper
     [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -1142,10 +1142,12 @@ class KPConvNetSegmentation(SegmentationModel):
         return self.forward_head(x)
 
 
-def _kpconvnet_small_clf(in_channels: int, num_classes: int, **kwargs: Any) -> KPConvNetClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "kpfcnn.modelnet40",
+    task="classification",
+    params=dict(
+        in_channels=6,
+        num_classes=40,
         stem_channels=32,
         stem_type="kpconv",
         encoder_depths=[1, 3, 3, 3],
@@ -1159,20 +1161,10 @@ def _kpconvnet_small_clf(in_channels: int, num_classes: int, **kwargs: Any) -> K
         act="leaky_relu",
         norm="batch_norm",
         norm_kwargs={"momentum": 0.05},
-    )
-    hparams.update(kwargs)
-
-    return KPConvNetClassification(**hparams)
-
-
-@register_model("kpconv-original.modelnet40", task="classification")
-def kpconvnet_original_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
-    return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)
-
-
-@register_model("kpconv-sm.modelnet40", task="classification")
-def kpconvnet_small_clf(in_channels: int = 6, num_classes: int = 40, **kwargs: Any) -> KPConvNetClassification:
-    return _kpconvnet_small_clf(in_channels=in_channels, num_classes=num_classes, **kwargs)
+    ),
+)
+def kpfcnn_modelnet40_clf(**hparams: Any) -> KPFCNNClassification:
+    return KPFCNNClassification(**hparams)
 
 
 _BASE_S3DIS_TRANSFORMS = T.Compose(
@@ -1183,11 +1175,12 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
             label_keys=[DataKeys.SEGMENT, DataKeys.INSTANCE],
             dl=0.03,
         ),
-        T.OnesFeaturesd(pos_key=DataKeys.POS, dst_key="ones"),
         T.Scaled(keys=DataKeys.COLOR, scale=1.0 / 255),
-        T.HeightAboveFloorFeaturesd(pos_key=DataKeys.POS, dst_key="height", axis=2),
-        T.CatFeaturesd(src_keys=["ones", DataKeys.COLOR, "height"], dst_key="x"),
+        T.AxisMinOffsetd(keys=DataKeys.POS, dst_keys="height", axis=2),
+        T.OnesLiked(keys="height", dst_keys="ones"),
+        T.Catd(keys=["ones", DataKeys.COLOR, "height"], dst_key=DataKeys.X),
         T.RenameItemsd(keys=[DataKeys.SEGMENT], names=[DataKeys.LABEL]),
+        T.KeepItemsd(keys=[DataKeys.X, DataKeys.POS, DataKeys.LABEL]),
     ]
 )
 
@@ -1224,8 +1217,8 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
         norm_kwargs={"momentum": 0.02},
     ),
 )
-def kpfcnn_base_sm_seg(**hparams: Any) -> KPConvNetSegmentation:
-    return KPConvNetSegmentation(**hparams)
+def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)
 
 
 @register_model(
@@ -1260,8 +1253,8 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPConvNetSegmentation:
         norm_kwargs={"momentum": 0.02},
     ),
 )
-def kpfcnn_base_seg(**hparams: Any) -> KPConvNetSegmentation:
-    return KPConvNetSegmentation(**hparams)
+def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)
 
 
 @register_model(
@@ -1296,8 +1289,8 @@ def kpfcnn_base_seg(**hparams: Any) -> KPConvNetSegmentation:
         norm_kwargs={"momentum": 0.02},
     ),
 )
-def kpfcnn_base_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
-    return KPConvNetSegmentation(**hparams)
+def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)
 
 
 @register_model(
@@ -1332,5 +1325,5 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
         norm_kwargs={"momentum": 0.02},
     ),
 )
-def kpfcnn_base_sm_deform_seg(**hparams: Any) -> KPConvNetSegmentation:
-    return KPConvNetSegmentation(**hparams)
+def kpfcnn_base_sm_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
+    return KPFCNNSegmentation(**hparams)

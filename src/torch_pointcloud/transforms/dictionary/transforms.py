@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Generator, Iterable, Literal, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence
 
 import torch
 
@@ -13,23 +13,28 @@ from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
 from . import functional as F
 
+if TYPE_CHECKING:
+    from torch_scatter import scatter
+
 scatter, _ = optional_import("torch_scatter", name="scatter")
+
 
 __all__ = [
     "Absd",
     "AlignAxisd",
     "ApplyMaskd",
+    "AxisMinOffsetd",
     "BallMaskd",
     "BoundingBoxd",
     "BuildOctreed",
-    "CatFeaturesd",
+    "Catd",
     "Centerd",
     "Divided",
     "GridSubsamplingd",
-    "HeightAboveFloorFeaturesd",
     "InboxMaskd",
+    "KeepItemsd",
     "NormalizeScaled",
-    "OnesFeaturesd",
+    "OnesLiked",
     "RandomSampled",
     "RandomSampleFaceVerticesd",
     "Relabeld",
@@ -39,8 +44,8 @@ __all__ = [
     "Scaled",
     "SetValued",
     "ToDeviced",
-    "Transformd",
     "ToTensord",
+    "Transformd",
 ]
 
 
@@ -52,7 +57,7 @@ class Transformd(Transform, metaclass=ABCMeta):
 
     Args:
         keys: The keys to apply the transform to.
-        allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     """
 
@@ -95,7 +100,7 @@ class RandomSampled(Transformd):
     Args:
         keys: The keys to sample from.
         num_samples: The number of values to sample.
-        allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
     def __init__(
@@ -134,10 +139,10 @@ class RandomSampleFaceVerticesd(Transformd):
         keys: The keys to sample from.
         face_key: The keys to sample the face from.
         num_samples: The number of vertices to sample.
-        include_normals: If ``True``, the normal will be included in the output.
+        include_normals: If `True`, the normal will be included in the output.
         normal_key: The key to store the normal in.
         generator: The generator for the random number generator.
-        allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
     def __init__(
@@ -229,8 +234,8 @@ class NormalizeScaled(Transformd):
     Args:
         keys: The keys to normalize the scale of.
         eps: Small constant passed to `normalize_scale`.
-        method: ``"centroid"`` or ``"bbox"``; see `functional.normalize_scale`.
-        allow_missing_keys: If ``True``, the transform will not raise an error if the keys are not present in the data.
+        method: `"centroid"` or `"bbox"`; see `functional.normalize_scale`.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
     def __init__(
@@ -818,11 +823,11 @@ class GridSubsamplingd(Transformd):
     representative point per voxel (the first point returned by the cluster).
 
     Args:
-        pos_key: Key holding xyz positions ``(N, 3)``.
+        pos_key: Key holding xyz positions `(N, 3)`.
         feature_keys: Keys for float features to average per voxel.
         label_keys: Keys for integer labels — one representative value per voxel.
         dl: Voxel edge length.
-        allow_missing_keys: If ``True``, silently skip absent feature/label keys.
+        allow_missing_keys: If `True`, silently skip absent feature/label keys.
     """
 
     def __init__(
@@ -863,79 +868,158 @@ class GridSubsamplingd(Transformd):
 
         return data
 
-    def extra_repr(self) -> str:
-        return f"pos_key={self.pos_key!r}, dl={self.dl}"
 
-
-class OnesFeaturesd(Transformd):
-    """Adds a column of ones ``(N, 1)`` to the data dictionary.
+class OnesLiked(Transformd):
+    """Adds a column of ones `(N, 1)` to the data dictionary.
 
     Args:
-        pos_key: Reference key used to determine the number of points ``N``.
+        keys: Reference keys used to determine the number of points `N`.
         dst_key: Key under which the ones tensor is stored.
-    """
-
-    def __init__(self, pos_key: str = "pos", dst_key: str = "ones") -> None:
-        super().__init__(None)
-        self.pos_key = pos_key
-        self.dst_key = dst_key
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        data = dict(data)
-        pos = data[self.pos_key]
-        data[self.dst_key] = torch.ones(pos.size(0), 1, dtype=pos.dtype, device=pos.device)
-        return data
-
-    def extra_repr(self) -> str:
-        return f"pos_key={self.pos_key!r}, dst_key={self.dst_key!r}"
-
-
-class HeightAboveFloorFeaturesd(Transformd):
-    """Computes per-point height above the local floor along one axis.
-
-    The height is ``pos[:, axis] - pos[:, axis].min()``, stored as ``(N, 1)``.
-
-    Args:
-        pos_key: Key holding xyz positions.
-        dst_key: Key under which the height tensor is stored.
-        axis: Coordinate axis for height (default ``2`` = z).
-    """
-
-    def __init__(self, pos_key: str = "pos", dst_key: str = "height", axis: int = 2) -> None:
-        super().__init__(None)
-        self.pos_key = pos_key
-        self.dst_key = dst_key
-        self.axis = axis
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        data = dict(data)
-        pos = data[self.pos_key]
-        col = pos[:, self.axis]
-        data[self.dst_key] = (col - col.min()).unsqueeze(-1).to(pos.dtype)
-        return data
-
-    def extra_repr(self) -> str:
-        return f"pos_key={self.pos_key!r}, dst_key={self.dst_key!r}, axis={self.axis}"
-
-
-class CatFeaturesd(Transformd):
-    """Concatenates tensors from multiple keys into a single feature tensor.
-
-    Args:
-        src_keys: Keys whose tensors are concatenated (in order).
-        dst_key: Key under which the result is stored.
-        dim: Dimension along which to concatenate (default ``-1``).
-        allow_missing_keys: If ``True``, silently skip absent keys.
     """
 
     def __init__(
         self,
-        src_keys: KeyCollection,
+        keys: KeyCollection,
+        memory_format: ValueCollection[torch.memory_format] | None = None,
+        dtype: ValueCollection[torch.dtype] | None = None,
+        layout: ValueCollection[torch.layout] | None = None,
+        device: ValueCollection[torch.device] | None = None,
+        pin_memory: ValueCollection[bool] | None = False,
+        requires_grad: ValueCollection[bool] | None = False,
+        dst_keys: KeyCollection | None = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or keys, len(self.keys))
+        self.memory_format = ensure_tuple_size(memory_format, len(self.keys))
+        self.dtype = ensure_tuple_size(dtype, len(self.keys))
+        self.layout = ensure_tuple_size(layout, len(self.keys))
+        self.device = ensure_tuple_size(device, len(self.keys))
+        self.pin_memory = ensure_tuple_size(pin_memory, len(self.keys))
+        self.requires_grad = ensure_tuple_size(requires_grad, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key, memory_format, dtype, layout, device, pin_memory, requires_grad in self.iter_keys(
+            data,
+            self.dst_keys,
+            self.memory_format,
+            self.dtype,
+            self.layout,
+            self.device,
+            self.pin_memory,
+            self.requires_grad,
+        ):
+            data[dst_key] = torch.ones_like(
+                data[key],
+                memory_format=memory_format,
+                dtype=dtype,
+                layout=layout,
+                device=device,
+                pin_memory=pin_memory,
+                requires_grad=requires_grad,
+            )
+        return data
+
+
+class AxisMinOffsetd(Transformd):
+    r"""Per-point offset from the minimum along a chosen coordinate axis.
+
+    For each point and a given axis $a$ along tensor dimension $d$, computes:
+
+    $$
+    o_i = p_{i,a} - \min_j p_{j,a}
+    $$
+
+    The result has the same shape as the input with the coordinate dimension
+    reduced to size 1 (e.g. $(N, 3) \to (N, 1)$ or $(B, N, 3) \to (B, N, 1)$).
+    For batched inputs, the minimum is computed per-sample.
+
+    Args:
+        keys: Keys holding point positions of shape $(N, D)$.
+        axis: Coordinate axis $a$ along which to compute the offset.
+        dst_keys: Keys under which the offset tensors are stored. Defaults to `keys`
+            (in-place overwrite).
+        allow_missing_keys: If True, skip missing keys instead of raising.
+
+    Example:
+        Let's say you have a point cloud with positions `(N, 3)` in XYZ order
+        and you want to compute the offset from the minimum along the z-axis,
+        i.e. computing the height above the local floor.
+
+
+        ```python
+        from torch_pointcloud.transforms import AxisMinOffsetd
+
+        data = {
+            "pos": torch.randn(10, 3),
+        }
+        transform = AxisMinOffsetd(keys="pos", dst_keys="pos_offset", axis=2)
+        data = transform(data)
+        ```
+
+        Now, the data dictionary will contain the key `pos_offset` with the shape `(N, 1)`.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        axis: ValueCollection[int],
+        dst_keys: KeyCollection | None = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or keys, len(self.keys))
+        self.axis = ensure_tuple_size(axis, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key, axis in self.iter_keys(data, self.dst_keys, self.axis):
+            x = data[key]
+            col = x[:, axis]
+            data[dst_key] = (col - col.min()).unsqueeze(-1).to(x.dtype)
+        return data
+
+
+class Catd(Transformd):
+    """Concatenates tensors from multiple keys into a single feature tensor.
+
+    Note:
+        This transform is mostly used to concatenate multiple features into a single tensor to feed into your model.
+
+    Args:
+        keys: Keys whose tensors are concatenated (in order).
+        dst_key: Key under which the result is stored.
+        dim: Dimension along which to concatenate.
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        If you have a point cloud data containing position, color and normal and want to concatenate them
+        into a single feature tensor (to feed into your model), you can do the following:
+
+        ```python
+        from torch_pointcloud.transforms import Catd
+
+        data = {
+            "pos": torch.randn(10, 3),
+            "color": torch.randn(10, 3),
+            "normal": torch.randn(10, 3),
+        }
+        transform = Catd(keys=["pos", "color", "normal"], dst_key="x", dim=1)
+        data = transform(data)
+        ```
+
+        Now, the data dictionary will contain the key `x` with the shape `(10, 9)`.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
         dst_key: str,
         dim: int = -1,
         allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(src_keys, allow_missing_keys)
+        super().__init__(keys, allow_missing_keys)
         self.dst_key = dst_key
         self.dim = dim
 
@@ -945,5 +1029,45 @@ class CatFeaturesd(Transformd):
         data[self.dst_key] = torch.cat(tensors, dim=self.dim)
         return data
 
-    def extra_repr(self) -> str:
-        return f"src_keys={list(self.keys)!r}, dst_key={self.dst_key!r}"
+
+class KeepItemsd(Transformd):
+    r"""Keep only items in the data dictionary that are in the keys list.
+
+    Note:
+        This transform is useful if during augmentation process you constructed multiple tensors and want
+        to drop intermediate tensors for memory efficiency.
+
+    Args:
+        keys: The keys to keep in the data dictionary.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Example:
+        If you have a data dictionary containing position, color and normal and want to keep only the position and color,
+        you can do the following:
+
+        ```python
+        from torch_pointcloud.transforms import KeepItemsd
+
+        data = {
+            "pos": torch.randn(10, 3),
+            "color": torch.randn(10, 3),
+            "normal": torch.randn(10, 3),
+        }
+        transform = KeepItemsd(keys=["pos", "color"])
+        data = transform(data)
+        ```
+
+        Now, the data dictionary will contain only the keys `pos` and `color`.
+        The key `normal` will be removed.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        return {key: data[key] for key in self.iter_keys(data)}

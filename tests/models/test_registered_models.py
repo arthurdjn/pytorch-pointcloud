@@ -13,8 +13,7 @@ from torch_pointcloud.utils.imports import (
 
 CLASSIFICATION_MODELS = [
     "dgcnn-base",
-    "kpconv-original.modelnet40",
-    "kpconv-sm.modelnet40",
+    "kpfcnn.modelnet40",
     "octformer-base.modelnet40",
     "pointcnn-base",
     "pointconv-original",
@@ -35,6 +34,10 @@ CLASSIFICATION_MODELS = [
 ]
 SEGMENTATION_MODELS = [
     "dgcnn-base",
+    "kpfcnn-base.s3dis",
+    "kpfcnn-base-sm.s3dis",
+    "kpfcnn-base-deform.s3dis",
+    "kpfcnn-base-sm-deform.s3dis",
     "octformer-base.lg",
     "octformer-base.sm",
     "octformer-base.scannet20",
