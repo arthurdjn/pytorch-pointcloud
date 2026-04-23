@@ -6,9 +6,10 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, DynamicEdgeConv, global_max_pool
 
-from torch_pointcloud.layers import PoolLike, create_pool
+import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import CatPool, PoolLike, create_pool
 from torch_pointcloud.layers.tnet import TNet
-from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size, is_iterable
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
@@ -24,7 +25,7 @@ class DGCNNEncoderBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        out_channels: int,
+        out_channels: Union[int, Sequence[int]],
         num_neighbors: Union[int, Sequence[int]],
         aggr: AggrType = "max",
         act: Union[str, Callable, None] = "relu",
@@ -35,8 +36,9 @@ class DGCNNEncoderBlock(nn.Module):
         bias: Union[bool, Sequence[bool]] = True,
     ) -> None:
         super().__init__()
+        channels_list = [2 * in_channels] + ensure_list(out_channels)
         block = MLP(
-            [2 * in_channels, out_channels],
+            channels_list,
             plain_last=False,
             act=act,
             act_kwargs=act_kwargs,
@@ -53,7 +55,7 @@ class DGCNNEncoderBlock(nn.Module):
 class DGCNNEncoder(nn.Module):
     def __init__(
         self,
-        channels: Sequence[int],
+        channels: Sequence[Union[int, Sequence[int]]],
         num_neighbors: Union[int, Sequence[int]],
         aggr: AggrType = "max",
         act: Union[str, Callable, None] = "relu",
@@ -64,14 +66,16 @@ class DGCNNEncoder(nn.Module):
         bias: bool = True,
     ) -> None:
         super().__init__()
-        self.channels = ensure_tuple(channels)
+        self.channels = ensure_list(channels)
         size = len(self.channels) - 1
         self.num_neighbors = ensure_tuple_size(num_neighbors, size=size)
+
         self.blocks = nn.ModuleList()
         for i in range(size):
+            channels = ensure_list(self.channels[i])
+            in_channels = channels[-1]
             block = DGCNNEncoderBlock(
-                in_channels=self.channels[i],
-                # in_channels=self.channels[i] if i < size - 1 else self.channels[i] * 2,
+                in_channels=in_channels,
                 out_channels=self.channels[i + 1],
                 num_neighbors=self.num_neighbors[i],
                 act=act,
@@ -83,6 +87,17 @@ class DGCNNEncoder(nn.Module):
                 aggr=aggr,
             )
             self.blocks.append(block)
+
+    @property
+    def out_channels_per_block(self) -> Tuple[int, ...]:
+        out = []
+        for ch in self.channels[1:]:
+            out.append(ch[-1] if isinstance(ch, (list, tuple)) else ch)
+        return tuple(out)
+
+    @property
+    def out_channels(self) -> int:
+        return sum(self.out_channels_per_block)
 
     def forward(self, x: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         x_list = []
@@ -109,8 +124,12 @@ class DGCNNClassification(ClassificationModel):
         num_classes: Number of output classes.
         spatial_dim: Spatial dimension of the input point cloud.
         stnet_local_channels: List of channels for the local spatial transformer network.
+            If None, the spatial transformer network is not used.
         stnet_global_channels: List of channels for the global spatial transformer network.
+            If None, the spatial transformer network is not used.
         channels: List of channels for each encoder block.
+        proj_channels: If set, projects the concatenated encoder features through an MLP
+            of this width before pooling. Matches the ``conv5`` layer in the original DGCNN paper.
         head_channels: List of channels for each head block.
         num_neighbors: Maximum number of neighbors for each encoder block.
         act: Activation function.
@@ -130,10 +149,11 @@ class DGCNNClassification(ClassificationModel):
         num_classes: int,
         *,
         spatial_dim: int = 3,
-        stnet_local_channels: Sequence[int],
-        stnet_global_channels: Sequence[int],
+        stnet_local_channels: Optional[Sequence[int]] = None,
+        stnet_global_channels: Optional[Sequence[int]] = None,
         head_channels: Optional[Union[int, Sequence[int]]] = None,
         channels: Sequence[int],
+        proj_channels: Optional[int] = None,
         num_neighbors: Union[int, Sequence[int]],
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -142,14 +162,15 @@ class DGCNNClassification(ClassificationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         dropout: float = 0.0,
-        global_pool: PoolLike = "max",
+        global_pool: PoolLike | Sequence[PoolLike] = "max",
     ):
         super().__init__(in_channels=in_channels + spatial_dim, num_classes=num_classes)
         self.spatial_dim = spatial_dim
-        self.stnet_local_channels = ensure_list(stnet_local_channels)
-        self.stnet_global_channels = ensure_list(stnet_global_channels)
+        self.stnet_local_channels = ensure_list(stnet_local_channels) if stnet_local_channels is not None else None
+        self.stnet_global_channels = ensure_list(stnet_global_channels) if stnet_global_channels is not None else None
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.channels = ensure_list(channels)
+        self.proj_channels = proj_channels
         self.num_neighbors = ensure_list(num_neighbors)
         self.act = act
         self.act_kwargs = act_kwargs
@@ -158,18 +179,20 @@ class DGCNNClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
 
-        self.stnet = TNet(
-            local_channels=self.stnet_local_channels,
-            global_channels=self.stnet_global_channels,
-            k=self.spatial_dim,
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-            act_first=self.act_first,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            aggr="max",
-        )
+        self.stnet: Optional[TNet] = None
+        if self.stnet_local_channels is not None and self.stnet_global_channels is not None:
+            self.stnet = TNet(
+                local_channels=self.stnet_local_channels,
+                global_channels=self.stnet_global_channels,
+                k=self.spatial_dim,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                act_first=self.act_first,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                bias=self.bias,
+                aggr="max",
+            )
 
         self.encoder = DGCNNEncoder(
             channels=[self.in_channels] + self.channels,
@@ -183,13 +206,32 @@ class DGCNNClassification(ClassificationModel):
             aggr="max",
         )
 
+        self.proj: Optional[MLP] = None
+        if self.proj_channels is not None:
+            self.proj = MLP(
+                [self.encoder.out_channels, self.proj_channels],
+                plain_last=False,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                act_first=self.act_first,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                bias=self.bias,
+            )
+
         self.dropout = dropout
-        self.global_pool = create_pool(global_pool)
+        self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
         self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
-        return sum(self.channels)
+        # count the output channels of the encoder
+        base = self.proj_channels if self.proj_channels is not None else self.encoder.out_channels
+        # In case we have multiple global pools, we need to multiply the base by the number of pools
+        if isinstance(self.global_pool, CatPool):
+            return base * self.global_pool.num_pools
+
+        return base
 
     def configure_head(self) -> nn.Module:
         channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
@@ -209,15 +251,26 @@ class DGCNNClassification(ClassificationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(
+        self,
+        num_classes: int,
+        global_pool: PoolLike | Sequence[PoolLike] = "max",
+        **kwargs: Any,
+    ) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        pos = self.stnet(pos, batch)
+        if self.stnet is not None:
+            pos = self.stnet(pos, batch)
+
         x = torch.cat([x, pos], dim=1) if x is not None else pos
         x, batch = self.encoder(x, batch)
+
+        if self.proj is not None:
+            x = self.proj(x)
+
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
@@ -321,7 +374,7 @@ class DGCNNSegmentation(SegmentationModel):
             bias=self.bias,
             aggr="max",
         )
-        self.global_proj = nn.Linear(sum(self.channels), self.global_channels)
+        self.global_proj = nn.Linear(self.encoder.out_channels, self.global_channels)
 
         self.head = MLP(
             [self.embedding_dim] + self.head_channels + [self.num_classes],
@@ -337,7 +390,7 @@ class DGCNNSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
-        return sum(self.channels) + self.global_channels
+        return self.encoder.out_channels + self.global_channels
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -400,11 +453,62 @@ def dgcnn_base_cls(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNCl
     return DGCNNClassification(**hparams)  # type: ignore[arg-type]
 
 
+@register_model(
+    "dgcnn-antao.modelnet40.1024",
+    task="classification",
+    weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.modelnet40.1024.pt",
+    params=dict(
+        in_channels=0,
+        num_classes=40,
+        spatial_dim=3,
+        channels=[64, 64, 128, 256],
+        proj_channels=1024,
+        head_channels=[512, 256],
+        num_neighbors=20,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        dropout=0.5,
+        global_pool=["max", "mean"],
+    ),
+    transforms=T.SampleFarthestPointsd(pos_key="pos", keys=["normal"], num_samples=1024),
+)
+def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
+    # from the repo: https://github.com/antao97/dgcnn.pytorch
+    return DGCNNClassification(**hparams)
+
+
+@register_model(
+    "dgcnn-antao.modelnet40.2048",
+    task="classification",
+    weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.modelnet40.2048.pt",
+    params=dict(
+        in_channels=0,
+        num_classes=40,
+        spatial_dim=3,
+        channels=[64, 64, 128, 256],
+        proj_channels=1024,
+        head_channels=[512, 256],
+        num_neighbors=20,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        dropout=0.5,
+        global_pool=["max", "mean"],
+    ),
+    transforms=T.SampleFarthestPointsd(pos_key="pos", keys=["normal"], num_samples=2048),
+)
+def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
+    # from the repo: https://github.com/antao97/dgcnn.pytorch
+    return DGCNNClassification(**hparams)
+
+
 @register_model("dgcnn-base", task="segmentation")
 def dgcnn_base_semseg(in_channels: int, num_classes: int, **kwargs: Any) -> DGCNNSegmentation:
-    """Base semantic segmentation model as described in [original paper](https://arxiv.org/abs/1801.07829)
-    and [official implementation](https://github.com/WangYueFt/dgcnn).
-    """
     hparams = dict(
         in_channels=in_channels,
         num_classes=num_classes,

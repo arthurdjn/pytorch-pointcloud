@@ -13,6 +13,8 @@ from torch_pointcloud.utils.imports import (
 
 CLASSIFICATION_MODELS = [
     "dgcnn-base",
+    "dgcnn-antao.modelnet40.1024",
+    "dgcnn-antao.modelnet40.2048",
     "kpfcnn.modelnet40",
     "octformer-base.modelnet40",
     "pointcnn-base",
