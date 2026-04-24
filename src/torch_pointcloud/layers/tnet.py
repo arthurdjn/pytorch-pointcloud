@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP
+from torch_geometric.nn import MLP, DynamicEdgeConv
 
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.imports import optional_import
@@ -68,34 +68,144 @@ class TNet(nn.Module):
         aggr: AggrType = "max",
     ) -> None:
         super().__init__()
+        kwargs = dict(
+            plain_last=False,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            dropout=dropout,
+        )
+
         self.k = k
         self.aggr = aggr
 
         local_channels = [k] + ensure_list(local_channels)
         global_channels = [local_channels[-1]] + ensure_list(global_channels)
 
-        self.local_nn = MLP(local_channels, plain_last=False, act=act, norm=norm, bias=bias, dropout=dropout)
-        self.global_nn = MLP(global_channels, plain_last=False, act=act, norm=norm, bias=bias, dropout=dropout)
+        self.local_nn = MLP(local_channels, **kwargs)
+        self.global_nn = MLP(global_channels, **kwargs)
         self.transform = nn.Linear(global_channels[-1], k * k)
 
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
         nn.init.zeros_(self.transform.weight)
-        nn.init.eye_(self.transform.bias.view(self.k, self.k))
+        nn.init.zeros_(self.transform.bias)
 
     def forward(self, x: Tensor, batch: Tensor) -> Tensor:
         """Forward pass of the T-Net.
 
         Args:
-            x: Input tensor of shape $(N, k, *)$ where $N$ is the batch size, $k$ is the dimension of the input features, and $*$ means any number of additional dimensions.
-            batch: Batch indices of shape $(N)$ where $N$ is the batch size.
+            x: Input tensor of shape $(N, k, *)$ where $N$ is the batch size, $k$ is the dimension of the input features,
+                and $*$ means any number of additional dimensions.
+            batch: Batch indices of shape $(N,)$ where $N$ is the batch size.
 
         Returns:
             Transformation matrix of shape $(N, k, k)$ where $N$ is the batch size.
         """
 
         xt = self.local_nn(x)
+        xt = scatter(xt, batch, dim=0, reduce=self.aggr)
+        xt = self.global_nn(xt)
+
+        xt = self.transform(xt)
+        identity = torch.eye(self.k, dtype=xt.dtype, device=xt.device)
+        xt = xt.view(-1, self.k, self.k) + identity
+
+        xt = xt[batch]
+        return torch.bmm(x.unsqueeze(1), xt).squeeze(1)
+
+
+class DynamicTNet(nn.Module):
+    """Dynamic graph-based Transformation Network as used in the DGCNN part segmentation model.
+
+    Unlike `TNet` which applies a point-wise MLP, this variant first builds a
+    kNN graph and processes edge features with a `DynamicEdgeConv`, matching the
+    `Transform_Net` from :github: [antao97/dgcnn.pytorch](https://github.com/antao97/dgcnn.pytorch).
+
+    Architecture:
+        1. `edge_conv`: `DynamicEdgeConv` over kNN graph features `[2*k, ...edge_channels]`
+        2. `local_nn`:  Point-wise MLP `[edge_channels[-1], ...local_channels]`, then scatter max
+        3. `global_nn`: Global MLP `[local_channels[-1], ...global_channels]`
+        4. `transform`: Linear projection to `k * k` matrix (initialized as identity)
+
+    Args:
+        edge_channels: Hidden channels for the EdgeConv MLP (excluding the `2*k` input).
+        local_channels: Channels for the point-wise MLP applied after the EdgeConv.
+        global_channels: Channels for the global MLP applied after pooling.
+        k: Dimension of input features to transform.
+        num_neighbors: Number of nearest neighbors for the dynamic graph.
+        act: Activation function.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Whether to apply the activation before normalization.
+        norm: Normalization layer type.
+        norm_kwargs: Keyword arguments for the normalization layer.
+        bias: Whether to use bias in linear layers.
+        dropout: Dropout rate.
+        aggr: Aggregation method to use.
+    """
+
+    def __init__(
+        self,
+        edge_channels: Sequence[int],
+        local_channels: Sequence[int],
+        global_channels: Sequence[int],
+        k: int,
+        num_neighbors: int = 20,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        dropout: float = 0.0,
+        aggr: AggrType = "max",
+    ) -> None:
+        super().__init__()
+        kwargs = dict(
+            plain_last=False,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            dropout=dropout,
+        )
+
+        self.k = k
+        self.aggr = aggr
+
+        edge_channels = [2 * k] + ensure_list(edge_channels)
+        local_channels = [edge_channels[-1]] + ensure_list(local_channels)
+        global_channels = [local_channels[-1]] + ensure_list(global_channels)
+
+        edge_nn = MLP(edge_channels, **kwargs)
+        self.edge_conv = DynamicEdgeConv(edge_nn, k=num_neighbors, aggr=aggr)
+        self.local_nn = MLP(local_channels, **kwargs)
+        self.global_nn = MLP(global_channels, **kwargs)
+        self.transform = nn.Linear(global_channels[-1], k * k)
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.zeros_(self.transform.weight)
+        nn.init.zeros_(self.transform.bias)
+
+    def forward(self, x: Tensor, batch: Tensor) -> Tensor:
+        """
+        Args:
+            x: Point features of shape $(N, k)$.
+            batch: Batch indices of shape $(N,)$.
+
+        Returns:
+            Transformed features of shape $(N, k)$.
+        """
+        xt = self.edge_conv(x, batch)
+        xt = self.local_nn(xt)
         xt = scatter(xt, batch, dim=0, reduce=self.aggr)
         xt = self.global_nn(xt)
 

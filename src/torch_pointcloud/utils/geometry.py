@@ -1,3 +1,5 @@
+import math
+import warnings
 from typing import Literal, Optional, Tuple, Union, overload
 
 import torch
@@ -104,7 +106,7 @@ def rodrigues_rotation_matrix(axis: Tensor, theta: float) -> Tensor:
     r"""Computes a 3D rotation matrix using Rodrigues' rotation formula.
 
     This function rotates a vector in 3D space around a specified axis by a
-    given angle. The rotation matrix is computed using the following formula:
+    given angle **in radians**. The rotation matrix is computed using:
 
     $$
     R = I + \sin(\theta)K + (1 - \cos(\theta))K^2
@@ -114,15 +116,28 @@ def rodrigues_rotation_matrix(axis: Tensor, theta: float) -> Tensor:
 
     - $I$ is the identity matrix.
     - $K$ is the skew-symmetric matrix (cross-product matrix) derived from the axis of rotation.
-    - $\theta$ is the rotation angle in radians.
+    - $\theta$ is the rotation angle **in radians**.
 
     Args:
         axis: A 3D vector representing the axis of rotation.
-        theta: The angle of rotation in radians.
+        theta: The angle of rotation **in radians**.  Pass `math.radians(deg)`
+            to convert from degrees.
 
     Returns:
         A 3x3 rotation matrix that rotates a vector around the specified axis by the specified angle.
+
+    Raises:
+        Warning: If $\theta > 2\pi$, which likely indicates degrees were passed
+            instead of radians.
     """
+    if abs(theta) > 2 * math.pi:
+        warnings.warn(
+            f"rodrigues_rotation_matrix received theta={theta:.4f} which is "
+            f"outside [-2π, 2π]. Did you pass degrees instead of radians? "
+            f"Use math.radians({theta:.4f}) to convert.",
+            stacklevel=2,
+        )
+
     axis = axis.detach().clone().float()
     axis = axis / axis.norm()
     K = cross_product_matrix(axis)

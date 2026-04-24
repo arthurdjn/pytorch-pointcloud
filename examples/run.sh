@@ -30,6 +30,23 @@ uv run --no-sync python examples/dgcnn_segmentation.py \
     --model dgcnn-base \
     --dataset s3dis
 
+# DGCNN Benchmark
+uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn-antao.modelnet40.1024
+
+uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn-antao.modelnet40.2048
+
+uv run --no-sync python examples/dgcnn_benchmark_shapenetpart.py --model dgcnn-antao.shapenetpart
+
+uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 1
+uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 2
+uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 3
+uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 4
+uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 5
+uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 6
+
+uv run --no-sync python examples/dgcnn_scannet_benchmark_antao.py
+uv run --no-sync python examples/dgcnn_benchmark_scannet.py
+
 
 # KPConv Classification
 uv run --no-sync python examples/kpconv_classification.py \
@@ -57,6 +74,15 @@ uv run --no-sync python examples/kpconv_segmentation.py \
     --epochs 1 \
     --dataset s3dis
 
+# KPConv Benchmark
+uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base.s3dis
+
+uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base-sm.s3dis
+
+uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base-deform.s3dis
+
+uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base-sm-deform.s3dis
+
 
 # OctFormer Classification
 uv run --no-sync python examples/octformer_classification.py \
@@ -83,6 +109,13 @@ uv run --no-sync python examples/octformer_segmentation.py \
     --limit-test-batches 5 \
     --epochs 1 \
     --dataset s3dis
+
+# OctFormer benchmark
+uv run --no-sync python examples/octformer_benchmark_modelnet.py --model octformer-base.modelnet40
+
+uv run --no-sync python examples/octformer_benchmark_scannet.py --model octformer-base.scannet20
+
+uv run --no-sync python examples/octformer_benchmark_scannet.py --model octformer-base.scannet200
 
 
 # PointMamba Classification
