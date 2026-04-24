@@ -999,7 +999,7 @@ class ScanNet20(ScanNet):
         show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
-        self.relabel = T.Relabeld(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
+        self.relabel = T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
         super().__init__(
             root=root,
             version=version,
@@ -1076,7 +1076,7 @@ class ScanNet200(ScanNet):
         show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
-        self.relabel = T.Relabeld(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
+        self.relabel = T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
         super().__init__(
             root=root,
             version=version,
