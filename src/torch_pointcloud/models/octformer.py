@@ -877,7 +877,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     name="octformer-base.modelnet40",
     task="classification",
     weights="hf://torch-pointcloud/octformer/octformer-base.modelnet40.pth",
-    params=dict(
+    hparams=dict(
         in_channels=4,
         num_classes=40,
         stem_channels=(24, 48, 96),
@@ -941,7 +941,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     name="octformer-base.scannet20",
     weights="hf://torch-pointcloud/octformer/segmentation/octformer-base.scannet.pth",
     task="segmentation",
-    params=dict(
+    hparams=dict(
         in_channels=10,
         num_classes=21,
         stem_channels=(24, 48, 96),
@@ -997,7 +997,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
     name="octformer-base.scannet200",
     weights="hf://torch-pointcloud/octformer/octformer-base.scannet200.pth",
     task="segmentation",
-    params=dict(
+    hparams=dict(
         in_channels=10,
         num_classes=201,
         stem_channels=(24, 48, 96),
@@ -1052,7 +1052,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
 @register_model(
     name="octformer-base.lg",
     task="segmentation",
-    params=dict(
+    hparams=dict(
         stem_channels=(24, 48, 96),
         channels=(192, 384, 768, 768),
         num_blocks=(2, 2, 18, 2),
@@ -1087,7 +1087,7 @@ def octformer_base_lg_seg(**hparams: Any) -> OctFormerSegmentation:
 @register_model(
     name="octformer-base.sm",
     task="segmentation",
-    params=dict(
+    hparams=dict(
         stem_channels=(24, 48, 96),
         channels=(96, 192, 384, 384),
         num_blocks=(2, 2, 6, 2),
