@@ -19,7 +19,7 @@ class ModelDict(TypedDict):
     name: str
     weights: Optional[str]
     transforms: Optional[Callable]
-    params: Dict[str, Any]
+    hparams: Dict[str, Any]
     fn: Callable
 
 
@@ -35,7 +35,7 @@ _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
 def register_model(
     name: str,
     *,
-    params: Optional[Dict[str, Any]] = None,
+    hparams: Optional[Dict[str, Any]] = None,
     transforms: Optional[Callable] = None,
     weights: Optional[str] = None,
     task: Literal["base"],
@@ -46,7 +46,7 @@ def register_model(
 def register_model(
     name: str,
     *,
-    params: Optional[Dict[str, Any]] = None,
+    hparams: Optional[Dict[str, Any]] = None,
     transforms: Optional[Callable] = None,
     weights: Optional[str] = None,
     task: Literal["classification"],
@@ -57,7 +57,7 @@ def register_model(
 def register_model(
     name: str,
     *,
-    params: Optional[Dict[str, Any]] = None,
+    hparams: Optional[Dict[str, Any]] = None,
     transforms: Optional[Callable] = None,
     weights: Optional[str] = None,
     task: Literal["segmentation"],
@@ -68,7 +68,7 @@ def register_model(
 def register_model(
     name: str,
     *,
-    params: Optional[Dict[str, Any]] = None,
+    hparams: Optional[Dict[str, Any]] = None,
     transforms: Optional[Callable] = None,
     weights: Optional[str] = None,
     task: Literal["detection"],
@@ -79,11 +79,11 @@ def register_model(
     name: str,
     *,
     task: Task,
-    params: Optional[Dict[str, Any]] = None,
+    hparams: Optional[Dict[str, Any]] = None,
     transforms: Optional[Callable] = None,
     weights: Optional[str] = None,
 ) -> Callable:
-    params = params or {}
+    hparams = hparams or {}
 
     if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
@@ -93,7 +93,7 @@ def register_model(
         _REGISTERED_MODELS[task][name] = {
             "name": name,
             "transforms": transforms,
-            "params": params,
+            "hparams": hparams,
             "weights": weights,
             "fn": fn,
         }
@@ -191,7 +191,7 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
     # the fn key is dropped and is not returned with the model info in case `return_info` is True
     model_fn = model_info.pop("fn")  # type: ignore[misc]
 
-    kwargs = {**model_info["params"], **kwargs}
+    kwargs = {**model_info["hparams"], **kwargs}
     model = model_fn(**kwargs)
     if not pretrained:
         if return_info:

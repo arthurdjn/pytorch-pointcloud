@@ -1145,7 +1145,7 @@ class KPFCNNSegmentation(SegmentationModel):
 @register_model(
     "kpfcnn.modelnet40",
     task="classification",
-    params=dict(
+    hparams=dict(
         in_channels=6,
         num_classes=40,
         stem_channels=32,
@@ -1190,7 +1190,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
     task="segmentation",
     transforms=_BASE_S3DIS_TRANSFORMS,
     weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm.s3dis.pth",
-    params=dict(
+    hparams=dict(
         in_channels=5,
         num_classes=13,
         stem_channels=64,
@@ -1226,7 +1226,7 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
     task="segmentation",
     transforms=_BASE_S3DIS_TRANSFORMS,
     weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base.s3dis.pth",
-    params=dict(
+    hparams=dict(
         in_channels=5,
         num_classes=13,
         stem_channels=64,
@@ -1262,7 +1262,7 @@ def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
     task="segmentation",
     transforms=_BASE_S3DIS_TRANSFORMS,
     weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-deform.s3dis.pth",
-    params=dict(
+    hparams=dict(
         in_channels=5,
         num_classes=13,
         stem_channels=64,
@@ -1298,7 +1298,7 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
     task="segmentation",
     transforms=_BASE_S3DIS_TRANSFORMS,
     weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm-deform.s3dis.pth",
-    params=dict(
+    hparams=dict(
         in_channels=5,
         num_classes=13,
         stem_channels=64,
