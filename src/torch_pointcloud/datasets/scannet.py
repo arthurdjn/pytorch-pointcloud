@@ -4,6 +4,7 @@ The ScanNet dataset as described in the paper
 
 """
 
+import math
 import warnings
 from collections import defaultdict
 from functools import cached_property
@@ -442,6 +443,7 @@ def load_scannet_scene(
     segments_path: Optional[PathLike] = None,
     label_to_idx: Optional[Dict[str, int]] = None,
     scene_id: Optional[str] = None,
+    use_axis_alignment: bool = True,
 ) -> ScanNetData:
     """Load a ScanNet scene and return the parsed points, color, normal, instance, and labels
     in a dictionary format.
@@ -454,6 +456,8 @@ def load_scannet_scene(
         label_to_idx: A dictionary mapping object labels to contiguous positive indices. The labels correspond to the `raw_category` column
             in the labels CSV file, or to the `label` key in the aggregation JSON file.
             This mapping is used to map object labels to their associated target indices.
+        use_axis_alignment: Whether to apply the axis alignment transformation from the
+            scene metadata.  Set to ``False`` to keep the raw PLY coordinates.
 
     Returns:
         The loaded scene.
@@ -481,38 +485,113 @@ def load_scannet_scene(
     pos, color = vertices[:, :3], vertices[:, 3:6]
 
     # Optionally transform the points with the axis alignment matrix
-    metadata = load_scannet_scene_metadata(meta_path) if meta_path else {}
-    if "axisAlignment" in metadata:
-        # The axis alignment matrix is a 4x4 matrix that transforms the points
-        # that is provided in the v2 version of the dataset
-        pos = transform_points(pos, metadata["axisAlignment"])
+    if use_axis_alignment:
+        metadata = load_scannet_scene_metadata(meta_path) if meta_path else {}
+        if "axisAlignment" in metadata:
+            pos = transform_points(pos, metadata["axisAlignment"])
 
     normal = vertex_normals(pos, face)
-
-    if not aggregation_path or not segments_path:
-        # If no aggregation or segments are provided,
-        # return the points and color
-        return {"pos": pos, "color": color, "normal": normal}
-
-    instance, segment = load_scannet_scene_aggregation_and_segs(
-        aggregation_path,
-        segments_path,
-        label_to_idx=label_to_idx,
-    )
 
     data: ScanNetData = {
         "pos": pos,
         "color": color,
         "normal": normal,
-        "instance": instance,
     }
 
-    if segment is not None:
-        data["segment"] = segment
+    if aggregation_path and segments_path:
+        instance, segment = load_scannet_scene_aggregation_and_segs(
+            aggregation_path,
+            segments_path,
+            label_to_idx=label_to_idx,
+        )
+        data["instance"] = instance
+        if segment is not None:
+            data["segment"] = segment
+
     if scene_id:
         data["scene"] = scene_id
 
     return data
+
+
+def tile_scannet_scene(
+    scene: Dict[str, Any],
+    block_size: float = 1.5,
+    block_stride: float = 0.75,
+    num_nodes: int = 8192,
+    min_num_nodes: int = 100,
+    scene_index: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    r"""Split a single ScanNet scene dict into fixed-size spatial blocks.
+
+    Sweeps a $\text{block\_size} \times \text{block\_size}$ window (full Z extent) over
+    the scene with the given stride, matching the tiling procedure used in the
+    DGCNN ScanNet evaluation protocol.
+
+    Args:
+        scene: Dict with at least ``DataKeys.POS`` (float32, $(N, 3)$).
+            All other tensors with a leading dimension of $N$ are sliced in parallel.
+        block_size: Side length of each square block in meters.
+        block_stride: Step size for the sliding window in meters.
+        num_nodes: Fixed number of nodes per block.
+        min_num_nodes: Minimum number of raw nodes for a block to be kept.
+        scene_index: If provided, each block will include ``"scene_index"`` and
+            ``"num_scene_points"`` entries.
+
+    Returns:
+        List of dicts, one per retained block.  Each block has exactly
+        ``num_nodes`` nodes and an extra ``"scene_max"`` key with the scene-level
+        coordinate maxima (useful for downstream normalization).
+    """
+    pos = scene[DataKeys.POS]
+    N = pos.shape[0]
+
+    pos_min = pos.min(dim=0).values
+    pos_max = pos.max(dim=0).values
+
+    num_block_x = max(math.ceil((pos_max[0].item() - pos_min[0].item() - block_size) / block_stride) + 1, 1)
+    num_block_y = max(math.ceil((pos_max[1].item() - pos_min[1].item() - block_size) / block_stride) + 1, 1)
+
+    x = pos[:, 0]
+    y = pos[:, 1]
+
+    blocks: List[Dict[str, Any]] = []
+    for i in range(num_block_x):
+        for j in range(num_block_y):
+            s_x = pos_min[0].item() + i * block_stride
+            e_x = min(s_x + block_size, pos_max[0].item())
+            s_x = e_x - block_size
+            s_y = pos_min[1].item() + j * block_stride
+            e_y = min(s_y + block_size, pos_max[1].item())
+            s_y = e_y - block_size
+
+            mask = (x >= s_x - 1e-8) & (x <= e_x + 1e-8) & (y >= s_y - 1e-8) & (y <= e_y + 1e-8)
+            indices = mask.nonzero(as_tuple=True)[0]
+            n = indices.numel()
+            if n < min_num_nodes:
+                continue
+
+            if n >= num_nodes:
+                chosen = indices[torch.randperm(n)[:num_nodes]]
+            else:
+                chosen = indices[torch.randint(0, n, (num_nodes,))]
+
+            block: Dict[str, Any] = {}
+            for key, val in scene.items():
+                if isinstance(val, Tensor) and val.shape[0] == N:
+                    block[key] = val[chosen].clone()
+                else:
+                    block[key] = val
+
+            block["scene_max"] = pos_max
+            block["block_center"] = torch.tensor([s_x + block_size / 2.0, s_y + block_size / 2.0, 0.0], dtype=pos.dtype)
+            block["point_indices"] = chosen
+            if scene_index is not None:
+                block["scene_index"] = scene_index
+                block["num_scene_points"] = N
+            blocks.append(block)
+
+    return blocks
 
 
 class ScanNet(PointCloudDataset):
@@ -641,6 +720,11 @@ class ScanNet(PointCloudDataset):
         split: Literal["train", "test", "val"] = "train",
         label_name: str = "nyu40class",
         label_id: str = "nyu40id",
+        use_axis_alignment: bool = True,
+        block_size: Optional[float] = None,
+        block_stride: float = 0.75,
+        num_nodes: int = 8192,
+        min_num_nodes: int = 100,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
@@ -656,6 +740,7 @@ class ScanNet(PointCloudDataset):
         self.split = split
         self.label_name = label_name
         self.label_id = label_id
+        self.use_axis_alignment = use_axis_alignment
         self.transform = transform
         self.show_progress = show_progress
 
@@ -663,7 +748,13 @@ class ScanNet(PointCloudDataset):
             self.download(force=force_download)
 
         self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
-        self.load(show_progress=show_progress)
+        self.load(
+            show_progress=show_progress,
+            block_size=block_size,
+            block_stride=block_stride,
+            num_nodes=num_nodes,
+            min_num_nodes=min_num_nodes,
+        )
 
     @cached_property
     def labels(self) -> pd.DataFrame:
@@ -706,6 +797,13 @@ class ScanNet(PointCloudDataset):
             return False
 
         return True
+
+    @property
+    def processed_dir(self) -> str:
+        base = Path(self.data_dir, "processed")
+        if not self.use_axis_alignment:
+            base = Path(str(base) + "_noalign")
+        return base.absolute().as_posix()
 
     @property
     def processed_files(self) -> List[Path]:
@@ -813,7 +911,6 @@ class ScanNet(PointCloudDataset):
                 return
 
             try:
-                # If for some reason a scene cannot be loaded (or corrupted), skip it
                 data = load_scannet_scene(
                     mesh_path=mesh_path,
                     meta_path=meta_path,
@@ -821,6 +918,7 @@ class ScanNet(PointCloudDataset):
                     segments_path=segments_path,
                     label_to_idx=label_to_idx,
                     scene_id=scene_id,
+                    use_axis_alignment=self.use_axis_alignment,
                 )
             except Exception as e:
                 warnings.warn(f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning)
@@ -840,16 +938,36 @@ class ScanNet(PointCloudDataset):
             show_progress=show_progress,
         )
 
-    def load(self, show_progress: bool = True) -> None:
-        self.data = []
-        for path in tqdm(
-            self.processed_files,
+    def load(
+        self,
+        block_size: Optional[float] = None,
+        block_stride: float = 0.75,
+        num_nodes: int = 8192,
+        min_num_nodes: int = 100,
+        show_progress: bool = True,
+    ) -> None:
+        self.data: List[Dict[str, Any]] = []
+        self.scene_boundaries: List[int] = []
+        for scene_idx, path in tqdm(
+            enumerate(self.processed_files),
             desc="Loading",
             total=len(self.processed_files),
             disable=not show_progress,
         ):
-            data = load_safetensors(path)
-            self.data.append(data)
+            scene = load_safetensors(path)
+            if block_size is not None and block_size > 0:
+                blocks = tile_scannet_scene(
+                    scene,
+                    block_size=block_size,
+                    block_stride=block_stride,
+                    num_nodes=num_nodes,
+                    min_num_nodes=min_num_nodes,
+                    scene_index=scene_idx,
+                )
+                self.data.extend(blocks)
+            else:
+                self.data.append(scene)
+            self.scene_boundaries.append(len(self.data))
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
@@ -869,6 +987,11 @@ class ScanNet20(ScanNet):
         root: str,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
+        use_axis_alignment: bool = True,
+        block_size: Optional[float] = None,
+        block_stride: float = 0.75,
+        num_nodes: int = 8192,
+        min_num_nodes: int = 100,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
@@ -883,6 +1006,11 @@ class ScanNet20(ScanNet):
             split=split,
             label_name="nyu40class",
             label_id="nyu40id",
+            use_axis_alignment=use_axis_alignment,
+            block_size=block_size,
+            block_stride=block_stride,
+            num_nodes=num_nodes,
+            min_num_nodes=min_num_nodes,
             transform=transform,
             download=download,
             force_download=force_download,
@@ -897,16 +1025,37 @@ class ScanNet20(ScanNet):
         return "ScanNet"
 
     @override
-    def load(self, show_progress: bool = True) -> None:
-        self.data = []
-        for path in tqdm(
-            self.processed_files,
+    def load(
+        self,
+        block_size: Optional[float] = None,
+        block_stride: float = 0.75,
+        num_nodes: int = 8192,
+        min_num_nodes: int = 100,
+        show_progress: bool = True,
+    ) -> None:
+        self.data: List[Dict[str, Any]] = []
+        self.scene_boundaries: List[int] = []
+        for scene_idx, path in tqdm(
+            enumerate(self.processed_files),
             desc="Loading",
             total=len(self.processed_files),
             disable=not show_progress,
         ):
-            data = load_safetensors(path)
-            self.data.append(self.relabel(data))
+            scene = load_safetensors(path)
+            scene = self.relabel(scene)
+            if block_size is not None and block_size > 0:
+                blocks = tile_scannet_scene(
+                    scene,
+                    block_size=block_size,
+                    block_stride=block_stride,
+                    num_nodes=num_nodes,
+                    min_num_nodes=min_num_nodes,
+                    scene_index=scene_idx,
+                )
+                self.data.extend(blocks)
+            else:
+                self.data.append(scene)
+            self.scene_boundaries.append(len(self.data))
 
 
 class ScanNet200(ScanNet):
@@ -915,6 +1064,11 @@ class ScanNet200(ScanNet):
         root: str,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
+        use_axis_alignment: bool = True,
+        block_size: Optional[float] = None,
+        block_stride: float = 0.75,
+        num_nodes: int = 8192,
+        min_num_nodes: int = 100,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
@@ -929,6 +1083,11 @@ class ScanNet200(ScanNet):
             split=split,
             label_name="raw",
             label_id="id",
+            use_axis_alignment=use_axis_alignment,
+            block_size=block_size,
+            block_stride=block_stride,
+            num_nodes=num_nodes,
+            min_num_nodes=min_num_nodes,
             transform=transform,
             download=download,
             force_download=force_download,
@@ -943,13 +1102,34 @@ class ScanNet200(ScanNet):
         return "ScanNet"
 
     @override
-    def load(self, show_progress: bool = True) -> None:
-        self.data = []
-        for path in tqdm(
-            self.processed_files,
+    def load(
+        self,
+        block_size: Optional[float] = None,
+        block_stride: float = 0.75,
+        num_nodes: int = 8192,
+        min_num_nodes: int = 100,
+        show_progress: bool = True,
+    ) -> None:
+        self.data: List[Dict[str, Any]] = []
+        self.scene_boundaries: List[int] = []
+        for scene_idx, path in tqdm(
+            enumerate(self.processed_files),
             desc="Loading",
             total=len(self.processed_files),
             disable=not show_progress,
         ):
-            data = load_safetensors(path)
-            self.data.append(self.relabel(data))
+            scene = load_safetensors(path)
+            scene = self.relabel(scene)
+            if block_size is not None and block_size > 0:
+                blocks = tile_scannet_scene(
+                    scene,
+                    block_size=block_size,
+                    block_stride=block_stride,
+                    num_nodes=num_nodes,
+                    min_num_nodes=min_num_nodes,
+                    scene_index=scene_idx,
+                )
+                self.data.extend(blocks)
+            else:
+                self.data.append(scene)
+            self.scene_boundaries.append(len(self.data))
