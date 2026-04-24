@@ -672,7 +672,7 @@ def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
         dropout=0.5,
         global_pool=["max", "mean"],
     ),
-    transforms=T.SampleFarthestPointsd(pos_key="pos", keys=["normal"], num_samples=1024),
+    transforms=T.SampleFarthestPoints(pos_key="pos", keys=["normal"], num_samples=1024),
 )
 def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     # from the repo: https://github.com/antao97/dgcnn.pytorch
@@ -699,7 +699,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
         dropout=0.5,
         global_pool=["max", "mean"],
     ),
-    transforms=T.SampleFarthestPointsd(pos_key="pos", keys=["normal"], num_samples=2048),
+    transforms=T.SampleFarthestPoints(pos_key="pos", keys=["normal"], num_samples=2048),
 )
 def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     # from the repo: https://github.com/antao97/dgcnn.pytorch
@@ -731,12 +731,12 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
         bias=True,
         dropout=0.5,
     ),
-    transforms=T.SampleFarthestPointsd(
+    transforms=T.SampleFarthestPoints(
         keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
         pos_key=DataKeys.POS,
         num_samples=2048,
     ),
-    # transforms=T.RandomSampled(keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT], num_samples=2048),
+    # transforms=T.RandomSample(keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT], num_samples=2048),
 )
 def dgcnn_antao_shapenet_partseg(**hparams: Any) -> DGCNNPartSegmentation:
     return DGCNNPartSegmentation(**hparams)
@@ -795,11 +795,11 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
         [
             # The model was trained on 20 classes without a dedicated class for "unknown" objects,
             # so we relabel the segmentation labels from [0, 20] -> [0, 19] and set "unknown" objects to 255.
-            T.Relabeld(keys=DataKeys.SEGMENT, labels=list(range(1, 21)), default=255),
-            T.Divided(keys=DataKeys.COLOR, divisor=255),
-            T.CopyItemsd(keys=DataKeys.POS, names="norm_pos"),
-            T.DivideKeyd(keys="norm_pos", div_keys="scene_max"),
-            T.SubtractKeyd(keys=DataKeys.POS, sub_keys="block_center"),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=list(range(1, 21)), default=255),
+            T.Divide(keys=DataKeys.COLOR, divisor=255),
+            T.CopyItems(keys=DataKeys.POS, names="norm_pos"),
+            T.DivideKey(keys="norm_pos", div_keys="scene_max"),
+            T.SubtractKey(keys=DataKeys.POS, sub_keys="block_center"),
         ]
     ),
 )

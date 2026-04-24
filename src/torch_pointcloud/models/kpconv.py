@@ -1169,18 +1169,18 @@ def kpfcnn_modelnet40_clf(**hparams: Any) -> KPFCNNClassification:
 
 _BASE_S3DIS_TRANSFORMS = T.Compose(
     [
-        T.GridSubsamplingd(
+        T.GridSubsampling(
             pos_key=DataKeys.POS,
             feature_keys=[DataKeys.COLOR],
             label_keys=[DataKeys.SEGMENT, DataKeys.INSTANCE],
             dl=0.03,
         ),
-        T.Scaled(keys=DataKeys.COLOR, scale=1.0 / 255),
-        T.AxisMinOffsetd(keys=DataKeys.POS, dst_keys="height", axis=2),
-        T.OnesLiked(keys="height", dst_keys="ones"),
-        T.Catd(keys=["ones", DataKeys.COLOR, "height"], dst_key=DataKeys.X),
-        T.RenameItemsd(keys=[DataKeys.SEGMENT], names=[DataKeys.LABEL]),
-        T.KeepItemsd(keys=[DataKeys.X, DataKeys.POS, DataKeys.LABEL]),
+        T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
+        T.AxisMinOffset(keys=DataKeys.POS, dst_keys="height", axis=2),
+        T.OnesLike(keys="height", dst_keys="ones"),
+        T.Cat(keys=["ones", DataKeys.COLOR, "height"], dst_key=DataKeys.X),
+        T.RenameItems(keys=[DataKeys.SEGMENT], names=[DataKeys.LABEL]),
+        T.KeepItems(keys=[DataKeys.X, DataKeys.POS, DataKeys.LABEL]),
     ]
 )
 
