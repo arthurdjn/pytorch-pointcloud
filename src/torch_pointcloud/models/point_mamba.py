@@ -812,8 +812,8 @@ class PointMambaMAE(BaseModel):
     weights="hf://torch-pointcloud/point-mamba/point-mamba-base.modelnet40.pth",
     transforms=T.Compose(
         [
-            T.NormalizeScaled(keys="pos"),
-            T.SampleFarthestPointsd(pos_key="pos", num_samples=1024, random_start=False),
+            T.NormalizeScale(keys="pos"),
+            T.SampleFarthestPoints(pos_key="pos", num_samples=1024, random_start=False),
         ]
     ),
     hparams=dict(
@@ -847,8 +847,8 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn.pth",
     transforms=T.Compose(
         [
-            T.RemoveNearOrigind(pos_key="pos", radius=RADIUS),
-            T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
+            T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
+            T.SampleFarthestPoints(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
     hparams=dict(
@@ -882,8 +882,8 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
     weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-nobg.pth",
     transforms=T.Compose(
         [
-            T.RemoveNearOrigind(pos_key="pos", radius=RADIUS),
-            T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
+            T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
+            T.SampleFarthestPoints(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
     hparams=dict(
@@ -917,8 +917,8 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
     weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-augmentedrot-scale75.pth",
     transforms=T.Compose(
         [
-            T.RemoveNearOrigind(pos_key="pos", radius=RADIUS),
-            T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
+            T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
+            T.SampleFarthestPoints(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
     hparams=dict(

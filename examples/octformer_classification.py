@@ -140,19 +140,19 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") 
 def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     transform = T.Compose(
         [
-            T.RandomSampleFaceVerticesd(
+            T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
                 face_key=DataKeys.FACE,
                 normal_key=DataKeys.NORMAL,
                 num_samples=args.num_points,
             ),
-            T.Centerd(keys=DataKeys.POS, method="bbox"),
-            T.NormalizeScaled(keys=DataKeys.POS, method="bbox"),
-            T.InboxMaskd(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
-            T.ApplyMaskd(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
-            T.Absd(keys=DataKeys.NORMAL),
-            T.ToTensord(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
-            T.BuildOctreed(
+            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
+            T.InboxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
+            T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
+            T.Abs(keys=DataKeys.NORMAL),
+            T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
+            T.BuildOctree(
                 pos_key=DataKeys.POS,
                 octree_key=DataKeys.OCTREE,
                 depth=6,

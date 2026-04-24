@@ -2,77 +2,36 @@ from unittest.mock import MagicMock, Mock, patch, sentinel
 
 import torch
 
-from torch_pointcloud.transforms import NormalizeScale, RandomSample, RandomSampleFaceVertices
 from torch_pointcloud.transforms.transforms import (
     Abs,
+    AlignAxis,
     ApplyMask,
-    BoundingBox,
+    AxisMinOffset,
+    BallMask,
+    Cat,
+    Center,
     Compose,
+    CopyItems,
+    Divide,
+    DivideKey,
     InboxMask,
+    KeepItems,
+    NormalizeScale,
+    OnesLike,
+    RandomSample,
+    RandomSampleFaceVertices,
+    Relabel,
     RemoveNearOrigin,
+    RenameItems,
     SampleFarthestPoints,
+    Scale,
+    SetValue,
+    SubtractKey,
+    ToTensor,
 )
 
 
-@patch("torch_pointcloud.transforms.functional.random_sample")
-def test_random_sample_transform(mock_fn: Mock) -> None:
-    """Test that RandomSample transform calls the functional API correctly."""
-    tensor = sentinel.tensor
-    num_samples = sentinel.num_samples
-    return_indices = sentinel.return_indices
-    generator = sentinel.generator
-    transform = RandomSample(num_samples=num_samples, return_indices=return_indices, generator=generator)
-
-    result = transform(tensor)
-
-    mock_fn.assert_called_once_with(
-        tensor,
-        num_samples=num_samples,
-        return_indices=return_indices,
-        generator=generator,
-    )
-
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.random_sample_face_vertices")
-def test_random_sample_face_vertices_transform(mock_fn: Mock) -> None:
-    """Test that RandomSampleFaceVertices transform calls the functional API correctly."""
-    vertices = sentinel.vertices
-    face = sentinel.face
-    num_samples = sentinel.num_samples
-    return_normals = sentinel.return_normals
-    generator = sentinel.generator
-
-    transform = RandomSampleFaceVertices(num_samples=num_samples, return_normals=return_normals, generator=generator)
-    result = transform(vertices, face)
-
-    mock_fn.assert_called_once_with(
-        vertices,
-        face,
-        num_samples=num_samples,
-        return_normals=return_normals,
-        generator=generator,
-    )
-
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.normalize_scale")
-def test_normalize_scale_transform(mock_fn: Mock) -> None:
-    """Test that NormalizeScale transform calls the functional API correctly."""
-    tensor = sentinel.tensor
-    eps = sentinel.eps
-    transform = NormalizeScale(eps=eps)
-
-    result = transform(tensor)
-
-    mock_fn.assert_called_once_with(tensor, eps=eps, method="centroid")
-    assert result is mock_fn.return_value
-
-
 def test_compose_applies_transforms_in_order() -> None:
-    """Test that Compose applies transforms sequentially."""
     t1 = MagicMock()
     t2 = MagicMock()
     t1.return_value = sentinel.after_t1
@@ -87,7 +46,6 @@ def test_compose_applies_transforms_in_order() -> None:
 
 
 def test_compose_single_transform() -> None:
-    """Test Compose with a single transform."""
     t1 = MagicMock()
     t1.return_value = sentinel.result
 
@@ -99,7 +57,6 @@ def test_compose_single_transform() -> None:
 
 
 def test_compose_with_list_input() -> None:
-    """Test Compose applies transforms element-wise when data is a list."""
     t1 = MagicMock(side_effect=lambda x: x * 2)
     compose = Compose([t1])
 
@@ -110,9 +67,8 @@ def test_compose_with_list_input() -> None:
 
 
 def test_compose_repr() -> None:
-    """Test Compose repr contains child transforms."""
-    t1 = Abs()
-    t2 = NormalizeScale(eps=1e-6)
+    t1 = Abs(keys="pos")
+    t2 = NormalizeScale(keys="pos", eps=1e-6)
     compose = Compose([t1, t2])
     repr_str = repr(compose)
     assert "Compose" in repr_str
@@ -120,165 +76,376 @@ def test_compose_repr() -> None:
     assert "NormalizeScale" in repr_str
 
 
-@patch("torch_pointcloud.transforms.functional.sample_farthest_points")
-def test_sample_farthest_points_transform_num_samples(mock_fn: Mock) -> None:
-    """Test that SampleFarthestPoints delegates to functional API with num_samples."""
-    pos = sentinel.pos
-    num_samples = 10
+@patch("torch_pointcloud.transforms.transforms.F.random_sample")
+def test_random_sample(mock_fn: Mock) -> None:
+    sampled_tensor = sentinel.sampled_tensor
+    sampled_indices = sentinel.indices
+    mock_fn.return_value = (sampled_tensor, sampled_indices)
 
-    transform = SampleFarthestPoints(num_samples=num_samples)
-    result = transform(pos)
+    data = {"pos": MagicMock(), "normal": MagicMock(), "other": MagicMock()}
+    transform = RandomSample(keys=["pos", "normal"], num_samples=10)
+    result = transform(data)
 
-    mock_fn.assert_called_once_with(pos, num_samples=num_samples, ratio=None, random_start=False)
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.sample_farthest_points")
-def test_sample_farthest_points_transform_ratio(mock_fn: Mock) -> None:
-    """Test that SampleFarthestPoints delegates to functional API with ratio."""
-    pos = sentinel.pos
-    ratio = 0.5
-
-    transform = SampleFarthestPoints(ratio=ratio)
-    result = transform(pos)
-
-    mock_fn.assert_called_once_with(pos, num_samples=None, ratio=ratio, random_start=False)
-    assert result is mock_fn.return_value
+    mock_fn.assert_called_once_with(data["pos"], 10, return_indices=True, generator=None)
+    assert result["pos"] is sampled_tensor
+    assert result["normal"] is data["normal"][sampled_indices]
+    assert result["other"] is data["other"]
 
 
-@patch("torch_pointcloud.transforms.functional.sample_farthest_points")
-def test_sample_farthest_points_transform_random_start(mock_fn: Mock) -> None:
-    """Test that SampleFarthestPoints delegates to functional API with random_start."""
-    pos = sentinel.pos
+@patch("torch_pointcloud.transforms.transforms.F.random_sample_face_vertices")
+def test_random_sample_face_vertices(mock_fn: Mock) -> None:
+    mock_fn.return_value = (sentinel.sampled_vertices, sentinel.sampled_normals)
 
-    transform = SampleFarthestPoints(num_samples=5, random_start=True)
-    result = transform(pos)
+    data = {"vertices": MagicMock(), "face": MagicMock(), "other": MagicMock()}
+    transform = RandomSampleFaceVertices(keys=["vertices"], face_key="face", normal_key="normal", num_samples=5)
+    result = transform(data)
 
-    mock_fn.assert_called_once_with(pos, num_samples=5, ratio=None, random_start=True)
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.remove_near_origin")
-def test_remove_near_origin_transform(mock_fn: Mock) -> None:
-    """Test that RemoveNearOrigin delegates to functional API."""
-    pos = sentinel.pos
-    radius = 0.01
-
-    transform = RemoveNearOrigin(radius=radius)
-    result = transform(pos)
-
-    mock_fn.assert_called_once_with(pos, radius=radius, return_mask=False)
-    assert result is mock_fn.return_value
+    mock_fn.assert_called_once_with(data["vertices"], data["face"], 5, generator=None, return_normals=True)
+    assert result["vertices"] is sentinel.sampled_vertices
+    assert result["normal"] is sentinel.sampled_normals
+    assert result["other"] is data["other"]
 
 
-@patch("torch_pointcloud.transforms.functional.remove_near_origin")
-def test_remove_near_origin_transform_with_mask(mock_fn: Mock) -> None:
-    """Test that RemoveNearOrigin delegates to functional API with return_mask."""
-    pos = sentinel.pos
-    radius = sentinel.radius
+@patch("torch_pointcloud.transforms.transforms.F.sample_farthest_points")
+def test_sample_farthest_points(mock_fn: Mock) -> None:
+    indices = torch.tensor([0, 3, 7])
+    mock_fn.return_value = indices
 
-    mock_fn.return_value = (sentinel.filtered, sentinel.mask)
+    pos = torch.randn(10, 3)
+    labels = torch.arange(10)
+    data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    transform = RemoveNearOrigin(radius=radius)
-    result = transform(pos, return_mask=True)
+    transform = SampleFarthestPoints(pos_key="pos", keys=["label"], num_samples=3)
+    result = transform(data)
 
-    mock_fn.assert_called_once_with(pos, radius=radius, return_mask=True)
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.remove_near_origin")
-def test_remove_near_origin_transform_default_radius(mock_fn: Mock) -> None:
-    """Test that RemoveNearOrigin uses default radius of 1e-3."""
-    pos = sentinel.pos
-
-    transform = RemoveNearOrigin()
-    _ = transform(pos)
-
-    mock_fn.assert_called_once_with(pos, radius=1e-3, return_mask=False)
+    mock_fn.assert_called_once_with(pos, num_samples=3, ratio=None, random_start=False)
+    assert torch.equal(result["pos"], pos[indices])
+    assert torch.equal(result["label"], labels[indices])
+    assert result["other"] is sentinel.other
 
 
-@patch("torch_pointcloud.transforms.functional.abs")
-def test_abs_transform_default(mock_fn: Mock) -> None:
-    """Test that Abs transform delegates to functional API with default inplace=False."""
-    tensor = sentinel.tensor
+@patch("torch_pointcloud.transforms.transforms.F.sample_farthest_points")
+def test_sample_farthest_points_ratio(mock_fn: Mock) -> None:
+    mock_fn.return_value = torch.tensor([0, 2])
+    data = {"pos": torch.randn(5, 3)}
 
-    transform = Abs()
-    result = transform(tensor)
+    transform = SampleFarthestPoints(pos_key="pos", ratio=0.5)
+    transform(data)
 
-    mock_fn.assert_called_once_with(tensor, inplace=False)
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.abs")
-def test_abs_transform_inplace(mock_fn: Mock) -> None:
-    """Test that Abs transform delegates to functional API with inplace=True."""
-    tensor = sentinel.tensor
-
-    transform = Abs(inplace=True)
-    result = transform(tensor)
-
-    mock_fn.assert_called_once_with(tensor, inplace=True)
-    assert result is mock_fn.return_value
+    mock_fn.assert_called_once_with(data["pos"], num_samples=None, ratio=0.5, random_start=False)
 
 
-@patch("torch_pointcloud.transforms.functional.bounding_box")
-def test_bounding_box_transform_default_dim(mock_fn: Mock) -> None:
-    """Test that BoundingBox transform delegates with default dim=0."""
-    tensor = sentinel.tensor
+@patch("torch_pointcloud.transforms.transforms.F.sample_farthest_points")
+def test_sample_farthest_points_random_start(mock_fn: Mock) -> None:
+    mock_fn.return_value = torch.tensor([0])
+    data = {"pos": torch.randn(5, 3)}
 
-    transform = BoundingBox()
-    result = transform(tensor)
+    transform = SampleFarthestPoints(pos_key="pos", num_samples=1, random_start=True)
+    transform(data)
 
-    mock_fn.assert_called_once_with(tensor, dim=0)
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.bounding_box")
-def test_bounding_box_transform_custom_dim(mock_fn: Mock) -> None:
-    """Test that BoundingBox transform delegates with custom dim=0."""
-    tensor = sentinel.tensor
-
-    transform = BoundingBox(dim=0)
-    result = transform(tensor)
-
-    mock_fn.assert_called_once_with(tensor, dim=0)
-    assert result is mock_fn.return_value
+    mock_fn.assert_called_once_with(data["pos"], num_samples=1, ratio=None, random_start=True)
 
 
-@patch("torch_pointcloud.transforms.functional.inbox_mask")
-def test_inbox_mask_transform_default_dim(mock_fn: Mock) -> None:
-    """Test that InboxMask transform delegates with default dim=-1."""
-    tensor = sentinel.tensor
-    bbox = sentinel.bbox
+@patch("torch_pointcloud.transforms.transforms.F.normalize_scale")
+def test_normalize_scale(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.normalized
+    data = {"pos": MagicMock(), "other": sentinel.other}
 
-    transform = InboxMask()
-    result = transform(tensor, bbox)
+    transform = NormalizeScale(keys=["pos"])
+    result = transform(data)
 
-    mock_fn.assert_called_once_with(tensor, bbox, dim=-1)
-    assert result is mock_fn.return_value
-
-
-@patch("torch_pointcloud.transforms.functional.inbox_mask")
-def test_inbox_mask_transform_custom_dim(mock_fn: Mock) -> None:
-    """Test that InboxMask transform delegates with custom dim=0."""
-    tensor = sentinel.tensor
-    bbox = sentinel.bbox
-
-    transform = InboxMask(dim=0)
-    result = transform(tensor, bbox)
-
-    mock_fn.assert_called_once_with(tensor, bbox, dim=0)
-    assert result is mock_fn.return_value
+    mock_fn.assert_called_once_with(data["pos"], eps=1e-6, method="centroid")
+    assert result["pos"] is sentinel.normalized
+    assert result["other"] is sentinel.other
 
 
-@patch("torch_pointcloud.transforms.functional.apply_mask")
-def test_apply_mask_transform(mock_fn: Mock) -> None:
-    """Test that ApplyMask transform delegates to functional API."""
-    tensor = sentinel.tensor
+@patch("torch_pointcloud.transforms.transforms.F.normalize_scale")
+def test_normalize_scale_bbox_method(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.normalized
+    data = {"pos": MagicMock()}
+
+    transform = NormalizeScale(keys=["pos"], method="bbox", eps=1e-8)
+    transform(data)
+
+    mock_fn.assert_called_once_with(data["pos"], eps=1e-8, method="bbox")
+
+
+@patch("torch_pointcloud.transforms.transforms.F.remove_near_origin")
+def test_remove_near_origin(mock_fn: Mock) -> None:
+    mask = torch.tensor([False, True, True, False])
+    mock_fn.return_value = (sentinel.filtered_pos, mask)
+
+    pos = torch.randn(4, 3)
+    labels = torch.tensor([0, 1, 2, 3])
+    data = {"pos": pos, "label": labels, "other": sentinel.other}
+
+    transform = RemoveNearOrigin(pos_key="pos", keys=["label"], radius=0.01)
+    result = transform(data)
+
+    mock_fn.assert_called_once_with(pos, radius=0.01, return_mask=True)
+    assert torch.equal(result["pos"], pos[mask])
+    assert torch.equal(result["label"], labels[mask])
+    assert result["other"] is sentinel.other
+
+
+@patch("torch_pointcloud.transforms.transforms.F.remove_near_origin")
+def test_remove_near_origin_defaults(mock_fn: Mock) -> None:
+    mock_fn.return_value = (sentinel.filtered, torch.tensor([True]))
+    data = {"pos": torch.randn(1, 3)}
+
+    transform = RemoveNearOrigin(pos_key="pos")
+    transform(data)
+
+    mock_fn.assert_called_once_with(data["pos"], radius=1e-3, return_mask=True)
+
+
+@patch("torch_pointcloud.transforms.transforms.F.abs")
+def test_abs_default(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.abs_result
+    data = {"pos": MagicMock(), "other": sentinel.other}
+
+    transform = Abs(keys=["pos"])
+    result = transform(data)
+
+    mock_fn.assert_called_once_with(data["pos"], inplace=False)
+    assert result["pos"] is sentinel.abs_result
+    assert result["other"] is sentinel.other
+
+
+@patch("torch_pointcloud.transforms.transforms.F.abs")
+def test_abs_inplace(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.result
+    data = {"pos": MagicMock()}
+
+    transform = Abs(keys=["pos"], inplace=True)
+    transform(data)
+
+    mock_fn.assert_called_once_with(data["pos"], inplace=True)
+
+
+@patch("torch_pointcloud.transforms.transforms.F.abs")
+def test_abs_multiple_keys(mock_fn: Mock) -> None:
+    mock_fn.side_effect = [sentinel.abs_a, sentinel.abs_b]
+    data = {"a": MagicMock(), "b": MagicMock(), "c": sentinel.c}
+
+    transform = Abs(keys=["a", "b"])
+    result = transform(data)
+
+    assert mock_fn.call_count == 2
+    assert result["a"] is sentinel.abs_a
+    assert result["b"] is sentinel.abs_b
+    assert result["c"] is sentinel.c
+
+
+@patch("torch_pointcloud.transforms.transforms.F.inbox_mask")
+def test_inbox_mask(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.mask
+    data = {"pos": MagicMock()}
+
+    transform = InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))
+    result = transform(data)
+
+    mock_fn.assert_called_once_with(data["pos"], (0.0, 0.0, 1.0, 1.0), dim=-1)
+    assert result["pos"] is sentinel.mask
+
+
+@patch("torch_pointcloud.transforms.transforms.F.inbox_mask")
+def test_inbox_mask_with_dst_keys(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.mask
+    data = {"pos": MagicMock()}
+
+    transform = InboxMask(keys=["pos"], bbox=(0.0, 1.0), dst_keys=["mask"], dim=0)
+    result = transform(data)
+
+    mock_fn.assert_called_once_with(data["pos"], (0.0, 1.0), dim=0)
+    assert result["mask"] is sentinel.mask
+    assert result["pos"] is data["pos"]
+
+
+@patch("torch_pointcloud.transforms.transforms.F.apply_mask")
+def test_apply_mask(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.masked
     mask = sentinel.mask
+    data = {"pos": MagicMock(), "mask": mask, "other": sentinel.other}
 
-    transform = ApplyMask(mask=mask)
-    result = transform(tensor)
+    transform = ApplyMask(keys=["pos"], mask_key="mask")
+    result = transform(data)
 
-    mock_fn.assert_called_once_with(tensor, mask)
-    assert result is mock_fn.return_value
+    mock_fn.assert_called_once_with(data["pos"], mask)
+    assert result["pos"] is sentinel.masked
+    assert result["other"] is sentinel.other
+
+
+@patch("torch_pointcloud.transforms.transforms.F.apply_mask")
+def test_apply_mask_with_dst_keys(mock_fn: Mock) -> None:
+    mock_fn.return_value = sentinel.masked
+    data = {"pos": MagicMock(), "mask": sentinel.mask}
+
+    transform = ApplyMask(keys=["pos"], mask_key="mask", dst_keys=["filtered"])
+    result = transform(data)
+
+    assert result["filtered"] is sentinel.masked
+    assert result["pos"] is data["pos"]
+
+
+def test_set_value() -> None:
+    data = {"a": 1, "other": sentinel.other}
+    transform = SetValue(keys=["a", "b"], values=[42, 99])
+    result = transform(data)
+
+    assert result["a"] == 42
+    assert result["b"] == 99
+    assert result["other"] is sentinel.other
+
+
+def test_scale() -> None:
+    data = {"pos": torch.tensor([1.0, 2.0, 3.0]), "other": sentinel.other}
+    transform = Scale(keys=["pos"], scale=2.0)
+    result = transform(data)
+
+    assert torch.equal(result["pos"], torch.tensor([2.0, 4.0, 6.0]))
+    assert result["other"] is sentinel.other
+
+
+def test_divide() -> None:
+    data = {"pos": torch.tensor([2.0, 4.0, 6.0]), "other": sentinel.other}
+    transform = Divide(keys=["pos"], divisor=2.0)
+    result = transform(data)
+
+    assert torch.equal(result["pos"], torch.tensor([1.0, 2.0, 3.0]))
+    assert result["other"] is sentinel.other
+
+
+def test_center_bbox() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
+    data = {"pos": pos}
+    transform = Center(keys=["pos"], method="bbox")
+    result = transform(data)
+
+    expected = pos - torch.tensor([1.0, 1.0, 1.0])
+    assert torch.allclose(result["pos"], expected)
+
+
+def test_center_mean() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
+    data = {"pos": pos}
+    transform = Center(keys=["pos"], method="mean")
+    result = transform(data)
+
+    expected = pos - pos.mean(dim=0)
+    assert torch.allclose(result["pos"], expected)
+
+
+def test_align_axis() -> None:
+    pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    data = {"pos": pos}
+    transform = AlignAxis(keys=["pos"], dim=-1)
+    result = transform(data)
+
+    assert result["pos"][:, -1].min() == 0.0
+
+
+def test_ball_mask() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [10.0, 10.0, 10.0]])
+    data = {"pos": pos}
+    transform = BallMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])
+    result = transform(data)
+
+    assert result["mask"][0].item() is True
+    assert result["mask"][1].item() is False
+
+
+def test_relabel() -> None:
+    data = {"seg": torch.tensor([1, 2, 5, 255])}
+    transform = Relabel(keys=["seg"], labels=[1, 2, 5], default=255)
+    result = transform(data)
+
+    assert result["seg"][0] == 0
+    assert result["seg"][1] == 1
+    assert result["seg"][2] == 2
+    assert result["seg"][3] == 255
+
+
+def test_rename_items() -> None:
+    data = {"old": sentinel.value, "keep": sentinel.other}
+    transform = RenameItems(keys=["old"], names=["new"])
+    result = transform(data)
+
+    assert "old" not in result
+    assert result["new"] is sentinel.value
+    assert result["keep"] is sentinel.other
+
+
+def test_copy_items() -> None:
+    data = {"src": torch.tensor([1.0, 2.0]), "keep": sentinel.other}
+    transform = CopyItems(keys=["src"], names=["dst"])
+    result = transform(data)
+
+    assert torch.equal(result["dst"], result["src"])
+    assert result["dst"] is not result["src"]
+    assert result["keep"] is sentinel.other
+
+
+def test_subtract_key() -> None:
+    data = {"a": torch.tensor([5.0, 6.0]), "b": torch.tensor([1.0, 2.0])}
+    transform = SubtractKey(keys=["a"], sub_keys=["b"])
+    result = transform(data)
+
+    assert torch.equal(result["a"], torch.tensor([4.0, 4.0]))
+
+
+def test_divide_key() -> None:
+    data = {"a": torch.tensor([6.0, 8.0]), "b": torch.tensor([2.0, 4.0])}
+    transform = DivideKey(keys=["a"], div_keys=["b"])
+    result = transform(data)
+
+    assert torch.equal(result["a"], torch.tensor([3.0, 2.0]))
+
+
+def test_to_tensor() -> None:
+    data = {"x": [1.0, 2.0, 3.0]}
+    transform = ToTensor(keys=["x"], dtype=torch.float32)
+    result = transform(data)
+
+    assert isinstance(result["x"], torch.Tensor)
+    assert result["x"].dtype == torch.float32
+
+
+def test_ones_like() -> None:
+    data = {"pos": torch.randn(5, 3)}
+    transform = OnesLike(keys=["pos"], dst_keys=["ones"])
+    result = transform(data)
+
+    assert torch.equal(result["ones"], torch.ones(5, 3))
+
+
+def test_axis_min_offset() -> None:
+    pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    data = {"pos": pos}
+    transform = AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"])
+    result = transform(data)
+
+    assert result["h"].shape == (2, 1)
+    assert result["h"][0].item() == 0.0
+    assert result["h"][1].item() == 3.0
+
+
+def test_cat() -> None:
+    data = {
+        "a": torch.ones(4, 2),
+        "b": torch.zeros(4, 3),
+    }
+    transform = Cat(keys=["a", "b"], dst_key="x", dim=-1)
+    result = transform(data)
+
+    assert result["x"].shape == (4, 5)
+
+
+def test_keep_items() -> None:
+    data = {"pos": sentinel.pos, "color": sentinel.color, "drop": sentinel.drop}
+    transform = KeepItems(keys=["pos", "color"])
+    result = transform(data)
+
+    assert set(result.keys()) == {"pos", "color"}
+    assert result["pos"] is sentinel.pos
+    assert result["color"] is sentinel.color
