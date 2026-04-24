@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence
 
+import torch
 import torch.nn as nn
 from torch import Tensor
 
@@ -81,6 +82,19 @@ class LogSoftmaxPool(nn.Module):
 
     def forward(self, x: Tensor, batch: Tensor) -> Tensor:
         return scatter(x, batch, dim=self.dim, dim_size=self.dim_size, reduce="log_softmax")
+
+
+class CatPool(nn.Module):
+    def __init__(self, pools: Sequence["PoolLike"] = ("max", "mean"), dim: int = 0, dim_size: Optional[int] = None):
+        super().__init__()
+        self.pools = nn.ModuleList([create_pool(p, dim=dim, dim_size=dim_size) for p in pools])
+
+    @property
+    def num_pools(self) -> int:
+        return len(self.pools)
+
+    def forward(self, x: Tensor, batch: Tensor) -> Tensor:
+        return torch.cat([pool(x, batch) for pool in self.pools], dim=-1)
 
 
 PoolName = Literal[

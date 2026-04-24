@@ -209,7 +209,8 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
         raise FileNotFoundError(f"Model weights not found at {local_path.as_posix()}. Download the weights first.")
 
     weights_data = torch.load(local_path, weights_only=True)
-    msg = model.load_state_dict(weights_data["state_dict"], strict=False)
+    state_dict = weights_data["state_dict"] if "state_dict" in weights_data else weights_data
+    msg = model.load_state_dict(state_dict, strict=True)
     if msg.missing_keys or msg.unexpected_keys:
         warnings.warn(
             f"Model {name!r} loaded with unexpected.\n"

@@ -78,7 +78,7 @@ class TNet(nn.Module):
 
         self.transform = nn.Linear(mlp2_dims[-1], k * k)
         nn.init.zeros_(self.transform.weight)
-        nn.init.eye_(self.transform.bias.view(k, k))
+        nn.init.zeros_(self.transform.bias)
 
     def forward(self, x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
         """Forward pass of the T-Net.

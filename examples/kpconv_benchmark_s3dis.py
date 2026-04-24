@@ -45,7 +45,8 @@ def main() -> None:
         areas=list(args.areas),
         download=args.download,
         transform=transform,
-        show_progress=False,
+        show_progress=True,
+        num_workers=12,
     )
     if args.limit is not None:
         n = min(int(args.limit), len(test_dataset))  # type: ignore[arg-type]

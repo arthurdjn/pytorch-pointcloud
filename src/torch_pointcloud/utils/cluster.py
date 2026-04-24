@@ -1,11 +1,13 @@
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.config import FPS_RANDOM_START
 
 from .imports import optional_import
+from .types import OptTensor
 
 if TYPE_CHECKING:
     import torch_cluster
@@ -13,6 +15,79 @@ if TYPE_CHECKING:
 
 scatter_min, _ = optional_import("torch_scatter", name="scatter_min")
 torch_cluster, _ = optional_import("torch_cluster")
+
+
+def knn(
+    x: Tensor,
+    y: Tensor,
+    k: int,
+    batch_x: OptTensor = None,
+    batch_y: OptTensor = None,
+    cosine: bool = False,
+    num_workers: int = 1,
+    batch_size: Optional[int] = None,
+) -> Tensor:
+    r"""Find the $k$ nearest neighbors in $x$ for each point in $y$.
+    This function is a wrapper around the `torch_cluster.knn` function, and supports the same arguments.
+    However, in case the `batch_x` and `batch_y` tensors are provided, and the samples have the same number of nodes,
+    this function uses a more efficient implementation that is significantly faster on GPU using `torch.cdist` + `topk`.
+
+    Args:
+        x: The source tensor to find the nearest neighbors of shape $(N, *)$.
+        y: The target tensor to find the nearest neighbors of shape $(M, *)$.
+        k: The number of nearest neighbors to find.
+        batch_x: The batch tensor of the source tensor of shape $(N,)$.
+        batch_y: The batch tensor of the target tensor of shape $(M,)$.
+        cosine: Whether to use cosine distance.
+        num_workers: The number of workers to use for the computation.
+        batch_size: The batch size to use for the computation.
+
+    Returns:
+        The nearest neighbors of shape $(2, M*k)$.
+    """
+
+    def _torch_cluster_knn() -> Tensor:
+        return torch_cluster.knn(
+            x=x,
+            y=y,
+            k=k,
+            batch_x=batch_x,
+            batch_y=batch_y,
+            cosine=cosine,
+            num_workers=num_workers,
+            batch_size=batch_size,
+        )
+
+    if batch_x is None or batch_y is None:
+        return _torch_cluster_knn()
+
+    counts_x = batch_x.bincount()
+    counts_y = batch_y.bincount()
+
+    if counts_x.numel() == 0 or not (counts_x[0] == counts_x).all() or not (counts_y[0] == counts_y).all():
+        return _torch_cluster_knn()
+
+    N_x = int(counts_x[0].item())
+    N_y = int(counts_y[0].item())
+    B = counts_x.numel()
+
+    x_3d = x.view(B, N_x, -1)
+    y_3d = y.view(B, N_y, -1)
+
+    if cosine:
+        x_3d = F.normalize(x_3d, dim=-1)
+        y_3d = F.normalize(y_3d, dim=-1)
+
+    dist = torch.cdist(y_3d, x_3d)  # (B, N_y, N_x)
+    _, idx = dist.topk(k, dim=-1, largest=False)  # (B, N_y, k)
+
+    offsets = torch.arange(B, device=x.device).view(B, 1, 1) * N_x
+    src = (idx + offsets).reshape(-1)
+
+    offsets_y = torch.arange(B, device=x.device).view(B, 1, 1) * N_y
+    dst = (torch.arange(N_y, device=x.device).view(1, N_y, 1).expand(B, N_y, k) + offsets_y).reshape(-1)
+
+    return torch.stack([dst, src], dim=0)
 
 
 def fps(

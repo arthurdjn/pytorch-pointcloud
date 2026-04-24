@@ -73,3 +73,29 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
 def data_dir(data_dir_factory: Callable[..., Path]) -> Path:
     """Utility fixture to get a copy of the full data directory"""
     return data_dir_factory()
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register a custom flag to force the regeneration of the expected files used for anti-regression tests.
+    While one could use the [pytest-regressions](https://pytest-regressions.readthedocs.io) plugin to do this,
+    it will not support SimpleITK images out of the box.
+
+    This fixture follow the same pattern, but really simpler: just a boolean flag and you will have to
+    manually update the expected files yourself.
+
+    References:
+        - https://pytest-regressions.readthedocs.io/en/latest/overview.html#using-data-regression
+        - https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_addoption
+    """
+    parser.addoption(
+        "--force-regen",
+        action="store_true",
+        default=False,
+        help="Regenerate the expected files used for anti-regression tests",
+    )
+
+
+@pytest.fixture
+def force_regen(request: pytest.FixtureRequest) -> bool:
+    """Store the CLI flag value as a fixture to be injected into test functions."""
+    return request.config.getoption("--force-regen")
