@@ -634,7 +634,7 @@ def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
         name=f"dgcnn-antao.s3dis.area{area}",
         task="segmentation",
         weights=f"hf://torch-pointcloud/dgcnn/dgcnn-antao.s3dis.area{area}.pt",
-        params=dict(
+        hparams=dict(
             in_channels=6,
             num_classes=13,
             spatial_dim=3,
@@ -656,7 +656,7 @@ def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
     "dgcnn-antao.modelnet40.1024",
     task="classification",
     weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.modelnet40.1024.pt",
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=40,
         spatial_dim=3,
@@ -683,7 +683,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     "dgcnn-antao.modelnet40.2048",
     task="classification",
     weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.modelnet40.2048.pt",
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=40,
         spatial_dim=3,
@@ -710,7 +710,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     "dgcnn-antao.shapenetpart",
     task="segmentation",
     weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.shapenetpart.pt",
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -776,7 +776,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     "dgcnn-antao.scannet20",
     task="segmentation",
     weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.scannet20.pt",
-    params=dict(
+    hparams=dict(
         in_channels=6,
         num_classes=20,
         spatial_dim=3,

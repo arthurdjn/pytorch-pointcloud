@@ -816,7 +816,7 @@ class PointMambaMAE(BaseModel):
             T.SampleFarthestPointsd(pos_key="pos", num_samples=1024, random_start=False),
         ]
     ),
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=40,
         embedding_dim=384,
@@ -851,7 +851,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
             T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=15,
         embedding_dim=384,
@@ -886,7 +886,7 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
             T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=15,
         embedding_dim=384,
@@ -921,7 +921,7 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
             T.SampleFarthestPointsd(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
-    params=dict(
+    hparams=dict(
         in_channels=0,
         num_classes=15,
         embedding_dim=384,
@@ -950,7 +950,7 @@ def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> Poi
     "point-mamba-base.pretrain",
     task="base",
     weights="hf://torch-pointcloud/point-mamba/point-mamba-base.pretrain.pth",
-    params=dict(
+    hparams=dict(
         in_channels=0,
         embedding_dim=384,
         encoder_depth=12,
