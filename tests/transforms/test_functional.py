@@ -297,6 +297,89 @@ def test_divisible_pad_k_equals_1() -> None:
     assert torch.equal(padded_batch, batch)
 
 
+def test_divisible_pad_invalid_pad_fill() -> None:
+    """Test that divisible_pad raises ValueError for an unknown pad_fill."""
+    batch = torch.tensor([0, 0, 0])
+    with pytest.raises(ValueError, match="Unknown pad_fill"):
+        F.divisible_pad(batch, k=2, pad_fill="invalid")  # type: ignore[call-overload]
+
+
+def test_divisible_pad_replicate_basic() -> None:
+    """Test replicate fill copies from the previous patch at the same offsets."""
+    # 7 points in one batch, k=3: 3 full patches (9), needs 2 padding slots
+    # Patches: [0,1,2] [3,4,5] [6, pad, pad]
+    # Replicate: copy offsets 1,2 from previous patch [3,4,5] -> pad = [4, 5]
+    batch = torch.tensor([0, 0, 0, 0, 0, 0, 0])
+    k = 3
+    padded_idxs, padded_batch = F.divisible_pad(batch, k, pad_fill="replicate")
+    assert len(padded_idxs) == 9
+    # Real portion is identity
+    assert torch.equal(padded_idxs[:7], torch.arange(7))
+    # Padding: previous patch is [3,4,5]; remainder=1, so offsets 1,2 -> indices 4,5
+    assert torch.equal(padded_idxs[7:], torch.tensor([4, 5]))
+
+
+def test_divisible_pad_replicate_falls_back_to_cycle_for_small_batch() -> None:
+    """When batch_size <= k, replicate has no previous patch and falls back to cycle."""
+    batch = torch.tensor([0, 0])
+    k = 3
+    padded_idxs_rep, padded_batch_rep = F.divisible_pad(batch, k, pad_fill="replicate")
+    padded_idxs_cyc, padded_batch_cyc = F.divisible_pad(batch, k, pad_fill="cycle")
+    assert torch.equal(padded_idxs_rep, padded_idxs_cyc)
+    assert torch.equal(padded_batch_rep, padded_batch_cyc)
+
+
+def test_divisible_pad_replicate_no_padding_needed() -> None:
+    """When already divisible, replicate produces the same result as cycle (no padding)."""
+    batch = torch.tensor([0, 0, 0, 0, 0, 0])
+    k = 3
+    padded_idxs, padded_batch = F.divisible_pad(batch, k, pad_fill="replicate")
+    assert torch.equal(padded_idxs, torch.arange(6))
+    assert torch.equal(padded_batch, batch)
+
+
+def test_divisible_pad_replicate_multi_batch() -> None:
+    """Test replicate fill with multiple batches."""
+    # batch 0: 5 points (k=3 -> pad 1), batch 1: 4 points (k=3 -> pad 2)
+    batch = torch.tensor([0, 0, 0, 0, 0, 1, 1, 1, 1])
+    k = 3
+    padded_idxs, padded_batch = F.divisible_pad(batch, k, pad_fill="replicate")
+    # batch 0: 5 pts -> 6 padded. Patches: [0,1,2] [3,4,pad]
+    # rem=2, prev patch=[0,1,2], copy offset 2 -> index 2
+    assert padded_idxs[5] == 2
+    # batch 1: 4 pts (orig indices 5,6,7,8) -> 6 padded. Patches: [5,6,7] [8,pad,pad]
+    # rem=1, prev patch=[5,6,7], copy offsets 1,2 -> indices 6,7
+    b1_start = 6  # new_start for batch 1 (6 padded for batch 0)
+    assert padded_idxs[b1_start + 4] == 6
+    assert padded_idxs[b1_start + 5] == 7
+
+
+def test_divisible_pad_replicate_with_mode_above() -> None:
+    """Test replicate fill with mode='above' (only pad batches >= k)."""
+    # batch 0: 2 points (< k=3, skip), batch 1: 7 points (>= k=3, pad to 9)
+    batch = torch.tensor([0, 0, 1, 1, 1, 1, 1, 1, 1])
+    k = 3
+    padded_idxs, padded_batch = F.divisible_pad(batch, k, mode="above", pad_fill="replicate")
+    # batch 0: 2 points, not padded
+    assert torch.equal(padded_idxs[:2], torch.tensor([0, 1]))
+    # batch 1: 7 points (orig 2..8) -> 9 padded
+    # Patches: [2,3,4] [5,6,7] [8, pad, pad]
+    # rem=1, prev patch=[5,6,7], copy offsets 1,2 -> indices 6,7
+    assert padded_idxs[9] == 6
+    assert padded_idxs[10] == 7
+    assert len(padded_idxs) == 11  # 2 + 9
+
+
+def test_divisible_pad_replicate_inverse() -> None:
+    """Test that inverse indices correctly recover original batch with replicate fill."""
+    batch = torch.tensor([0, 0, 0, 0, 0, 0, 0])
+    k = 3
+    padded_idxs, inverse, padded_batch = F.divisible_pad(
+        batch, k, pad_fill="replicate", return_inverse=True
+    )
+    assert torch.equal(batch, padded_batch[inverse])
+
+
 def test_split_batch() -> None:
     """Test that the split batch function splits the batch into smaller chunks below a maximum size."""
     batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 3])

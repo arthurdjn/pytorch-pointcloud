@@ -1,213 +1,48 @@
-import math
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
-from torch_pointcloud.layers import ActLike, NormLike, PoolLike, create_act, create_cls_head, create_norm, create_pool
+import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
-from torch_pointcloud.transforms.functional import divisible_pad, split_batch
-from torch_pointcloud.utils.conversion import batch_to_offset, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.layers.grid_pool import GridPool
+from torch_pointcloud.layers.linear_blocks import LinearBlock
+from torch_pointcloud.layers.serialized_attention import SerializedAttention
+from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
+from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
 
 if TYPE_CHECKING:
-    import flash_attn
     import spconv.pytorch as spconv
-    import torch_scatter
 
 
-flash_attn, _FLASH_ATTN_AVAILABLE = optional_import("flash_attn")
-torch_scatter, _ = optional_import("torch_scatter")
 spconv, _ = optional_import("spconv.pytorch")
 
 
-class RelativePositionalEncoding(nn.Module):
-    def __init__(self, patch_size: int, num_heads: int) -> None:
-        super().__init__()
-        self.patch_size = patch_size
-        self.num_heads = num_heads
-        self.coords_boundary = int(math.pow(4 * patch_size, 1 / 3) * 2)
-        self.rpe_num = 2 * self.coords_boundary + 1
-        self.rpe_table = nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads))
-        nn.init.trunc_normal_(self.rpe_table, std=0.02)
-
-    def forward(self, relative_coords: Tensor) -> Tensor:
-        clamped_coords = relative_coords.clamp(-self.coords_boundary, self.coords_boundary)
-        positive_indices = clamped_coords + self.coords_boundary
-        dim_strides = torch.arange(3, device=relative_coords.device) * self.rpe_num
-
-        idx = positive_indices + dim_strides
-
-        encodings = self.rpe_table.index_select(0, idx.reshape(-1))
-        encodings = encodings.view(idx.shape + (-1,)).sum(3)
-        encodings = encodings.permute(0, 3, 1, 2)
-
-        return encodings
-
-    def extra_repr(self) -> str:
-        return f"patch_size={self.patch_size}, num_heads={self.num_heads}"
-
-
-class SerializedAttention(nn.Module):
-    def __init__(
-        self,
-        channels: int,
-        num_heads: int,
-        patch_size: int,
-        qkv_bias: bool = True,
-        qk_scale: Optional[float] = None,
-        attn_drop: float = 0.0,
-        proj_drop: float = 0.0,
-        with_rpe: bool = False,
-        with_flash_attn: bool = True,
-        upcast_attention: bool = True,
-        upcast_softmax: bool = True,
-    ):
-        super().__init__()
-        assert channels % num_heads == 0
-        self.channels = channels
-        self.num_heads = num_heads
-        self.scale = qk_scale or (channels // num_heads) ** -0.5
-        self.upcast_attention = upcast_attention
-        self.upcast_softmax = upcast_softmax
-        self.with_rpe = with_rpe
-        self.with_flash_attn = with_flash_attn
-        self.patch_size = patch_size
-        self.attn_drop = attn_drop
-        self.proj_drop = proj_drop
-
-        if with_flash_attn:
-            if not _FLASH_ATTN_AVAILABLE:
-                raise ImportError(flash_attn)
-            elif with_rpe:
-                raise ValueError("Relative positional encoding is not supported with Flash Attention.")
-            elif upcast_attention:
-                raise ValueError("Upcasting attention is not supported with Flash Attention.")
-            elif upcast_softmax:
-                raise ValueError("Upcasting softmax is not supported with Flash Attention.")
-
-        self.qkv = torch.nn.Linear(channels, channels * 3, bias=qkv_bias)
-        self.proj = torch.nn.Linear(channels, channels)
-        self.softmax = torch.nn.Softmax(dim=-1)
-        self.rpe = RelativePositionalEncoding(patch_size, num_heads) if self.with_rpe else None
-
-    def _forward_default_attn(self, qkv: Tensor, grid_coords: OptTensor, patch_size: int) -> Tensor:
-        K, H, C = patch_size, self.num_heads, self.channels
-
-        # Encode and reshape qkv: (N', K, 3, H, C') -> (3, N', H, K, C')
-        q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
-
-        if self.upcast_attention:
-            q = q.float()
-            k = k.float()
-
-        attn = (q * self.scale) @ k.transpose(-2, -1)  # (N', H, K, K)
-
-        if self.with_rpe:
-            if self.rpe is None:
-                raise RuntimeError(
-                    "`rpe` must be provided when `with_rpe` is True. "
-                    "Please check the model configuration or reinitialize the model."
-                )
-
-            if grid_coords is None:
-                raise ValueError("`grid_coords` must be provided when `with_rpe` is True")
-
-            grid_coords = grid_coords.reshape(-1, K, 3)
-            relative_coords = grid_coords.unsqueeze(2) - grid_coords.unsqueeze(1)
-            attn = attn + self.rpe(relative_coords)
-
-        if self.upcast_softmax:
-            attn = attn.float()
-
-        attn = self.softmax(attn)
-        attn = F.dropout(attn, p=self.attn_drop, training=self.training).to(qkv.dtype)
-
-        feat = (attn @ v).transpose(1, 2).reshape(-1, C)
-        return feat
-
-    def _forward_flash_attn(self, qkv: Tensor, batch: Tensor) -> Tensor:
-        H, C = self.num_heads, self.channels
-
-        patch_idxs = split_batch(batch, self.patch_size)
-        offset = batch_to_offset(patch_idxs)
-        # NOTE: The first element of `cu_seqlens` is always 0, and should be int32 to work with `flash-attn`
-        cu_seqlens = torch.cat([torch.tensor([0], device=batch.device, dtype=torch.int), offset.int()])
-
-        feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-            qkv.half().reshape(-1, 3, H, C // H),
-            cu_seqlens,
-            max_seqlen=self.patch_size,
-            dropout_p=self.attn_drop if self.training else 0,
-            softmax_scale=self.scale,
-        )
-
-        return feat.reshape(-1, C).to(qkv.dtype)
-
-    def forward(
-        self,
-        features: Tensor,
-        grid_coords: OptTensor,
-        batch: Tensor,
-        serialized_order: OptTensor = None,
-        serialized_inverse: OptTensor = None,
-    ) -> Any:
-        # NOTE: For default attention (i.e. without Flash Attention), we use the patch size
-        # as the minimum between the batch sizes and the specified patch size
-        patch_size: int = (
-            self.patch_size  # type: ignore[assignment]
-            if self.with_flash_attn
-            else min(torch.bincount(batch).min().item(), self.patch_size)  # fmt: skip
-        )
-
-        # Only pad batches larger than the patch size
-        padded_indices, unpadded_indices, padded_batch = divisible_pad(
-            batch,
-            patch_size,
-            return_inverse=True,
-            mode="above",
-        )
-
-        order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
-        inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
-
-        # Apply attention
-        qkv = self.qkv(features)[order]
-        if self.with_flash_attn:
-            features = self._forward_flash_attn(qkv, padded_batch)
-        else:
-            if grid_coords is not None:
-                grid_coords = grid_coords[order]
-            features = self._forward_default_attn(qkv, grid_coords, patch_size)
-
-        features = features[inverse]
-
-        # Head projection
-        features = self.proj(features)
-        features = F.dropout(features, p=self.proj_drop, training=self.training)
-        return features
-
-
-def to_sparse_conv_tensor(
-    features: Tensor,
-    grid_coords: Tensor,
+def serialize(
+    pos: Tensor,
     batch: Tensor,
-    spatial_shape: Optional[Sequence[int]] = None,
-    padding: int = 96,
-) -> "spconv.SparseConvTensor":
-    if spatial_shape is None:
-        spatial_shape = torch.add(torch.max(grid_coords, dim=0).values, padding).tolist()
+    orders: Sequence[SerializationOrder],
+    shuffle: bool = False,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    if shuffle:
+        perm = torch.randperm(len(orders))
+        orders = [orders[i] for i in perm]
 
-    return spconv.SparseConvTensor(
-        features=features,
-        indices=torch.cat([batch.unsqueeze(-1).int(), grid_coords.int()], dim=1).contiguous(),
-        spatial_shape=spatial_shape,
-        batch_size=batch[-1].item() + 1,
-    )
+    depth = int(pos.max()).bit_length()
+    serialized_code = torch.stack([serialize_coords(pos, batch, depth=depth, order=order) for order in orders])
+    serialized_order = torch.argsort(serialized_code, dim=1)
+    serialized_inverse = torch.argsort(serialized_order, dim=1)
+    return serialized_code, serialized_order, serialized_inverse
 
 
 class Block(nn.Module):
@@ -222,15 +57,20 @@ class Block(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.0,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "gelu",
+        norm: Union[str, Callable] = "layer_norm",
+        act: Union[str, Callable] = "gelu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         cpe_indice_key: Optional[str] = None,
-        with_rpe: bool = False,
-        with_flash_attn: bool = True,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
         upcast_attention: bool = True,
         upcast_softmax: bool = True,
     ):
         super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+
         self.cpe_conv = spconv.SubMConv3d(
             channels,
             channels,
@@ -239,9 +79,9 @@ class Block(nn.Module):
             indice_key=cpe_indice_key,
         )
         self.cpe_proj = nn.Linear(channels, channels)
-        self.cpe_norm = create_norm(norm, channels)
+        self.cpe_norm = normalization_resolver(norm, channels, **norm_kwargs)
 
-        self.norm1 = create_norm(norm, channels)
+        self.norm1 = normalization_resolver(norm, channels, **norm_kwargs)
         self.attn = SerializedAttention(
             channels=channels,
             patch_size=patch_size,
@@ -250,16 +90,16 @@ class Block(nn.Module):
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
-            with_rpe=with_rpe,
-            with_flash_attn=with_flash_attn,
+            use_rpe=use_rpe,
+            use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
         )
 
-        self.norm2 = create_norm(norm, channels)
+        self.norm2 = normalization_resolver(norm, channels, **norm_kwargs)
         self.mlp = nn.Sequential(
             nn.Linear(channels, int(channels * mlp_ratio)),
-            create_act(act),
+            activation_resolver(act, **act_kwargs),
             nn.Dropout(proj_drop),
             nn.Linear(int(channels * mlp_ratio), channels),
             nn.Dropout(proj_drop),
@@ -268,193 +108,90 @@ class Block(nn.Module):
 
     def forward(
         self,
-        features: Tensor,
-        grid_coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
     ) -> Any:
         # Conv + Skip connection
-        shortcut = features
-        sparse_features = to_sparse_conv_tensor(features, grid_coords, batch)
-        sparse_features = self.cpe_conv(sparse_features)
-        features = sparse_features.features
-        features = self.cpe_proj(features)
-        features = self.cpe_norm(features)
+        shortcut = x
+        sparse_x = convert_to_spconv_tensor(x, pos, batch)
+        sparse_x = self.cpe_conv(sparse_x)
+        x = sparse_x.features
+        x = self.cpe_proj(x)
+        x = self.cpe_norm(x)
 
         # NOTE: Skip connection and save the new shortcut
-        features = shortcut = shortcut + features
+        x = shortcut = shortcut + x
 
         # Attention branch
-        features = self.norm1(features)
-        features = self.attn(
-            features,
-            grid_coords,
+        x = self.norm1(x)
+        x = self.attn(
+            x,
+            pos,
             batch,
             serialized_order=serialized_order,
             serialized_inverse=serialized_inverse,
         )
-        features = self.drop_path(features)
-        features = shortcut + features
+        x = self.drop_path(x)
+        x = shortcut + x
 
         # MLP branch
-        shortcut = features
-        features = self.norm2(features)
-        features = self.mlp(features)
-        features = self.drop_path(features)
-        features = shortcut + features
+        shortcut = x
+        x = self.norm2(x)
+        x = self.mlp(x)
+        x = self.drop_path(x)
+        x = shortcut + x
 
-        return features
+        return x
 
 
-class SerializedPooling(nn.Module):
+class SubMConv3dBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        stride: int = 2,
-        norm: Optional[NormLike] = None,
-        act: Optional[ActLike] = None,
-        reduce: str = "max",
-    ):
-        super().__init__()
-        if reduce not in ["sum", "mean", "min", "max"]:
-            raise ValueError(f"Invalid reduce operation: {reduce}. Must be one of: 'sum', 'mean', 'min', 'max'.")
-        if stride != 2 ** (math.ceil(stride) - 1).bit_length():
-            raise ValueError(f"Invalid stride: {stride}. Must be a power of 2.")
-
-        self.stride = stride
-        self.reduce = reduce
-        self.proj = nn.Linear(in_channels, out_channels)
-        self.norm = create_norm(norm, out_channels) if norm is not None else None
-        self.act = create_act(act) if act is not None else None
-
-    @overload
-    def forward(
-        self,
-        features: Tensor,
-        grid_coords: Tensor,
-        batch: Tensor,
-        serialized_code: Tensor,
-        return_pooling_inverse: Literal[True] = True,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
-
-    @overload
-    def forward(
-        self,
-        features: Tensor,
-        grid_coords: Tensor,
-        batch: Tensor,
-        serialized_code: Tensor,
-        return_pooling_inverse: Literal[False] = False,
-    ) -> Tuple[Tensor, Tensor, Tensor]: ...
-
-    def forward(
-        self,
-        features: Tensor,
-        grid_coords: Tensor,
-        batch: Tensor,
-        serialized_code: Tensor,
-        return_pooling_inverse: bool = False,
-    ) -> Tuple[Tensor, ...]:
-        pooling_depth = (math.ceil(self.stride) - 1).bit_length()
-        pooled_code = serialized_code >> (pooling_depth * 3)
-        _, cluster, counts = torch.unique(pooled_code[0], sorted=True, return_inverse=True, return_counts=True)
-
-        # Sort by cluster for segment_csr
-        _, indices = torch.sort(cluster)
-        idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
-        head_indices = indices[idx_ptr[:-1]]
-
-        # Pool features, positions and batch indices
-        features = torch_scatter.segment_csr(self.proj(features)[indices], idx_ptr, reduce="max")
-        grid_coords = grid_coords[head_indices] >> pooling_depth
-        batch = batch[head_indices]
-        pooled_code = pooled_code[:, head_indices]
-
-        if self.norm:
-            features = self.norm(features)
-        if self.act:
-            features = self.act(features)
-
-        if return_pooling_inverse:
-            return features, grid_coords, batch, pooled_code, cluster
-        return features, grid_coords, batch, pooled_code
-
-
-class SerializedUnpooling(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        skip_channels: int,
-        out_channels: int,
-        norm: Optional[NormLike] = None,
-        act: Optional[ActLike] = None,
-    ):
-        super().__init__()
-        self.proj = nn.Linear(in_channels, out_channels)
-        self.proj_skip = nn.Linear(skip_channels, out_channels)
-
-        self.norm = create_norm(norm, out_channels) if norm is not None else None
-        self.norm_skip = create_norm(norm, out_channels) if norm is not None else None
-
-        self.act = create_act(act) if act is not None else None
-        self.act_skip = create_act(act) if act is not None else None
-
-    def forward(self, features: Tensor, skip_features: Tensor, pooling_inverse: Tensor) -> Tensor:
-        features = self.proj(features)
-        if self.norm is not None:
-            features = self.norm(features)
-        if self.act is not None:
-            features = self.act(features)
-
-        skip_features = self.proj_skip(skip_features)
-        if self.norm_skip is not None:
-            skip_features = self.norm_skip(skip_features)
-        if self.act_skip is not None:
-            skip_features = self.act_skip(skip_features)
-
-        return skip_features + features[pooling_inverse]
-
-
-class Embedding(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        embedding_dim: int,
-        norm: Optional[NormLike] = None,
-        act: Optional[ActLike] = None,
+        kernel_size: int,
+        padding: int,
+        norm: Union[str, Callable, None] = None,
+        act: Union[str, Callable, None] = None,
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
         stem_indice_key: Optional[str] = None,
     ):
         super().__init__()
+        norm_kwargs = norm_kwargs or {}
+        act_kwargs = act_kwargs or {}
 
         self.stem = spconv.SubMConv3d(
             in_channels,
-            embedding_dim,
-            kernel_size=5,
-            padding=1,
-            bias=False,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=bias,
             indice_key=stem_indice_key,
         )
-        self.norm = create_norm(norm, embedding_dim) if norm is not None else None
-        self.act = create_act(act) if act is not None else None
+        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
+        self.act = activation_resolver(act, **act_kwargs) if act is not None else None
 
     def forward(
         self,
-        features: Tensor,
-        grid_coords: Tensor,
+        x: Tensor,
+        pos: Tensor,
         batch: Tensor,
     ) -> Tensor:
-        sparse_features = to_sparse_conv_tensor(features, grid_coords, batch)
-        sparse_features = self.stem(sparse_features)
+        sparse_x = convert_to_spconv_tensor(x, pos, batch)
+        sparse_x = self.stem(sparse_x)
 
-        features = sparse_features.features
+        x = sparse_x.features
         if self.norm is not None:
-            features = self.norm(features)
+            x = self.norm(x)
         if self.act is not None:
-            features = self.act(features)
+            x = self.act(x)
 
-        return features
+        return x
 
 
 class EncoderBlock(nn.Module):
@@ -470,17 +207,23 @@ class EncoderBlock(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        norm: NormLike = "layer_norm",
-        act: ActLike = "gelu",
-        with_rpe: bool = False,
-        with_flash_attn: bool = True,
+        norm: Union[str, Callable] = "layer_norm",
+        act: Union[str, Callable] = "gelu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
         cpe_indice_key: Optional[str] = None,
-        downsample: Optional[SerializedPooling] = None,
+        downsample: Optional[nn.Module] = None,
+        serialization_orders: Optional[Sequence[SerializationOrder]] = None,
+        shuffle_serialization_orders: bool = False,
     ):
         super().__init__()
         self.downsample = downsample
+        self.serialization_orders = serialization_orders
+        self.shuffle_serialization_orders = shuffle_serialization_orders
         drop_path = ensure_tuple_size(drop_path, size=depth)
 
         self.blocks = nn.ModuleList()
@@ -498,9 +241,11 @@ class EncoderBlock(nn.Module):
                     drop_path=drop_path[i],
                     norm=norm,
                     act=act,
+                    act_kwargs=act_kwargs,
+                    norm_kwargs=norm_kwargs,
                     cpe_indice_key=cpe_indice_key,
-                    with_rpe=with_rpe,
-                    with_flash_attn=with_flash_attn,
+                    use_rpe=use_rpe,
+                    use_flash_attn=use_flash_attn,
                     upcast_attention=upcast_attention,
                     upcast_softmax=upcast_softmax,
                 )
@@ -509,36 +254,36 @@ class EncoderBlock(nn.Module):
     @overload
     def forward(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         serialized_order: Tensor,
         serialized_inverse: Tensor,
-        return_pooling_inverse: Literal[True] = True,
+        return_inverse: Literal[True] = True,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]: ...
 
     @overload
     def forward(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         serialized_order: Tensor,
         serialized_inverse: Tensor,
-        return_pooling_inverse: Literal[False] = False,
+        return_inverse: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]: ...
 
     def forward(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         serialized_order: Tensor,
         serialized_inverse: Tensor,
-        return_pooling_inverse: bool = False,
+        return_inverse: bool = False,
     ) -> Any:
         if not serialized_code.shape == serialized_order.shape == serialized_inverse.shape:
             raise ValueError(
@@ -548,33 +293,42 @@ class EncoderBlock(nn.Module):
             )
 
         num_serializations = len(serialized_code)
-        pooling_inverse: OptTensor = None
+        inverse: OptTensor = None
 
         if self.downsample is not None:
-            features, grid_coords, batch, serialized_code, pooling_inverse = self.downsample(
-                features,
-                grid_coords,
-                batch,
-                serialized_code,
-                return_pooling_inverse=True,
-            )
-
-            serialized_order = torch.argsort(serialized_code, dim=1)
-            serialized_inverse = torch.argsort(serialized_order, dim=1)
+            if isinstance(self.downsample, GridPool):
+                assert self.serialization_orders is not None, "serialization_orders must be provided for grid pooling"
+                x, pos, batch, inverse = self.downsample(x, pos, batch)
+                serialized_code, serialized_order, serialized_inverse = serialize(
+                    pos,
+                    batch,
+                    orders=self.serialization_orders,
+                    shuffle=self.shuffle_serialization_orders,
+                )
+            else:
+                x, pos, batch, serialized_code, inverse = self.downsample(
+                    x,
+                    pos,
+                    batch,
+                    serialized_code,
+                    return_inverse=True,
+                )
+                serialized_order = torch.argsort(serialized_code, dim=1)
+                serialized_inverse = torch.argsort(serialized_order, dim=1)
 
         for i, block in enumerate(self.blocks):
             order_idx = i % num_serializations
-            features = block(
-                features,
-                grid_coords,
+            x = block(
+                x,
+                pos,
                 batch,
                 serialized_order=serialized_order[order_idx],
                 serialized_inverse=serialized_inverse[order_idx],
             )
 
-        if return_pooling_inverse:
-            return features, grid_coords, batch, serialized_code, serialized_order, serialized_inverse, pooling_inverse
-        return features, grid_coords, batch, serialized_code, serialized_order, serialized_inverse
+        if return_inverse:
+            return x, pos, batch, serialized_code, serialized_order, serialized_inverse, inverse
+        return x, pos, batch, serialized_code, serialized_order, serialized_inverse
 
 
 class DecoderBlock(nn.Module):
@@ -590,14 +344,16 @@ class DecoderBlock(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "gelu",
-        with_rpe: bool = False,
-        with_flash_attn: bool = True,
+        norm: Union[str, Callable] = "batch_norm1d",
+        act: Union[str, Callable] = "gelu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
         cpe_indice_key: Optional[str] = None,
-        upsample: Optional[SerializedUnpooling] = None,
+        upsample: Optional[SerializedUpsample] = None,
     ):
         super().__init__()
         self.upsample = upsample
@@ -618,9 +374,11 @@ class DecoderBlock(nn.Module):
                     drop_path=drop_path[i],
                     norm=norm,
                     act=act,
+                    act_kwargs=act_kwargs,
+                    norm_kwargs=norm_kwargs,
                     cpe_indice_key=cpe_indice_key,
-                    with_rpe=with_rpe,
-                    with_flash_attn=with_flash_attn,
+                    use_rpe=use_rpe,
+                    use_flash_attn=use_flash_attn,
                     upcast_attention=upcast_attention,
                     upcast_softmax=upcast_softmax,
                 )
@@ -628,200 +386,507 @@ class DecoderBlock(nn.Module):
 
     def forward(
         self,
-        features: Tensor,
-        skip_features: Tensor,
-        skip_grid_coords: Tensor,
-        skip_batch: Tensor,
-        skip_serialized_order: Tensor,
-        skip_serialized_inverse: Tensor,
-        pooling_inverse: OptTensor = None,
+        x: Tensor,
+        x_skip: Tensor,
+        pos_skip: Tensor,
+        batch_skip: Tensor,
+        serialized_order_skip: Tensor,
+        serialized_inverse_skip: Tensor,
+        inverse: OptTensor = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        if not skip_serialized_order.shape == skip_serialized_inverse.shape:
+        if not serialized_order_skip.shape == serialized_inverse_skip.shape:
             raise ValueError(
-                "`skip_serialized_order` and `skip_serialized_inverse` "
-                f"must have the same shape. Got {skip_serialized_order.shape} "
-                f"and {skip_serialized_inverse.shape} respectively."
+                "`serialized_order_skip` and `serialized_inverse_skip` "
+                f"must have the same shape. Got {serialized_order_skip.shape} "
+                f"and {serialized_inverse_skip.shape} respectively."
             )
 
-        num_serializations = len(skip_serialized_order)
+        num_serializations = len(serialized_order_skip)
 
         if self.upsample is not None:
-            if pooling_inverse is None:
-                raise ValueError("`pooling_inverse` must be provided when `upsample` module is set.")
+            if inverse is None:
+                raise ValueError("`inverse` must be provided when `upsample` module is set.")
 
-            features = self.upsample(features, skip_features, pooling_inverse)
+            x = self.upsample(x, x_skip, inverse)
 
         for i, block in enumerate(self.blocks):
             order_idx = i % num_serializations
-            features = block(
-                features,
-                skip_grid_coords,
-                skip_batch,
-                serialized_order=skip_serialized_order[order_idx],
-                serialized_inverse=skip_serialized_inverse[order_idx],
+            x = block(
+                x,
+                pos_skip,
+                batch_skip,
+                serialized_order=serialized_order_skip[order_idx],
+                serialized_inverse=serialized_inverse_skip[order_idx],
             )
 
-        return features, skip_grid_coords, skip_batch
+        return x, pos_skip, batch_skip
 
 
-def serialize(
-    grid_coords: Tensor,
-    batch: Tensor,
-    orders: Sequence[SerializationOrder],
-    shuffle: bool = False,
-) -> Tuple[Tensor, Tensor, Tensor]:
-    if shuffle:
-        perm = torch.randperm(len(orders))
-        orders = [orders[i] for i in perm]
+class PointTransformerV3Encoder(nn.Module):
+    """Point Transformer V3 encoder backbone.
 
-    depth = int(grid_coords.max()).bit_length()
-    serialized_code = torch.stack([serialize_coords(grid_coords, batch, depth=depth, order=order) for order in orders])
-    serialized_order = torch.argsort(serialized_code, dim=1)
-    serialized_inverse = torch.argsort(serialized_order, dim=1)
-    return serialized_code, serialized_order, serialized_inverse
+    Encoder-only backbone for feature extraction from 3D point clouds.
+    Supports both sparse convolution (PTV3 Mode 1) and linear (Sonata / Mode 2)
+    embedding stems, and both serialized (code-space) and grid-based pooling.
 
+    Args:
+        in_channels: Number of input channels.
+        serialization_orders: Serialization orders for attention.
+        shuffle_serialization_orders: Shuffle orders each forward pass.
+        strides: Downsampling strides between encoder stages.
+        encoder_depths: Number of blocks per encoder stage.
+        encoder_channels: Feature channels per encoder stage.
+        encoder_num_head: Attention heads per encoder stage.
+        encoder_patch_size: Patch size per encoder stage.
+        norm: Normalization layer type.
+        act: Activation function type.
+        mlp_ratio: MLP expansion ratio.
+        qkv_bias: Use bias in QKV projection.
+        qk_scale: Custom QK scaling factor.
+        attn_drop: Attention dropout rate.
+        proj_drop: Projection dropout rate.
+        drop_path: Drop path rate.
+        use_rpe: Use relative positional encoding.
+        use_flash_attn: Use Flash Attention.
+        upcast_attention: Upcast attention to fp32.
+        upcast_softmax: Upcast softmax to fp32.
+        pooling: Pooling strategy — `"serialized"` (code-space bit-shift) or
+            `"grid"` (grid-coordinate clustering).
+        embedding: Embedding type — `"sparse_conv"` (SubMConv3d stem) or
+            `"linear"` (linear projection).
 
-def create_encoder_blocks(
-    depths: Sequence[int],
-    channels: Sequence[int],
-    num_heads: Sequence[int],
-    patch_sizes: Sequence[int],
-    strides: Sequence[int],
-    mlp_ratio: float = 4.0,
-    norm: NormLike = "batch_norm1d",
-    act: ActLike = "gelu",
-    qkv_bias: bool = True,
-    qk_scale: Optional[float] = None,
-    attn_drop: float = 0.0,
-    proj_drop: float = 0.0,
-    drop_path: float = 0.0,
-    with_rpe: bool = False,
-    with_flash_attn: bool = True,
-    upcast_attention: bool = False,
-    upcast_softmax: bool = False,
-) -> nn.ModuleList:
-    depths = ensure_tuple(depths)
-    n = len(depths)
-    channels = ensure_tuple_size(channels, size=n, extra_msg="Encoder length `channels` != `depths`.")
-    num_heads = ensure_tuple_size(num_heads, size=n, extra_msg="Encoder length `num_heads` != `depths`.")
-    patch_sizes = ensure_tuple_size(patch_sizes, size=n, extra_msg="Encoder length `patch_sizes` != `depths`.")
-    strides = ensure_tuple_size(strides, size=n - 1, extra_msg="Encoder length `strides` != `depths` - 1.")
+    Inputs:
+        x: Float tensor of shape $(N, \\text{in\\_channels})$.
+        pos: Int tensor of shape $(N, 3)$.
+        batch: Long tensor of shape $(N,)$.
 
-    # Pre-compute the drop paths for each encoder block.
-    # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
-    # then the drop paths for each block, at each stage, are:
-    # - block 0: [0.0000, 0.0375]
-    # - block 1: [0.0750, 0.1125, 0.1500]
-    # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
-    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
+    Outputs:
+        Encoded features at the deepest encoder level.
+    """
 
-    blocks = nn.ModuleList()
-    for i in range(n):
-        downsample: Optional[SerializedPooling] = None
-        if i > 0:
-            downsample = SerializedPooling(
-                in_channels=channels[i - 1],
-                out_channels=channels[i],
-                stride=strides[i - 1],
-                norm=norm,
-                act=act,
-            )
+    def __init__(
+        self,
+        in_channels: int = 6,
+        serialization_orders: Sequence[SerializationOrder] = ("hilbert", "hilbert-trans"),
+        shuffle_serialization_orders: bool = True,
+        strides: Sequence[int] = (2, 2, 2, 2),
+        encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
+        encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
+        encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
+        encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
+        act: Union[str, Callable] = "gelu",
+        norm: Union[str, Callable] = "batch_norm1d",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        mlp_ratio: float = 4,
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.3,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
+        upcast_attention: bool = False,
+        upcast_softmax: bool = False,
+        pooling: str = "serialized",
+        stem_type: str = "sparse_conv",
+    ):
+        in_channels = in_channels if in_channels > 0 else 3
+        super().__init__()
+        self.in_channels = in_channels
+        self.serialization_orders = ensure_tuple(serialization_orders)
+        self.shuffle_serialization_orders = shuffle_serialization_orders
 
-        block = EncoderBlock(
-            channels=channels[i],
-            depth=depths[i],
-            num_heads=num_heads[i],
-            patch_size=patch_sizes[i],
-            mlp_ratio=mlp_ratio,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
-            drop_path=drop_paths[i].tolist(),
-            norm="layer_norm",
-            act=act,
-            cpe_indice_key=f"stage{i}",
-            with_rpe=with_rpe,
-            with_flash_attn=with_flash_attn,
-            upcast_attention=upcast_attention,
-            upcast_softmax=upcast_softmax,
-            downsample=downsample,
-        )
-        blocks.append(block)
-    return blocks
-
-
-def create_decoder_blocks(
-    depths: Sequence[int],
-    channels: Sequence[int],
-    skip_channels: Sequence[int],
-    num_heads: Sequence[int],
-    patch_sizes: Sequence[int],
-    mlp_ratio: float = 4.0,
-    norm: NormLike = "batch_norm1d",
-    act: ActLike = "gelu",
-    qkv_bias: bool = True,
-    qk_scale: Optional[float] = None,
-    attn_drop: float = 0.0,
-    proj_drop: float = 0.0,
-    drop_path: float = 0.0,
-    with_rpe: bool = False,
-    with_flash_attn: bool = True,
-    upcast_attention: bool = False,
-    upcast_softmax: bool = False,
-) -> nn.ModuleList:
-    depths = ensure_tuple(depths)
-    n = len(depths)
-    channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Decoder length `channels` != `depths` + 1.")
-    skip_channels = ensure_tuple_size(skip_channels, size=n, extra_msg="Decoder length `skip_channels` != `depths`.")
-    num_heads = ensure_tuple_size(num_heads, size=n, extra_msg="Decoder length `num_heads` != `depths`.")
-    patch_sizes = ensure_tuple_size(patch_sizes, size=n, extra_msg="Decoder length `patch_sizes` != `depths`.")
-
-    # Pre-compute the drop paths for each (decoder) block.
-    # The drop path is the same as the encoder block, but in reverse order.
-    # For example, if the drop path is 0.3, and the depths are (4, 3, 2),
-    # then the drop paths for each block at each stage are:
-    # - block 0: [0.3000, 0.2625, 0.2250, 0.1875]
-    # - block 1: [0.1500, 0.1125, 0.0750]
-    # - block 2: [0.0375, 0.0000]
-    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
-
-    blocks = nn.ModuleList()
-    for i in range(n):
-        upsample = SerializedUnpooling(
-            in_channels=channels[i],
-            skip_channels=skip_channels[i],
-            out_channels=channels[i + 1],
+        self.stem = self.configure_stem(
+            in_channels=in_channels,
+            out_channels=encoder_channels[0],
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            stem_type=stem_type,
         )
-
-        # NOTE: For decoder blocks, the drop paths should be in reverse order (i.e. higher -> lower within each block)
-        block = DecoderBlock(
-            channels=channels[i + 1],
-            depth=depths[i],
-            num_heads=num_heads[i],
-            patch_size=patch_sizes[i],
+        self.blocks = self.configure_blocks(
+            depths=encoder_depths,
+            channels=encoder_channels,
+            num_heads=encoder_num_head,
+            patch_sizes=encoder_patch_size,
+            strides=strides,
             mlp_ratio=mlp_ratio,
+            norm=norm,
+            act=act,
             qkv_bias=qkv_bias,
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
-            drop_path=drop_paths[i].tolist()[::-1],
-            norm="layer_norm",
-            act=act,
-            cpe_indice_key=f"stage{i}",
-            with_rpe=with_rpe,
-            with_flash_attn=with_flash_attn,
+            drop_path=drop_path,
+            use_rpe=use_rpe,
+            use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
-            upsample=upsample,
+            pooling=pooling,
+            serialization_orders=self.serialization_orders,
+            shuffle_serialization_orders=shuffle_serialization_orders,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
-        blocks.append(block)
-    return blocks
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.encoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
+
+    def configure_stem(
+        self,
+        in_channels: int,
+        out_channels: int,
+        norm: Union[str, Callable],
+        act: Union[str, Callable],
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
+        stem_type: str = "sparse_conv",
+    ) -> nn.Module:
+        if stem_type == "linear":
+            return LinearBlock(
+                in_channels,
+                out_channels,
+                bias=bias,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            )
+
+        return SubMConv3dBlock(
+            in_channels,
+            out_channels,
+            kernel_size=5,
+            padding=1,
+            norm=norm,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
+            bias=False,
+        )
+
+    def configure_blocks(
+        self,
+        depths: Sequence[int],
+        channels: Sequence[int],
+        num_heads: Sequence[int],
+        patch_sizes: Sequence[int],
+        strides: Sequence[int],
+        mlp_ratio: float = 4.0,
+        bias: bool = True,
+        norm: Union[str, Callable] = "batch_norm1d",
+        act: Union[str, Callable] = "gelu",
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.0,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
+        upcast_attention: bool = False,
+        upcast_softmax: bool = False,
+        pooling: str = "serialized",
+        serialization_orders: Optional[Sequence[SerializationOrder]] = None,
+        shuffle_serialization_orders: bool = False,
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> nn.ModuleList:
+        depths = ensure_tuple(depths)
+        n = len(depths)
+        channels = ensure_tuple_size(channels, size=n)
+        num_heads = ensure_tuple_size(num_heads, size=n)
+        patch_sizes = ensure_tuple_size(patch_sizes, size=n)
+        strides = ensure_tuple_size(strides, size=n - 1)
+        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
+        use_grid_pool = pooling == "grid"
+
+        blocks = nn.ModuleList()
+        for i in range(n):
+            downsample: Optional[nn.Module] = None
+            if i > 0:
+                Pool = GridPool if use_grid_pool else SerializedPool
+                downsample = Pool(
+                    in_channels=channels[i - 1],
+                    out_channels=channels[i],
+                    stride=strides[i - 1],
+                    bias=bias,
+                    act=act,
+                    norm=norm,
+                    act_kwargs=act_kwargs,
+                    norm_kwargs=norm_kwargs,
+                )
+
+            block = EncoderBlock(
+                channels=channels[i],
+                depth=depths[i],
+                num_heads=num_heads[i],
+                patch_size=patch_sizes[i],
+                mlp_ratio=mlp_ratio,
+                qkv_bias=qkv_bias,
+                qk_scale=qk_scale,
+                attn_drop=attn_drop,
+                proj_drop=proj_drop,
+                drop_path=drop_paths[i].tolist(),
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
+                cpe_indice_key=f"stage{i}",
+                use_rpe=use_rpe,
+                use_flash_attn=use_flash_attn,
+                upcast_attention=upcast_attention,
+                upcast_softmax=upcast_softmax,
+                downsample=downsample,
+                serialization_orders=serialization_orders if use_grid_pool else None,
+                shuffle_serialization_orders=shuffle_serialization_orders if use_grid_pool else False,
+            )
+
+            blocks.append(block)
+        return blocks
+
+    @overload
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        x = x if x is not None else pos.float()
+
+        serialized_code, serialized_order, serialized_inverse = serialize(
+            pos,
+            batch,
+            orders=self.serialization_orders,
+            shuffle=self.shuffle_serialization_orders,
+        )
+
+        x = self.stem(x, pos, batch)
+
+        intermediates = []
+        for i, block in enumerate(self.blocks):
+            intermediate = {
+                "x": x,
+                "pos": pos,
+                "batch": batch,
+                "serialized_code": serialized_code,
+                "serialized_order": serialized_order,
+                "serialized_inverse": serialized_inverse,
+            }
+
+            (
+                x,
+                pos,
+                batch,
+                serialized_code,
+                serialized_order,
+                serialized_inverse,
+                inverse,
+            ) = block(
+                x,
+                pos,
+                batch,
+                serialized_code=serialized_code,
+                serialized_order=serialized_order,
+                serialized_inverse=serialized_inverse,
+                return_inverse=True,
+            )
+
+            if i > 0:
+                intermediate["inverse"] = inverse
+                intermediates.append(intermediate)
+
+        if return_intermediates:
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
 
-class PointTransformerV3Classification(nn.Module):
+class PointTransformerV3Decoder(nn.Module):
+    """Point Transformer V3 decoder with skip connections.
+
+    Decoder backbone that upsamples encoder features using skip connections
+    from intermediate encoder stages. Used for dense prediction tasks like
+    semantic segmentation.
+
+    Args:
+        encoder_channels: Channel sequence from the encoder (needed to derive
+            skip-connection channels).
+        decoder_depths: Number of blocks per decoder stage.
+        decoder_channels: Feature channels per decoder stage.
+        decoder_num_head: Attention heads per decoder stage.
+        decoder_patch_size: Patch size per decoder stage.
+        norm: Normalization layer type.
+        act: Activation function type.
+        mlp_ratio: MLP expansion ratio.
+        qkv_bias: Use bias in QKV projection.
+        qk_scale: Custom QK scaling factor.
+        attn_drop: Attention dropout rate.
+        proj_drop: Projection dropout rate.
+        drop_path: Drop path rate.
+        use_rpe: Use relative positional encoding.
+        use_flash_attn: Use Flash Attention.
+        upcast_attention: Upcast attention to fp32.
+        upcast_softmax: Upcast softmax to fp32.
+
+    Inputs:
+        x: Encoded features at the deepest encoder level.
+        intermediates: List of dicts from the encoder, each containing skip
+            features, positions, batch indices, serialization tensors, and
+            pooling inverse indices.
+
+    Outputs:
+        Decoded features at the shallowest decoder level.
+    """
+
+    def __init__(
+        self,
+        encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
+        decoder_depths: Sequence[int] = (2, 2, 2, 2),
+        decoder_channels: Sequence[int] = (256, 128, 64, 64),
+        decoder_num_head: Sequence[int] = (16, 8, 4, 4),
+        decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
+        norm: Union[str, Callable] = "batch_norm1d",
+        act: Union[str, Callable] = "gelu",
+        mlp_ratio: float = 4,
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.3,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
+        upcast_attention: bool = False,
+        upcast_softmax: bool = False,
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+        self.blocks = self.configure_blocks(
+            depths=decoder_depths,
+            channels=[encoder_channels[-1]] + list(decoder_channels),
+            skip_channels=list(encoder_channels[:-1])[::-1],
+            num_heads=decoder_num_head,
+            patch_sizes=decoder_patch_size,
+            mlp_ratio=mlp_ratio,
+            norm=norm,
+            act=act,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            drop_path=drop_path,
+            use_rpe=use_rpe,
+            use_flash_attn=use_flash_attn,
+            upcast_attention=upcast_attention,
+            upcast_softmax=upcast_softmax,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
+        )
+
+    @property
+    def out_channels(self) -> int:
+        return self.stages[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
+
+    def configure_blocks(
+        self,
+        depths: Sequence[int],
+        channels: Sequence[int],
+        skip_channels: Sequence[int],
+        num_heads: Sequence[int],
+        patch_sizes: Sequence[int],
+        mlp_ratio: float = 4.0,
+        norm: Union[str, Callable] = "batch_norm1d",
+        act: Union[str, Callable] = "gelu",
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.0,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
+        upcast_attention: bool = False,
+        upcast_softmax: bool = False,
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> nn.ModuleList:
+        depths = ensure_tuple(depths)
+        n = len(depths)
+        channels = ensure_tuple_size(channels, size=n + 1)
+        skip_channels = ensure_tuple_size(skip_channels, size=n)
+        num_heads = ensure_tuple_size(num_heads, size=n)
+        patch_sizes = ensure_tuple_size(patch_sizes, size=n)
+        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
+
+        blocks = nn.ModuleList()
+        for i in range(n):
+            upsample = SerializedUpsample(
+                in_channels=channels[i],
+                skip_channels=skip_channels[i],
+                out_channels=channels[i + 1],
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
+            )
+
+            block = DecoderBlock(
+                channels=channels[i + 1],
+                depth=depths[i],
+                num_heads=num_heads[i],
+                patch_size=patch_sizes[i],
+                mlp_ratio=mlp_ratio,
+                qkv_bias=qkv_bias,
+                qk_scale=qk_scale,
+                attn_drop=attn_drop,
+                proj_drop=proj_drop,
+                drop_path=drop_paths[i].tolist()[::-1],
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
+                cpe_indice_key=f"stage{i}",
+                use_rpe=use_rpe,
+                use_flash_attn=use_flash_attn,
+                upcast_attention=upcast_attention,
+                upcast_softmax=upcast_softmax,
+                upsample=upsample,
+            )
+
+            blocks.append(block)
+        return blocks
+
+    def forward(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
+        for block, intermediate in zip(self.blocks, reversed(intermediates)):
+            intermediate.pop("serialized_code", None)
+            intermediate = {f"{k}_skip" if k != "inverse" else k: v for k, v in intermediate.items()}
+            x, pos, batch = block(x, **intermediate)
+        return x, pos, batch
+
+
+class PointTransformerV3Classification(ClassificationModel):
     """PyTorch implementation of the Point Transformer V3 model, as described in the paper
     [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
     by Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao.
@@ -851,16 +916,16 @@ class PointTransformerV3Classification(nn.Module):
         proj_drop: Dropout rate for the projection.
         drop_path: Dropout rate for the drop path.
         shuffle_serialization_orders: Whether to shuffle the serialization orders.
-        with_rpe: Whether to use relative positional encoding.
-        with_flash_attn: Whether to use flash attention.
+        use_rpe: Whether to use relative positional encoding.
+        use_flash_attn: Whether to use flash attention.
         upcast_attention: Whether to upcast the attention.
         upcast_softmax: Whether to upcast the softmax.
         dropout: Dropout rate for the dropout.
         global_pool: Pooling method to aggregate point features ("max" or "mean").
 
     Inputs:
-        features: Float tensor of shape $(N, in_channels)$.
-        grid_coords: Int tensor of shape $(N, 3)$.
+        x: Float tensor of shape $(N, in_channels)$.
+        pos: Int tensor of shape $(N, 3)$.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -873,63 +938,64 @@ class PointTransformerV3Classification(nn.Module):
         num_classes: int,
         serialization_orders: Sequence[SerializationOrder] = ("hilbert", "hilbert-trans"),
         shuffle_serialization_orders: bool = True,
-        stride: Sequence[int] = (2, 2, 2, 2),
+        strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
         encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
         encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "gelu",
+        norm: Union[str, Callable] = "batch_norm1d",
+        act: Union[str, Callable] = "gelu",
         mlp_ratio: float = 4,
         qkv_bias: bool = True,
         qk_scale: Optional[float] = None,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        with_rpe: bool = False,
-        with_flash_attn: bool = True,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
+        pooling: str = "serialized",
+        stem_type: str = "sparse_conv",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
-        super().__init__()
-        self.in_channels = in_channels if in_channels > 0 else 3
-        self.num_classes = num_classes
-        self.serialization_orders = ensure_tuple(serialization_orders)
-        self.shuffle_serialization_orders = shuffle_serialization_orders
-
-        self.embedding = Embedding(in_channels=self.in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
-        self.encoder = self.configure_encoder_blocks(
-            depths=encoder_depths,
-            channels=encoder_channels,
-            num_heads=encoder_num_head,
-            patch_sizes=encoder_patch_size,
-            strides=stride,
-            mlp_ratio=mlp_ratio,
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.encoder = PointTransformerV3Encoder(
+            in_channels=in_channels,
+            serialization_orders=serialization_orders,
+            shuffle_serialization_orders=shuffle_serialization_orders,
+            strides=strides,
+            encoder_depths=encoder_depths,
+            encoder_channels=encoder_channels,
+            encoder_num_head=encoder_num_head,
+            encoder_patch_size=encoder_patch_size,
             norm=norm,
             act=act,
+            mlp_ratio=mlp_ratio,
             qkv_bias=qkv_bias,
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            with_rpe=with_rpe,
-            with_flash_attn=with_flash_attn,
+            use_rpe=use_rpe,
+            use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
+            pooling=pooling,
+            stem_type=stem_type,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
-
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
         self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
-
-    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
-        return create_encoder_blocks(*args, **kwargs)
+        return self.encoder.embedding_dim
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -949,8 +1015,8 @@ class PointTransformerV3Classification(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -958,112 +1024,55 @@ class PointTransformerV3Classification(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        """Forward pass of the PointTransformerV3 encoder, returning pre-pooling features.
-
-        Args:
-            features: Additional point features of shape $(N, features_dim)$.
-            grid_coords: Grid coordinates of shape $(N, 3)$.
-            batch: Batch indices for each point of shape $(N,)$.
-
-        Returns:
-            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
-        """
-        features = features if features is not None else grid_coords.float()
-
-        # Serialize the grid coordinates for each serialization order (e.g. "z", "z-trans", etc.)
-        # NOTE: For faster processing, we pre-compute the serialized code, order and inverse.
-        # These variables will be reused in each blocks and updated after each pooling operation.
-        serialized_code, serialized_order, serialized_inverse = serialize(
-            grid_coords,
-            batch,
-            orders=self.serialization_orders,
-            shuffle=self.shuffle_serialization_orders,
-        )
-
-        features = self.embedding(features, grid_coords, batch)
-
-        intermediates = []
-        for i, block in enumerate(self.encoder):
-            intermediate = {
-                "features": features,
-                "grid_coords": grid_coords,
-                "batch": batch,
-                "serialized_code": serialized_code,
-                "serialized_order": serialized_order,
-                "serialized_inverse": serialized_inverse,
-            }
-
-            (
-                features,
-                grid_coords,
-                batch,
-                serialized_code,
-                serialized_order,
-                serialized_inverse,
-                pooling_inverse,
-            ) = block(
-                features,
-                grid_coords,
-                batch,
-                serialized_code=serialized_code,
-                serialized_order=serialized_order,
-                serialized_inverse=serialized_inverse,
-                return_pooling_inverse=True,
-            )
-
-            if i > 0:
-                intermediate["pooling_inverse"] = pooling_inverse
-                intermediates.append(intermediate)
-
         if return_intermediates:
-            return features, grid_coords, batch, intermediates
-        return features, grid_coords, batch
+            return self.encoder.forward(x, pos, batch, return_intermediates=True)
+        return self.encoder.forward(x, pos, batch, return_intermediates=False)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         """Forward pass of the classification head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, embedding_dim)$.
+            x: Pre-pooling features of shape $(N, embedding\\_dim)$.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
-            Classification logits of shape $(B, num_classes)$.
+            Classification logits of shape $(B, num\\_classes)$.
         """
         x = self.global_pool(x, batch)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, features: OptTensor, grid_coords: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         """Forward pass of the PointNet classification network.
 
         Args:
-            features: Additional point features of shape $(N, features_dim)$.
-            grid_coords: Grid coordinates of shape $(N, 3)$.
+            x: Additional point features of shape $(N, C)$.
+            pos: Grid coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Classification logits of shape $(B, num_classes)$.
+            Classification logits of shape $(B, num\\_classes)$.
         """
-        features, grid_coords, batch = self.forward_features(features, grid_coords, batch)
-        return self.forward_head(features, batch)
+        x, pos, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, batch)
 
 
-class PointTransformerV3Segmentation(nn.Module):
+class PointTransformerV3Segmentation(SegmentationModel):
     """PyTorch implementation of the Point Transformer V3 model for segmentation tasks.
 
     Based on the paper [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
@@ -1075,7 +1084,7 @@ class PointTransformerV3Segmentation(nn.Module):
         in_channels: Number of input channels.
         num_classes: Number of output classes for segmentation.
         serialization_orders: Serialization orders to use for the encoder.
-        stride: Stride for the downsampling operations.
+        strides: Strides for the downsampling operations.
         encoder_depths: Number of encoder blocks for each stage.
         encoder_channels: Number of channels for each encoder block.
         encoder_num_head: Number of attention heads for each encoder block.
@@ -1093,8 +1102,8 @@ class PointTransformerV3Segmentation(nn.Module):
         proj_drop: Dropout rate for the projection.
         drop_path: Dropout rate for the drop path.
         shuffle_serialization_orders: Whether to shuffle the serialization orders.
-        with_rpe: Whether to use relative positional encoding.
-        with_flash_attn: Whether to use flash attention.
+        use_rpe: Whether to use relative positional encoding.
+        use_flash_attn: Whether to use flash attention.
         upcast_attention: Whether to upcast the attention.
         upcast_softmax: Whether to upcast the softmax.
     """
@@ -1103,7 +1112,7 @@ class PointTransformerV3Segmentation(nn.Module):
         self,
         in_channels: int,
         num_classes: int,
-        serialization_orders: Sequence[str] = ("hilbert", "hilbert-trans"),
+        serialization_orders: Sequence[SerializationOrder] = ("hilbert", "hilbert-trans"),
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
@@ -1113,8 +1122,8 @@ class PointTransformerV3Segmentation(nn.Module):
         decoder_channels: Sequence[int] = (256, 128, 64, 64),
         decoder_num_head: Sequence[int] = (16, 8, 4, 4),
         decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "gelu",
+        norm: Union[str, Callable] = "batch_norm1d",
+        act: Union[str, Callable] = "gelu",
         mlp_ratio: float = 4,
         qkv_bias: bool = True,
         qk_scale: Optional[float] = None,
@@ -1122,80 +1131,80 @@ class PointTransformerV3Segmentation(nn.Module):
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
         shuffle_serialization_orders: bool = True,
-        with_rpe: bool = False,
-        with_flash_attn: bool = True,
+        use_rpe: bool = False,
+        use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
         dropout: float = 0.0,
+        pooling: str = "serialized",
+        stem_type: str = "sparse_conv",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
-        super().__init__()
-        self.in_channels = in_channels if in_channels > 0 else 1
-        self.num_classes = num_classes
-        self.serialization_orders = ensure_tuple(serialization_orders)
-        self.shuffle_serialization_orders = shuffle_serialization_orders
-
-        self.embedding = Embedding(in_channels=self.in_channels, embedding_dim=encoder_channels[0], norm=norm, act=act)
-        self.encoder = self.configure_encoder_blocks(
-            depths=encoder_depths,
-            channels=encoder_channels,
-            num_heads=encoder_num_head,
-            patch_sizes=encoder_patch_size,
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.encoder = PointTransformerV3Encoder(
+            in_channels=in_channels,
+            serialization_orders=serialization_orders,
+            shuffle_serialization_orders=shuffle_serialization_orders,
             strides=strides,
-            mlp_ratio=mlp_ratio,
+            encoder_depths=encoder_depths,
+            encoder_channels=encoder_channels,
+            encoder_num_head=encoder_num_head,
+            encoder_patch_size=encoder_patch_size,
             norm=norm,
             act=act,
+            mlp_ratio=mlp_ratio,
             qkv_bias=qkv_bias,
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            with_rpe=with_rpe,
-            with_flash_attn=with_flash_attn,
+            use_rpe=use_rpe,
+            use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
+            pooling=pooling,
+            stem_type=stem_type,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
-        self.decoder = self.configure_decoder_blocks(
-            depths=decoder_depths,
-            channels=[encoder_channels[-1]] + list(decoder_channels),
-            skip_channels=list(encoder_channels[:-1])[::-1],
-            num_heads=decoder_num_head,
-            patch_sizes=decoder_patch_size,
-            mlp_ratio=mlp_ratio,
+        self.decoder = PointTransformerV3Decoder(
+            encoder_channels=encoder_channels,
+            decoder_depths=decoder_depths,
+            decoder_channels=decoder_channels,
+            decoder_num_head=decoder_num_head,
+            decoder_patch_size=decoder_patch_size,
             norm=norm,
             act=act,
+            mlp_ratio=mlp_ratio,
             qkv_bias=qkv_bias,
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            with_rpe=with_rpe,
-            with_flash_attn=with_flash_attn,
+            use_rpe=use_rpe,
+            use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
-
         self.dropout = dropout
-        self.head = create_cls_head(num_features=self.upsampling_dim, num_classes=self.num_classes)
+        self.head = create_cls_head(num_features=self.out_channels, num_classes=self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
+        return self.encoder.embedding_dim
 
     @property
-    def upsampling_dim(self) -> int:
-        return self.decoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
-
-    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
-        return create_encoder_blocks(*args, **kwargs)
-
-    def configure_decoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
-        return create_decoder_blocks(*args, **kwargs)
+    def out_channels(self) -> int:
+        return self.decoder.out_channels
 
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -1203,98 +1212,78 @@ class PointTransformerV3Segmentation(nn.Module):
     @overload
     def forward_features(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
         self,
-        features: OptTensor,
-        grid_coords: Tensor,
+        x: OptTensor,
+        pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        """Forward pass of the PointTransformerV3 encoder, returning pre-pooling features.
-
-        Args:
-            features: Additional point features of shape $(N, features_dim)$.
-            grid_coords: Grid coordinates of shape $(N, 3)$.
-            batch: Batch indices for each point of shape $(N,)$.
-
-        Returns:
-            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
-        """
-        # features = features if features is not None else grid_coords.float()
-        features = features if features is not None else torch.ones(grid_coords.shape[0], 1).to(grid_coords.device)
-
-        # Serialize the grid coordinates for each serialization order (e.g. "z", "z-trans", etc.)
-        # NOTE: For faster processing, we pre-compute the serialized code, order and inverse.
-        # These variables will be reused in each blocks and updated after each pooling operation.
-        serialized_code, serialized_order, serialized_inverse = serialize(
-            grid_coords,
-            batch,
-            orders=self.serialization_orders,
-            shuffle=self.shuffle_serialization_orders,
-        )
-
-        features = self.embedding(features, grid_coords, batch)
-
-        intermediates = []
-        for i, block in enumerate(self.encoder):
-            intermediate = {
-                "features": features,
-                "grid_coords": grid_coords,
-                "batch": batch,
-                "serialized_code": serialized_code,
-                "serialized_order": serialized_order,
-                "serialized_inverse": serialized_inverse,
-            }
-
-            (
-                features,
-                grid_coords,
-                batch,
-                serialized_code,
-                serialized_order,
-                serialized_inverse,
-                pooling_inverse,
-            ) = block(
-                features,
-                grid_coords,
-                batch,
-                serialized_code=serialized_code,
-                serialized_order=serialized_order,
-                serialized_inverse=serialized_inverse,
-                return_pooling_inverse=True,
-            )
-
-            if i > 0:
-                intermediate["pooling_inverse"] = pooling_inverse
-                intermediates.append(intermediate)
-
         if return_intermediates:
-            return features, grid_coords, batch, intermediates
-        return features, grid_coords, batch
+            return self.encoder.forward(x, pos, batch, return_intermediates=True)
+        return self.encoder.forward(x, pos, batch, return_intermediates=False)
 
-    def forward_decoder(
-        self,
-        features: Tensor,
-        intermediates: List[Dict[str, Tensor]],
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.decoder, reversed(intermediates)):
-            intermediate.pop("serialized_code", None)
-            intermediate = {f"skip_{k}" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
-            features, grid_coords, batch = block(features, **intermediate)
-        return features, grid_coords, batch
+    def forward_decoder(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
+        return self.decoder.forward(x, intermediates)
 
-    def forward_head(self, features: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout:
-            features = F.dropout(features, p=float(self.dropout), training=self.training)
-        return features if pre_logits else self.head(features)
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
 
-    def forward(self, features: Tensor, grid_coords: Tensor, batch: Tensor) -> Tensor:
-        features, _, _, intermediates = self.forward_features(features, grid_coords, batch, return_intermediates=True)
-        features, _, _ = self.forward_decoder(features, intermediates)
-        return self.forward_head(features)
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x, _, _ = self.forward_decoder(x, intermediates)
+        return self.forward_head(x)
+
+
+@register_model(
+    "sonata",
+    task="base",
+    weights="hf://torch-pointcloud/sonata/sonata.pth",
+    transforms=T.Compose(
+        [
+            T.CenterShift(keys=DataKeys.POS, apply_z=True),
+            T.GridSample(
+                pos_key=DataKeys.POS,
+                feature_keys=[DataKeys.COLOR, DataKeys.NORMAL],
+                grid_size=0.02,
+            ),
+            T.Divide(keys=DataKeys.COLOR, divisor=255),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=9,
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_head=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        norm="layer_norm",
+        act="gelu",
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        use_rpe=False,
+        use_flash_attn=True,
+        upcast_attention=False,
+        upcast_softmax=False,
+        pooling="grid",
+        stem_type="linear",
+        norm_kwargs={"mode": "node"},
+    ),
+)
+def sonata(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
