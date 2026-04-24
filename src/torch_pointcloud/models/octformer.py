@@ -908,21 +908,21 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
     transforms=T.Compose(
         [
-            T.RandomSampleFaceVerticesd(
+            T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
                 face_key=DataKeys.FACE,
                 normal_key=DataKeys.NORMAL,
                 num_samples=8000,
             ),
-            T.Centerd(keys=DataKeys.POS, method="bbox"),
-            T.NormalizeScaled(keys=DataKeys.POS, method="bbox"),
+            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
             # NOTE: Original OctFormer uses inbox masking to remove outliers, but at the cost of performance drop,
             # we found that removing this step improves performance by ~1% on ModelNet40.
-            # T.InboxMaskd(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
-            # T.ApplyMaskd(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
-            T.Absd(keys=DataKeys.NORMAL),
-            T.ToTensord(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
-            T.BuildOctreed(
+            # T.InboxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
+            # T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
+            T.Abs(keys=DataKeys.NORMAL),
+            T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
+            T.BuildOctree(
                 pos_key=DataKeys.POS,
                 octree_key=DataKeys.OCTREE,
                 depth=6,
@@ -972,10 +972,10 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     ),
     transforms=T.Compose(
         [
-            T.Centerd(keys=DataKeys.POS, method="bbox"),
-            T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
-            T.AlignAxisd(keys=DataKeys.POS, dim=-1),
-            T.BuildOctreed(
+            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
+            T.AlignAxis(keys=DataKeys.POS, dim=-1),
+            T.BuildOctree(
                 pos_key=DataKeys.POS,
                 normal_key=DataKeys.NORMAL,
                 feature_key=DataKeys.COLOR,
@@ -1028,10 +1028,10 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
     transforms=T.Compose(
         [
-            T.Centerd(keys=DataKeys.POS, method="bbox"),
-            T.Divided(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
-            T.AlignAxisd(keys=DataKeys.POS, dim=-1),
-            T.BuildOctreed(
+            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
+            T.AlignAxis(keys=DataKeys.POS, dim=-1),
+            T.BuildOctree(
                 pos_key=DataKeys.POS,
                 normal_key=DataKeys.NORMAL,
                 feature_key=DataKeys.COLOR,
