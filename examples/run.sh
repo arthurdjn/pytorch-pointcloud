@@ -131,6 +131,15 @@ uv run --no-sync python examples/point_mamba_classification.py \
     --epochs 1 \
     --dataset modelnet40
 
+# PointMamba Benchmark
+uv run --no-sync python examples/point_mamba_benchmark_modelnet.py --model point-mamba-base.modelnet40
+
+uv run --no-sync python examples/point_mamba_benchmark_scanobjectnn.py --model point-mamba-base.scanobjectnn
+
+uv run --no-sync python examples/point_mamba_benchmark_scanobjectnn.py --model point-mamba-base.scanobjectnn-nobg
+
+uv run --no-sync python examples/point_mamba_benchmark_scanobjectnn.py --model point-mamba-base.scanobjectnn-augmentedrot-scale75
+
 
 # PointTransformer Classification
 uv run --no-sync python examples/point_transformer_classification.py \
