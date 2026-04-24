@@ -10,6 +10,7 @@ from typing import (
     Sequence,
     Tuple,
     Type,
+    TypeGuard,
     TypeVar,
     get_args,
     get_origin,
@@ -23,14 +24,14 @@ from torch_pointcloud.utils.imports import optional_import
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
-    from spconv.pytorc import SparseConvTensor
+    from spconv.pytorch import SparseConvTensor
 
 
 spconv, _ = optional_import("spconv.pytorch")
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
 
 
-def is_iterable(value: Any) -> bool:
+def is_iterable(value: Any) -> TypeGuard[Iterable[Any]]:
     """Check if a value is iterable.
     A value is considered iterable if it is an instance of `Iterable` (i.e. `list`, `tuple`, `set`
     or any iterable defining the `__iter__` method) and not an instance of `str` or `bytes`.

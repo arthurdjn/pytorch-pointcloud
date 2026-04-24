@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence
 
+import numpy as np
 import torch
 
 from torch_pointcloud.transforms.dictionary._utils import key_iterator
@@ -29,7 +30,9 @@ __all__ = [
     "BuildOctreed",
     "Catd",
     "Centerd",
+    "CopyItemsd",
     "Divided",
+    "DivideKeyd",
     "GridSubsamplingd",
     "InboxMaskd",
     "KeepItemsd",
@@ -43,6 +46,7 @@ __all__ = [
     "SampleFarthestPointsd",
     "Scaled",
     "SetValued",
+    "SubtractKeyd",
     "ToDeviced",
     "ToTensord",
     "Transformd",
@@ -796,6 +800,96 @@ class RenameItemsd(Transformd):
         return data
 
 
+class CopyItemsd(Transformd):
+    """Copy values from source keys to new destination keys.
+
+    Args:
+        keys: Source keys to copy from.
+        names: Destination keys to copy to (same length as `keys`).
+        allow_missing_keys: If `True`, silently skip absent source keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        names: KeyCollection,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.names = ensure_tuple_size(names, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.names):
+            val = data[key]
+            if torch.is_tensor(val):
+                val = val.clone()
+            elif isinstance(val, np.ndarray):
+                val = val.copy()
+            data[dst_key] = val
+        return data
+
+
+class SubtractKeyd(Transformd):
+    """Subtract the value of a reference key from target keys element-wise.
+
+    Computes `data[key] = data[key] - data[ref_key]` for each key. Broadcasting
+    is handled by PyTorch.
+
+    Args:
+        keys: Keys whose tensors are modified in-place (subtracted from).
+        ref_key: Key whose value is subtracted from each target key.
+        allow_missing_keys: If `True`, silently skip absent target keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        sub_keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sub_keys = ensure_tuple_size(sub_keys, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys or keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, sub_key, dst_key in self.iter_keys(data, self.sub_keys, self.dst_keys):
+            data[dst_key] = data[key] - data[sub_key]
+        return data
+
+
+class DivideKeyd(Transformd):
+    """Divide target keys by the value of a reference key element-wise.
+
+    Computes `data[key] = data[key] / data[ref_key]` for each key. Broadcasting
+    is handled by PyTorch.
+
+    Args:
+        keys: Keys whose tensors are divided.
+        div_keys: Keys whose values are used as the divisors.
+        allow_missing_keys: If `True`, silently skip absent target keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        div_keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.div_keys = ensure_tuple_size(div_keys, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys or keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, div_key, dst_key in self.iter_keys(data, self.div_keys, self.dst_keys):
+            data[dst_key] = data[key] / data[div_key]
+        return data
+
+
 class ToTensord(Transformd):
     def __init__(
         self,
@@ -948,7 +1042,7 @@ class AxisMinOffsetd(Transformd):
         i.e. computing the height above the local floor.
 
 
-        ```python
+        ``python
         from torch_pointcloud.transforms import AxisMinOffsetd
 
         data = {
@@ -956,7 +1050,7 @@ class AxisMinOffsetd(Transformd):
         }
         transform = AxisMinOffsetd(keys="pos", dst_keys="pos_offset", axis=2)
         data = transform(data)
-        ```
+        ``
 
         Now, the data dictionary will contain the key `pos_offset` with the shape `(N, 1)`.
     """
@@ -997,7 +1091,7 @@ class Catd(Transformd):
         If you have a point cloud data containing position, color and normal and want to concatenate them
         into a single feature tensor (to feed into your model), you can do the following:
 
-        ```python
+        ``python
         from torch_pointcloud.transforms import Catd
 
         data = {
@@ -1007,7 +1101,7 @@ class Catd(Transformd):
         }
         transform = Catd(keys=["pos", "color", "normal"], dst_key="x", dim=1)
         data = transform(data)
-        ```
+        ``
 
         Now, the data dictionary will contain the key `x` with the shape `(10, 9)`.
     """
@@ -1045,7 +1139,7 @@ class KeepItemsd(Transformd):
         If you have a data dictionary containing position, color and normal and want to keep only the position and color,
         you can do the following:
 
-        ```python
+        ``python
         from torch_pointcloud.transforms import KeepItemsd
 
         data = {
@@ -1055,7 +1149,7 @@ class KeepItemsd(Transformd):
         }
         transform = KeepItemsd(keys=["pos", "color"])
         data = transform(data)
-        ```
+        ``
 
         Now, the data dictionary will contain only the keys `pos` and `color`.
         The key `normal` will be removed.

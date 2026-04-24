@@ -12,7 +12,8 @@ from torch_pointcloud.utils.imports import (
 )
 
 CLASSIFICATION_MODELS = [
-    "dgcnn-base",
+    "dgcnn-antao.modelnet40.1024",
+    "dgcnn-antao.modelnet40.2048",
     "kpfcnn.modelnet40",
     "octformer-base.modelnet40",
     "pointcnn-base",
@@ -24,16 +25,19 @@ CLASSIFICATION_MODELS = [
     "pointmlp-base",
     "pointmlp-elite",
     "pointnext-base",
-    "pointnext-base",
-    "pointnext-lg",
     "pointnext-lg",
     "pointnext-sm",
-    "pointnext-sm",
-    "pointnext-xl",
     "pointnext-xl",
 ]
 SEGMENTATION_MODELS = [
-    "dgcnn-base",
+    "dgcnn-antao.shapenetpart",
+    "dgcnn-antao.s3dis.area1",
+    "dgcnn-antao.s3dis.area2",
+    "dgcnn-antao.s3dis.area3",
+    "dgcnn-antao.s3dis.area4",
+    "dgcnn-antao.s3dis.area5",
+    "dgcnn-antao.s3dis.area6",
+    "dgcnn-antao.scannet20",
     "kpfcnn-base.s3dis",
     "kpfcnn-base-sm.s3dis",
     "kpfcnn-base-deform.s3dis",
