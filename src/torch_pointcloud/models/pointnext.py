@@ -286,43 +286,80 @@ class PointNeXtDecoder(nn.Module):
         return x, pos, batch
 
 
-class PointNeXtPartDecoder(PointNeXtDecoder):
+class PointNeXtPartDecoder(nn.Module):
     r"""PointNeXt decoder for part segmentation (ShapeNetPart).
 
-    Extends :class:`PointNeXtDecoder` with two global feature convolutions
-    and shape-category conditioning. At the shallowest decoder stage, the
-    skip features are augmented with max-pooled global features from two
-    encoder levels and a shape-category one-hot vector before the FP layer.
+    Uses the same FP block layout as :class:`PointNeXtDecoder`, with two
+    global feature convolutions and shape-category conditioning. At the
+    shallowest decoder stage, the skip features are augmented with max-pooled
+    global features from two encoder levels and a shape-category one-hot
+    vector before the FP layer.
 
     This matches the OpenPoints ``PointNextPartDecoder`` with
     ``cls_map='curvenet'``.
 
     Args:
+        channels: List of channels for each FP block.
+        skip_channels: List of channels for the skip connections.
+        depths: List of depths for each FP block.
         global_conv1_in: Input channels for global_conv1 (typically
-            ``encoder_channels[-2] * 2``).
+            ``encoder_channels[-2]``).
         global_conv2_in: Input channels for global_conv2 (typically
-            ``encoder_channels[-1] * 2``).
+            ``encoder_channels[-1]``).
         num_shape_classes: Number of shape categories (16 for ShapeNetPart).
-        **kwargs: Forwarded to :class:`PointNeXtDecoder`.
     """
 
     def __init__(
         self,
+        channels: Sequence[int],
+        skip_channels: Sequence[int],
+        depths: Sequence[int],
         *,
         global_conv1_in: int,
         global_conv2_in: int,
         num_shape_classes: int = 16,
-        **kwargs: Any,
+        spatial_dim: int = 3,
+        dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: Union[bool, List[bool]] = True,
+        plain_last: bool = True,
     ):
+        super().__init__()
+        self.channels = ensure_tuple(channels)
+        size = len(channels) - 1
         self._extra_skip = 64 + 128 + num_shape_classes
-        # Widen the shallowest skip_channels before parent __init__
-        skip_channels = list(kwargs.pop("skip_channels"))
+
+        extra_msg = (
+            f"Invalid {self.__class__.__name__} parameter: "
+            f"expected `{{param}}` to have the same length as the number of blocks ({size})."
+        )
+        self.depths = ensure_tuple_size(depths, size, extra_msg=extra_msg.format(param="depths"))
+        skip_channels = list(ensure_tuple_size(skip_channels, size, extra_msg=extra_msg.format(param="skip_channels")))
         skip_channels[-1] += self._extra_skip
-        kwargs["skip_channels"] = skip_channels
-
-        super().__init__(**kwargs)
-
+        self.skip_channels = tuple(skip_channels)
         self.num_shape_classes = num_shape_classes
+
+        self.blocks = nn.ModuleList()
+        for i in range(size):
+            in_channels = self.channels[i] + self.skip_channels[i]
+            block = PointNet2FeaturePropagation(
+                channels=[in_channels] + [self.channels[i + 1]] * self.depths[i],
+                k=spatial_dim,
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                dropout=dropout,
+                plain_last=plain_last,
+            )
+            self.blocks.append(block)
+
         self.global_conv1 = nn.Sequential(nn.Linear(global_conv1_in, 64), nn.ReLU(inplace=True))
         self.global_conv2 = nn.Sequential(nn.Linear(global_conv2_in, 128), nn.ReLU(inplace=True))
 
@@ -331,8 +368,8 @@ class PointNeXtPartDecoder(PointNeXtDecoder):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointNeXtIntermediate],
         cls_onehot: Tensor,
+        intermediates: List[PointNeXtIntermediate],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # Global features from the bottleneck and deepest skip (computed BEFORE
         # any decoder blocks modify x, matching OpenPoints convention).
@@ -513,7 +550,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
             x = self.stem(x)
 
         x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
-        x, pos, batch = self.decoder(x, pos, batch, intermediates, cls_onehot)
+        x, pos, batch = self.decoder(x, pos, batch, cls_onehot, intermediates)
 
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
