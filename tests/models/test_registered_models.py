@@ -6,6 +6,7 @@ from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
+    _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
@@ -133,6 +134,8 @@ def test_segmentation_model_forward(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
+    if model_name.startswith("sonata") and not _FLASH_ATTN_AVAILABLE:
+        pytest.skip("flash_attn is not installed")
 
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     assert isinstance(model, SegmentationModel)
