@@ -6,7 +6,12 @@ from .octformer import OctFormerClassification, OctFormerSegmentation
 from .point_mamba import PointMambaClassification, PointMambaMAE
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
 from .point_transformer_v2 import PointTransformerV2Classification, PointTransformerV2Segmentation
-from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
+from .point_transformer_v3 import (
+    PointTransformerV3Classification,
+    PointTransformerV3Decoder,
+    PointTransformerV3Encoder,
+    PointTransformerV3Segmentation,
+)
 from .pointcnn import PointCNNClassification, PointCNNSegmentation
 from .pointconv import PointConvDensityClassification
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
@@ -16,4 +21,5 @@ from .pointnext import PointNeXtClassification, PointNeXtSegmentation
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
+from .sontata import SonataSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation

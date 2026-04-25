@@ -50,8 +50,8 @@ def main() -> None:
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.3,
-        with_rpe=False,
-        with_flash_attn=True,
+        use_rpe=False,
+        use_flash_attn=True,
         upcast_attention=False,
         upcast_softmax=False,
     ).to(args.device)

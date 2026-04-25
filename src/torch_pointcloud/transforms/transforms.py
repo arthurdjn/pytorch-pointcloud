@@ -27,6 +27,7 @@ __all__ = [
     "BallMask",
     "BuildOctree",
     "Cat",
+    "CenterShift",
     "Compose",
     "CopyItems",
     "DictTransform",
@@ -87,7 +88,7 @@ class Transform(metaclass=ABCMeta):
         and implement the `torch_pointcloud.transforms.Transform.transform` method
         as follows:
 
-        ```python
+        ``python
         from torch import Tensor
 
         from torch_pointcloud.transforms import Transform
@@ -108,7 +109,7 @@ class Transform(metaclass=ABCMeta):
         # 3. Apply the transform
         tensor = torch.randn(4096, 3)
         tensor = transform(tensor)
-        ```
+        ``
     """
 
     _repr_indent = 2
@@ -160,7 +161,7 @@ class Compose(Transform):
         For example, to chain a random sample and a normalization transform,
         we can do the following:
 
-        ```python
+        ``python
         from torch import Tensor
 
         from torch_pointcloud.transforms import Compose, RandomSample, NormalizeScale
@@ -174,7 +175,7 @@ class Compose(Transform):
         # 2. Apply the transform
         data = {"pos": torch.randn(4096, 3)}
         data = transform(data)
-        ```
+        ``
     """
 
     def __init__(self, transforms: Sequence[Transform]):
@@ -385,7 +386,7 @@ class NormalizeScale(DictTransform):
     Args:
         keys: The keys to normalize the scale of.
         eps: Small constant passed to `normalize_scale`.
-        method: ``"centroid"`` or ``"bbox"``; see `functional.normalize_scale`.
+        method: `"centroid"` or `"bbox"`; see `functional.normalize_scale`.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -710,6 +711,45 @@ class Shift(DictTransform):
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
             data[dst_key] = x - self.offset(x, method)
+        return data
+
+
+class CenterShift(DictTransform):
+    """Shift positions by bbox center in XY and optionally by minimum in Z.
+
+    Matches the Pointcept `CenterShift` convention: the X and Y axes are
+    shifted by their respective bbox midpoints, and the Z axis is shifted
+    by its minimum when `apply_z=True` or left unchanged when `apply_z=False`.
+
+    Args:
+        keys: The position keys to shift (each must be `(N, 3)`).
+        apply_z: If `True`, shift Z by its minimum; otherwise leave Z unchanged.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        apply_z: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.apply_z = apply_z
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key in self.iter_keys(data):
+            pos = data[key]
+            mins = pos.min(dim=0).values
+            maxs = pos.max(dim=0).values
+            shift = torch.stack(
+                [
+                    (mins[0] + maxs[0]) / 2,
+                    (mins[1] + maxs[1]) / 2,
+                    mins[2] if self.apply_z else torch.zeros_like(mins[2]),
+                ]
+            )
+            data[key] = pos - shift
         return data
 
 
@@ -1118,8 +1158,8 @@ class VoxelGrid(DictTransform):
     def __init__(
         self,
         pos_key: str,
+        pos_reduce: Literal["mean", "min", "max", "sum", "first", "grid"],
         size: float,
-        pos_reduce: str = "mean",
         method: Literal["fnv", "pyg"] = "pyg",
         reduce: Optional[ValueCollection[Literal["mean", "min", "max", "sum", "first"]]] = None,
         keys: Optional[KeyCollection] = None,
@@ -1132,7 +1172,7 @@ class VoxelGrid(DictTransform):
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
         self.method = method
 
-    def apply_reduction(
+    def _reduce(
         self,
         tensor: torch.Tensor,
         reduce: str,
@@ -1161,9 +1201,14 @@ class VoxelGrid(DictTransform):
 
         cluster, perm = consecutive_cluster(cluster, return_permutation=True)
 
-        data[self.pos_key] = self.apply_reduction(pos, self.pos_reduce, cluster, perm)
+        if self.pos_reduce == "grid":
+            pos_grid = torch.floor((pos[perm] - start) / self.size).long()
+            data[self.pos_key] = pos_grid - pos_grid.min(dim=0).values
+        else:
+            data[self.pos_key] = self._reduce(pos, self.pos_reduce, cluster, perm)
+
         for key, reduce in self.iter_keys(data, self.reduce):
-            data[key] = self.apply_reduction(data[key], reduce, cluster, perm)
+            data[key] = self._reduce(data[key], reduce, cluster, perm)
 
         return data
 
@@ -1246,7 +1291,7 @@ class AxisMinOffset(DictTransform):
         and you want to compute the offset from the minimum along the z-axis,
         i.e. computing the height above the local floor.
 
-        ```python
+        ``python
         from torch_pointcloud.transforms import AxisMinOffset
 
         data = {
@@ -1254,7 +1299,7 @@ class AxisMinOffset(DictTransform):
         }
         transform = AxisMinOffset(keys="pos", dst_keys="pos_offset", axis=2)
         data = transform(data)
-        ```
+        ``
 
         Now, the data dictionary will contain the key `pos_offset` with the shape `(N, 1)`.
     """
@@ -1295,7 +1340,7 @@ class Cat(DictTransform):
         If you have a point cloud data containing position, color and normal and want to concatenate them
         into a single feature tensor (to feed into your model), you can do the following:
 
-        ```python
+        ``python
         from torch_pointcloud.transforms import Cat
 
         data = {
@@ -1305,7 +1350,7 @@ class Cat(DictTransform):
         }
         transform = Cat(keys=["pos", "color", "normal"], dst_key="x", dim=1)
         data = transform(data)
-        ```
+        ``
 
         Now, the data dictionary will contain the key `x` with the shape `(10, 9)`.
     """
@@ -1343,7 +1388,7 @@ class KeepItems(DictTransform):
         If you have a data dictionary containing position, color and normal and want to keep only the position and color,
         you can do the following:
 
-        ```python
+        ``python
         from torch_pointcloud.transforms import KeepItems
 
         data = {
@@ -1353,7 +1398,7 @@ class KeepItems(DictTransform):
         }
         transform = KeepItems(keys=["pos", "color"])
         data = transform(data)
-        ```
+        ``
 
         Now, the data dictionary will contain only the keys `pos` and `color`.
         The key `normal` will be removed.
