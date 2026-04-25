@@ -21,5 +21,5 @@ from .pointnext import PointNeXtClassification, PointNeXtSegmentation
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
-from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .sontata import SonataSegmentation
+from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
