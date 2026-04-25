@@ -262,6 +262,8 @@ uv run --no-sync python examples/pointconv_classification.py \
     --epochs 1 \
     --dataset modelnet40
 
+uv run --no-sync python examples/pointconv_benchmark_modelnet.py
+
 
 # PointMLP Classification
 uv run --no-sync python examples/pointmlp_classification.py \

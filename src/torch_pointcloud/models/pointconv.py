@@ -5,9 +5,11 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import FPS, PoolLike, create_pool
 from torch_pointcloud.layers.pointconv_sa import PointConvDensityGlobalSetAbstraction, PointConvDensitySetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list
+from torch_pointcloud.utils.data import DataKeys
 
 from ._base import ClassificationModel
 from ._registry import register_model
@@ -232,7 +234,7 @@ class PointConvDensityClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-@register_model("pointconv-original", task="classification")
+@register_model("pointconv-density-base", task="classification")
 def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointConvDensityClassification:
     hparams: Dict[str, Any] = dict(
         channels=[[64, 64, 128], [128, 128, 256], [256, 512, 1024]],
@@ -249,3 +251,39 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
     )
     hparams.update(kwargs)
     return PointConvDensityClassification(in_channels=in_channels, num_classes=num_classes, **hparams)
+
+
+@register_model(
+    "pointconv-density-base.modelnet40",
+    task="classification",
+    weights="hf://torch-pointcloud/pointconv/pointconv-density-base.modelnet40.pt",
+    transforms=T.Compose(
+        [
+            T.NormalizeScale(keys=DataKeys.POS),
+            T.SampleFarthestPoints(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                random_start=False,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=40,
+        channels=[[64, 64, 128], [128, 128, 256], [256, 512, 1024]],
+        ratios=[0.5, 0.25, 0.125],
+        num_neighbors=[32, 64, 128],
+        bandwidths=[0.1, 0.2, 0.4],
+        head_channels=[512, 256],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        global_pool="mean",
+        dropout=0.7,
+    ),
+)
+def pointconv_density_modelnet40_clf(**hparams: Any) -> PointConvDensityClassification:
+    # adapted from original repo: https://github.com/DylanWusee/pointconv_pytorch
+    return PointConvDensityClassification(**hparams)
