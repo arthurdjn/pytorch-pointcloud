@@ -1158,8 +1158,8 @@ class VoxelGrid(DictTransform):
     def __init__(
         self,
         pos_key: str,
+        pos_reduce: Literal["mean", "min", "max", "sum", "first", "grid"],
         size: float,
-        pos_reduce: str = "mean",
         method: Literal["fnv", "pyg"] = "pyg",
         reduce: Optional[ValueCollection[Literal["mean", "min", "max", "sum", "first"]]] = None,
         keys: Optional[KeyCollection] = None,
@@ -1172,7 +1172,7 @@ class VoxelGrid(DictTransform):
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
         self.method = method
 
-    def apply_reduction(
+    def _reduce(
         self,
         tensor: torch.Tensor,
         reduce: str,
@@ -1201,9 +1201,14 @@ class VoxelGrid(DictTransform):
 
         cluster, perm = consecutive_cluster(cluster, return_permutation=True)
 
-        data[self.pos_key] = self.apply_reduction(pos, self.pos_reduce, cluster, perm)
+        if self.pos_reduce == "grid":
+            pos_grid = torch.floor((pos[perm] - start) / self.size).long()
+            data[self.pos_key] = pos_grid - pos_grid.min(dim=0).values
+        else:
+            data[self.pos_key] = self._reduce(pos, self.pos_reduce, cluster, perm)
+
         for key, reduce in self.iter_keys(data, self.reduce):
-            data[key] = self.apply_reduction(data[key], reduce, cluster, perm)
+            data[key] = self._reduce(data[key], reduce, cluster, perm)
 
         return data
 

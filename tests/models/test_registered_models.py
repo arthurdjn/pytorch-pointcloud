@@ -82,6 +82,7 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area4",
     "pointnext-xl.s3dis-area5",
     "pointnext-xl.s3dis-area6",
+    "sonata-lp.scannet20",
 ]
 
 

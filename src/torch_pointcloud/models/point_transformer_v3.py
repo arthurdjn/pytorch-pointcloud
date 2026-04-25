@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
-import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
@@ -14,9 +13,7 @@ from torch_pointcloud.layers.linear_blocks import LinearBlock
 from torch_pointcloud.layers.serialized_attention import SerializedAttention
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
-from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
@@ -1241,52 +1238,3 @@ class PointTransformerV3Segmentation(SegmentationModel):
         x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, intermediates)
         return self.forward_head(x)
-
-
-@register_model(
-    "sonata",
-    task="base",
-    weights="hf://torch-pointcloud/sonata/sonata.pth",
-    transforms=T.Compose(
-        [
-            T.CenterShift(keys=DataKeys.POS, apply_z=True),
-            T.VoxelGrid(
-                pos_key=DataKeys.POS,
-                pos_reduce="first",
-                keys=[DataKeys.COLOR, DataKeys.NORMAL],
-                reduce=["first", "first"],
-                size=0.02,
-                method="fnv",
-            ),
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-        ]
-    ),
-    hparams=dict(
-        in_channels=9,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
-        encoder_depths=(3, 3, 3, 12, 3),
-        encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_head=(3, 6, 12, 24, 32),
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        norm="layer_norm",
-        act="gelu",
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        use_rpe=False,
-        use_flash_attn=True,
-        upcast_attention=False,
-        upcast_softmax=False,
-        pooling="grid",
-        stem_type="linear",
-        norm_kwargs={"mode": "node"},
-    ),
-)
-def sonata(**hparams: Any) -> PointTransformerV3Encoder:
-    return PointTransformerV3Encoder(**hparams)
