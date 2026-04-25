@@ -18,7 +18,7 @@ from typing import (
 
 import numpy as np
 import torch
-from torch import IntTensor, LongTensor, Tensor
+from torch import Tensor
 
 from torch_pointcloud.utils.imports import optional_import
 
@@ -510,9 +510,9 @@ def cu_seqlens_to_batch(cu_seqlens: Tensor) -> Tensor:
     return offset_to_batch(offset)
 
 
-def packed_to_spconv_tensor(
+def convert_to_spconv_tensor(
     x: Tensor,
-    pos: IntTensor,
+    pos: Tensor,
     batch: Tensor,
     spatial_shape: Optional[Sequence[int]] = None,
     padding: int = 96,
@@ -539,7 +539,7 @@ def packed_to_spconv_tensor(
     )
 
 
-def spconv_tensor_to_packed(spconv_tensor: SparseConvTensor) -> Tuple[Tensor, IntTensor, LongTensor]:
+def convert_from_spconv_tensor(spconv_tensor: SparseConvTensor) -> Tuple[Tensor, Tensor, Tensor]:
     x = spconv_tensor.features
     indices = spconv_tensor.indices
 
