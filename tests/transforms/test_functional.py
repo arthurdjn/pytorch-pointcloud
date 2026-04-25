@@ -374,9 +374,7 @@ def test_divisible_pad_replicate_inverse() -> None:
     """Test that inverse indices correctly recover original batch with replicate fill."""
     batch = torch.tensor([0, 0, 0, 0, 0, 0, 0])
     k = 3
-    padded_idxs, inverse, padded_batch = F.divisible_pad(
-        batch, k, pad_fill="replicate", return_inverse=True
-    )
+    padded_idxs, inverse, padded_batch = F.divisible_pad(batch, k, pad_fill="replicate", return_inverse=True)
     assert torch.equal(batch, padded_batch[inverse])
 
 
