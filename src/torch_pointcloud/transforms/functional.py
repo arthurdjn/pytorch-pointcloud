@@ -176,18 +176,18 @@ def normalize_scale(
     eps: float = 1e-6,
     method: Literal["centroid", "bbox"] = "centroid",
 ) -> Tensor:
-    r"""Normalize the scale of a point set along the point dimension ``dim=-2``.
+    r"""Normalize the scale of a point set along the point dimension `dim=-2`.
 
     Args:
-        points: Tensor of shape ``(..., N, C)`` with $C \geq 1$; min/max and means are over $N$.
+        points: Tensor of shape `(..., N, C)` with $C \geq 1$; min/max and means are over $N$.
         eps: Small constant added to the scale denominator for numerical stability.
         method:
 
-            * ``"centroid"`` — subtract the mean over points, then divide by
+            * `"centroid"` — subtract the mean over points, then divide by
               $\max(\max_i \|\mathbf{x}_i - \mathbf{\mu}\|_2, \epsilon)$ (max Euclidean distance
-              from the centroid, clamped from below by ``eps``).
+              from the centroid, clamped from below by `eps`).
 
-            * ``"bbox"`` — subtract the axis-aligned bounding-box midpoint (midrange center),
+            * `"bbox"` — subtract the axis-aligned bounding-box midpoint (midrange center),
               then divide by half the longest edge of that box plus $\epsilon$ (matches common
               ModelNet-style normalization):
 
@@ -198,10 +198,10 @@ def normalize_scale(
               $$
 
     Returns:
-        Normalized tensor, same shape as ``points``.
+        Normalized tensor, same shape as `points`.
 
     Raises:
-        ValueError: If ``method`` is not ``"centroid"`` or ``"bbox"``.
+        ValueError: If `method` is not `"centroid"` or `"bbox"`.
     """
     if method not in ["centroid", "bbox"]:
         raise ValueError(f"Invalid method: {method!r}. Expected 'centroid' or 'bbox'.")
@@ -224,6 +224,7 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
+    pad_fill: Literal["cycle", "replicate"] = "cycle",
     return_inverse: Literal[False] = False,
 ) -> Tuple[Tensor, Tensor]: ...
 
@@ -233,6 +234,7 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
+    pad_fill: Literal["cycle", "replicate"] = "cycle",
     return_inverse: Literal[True] = ...,
 ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
@@ -242,46 +244,83 @@ def divisible_pad(
     batch: Tensor,
     k: int,
     mode: Literal["below", "above", "all"] = "all",
+    pad_fill: Literal["cycle", "replicate"] = "cycle",
     return_inverse: bool = False,
 ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
     """Pad the batch indices of a tensor to make them divisible by a given integer.
+
+    Consider a batch with three samples of sizes 2, 7, and 4, and `k=4`:
+
+    ``text
+    batch:  [0 0 | 1 1 1 1 1 1 1 | 2 2 2 2]
+    size:     2          7            4
+    ``
+
+    **Mode** controls *which* batches get padded (`·` = padded slot):
+
+    ``text
+    mode="all"    [0 0 · · | 1 1 1 1 1 1 1 · | 2 2 2 2]
+                     2→4          7→8             4 (ok)
+
+    mode="below"  [0 0 · · | 1 1 1 1 1 1 1 | 2 2 2 2]
+                     2→4  ↑        7 (≥k)       4 (ok)
+                    only <k
+
+    mode="above"  [0 0 | 1 1 1 1 1 1 1 · | 2 2 2 2]
+                    2        7→8  ↑           4 (ok)
+                  (<k)      only ≥k
+    ``
+
+    **Pad fill** controls *how* padded slots are filled.  Given batch 1
+    with 7 elements (`A B C D E F G`) and `k=4`:
+
+    ``text
+    Original patches:  [A B C D] [E F G ·]
+                        patch₀    patch₁ (incomplete)
+
+    pad_fill="cycle"      → [A B C D] [E F G A]
+      Cycles from the start                  ↑ wraps to A
+
+    pad_fill="replicate"  → [A B C D] [E F G D]
+      Copies from previous patch             ↑ same position as D
+      at same offset
+    ``
+
+    When `batch_size < k` there is no previous patch, so `"replicate"`
+    falls back to `"cycle"`:
+
+    ``text
+    batch 0 (size 2, k=4):  [A B · ·]
+    pad_fill="cycle"      → [A B A B]
+    pad_fill="replicate"  → [A B A B]   (same — no prior patch)
+    ``
 
     Args:
         batch: The batch indices of the tensor.
         k: The integer to make the batch indices divisible by.
         mode: The mode to use for padding.
-            - "below": Pad the batch indices to be below the given integer.
-            - "above": Pad the batch indices to be above the given integer.
-            - "all": Pad the batch indices to be divisible by the given integer.
+            - `"below"`: Pad only batches with fewer than `k` elements.
+            - `"above"`: Pad only batches with `k` or more elements.
+            - `"all"`: Pad all batches to be divisible by `k`.
+        pad_fill: Strategy for filling padding slots.
+            - `"cycle"`: Cycle through original indices from the start of
+              the batch (`indices[0], indices[1], ...`).
+            - `"replicate"`: Copy indices from the previous patch at the
+              same relative offset.  When the last group of `k` elements is
+              incomplete, the missing positions are filled with the
+              corresponding positions from the preceding full group.  Falls
+              back to `"cycle"` when there is no preceding group (i.e. the
+              batch has fewer than `k` elements).
         return_inverse: Whether to return the inverse of the padded indices.
 
     Returns:
-        Returns a tuple of the indices to be padded, the padded batch indices.
-        If `return_inverse` is `True`, the function returns a tuple of the indices to be padded, the inverse of the padded indices,
-        and the padded batch indices.
-
-    Examples:
-        In its minimal setting, the function can be used to pad batches to make them divisible by a given integer.
-        The below example shows how to pad batches of points to make them divisible by 5.
-        >>> import torch
-        >>> points = torch.randn(100, 3)
-        >>> batch = torch.randint(0, 10, (100,)).sort().values
-        >>> padded_idxs, padded_batch = divisible_pad(batch, k=5)
-        >>> padded_points = points[padded_idxs]
-        To revert the padding operation, you can use the inverse indices.
-        >>> padded_idxs, inverse, padded_batch = divisible_pad(batch, k=5, return_inverse=True)
-        >>> padded_points = points[padded_idxs]
-        >>> original_points = points[inverse]  # Should be the same as `points`
-        In some cases, you might want to pad batches only if they contain less than k points.
-        You can achieve this by setting `mode` to `"below"`.
-        > [!NOTE]
-        > If you want to pad batches only if they contain more than k points,
-        > you can set `mode` to `"above"`.
-        >>> padded_idxs, padded_batch, inverse = divisible_pad(batch, k=5, mode="below", return_inverse=True)
-        >>> padded_points = points[padded_idxs]
+        Returns a tuple of `(indices, padded_batch)`.
+        If `return_inverse` is `True`, returns `(indices, inverse_indices, padded_batch)`.
     """
     if mode not in ["below", "above", "all"]:
         raise ValueError(f"Unknown mode: {mode!r}. Expected 'below', 'above', or 'all'")
+    if pad_fill not in ["cycle", "replicate"]:
+        raise ValueError(f"Unknown pad_fill: {pad_fill!r}. Expected 'cycle' or 'replicate'")
 
     device = batch.device
 
@@ -321,14 +360,21 @@ def divisible_pad(
         pad_size = int(padding_needed[i].item())
         batch_size = int(counts[i].item())
 
-        # First, we can safely assign the first elements of the padded batch that do not require padding
         indices[new_start : new_start + batch_size] = torch.arange(original_start, original_start + batch_size)
 
         if pad_size > 0:
-            # ...but pad with repeated values if needed (cycle through original indices)
-            original_indices = torch.arange(original_start, original_start + batch_size)
-            cycle_indices = original_indices[torch.arange(pad_size) % batch_size]
-            indices[new_start + batch_size : new_start + batch_size + pad_size] = cycle_indices
+            if pad_fill == "replicate" and batch_size > k:
+                rem = batch_size % k
+                last_patch_start = new_start + batch_size - rem
+                prev_patch_start = last_patch_start - k
+                src_start = prev_patch_start + rem
+                indices[new_start + batch_size : new_start + batch_size + pad_size] = indices[
+                    src_start : src_start + pad_size
+                ]
+            else:
+                original_indices = torch.arange(original_start, original_start + batch_size)
+                cycle_indices = original_indices[torch.arange(pad_size) % batch_size]
+                indices[new_start + batch_size : new_start + batch_size + pad_size] = cycle_indices
 
         inverse_indices[original_start : original_start + batch_size] = torch.arange(new_start, new_start + batch_size)
         padded_batch[new_start : new_start + new_batch_sizes[i]] = unique_batches[i]

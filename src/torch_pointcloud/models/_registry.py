@@ -39,7 +39,7 @@ def register_model(
     transforms: Optional[Callable] = None,
     weights: Optional[str] = None,
     task: Literal["base"],
-) -> Callable[[Callable[..., BaseModel]], Callable[..., BaseModel]]: ...
+) -> Callable[[Callable[..., nn.Module]], Callable[..., nn.Module]]: ...
 
 
 @overload

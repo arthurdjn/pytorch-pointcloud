@@ -221,6 +221,9 @@ uv run --no-sync python examples/point_transformer_v3_segmentation.py \
     --epochs 1 \
     --dataset s3dis
 
+# Sonata Benchmark
+uv run --no-sync python examples/sonata_benchmark_scannet.py
+
 
 # PointCNN Classification
 uv run --no-sync python examples/pointcnn_classification.py \
