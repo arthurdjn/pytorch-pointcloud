@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP, MessagePassing, fps, knn_interpolate, radius
+from torch_geometric.nn import MLP, MessagePassing, fps, radius
 from torch_geometric.nn.inits import reset
 from torch_geometric.nn.resolver import activation_resolver
 from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
@@ -12,6 +12,7 @@ from typing_extensions import Unpack
 
 from torch_pointcloud.layers.pools import PoolLike, create_pool
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
+from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
 
@@ -212,6 +213,7 @@ class PointNet2FeaturePropagation(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
+        plain_last: bool = True,
     ) -> None:
         super().__init__()
         self.k = k
@@ -224,6 +226,7 @@ class PointNet2FeaturePropagation(nn.Module):
             norm_kwargs=norm_kwargs,
             bias=bias,
             dropout=dropout,
+            plain_last=plain_last,
         )
 
     def forward(
@@ -235,7 +238,7 @@ class PointNet2FeaturePropagation(nn.Module):
         pos_skip: Tensor,
         batch_skip: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        x = knn_interpolate(x, pos, pos_skip, batch, batch_skip, k=self.k)
+        x = knn_interpolate(x, pos, pos_skip, batch_x=batch, batch_y=batch_skip, k=self.k, weighting="inverse")
         if x_skip is not None:
             x = torch.cat([x, x_skip], dim=1)
 

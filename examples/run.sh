@@ -370,6 +370,48 @@ uv run --no-sync python examples/pointnext_segmentation.py \
     --epochs 1 \
     --dataset s3dis
 
+# PointNeXt Benchmark - Classification
+uv run --no-sync python examples/pointnext_benchmark_scanobjectnn.py --model pointnext-sm.scanobjectnn
+
+uv run --no-sync python examples/pointnext_benchmark_modelnet.py --model pointnext-sm-c64.modelnet40
+
+# PointNeXt Benchmark - ShapeNetPart
+uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm.shapenetpart
+uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm-c64.shapenetpart
+uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm-c160.shapenetpart
+
+# PointNeXt Benchmark - S3DIS (6-fold cross-validation, sm)
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area1 --areas Area_1
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area2 --areas Area_2
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area3 --areas Area_3
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area4 --areas Area_4
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area5 --areas Area_5
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area6 --areas Area_6
+
+# PointNeXt Benchmark - S3DIS (6-fold cross-validation, base)
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-base.s3dis-area1 --areas Area_1
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-base.s3dis-area2 --areas Area_2
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-base.s3dis-area3 --areas Area_3
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-base.s3dis-area4 --areas Area_4
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-base.s3dis-area5 --areas Area_5
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-base.s3dis-area6 --areas Area_6
+
+# PointNeXt Benchmark - S3DIS (6-fold cross-validation, lg)
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-lg.s3dis-area1 --areas Area_1
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-lg.s3dis-area2 --areas Area_2
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-lg.s3dis-area3 --areas Area_3
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-lg.s3dis-area4 --areas Area_4
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-lg.s3dis-area5 --areas Area_5
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-lg.s3dis-area6 --areas Area_6
+
+# PointNeXt Benchmark - S3DIS (6-fold cross-validation, xl)
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-xl.s3dis-area1 --areas Area_1
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-xl.s3dis-area2 --areas Area_2
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-xl.s3dis-area3 --areas Area_3
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-xl.s3dis-area4 --areas Area_4
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-xl.s3dis-area5 --areas Area_5
+uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-xl.s3dis-area6 --areas Area_6
+
 
 # PVCNN Classification
 uv run --no-sync python examples/pvcnn_classification.py \

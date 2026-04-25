@@ -1,9 +1,10 @@
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 from torch import Tensor
 
-from .conversion import ensure_tuple_size
+from .conversion import ensure_option, ensure_tuple_size
 from .imports import optional_import
 from .types import OptTensor
 
@@ -125,6 +126,25 @@ def voxel_grid(
     return grid_cluster(coords, size, start, end)
 
 
+def voxel_grid_fnv(pos: Tensor, size: float, start: Optional[Tensor] = None) -> Tensor:
+    # FNV-1a 64-bit hash of integer coordinate rows.  (N, D) -> (N,)
+    # Adapted from https://github.com/Pointcept/Pointcept/blob/d74c646db6abec569d0f23e0c34e7ddfce142789/pointcept/datasets/transform.py#L840
+    if start is not None:
+        pos_grid = torch.floor((pos - start) / size).int()
+    else:
+        pos_grid = torch.floor(pos / size).int()
+    pos_grid -= pos_grid.min(0).values
+
+    # FNV-1a 64-bit hash (numpy uint64 for correct overflow semantics)
+    arr = pos_grid.cpu().numpy().astype(np.uint64)
+    hashed = np.full(arr.shape[0], 14695981039346656037, dtype=np.uint64)
+    for j in range(arr.shape[1]):
+        hashed *= np.uint64(1099511628211)
+        hashed = np.bitwise_xor(hashed, arr[:, j])
+
+    return torch.from_numpy(hashed.view(np.int64)).to(pos.device)
+
+
 def consecutive_cluster(cluster: Tensor, return_permutation: bool = False) -> Union[Tuple[Tensor, Tensor], Tensor]:
     """Return consecutive cluster indices (and associated permutation)
     from a tensor of cluster indices. A cluster tensor is a tensor of shape `(N,)` where each element
@@ -157,54 +177,74 @@ def consecutive_cluster(cluster: Tensor, return_permutation: bool = False) -> Un
 
 def knn_interpolate(
     x: Tensor,
-    coords_x: Tensor,
-    coords_y: Tensor,
+    pos_x: Tensor,
+    pos_y: Tensor,
     batch_x: OptTensor = None,
     batch_y: OptTensor = None,
     k: int = 3,
     num_workers: int = 1,
+    weighting: Literal["squared", "inverse"] = "squared",
+    eps: float = 1e-16,
 ) -> Tensor:
-    r"""The k-NN interpolation from the `"PointNet++: Deep Hierarchical
-    Feature Learning on Point Sets in a Metric Space"
-    <https://arxiv.org/abs/1706.02413>`_ paper.
+    r"""k-NN interpolation with inverse-distance weighting.
+
+    From [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a
+    Metric Space](https://arxiv.org/abs/1706.02413).
 
     For each point $y$ with position $\mathbf{p}(y)$, its
     interpolated features $\mathbf{f}(y)$ are given by
 
     $$
         \mathbf{f}(y) = \frac{\sum_{i=1}^k w(x_i) \mathbf{f}(x_i)}{\sum_{i=1}^k
-        w(x_i)} \textrm{, where } w(x_i) = \frac{1}{d(\mathbf{p}(y),
-        \mathbf{p}(x_i))^2}
+        w(x_i)}
     $$
 
-    and $\{ x_1, \ldots, x_k \}$ denoting the $k$ nearest points
-    to $y$.
+    where $\{ x_1, \ldots, x_k \}$ are the $k$ nearest points to $y$ and
+    the weights $w(x_i)$ depend on the chosen `weighting` scheme:
+
+    - `"squared"` (default, `torch_geometric` convention):
+      $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))^2$
+    - `"inverse"` (PointNet++ `three_interpolation` / OpenPoints convention):
+      $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))$
 
     Note:
-        This function is adapted from the `torch_geometric` package,
-        and requires the `torch-cluster` package.
+        Adapted from the `torch_geometric` package. Requires `torch-cluster`.
 
     Args:
         x: Node feature matrix $\mathbf{X} \in \mathbb{R}^{N \times F}$.
-        coords_x: Node position matrix $\in \mathbb{R}^{N \times d}$.
-        coords_y: Upsampled node position matrix $\in \mathbb{R}^{M \times d}$.
-        batch_x: Batch vector $\mathbf{b_x} \in {\{ 0, \ldots, B-1\}}^N$, which assigns
-            each node from $\mathbf{X}$ to a specific example.
-        batch_y: Batch vector $\mathbf{b_y} \in {\{ 0, \ldots, B-1\}}^N$, which assigns
-            each node from $\mathbf{Y}$ to a specific example.
-        k: Number of neighbors.
-        num_workers: Number of workers to use for computation.
-            Has no effect in case `batch_x` or `batch_y` is not `None`, or the input lies on the GPU.
-    """
-    with torch.no_grad():
-        assign_index = knn(coords_x, coords_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
-        y_idx, x_idx = assign_index[0], assign_index[1]
-        diff = coords_x[x_idx] - coords_y[y_idx]
-        squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
-        weights = 1.0 / torch.clamp(squared_distance, min=1e-16)
+        pos_x: Node position matrix $\in \mathbb{R}^{N \times d}$.
+        pos_y: Upsampled node position matrix $\in \mathbb{R}^{M \times d}$.
+        batch_x: Batch vector $\mathbf{b_x} \in \{ 0, \ldots, B-1 \}^N$,
+            assigning each node from $\mathbf{X}$ to a specific example.
+        batch_y: Batch vector $\mathbf{b_y} \in \{ 0, \ldots, B-1 \}^M$,
+            assigning each node from $\mathbf{Y}$ to a specific example.
+        k: Number of neighbours.
+        num_workers: Number of workers for computation. Has no effect when
+            `batch_x` or `batch_y` is not `None`, or the input lies on GPU.
+        weighting: Weighting scheme for neighbours. `"squared"` for $1/d^2$
+            weights (`torch_geometric` default) or `"inverse"` for $1/d$
+            weights (PointNet++ / OpenPoints convention).
+        eps: Small value to avoid division by zero.
 
-    y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=coords_y.size(0), reduce="sum")
-    y = y / scatter(weights, y_idx, dim=0, dim_size=coords_y.size(0), reduce="sum")
+    Returns:
+        Interpolated features $\in \mathbb{R}^{M \times F}$.
+    """
+    weighting = ensure_option(weighting, ("squared", "inverse"), name="weighting")
+
+    with torch.no_grad():
+        assign_index = knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
+        y_idx, x_idx = assign_index[0], assign_index[1]
+        diff = pos_x[x_idx] - pos_y[y_idx]
+        squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
+
+        if weighting == "squared":
+            weights = 1.0 / torch.clamp(squared_distance, min=eps)
+        else:
+            dist = squared_distance.sqrt()
+            weights = 1.0 / torch.clamp(dist, min=eps)
+
+    y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
+    y = y / scatter(weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
     return y
 
 

@@ -2,33 +2,7 @@ from unittest.mock import MagicMock, Mock, patch, sentinel
 
 import torch
 
-from torch_pointcloud.transforms.transforms import (
-    Abs,
-    AlignAxis,
-    ApplyMask,
-    AxisMinOffset,
-    BallMask,
-    Cat,
-    Center,
-    Compose,
-    CopyItems,
-    Divide,
-    DivideKey,
-    InboxMask,
-    KeepItems,
-    NormalizeScale,
-    OnesLike,
-    RandomSample,
-    RandomSampleFaceVertices,
-    Relabel,
-    RemoveNearOrigin,
-    RenameItems,
-    SampleFarthestPoints,
-    Scale,
-    SetValue,
-    SubtractKey,
-    ToTensor,
-)
+import torch_pointcloud.transforms as T
 
 
 def test_compose_applies_transforms_in_order() -> None:
@@ -37,7 +11,7 @@ def test_compose_applies_transforms_in_order() -> None:
     t1.return_value = sentinel.after_t1
     t2.return_value = sentinel.after_t2
 
-    compose = Compose([t1, t2])
+    compose = T.Compose([t1, t2])
     result = compose(sentinel.data)
 
     t1.assert_called_once_with(sentinel.data)
@@ -49,7 +23,7 @@ def test_compose_single_transform() -> None:
     t1 = MagicMock()
     t1.return_value = sentinel.result
 
-    compose = Compose([t1])
+    compose = T.Compose([t1])
     result = compose(sentinel.data)
 
     t1.assert_called_once_with(sentinel.data)
@@ -58,7 +32,7 @@ def test_compose_single_transform() -> None:
 
 def test_compose_with_list_input() -> None:
     t1 = MagicMock(side_effect=lambda x: x * 2)
-    compose = Compose([t1])
+    compose = T.Compose([t1])
 
     data = [torch.tensor([1.0]), torch.tensor([2.0])]
     _ = compose(data)
@@ -67,9 +41,9 @@ def test_compose_with_list_input() -> None:
 
 
 def test_compose_repr() -> None:
-    t1 = Abs(keys="pos")
-    t2 = NormalizeScale(keys="pos", eps=1e-6)
-    compose = Compose([t1, t2])
+    t1 = T.Abs(keys="pos")
+    t2 = T.NormalizeScale(keys="pos", eps=1e-6)
+    compose = T.Compose([t1, t2])
     repr_str = repr(compose)
     assert "Compose" in repr_str
     assert "Abs" in repr_str
@@ -83,7 +57,7 @@ def test_random_sample(mock_fn: Mock) -> None:
     mock_fn.return_value = (sampled_tensor, sampled_indices)
 
     data = {"pos": MagicMock(), "normal": MagicMock(), "other": MagicMock()}
-    transform = RandomSample(keys=["pos", "normal"], num_samples=10)
+    transform = T.RandomSample(keys=["pos", "normal"], num_samples=10)
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], 10, return_indices=True, generator=None)
@@ -97,7 +71,7 @@ def test_random_sample_face_vertices(mock_fn: Mock) -> None:
     mock_fn.return_value = (sentinel.sampled_vertices, sentinel.sampled_normals)
 
     data = {"vertices": MagicMock(), "face": MagicMock(), "other": MagicMock()}
-    transform = RandomSampleFaceVertices(keys=["vertices"], face_key="face", normal_key="normal", num_samples=5)
+    transform = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", normal_key="normal", num_samples=5)
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["vertices"], data["face"], 5, generator=None, return_normals=True)
@@ -115,7 +89,7 @@ def test_sample_farthest_points(mock_fn: Mock) -> None:
     labels = torch.arange(10)
     data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    transform = SampleFarthestPoints(pos_key="pos", keys=["label"], num_samples=3)
+    transform = T.SampleFarthestPoints(pos_key="pos", keys=["label"], num_samples=3)
     result = transform(data)
 
     mock_fn.assert_called_once_with(pos, num_samples=3, ratio=None, random_start=False)
@@ -129,7 +103,7 @@ def test_sample_farthest_points_ratio(mock_fn: Mock) -> None:
     mock_fn.return_value = torch.tensor([0, 2])
     data = {"pos": torch.randn(5, 3)}
 
-    transform = SampleFarthestPoints(pos_key="pos", ratio=0.5)
+    transform = T.SampleFarthestPoints(pos_key="pos", ratio=0.5)
     transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], num_samples=None, ratio=0.5, random_start=False)
@@ -140,7 +114,7 @@ def test_sample_farthest_points_random_start(mock_fn: Mock) -> None:
     mock_fn.return_value = torch.tensor([0])
     data = {"pos": torch.randn(5, 3)}
 
-    transform = SampleFarthestPoints(pos_key="pos", num_samples=1, random_start=True)
+    transform = T.SampleFarthestPoints(pos_key="pos", num_samples=1, random_start=True)
     transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], num_samples=1, ratio=None, random_start=True)
@@ -151,7 +125,7 @@ def test_normalize_scale(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.normalized
     data = {"pos": MagicMock(), "other": sentinel.other}
 
-    transform = NormalizeScale(keys=["pos"])
+    transform = T.NormalizeScale(keys=["pos"])
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], eps=1e-6, method="centroid")
@@ -164,7 +138,7 @@ def test_normalize_scale_bbox_method(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.normalized
     data = {"pos": MagicMock()}
 
-    transform = NormalizeScale(keys=["pos"], method="bbox", eps=1e-8)
+    transform = T.NormalizeScale(keys=["pos"], method="bbox", eps=1e-8)
     transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], eps=1e-8, method="bbox")
@@ -179,7 +153,7 @@ def test_remove_near_origin(mock_fn: Mock) -> None:
     labels = torch.tensor([0, 1, 2, 3])
     data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    transform = RemoveNearOrigin(pos_key="pos", keys=["label"], radius=0.01)
+    transform = T.RemoveNearOrigin(pos_key="pos", keys=["label"], radius=0.01)
     result = transform(data)
 
     mock_fn.assert_called_once_with(pos, radius=0.01, return_mask=True)
@@ -193,7 +167,7 @@ def test_remove_near_origin_defaults(mock_fn: Mock) -> None:
     mock_fn.return_value = (sentinel.filtered, torch.tensor([True]))
     data = {"pos": torch.randn(1, 3)}
 
-    transform = RemoveNearOrigin(pos_key="pos")
+    transform = T.RemoveNearOrigin(pos_key="pos")
     transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], radius=1e-3, return_mask=True)
@@ -204,7 +178,7 @@ def test_abs_default(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.abs_result
     data = {"pos": MagicMock(), "other": sentinel.other}
 
-    transform = Abs(keys=["pos"])
+    transform = T.Abs(keys=["pos"])
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], inplace=False)
@@ -217,7 +191,7 @@ def test_abs_inplace(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.result
     data = {"pos": MagicMock()}
 
-    transform = Abs(keys=["pos"], inplace=True)
+    transform = T.Abs(keys=["pos"], inplace=True)
     transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], inplace=True)
@@ -228,7 +202,7 @@ def test_abs_multiple_keys(mock_fn: Mock) -> None:
     mock_fn.side_effect = [sentinel.abs_a, sentinel.abs_b]
     data = {"a": MagicMock(), "b": MagicMock(), "c": sentinel.c}
 
-    transform = Abs(keys=["a", "b"])
+    transform = T.Abs(keys=["a", "b"])
     result = transform(data)
 
     assert mock_fn.call_count == 2
@@ -242,7 +216,7 @@ def test_inbox_mask(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.mask
     data = {"pos": MagicMock()}
 
-    transform = InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))
+    transform = T.InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], (0.0, 0.0, 1.0, 1.0), dim=-1)
@@ -254,7 +228,7 @@ def test_inbox_mask_with_dst_keys(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.mask
     data = {"pos": MagicMock()}
 
-    transform = InboxMask(keys=["pos"], bbox=(0.0, 1.0), dst_keys=["mask"], dim=0)
+    transform = T.InboxMask(keys=["pos"], bbox=(0.0, 1.0), dst_keys=["mask"], dim=0)
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], (0.0, 1.0), dim=0)
@@ -268,7 +242,7 @@ def test_apply_mask(mock_fn: Mock) -> None:
     mask = sentinel.mask
     data = {"pos": MagicMock(), "mask": mask, "other": sentinel.other}
 
-    transform = ApplyMask(keys=["pos"], mask_key="mask")
+    transform = T.ApplyMask(keys=["pos"], mask_key="mask")
     result = transform(data)
 
     mock_fn.assert_called_once_with(data["pos"], mask)
@@ -281,7 +255,7 @@ def test_apply_mask_with_dst_keys(mock_fn: Mock) -> None:
     mock_fn.return_value = sentinel.masked
     data = {"pos": MagicMock(), "mask": sentinel.mask}
 
-    transform = ApplyMask(keys=["pos"], mask_key="mask", dst_keys=["filtered"])
+    transform = T.ApplyMask(keys=["pos"], mask_key="mask", dst_keys=["filtered"])
     result = transform(data)
 
     assert result["filtered"] is sentinel.masked
@@ -290,7 +264,7 @@ def test_apply_mask_with_dst_keys(mock_fn: Mock) -> None:
 
 def test_set_value() -> None:
     data = {"a": 1, "other": sentinel.other}
-    transform = SetValue(keys=["a", "b"], values=[42, 99])
+    transform = T.SetValue(keys=["a", "b"], values=[42, 99])
     result = transform(data)
 
     assert result["a"] == 42
@@ -300,7 +274,7 @@ def test_set_value() -> None:
 
 def test_scale() -> None:
     data = {"pos": torch.tensor([1.0, 2.0, 3.0]), "other": sentinel.other}
-    transform = Scale(keys=["pos"], scale=2.0)
+    transform = T.Scale(keys=["pos"], scale=2.0)
     result = transform(data)
 
     assert torch.equal(result["pos"], torch.tensor([2.0, 4.0, 6.0]))
@@ -309,7 +283,7 @@ def test_scale() -> None:
 
 def test_divide() -> None:
     data = {"pos": torch.tensor([2.0, 4.0, 6.0]), "other": sentinel.other}
-    transform = Divide(keys=["pos"], divisor=2.0)
+    transform = T.Divide(keys=["pos"], divisor=2.0)
     result = transform(data)
 
     assert torch.equal(result["pos"], torch.tensor([1.0, 2.0, 3.0]))
@@ -319,7 +293,7 @@ def test_divide() -> None:
 def test_center_bbox() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
     data = {"pos": pos}
-    transform = Center(keys=["pos"], method="bbox")
+    transform = T.Shift(keys=["pos"], method="bbox")
     result = transform(data)
 
     expected = pos - torch.tensor([1.0, 1.0, 1.0])
@@ -329,7 +303,7 @@ def test_center_bbox() -> None:
 def test_center_mean() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
     data = {"pos": pos}
-    transform = Center(keys=["pos"], method="mean")
+    transform = T.Shift(keys=["pos"], method="mean")
     result = transform(data)
 
     expected = pos - pos.mean(dim=0)
@@ -339,7 +313,7 @@ def test_center_mean() -> None:
 def test_align_axis() -> None:
     pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     data = {"pos": pos}
-    transform = AlignAxis(keys=["pos"], dim=-1)
+    transform = T.AlignAxis(keys=["pos"], dim=-1)
     result = transform(data)
 
     assert result["pos"][:, -1].min() == 0.0
@@ -348,7 +322,7 @@ def test_align_axis() -> None:
 def test_ball_mask() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [10.0, 10.0, 10.0]])
     data = {"pos": pos}
-    transform = BallMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])
+    transform = T.BallMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])
     result = transform(data)
 
     assert result["mask"][0].item() is True
@@ -357,7 +331,7 @@ def test_ball_mask() -> None:
 
 def test_relabel() -> None:
     data = {"seg": torch.tensor([1, 2, 5, 255])}
-    transform = Relabel(keys=["seg"], labels=[1, 2, 5], default=255)
+    transform = T.Relabel(keys=["seg"], labels=[1, 2, 5], default=255)
     result = transform(data)
 
     assert result["seg"][0] == 0
@@ -368,7 +342,7 @@ def test_relabel() -> None:
 
 def test_rename_items() -> None:
     data = {"old": sentinel.value, "keep": sentinel.other}
-    transform = RenameItems(keys=["old"], names=["new"])
+    transform = T.RenameItems(keys=["old"], names=["new"])
     result = transform(data)
 
     assert "old" not in result
@@ -378,7 +352,7 @@ def test_rename_items() -> None:
 
 def test_copy_items() -> None:
     data = {"src": torch.tensor([1.0, 2.0]), "keep": sentinel.other}
-    transform = CopyItems(keys=["src"], names=["dst"])
+    transform = T.CopyItems(keys=["src"], names=["dst"])
     result = transform(data)
 
     assert torch.equal(result["dst"], result["src"])
@@ -388,7 +362,7 @@ def test_copy_items() -> None:
 
 def test_subtract_key() -> None:
     data = {"a": torch.tensor([5.0, 6.0]), "b": torch.tensor([1.0, 2.0])}
-    transform = SubtractKey(keys=["a"], sub_keys=["b"])
+    transform = T.SubtractKey(keys=["a"], sub_keys=["b"])
     result = transform(data)
 
     assert torch.equal(result["a"], torch.tensor([4.0, 4.0]))
@@ -396,7 +370,7 @@ def test_subtract_key() -> None:
 
 def test_divide_key() -> None:
     data = {"a": torch.tensor([6.0, 8.0]), "b": torch.tensor([2.0, 4.0])}
-    transform = DivideKey(keys=["a"], div_keys=["b"])
+    transform = T.DivideKey(keys=["a"], div_keys=["b"])
     result = transform(data)
 
     assert torch.equal(result["a"], torch.tensor([3.0, 2.0]))
@@ -404,7 +378,7 @@ def test_divide_key() -> None:
 
 def test_to_tensor() -> None:
     data = {"x": [1.0, 2.0, 3.0]}
-    transform = ToTensor(keys=["x"], dtype=torch.float32)
+    transform = T.ToTensor(keys=["x"], dtype=torch.float32)
     result = transform(data)
 
     assert isinstance(result["x"], torch.Tensor)
@@ -413,7 +387,7 @@ def test_to_tensor() -> None:
 
 def test_ones_like() -> None:
     data = {"pos": torch.randn(5, 3)}
-    transform = OnesLike(keys=["pos"], dst_keys=["ones"])
+    transform = T.OnesLike(keys=["pos"], dst_keys=["ones"])
     result = transform(data)
 
     assert torch.equal(result["ones"], torch.ones(5, 3))
@@ -422,7 +396,7 @@ def test_ones_like() -> None:
 def test_axis_min_offset() -> None:
     pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     data = {"pos": pos}
-    transform = AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"])
+    transform = T.AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"])
     result = transform(data)
 
     assert result["h"].shape == (2, 1)
@@ -435,7 +409,7 @@ def test_cat() -> None:
         "a": torch.ones(4, 2),
         "b": torch.zeros(4, 3),
     }
-    transform = Cat(keys=["a", "b"], dst_key="x", dim=-1)
+    transform = T.Cat(keys=["a", "b"], dst_key="x", dim=-1)
     result = transform(data)
 
     assert result["x"].shape == (4, 5)
@@ -443,7 +417,7 @@ def test_cat() -> None:
 
 def test_keep_items() -> None:
     data = {"pos": sentinel.pos, "color": sentinel.color, "drop": sentinel.drop}
-    transform = KeepItems(keys=["pos", "color"])
+    transform = T.KeepItems(keys=["pos", "color"])
     result = transform(data)
 
     assert set(result.keys()) == {"pos", "color"}
