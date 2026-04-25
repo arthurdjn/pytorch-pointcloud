@@ -27,6 +27,7 @@ __all__ = [
     "BallMask",
     "BuildOctree",
     "Cat",
+    "CenterShift",
     "Compose",
     "CopyItems",
     "DictTransform",

@@ -1250,10 +1250,13 @@ class PointTransformerV3Segmentation(SegmentationModel):
     transforms=T.Compose(
         [
             T.CenterShift(keys=DataKeys.POS, apply_z=True),
-            T.GridSample(
+            T.VoxelGrid(
                 pos_key=DataKeys.POS,
-                feature_keys=[DataKeys.COLOR, DataKeys.NORMAL],
-                grid_size=0.02,
+                pos_reduce="first",
+                keys=[DataKeys.COLOR, DataKeys.NORMAL],
+                reduce=["first", "first"],
+                size=0.02,
+                method="fnv",
             ),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
