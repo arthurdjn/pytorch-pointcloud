@@ -234,7 +234,7 @@ class PointConvDensityClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-@register_model("pointconv-original", task="classification")
+@register_model("pointconv-density-base", task="classification")
 def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointConvDensityClassification:
     hparams: Dict[str, Any] = dict(
         channels=[[64, 64, 128], [128, 128, 256], [256, 512, 1024]],
@@ -254,9 +254,9 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
 
 
 @register_model(
-    "pointconv-density.wuwen.modelnet40",
+    "pointconv-density-base.modelnet40",
     task="classification",
-    weights="hf://torch-pointcloud/pointconv/pointconv-density.wuwen.modelnet40.pt",
+    weights="hf://torch-pointcloud/pointconv/pointconv-density-base.modelnet40.pt",
     transforms=T.Compose(
         [
             T.NormalizeScale(keys=DataKeys.POS),

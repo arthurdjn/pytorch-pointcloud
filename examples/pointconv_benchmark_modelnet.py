@@ -71,8 +71,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointconv-density.wuwen.modelnet40",
-        choices=["pointconv-density.wuwen.modelnet40"],
+        default="pointconv-density-base.modelnet40",
+        choices=["pointconv-density-base.modelnet40"],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
