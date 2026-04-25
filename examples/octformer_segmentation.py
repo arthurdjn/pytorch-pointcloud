@@ -162,7 +162,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     if args.dataset.lower() == "shapenetpart":
         transform = T.Compose(
             [
-                T.Center(keys=DataKeys.POS, method="bbox"),
+                T.Shift(keys=DataKeys.POS, method="bbox"),
                 T.Divide(keys=DataKeys.POS, divisor=10.24),
                 T.AlignAxis(keys=DataKeys.POS, dim=-1),
                 T.BuildOctree(
@@ -193,7 +193,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     elif args.dataset.lower() == "s3dis":
         transform = T.Compose(
             [
-                T.Center(keys=DataKeys.POS, method="bbox"),
+                T.Shift(keys=DataKeys.POS, method="bbox"),
                 T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
                 T.Divide(keys=DataKeys.POS, divisor=10.24),
                 T.AlignAxis(keys=DataKeys.POS, dim=-1),

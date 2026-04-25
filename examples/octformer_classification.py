@@ -146,7 +146,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
                 normal_key=DataKeys.NORMAL,
                 num_samples=args.num_points,
             ),
-            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.Shift(keys=DataKeys.POS, method="bbox"),
             T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
             T.InboxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
             T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
