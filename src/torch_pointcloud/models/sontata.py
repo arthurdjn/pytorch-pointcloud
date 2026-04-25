@@ -27,7 +27,6 @@ class SonataSegmentation(SegmentationModel):
         self,
         in_channels: int,
         num_classes: int,
-        backbone_out_channels: Optional[int] = None,
         serialization_orders: Sequence[SerializationOrder] = ("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders: bool = True,
         strides: Sequence[int] = (2, 2, 2, 2),
@@ -54,6 +53,7 @@ class SonataSegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.encoder_channels = encoder_channels
         self.encoder = PointTransformerV3Encoder(
             in_channels=in_channels,
             serialization_orders=serialization_orders,
@@ -81,20 +81,15 @@ class SonataSegmentation(SegmentationModel):
             norm_kwargs=norm_kwargs,
         )
         self.dropout = dropout
-        self._out_channels = backbone_out_channels or sum(encoder_channels)
-        self.head = nn.Linear(self.out_channels, num_classes)
+        self.head = nn.Linear(self.embedding_dim, num_classes)
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder.embedding_dim
-
-    @property
-    def out_channels(self) -> int:
-        return self._out_channels
+        return sum(self.encoder_channels)
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
-        self.head = nn.Linear(self.out_channels, num_classes)
+        self.head = nn.Linear(self.embedding_dim, num_classes)
 
     @overload
     def forward_features(
@@ -220,7 +215,6 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
     hparams=dict(
         in_channels=9,
         num_classes=20,
-        backbone_out_channels=1232,
         serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders=True,
         strides=(2, 2, 2, 2),
