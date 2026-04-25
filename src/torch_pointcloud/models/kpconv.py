@@ -1169,11 +1169,17 @@ def kpfcnn_modelnet40_clf(**hparams: Any) -> KPFCNNClassification:
 
 _BASE_S3DIS_TRANSFORMS = T.Compose(
     [
-        T.GridSubsampling(
+        # Original implementation of KPConv uses custom C++ code for grid subsampling,
+        # which behaves differently from the PyG implementation, but is close enough.
+        # The main difference is that labels are reduced using the most frequent value per voxel.
+        # NOTE: tensors are automatically converted to float before reduction (if other than "first")
+        T.VoxelGrid(
             pos_key=DataKeys.POS,
-            feature_keys=[DataKeys.COLOR],
-            label_keys=[DataKeys.SEGMENT, DataKeys.INSTANCE],
-            dl=0.03,
+            pos_reduce="mean",
+            keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
+            reduce=["mean", "first", "first"],
+            size=0.03,
+            method="pyg",
         ),
         T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
         T.AxisMinOffset(keys=DataKeys.POS, dst_keys="height", axis=2),
