@@ -378,6 +378,7 @@ uv run --no-sync python examples/pointnext_benchmark_modelnet.py --model pointne
 # PointNeXt Benchmark - ShapeNetPart
 uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm.shapenetpart
 uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm-c64.shapenetpart
+uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm-c160.shapenetpart
 
 # PointNeXt Benchmark - S3DIS (6-fold cross-validation, sm)
 uv run --no-sync python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area1 --areas Area_1

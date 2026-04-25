@@ -1,9 +1,10 @@
 from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn import MLP
+from torch_geometric.nn import MLP, global_max_pool, global_mean_pool
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
@@ -128,7 +129,7 @@ class PointNeXtEncoder(nn.Module):
             out_ch = channels[i + 1]
             if sa_layers >= 2:
                 mid_ch = out_ch // 2 if out_ch != channels[i] else out_ch
-                sa_channels: List[int] = [mid_ch, out_ch]
+                sa_channels: List[int] = [mid_ch] * (sa_layers - 1) + [out_ch]
             else:
                 sa_channels = [out_ch]
 
@@ -283,6 +284,246 @@ class PointNeXtDecoder(nn.Module):
         for block, intermediate in zip(self.blocks, intermediates):
             x, pos, batch = block(x, pos, batch, *intermediate)
         return x, pos, batch
+
+
+class PointNeXtPartDecoder(PointNeXtDecoder):
+    r"""PointNeXt decoder for part segmentation (ShapeNetPart).
+
+    Extends :class:`PointNeXtDecoder` with two global feature convolutions
+    and shape-category conditioning. At the shallowest decoder stage, the
+    skip features are augmented with max-pooled global features from two
+    encoder levels and a shape-category one-hot vector before the FP layer.
+
+    This matches the OpenPoints ``PointNextPartDecoder`` with
+    ``cls_map='curvenet'``.
+
+    Args:
+        global_conv1_in: Input channels for global_conv1 (typically
+            ``encoder_channels[-2] * 2``).
+        global_conv2_in: Input channels for global_conv2 (typically
+            ``encoder_channels[-1] * 2``).
+        num_shape_classes: Number of shape categories (16 for ShapeNetPart).
+        **kwargs: Forwarded to :class:`PointNeXtDecoder`.
+    """
+
+    def __init__(
+        self,
+        *,
+        global_conv1_in: int,
+        global_conv2_in: int,
+        num_shape_classes: int = 16,
+        **kwargs: Any,
+    ):
+        self._extra_skip = 64 + 128 + num_shape_classes
+        # Widen the shallowest skip_channels before parent __init__
+        skip_channels = list(kwargs.pop("skip_channels"))
+        skip_channels[-1] += self._extra_skip
+        kwargs["skip_channels"] = skip_channels
+
+        super().__init__(**kwargs)
+
+        self.num_shape_classes = num_shape_classes
+        self.global_conv1 = nn.Sequential(nn.Linear(global_conv1_in, 64), nn.ReLU(inplace=True))
+        self.global_conv2 = nn.Sequential(nn.Linear(global_conv2_in, 128), nn.ReLU(inplace=True))
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        intermediates: List[PointNeXtIntermediate],
+        cls_onehot: Tensor,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        # Global features from the bottleneck and deepest skip (computed BEFORE
+        # any decoder blocks modify x, matching OpenPoints convention).
+        # intermediates are ordered deep-to-shallow: [0]=deepest, [-1]=shallowest
+        x_deep_skip = intermediates[0].x  # encoder_channels[-2] channels
+        b_deep_skip = intermediates[0].batch
+
+        emb1 = self.global_conv1(x_deep_skip)  # (N_deep, 64)
+        emb1 = global_max_pool(emb1, b_deep_skip)  # (B, 64)
+
+        emb2 = self.global_conv2(x)  # bottleneck, (N_bot, 128)
+        emb2 = global_max_pool(emb2, batch)  # (B, 128)
+
+        # Run all decoder blocks except the shallowest (last in the list)
+        for block, intermediate in zip(self.blocks[:-1], intermediates[:-1]):
+            x, pos, batch = block(x, pos, batch, *intermediate)
+
+        # Expand global features to match the shallowest skip resolution
+        skip_x, skip_pos, skip_batch = intermediates[-1]
+        cls_one_hot = cls_onehot  # (B, num_shape_classes)
+
+        # Scatter-expand: (B, C) -> (N, C) using skip_batch
+        emb1_exp = emb1[skip_batch]  # (N, 64)
+        emb2_exp = emb2[skip_batch]  # (N, 128)
+        cls_exp = cls_one_hot[skip_batch]  # (N, num_shape_classes)
+
+        aug_skip_x = torch.cat([skip_x, emb1_exp, emb2_exp, cls_exp], dim=1)
+        aug_intermediate = PointNeXtIntermediate(aug_skip_x, skip_pos, skip_batch)
+
+        # Run the shallowest FP block
+        x, pos, batch = self.blocks[-1](x, pos, batch, *aug_intermediate)
+        return x, pos, batch
+
+
+class PointNeXtPartSegmentation(SegmentationModel):
+    r"""PointNeXt part segmentation model for ShapeNetPart.
+
+    Uses the same encoder as :class:`PointNeXtSegmentation` but replaces the
+    decoder with :class:`PointNeXtPartDecoder` (global feature conditioning
+    on shape category) and adds a head with global max+avg pooling.
+
+    Args:
+        in_channels: Number of input feature channels.
+        num_classes: Number of part classes (50 for ShapeNetPart).
+        num_shape_classes: Number of shape categories (16 for ShapeNetPart).
+        stem_channels: Stem MLP channel sizes.
+        encoder_channels: Encoder channel dimensions per stage.
+        encoder_depths: Residual block depths per encoder stage.
+        encoder_expansion: InvResMLP expansion ratio.
+        sa_layers: Number of SA conv layers per block.
+        sa_use_res: Whether SA blocks use residual connections.
+        decoder_channels: Decoder channel dimensions per stage.
+        decoder_depths: FP block depths per decoder stage.
+        ratios: FPS downsampling ratios.
+        radiuses: Ball-query radii.
+        num_neighbors: Max neighbors per ball query.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        num_shape_classes: int = 16,
+        stem_channels: Optional[Union[int, Sequence[int]]] = None,
+        stem_plain_last: bool = False,
+        encoder_channels: Sequence[int],
+        encoder_depths: Sequence[int],
+        encoder_expansion: Union[int, Sequence[int]] = 4,
+        sa_layers: int = 1,
+        sa_use_res: bool = True,
+        decoder_channels: Sequence[int],
+        decoder_depths: Sequence[int],
+        decoder_plain_last: bool = True,
+        ratios: Sequence[float],
+        radiuses: Sequence[Union[float, Sequence[float]]],
+        num_neighbors: Sequence[Union[int, Sequence[int]]],
+        add_self_loops: bool = False,
+        spatial_dim: int = 3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: Union[bool, List[bool]] = True,
+        dropout: float = 0.0,
+        head_channels: Optional[Sequence[int]] = None,
+    ):
+        super().__init__(in_channels, num_classes)
+        stem_channels = ensure_list(stem_channels, none_as_empty=True)
+        encoder_channels = ensure_list(encoder_channels)
+        decoder_channels = ensure_list(decoder_channels)
+        ratios = ensure_tuple(ratios)
+        radiuses = ensure_tuple(radiuses)
+        num_neighbors = ensure_tuple(num_neighbors)
+
+        self.num_shape_classes = num_shape_classes
+
+        self.stem: Optional[nn.Module] = None
+        if stem_channels:
+            self.stem = MLP(
+                [in_channels] + stem_channels,
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                plain_last=stem_plain_last,
+            )
+            in_channels = stem_channels[-1]
+
+        self.encoder = PointNeXtEncoder(
+            spatial_dim=spatial_dim,
+            channels=[in_channels] + encoder_channels,
+            depths=encoder_depths,
+            expansion=encoder_expansion,
+            sa_layers=sa_layers,
+            sa_use_res=sa_use_res,
+            ratios=ratios,
+            radiuses=radiuses,
+            num_neighbors=num_neighbors,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            add_self_loops=add_self_loops,
+        )
+
+        self.decoder = PointNeXtPartDecoder(
+            spatial_dim=spatial_dim,
+            channels=[encoder_channels[-1]] + decoder_channels,
+            skip_channels=encoder_channels[:-1][::-1] + [in_channels],
+            depths=decoder_depths,
+            global_conv1_in=encoder_channels[-2],
+            global_conv2_in=encoder_channels[-1],
+            num_shape_classes=num_shape_classes,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
+            plain_last=decoder_plain_last,
+        )
+
+        self.dropout = dropout
+        last_decoder_ch = decoder_channels[-1]
+        head_in = last_decoder_ch * 3  # point + global_max + global_avg
+        if head_channels:
+            self.head: nn.Module = MLP(
+                [head_in] + list(head_channels) + [num_classes],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                dropout=dropout,
+                plain_last=True,
+            )
+        else:
+            self.head = nn.Linear(head_in, num_classes)
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.decoder.channels[-1]
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = nn.Linear(self.embedding_dim * 3, num_classes)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, cls_onehot: Tensor) -> Tensor:
+        x = x if x is not None else pos
+        if self.stem is not None:
+            x = self.stem(x)
+
+        x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
+        x, pos, batch = self.decoder(x, pos, batch, intermediates, cls_onehot)
+
+        if self.dropout:
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+
+        # Append global max + avg pooled features
+        x_max = global_max_pool(x, batch)[batch]  # (N, C)
+        x_avg = global_mean_pool(x, batch)[batch]  # (N, C)
+        x = torch.cat([x, x_max, x_avg], dim=1)
+
+        return self.head(x)
 
 
 class PointNeXtClassification(ClassificationModel):
@@ -1343,3 +1584,93 @@ def pointnext_xl_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 )
 def pointnext_xl_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     return PointNeXtSegmentation(**hparams)
+
+
+_SHAPENETPART_TRANSFORMS = T.Compose(
+    [
+        T.SampleFarthestPoints(
+            num_samples=2048,
+            keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT],
+            pos_key=DataKeys.POS,
+        ),
+        T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
+        T.NormalizeScale(keys=[DataKeys.POS], method="centroid"),
+        T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL, "height"], dst_key=DataKeys.X),
+    ]
+)
+
+_SHAPENETPART_COMMON_HPARAMS = dict(
+    in_channels=7,
+    num_classes=50,
+    num_shape_classes=16,
+    spatial_dim=3,
+    stem_plain_last=True,
+    encoder_depths=[0, 0, 0, 0],
+    encoder_expansion=4,
+    sa_layers=3,
+    sa_use_res=True,
+    decoder_depths=[2, 2, 2, 2],
+    decoder_plain_last=False,
+    ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+    radiuses=[0.1, 0.25, 0.625, 1.5625, 3.906],
+    num_neighbors=[32, 32, 32, 32, 32],
+    act="relu",
+    act_first=False,
+    norm="batch_norm",
+    bias=True,
+    add_self_loops=False,
+)
+
+_SHAPENETPART_VARIANT_HPARAMS = {
+    "sm": dict(
+        stem_channels=32,
+        encoder_channels=[64, 128, 256, 512],
+        decoder_channels=[256, 128, 64, 32],
+        head_channels=[96],
+    ),
+    "sm-c64": dict(
+        stem_channels=64,
+        encoder_channels=[128, 256, 512, 1024],
+        decoder_channels=[512, 256, 128, 64],
+        head_channels=[192],
+    ),
+    "sm-c160": dict(
+        stem_channels=160,
+        encoder_channels=[320, 640, 1280, 2560],
+        decoder_channels=[1280, 640, 320, 160],
+        head_channels=[480],
+    ),
+}
+
+
+@register_model(
+    "pointnext-sm.shapenetpart",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.shapenetpart.pt",
+    transforms=_SHAPENETPART_TRANSFORMS,
+    hparams={**_SHAPENETPART_COMMON_HPARAMS, **_SHAPENETPART_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
+    return PointNeXtPartSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm-c64.shapenetpart",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm-c64.shapenetpart.pt",
+    transforms=_SHAPENETPART_TRANSFORMS,
+    hparams={**_SHAPENETPART_COMMON_HPARAMS, **_SHAPENETPART_VARIANT_HPARAMS["sm-c64"]},
+)
+def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
+    return PointNeXtPartSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm-c160.shapenetpart",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm-c160.shapenetpart.pt",
+    transforms=_SHAPENETPART_TRANSFORMS,
+    hparams={**_SHAPENETPART_COMMON_HPARAMS, **_SHAPENETPART_VARIANT_HPARAMS["sm-c160"]},
+)
+def pointnext_sm_c160_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
+    return PointNeXtPartSegmentation(**hparams)
