@@ -49,7 +49,7 @@ def test_s3dis_dataset_raw_files_not_exist(areas: str | list[str]) -> None:
 @pytest.mark.parametrize("areas", [["Area_1"], ["Area_1", "Area_2"], "all"])
 def test_s3dis_dataset_processed_files_exist(data_dir_factory: Callable[..., Path], areas: str | list[str]) -> None:
     """Test that the processed files exist"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    data_dir = data_dir_factory("S3DIS/processed_aligned/**/*")
     dataset = S3DIS(root=data_dir, areas=areas, show_progress=False)
     assert dataset.processed_files_exist()
 
@@ -62,7 +62,7 @@ def test_s3dis_dataset_split(
     areas: str | list[str],
 ) -> None:
     """Test that the dataset does not load raw data if the processed data exists"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    data_dir = data_dir_factory("S3DIS/processed_aligned/**/*")
 
     dataset = S3DIS(root=data_dir, areas=areas, show_progress=False)
     assert len(dataset) > 0
@@ -117,7 +117,7 @@ def test_s3dis_dataset_progress_with_cached_processed(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that no progress bar is shown if the processed dataset already exists"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    data_dir = data_dir_factory("S3DIS/processed_aligned/**/*")
 
     dataset = S3DIS(root=data_dir, show_progress=True)
     assert len(dataset) > 0
@@ -151,7 +151,7 @@ def test_s3dis_dataset_all_classes(data_dir_factory: Callable[..., Path]) -> Non
 
 def test_s3dis_dataset_transform(data_dir_factory: Callable[..., Path]) -> None:
     """Test that the dataset is transformed correctly after being processed"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    data_dir = data_dir_factory("S3DIS/processed_aligned/**/*")
 
     transform = Mock(side_effect=lambda data: data)
     dataset = S3DIS(root=data_dir, transform=transform, show_progress=False)
@@ -161,7 +161,7 @@ def test_s3dis_dataset_transform(data_dir_factory: Callable[..., Path]) -> None:
 
 def test_s3dis_tile_blocks(data_dir_factory: Callable[..., Path]) -> None:
     """Test that tile_blocks splits rooms into fixed-size blocks"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    data_dir = data_dir_factory("S3DIS/processed_aligned/**/*")
 
     dataset_rooms = S3DIS(root=data_dir, show_progress=False)
     num_rooms = len(dataset_rooms)
@@ -185,7 +185,7 @@ def test_s3dis_tile_blocks(data_dir_factory: Callable[..., Path]) -> None:
 
 def test_s3dis_tile_blocks_preserves_cache(data_dir_factory: Callable[..., Path]) -> None:
     """Test that changing tile_blocks does not require reprocessing"""
-    data_dir = data_dir_factory("S3DIS/processed/**/*")
+    data_dir = data_dir_factory("S3DIS/processed_aligned/**/*")
 
     dataset_a = S3DIS(
         root=data_dir,

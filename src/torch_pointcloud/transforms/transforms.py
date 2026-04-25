@@ -3,11 +3,12 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optio
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import build_octree
-from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
+from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
 from . import functional as F
@@ -26,13 +27,12 @@ __all__ = [
     "BallMask",
     "BuildOctree",
     "Cat",
-    "Center",
     "Compose",
     "CopyItems",
     "DictTransform",
     "Divide",
     "DivideKey",
-    "GridSubsampling",
+    "VoxelGrid",
     "InboxMask",
     "KeepItems",
     "NormalizeScale",
@@ -45,8 +45,11 @@ __all__ = [
     "SampleFarthestPoints",
     "Scale",
     "SetValue",
+    "Shift",
+    "Normalize",
     "SubtractKey",
     "ToDevice",
+    "ToFloat",
     "ToTensor",
     "Transform",
 ]
@@ -602,51 +605,111 @@ class Divide(DictTransform):
         return data
 
 
-class Center(DictTransform):
-    """Center dictionary tensor entries by subtracting the center of the first key.
+class ToFloat(DictTransform):
+    """Cast dictionary tensor entries to float32.
+
+    Useful when tensors are stored in integer formats (e.g. ``uint8`` for
+    colors) and need to be promoted to floating point before arithmetic
+    transforms like :class:`Divide` or :class:`Normalize`.
 
     Args:
-        keys: The keys to center. The center is computed from the first key.
-        method: ``"bbox"`` (midrange) or ``"mean"`` (centroid).
-        dim: The dimension to center over.
-        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+        keys: The keys to cast.
+        allow_missing_keys: If ``True``, missing keys are silently ignored.
     """
 
     def __init__(
         self,
         keys: KeyCollection,
-        method: Literal["bbox", "mean"] = "bbox",
-        dim: int = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        if method not in ["bbox", "mean"]:
-            raise ValueError(f"Invalid method: {method!r}. Expected 'bbox' or 'mean'.")
-
-        self.method = method
-        self.dim = dim
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-
-        iterator = self.iter_keys(data)
-        first_key = next(iterator)
-
-        x = data[first_key]
-        if not torch.is_tensor(x):
-            raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
-
-        if self.method == "bbox":
-            center = (x.min(dim=self.dim).values + x.max(dim=self.dim).values) / 2
-        else:
-            center = x.mean(dim=self.dim)
-
         for key in self.iter_keys(data):
+            data[key] = data[key].float()
+        return data
+
+
+class Normalize(DictTransform):
+    r"""Normalize dictionary tensor entries: :math:`x' = (x - \mu) / \sigma`.
+
+    Args:
+        keys: The keys to standardize.
+        mean: Per-channel mean(s).  Broadcast against the last dimension of
+            each tensor.
+        std: Per-channel standard deviation(s).
+        allow_missing_keys: If ``True``, missing keys are silently ignored.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        mean: Sequence[float],
+        std: Sequence[float],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mean = torch.tensor(mean, dtype=torch.float32)
+        self.std = torch.tensor(std, dtype=torch.float32)
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        mean = self.mean.to(data[next(iter(self.keys))].device)
+        std = self.std.to(data[next(iter(self.keys))].device)
+        for key in self.iter_keys(data):
+            data[key] = (data[key] - mean) / std
+        return data
+
+
+class Shift(DictTransform):
+    """Shift dictionary tensor entries by subtracting a computed offset.
+
+    Each key is offset independently. The offset is determined by `method`:
+
+    | Method   | Offset                                           |
+    | -------- | ------------------------------------------------ |
+    | `"bbox"` | Midrange: `(min + max) / 2`                      |
+    | `"mean"` | Centroid: `mean`                                 |
+    | `"min"`  | Per-axis minimum (shifts to the positive octant) |
+
+    Args:
+        keys: The keys to shift.
+        method: `"bbox"` (midrange), `"mean"` (centroid), or `"min"` (shift to origin).
+        dim: The dimension to reduce over.
+        dst_keys: The keys to store the shifted data in.
+        allow_missing_keys: If `True`, skip missing keys silently.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        method: ValueCollection[Literal["bbox", "mean", "min"]],
+        dim: int = 0,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dim = dim
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.method = ensure_tuple_size(method, len(self.keys))
+        if not set(self.method).issubset({"bbox", "mean", "min"}):
+            raise ValueError(f"Invalid method: {method!r}. Expected 'bbox', 'mean', or 'min'.")
+
+    def offset(self, x: Tensor, method: Literal["bbox", "mean", "min"]) -> Tensor:
+        if method == "bbox":
+            return (x.min(dim=self.dim).values + x.max(dim=self.dim).values) / 2
+        if method == "mean":
+            return x.mean(dim=self.dim)
+        return x.min(dim=self.dim).values
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key, method in self.iter_keys(data, self.dst_keys, self.method):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
-
-            data[key] = x - center
+            data[dst_key] = x - self.offset(x, method)
         return data
 
 
@@ -1051,56 +1114,56 @@ class ToTensor(DictTransform):
         return data
 
 
-class GridSubsampling(DictTransform):
-    """Voxel-grid subsampling for point cloud dictionaries.
-
-    Assigns each point to a voxel and aggregates within each voxel:
-    positions and float feature keys are averaged; label keys retain a single
-    representative point per voxel (the first point returned by the cluster).
-
-    Args:
-        pos_key: Key holding xyz positions `(N, 3)`.
-        feature_keys: Keys for float features to average per voxel.
-        label_keys: Keys for integer labels -- one representative value per voxel.
-        dl: Voxel edge length.
-        allow_missing_keys: If `True`, silently skip absent feature/label keys.
-    """
-
+class VoxelGrid(DictTransform):
     def __init__(
         self,
         pos_key: str,
-        feature_keys: Optional[KeyCollection] = None,
-        label_keys: Optional[KeyCollection] = None,
-        dl: float = 0.04,
+        size: float,
+        pos_reduce: str = "mean",
+        method: Literal["fnv", "pyg"] = "pyg",
+        reduce: Optional[ValueCollection[Literal["mean", "min", "max", "sum", "first"]]] = None,
+        keys: Optional[KeyCollection] = None,
         allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(None, allow_missing_keys)
+        super().__init__(keys, allow_missing_keys)
         self.pos_key = pos_key
-        self.feature_keys: list = list(ensure_tuple(feature_keys)) if feature_keys is not None else []
-        self.label_keys: list = list(ensure_tuple(label_keys)) if label_keys is not None else []
-        self.dl = dl
+        self.pos_reduce = pos_reduce
+        self.size = size
+        self.reduce = ensure_tuple_size(reduce, len(self.keys))
+        self.method = method
+
+    def apply_reduction(
+        self,
+        tensor: torch.Tensor,
+        reduce: str,
+        cluster: torch.Tensor,
+        perm: torch.Tensor,
+    ) -> torch.Tensor:
+        if reduce == "first":
+            return tensor[perm]
+
+        # NOTE: Tensor is automatically converted to float before reduction.
+        return scatter(tensor.float(), cluster, dim=0, reduce=reduce)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        pos = data[self.pos_key].float()
+        pos = data[self.pos_key]
 
-        start = torch.floor(pos.min(dim=0).values / self.dl) * self.dl
-        cluster = voxel_grid(pos, size=self.dl, start=start)
+        start = torch.floor(pos.min(dim=0).values / self.size) * self.size
+
+        if self.method == "fnv":
+            # This method is supported only for debugging and reproducibility, such that it behaves and produces
+            # the same output as Pointcept grid subsampling.
+            # This method might be removed in the future (?)
+            cluster = voxel_grid_fnv(pos, size=self.size, start=start)
+        else:
+            cluster = voxel_grid(pos, size=self.size, start=start)
+
         cluster, perm = consecutive_cluster(cluster, return_permutation=True)
 
-        data[self.pos_key] = scatter(pos, cluster, dim=0, reduce="mean")
-
-        for key in self.feature_keys:
-            if key in data:
-                data[key] = scatter(data[key].float(), cluster, dim=0, reduce="mean")
-            elif not self.allow_missing_keys:
-                raise KeyError(f"Key {key!r} not found in data.")
-
-        for key in self.label_keys:
-            if key in data:
-                data[key] = data[key][perm]
-            elif not self.allow_missing_keys:
-                raise KeyError(f"Key {key!r} not found in data.")
+        data[self.pos_key] = self.apply_reduction(pos, self.pos_reduce, cluster, perm)
+        for key, reduce in self.iter_keys(data, self.reduce):
+            data[key] = self.apply_reduction(data[key], reduce, cluster, perm)
 
         return data
 

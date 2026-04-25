@@ -26,7 +26,7 @@ pos = torch.randn(10, 3)
 batch = torch.zeros(10, dtype=torch.long)
 edge_index = radius_graph(pos, r=1.5, batch=batch, max_num_neighbors=16)
 
-conv = PointNeXtConv(MLP([10 + 3, 10]))
+conv = PointNeXtConv(MLP([3 + 10, 10]))
 
 # Normalize the relative position by the query radius
 out = conv(x, pos, edge_index, pos_divisor=1.5)
@@ -40,17 +40,75 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing, fps, radius, radius_graph
 from torch_geometric.nn.inits import reset
 from torch_geometric.nn.resolver import activation_resolver
-from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
+from torch_geometric.typing import Adj, NoneType, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
 from .pointnet2_blocks import PointNet2SetAbstraction
+
+
+class _PlainLastActMLP(MLP):
+    """MLP variant that removes activation from the last *in-loop* layer.
+
+    In the base `MLP`, when `plain_last=True` the loop covers all layers
+    except the final linear projection.  The activation function is still
+    applied at every iteration inside that loop, including the last one.
+    This means the penultimate layer's output passes through an activation
+    before being fed into the plain final linear layer.
+
+    `_PlainLastActMLP` modifies this behavior by skipping the activation
+    at the last loop iteration (`i == len(self.norms) - 1`), so that the
+    two outermost layers are separated only by normalization and dropout -
+    no non-linearity.
+
+    For a 3-layer network (`channel_list = [d_in, h, h, d_out]`) the
+    effective forward passes compare as follows:
+
+    | Variant                          | Forward pass                                                         |
+    | -------------------------------- | -------------------------------------------------------------------- |
+    | `MLP` (`plain_last=True`)        | lin₀ → act → norm → drop → lin₁ → act  → norm → drop → lin₂ → drop   |
+    | `_PlainLastActMLP`               | lin₀ → act → norm → drop → lin₁ → norm → drop → lin₂ → drop          |
+
+    """
+
+    def forward(
+        self,
+        x: Tensor,
+        batch: Optional[Tensor] = None,
+        batch_size: Optional[int] = None,
+        return_emb: NoneType = None,
+    ) -> Tensor:
+        # `return_emb` is annotated here as `NoneType` to be compatible with
+        # TorchScript, which does not support different return types based on
+        # the value of an input argument.
+        emb: Optional[Tensor] = None
+
+        # If `plain_last=True`, then `len(norms) = len(lins) - 1`, thus skipping
+        # the execution of the last layer inside the for-loop.
+        last = len(self.norms) - 1
+        for i, (lin, norm) in enumerate(zip(self.lins, self.norms)):
+            x = lin(x)
+            if self.act is not None and self.act_first and i < last:
+                x = self.act(x)
+            x = norm(x, batch, batch_size) if self.supports_norm_batch else norm(x)
+            if self.act is not None and not self.act_first and i < last:
+                x = self.act(x)
+            x = F.dropout(x, p=self.dropout[i], training=self.training)
+            if isinstance(return_emb, bool) and return_emb is True:
+                emb = x
+
+        if self.plain_last:
+            x = self.lins[-1](x)
+            x = F.dropout(x, p=self.dropout[-1], training=self.training)
+
+        return (x, emb) if isinstance(return_emb, bool) else x  # type: ignore[return-value]
 
 
 class PointNeXtConv(MessagePassing):
@@ -98,7 +156,7 @@ class PointNeXtConv(MessagePassing):
         if pos_divisor is not None:
             msg = msg / pos_divisor
         if x_j is not None:
-            msg = torch.cat([x_j, msg], dim=1)
+            msg = torch.cat([msg, x_j], dim=1)
 
         return self.local_nn(msg)
 
@@ -110,18 +168,21 @@ class PointNeXtConv(MessagePassing):
 
 
 class PointNeXtSetAbstraction(PointNet2SetAbstraction):
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args: Any, use_res: bool = True, **kwargs: Any):
+        self.use_res = use_res
         super().__init__(*args, **kwargs)
 
         self.skip_convs = nn.ModuleList()
-        for i, channels in enumerate(self.channels):
-            out_channels = channels[-1]
-            skip_conv = self.configure_skip_conv(out_channels, i)
-            self.skip_convs.append(skip_conv)
+        if self.use_res:
+            for i, channels in enumerate(self.channels):
+                out_channels = channels[-1]
+                skip_conv = self.configure_skip_conv(out_channels, i)
+                self.skip_convs.append(skip_conv)
 
     def configure_conv(self, channels: Sequence[Any], index: int) -> MessagePassing:
         in_channels = self.in_channels + self.spatial_dim
-        local_nn = MLP(
+        mlp_cls = _PlainLastActMLP if self.use_res else MLP
+        local_nn = mlp_cls(
             [in_channels] + list(channels),
             act=self.act,
             act_first=self.act_first,
@@ -139,7 +200,7 @@ class PointNeXtSetAbstraction(PointNet2SetAbstraction):
             aggr=self.aggr,
         )
 
-    def configure_skip_conv(self, out_channels: int, index: int) -> MessagePassing:
+    def configure_skip_conv(self, out_channels: int, index: int) -> nn.Module:
         if out_channels == self.in_channels:
             return nn.Identity()
 
@@ -152,7 +213,7 @@ class PointNeXtSetAbstraction(PointNet2SetAbstraction):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             dropout=self.dropout,
-            plain_last=False,
+            plain_last=True,
         )
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -161,13 +222,18 @@ class PointNeXtSetAbstraction(PointNet2SetAbstraction):
         pos_dst = pos[idx]
         batch_dst = batch[idx]
 
-        msg_x = []
-        for r, num_neighbors, conv, skip_conv in zip(self.radius, self.num_neighbors, self.convs, self.skip_convs):
+        msg_x: List[Tensor] = []
+        for r, num_neighbors, conv in zip(self.radius, self.num_neighbors, self.convs):
             row, col = radius(pos, pos_dst, r=r, batch_x=batch, batch_y=batch_dst, max_num_neighbors=num_neighbors)
             edge_index = torch.stack([col, row], dim=0)
-            out_x = conv((x, x_dst), (pos, pos_dst), edge_index, pos_divisor=r)
-            out_x = self.act(out_x + skip_conv(x_dst))
-            msg_x.append(out_x)
+            x_out = conv((x, x_dst), (pos, pos_dst), edge_index, pos_divisor=r)
+
+            if self.use_res:
+                skip_conv = self.skip_convs[len(msg_x)]
+                x_skip = skip_conv(x_dst)
+                x_out = self.act(x_out + x_skip)
+
+            msg_x.append(x_out)
 
         return torch.cat(msg_x, dim=1), pos_dst, batch_dst
 
@@ -212,6 +278,7 @@ class PointNeXtResidualBlock(nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
             bias=bias,
+            plain_last=False,
         )
         self.conv = PointNeXtConv(
             local_nn=local_nn,
@@ -220,7 +287,7 @@ class PointNeXtResidualBlock(nn.Module):
         )
 
         mid_channels = channels * expansion
-        self.mlp = MLP(
+        self.mlp = _PlainLastActMLP(
             [channels, mid_channels, channels],
             act=act,
             act_kwargs=act_kwargs,

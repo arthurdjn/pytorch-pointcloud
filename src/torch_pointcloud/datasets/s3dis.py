@@ -267,9 +267,9 @@ class S3DIS(PointCloudDataset):
         root: The root directory of the dataset, where the raw and processed data will be stored.
         areas: The areas to load, either a list of area names or "all".
         classes: The classes to load, either a list of class names or "all".
-        align: Whether to return aligned (axis-aligned) coordinates.  The raw
+        aligned: Whether to return aligned (axis-aligned) coordinates.  The raw
             download is `Stanford3dDataset_v1.2_Aligned_Version` whose coordinates
-            already contain per-room alignment rotations.  When `True` (default)
+            already contain per-room alignment rotations.  When `aligned=True` (default)
             those coordinates are used as-is.  When `False` the *inverse* of each
             room's alignment angle is applied to recover the original V1.2
             (non-aligned) coordinate frame — this is required when benchmarking
@@ -318,8 +318,6 @@ class S3DIS(PointCloudDataset):
 
     resources = [
         "ReadMe.txt",
-        # NOTE: We always use the updated aligned version of the dataset.
-        # To get the original unaligned version, we used the provided alignment angles to revert (if desired).
         "Stanford3dDataset_v1.2_Aligned_Version.zip",
     ]
     md5 = "ca095ff6721a379f2fbd97b82d3a9960"
@@ -330,7 +328,7 @@ class S3DIS(PointCloudDataset):
         *,
         areas: Union[ValueCollection[S3DISArea], Literal["all"]] = "all",
         classes: Union[ValueCollection[S3DISClass], Literal["all"]] = "all",
-        align: bool = True,
+        aligned: bool = True,
         block_size: Optional[float] = None,
         block_stride: float = 1.0,
         num_nodes: int = 4096,
@@ -346,7 +344,7 @@ class S3DIS(PointCloudDataset):
 
         self.areas = ensure_tuple(areas if areas != "all" else S3DIS_AREAS)
         self.classes = ensure_tuple(classes if classes != "all" else S3DIS_CLASSES)
-        self.align = align
+        self.aligned = aligned
         self.transform = transform
         self.show_progress = show_progress
         self.num_workers = num_workers
@@ -368,10 +366,9 @@ class S3DIS(PointCloudDataset):
 
     @property
     def processed_dir(self) -> str:
-        base = Path(self.data_dir, "processed")
-        if not self.align:
-            base = base.with_name("processed_unaligned")
-        return base.absolute().as_posix()
+        if self.aligned:
+            return Path(self.data_dir, "processed_aligned").absolute().as_posix()
+        return Path(self.data_dir, "processed").absolute().as_posix()
 
     @cached_property
     def class_to_idx(self) -> dict[str, int]:
@@ -466,7 +463,13 @@ class S3DIS(PointCloudDataset):
         num_workers: Optional[int] = None,
         show_progress: bool = True,
     ) -> None:
-        """Process the raw dataset for easier loading. This will NOT apply tiling or align rooms."""
+        """Process the raw dataset for easier loading.
+
+        When `aligned=True`, applies the per-room alignment rotation so that
+        the stored coordinates are in the globally-aligned frame (matching the
+        OpenPoints *s3disfull* convention).  When `aligned=False`, coordinates
+        are kept in the raw scan frame.
+        """
         if self.processed_files_exist() and not force:
             return
         if not self.raw_files_exist():
@@ -481,11 +484,13 @@ class S3DIS(PointCloudDataset):
                 continue
 
             area_dir = Path(self.raw_dir, area)
+
             angles: dict[str, float] = {}
-            if not self.align:
-                angle_path = area_dir / f"{area}_alignmentAngle.txt"
-                raw_angles = load_s3dis_alignment_angles(angle_path) if angle_path.exists() else {}
-                angles = {room: -angle for room, angle in raw_angles.items()}
+            angle_path = area_dir / f"{area}_alignmentAngle.txt"
+            if self.aligned and not angle_path.exists():
+                raise RuntimeError(f"Alignment angles file not found at {angle_path!r}.")
+            if self.aligned and angle_path.exists():
+                angles = load_s3dis_alignment_angles(angle_path)
 
             jobs = [
                 (room_dir, angles.get(room_dir.name))

@@ -5,10 +5,12 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, PointNeXtSetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
@@ -87,6 +89,8 @@ class PointNeXtEncoder(nn.Module):
         ratios: Sequence[float],
         radiuses: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
+        sa_layers: int = 1,
+        sa_use_res: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -121,13 +125,21 @@ class PointNeXtEncoder(nn.Module):
 
         self.blocks = nn.ModuleList()
         for i in range(size):
+            out_ch = channels[i + 1]
+            if sa_layers >= 2:
+                mid_ch = out_ch // 2 if out_ch != channels[i] else out_ch
+                sa_channels: List[int] = [mid_ch, out_ch]
+            else:
+                sa_channels = [out_ch]
+
             downsample = PointNeXtSetAbstraction(
                 spatial_dim=spatial_dim,
                 in_channels=channels[i],
-                channels=[channels[i + 1]],
+                channels=sa_channels,
                 ratio=self.ratios[i],
                 radius=self.radiuses[i],
                 num_neighbors=self.num_neighbors[i],
+                use_res=sa_use_res,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -231,6 +243,7 @@ class PointNeXtDecoder(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
+        plain_last: bool = True,
     ):
         super().__init__()
         self.channels = ensure_tuple(channels)
@@ -248,7 +261,7 @@ class PointNeXtDecoder(nn.Module):
             in_channels = self.channels[i] + self.skip_channels[i]
             block = PointNet2FeaturePropagation(
                 channels=[in_channels] + [self.channels[i + 1]] * self.depths[i],
-                k=1 if i == 0 else spatial_dim,
+                k=spatial_dim,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -256,6 +269,7 @@ class PointNeXtDecoder(nn.Module):
                 norm_kwargs=norm_kwargs,
                 bias=bias,
                 dropout=dropout,
+                plain_last=plain_last,
             )
             self.blocks.append(block)
 
@@ -317,9 +331,12 @@ class PointNeXtClassification(ClassificationModel):
         num_classes: int,
         *,
         stem_channels: Optional[Union[int, Sequence[int]]] = None,
+        stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
         encoder_depths: Sequence[int],
         encoder_expansion: Union[int, Sequence[int]] = 4,
+        sa_layers: int = 1,
+        sa_use_res: bool = True,
         ratios: Sequence[float],
         radiuses: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
@@ -333,6 +350,8 @@ class PointNeXtClassification(ClassificationModel):
         bias: Union[bool, List[bool]] = True,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
+        head_channels: Optional[Sequence[int]] = None,
+        global_sa_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
         stem_channels = ensure_list(stem_channels, none_as_empty=True)
@@ -348,9 +367,8 @@ class PointNeXtClassification(ClassificationModel):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
                 bias=bias,
-                plain_last=False,
+                plain_last=stem_plain_last,
             )
-            # Make sure to update the input channels with the last channel of the stem
             in_channels = stem_channels[-1]
 
         self.encoder = PointNeXtEncoder(
@@ -358,6 +376,8 @@ class PointNeXtClassification(ClassificationModel):
             channels=[in_channels] + encoder_channels,
             depths=encoder_depths,
             expansion=encoder_expansion,
+            sa_layers=sa_layers,
+            sa_use_res=sa_use_res,
             ratios=ratios,
             radiuses=radiuses,
             num_neighbors=num_neighbors,
@@ -370,13 +390,52 @@ class PointNeXtClassification(ClassificationModel):
             add_self_loops=add_self_loops,
         )
 
+        self.global_sa: Optional[PointNeXtSetAbstraction] = None
+        if global_sa_channels is not None:
+            last_ch = encoder_channels[-1]
+            self.global_sa = PointNeXtSetAbstraction(
+                spatial_dim=spatial_dim,
+                in_channels=last_ch,
+                channels=list(global_sa_channels),
+                ratio=1.0,
+                radius=1e6,
+                num_neighbors=1024,
+                use_res=False,
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                add_self_loops=add_self_loops,
+                aggr="max",
+            )
+            self._embedding_dim = int(global_sa_channels[-1])
+        else:
+            self._embedding_dim = encoder_channels[-1]
+
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head: nn.Module
+        if head_channels:
+            channels_list = [self._embedding_dim] + list(head_channels) + [num_classes]
+            self.head = MLP(
+                channels_list,
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                dropout=dropout,
+                plain_last=True,
+            )
+        else:
+            self.head = create_cls_head(num_features=self._embedding_dim, num_classes=self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder.channels[-1]
+        return self._embedding_dim
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -413,15 +472,17 @@ class PointNeXtClassification(ClassificationModel):
             x = self.stem(x)
         return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
-    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, pos: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.global_sa is not None:
+            x, pos, batch = self.global_sa(x, pos, batch)
         x = self.global_pool(x, batch)
-        if self.dropout:
+        if self.dropout and not isinstance(self.head, MLP):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, _, batch = self.forward_features(x, pos, batch)
-        return self.forward_head(x, batch)
+        x, pos, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, pos, batch)
 
 
 class PointNeXtSegmentation(SegmentationModel):
@@ -472,11 +533,15 @@ class PointNeXtSegmentation(SegmentationModel):
         num_classes: int,
         *,
         stem_channels: Optional[Union[int, Sequence[int]]] = None,
+        stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
         encoder_depths: Sequence[int],
         encoder_expansion: Union[int, Sequence[int]] = 4,
+        sa_layers: int = 1,
+        sa_use_res: bool = True,
         decoder_channels: Sequence[int],
         decoder_depths: Sequence[int],
+        decoder_plain_last: bool = True,
         ratios: Sequence[float],
         radiuses: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
@@ -489,6 +554,7 @@ class PointNeXtSegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
         dropout: float = 0.0,
+        head_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
         stem_channels = ensure_list(stem_channels, none_as_empty=True)
@@ -508,9 +574,8 @@ class PointNeXtSegmentation(SegmentationModel):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
                 bias=bias,
-                plain_last=False,
+                plain_last=stem_plain_last,
             )
-            # Make sure to update the input channels with the last channel of the stem
             in_channels = stem_channels[-1]
 
         self.encoder = PointNeXtEncoder(
@@ -518,6 +583,8 @@ class PointNeXtSegmentation(SegmentationModel):
             channels=[in_channels] + encoder_channels,
             depths=encoder_depths,
             expansion=encoder_expansion,
+            sa_layers=sa_layers,
+            sa_use_res=sa_use_res,
             ratios=ratios,
             radiuses=radiuses,
             num_neighbors=num_neighbors,
@@ -541,10 +608,26 @@ class PointNeXtSegmentation(SegmentationModel):
             norm=norm,
             norm_kwargs=norm_kwargs,
             bias=bias,
+            plain_last=decoder_plain_last,
         )
 
         self.dropout = dropout
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self._head_channels = head_channels
+        last_decoder_ch = decoder_channels[-1]
+        if head_channels:
+            self.head: nn.Module = MLP(
+                [last_decoder_ch] + list(head_channels) + [num_classes],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                dropout=dropout,
+                plain_last=True,
+            )
+        else:
+            self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -605,17 +688,19 @@ class PointNeXtSegmentation(SegmentationModel):
         return self.forward_head(x)
 
 
-@register_model("pointnext-sm", task="classification")
-def pointnext_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointnext-sm",
+    task="classification",
+    hparams=dict(
         spatial_dim=3,
         stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[1, 1, 1, 1],
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[0, 0, 0, 0],
         encoder_expansion=4,
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        sa_layers=2,
+        sa_use_res=True,
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -623,23 +708,27 @@ def pointnext_sm_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Point
         norm="batch_norm",
         bias=True,
         add_self_loops=False,
-    )
-    hparams.update(kwargs)
+        head_channels=[512, 256],
+        global_sa_channels=[512, 512],
+    ),
+)
+def pointnext_sm_clf(**hparams: Any) -> PointNeXtClassification:
+    return PointNeXtClassification(**hparams)
 
-    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
-
-@register_model("pointnext-base", task="classification")
-def pointnext_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointnext-base",
+    task="classification",
+    hparams=dict(
         spatial_dim=3,
         stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[2, 3, 2, 2],
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[1, 2, 1, 1],
         encoder_expansion=4,
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        sa_layers=1,
+        sa_use_res=False,
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -647,23 +736,27 @@ def pointnext_base_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Poi
         norm="batch_norm",
         bias=True,
         add_self_loops=False,
-    )
-    hparams.update(kwargs)
+        head_channels=[512, 256],
+        global_sa_channels=[512],
+    ),
+)
+def pointnext_base_clf(**hparams: Any) -> PointNeXtClassification:
+    return PointNeXtClassification(**hparams)
 
-    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
-
-@register_model("pointnext-lg", task="classification")
-def pointnext_lg_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointnext-lg",
+    task="classification",
+    hparams=dict(
         spatial_dim=3,
         stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[3, 5, 3, 3],
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[2, 4, 2, 2],
         encoder_expansion=4,
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        sa_layers=1,
+        sa_use_res=False,
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -671,23 +764,27 @@ def pointnext_lg_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Point
         norm="batch_norm",
         bias=True,
         add_self_loops=False,
-    )
-    hparams.update(kwargs)
+        head_channels=[512, 256],
+        global_sa_channels=[512],
+    ),
+)
+def pointnext_lg_clf(**hparams: Any) -> PointNeXtClassification:
+    return PointNeXtClassification(**hparams)
 
-    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
-
-@register_model("pointnext-xl", task="classification")
-def pointnext_xl_clf(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtClassification:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointnext-xl",
+    task="classification",
+    hparams=dict(
         spatial_dim=3,
-        stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[4, 7, 4, 4],
+        stem_channels=64,
+        stem_plain_last=True,
+        encoder_channels=[128, 256, 512, 1024],
+        encoder_depths=[3, 6, 3, 3],
         encoder_expansion=4,
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        sa_layers=1,
+        sa_use_res=False,
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -695,111 +792,554 @@ def pointnext_xl_clf(in_channels: int, num_classes: int, **kwargs: Any) -> Point
         norm="batch_norm",
         bias=True,
         add_self_loops=False,
-    )
-    hparams.update(kwargs)
+        head_channels=[1024, 512],
+        global_sa_channels=[1024],
+    ),
+)
+def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
+    return PointNeXtClassification(**hparams)
 
-    return PointNeXtClassification(**hparams)  # type: ignore[arg-type]
 
-
-@register_model("pointnext-sm", task="segmentation")
-def pointnext_sm_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointnext-sm.scanobjectnn",
+    task="classification",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.scanobjectnn.pt",
+    transforms=T.Compose(
+        [
+            T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
+            T.NormalizeScale(keys=DataKeys.POS, method="centroid"),
+            T.SampleFarthestPoints(pos_key=DataKeys.POS, keys=("height",), num_samples=1024, random_start=False),
+            T.Cat(keys=(DataKeys.POS, "height"), dst_key=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=15,
         spatial_dim=3,
         stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[1, 1, 1, 1],
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[0, 0, 0, 0],
         encoder_expansion=4,
+        sa_layers=2,
+        sa_use_res=True,
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.15, 0.225, 0.3375, 0.50625, 0.759375],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+        dropout=0.5,
+        head_channels=[512, 256],
+        global_sa_channels=[512, 512],
+    ),
+)
+def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
+    return PointNeXtClassification(**hparams)
+
+
+@register_model(
+    "pointnext-sm-c64.modelnet40",
+    task="classification",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm-c64.modelnet40.pt",
+    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+    hparams=dict(
+        in_channels=3,
+        num_classes=40,
+        spatial_dim=3,
+        stem_channels=64,
+        stem_plain_last=True,
+        encoder_channels=[128, 256, 512, 1024],
+        encoder_depths=[0, 0, 0, 0],
+        encoder_expansion=4,
+        sa_layers=2,
+        sa_use_res=True,
+        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.15, 0.225, 0.3375, 0.50625, 0.759375],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+        dropout=0.5,
+        head_channels=[512, 256],
+        global_sa_channels=[1024, 1024],
+    ),
+)
+def pointnext_sm_c64_modelnet40_clf(**hparams: Any) -> PointNeXtClassification:
+    return PointNeXtClassification(**hparams)
+
+
+@register_model(
+    "pointnext-sm",
+    task="segmentation",
+    hparams=dict(
+        spatial_dim=3,
+        stem_channels=32,
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[0, 0, 0, 0],
+        encoder_expansion=4,
+        sa_layers=2,
+        sa_use_res=True,
+        decoder_channels=[512, 256, 128, 64],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    ),
+)
+def pointnext_sm_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base",
+    task="segmentation",
+    hparams=dict(
+        spatial_dim=3,
+        stem_channels=32,
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[1, 2, 1, 1],
+        encoder_expansion=4,
+        sa_layers=1,
+        sa_use_res=False,
+        decoder_channels=[512, 256, 128, 64],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    ),
+)
+def pointnext_base_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg",
+    task="segmentation",
+    hparams=dict(
+        spatial_dim=3,
+        stem_channels=32,
+        stem_plain_last=True,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[2, 4, 2, 2],
+        encoder_expansion=4,
+        sa_layers=1,
+        sa_use_res=False,
+        decoder_channels=[512, 256, 128, 64],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    ),
+)
+def pointnext_lg_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl",
+    task="segmentation",
+    hparams=dict(
+        spatial_dim=3,
+        stem_channels=64,
+        stem_plain_last=True,
+        encoder_channels=[128, 256, 512, 1024],
+        encoder_depths=[3, 6, 3, 3],
+        encoder_expansion=4,
+        sa_layers=1,
+        sa_use_res=False,
+        decoder_channels=[1024, 512, 256, 128],
+        decoder_depths=[2, 2, 2, 2],
+        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+        num_neighbors=[32, 32, 32, 32, 32],
+        act="relu",
+        act_first=False,
+        norm="batch_norm",
+        bias=True,
+        add_self_loops=False,
+    ),
+)
+def pointnext_xl_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+_S3DIS_TRANSFORMS = T.Compose(
+    [
+        # The PointNeXt benchmark dataset uses a slightly different label mapping than the original S3DIS dataset
+        # used by other papers.
+        T.Relabel(
+            keys=DataKeys.SEGMENT,
+            labels=[0, 1, 2, 3, 4, 5, 6, 8, 7, 10, 9, 11, 12],
+        ),
+        T.Shift(keys=DataKeys.POS, method="min"),
+        # NOTE: tensors are automatically converted to float before reduction (if other than "first")
+        T.VoxelGrid(
+            pos_key=DataKeys.POS,
+            pos_reduce="first",
+            keys=[DataKeys.COLOR, DataKeys.SEGMENT],
+            reduce=["first", "first"],
+            size=0.04,
+            method="fnv",  # Use the same method as PointNext, for reproducibility.
+        ),
+        T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
+        T.Shift(keys=DataKeys.POS, method="mean"),
+        T.AlignAxis(keys=DataKeys.POS, dim=2),
+        T.Divide(keys=DataKeys.COLOR, divisor=255.0),
+        T.Normalize(
+            keys=DataKeys.COLOR,
+            mean=[0.5136457, 0.49523646, 0.44921124],
+            std=[0.18308958, 0.18415008, 0.19252081],
+        ),
+        T.Cat(keys=(DataKeys.COLOR, "height"), dst_key=DataKeys.X),
+    ]
+)
+
+_S3DIS_COMMON_HPARAMS = dict(
+    in_channels=4,
+    num_classes=13,
+    spatial_dim=3,
+    stem_plain_last=True,
+    decoder_plain_last=False,
+    ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+    radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
+    num_neighbors=[32, 32, 32, 32, 32],
+    act="relu",
+    act_first=False,
+    norm="batch_norm",
+    bias=True,
+    add_self_loops=False,
+)
+
+
+_S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
+    "sm": dict(
+        stem_channels=32,
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[0, 0, 0, 0],
+        encoder_expansion=4,
+        sa_layers=2,
+        sa_use_res=True,
         decoder_channels=[256, 128, 64, 32],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
-        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
-        num_neighbors=[32, 32, 32, 32, 32],
-        act="relu",
-        act_first=False,
-        norm="batch_norm",
-        bias=True,
-        add_self_loops=False,
-    )
-    hparams.update(kwargs)
-
-    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
-
-
-@register_model("pointnext-base", task="segmentation")
-def pointnext_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
-        spatial_dim=3,
+        head_channels=[32],
+    ),
+    "base": dict(
         stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[2, 3, 2, 2],
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[1, 2, 1, 1],
         encoder_expansion=4,
+        sa_layers=1,
+        sa_use_res=False,
         decoder_channels=[256, 128, 64, 32],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
-        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
-        num_neighbors=[32, 32, 32, 32, 32],
-        act="relu",
-        act_first=False,
-        norm="batch_norm",
-        bias=True,
-        add_self_loops=False,
-    )
-    hparams.update(kwargs)
-
-    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
-
-
-@register_model("pointnext-lg", task="segmentation")
-def pointnext_lg_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
-        spatial_dim=3,
+        head_channels=[32],
+    ),
+    "lg": dict(
         stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[3, 5, 3, 3],
+        encoder_channels=[64, 128, 256, 512],
+        encoder_depths=[2, 4, 2, 2],
         encoder_expansion=4,
+        sa_layers=1,
+        sa_use_res=False,
         decoder_channels=[256, 128, 64, 32],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
-        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
-        num_neighbors=[32, 32, 32, 32, 32],
-        act="relu",
-        act_first=False,
-        norm="batch_norm",
-        bias=True,
-        add_self_loops=False,
-    )
-    hparams.update(kwargs)
-
-    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
-
-
-@register_model("pointnext-xl", task="segmentation")
-def pointnext_xl_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointNeXtSegmentation:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
-        spatial_dim=3,
-        stem_channels=32,
-        encoder_channels=[32, 64, 128, 256],
-        encoder_depths=[4, 7, 4, 4],
+        head_channels=[32],
+    ),
+    "xl": dict(
+        stem_channels=64,
+        encoder_channels=[128, 256, 512, 1024],
+        encoder_depths=[3, 6, 3, 3],
         encoder_expansion=4,
-        decoder_channels=[256, 128, 64, 32],
+        sa_layers=1,
+        sa_use_res=False,
+        decoder_channels=[512, 256, 128, 64],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
-        radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
-        num_neighbors=[32, 32, 32, 32, 32],
-        act="relu",
-        act_first=False,
-        norm="batch_norm",
-        bias=True,
-        add_self_loops=False,
-    )
-    hparams.update(kwargs)
+        head_channels=[64],
+    ),
+}
 
-    return PointNeXtSegmentation(**hparams)  # type: ignore[arg-type]
+
+@register_model(
+    "pointnext-sm.s3dis-area1",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area1.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm.s3dis-area2",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area2.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm.s3dis-area3",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area3.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm.s3dis-area4",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area4.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area5.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-sm.s3dis-area6",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area6.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
+)
+def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base.s3dis-area1",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area1.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
+)
+def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base.s3dis-area2",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area2.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
+)
+def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base.s3dis-area3",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area3.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
+)
+def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base.s3dis-area4",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area4.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
+)
+def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area5.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
+)
+def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-base.s3dis-area6",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area6.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
+)
+def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg.s3dis-area1",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area1.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
+)
+def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg.s3dis-area2",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area2.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
+)
+def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg.s3dis-area3",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area3.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
+)
+def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg.s3dis-area4",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area4.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
+)
+def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area5.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
+)
+def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-lg.s3dis-area6",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area6.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
+)
+def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl.s3dis-area1",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area1.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
+)
+def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl.s3dis-area2",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area2.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
+)
+def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl.s3dis-area3",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area3.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
+)
+def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl.s3dis-area4",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area4.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
+)
+def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area5.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
+)
+def pointnext_xl_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)
+
+
+@register_model(
+    "pointnext-xl.s3dis-area6",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area6.pt",
+    transforms=_S3DIS_TRANSFORMS,
+    hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
+)
+def pointnext_xl_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
+    return PointNeXtSegmentation(**hparams)

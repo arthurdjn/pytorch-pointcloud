@@ -914,7 +914,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
                 normal_key=DataKeys.NORMAL,
                 num_samples=8000,
             ),
-            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.Shift(keys=DataKeys.POS, method="bbox"),
             T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
             # NOTE: Original OctFormer uses inbox masking to remove outliers, but at the cost of performance drop,
             # we found that removing this step improves performance by ~1% on ModelNet40.
@@ -972,7 +972,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     ),
     transforms=T.Compose(
         [
-            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
             T.AlignAxis(keys=DataKeys.POS, dim=-1),
             T.BuildOctree(
@@ -1028,7 +1028,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
     ),
     transforms=T.Compose(
         [
-            T.Center(keys=DataKeys.POS, method="bbox"),
+            T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
             T.AlignAxis(keys=DataKeys.POS, dim=-1),
             T.BuildOctree(
