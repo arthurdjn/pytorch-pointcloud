@@ -289,7 +289,7 @@ class PointNeXtDecoder(nn.Module):
 class PointNeXtPartDecoder(nn.Module):
     r"""PointNeXt decoder for part segmentation (ShapeNetPart).
 
-    Uses the same FP block layout as :class:`PointNeXtDecoder`, with two
+    Uses the same FP block layout as `PointNeXtDecoder`, with two
     global feature convolutions and shape-category conditioning. At the
     shallowest decoder stage, the skip features are augmented with max-pooled
     global features from two encoder levels and a shape-category one-hot
@@ -407,8 +407,8 @@ class PointNeXtPartDecoder(nn.Module):
 class PointNeXtPartSegmentation(SegmentationModel):
     r"""PointNeXt part segmentation model for ShapeNetPart.
 
-    Uses the same encoder as :class:`PointNeXtSegmentation` but replaces the
-    decoder with :class:`PointNeXtPartDecoder` (global feature conditioning
+    Uses the same encoder as `PointNeXtSegmentation` but replaces the
+    decoder with `PointNeXtPartDecoder` (global feature conditioning
     on shape category) and adds a head with global max+avg pooling.
 
     Args:

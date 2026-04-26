@@ -502,7 +502,6 @@ def inbox_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
         x: The input tensor.
         bbox: The bounding box.
         dim: The dimension to compute the mask over.
-        strict: Whether to use strict inequality.
 
     Returns:
         The mask.

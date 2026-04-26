@@ -55,7 +55,11 @@ def urlsize(
 
     Args:
         url: The URL to get the size of.
-        **kwargs: Additional arguments to pass to the `requests.head` function.
+        timeout: Optional timeout in seconds for the request.
+        cafile: Optional path to a CA file.
+        capath: Optional path to a directory with CA certificates.
+        cadefault: Whether to use the default CA store.
+        context: Optional `SSLContext` for the request.
 
     Returns:
         The size of the URL in bytes.

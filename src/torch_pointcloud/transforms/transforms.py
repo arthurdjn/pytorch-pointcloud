@@ -88,7 +88,7 @@ class Transform(metaclass=ABCMeta):
         and implement the `torch_pointcloud.transforms.Transform.transform` method
         as follows:
 
-        ``python
+        ```python
         from torch import Tensor
 
         from torch_pointcloud.transforms import Transform
@@ -109,7 +109,7 @@ class Transform(metaclass=ABCMeta):
         # 3. Apply the transform
         tensor = torch.randn(4096, 3)
         tensor = transform(tensor)
-        ``
+        ```
     """
 
     _repr_indent = 2
@@ -161,7 +161,7 @@ class Compose(Transform):
         For example, to chain a random sample and a normalization transform,
         we can do the following:
 
-        ``python
+        ```python
         from torch import Tensor
 
         from torch_pointcloud.transforms import Compose, RandomSample, NormalizeScale
@@ -175,7 +175,7 @@ class Compose(Transform):
         # 2. Apply the transform
         data = {"pos": torch.randn(4096, 3)}
         data = transform(data)
-        ``
+        ```
     """
 
     def __init__(self, transforms: Sequence[Transform]):
@@ -611,7 +611,7 @@ class ToFloat(DictTransform):
 
     Useful when tensors are stored in integer formats (e.g. ``uint8`` for
     colors) and need to be promoted to floating point before arithmetic
-    transforms like :class:`Divide` or :class:`Normalize`.
+    transforms like `Divide` or `Normalize`.
 
     Args:
         keys: The keys to cast.
@@ -1291,7 +1291,7 @@ class AxisMinOffset(DictTransform):
         and you want to compute the offset from the minimum along the z-axis,
         i.e. computing the height above the local floor.
 
-        ``python
+        ```python
         from torch_pointcloud.transforms import AxisMinOffset
 
         data = {
@@ -1299,7 +1299,7 @@ class AxisMinOffset(DictTransform):
         }
         transform = AxisMinOffset(keys="pos", dst_keys="pos_offset", axis=2)
         data = transform(data)
-        ``
+        ```
 
         Now, the data dictionary will contain the key `pos_offset` with the shape `(N, 1)`.
     """
@@ -1340,7 +1340,7 @@ class Cat(DictTransform):
         If you have a point cloud data containing position, color and normal and want to concatenate them
         into a single feature tensor (to feed into your model), you can do the following:
 
-        ``python
+        ```python
         from torch_pointcloud.transforms import Cat
 
         data = {
@@ -1350,7 +1350,7 @@ class Cat(DictTransform):
         }
         transform = Cat(keys=["pos", "color", "normal"], dst_key="x", dim=1)
         data = transform(data)
-        ``
+        ```
 
         Now, the data dictionary will contain the key `x` with the shape `(10, 9)`.
     """
@@ -1388,7 +1388,7 @@ class KeepItems(DictTransform):
         If you have a data dictionary containing position, color and normal and want to keep only the position and color,
         you can do the following:
 
-        ``python
+        ```python
         from torch_pointcloud.transforms import KeepItems
 
         data = {
@@ -1398,7 +1398,7 @@ class KeepItems(DictTransform):
         }
         transform = KeepItems(keys=["pos", "color"])
         data = transform(data)
-        ``
+        ```
 
         Now, the data dictionary will contain only the keys `pos` and `color`.
         The key `normal` will be removed.
