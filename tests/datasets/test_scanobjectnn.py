@@ -34,13 +34,13 @@ def test_scanobjectnn_dataset_not_found(split: str, variant: str, background: bo
 @pytest.mark.parametrize("background", [True, False])
 @pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_raw_files_exist(
-    data_dir_factory: Callable[..., Path], split: str, variant: str, background: bool, train: bool
+    datasets_dir_factory: Callable[..., Path], split: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the raw files exist"""
-    data_dir = data_dir_factory("ScanObjectNN/raw/**/*")
+    datasets_dir = datasets_dir_factory("ScanObjectNN/raw/**/*")
 
     dataset = ScanObjectNN(
-        root=data_dir,
+        root=datasets_dir,
         split=split,
         variant=variant,
         background=background,
@@ -78,13 +78,13 @@ def test_scanobjectnn_dataset_raw_files_not_exist(split: str, variant: str, back
 @pytest.mark.parametrize("background", [True, False])
 @pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_processed_files_exist(
-    data_dir_factory: Callable[..., Path], split: str, variant: str, background: bool, train: bool
+    datasets_dir_factory: Callable[..., Path], split: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the processed files exist"""
-    data_dir = data_dir_factory("ScanObjectNN/processed/**/*")
+    datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
 
     dataset = ScanObjectNN(
-        root=data_dir,
+        root=datasets_dir,
         split=split,
         variant=variant,
         background=background,
@@ -123,13 +123,13 @@ def test_scanobjectnn_dataset_processed_files_not_exist(
 @pytest.mark.parametrize("background", [True, False])
 @pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_force_process(
-    data_dir_factory: Callable[..., Path], split: str, variant: str, background: bool, train: bool
+    datasets_dir_factory: Callable[..., Path], split: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the dataset is processed correctly for different splits regardless of whether the processed data already exists"""
-    data_dir = data_dir_factory("ScanObjectNN/**/*", symlinks=False)
+    datasets_dir = datasets_dir_factory("ScanObjectNN/**/*", symlinks=False)
 
     dataset = ScanObjectNN(
-        root=data_dir,
+        root=datasets_dir,
         split=split,
         variant=variant,
         background=background,
@@ -142,31 +142,33 @@ def test_scanobjectnn_dataset_force_process(
 
 @pytest.mark.parametrize("split", ["invalid"])
 @pytest.mark.parametrize("variant", ["invalid"])
-def test_scanobjectnn_dataset_invalid_split(data_dir_factory: Callable[..., Path], split: str, variant: str) -> None:
+def test_scanobjectnn_dataset_invalid_split(
+    datasets_dir_factory: Callable[..., Path], split: str, variant: str
+) -> None:
     """Raises an error if the split is invalid or not supported"""
-    data_dir = data_dir_factory("ScanObjectNN/**/*")
+    datasets_dir = datasets_dir_factory("ScanObjectNN/**/*")
 
     with pytest.raises(ValueError):
-        _ = ScanObjectNN(root=data_dir, split=split, variant=variant, show_progress=False)
+        _ = ScanObjectNN(root=datasets_dir, split=split, variant=variant, show_progress=False)
 
 
 @pytest.mark.parametrize("label", list(ScanObjectNN.original_classes))
-def test_scanobjectnn_dataset_labels(data_dir_factory: Callable[..., Path], label: str) -> None:
+def test_scanobjectnn_dataset_labels(datasets_dir_factory: Callable[..., Path], label: str) -> None:
     """Test that the dataset is loaded correctly for a specific category"""
-    data_dir = data_dir_factory("ScanObjectNN/processed/**/*")
+    datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
 
-    dataset = ScanObjectNN(root=data_dir, split="main", train=False, classes=[label], show_progress=False)  # type: ignore[list-item]
+    dataset = ScanObjectNN(root=datasets_dir, split="main", train=False, classes=[label], show_progress=False)  # type: ignore[list-item]
     assert len(dataset) > 0
     assert len(dataset.classes) == 1
     assert dataset.classes[0] == label
     assert dataset.class_to_idx[label] == 0
 
 
-def test_scanobjectnn_dataset_transform_called(data_dir_factory: Callable[..., Path]) -> None:
+def test_scanobjectnn_dataset_transform_called(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that the dataset is transformed correctly after being processed"""
-    data_dir = data_dir_factory("ScanObjectNN/processed/**/*")
+    datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
 
     transform = Mock(side_effect=lambda data: data)
-    dataset = ScanObjectNN(root=data_dir, split="main", train=False, transform=transform, show_progress=False)
+    dataset = ScanObjectNN(root=datasets_dir, split="main", train=False, transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)

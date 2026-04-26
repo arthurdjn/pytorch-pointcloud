@@ -103,7 +103,7 @@ def _check_architecture_or_regen(
     model: nn.Module,
     model_name: str,
     task: str,
-    data_dir: Path,
+    models_dir: Path,
     force_regen: bool,
 ) -> None:
     metadata = {
@@ -111,7 +111,7 @@ def _check_architecture_or_regen(
         "state_dict": {k: list(v.shape) for k, v in model.state_dict().items()},
     }
 
-    expected_path = data_dir / "models" / f"{model_name}_{task}.json"
+    expected_path = models_dir / f"{model_name}_{task}.json"
     if force_regen or not expected_path.exists():
         expected_path.parent.mkdir(parents=True, exist_ok=True)
         expected_path.write_text(json.dumps(metadata, indent=2) + "\n")
@@ -177,7 +177,7 @@ def test_segmentation_model_forward(model_name: str) -> None:
     reason="torch-cluster or torch-scatter is not installed",
 )
 @pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
-def test_classification_architecture(model_name: str, force_regen: bool, data_dir_factory: Any) -> None:
+def test_classification_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
     """Test that the architecture of all registered segmentation models is correct.
     This test will only verify that the state-dict structure of the model matches the expected structure,
     but will not verify that the content of the weights are correct.
@@ -192,7 +192,7 @@ def test_classification_architecture(model_name: str, force_regen: bool, data_di
     ```
     """
     # Only copy the models directory to the temporary directory
-    data_dir = data_dir_factory("models/*.json")
+    models_dir = models_dir_factory("*.json")
 
     _skip_if_model_optional_deps_missing(model_name)
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
@@ -200,7 +200,7 @@ def test_classification_architecture(model_name: str, force_regen: bool, data_di
         model,
         model_name,
         task="classification",
-        data_dir=data_dir,
+        models_dir=models_dir,
         force_regen=force_regen,
     )
 
@@ -210,7 +210,7 @@ def test_classification_architecture(model_name: str, force_regen: bool, data_di
     reason="torch-cluster or torch-scatter is not installed",
 )
 @pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
-def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir_factory: Any) -> None:
+def test_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
     """Test that the architecture of all registered segmentation models is correct.
     This test will only verify that the state-dict structure of the model matches the expected structure,
     but will not verify that the content of the weights are correct.
@@ -225,7 +225,7 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir_
     ```
     """
     # Only copy the models directory to the temporary directory
-    data_dir = data_dir_factory("models/*.json")
+    models_dir = models_dir_factory("*.json")
 
     _skip_if_model_optional_deps_missing(model_name)
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
@@ -233,6 +233,6 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir_
         model,
         model_name,
         task="segmentation",
-        data_dir=data_dir,
+        models_dir=models_dir,
         force_regen=force_regen,
     )
