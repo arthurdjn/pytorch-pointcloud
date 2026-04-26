@@ -21,9 +21,9 @@ ModelNetDataset = Union[ModelNet10, ModelNet40]  # TODO: Type hint the ModelNetX
 
 
 @pytest.mark.parametrize("dataset_name", ["ModelNet10", "ModelNet40"])
-def test_load_modelnet_data(data_dir: Path, dataset_name: str) -> None:
+def test_load_modelnet_data(datasets_dir: Path, dataset_name: str) -> None:
     """Test that the modelnet data is loaded correctly"""
-    file_path = data_dir / dataset_name / "raw" / "chair" / "train" / "chair_0001.off"
+    file_path = datasets_dir / dataset_name / "raw" / "chair" / "train" / "chair_0001.off"
     data = load_modelnet_data(file_path, 0)
 
     assert isinstance(data["pos"], torch.Tensor)
@@ -36,9 +36,9 @@ def test_load_modelnet_data(data_dir: Path, dataset_name: str) -> None:
 
 
 @pytest.mark.parametrize("dataset_name", ["ModelNetNormalResampled"])
-def test_load_modelnet_normal_resampled_data(data_dir: Path, dataset_name: str) -> None:
+def test_load_modelnet_normal_resampled_data(datasets_dir: Path, dataset_name: str) -> None:
     """Test that the modelnet normal resampled data is loaded correctly"""
-    file_path = data_dir / dataset_name / "raw" / "chair" / "chair_0001.txt"
+    file_path = datasets_dir / dataset_name / "raw" / "chair" / "chair_0001.txt"
     data = load_modelnet_normal_resampled_data(file_path, 0)
 
     assert isinstance(data["pos"], torch.Tensor)
@@ -60,13 +60,13 @@ def test_modelnet_dataset_not_found(tmp_path: Path, dataset_cls: Type[ModelNetDa
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
 @pytest.mark.parametrize("train", [True, False])
 def test_modelnet_dataset_raw_files_exist(
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the raw files exist"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False)
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert dataset.raw_files_exist()
 
 
@@ -81,11 +81,11 @@ def test_modelnet_dataset_raw_files_not_exist(dataset_cls: Type[ModelNetDataset]
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
 @pytest.mark.parametrize("train", [True, False])
 def test_modelnet_dataset_processed_files_exist(
-    data_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset], train: bool
+    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset], train: bool
 ) -> None:
     """Test that the processed files exist"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False)
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert dataset.processed_files_exist()
 
 
@@ -102,15 +102,15 @@ def test_modelnet_dataset_processed_files_not_exist(dataset_cls: Type[ModelNetDa
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_data")
 def test_modelnet_dataset_already_processed(
     mock_load: Mock,
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the dataset is loaded correctly for different splits"""
     mock_load.side_effect = load_modelnet_data
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
 
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -122,15 +122,15 @@ def test_modelnet_dataset_already_processed(
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_normal_resampled_data")
 def test_modelnet_normal_resampled_dataset_already_processed(
     mock_load: Mock,
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the dataset is loaded correctly for different splits"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
 
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -142,16 +142,16 @@ def test_modelnet_normal_resampled_dataset_already_processed(
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_data")
 def test_modelnet_dataset_process_split(
     mock_load: Mock,
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     when the processed data does not already exist"""
     mock_load.side_effect = load_modelnet_data
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -163,16 +163,16 @@ def test_modelnet_dataset_process_split(
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_normal_resampled_data")
 def test_modelnet_normal_resampled_dataset_process_split(
     mock_load: Mock,
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     when the processed data does not already exist"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -184,16 +184,16 @@ def test_modelnet_normal_resampled_dataset_process_split(
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_data")
 def test_modelnet_dataset_process_split_forced(
     mock_load: Mock,
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     regardless of whether the processed data already exists"""
     mock_load.side_effect = load_modelnet_data
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/**/*", symlinks=False)
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/**/*", symlinks=False)
 
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False, force_process=True)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False, force_process=True)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -205,16 +205,16 @@ def test_modelnet_dataset_process_split_forced(
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_normal_resampled_data")
 def test_modelnet_normal_resampled_dataset_process_split_forced(
     mock_load: Mock,
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     regardless of whether the processed data already exists"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/**/*")
 
-    dataset = dataset_cls(root=data_dir, train=train, show_progress=False, force_process=True)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False, force_process=True)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -223,14 +223,14 @@ def test_modelnet_normal_resampled_dataset_process_split_forced(
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
 def test_modelnet_dataset_progress(
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that the dataset is processed correctly with a progress bar"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=data_dir, show_progress=True)
+    dataset = dataset_cls(root=datasets_dir, show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
     assert "Processing" in captured.err
@@ -239,14 +239,14 @@ def test_modelnet_dataset_progress(
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
 def test_modelnet_dataset_without_progress(
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that the dataset is processed correctly without a progress bar"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=data_dir, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, show_progress=False)
     assert len(dataset) > 0
     captured = capsys.readouterr()
     assert captured.err == ""
@@ -255,14 +255,14 @@ def test_modelnet_dataset_without_progress(
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
 def test_modelnet_dataset_progress_with_cached_processed(
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that no progress bar is shown if the processed dataset already exists"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
 
-    dataset = dataset_cls(root=data_dir, show_progress=True)
+    dataset = dataset_cls(root=datasets_dir, show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
     assert captured.err == ""
@@ -279,14 +279,14 @@ def test_modelnet_dataset_progress_with_cached_processed(
     ],
 )
 def test_modelnet_dataset_category(
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     category: str,
 ) -> None:
     """Test that the dataset is loaded correctly for a specific category"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=data_dir, classes=category, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, classes=category, show_progress=False)
     assert len(dataset) > 0
     assert dataset.classes == (category,)
 
@@ -301,14 +301,14 @@ def test_modelnet_dataset_category(
     ],
 )
 def test_modelnet_dataset_categories(
-    data_dir_factory: Callable[..., Path],
+    datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
     categories: list[str],
 ) -> None:
     """Test that the dataset is loaded correctly for multiple categories"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=data_dir, classes=categories, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, classes=categories, show_progress=False)
     assert len(dataset) > 0
     assert len(dataset.classes) == len(categories)
     assert all(category in dataset.classes for category in categories)
@@ -316,32 +316,36 @@ def test_modelnet_dataset_categories(
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
 def test_modelnet_dataset_pre_transform(
-    data_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]
+    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]
 ) -> None:
     """Test that the dataset is transformed correctly before being processed"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
     pre_transform = Mock(side_effect=lambda x: x)
-    dataset = dataset_cls(root=data_dir, pre_transform=pre_transform, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, pre_transform=pre_transform, show_progress=False)
     assert pre_transform.call_count == len(dataset)
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-def test_modelnet_dataset_pre_filter(data_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]) -> None:
+def test_modelnet_dataset_pre_filter(
+    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]
+) -> None:
     """Test that the dataset is filtered correctly before being processed"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
     pre_filter = Mock(side_effect=lambda x: True)
-    dataset = dataset_cls(root=data_dir, pre_filter=pre_filter, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, pre_filter=pre_filter, show_progress=False)
     assert pre_filter.call_count == len(dataset)
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-def test_modelnet_dataset_transform(data_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]) -> None:
+def test_modelnet_dataset_transform(
+    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]
+) -> None:
     """Test that the dataset is transformed correctly after being processed"""
-    data_dir = data_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
 
     transform = Mock(side_effect=lambda data: data)
-    dataset = dataset_cls(root=data_dir, transform=transform, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
