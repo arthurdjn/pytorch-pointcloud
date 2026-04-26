@@ -449,8 +449,11 @@ class PointTransformerV3Encoder(nn.Module):
         upcast_softmax: Upcast softmax to fp32.
         pooling: Pooling strategy — `"serialized"` (code-space bit-shift) or
             `"grid"` (grid-coordinate clustering).
-        embedding: Embedding type — `"sparse_conv"` (SubMConv3d stem) or
+        stem_type: How to embed raw features — `"sparse_conv"` (SubMConv3d stem) or
             `"linear"` (linear projection).
+        act_kwargs: Optional keyword arguments for the activation factory.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
+        bias: Whether the stem and blocks use learnable bias where applicable.
 
     Inputs:
         x: Float tensor of shape $(N, \\text{in\\_channels})$.
@@ -898,27 +901,31 @@ class PointTransformerV3Classification(ClassificationModel):
     Args:
         in_channels: Number of input channels (corresponding to the number of features).
         num_classes: Number of output classes.
-        serialization_orders: Serialization orders to use for the PointTransformerV3 encoder.
-        stride: Stride for the downsampling operations.
-        enc_depths: Number of encoder blocks for each stage.
-        enc_channels: Number of channels for each encoder block.
-        enc_num_head: Number of attention heads for each encoder block.
-        enc_patch_size: Patch size for each encoder block.
+        serialization_orders: Serialization orders to use for the `PointTransformerV3Encoder`.
+        shuffle_serialization_orders: Whether to shuffle the serialization orders each step.
+        strides: Downsampling strides between encoder stages.
+        encoder_depths: Number of encoder blocks per stage.
+        encoder_channels: Number of channels per stage.
+        encoder_num_head: Number of attention heads per stage.
+        encoder_patch_size: Patch size per stage.
         norm: Normalization layer to use.
         act: Activation function to use.
-        mlp_ratio: Ratio of the hidden dimension to the input dimension.
+        mlp_ratio: MLP hidden dimension ratio inside each block.
         qkv_bias: Whether to use bias in the QKV projection.
         qk_scale: Scaling factor for the QK matrix.
         attn_drop: Dropout rate for the attention.
-        proj_drop: Dropout rate for the projection.
-        drop_path: Dropout rate for the drop path.
-        shuffle_serialization_orders: Whether to shuffle the serialization orders.
+        proj_drop: Dropout rate for the output projection of each block.
+        drop_path: Stochastic depth rate.
         use_rpe: Whether to use relative positional encoding.
         use_flash_attn: Whether to use flash attention.
-        upcast_attention: Whether to upcast the attention.
-        upcast_softmax: Whether to upcast the softmax.
-        dropout: Dropout rate for the dropout.
-        global_pool: Pooling method to aggregate point features ("max" or "mean").
+        upcast_attention: Whether to upcast the attention to fp32.
+        upcast_softmax: Whether to upcast the softmax in fp32.
+        dropout: Dropout rate before the classification head.
+        global_pool: How to pool point features to a batch-level vector (`"max"`, `"mean"`, *etc.*).
+        pooling: Pooling between encoder stages (`"serialized"` or `"grid"`).
+        stem_type: Encoder stem: `"sparse_conv"` or `"linear"`.
+        act_kwargs: Optional keyword arguments for the activation factory.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
 
     Inputs:
         x: Float tensor of shape $(N, in_channels)$.
@@ -1103,6 +1110,11 @@ class PointTransformerV3Segmentation(SegmentationModel):
         use_flash_attn: Whether to use flash attention.
         upcast_attention: Whether to upcast the attention.
         upcast_softmax: Whether to upcast the softmax.
+        dropout: Dropout on the per-point logits.
+        pooling: Inter-stage pooling (`"serialized"` or `"grid"`).
+        stem_type: Encoder stem (`"sparse_conv"` or `"linear"`).
+        act_kwargs: Optional keyword arguments for the activation factory.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
     """
 
     def __init__(
@@ -1137,7 +1149,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         stem_type: str = "sparse_conv",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder = PointTransformerV3Encoder(
             in_channels=in_channels,

@@ -617,21 +617,26 @@ class ScanNet(PointCloudDataset):
         returns a dictionary mapping the class name to the contiguous index, and indices
         may not correspond to the `nyu40id` values.
 
-        In most cases, if you set `classes="all"`, the labels will be contiguous and
-        the `class_to_idx` property will match the `nyu40id` (or more generally, the `label_id` column) values.
+        In most cases, the loaded labels are contiguous; see `class_to_idx` for the mapping from
+        class name to index (indices may not match raw `nyu40id` values in the source files).
 
     Args:
         root: The root directory of the dataset.
         version: The version of the dataset to use.
-        split: The split dataset to load, one of `train`, `val`, or `test`.
-        classes: The classes to load.
+        split: The split to load, one of `train`, `val`, or `test`.
         label_name: The name of the label column in the labels CSV file.
-        label_id: The id of the label column in the labels CSV file.
+        label_id: The name of the id column in the labels CSV file.
+        use_axis_alignment: If True, apply ScanNet's axis-alignment transform to the mesh.
+        block_size: If set, split each scene into ground-plane blocks of this size (meters) for training.
+        block_stride: Stride between adjacent blocks when `block_size` is set.
+        num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
+        min_num_nodes: Skip blocks with fewer than this many points.
         transform: A callable that transforms the data when retrieved from the dataset.
         download: Whether to download the raw data.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
+        num_workers: Worker processes for preprocessing, or `None` for sequential processing.
 
     Example:
         Assuming you have downloaded the raw dataset from http://kaldir.vc.in.tum.de/scannet/,
@@ -643,17 +648,7 @@ class ScanNet(PointCloudDataset):
         dataset = ScanNet(
             root="data/ScanNet/raw",
             version="v2",
-            train=True,
-        )
-        ```
-
-        To load only the "wall" and "floor" classes, you can do:
-
-        ```python
-        dataset = ScanNet(
-            root="data/ScanNet/raw",
-            version="v2",
-            train=True,
+            split="train",
         )
         ```
 

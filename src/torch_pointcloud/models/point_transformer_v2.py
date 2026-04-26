@@ -725,6 +725,10 @@ class PointTransformerV2Segmentation(nn.Module):
         encoder_channels: Number of channels for each encoder block.
         encoder_num_groups: Number of groups for each encoder block.
         encoder_num_neighbors: Number of edge_index for each encoder block.
+        decoder_depths: Number of decoder blocks per stage.
+        decoder_channels: Number of channels for each decoder block.
+        decoder_num_groups: Number of groups for each decoder block.
+        decoder_num_neighbors: Neighbor count for each decoder block.
         grid_sizes: Size of the grid for each stage.
         norm: Normalization layer to use.
         act: Activation function to use.
@@ -733,7 +737,7 @@ class PointTransformerV2Segmentation(nn.Module):
         pe_bias: Whether to use bias in the PE linear layer.
         drop_path: Drop path rate.
         dropout: Dropout rate.
-        global_pool: Global pooling method to use.
+        attn_drop: Attention dropout rate.
 
     Inputs:
         x: Float tensor of shape $(N, \text{in_channels})$.

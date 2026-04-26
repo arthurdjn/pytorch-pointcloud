@@ -69,8 +69,7 @@ class PointTransformerConv(MessagePassing):
             $\gamma_\mathbf{\Theta}$ which maps transformed
             node features of shape `[-1, out_channels]`
             to shape `[-1, out_channels]`.
-        add_self_loops (bool, optional) : If set to `False`, will not add
-            self-loops to the input graph.
+        add_self_loops: If `False`, do not add self-loops to the input graph.
 
     Shapes:
         - **input:**
