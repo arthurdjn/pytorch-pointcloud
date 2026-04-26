@@ -1,0 +1,387 @@
+{
+  "num_params": 794538,
+  "state_dict": {
+    "stem.lins.0.weight": [
+      32,
+      3
+    ],
+    "stem.lins.0.bias": [
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.lins.0.weight": [
+      32,
+      35
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.lins.0.bias": [
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.lins.1.weight": [
+      64,
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.lins.1.bias": [
+      64
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.0.module.weight": [
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.0.module.bias": [
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.1.module.weight": [
+      64
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.1.module.bias": [
+      64
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.1.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.1.module.running_var": [
+      64
+    ],
+    "encoder.blocks.0.downsample.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.0.downsample.skip_convs.0.lins.0.weight": [
+      64,
+      32
+    ],
+    "encoder.blocks.0.downsample.skip_convs.0.lins.0.bias": [
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.lins.0.weight": [
+      64,
+      67
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.lins.0.bias": [
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.lins.1.weight": [
+      128,
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.lins.1.bias": [
+      128
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.0.module.weight": [
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.0.module.bias": [
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.1.module.weight": [
+      128
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.1.module.bias": [
+      128
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.1.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.1.module.running_var": [
+      128
+    ],
+    "encoder.blocks.1.downsample.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.1.downsample.skip_convs.0.lins.0.weight": [
+      128,
+      64
+    ],
+    "encoder.blocks.1.downsample.skip_convs.0.lins.0.bias": [
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.lins.0.weight": [
+      128,
+      131
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.lins.0.bias": [
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.lins.1.weight": [
+      256,
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.lins.1.bias": [
+      256
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.0.module.weight": [
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.0.module.bias": [
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.1.module.weight": [
+      256
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.1.module.bias": [
+      256
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.1.module.running_mean": [
+      256
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.1.module.running_var": [
+      256
+    ],
+    "encoder.blocks.2.downsample.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.2.downsample.skip_convs.0.lins.0.weight": [
+      256,
+      128
+    ],
+    "encoder.blocks.2.downsample.skip_convs.0.lins.0.bias": [
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.lins.0.weight": [
+      256,
+      259
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.lins.0.bias": [
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.lins.1.weight": [
+      512,
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.lins.1.bias": [
+      512
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.0.module.weight": [
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.0.module.bias": [
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.0.module.running_mean": [
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.0.module.running_var": [
+      256
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.1.module.weight": [
+      512
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.1.module.bias": [
+      512
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.1.module.running_mean": [
+      512
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.1.module.running_var": [
+      512
+    ],
+    "encoder.blocks.3.downsample.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.3.downsample.skip_convs.0.lins.0.weight": [
+      512,
+      256
+    ],
+    "encoder.blocks.3.downsample.skip_convs.0.lins.0.bias": [
+      512
+    ],
+    "decoder.blocks.0.mlp.lins.0.weight": [
+      256,
+      768
+    ],
+    "decoder.blocks.0.mlp.lins.0.bias": [
+      256
+    ],
+    "decoder.blocks.0.mlp.lins.1.weight": [
+      256,
+      256
+    ],
+    "decoder.blocks.0.mlp.lins.1.bias": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.0.module.weight": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.0.module.bias": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.0.mlp.norms.1.module.weight": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.1.module.bias": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.1.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.1.module.running_var": [
+      256
+    ],
+    "decoder.blocks.0.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.1.mlp.lins.0.weight": [
+      128,
+      384
+    ],
+    "decoder.blocks.1.mlp.lins.0.bias": [
+      128
+    ],
+    "decoder.blocks.1.mlp.lins.1.weight": [
+      128,
+      128
+    ],
+    "decoder.blocks.1.mlp.lins.1.bias": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.0.module.weight": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.0.module.bias": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.1.mlp.norms.1.module.weight": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.1.module.bias": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.1.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.1.module.running_var": [
+      128
+    ],
+    "decoder.blocks.1.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.2.mlp.lins.0.weight": [
+      64,
+      192
+    ],
+    "decoder.blocks.2.mlp.lins.0.bias": [
+      64
+    ],
+    "decoder.blocks.2.mlp.lins.1.weight": [
+      64,
+      64
+    ],
+    "decoder.blocks.2.mlp.lins.1.bias": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.0.module.weight": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.0.module.bias": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.2.mlp.norms.1.module.weight": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.1.module.bias": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.1.module.running_mean": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.1.module.running_var": [
+      64
+    ],
+    "decoder.blocks.2.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.3.mlp.lins.0.weight": [
+      32,
+      96
+    ],
+    "decoder.blocks.3.mlp.lins.0.bias": [
+      32
+    ],
+    "decoder.blocks.3.mlp.lins.1.weight": [
+      32,
+      32
+    ],
+    "decoder.blocks.3.mlp.lins.1.bias": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.0.module.weight": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.0.module.bias": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.0.module.running_mean": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.0.module.running_var": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.3.mlp.norms.1.module.weight": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.1.module.bias": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.1.module.running_mean": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.1.module.running_var": [
+      32
+    ],
+    "decoder.blocks.3.mlp.norms.1.module.num_batches_tracked": [],
+    "head.lins.0.weight": [
+      32,
+      32
+    ],
+    "head.lins.0.bias": [
+      32
+    ],
+    "head.lins.1.weight": [
+      10,
+      32
+    ],
+    "head.lins.1.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      32
+    ],
+    "head.norms.0.module.bias": [
+      32
+    ],
+    "head.norms.0.module.running_mean": [
+      32
+    ],
+    "head.norms.0.module.running_var": [
+      32
+    ],
+    "head.norms.0.module.num_batches_tracked": []
+  }
+}

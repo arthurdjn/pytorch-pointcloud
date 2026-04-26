@@ -1,0 +1,618 @@
+{
+  "num_params": 12290826,
+  "state_dict": {
+    "encoder.patch_embed.mlp1.lins.0.weight": [
+      128,
+      9
+    ],
+    "encoder.patch_embed.mlp1.lins.0.bias": [
+      128
+    ],
+    "encoder.patch_embed.mlp1.lins.1.weight": [
+      256,
+      128
+    ],
+    "encoder.patch_embed.mlp1.lins.1.bias": [
+      256
+    ],
+    "encoder.patch_embed.mlp1.norms.0.module.weight": [
+      128
+    ],
+    "encoder.patch_embed.mlp1.norms.0.module.bias": [
+      128
+    ],
+    "encoder.patch_embed.mlp1.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.patch_embed.mlp1.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.patch_embed.mlp1.norms.0.module.num_batches_tracked": [],
+    "encoder.patch_embed.mlp2.lins.0.weight": [
+      512,
+      512
+    ],
+    "encoder.patch_embed.mlp2.lins.0.bias": [
+      512
+    ],
+    "encoder.patch_embed.mlp2.lins.1.weight": [
+      384,
+      512
+    ],
+    "encoder.patch_embed.mlp2.lins.1.bias": [
+      384
+    ],
+    "encoder.patch_embed.mlp2.norms.0.module.weight": [
+      512
+    ],
+    "encoder.patch_embed.mlp2.norms.0.module.bias": [
+      512
+    ],
+    "encoder.patch_embed.mlp2.norms.0.module.running_mean": [
+      512
+    ],
+    "encoder.patch_embed.mlp2.norms.0.module.running_var": [
+      512
+    ],
+    "encoder.patch_embed.mlp2.norms.0.module.num_batches_tracked": [],
+    "encoder.pos_embed.lins.0.weight": [
+      128,
+      3
+    ],
+    "encoder.pos_embed.lins.0.bias": [
+      128
+    ],
+    "encoder.pos_embed.lins.1.weight": [
+      384,
+      128
+    ],
+    "encoder.pos_embed.lins.1.bias": [
+      384
+    ],
+    "encoder.order_h.weight": [
+      384
+    ],
+    "encoder.order_h.bias": [
+      384
+    ],
+    "encoder.order_th.weight": [
+      384
+    ],
+    "encoder.order_th.bias": [
+      384
+    ],
+    "encoder.blocks.0.norm.weight": [
+      384
+    ],
+    "encoder.blocks.0.norm.bias": [
+      384
+    ],
+    "encoder.blocks.0.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.0.mamba.D": [
+      768
+    ],
+    "encoder.blocks.0.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.0.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.0.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.0.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.0.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.0.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.0.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.1.norm.weight": [
+      384
+    ],
+    "encoder.blocks.1.norm.bias": [
+      384
+    ],
+    "encoder.blocks.1.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.1.mamba.D": [
+      768
+    ],
+    "encoder.blocks.1.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.1.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.1.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.1.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.1.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.1.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.1.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.2.norm.weight": [
+      384
+    ],
+    "encoder.blocks.2.norm.bias": [
+      384
+    ],
+    "encoder.blocks.2.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.2.mamba.D": [
+      768
+    ],
+    "encoder.blocks.2.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.2.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.2.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.2.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.2.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.2.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.2.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.3.norm.weight": [
+      384
+    ],
+    "encoder.blocks.3.norm.bias": [
+      384
+    ],
+    "encoder.blocks.3.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.3.mamba.D": [
+      768
+    ],
+    "encoder.blocks.3.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.3.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.3.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.3.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.3.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.3.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.3.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.4.norm.weight": [
+      384
+    ],
+    "encoder.blocks.4.norm.bias": [
+      384
+    ],
+    "encoder.blocks.4.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.4.mamba.D": [
+      768
+    ],
+    "encoder.blocks.4.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.4.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.4.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.4.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.4.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.4.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.4.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.5.norm.weight": [
+      384
+    ],
+    "encoder.blocks.5.norm.bias": [
+      384
+    ],
+    "encoder.blocks.5.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.5.mamba.D": [
+      768
+    ],
+    "encoder.blocks.5.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.5.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.5.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.5.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.5.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.5.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.5.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.6.norm.weight": [
+      384
+    ],
+    "encoder.blocks.6.norm.bias": [
+      384
+    ],
+    "encoder.blocks.6.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.6.mamba.D": [
+      768
+    ],
+    "encoder.blocks.6.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.6.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.6.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.6.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.6.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.6.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.6.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.7.norm.weight": [
+      384
+    ],
+    "encoder.blocks.7.norm.bias": [
+      384
+    ],
+    "encoder.blocks.7.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.7.mamba.D": [
+      768
+    ],
+    "encoder.blocks.7.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.7.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.7.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.7.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.7.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.7.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.7.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.8.norm.weight": [
+      384
+    ],
+    "encoder.blocks.8.norm.bias": [
+      384
+    ],
+    "encoder.blocks.8.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.8.mamba.D": [
+      768
+    ],
+    "encoder.blocks.8.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.8.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.8.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.8.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.8.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.8.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.8.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.9.norm.weight": [
+      384
+    ],
+    "encoder.blocks.9.norm.bias": [
+      384
+    ],
+    "encoder.blocks.9.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.9.mamba.D": [
+      768
+    ],
+    "encoder.blocks.9.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.9.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.9.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.9.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.9.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.9.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.9.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.10.norm.weight": [
+      384
+    ],
+    "encoder.blocks.10.norm.bias": [
+      384
+    ],
+    "encoder.blocks.10.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.10.mamba.D": [
+      768
+    ],
+    "encoder.blocks.10.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.10.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.10.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.10.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.10.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.10.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.10.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.blocks.11.norm.weight": [
+      384
+    ],
+    "encoder.blocks.11.norm.bias": [
+      384
+    ],
+    "encoder.blocks.11.mamba.A_log": [
+      768,
+      16
+    ],
+    "encoder.blocks.11.mamba.D": [
+      768
+    ],
+    "encoder.blocks.11.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "encoder.blocks.11.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "encoder.blocks.11.mamba.conv1d.bias": [
+      768
+    ],
+    "encoder.blocks.11.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "encoder.blocks.11.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "encoder.blocks.11.mamba.dt_proj.bias": [
+      768
+    ],
+    "encoder.blocks.11.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "encoder.norm_f.weight": [
+      384
+    ],
+    "encoder.norm_f.bias": [
+      384
+    ],
+    "head.lins.0.weight": [
+      256,
+      384
+    ],
+    "head.lins.0.bias": [
+      256
+    ],
+    "head.lins.1.weight": [
+      256,
+      256
+    ],
+    "head.lins.1.bias": [
+      256
+    ],
+    "head.lins.2.weight": [
+      10,
+      256
+    ],
+    "head.lins.2.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      256
+    ],
+    "head.norms.0.module.bias": [
+      256
+    ],
+    "head.norms.0.module.running_mean": [
+      256
+    ],
+    "head.norms.0.module.running_var": [
+      256
+    ],
+    "head.norms.0.module.num_batches_tracked": [],
+    "head.norms.1.module.weight": [
+      256
+    ],
+    "head.norms.1.module.bias": [
+      256
+    ],
+    "head.norms.1.module.running_mean": [
+      256
+    ],
+    "head.norms.1.module.running_var": [
+      256
+    ],
+    "head.norms.1.module.num_batches_tracked": []
+  }
+}
