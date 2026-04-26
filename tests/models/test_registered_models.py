@@ -1,6 +1,9 @@
-from typing import List
+import json
+from pathlib import Path
+from typing import Any, List
 
 import pytest
+import torch.nn as nn
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
@@ -87,6 +90,42 @@ SEGMENTATION_MODELS = [
 ]
 
 
+def _skip_if_model_optional_deps_missing(model_name: str) -> None:
+    if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
+        pytest.skip("mamba_ssm is not installed")
+    if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
+        pytest.skip("dwconv is not installed")
+    if model_name.startswith("sonata") and not _FLASH_ATTN_AVAILABLE:
+        pytest.skip("flash_attn is not installed")
+
+
+def _check_architecture_or_regen(
+    model: nn.Module,
+    model_name: str,
+    task: str,
+    data_dir: Path,
+    force_regen: bool,
+) -> None:
+    metadata = {
+        "num_params": sum(p.numel() for p in model.parameters()),
+        "state_dict": {k: list(v.shape) for k, v in model.state_dict().items()},
+    }
+
+    expected_path = data_dir / "models" / f"{model_name}_{task}.json"
+    if force_regen or not expected_path.exists():
+        expected_path.parent.mkdir(parents=True, exist_ok=True)
+        expected_path.write_text(json.dumps(metadata, indent=2) + "\n")
+        pytest.fail(f"Regenerated {expected_path.as_posix()!r}")
+
+    expected = json.loads(expected_path.read_text())
+
+    assert metadata["num_params"] == expected["num_params"], (
+        f"Parameter count changed for {model_name!r} ({task}): "
+        f"expected {expected['num_params']}, got {metadata['num_params']}"
+    )
+    assert metadata["state_dict"] == expected["state_dict"], f"State-dict structure changed for {model_name!r} ({task})"
+
+
 @pytest.mark.parametrize(
     "task,expected_models",
     [("classification", CLASSIFICATION_MODELS), ("segmentation", SEGMENTATION_MODELS)],
@@ -114,10 +153,7 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
 @pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
 def test_classification_model_forward(model_name: str) -> None:
     """Test that all registered models can be created and work."""
-    if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
-        pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
-        pytest.skip("dwconv is not installed")
+    _skip_if_model_optional_deps_missing(model_name)
 
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
     assert isinstance(model, ClassificationModel)
@@ -130,12 +166,73 @@ def test_classification_model_forward(model_name: str) -> None:
 @pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
 def test_segmentation_model_forward(model_name: str) -> None:
     """Test that all registered models can be created and work."""
-    if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
-        pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
-        pytest.skip("dwconv is not installed")
-    if model_name.startswith("sonata") and not _FLASH_ATTN_AVAILABLE:
-        pytest.skip("flash_attn is not installed")
+    _skip_if_model_optional_deps_missing(model_name)
 
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     assert isinstance(model, SegmentationModel)
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
+def test_classification_architecture(model_name: str, force_regen: bool, data_dir_factory: Any) -> None:
+    """Test that the architecture of all registered segmentation models is correct.
+    This test will only verify that the state-dict structure of the model matches the expected structure,
+    but will not verify that the content of the weights are correct.
+
+    This test is useful to catch accidental architecture changes in the models (e.g. renaming a parameter or module),
+    and is faster than a full forward pass + weight loading.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run pytest tests/models/test_registered_models.py -k test_classification_architecture --force-regen
+    ```
+    """
+    # Only copy the models directory to the temporary directory
+    data_dir = data_dir_factory("models/*.json")
+
+    _skip_if_model_optional_deps_missing(model_name)
+    model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="classification",
+        data_dir=data_dir,
+        force_regen=force_regen,
+    )
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
+def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir_factory: Any) -> None:
+    """Test that the architecture of all registered segmentation models is correct.
+    This test will only verify that the state-dict structure of the model matches the expected structure,
+    but will not verify that the content of the weights are correct.
+
+    This test is useful to catch accidental architecture changes in the models (e.g. renaming a parameter or module),
+    and is faster than a full forward pass + weight loading.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_segmentation_architecture --force-regen
+    ```
+    """
+    # Only copy the models directory to the temporary directory
+    data_dir = data_dir_factory("models/*.json")
+
+    _skip_if_model_optional_deps_missing(model_name)
+    model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="segmentation",
+        data_dir=data_dir,
+        force_regen=force_regen,
+    )
