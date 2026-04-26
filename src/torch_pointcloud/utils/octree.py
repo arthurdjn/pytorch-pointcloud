@@ -187,7 +187,6 @@ def octree_grid(
         normal: The normal of the points.
         depth: The depth of the octree.
         full_depth: The full depth of the octree.
-        scale_factor: The scale factor of the points.
 
     Returns:
         The octree.

@@ -456,7 +456,7 @@ class PointNet2Classification(nn.Module):
     <https://arxiv.org/abs/1706.02413>`_ by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 
     This network is a hierarchical point cloud classification model. It processes raw point clouds through
-    a :class:`PointNet2Encoder` (optional stem + SA blocks), an optional aggregation MLP, global pooling,
+    a `PointNet2Encoder` (optional stem + SA blocks), an optional aggregation MLP, global pooling,
     and a classification head.
 
     Args:
@@ -612,8 +612,8 @@ class PointNet2Segmentation(nn.Module):
     <https://arxiv.org/abs/1706.02413>`_ by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 
     This network is a hierarchical point cloud segmentation model built from a
-    :class:`PointNet2Encoder` (optional stem + SA blocks), an optional aggregation MLP,
-    a :class:`PointNet2Decoder` (FP blocks with skip connections), and a per-point
+    `PointNet2Encoder` (optional stem + SA blocks), an optional aggregation MLP,
+    a `PointNet2Decoder` (FP blocks with skip connections), and a per-point
     classification head.
 
     Args:

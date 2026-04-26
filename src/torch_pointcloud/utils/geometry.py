@@ -366,8 +366,8 @@ def spherical_points_lloyd(
     r"""Generate kernel points using Lloyd's algorithm on a sphere.
 
     Args:
-        radius (float): Radius of the sphere.
-        num_cells (int): Number of kernel points (Voronoi cells).
+        radius: Radius of the sphere.
+        num_points: Number of kernel points (Voronoi cells).
         fixed_position (str, optional): Fix the position of specific kernel points. Defaults to 'none'.
             Options:
                 - 'none': No kernel points are fixed. All points move freely during optimization.

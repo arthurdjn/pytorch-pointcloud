@@ -129,6 +129,10 @@ div > div.n {
   text-overflow: clip !important;
   overflow-wrap: anywhere !important; 
 }
+/* Smaller gap between nav items (default is 0.2rem) */
+.md-nav__list {
+  gap: 0.1rem;
+}
 /* ----------- End General ----------- */
 
 /* ----------- Start Homepage ----------- */

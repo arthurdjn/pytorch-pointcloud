@@ -131,10 +131,6 @@ class RandLANetClassification(nn.Module):
         aggr_channels: Number of channels in the aggregation layer.
         dropout: Dropout rate.
         global_pool: Global pooling operation to use.
-        bias: Whether to use bias in the MLPs.
-        act: Activation function to use.
-        norm: Normalization function to use.
-        order: Order of the MLPs.
     """
 
     def __init__(
