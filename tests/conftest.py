@@ -5,6 +5,26 @@ from typing import Callable
 import pytest
 
 DATA_DIR = Path(__file__).parent / "data"
+DATASETS_DIR = DATA_DIR / "datasets"
+MODELS_DIR = DATA_DIR / "models"
+
+
+def _create_dir_factory(source: Path, dest: Path) -> Callable[..., Path]:
+    def factory(pattern: str = "*", symlinks: bool = True) -> Path:
+        for file_path in source.rglob(pattern):
+            if not file_path.is_file():
+                continue
+            out_path = dest / file_path.relative_to(source)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            if out_path.exists():
+                out_path.unlink()
+            if symlinks:
+                out_path.symlink_to(file_path.absolute())
+            else:
+                shutil.copy(file_path, out_path)
+        return dest
+
+    return factory
 
 
 @pytest.fixture
@@ -46,33 +66,37 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
             shutil.rmtree(data_dir)
         ```
     """
-
-    def data_dir(pattern: str = "*", symlinks: bool = True) -> Path:
-        out_dir = tmp_path / "data"
-        for file_path in DATA_DIR.rglob(pattern):
-            if not file_path.is_file():
-                continue
-
-            out_path = out_dir / file_path.relative_to(DATA_DIR)
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-
-            if out_path.exists():
-                out_path.unlink()
-
-            if symlinks:
-                out_path.symlink_to(file_path.absolute())
-            else:
-                shutil.copy(file_path, out_path)
-
-        return out_dir
-
-    return data_dir
+    return _create_dir_factory(DATA_DIR, tmp_path / "data")
 
 
 @pytest.fixture
 def data_dir(data_dir_factory: Callable[..., Path]) -> Path:
     """Utility fixture to get a copy of the full data directory"""
     return data_dir_factory()
+
+
+@pytest.fixture
+def datasets_dir_factory(tmp_path: Path) -> Callable[..., Path]:
+    """Utility fixture to create a directory factory for the datasets directory"""
+    return _create_dir_factory(DATASETS_DIR, tmp_path / "datasets")
+
+
+@pytest.fixture
+def datasets_dir(datasets_dir_factory: Callable[..., Path]) -> Path:
+    """Utility fixture to get a copy of the datasets directory"""
+    return datasets_dir_factory()
+
+
+@pytest.fixture
+def models_dir_factory(tmp_path: Path) -> Callable[..., Path]:
+    """Utility fixture to create a directory factory for the models directory"""
+    return _create_dir_factory(MODELS_DIR, tmp_path / "models")
+
+
+@pytest.fixture
+def models_dir(models_dir_factory: Callable[..., Path]) -> Path:
+    """Utility fixture to get a copy of the models directory"""
+    return models_dir_factory()
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
