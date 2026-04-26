@@ -4,7 +4,7 @@ from typing import Callable
 
 import pytest
 
-DATA_DIR = Path("tests/data")
+DATA_DIR = Path(__file__).parent / "data"
 
 
 @pytest.fixture

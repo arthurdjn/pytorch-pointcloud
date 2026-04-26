@@ -99,13 +99,6 @@ def _skip_if_model_optional_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
 
 
-def _model_metadata(model: nn.Module) -> dict[str, Any]:
-    return {
-        "num_params": sum(p.numel() for p in model.parameters()),
-        "state_dict": {k: list(v.shape) for k, v in model.state_dict().items()},
-    }
-
-
 def _check_architecture_or_regen(
     model: nn.Module,
     model_name: str,
@@ -184,7 +177,7 @@ def test_segmentation_model_forward(model_name: str) -> None:
     reason="torch-cluster or torch-scatter is not installed",
 )
 @pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
-def test_classification_architecture(model_name: str, force_regen: bool, data_dir: Path) -> None:
+def test_classification_architecture(model_name: str, force_regen: bool, data_dir_factory: Any) -> None:
     """Test that the architecture of all registered segmentation models is correct.
     This test will only verify that the state-dict structure of the model matches the expected structure,
     but will not verify that the content of the weights are correct.
@@ -198,6 +191,9 @@ def test_classification_architecture(model_name: str, force_regen: bool, data_di
     uv run pytest tests/models/test_registered_models.py -k test_classification_architecture --force-regen
     ```
     """
+    # Only copy the models directory to the temporary directory
+    data_dir = data_dir_factory("models/*.json")
+
     _skip_if_model_optional_deps_missing(model_name)
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
     _check_architecture_or_regen(
@@ -214,7 +210,7 @@ def test_classification_architecture(model_name: str, force_regen: bool, data_di
     reason="torch-cluster or torch-scatter is not installed",
 )
 @pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
-def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir: Path) -> None:
+def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir_factory: Any) -> None:
     """Test that the architecture of all registered segmentation models is correct.
     This test will only verify that the state-dict structure of the model matches the expected structure,
     but will not verify that the content of the weights are correct.
@@ -225,9 +221,12 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, data_dir:
     To regenerate the expected architecture as JSON files, run
 
     ```bash
-    uv run pytest tests/models/test_registered_models.py -k test_segmentation_architecture --force-regen
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_segmentation_architecture --force-regen
     ```
     """
+    # Only copy the models directory to the temporary directory
+    data_dir = data_dir_factory("models/*.json")
+
     _skip_if_model_optional_deps_missing(model_name)
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     _check_architecture_or_regen(

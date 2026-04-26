@@ -1,4 +1,3 @@
-import os
 import tempfile
 import zipfile
 from pathlib import Path
@@ -48,9 +47,9 @@ def test_urltailname() -> None:
     assert urltailname("https://example.com/my%20file.zip") == "my file.zip"
 
 
-def test_download_url_default(mock_urlopen: Mock, tmp_path: Path) -> None:
+def test_download_url_default(mock_urlopen: Mock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the file is downloaded at the current working directory with the URL file name."""
-    os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
 
     path = download_url("https://example.com/file.txt", show_progress=False)
     assert path == "file.txt"
