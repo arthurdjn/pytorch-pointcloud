@@ -277,9 +277,11 @@ class S3DIS(PointCloudDataset):
             reference weights whose HDF5 blocks use non-aligned coordinates).
             Aligned and unaligned data are stored in separate processed directories
             so they can coexist.
-        tile_blocks: Optional block tiling configuration. When provided, each room is split
-            into fixed-size spatial blocks at load time (not at save/process time), so changing
-            this parameter does not require reprocessing. See `TileBlocksConfig` for details.
+        block_size: If set, each room is split into ground-plane blocks of this size (meters) at
+            load time. Changing this only affects loading, not on-disk processed data.
+        block_stride: Stride between blocks when `block_size` is set.
+        num_nodes: Target number of points per block (or per room when not tiling).
+        min_num_nodes: Skip blocks with fewer than this many points.
         transform: A callable that transforms the data when retrieved from the dataset.
         download: Whether to download the raw data.
         force_download: Whether to force the download of the raw data.
@@ -292,26 +294,26 @@ class S3DIS(PointCloudDataset):
         Assuming you have downloaded the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/,
         and extracted it under `data/S3DIS/raw`, you can load the dataset as follows:
 
-        ``python
+        ```python
         from torch_pointcloud.datasets import S3DIS
 
         dataset = S3DIS(
             root="data",
             areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
         )
-        ``
+        ```
 
         To split rooms into 1m x 1m blocks (matching the DGCNN evaluation protocol):
 
-        ``python
-        from torch_pointcloud.datasets.s3dis import TileBlocksConfig
-
+        ```python
         dataset = S3DIS(
             root="data",
             areas=["Area_5"],
-            tile_blocks=TileBlocksConfig(block_size=1.0, stride=1.0, num_points=4096),
+            block_size=1.0,
+            block_stride=1.0,
+            num_nodes=4096,
         )
-        ``
+        ```
     """
 
     data_url = "https://cvg-data.inf.ethz.ch/s3dis/"

@@ -105,7 +105,6 @@ def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False
         value: The value to convert.
         recursive: If True, the function will recursively apply itself to the elements of the list.
         none_as_empty: If True, and the value is None, an empty list will be returned.
-        extra_msg: An additional message to include in the error.
 
     Returns:
         The value as a list.
