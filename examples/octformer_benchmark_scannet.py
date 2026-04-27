@@ -64,6 +64,7 @@ def main() -> None:
             transform=transform,
             force_process=args.force_process,
             num_workers=args.num_workers,
+            use_axis_alignment=False,
         )
 
     if args.limit is not None:
@@ -139,12 +140,13 @@ def evaluate(
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
-        octree: Octree = data[DataKeys.OCTREE].to(device)
-        points: Points = data[DataKeys.POINTS].to(device)
-        x = octree.get_input_feature("NDFP", nempty=True)
+        octree = data[DataKeys.OCTREE].to(device)
+        pos = data[DataKeys.POS].to(device)
+        batch = data[DataKeys.BATCH].to(device)
+        x = data[DataKeys.X].to(device)
         target = data[DataKeys.SEGMENT].to(device)
 
-        logits = model(x, octree, points.points, points.batch_id.squeeze())
+        logits = model(x, octree, octree.depth, pos, batch)
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=ignore_index)

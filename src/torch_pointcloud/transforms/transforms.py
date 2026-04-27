@@ -27,6 +27,7 @@ __all__ = [
     "BallMask",
     "BuildOctree",
     "Cat",
+    "OctreeFeatures",
     "CenterShift",
     "Compose",
     "CopyItems",
@@ -964,6 +965,35 @@ class BuildOctree(DictTransform):
         if self.points_key is not None:
             data[self.points_key] = points
 
+        return data
+
+
+class OctreeFeatures(DictTransform):
+    """Extract features from an octree.
+
+    Args:
+        octree_key: Key holding the octree.
+        features_key: Key under which the features are stored.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        features_type: str,
+        nempty: bool = False,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.features_type = features_type
+        self.nempty = nempty
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            octree = data[key]
+            data[dst_key] = octree.get_input_feature(self.features_type, self.nempty)
         return data
 
 

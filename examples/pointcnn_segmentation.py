@@ -175,7 +175,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
                 T.NormalizeScale(keys=DataKeys.POS),
                 T.RandomSample(
                     keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
-                    num_samples=4096,
+                    num_samples=2048,
                 ),
             ]
         )

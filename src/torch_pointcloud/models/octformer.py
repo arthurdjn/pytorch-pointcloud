@@ -775,6 +775,7 @@ class OctFormerSegmentation(SegmentationModel):
         self,
         x: OptTensor,
         octree: "Octree",
+        depth: int,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, List[Tensor]]: ...
 
@@ -783,6 +784,7 @@ class OctFormerSegmentation(SegmentationModel):
         self,
         x: OptTensor,
         octree: "Octree",
+        depth: int,
         return_intermediates: Literal[False] = False,
     ) -> Tensor: ...
 
@@ -790,6 +792,7 @@ class OctFormerSegmentation(SegmentationModel):
         self,
         x: OptTensor,
         octree: "Octree",
+        depth: int,
         return_intermediates: bool = False,
     ) -> Any:
         x = x if x is not None else octree.features[octree.depth]
@@ -807,7 +810,7 @@ class OctFormerSegmentation(SegmentationModel):
         # required at the different depths of the encoder.
         stem_depth = len(self.stem_channels) - 1
         encoder_depth = len(self.channels) - 1
-        max_depth = octree_t.depth - stem_depth
+        max_depth = depth - stem_depth
         min_depth = max_depth - encoder_depth
         octree_t.construct_all_attention_context(
             nempty=self.nempty,
@@ -817,26 +820,34 @@ class OctFormerSegmentation(SegmentationModel):
 
         return self.encoder(x, octree_t, max_depth, return_intermediates=return_intermediates)
 
-    def forward_decoder(self, x: Tensor, octree: "Octree", intermediates: List[Tensor]) -> Tensor:
+    def forward_decoder(self, x: Tensor, octree: "Octree", depth: int, intermediates: List[Tensor]) -> Tensor:
         stem_depth = len(self.stem_channels) - 1
         encoder_depth = len(self.channels) - 1
-        max_depth = octree.depth - stem_depth
+        max_depth = depth - stem_depth
         min_depth = max_depth - encoder_depth
         return self.decoder(x, octree, min_depth, intermediates)
 
-    def forward_head(self, x: Tensor, octree: "Octree", pos: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(
+        self,
+        x: Tensor,
+        octree: "Octree",
+        depth: int,
+        pos: Tensor,
+        batch: Tensor,
+        pre_logits: bool = False,
+    ) -> Tensor:
         # We need to convert the octree features back to points resolution,
         # the destination points are expected to be in the format $(x, y, z, batch)$.
         pts = torch.cat([pos, batch.unsqueeze(-1)], dim=1).contiguous()
-        x = octree_interpolate(x, octree, octree.depth, pts, method="nearest", nempty=self.nempty)
+        x = octree_interpolate(x, octree, depth, pts, method="nearest", nempty=self.nempty)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, octree: "Octree", pos: Tensor, batch: Tensor) -> Tensor:
-        x, intermediates = self.forward_features(x, octree, return_intermediates=True)
-        x = self.forward_decoder(x, octree, intermediates)
-        return self.forward_head(x, octree, pos, batch)
+    def forward(self, x: OptTensor, octree: "Octree", depth: int, pos: Tensor, batch: Tensor) -> Tensor:
+        x, intermediates = self.forward_features(x, octree, depth, return_intermediates=True)
+        x = self.forward_decoder(x, octree, depth, intermediates)
+        return self.forward_head(x, octree, depth, pos, batch)
 
 
 def _octformer_base_clf(**hparams: Any) -> OctFormerClassification:
@@ -930,6 +941,12 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
                 batch_size=1,
                 normal_key=DataKeys.NORMAL,
             ),
+            T.OctreeFeatures(
+                keys=DataKeys.OCTREE,
+                features_type="ND",
+                nempty=False,
+                dst_keys=DataKeys.X,
+            ),
         ]
     ),
 )
@@ -939,7 +956,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
 
 @register_model(
     name="octformer-base.scannet20",
-    weights="hf://torch-pointcloud/octformer/segmentation/octformer-base.scannet.pth",
+    weights="hf://torch-pointcloud/octformer/octformer-base.scannet20.pth",
     task="segmentation",
     hparams=dict(
         in_channels=10,
@@ -986,10 +1003,18 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
                 full_depth=2,
                 batch_size=1,
             ),
+            T.OctreeFeatures(
+                keys=DataKeys.OCTREE,
+                features_type="NDFP",
+                nempty=True,
+                dst_keys=DataKeys.X,
+            ),
         ]
     ),
 )
 def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
+    # On the scannet20 NOT ALIGNED version
+    # test/mIoU: 0.7478 | test/oa: 0.0.9090
     return _octformer_base_seg(**hparams)
 
 
@@ -1041,6 +1066,12 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
                 depth=11,
                 full_depth=2,
                 batch_size=1,
+            ),
+            T.OctreeFeatures(
+                keys=DataKeys.OCTREE,
+                features_type="NDFP",
+                nempty=True,
+                dst_keys=DataKeys.X,
             ),
         ]
     ),
