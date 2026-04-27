@@ -306,7 +306,7 @@ class PointNeXtPartDecoder(nn.Module):
             ``encoder_channels[-2]``).
         global_conv2_in: Input channels for global_conv2 (typically
             ``encoder_channels[-1]``).
-        num_shape_classes: Number of shape categories (16 for ShapeNetPart).
+        num_categories: Number of shape categories (16 for ShapeNetPart).
     """
 
     def __init__(
@@ -317,7 +317,7 @@ class PointNeXtPartDecoder(nn.Module):
         *,
         global_conv1_in: int,
         global_conv2_in: int,
-        num_shape_classes: int = 16,
+        num_categories: int = 16,
         spatial_dim: int = 3,
         dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
@@ -331,7 +331,6 @@ class PointNeXtPartDecoder(nn.Module):
         super().__init__()
         self.channels = ensure_tuple(channels)
         size = len(channels) - 1
-        self._extra_skip = 64 + 128 + num_shape_classes
 
         extra_msg = (
             f"Invalid {self.__class__.__name__} parameter: "
@@ -339,9 +338,9 @@ class PointNeXtPartDecoder(nn.Module):
         )
         self.depths = ensure_tuple_size(depths, size, extra_msg=extra_msg.format(param="depths"))
         skip_channels = list(ensure_tuple_size(skip_channels, size, extra_msg=extra_msg.format(param="skip_channels")))
-        skip_channels[-1] += self._extra_skip
+        skip_channels[-1] += 64 + 128 + num_categories
         self.skip_channels = tuple(skip_channels)
-        self.num_shape_classes = num_shape_classes
+        self.num_categories = num_categories
 
         self.blocks = nn.ModuleList()
         for i in range(size):
@@ -371,8 +370,8 @@ class PointNeXtPartDecoder(nn.Module):
         cls_onehot: Tensor,
         intermediates: List[PointNeXtIntermediate],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        # Global features from the bottleneck and deepest skip (computed BEFORE
-        # any decoder blocks modify x, matching OpenPoints convention).
+        # Global features from the bottleneck and deepest skip
+        # (computed BEFORE any decoder blocks modify x, matching OpenPoints convention).
         # intermediates are ordered deep-to-shallow: [0]=deepest, [-1]=shallowest
         x_deep_skip = intermediates[0].x  # encoder_channels[-2] channels
         b_deep_skip = intermediates[0].batch
@@ -389,12 +388,12 @@ class PointNeXtPartDecoder(nn.Module):
 
         # Expand global features to match the shallowest skip resolution
         skip_x, skip_pos, skip_batch = intermediates[-1]
-        cls_one_hot = cls_onehot  # (B, num_shape_classes)
+        cls_one_hot = cls_onehot  # (B, num_categories)
 
         # Scatter-expand: (B, C) -> (N, C) using skip_batch
         emb1_exp = emb1[skip_batch]  # (N, 64)
         emb2_exp = emb2[skip_batch]  # (N, 128)
-        cls_exp = cls_one_hot[skip_batch]  # (N, num_shape_classes)
+        cls_exp = cls_one_hot[skip_batch]  # (N, num_categories)
 
         aug_skip_x = torch.cat([skip_x, emb1_exp, emb2_exp, cls_exp], dim=1)
         aug_intermediate = PointNeXtIntermediate(aug_skip_x, skip_pos, skip_batch)
@@ -414,7 +413,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
     Args:
         in_channels: Number of input feature channels.
         num_classes: Number of part classes (50 for ShapeNetPart).
-        num_shape_classes: Number of shape categories (16 for ShapeNetPart).
+        num_categories: Number of shape categories (16 for ShapeNetPart).
         stem_channels: Stem MLP channel sizes.
         encoder_channels: Encoder channel dimensions per stage.
         encoder_depths: Residual block depths per encoder stage.
@@ -433,7 +432,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
         in_channels: int,
         num_classes: int,
         *,
-        num_shape_classes: int = 16,
+        num_categories: int,
         stem_channels: Optional[Union[int, Sequence[int]]] = None,
         stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
@@ -466,7 +465,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
         radiuses = ensure_tuple(radiuses)
         num_neighbors = ensure_tuple(num_neighbors)
 
-        self.num_shape_classes = num_shape_classes
+        self.num_categories = num_categories
 
         self.stem: Optional[nn.Module] = None
         if stem_channels:
@@ -508,7 +507,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
             depths=decoder_depths,
             global_conv1_in=encoder_channels[-2],
             global_conv2_in=encoder_channels[-1],
-            num_shape_classes=num_shape_classes,
+            num_categories=num_categories,
             act=act,
             act_kwargs=act_kwargs,
             act_first=act_first,
@@ -1639,7 +1638,7 @@ _SHAPENETPART_TRANSFORMS = T.Compose(
 _SHAPENETPART_COMMON_HPARAMS = dict(
     in_channels=7,
     num_classes=50,
-    num_shape_classes=16,
+    num_categories=16,
     spatial_dim=3,
     stem_plain_last=True,
     encoder_depths=[0, 0, 0, 0],

@@ -12,7 +12,7 @@ dependencies = [
     "plyfile>=1.1",
     "python-dotenv>=1.2.2",
     "safetensors>=0.7.0",
-    "torch>=2.0.0,<2.9.0",
+    "torch>=2.0.0,<3.0.0",
     "torch-geometric>=2.6.1",
     "tqdm>=4.67.1",
 ]
@@ -22,6 +22,7 @@ torchsparse = [
     "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git",
 ]
 ocnn = ["ocnn>=2.2.6"]
+dwconv = ["dwconv @ git+https://github.com/octree-nn/dwconv.git"]
 build = ["setuptools", "wheel", "rootpath"]
 flash-attn = ["flash-attn>=2.4.1"]
 mamba = ["mamba-ssm[causal-conv1d]>=2.2.0"]
@@ -58,6 +59,11 @@ requires-dist = ["torch", "einops", "setuptools"]
 name = "torchsparse"
 version = "2.1.0"
 requires-dist = ["torch", "setuptools", "rootpath", "wheel"]
+
+[[tool.uv.dependency-metadata]]
+name = "dwconv"
+version = "1.1.0"
+requires-dist = ["torch"]
 
 [tool.ruff]
 target-version = "py310"

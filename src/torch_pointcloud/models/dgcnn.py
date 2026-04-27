@@ -51,8 +51,8 @@ class DGCNNEncoderBlock(nn.Module):
         self.k = num_neighbors
         self.conv = DynamicEdgeConv(nn_module, k=num_neighbors, aggr=aggr)
 
-    def forward(self, x: Tensor, batch: Tensor, knn_x: Optional[Tensor] = None) -> Tensor:
-        src = knn_x if knn_x is not None else x
+    def forward(self, x: Tensor, batch: Tensor, x_knn: Optional[Tensor] = None) -> Tensor:
+        src = x_knn if x_knn is not None else x
         edge_index = knn(src, src, self.k, batch_x=batch, batch_y=batch).flip([0])  # type: ignore[arg-type]
         # Fix, we might integrate our own knn into the DynamicEdgeConv later
         return self.conv.propagate(edge_index, x=(x, x))
@@ -105,10 +105,10 @@ class DGCNNEncoder(nn.Module):
     def out_channels(self) -> int:
         return sum(self.out_channels_per_block)
 
-    def forward(self, x: Tensor, batch: Tensor, knn_x: Optional[Tensor] = None) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Tensor, batch: Tensor, x_knn: Optional[Tensor] = None) -> Tuple[Tensor, Tensor]:
         x_list = []
         for i, block in enumerate(self.blocks):
-            x = block(x, batch, knn_x=knn_x if i == 0 else None)
+            x = block(x, batch, x_knn=x_knn if i == 0 else None)
             x_list.append(x)
 
         x = torch.cat(x_list, dim=1)
@@ -170,7 +170,7 @@ class DGCNNClassification(ClassificationModel):
         dropout: float = 0.0,
         global_pool: PoolLike | Sequence[PoolLike] = "max",
     ):
-        super().__init__(in_channels=in_channels + spatial_dim, num_classes=num_classes)
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
         self.stnet_local_channels = ensure_list(stnet_local_channels) if stnet_local_channels is not None else None
         self.stnet_global_channels = ensure_list(stnet_global_channels) if stnet_global_channels is not None else None
@@ -201,7 +201,7 @@ class DGCNNClassification(ClassificationModel):
             )
 
         self.encoder = DGCNNEncoder(
-            channels=[self.in_channels] + self.channels,
+            channels=[self.in_channels + self.spatial_dim] + self.channels,
             num_neighbors=self.num_neighbors,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -271,9 +271,9 @@ class DGCNNClassification(ClassificationModel):
         if self.stnet is not None:
             pos = self.stnet(pos, batch)
 
-        knn_x = pos
+        x_knn = pos
         x = torch.cat([x, pos], dim=1) if x is not None else pos
-        x, batch = self.encoder(x, batch, knn_x=knn_x)
+        x, batch = self.encoder(x, batch, x_knn=x_knn)
 
         if self.proj is not None:
             x = self.proj(x)
@@ -342,7 +342,7 @@ class DGCNNSegmentation(SegmentationModel):
         bias: bool = True,
         dropout: float = 0.0,
     ):
-        super().__init__(in_channels=in_channels + spatial_dim, num_classes=num_classes)
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
         self.stnet_local_channels = ensure_list(stnet_local_channels) if stnet_local_channels is not None else None
         self.stnet_global_channels = ensure_list(stnet_global_channels) if stnet_global_channels is not None else None
@@ -375,7 +375,7 @@ class DGCNNSegmentation(SegmentationModel):
             )
 
         self.encoder = DGCNNEncoder(
-            channels=[self.in_channels] + self.channels,
+            channels=[self.in_channels + self.spatial_dim] + self.channels,
             num_neighbors=self.num_neighbors,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -431,9 +431,10 @@ class DGCNNSegmentation(SegmentationModel):
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         if self.stnet is not None:
             pos = self.stnet(pos, batch)
-        knn_x = pos
+
+        x_knn = pos
         x = torch.cat([x, pos], dim=1) if x is not None else pos
-        x, batch = self.encoder(x, batch, knn_x=knn_x)
+        x, batch = self.encoder(x, batch, x_knn=x_knn)
 
         x_proj = self.proj(x)
         x_global = global_max_pool(x_proj, batch)  # (B, proj_channels)
@@ -507,7 +508,7 @@ class DGCNNPartSegmentation(SegmentationModel):
         bias: bool = True,
         dropout: float = 0.0,
     ):
-        super().__init__(in_channels=in_channels + spatial_dim, num_classes=num_classes)
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
         self.num_categories = num_categories
         self.cat_embed_channels = cat_embed_channels
@@ -540,7 +541,7 @@ class DGCNNPartSegmentation(SegmentationModel):
             )
 
         self.encoder = DGCNNEncoder(
-            channels=[self.in_channels] + self.channels,
+            channels=[self.in_channels + self.spatial_dim] + self.channels,
             num_neighbors=self.num_neighbors,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -607,9 +608,10 @@ class DGCNNPartSegmentation(SegmentationModel):
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if self.stnet is not None:
             pos = self.stnet(pos, batch)
-        knn_x = pos
+
+        x_knn = pos
         x = torch.cat([x, pos], dim=1) if x is not None else pos
-        x, batch = self.encoder(x, batch, knn_x=knn_x)
+        x, batch = self.encoder(x, batch, x_knn=x_knn)
 
         x_proj = self.proj(x)
         x_global = global_max_pool(x_proj, batch)  # (B, proj_channels)
