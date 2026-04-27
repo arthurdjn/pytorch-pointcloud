@@ -1,19 +1,22 @@
+import inspect
 import json
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Callable, Dict, List
 
 import pytest
+import torch
 import torch.nn as nn
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
+    _OCNN_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
 )
+from torch_pointcloud.utils.octree import build_octree
 
 CLASSIFICATION_MODELS = [
     "dgcnn-antao.modelnet40.1024",
@@ -90,7 +93,7 @@ SEGMENTATION_MODELS = [
 ]
 
 
-def _skip_if_model_optional_deps_missing(model_name: str) -> None:
+def _skip_if_model_deps_missing(model_name: str) -> None:
     if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
@@ -151,32 +154,6 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
     reason="torch-cluster or torch-scatter is not installed",
 )
 @pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
-def test_classification_model_forward(model_name: str) -> None:
-    """Test that all registered models can be created and work."""
-    _skip_if_model_optional_deps_missing(model_name)
-
-    model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
-    assert isinstance(model, ClassificationModel)
-
-
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
-@pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
-def test_segmentation_model_forward(model_name: str) -> None:
-    """Test that all registered models can be created and work."""
-    _skip_if_model_optional_deps_missing(model_name)
-
-    model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
-    assert isinstance(model, SegmentationModel)
-
-
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
-@pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
 def test_classification_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
     """Test that the architecture of all registered segmentation models is correct.
     This test will only verify that the state-dict structure of the model matches the expected structure,
@@ -194,7 +171,7 @@ def test_classification_architecture(model_name: str, force_regen: bool, models_
     # Only copy the models directory to the temporary directory
     models_dir = models_dir_factory("*.json")
 
-    _skip_if_model_optional_deps_missing(model_name)
+    _skip_if_model_deps_missing(model_name)
     model = create_model(model_name, task="classification", in_channels=3, num_classes=10)
     _check_architecture_or_regen(
         model,
@@ -224,10 +201,10 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, models_di
     uv run --no-sync pytest tests/models/test_registered_models.py -k test_segmentation_architecture --force-regen
     ```
     """
+    _skip_if_model_deps_missing(model_name)
     # Only copy the models directory to the temporary directory
     models_dir = models_dir_factory("*.json")
 
-    _skip_if_model_optional_deps_missing(model_name)
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
     _check_architecture_or_regen(
         model,
@@ -236,3 +213,86 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, models_di
         models_dir=models_dir,
         force_regen=force_regen,
     )
+
+
+@pytest.fixture
+def data_factory() -> Callable[[int, int], Dict[str, Any]]:
+    def create_data(
+        in_channels: int,
+        spatial_dim: int = 3,
+        num_categories: int = 0,
+    ) -> Dict[str, Any]:
+        torch.manual_seed(42)
+        lengths = torch.tensor([512, 768])
+        pos = torch.randn(int(lengths.sum()), spatial_dim)
+        x = torch.randn(int(lengths.sum()), in_channels) if in_channels > 0 else None
+        batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
+        cls_onehot = torch.zeros(len(lengths), num_categories) if num_categories > 0 else None
+
+        octree = None
+        if _OCNN_AVAILABLE:
+            octree = build_octree(
+                pos=pos,
+                batch=batch,
+                features=x,
+                batch_size=len(lengths),
+            )
+            octree.construct_all_neigh()
+            x = octree.features[octree.depth]
+            pos = octree.points[octree.depth]
+
+        return dict(
+            x=x,
+            pos=pos,
+            octree=octree,
+            depth=octree.depth if octree is not None else None,
+            batch=batch,
+            cls_onehot=cls_onehot,
+            category=cls_onehot,
+        )
+
+    return create_data
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize(
+    "model_name,task",
+    [
+        *[(model, "classification") for model in CLASSIFICATION_MODELS],
+        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+    ],
+)
+def test_model_forward(model_name: str, task: str, data_factory: Callable) -> None:
+    _skip_if_model_deps_missing(model_name)
+    # TODO: fix later, need to support for grid pos (Point Transformer like models)
+    # TODO: and fix input features type / nempty -> maybe use the transforms that are registered with the model
+    if model_name in ["octformer-base.modelnet40", "octformer-base.lg", "sonata-lp.scannet20"]:
+        pytest.skip("Model is not supported yet")
+
+    # Instantiate the model and dummy data
+    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    data = data_factory(
+        in_channels=model.in_channels,
+        spatial_dim=getattr(model, "spatial_dim", 3),
+        num_categories=getattr(model, "num_categories", 0),
+    )
+
+    # Inspect the model.forward method signature and provide the appropriate arguments from the data
+    forward_signature = inspect.signature(model.forward)
+    args = [arg for arg in forward_signature.parameters.keys() if arg != "self"]
+    data = {arg: data[arg] for arg in args}
+
+    # Automatically move the data and model on CUDA if available (NOTE: value could be an octree or tensor)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    data = {k: v.to(device) if hasattr(v, "to") else v for k, v in data.items()}
+    model.to(device)
+
+    # Forward pass
+    _ = model.forward(**data)
+
+    # Release memory from the model and data
+    if device == "cuda":
+        torch.cuda.empty_cache()

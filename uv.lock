@@ -13,6 +13,11 @@ resolution-markers = [
 [manifest]
 
 [[manifest.dependency-metadata]]
+name = "dwconv"
+version = "1.1.0"
+requires-dist = ["torch"]
+
+[[manifest.dependency-metadata]]
 name = "flash-attn"
 version = "2.4.1"
 requires-dist = ["torch", "einops", "setuptools"]
@@ -762,6 +767,14 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865801041647dc7f4e6d00b549cfe88b65ca192995f07c/distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d", size = 614605, upload-time = "2025-07-17T16:52:00.465Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
+]
+
+[[package]]
+name = "dwconv"
+version = "1.1.0"
+source = { git = "https://github.com/octree-nn/dwconv.git#ae53057eaf36dab01aa2727fcc93a749fd995af5" }
+dependencies = [
+    { name = "torch" },
 ]
 
 [[package]]
@@ -3897,6 +3910,9 @@ build = [
     { name = "setuptools" },
     { name = "wheel" },
 ]
+dwconv = [
+    { name = "dwconv" },
+]
 flash-attn = [
     { name = "flash-attn" },
 ]
@@ -3939,6 +3955,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dwconv", marker = "extra == 'dwconv'", git = "https://github.com/octree-nn/dwconv.git" },
     { name = "flash-attn", marker = "extra == 'flash-attn'", specifier = ">=2.4.1" },
     { name = "h5py", specifier = ">=3.15.1" },
     { name = "joblib", specifier = ">=1.4.2" },
@@ -3952,7 +3969,7 @@ requires-dist = [
     { name = "safetensors", specifier = ">=0.7.0" },
     { name = "setuptools", marker = "extra == 'build'" },
     { name = "spconv", marker = "extra == 'spconv'", specifier = ">=2.2.1" },
-    { name = "torch", specifier = ">=2.0.0,<2.9.0" },
+    { name = "torch", specifier = ">=2.0.0,<3.0.0" },
     { name = "torch-cluster", marker = "extra == 'pyg-lib'", specifier = ">=1.6.3" },
     { name = "torch-geometric", specifier = ">=2.6.1" },
     { name = "torch-scatter", marker = "extra == 'pyg-lib'", specifier = ">=2.1.2" },
@@ -3960,7 +3977,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "wheel", marker = "extra == 'build'" },
 ]
-provides-extras = ["torchsparse", "ocnn", "build", "flash-attn", "mamba", "spconv", "pyg-lib"]
+provides-extras = ["torchsparse", "ocnn", "dwconv", "build", "flash-attn", "mamba", "spconv", "pyg-lib"]
 
 [package.metadata.requires-dev]
 dev = [

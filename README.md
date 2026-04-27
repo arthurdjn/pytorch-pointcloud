@@ -12,23 +12,33 @@ sudo apt-get install libsparsehash-dev
 
 uv venv --clear
 
+# Install all extras (NOTE: Some extras are Linux and CPU only)
+uv sync --all-extras --dev
+
+uv pip uninstall torch torchvision torch-geometric torch_scatter torch_cluster pyg_lib torch_spline_conv
+
 # For CUDA specific, it is recommended to install the dependencies manually
 # depending on your torch and CUDA version
 uv pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu126
-# uv pip uninstall torch_scatter torch_cluster pyg_lib torch_spline_conv
 
-uv pip install --no-cache-dir --no-build-isolation 'mamba-ssm[causal-conv1d]'   
-uv pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.8.0+cu126.html
+# Install pyg-lib
+uv pip install pyg_lib torch-geometric torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.8.0+cu126.html
+
+# Install spconv
 uv pip install spconv-cu126 
 
-# Install all extras (NOTE: Some extras are Linux and CPU only)
-# uv sync --all-extras --dev
+# Install mamba-ssm
+uv pip install packaging wheel
+uv pip install --no-cache-dir --no-build-isolation 'mamba-ssm[causal-conv1d]'
 
-# Install the minimum dependencies
-uv sync
-# for some cuda specific packages like flash-attn, torchsparse
-# uv pip install setuptools wheel rootpath
-uv sync --extra build
+# DWConv
+uv pip install dwconv
+
+# Test
+uv run --no-sync python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+uv run --no-sync python -c "import torch_cluster; print(torch_cluster.__version__)"
+uv run --no-sync python -c "import torch_geometric; print(torch_geometric.__version__)"
+uv run --no-sync python -c "import torch_pointcloud; print(torch_pointcloud.__version__)"
 ```
 
 ### All in one
