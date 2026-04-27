@@ -60,8 +60,10 @@ name = "torchsparse"
 version = "2.1.0"
 requires-dist = ["torch", "setuptools", "rootpath", "wheel"]
 
-[tool.uv.extra-build-dependencies]
-dwconv = ["torch"]
+[[tool.uv.dependency-metadata]]
+name = "dwconv"
+version = "1.1.0"
+requires-dist = ["torch"]
 
 [tool.ruff]
 target-version = "py310"

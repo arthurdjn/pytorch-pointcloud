@@ -13,6 +13,11 @@ resolution-markers = [
 [manifest]
 
 [[manifest.dependency-metadata]]
+name = "dwconv"
+version = "1.1.0"
+requires-dist = ["torch"]
+
+[[manifest.dependency-metadata]]
 name = "flash-attn"
 version = "2.4.1"
 requires-dist = ["torch", "einops", "setuptools"]
@@ -769,9 +774,6 @@ name = "dwconv"
 version = "1.1.0"
 source = { git = "https://github.com/octree-nn/dwconv.git#ae53057eaf36dab01aa2727fcc93a749fd995af5" }
 dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "ocnn" },
     { name = "torch" },
 ]
 
