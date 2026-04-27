@@ -12,7 +12,7 @@ dependencies = [
     "plyfile>=1.1",
     "python-dotenv>=1.2.2",
     "safetensors>=0.7.0",
-    "torch>=2.0.0,<2.9.0",
+    "torch>=2.0.0,<3.0.0",
     "torch-geometric>=2.6.1",
     "tqdm>=4.67.1",
 ]

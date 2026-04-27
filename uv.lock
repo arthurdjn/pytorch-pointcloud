@@ -3967,7 +3967,7 @@ requires-dist = [
     { name = "safetensors", specifier = ">=0.7.0" },
     { name = "setuptools", marker = "extra == 'build'" },
     { name = "spconv", marker = "extra == 'spconv'", specifier = ">=2.2.1" },
-    { name = "torch", specifier = ">=2.0.0,<2.9.0" },
+    { name = "torch", specifier = ">=2.0.0,<3.0.0" },
     { name = "torch-cluster", marker = "extra == 'pyg-lib'", specifier = ">=1.6.3" },
     { name = "torch-geometric", specifier = ">=2.6.1" },
     { name = "torch-scatter", marker = "extra == 'pyg-lib'", specifier = ">=2.1.2" },
