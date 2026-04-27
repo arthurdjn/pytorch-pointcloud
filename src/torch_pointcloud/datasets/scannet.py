@@ -1020,6 +1020,11 @@ class ScanNet20(ScanNet):
         return "ScanNet"
 
     @override
+    @property
+    def processed_dir(self) -> str:
+        return super().processed_dir + "_20"
+
+    @override
     def load(
         self,
         block_size: Optional[float] = None,
@@ -1095,6 +1100,11 @@ class ScanNet200(ScanNet):
     @property
     def name(self) -> str:
         return "ScanNet"
+
+    @override
+    @property
+    def processed_dir(self) -> str:
+        return super().processed_dir + "_200"
 
     @override
     def load(

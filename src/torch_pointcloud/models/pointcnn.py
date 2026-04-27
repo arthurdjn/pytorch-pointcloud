@@ -586,11 +586,10 @@ class PointCNNSegmentation(SegmentationModel):
         return self.forward_head(x)
 
 
-@register_model("pointcnn-base", task="classification")
-def pointcnn_base_cls(in_channels: int, num_classes: int, **kwargs: Any) -> PointCNNClassification:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointcnn-base",
+    task="classification",
+    hparams=dict(
         spatial_dim=3,
         channels=[48, 96, 192, 384],
         hidden_channels=[32, 64, 128, 256],
@@ -604,16 +603,16 @@ def pointcnn_base_cls(in_channels: int, num_classes: int, **kwargs: Any) -> Poin
         dropout=0.5,
         head_channels=[256, 128],
         global_pool="mean",
-    )
-    hparams.update(kwargs)
-    return PointCNNClassification(**hparams)  # type: ignore[arg-type]
+    ),
+)
+def pointcnn_base_cls(**hparams: Any) -> PointCNNClassification:
+    return PointCNNClassification(**hparams)
 
 
-@register_model("pointcnn-base", task="segmentation")
-def pointcnn_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> PointCNNSegmentation:
-    hparams = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+@register_model(
+    "pointcnn-base",
+    task="segmentation",
+    hparams=dict(
         spatial_dim=3,
         channels=[48, 96, 192, 384],
         hidden_channels=[32, 64, 128, 256],
@@ -626,6 +625,7 @@ def pointcnn_base_seg(in_channels: int, num_classes: int, **kwargs: Any) -> Poin
         bias=True,
         dropout=0.5,
         head_channels=[256, 128],
-    )
-    hparams.update(kwargs)
-    return PointCNNSegmentation(**hparams)  # type: ignore[arg-type]
+    ),
+)
+def pointcnn_base_seg(**hparams: Any) -> PointCNNSegmentation:
+    return PointCNNSegmentation(**hparams)

@@ -22,6 +22,7 @@ torchsparse = [
     "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git",
 ]
 ocnn = ["ocnn>=2.2.6"]
+dwconv = ["dwconv @ git+https://github.com/octree-nn/dwconv.git"]
 build = ["setuptools", "wheel", "rootpath"]
 flash-attn = ["flash-attn>=2.4.1"]
 mamba = ["mamba-ssm[causal-conv1d]>=2.2.0"]

@@ -88,8 +88,8 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, *, num_classes:
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
-        octree: Octree = data[DataKeys.OCTREE].to(device)
-        x = octree.get_input_feature("ND", False)
+        octree = data[DataKeys.OCTREE].to(device)
+        x = data[DataKeys.X].to(device)
         label = data[DataKeys.LABEL].to(device)
 
         logits = model(x, octree, octree.depth)

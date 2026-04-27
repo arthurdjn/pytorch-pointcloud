@@ -765,6 +765,17 @@ wheels = [
 ]
 
 [[package]]
+name = "dwconv"
+version = "1.1.0"
+source = { git = "https://github.com/octree-nn/dwconv.git#ae53057eaf36dab01aa2727fcc93a749fd995af5" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "ocnn" },
+    { name = "torch" },
+]
+
+[[package]]
 name = "einops"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3897,6 +3908,9 @@ build = [
     { name = "setuptools" },
     { name = "wheel" },
 ]
+dwconv = [
+    { name = "dwconv" },
+]
 flash-attn = [
     { name = "flash-attn" },
 ]
@@ -3939,6 +3953,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dwconv", marker = "extra == 'dwconv'", git = "https://github.com/octree-nn/dwconv.git" },
     { name = "flash-attn", marker = "extra == 'flash-attn'", specifier = ">=2.4.1" },
     { name = "h5py", specifier = ">=3.15.1" },
     { name = "joblib", specifier = ">=1.4.2" },
@@ -3960,7 +3975,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "wheel", marker = "extra == 'build'" },
 ]
-provides-extras = ["torchsparse", "ocnn", "build", "flash-attn", "mamba", "spconv", "pyg-lib"]
+provides-extras = ["torchsparse", "ocnn", "dwconv", "build", "flash-attn", "mamba", "spconv", "pyg-lib"]
 
 [package.metadata.requires-dev]
 dev = [
