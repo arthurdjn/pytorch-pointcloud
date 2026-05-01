@@ -911,7 +911,7 @@ def _spvcnn_semantickitti_hparams(cr: float) -> dict:
         in_channels=4,
         num_classes=19,
         spatial_dim=3,
-        stem_channels=32,
+        stem_channels=cs[0],
         encoder_channels=[cs[1], cs[2], cs[3], cs[4]],
         encoder_depths=[2, 2, 2, 2],
         encoder_fusion_stages=[False, False, False, True],
