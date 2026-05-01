@@ -154,6 +154,7 @@ _OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"
 _SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
 _TORCH_CLUSTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_cluster"
 _TORCH_SCATTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_scatter"
+_TORCHSPARSE_GITHUB_URL = "https://github.com/mit-han-lab/torchsparse"
 
 _CUDA_AVAILABLE = torch.cuda.is_available()
 _FLASH_ATTN_AVAILABLE = module_available("flash_attn")
@@ -161,5 +162,6 @@ _OCNN_AVAILABLE = module_available("ocnn")
 _SPCONV_AVAILABLE = module_available("spconv.pytorch")
 _TORCH_CLUSTER_AVAILABLE = module_available("torch_cluster")
 _TORCH_SCATTER_AVAILABLE = module_available("torch_scatter")
+_TORCHSPARSE_AVAILABLE = module_available("torchsparse")
 _MAMBA_SSM_AVAILABLE = module_available("mamba_ssm")
 _DWCONV_AVAILABLE = module_available("dwconv")
