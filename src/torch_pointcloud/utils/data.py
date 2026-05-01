@@ -26,6 +26,7 @@ class DataKeys(StrEnum):
     SEGMENT = "segment"
     SEMANTIC = "semantic"
     INSTANCE = "instance"
+    INTENSITY = "intensity"
     CATEGORY = "category"
     LABEL = "label"
     BATCH = "batch"

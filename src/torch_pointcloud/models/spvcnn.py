@@ -13,115 +13,155 @@ from typing import (
     overload,
 )
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
+
+from ._registry import register_model
 
 if TYPE_CHECKING:
     import torchsparse
     import torchsparse.nn as spnn
     import torchsparse.nn.functional as spF
-    from torchsparse.tensor import PointTensor, SparseTensor
+    from torchsparse.tensor import SparseTensor
 
 
 torchsparse, _ = optional_import("torchsparse")
 spnn, _ = optional_import("torchsparse.nn")
 spF, _ = optional_import("torchsparse.nn.functional")
-PointTensor, _ = optional_import("torchsparse.tensor", "PointTensor")
 SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor")
 
 
-def initial_voxelize(x_points: "PointTensor") -> "SparseTensor":
-    pc_hash = spF.sphash(torch.floor(x_points.C).int())
-    sparse_hash = torch.unique(pc_hash)
-    idx_query = spF.sphashquery(pc_hash, sparse_hash)
-    counts = spF.spcount(idx_query.int(), len(sparse_hash))
+class PointTensor(SparseTensor):
+    """A SparseTensor subclass that caches per-stride point↔voxel mappings.
 
-    inserted_coords = spF.spvoxelize(torch.floor(x_points.C), idx_query, counts)
-    inserted_coords = torch.round(inserted_coords).int()
-    inserted_feat = spF.spvoxelize(x_points.F, idx_query, counts)
+    This mirrors `mit-han-lab/spvnas` `core/models/utils.py:PointTensor`. The model's
+    voxelisation helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
+    expect coordinates in **batch-FIRST** layout `[B, X, Y, Z]` (matching torchsparse's
+    `SparseTensor.C`).
+    """
 
-    new_tensor = SparseTensor(inserted_feat, inserted_coords, 1)
-    new_tensor._caches.cmaps.setdefault(new_tensor.stride, new_tensor.coords)
-    x_points.additional_features["idx_query"][1] = idx_query
-    x_points.additional_features["counts"][1] = counts
+    def __init__(
+        self,
+        feats: Tensor,
+        coords: Tensor,
+        stride: Union[int, Tuple[int, ...]] = 1,
+    ) -> None:
+        super().__init__(feats=feats, coords=coords, stride=stride)
+        self._caches.idx_query = dict()
+        self._caches.idx_query_devox = dict()
+        self._caches.weights_devox = dict()
+
+
+def _sphashquery(query: Tensor, target: Tensor, kernel_size: int = 1) -> Tensor:
+    """SPVNAS-style hash lookup that maps each row of `query` to its position in
+    `target` (or to `-1` when not found). Both tensors use batch-FIRST coords.
+    """
+    from torchsparse.utils import make_ntuple, make_tensor  # local import — not ABI-stable
+
+    hashmap_keys = torch.zeros(2 * target.shape[0], dtype=torch.int64, device=target.device)
+    hashmap_vals = torch.zeros(2 * target.shape[0], dtype=torch.int32, device=target.device)
+    hashmap = torchsparse.backend.GPUHashTable(hashmap_keys, hashmap_vals)
+    hashmap.insert_coords(target[:, [1, 2, 3, 0]])
+    ks = make_ntuple(kernel_size, 3)
+    kernel_volume = int(np.prod(ks))
+    ks_tensor = make_tensor(ks, device=target.device, dtype=torch.int32)
+    stride = make_tensor((1, 1, 1), device=target.device, dtype=torch.int32)
+    return (hashmap.lookup_coords(query[:, [1, 2, 3, 0]], ks_tensor, stride, kernel_volume) - 1)[: query.shape[0]]
+
+
+def initial_voxelize(z: "PointTensor", init_res: float = 1.0, after_res: float = 1.0) -> "SparseTensor":
+    """Aggregate a `PointTensor` into a `SparseTensor` of voxel features.
+
+    Mirrors SPVNAS's `core/models/utils.py:initial_voxelize`. Mutates `z.C` to the
+    rescaled (voxel-unit) float coordinates so subsequent `voxel_to_point` calls
+    can stay in voxel space.
+    """
+    import torch_scatter  # local import — heavy dep used only inside this op
+
+    new_float_coord = torch.cat(
+        [z.C[:, 0].view(-1, 1), (z.C[:, 1:] * init_res) / after_res],
+        1,
+    )
+    new_int_coord = torch.floor(new_float_coord).int()
+    sparse_coord = torch.unique(new_int_coord, dim=0)
+    idx_query = _sphashquery(new_int_coord, sparse_coord).reshape(-1)
+
+    sparse_feat = torch_scatter.scatter_mean(z.F, idx_query.long(), dim=0)
+    new_tensor = SparseTensor(sparse_feat, sparse_coord, 1)
+    z._caches.idx_query[z.s] = idx_query
+    z.C = new_float_coord
     return new_tensor
 
 
-def point_to_voxel(x_voxels: "SparseTensor", x_points: "PointTensor") -> "SparseTensor":
-    if (
-        x_points.additional_features is None
-        or x_points.additional_features.get("idx_query") is None
-        or x_points.additional_features["idx_query"].get(x_voxels.s) is None
-    ):
-        pc_hash = spF.sphash(
-            torch.cat(
-                [
-                    torch.floor(x_points.C[:, :3] / x_voxels.s[0]).int() * x_voxels.s[0],
-                    x_points.C[:, -1].int().view(-1, 1),
-                ],
-                1,
-            )
+def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
+    """Aggregate point features (`z.F`) onto the voxel grid of `x`."""
+    import torch_scatter
+
+    if z._caches.idx_query.get(x.s) is None:
+        # x.C has been downsampled by stride x.s[0]; re-query against the new grid.
+        new_int_coord = torch.cat(
+            [
+                z.C[:, 0].int().view(-1, 1),
+                torch.floor(z.C[:, 1:] / x.s[0]).int(),
+            ],
+            1,
         )
-        sparse_hash = spF.sphash(x_voxels.C)
-        idx_query = spF.sphashquery(pc_hash, sparse_hash)
-        counts = spF.spcount(idx_query.int(), x_voxels.C.shape[0])
-        x_points.additional_features["idx_query"][x_voxels.s] = idx_query
-        x_points.additional_features["counts"][x_voxels.s] = counts
+        idx_query = _sphashquery(new_int_coord, x.C)
+        z._caches.idx_query[x.s] = idx_query
     else:
-        idx_query = x_points.additional_features["idx_query"][x_voxels.s]
-        counts = x_points.additional_features["counts"][x_voxels.s]
+        idx_query = z._caches.idx_query[x.s]
 
-    inserted_feat = spF.spvoxelize(x_points.F, idx_query, counts)
-    new_tensor = SparseTensor(inserted_feat, x_voxels.C, x_voxels.s)
-    new_tensor._caches.cmaps = x_voxels._caches.cmaps
-    new_tensor._caches.kmaps = x_voxels._caches.kmaps
-
+    # Points whose voxel isn't in `x` get clamped to 0 — they then receive the
+    # mean-aggregated feature of voxel 0 (rare, mostly affects boundaries).
+    idx_query = idx_query.clamp_(0)
+    sparse_feat = torch_scatter.scatter_mean(z.F, idx_query.long(), dim=0)
+    new_tensor = SparseTensor(sparse_feat, x.C, x.s)
+    new_tensor._caches = x._caches
     return new_tensor
 
 
-def voxel_to_point(x_voxels: "SparseTensor", x_points: "PointTensor") -> "PointTensor":
-    if (
-        x_points.idx_query is None
-        or x_points.weights is None
-        or x_points.idx_query.get(x_voxels.s) is None
-        or x_points.weights.get(x_voxels.s) is None
-    ):
-        off = spnn.utils.get_kernel_offsets(2, x_voxels.s, 1, device=x_points.F.device)
-        old_hash = spF.sphash(
-            torch.cat(
-                [
-                    torch.floor(x_points.C[:, :3] / x_voxels.s[0]).int() * x_voxels.s[0],
-                    x_points.C[:, -1].int().view(-1, 1),
-                ],
-                1,
-            ),
-            off,
+def voxel_to_point(x: "SparseTensor", z: "PointTensor", nearest: bool = False) -> "PointTensor":
+    """Trilinearly interpolate voxel features (`x.F`) at point positions (`z.C`)."""
+    if z._caches.idx_query_devox.get(x.s) is None or z._caches.weights_devox.get(x.s) is None:
+        point_coords_float = torch.cat(
+            [z.C[:, 0].int().view(-1, 1), z.C[:, 1:] / x.s[0]],
+            1,
         )
-        pc_hash = spF.sphash(x_voxels.C.to(x_points.F.device))
-        idx_query = spF.sphashquery(old_hash, pc_hash)
-        weights = spF.calc_ti_weights(x_points.C, idx_query.transpose(0, 1), scale=x_voxels.s[0]).contiguous()
-        idx_query = idx_query.contiguous().transpose(0, 1)
+        point_coords_int = torch.floor(point_coords_float).int()
+        idx_query = _sphashquery(point_coords_int, x.C, kernel_size=2)
+        weights = spF.calc_ti_weights(point_coords_float[:, 1:], idx_query, scale=1)
 
-        new_feat = spF.spdevoxelize(x_voxels.F, idx_query, weights)
-        new_tensor = PointTensor(new_feat, x_points.C, idx_query=x_points.idx_query, weights=x_points.weights)
-        new_tensor.additional_features = x_points.additional_features
-        new_tensor.idx_query[x_voxels.s] = idx_query
-        new_tensor.weights[x_voxels.s] = weights
-        x_points.idx_query[x_voxels.s] = idx_query
-        x_points.weights[x_voxels.s] = weights
+        if nearest:
+            weights[:, 1:] = 0.0
+            idx_query[:, 1:] = -1
 
+        new_feat = spF.spdevoxelize(x.F, idx_query, weights)
+        new_tensor = PointTensor(new_feat, z.C)
+        new_tensor._caches = z._caches
+        new_tensor._caches.idx_query_devox[x.s] = idx_query
+        new_tensor._caches.weights_devox[x.s] = weights
+        z._caches.idx_query_devox[x.s] = idx_query
+        z._caches.weights_devox[x.s] = weights
     else:
-        new_feat = spF.spdevoxelize(x_voxels.F, x_points.idx_query.get(x_voxels.s), x_points.weights.get(x_voxels.s))
-        new_tensor = PointTensor(new_feat, x_points.C, idx_query=x_points.idx_query, weights=x_points.weights)
-        new_tensor.additional_features = x_points.additional_features
+        new_feat = spF.spdevoxelize(
+            x.F,
+            z._caches.idx_query_devox.get(x.s),
+            z._caches.weights_devox.get(x.s),
+        )
+        new_tensor = PointTensor(new_feat, z.C)
+        new_tensor._caches = z._caches
 
     return new_tensor
 
@@ -684,7 +724,7 @@ class SPVCNNClassification(nn.Module):
         return self.head(x)
 
 
-class SPVCNNSegmentation(nn.Module):
+class SPVCNNSegmentation(SegmentationModel):
     def __init__(
         self,
         in_channels: int,
@@ -707,10 +747,32 @@ class SPVCNNSegmentation(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.in_channels = in_channels or spatial_dim
         self.num_classes = num_classes
         self.stem_channels = stem_channels
+        # Print all hparams
+        # hparams = dict(
+        #     in_channels=in_channels,
+        #     num_classes=num_classes,
+        #     spatial_dim=spatial_dim,
+        #     stem_channels=stem_channels,
+        #     encoder_channels=encoder_channels,
+        #     encoder_depths=encoder_depths,
+        #     encoder_fusion_stages=encoder_fusion_stages,
+        #     decoder_channels=decoder_channels,
+        #     decoder_depths=decoder_depths,
+        #     decoder_fusion_stages=decoder_fusion_stages,
+        #     kernel_size=kernel_size,
+        #     stride=stride,
+        #     dilation=dilation,
+        #     drop_path=drop_path,
+        #     act=act,
+        #     act_kwargs=act_kwargs,
+        #     norm=norm,
+        #     norm_kwargs=norm_kwargs,
+        # )
+        # print(f"SPVCNNSegmentation hparams: {hparams}")
 
         self.stem = nn.Sequential(
             BasicBlock(
@@ -774,13 +836,127 @@ class SPVCNNSegmentation(nn.Module):
         batch: Tensor,
     ) -> Tensor:
         x = pos.float() if x is None else x
-        pos = torch.cat([pos.float(), batch.unsqueeze(-1).float()], dim=1).contiguous()
-        x_points = PointTensor(x, pos)
-        x_voxels = initial_voxelize(x_points)
+        # Batch-FIRST coords [B, X, Y, Z], matching torchsparse.SparseTensor.C convention
+        # used by `initial_voxelize` / `point_to_voxel` / `voxel_to_point`.
+        coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
+        x_points = PointTensor(x, coords)
+        x_voxels = initial_voxelize(x_points, init_res=1.0, after_res=1.0)
 
         x_voxels = self.stem(x_voxels)
-        x_points = voxel_to_point(x_voxels, x_points)
+        x_points = voxel_to_point(x_voxels, x_points, nearest=False)
+        # SPVNAS does an extra point -> voxel step here before the encoder, so the encoder
+        # sees a smoothed copy of the stem output. Without it, accuracy collapses.
+        x_voxels = point_to_voxel(x_voxels, x_points)
 
         x_voxels, x_points, intermediates = self.encoder(x_voxels, x_points, return_intermediates=True)
         x_voxels, x_points = self.decoder(x_voxels, x_points, intermediates)
         return self.head(x_points.F)
+
+
+def _spvcnn_semantickitti_transforms() -> Callable:
+    return T.Compose(
+        [
+            # SemanticKITTI 19-class learning_map used by the SPVNAS-trained checkpoints.
+            # Each (raw_id -> contiguous_idx) entry follows the convention from
+            # https://github.com/mit-han-lab/spvnas/blob/master/core/datasets/semantic_kitti.py:
+            #  - the static benchmark classes get indices 0..18;
+            #  - moving-* variants are merged into their static counterpart;
+            #  - bus, on-rails, lane-marking, other-structure, other-object, ... -> ignore (255).
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels={
+                    10: 0,  # car
+                    252: 0,  # moving-car
+                    11: 1,  # bicycle
+                    15: 2,  # motorcycle
+                    18: 3,  # truck
+                    258: 3,  # moving-truck
+                    20: 4,  # other-vehicle
+                    259: 4,  # moving-other-vehicle
+                    30: 5,  # person
+                    254: 5,  # moving-person
+                    31: 6,  # bicyclist
+                    253: 6,  # moving-bicyclist
+                    32: 7,  # motorcyclist
+                    255: 7,  # moving-motorcyclist
+                    40: 8,  # road
+                    44: 9,  # parking
+                    48: 10,  # sidewalk
+                    49: 11,  # other-ground
+                    50: 12,  # building
+                    51: 13,  # fence
+                    70: 14,  # vegetation
+                    71: 15,  # trunk
+                    72: 16,  # terrain
+                    80: 17,  # pole
+                    81: 18,  # traffic-sign
+                },
+                default=255,
+            ),
+            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.VoxelGrid(
+                pos_key=DataKeys.POS,
+                pos_reduce="grid",
+                keys=[DataKeys.X, DataKeys.SEGMENT],
+                reduce=["first", "first"],
+                size=0.05,
+            ),
+        ]
+    )
+
+
+def _spvcnn_semantickitti_hparams(cr: float) -> dict:
+    cs = [int(cr * x) for x in [32, 32, 64, 128, 256, 256, 128, 96, 96]]
+    return dict(
+        in_channels=4,
+        num_classes=19,
+        spatial_dim=3,
+        stem_channels=32,
+        encoder_channels=[cs[1], cs[2], cs[3], cs[4]],
+        encoder_depths=[2, 2, 2, 2],
+        encoder_fusion_stages=[False, False, False, True],
+        decoder_channels=[cs[5], cs[6], cs[7], cs[8]],
+        decoder_depths=[1, 1, 1, 1],
+        decoder_fusion_stages=[False, True, False, True],
+        kernel_size=3,
+        stride=1,
+        dilation=1,
+        drop_path=0.0,
+        act="relu",
+        act_kwargs=None,
+        norm="batch_norm",
+        norm_kwargs=None,
+    )
+
+
+@register_model(
+    "spvcnn-30gmacs.semantickitti",
+    task="segmentation",
+    weights="hf://torch-pointcloud/spvcnn/spvcnn-30gmacs.semantickitti.pt",
+    transforms=_spvcnn_semantickitti_transforms(),
+    hparams=_spvcnn_semantickitti_hparams(cr=0.5),
+)
+def spvcnn_30gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
+    return SPVCNNSegmentation(**hparams)
+
+
+@register_model(
+    "spvcnn-47gmacs.semantickitti",
+    task="segmentation",
+    weights="hf://torch-pointcloud/spvcnn/spvcnn-47gmacs.semantickitti.pt",
+    transforms=_spvcnn_semantickitti_transforms(),
+    hparams=_spvcnn_semantickitti_hparams(cr=0.64),
+)
+def spvcnn_47gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
+    return SPVCNNSegmentation(**hparams)
+
+
+@register_model(
+    "spvcnn-119gmacs.semantickitti",
+    task="segmentation",
+    weights="hf://torch-pointcloud/spvcnn/spvcnn-119gmacs.semantickitti.pt",
+    transforms=_spvcnn_semantickitti_transforms(),
+    hparams=_spvcnn_semantickitti_hparams(cr=1.0),
+)
+def spvcnn_119gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
+    return SPVCNNSegmentation(**hparams)
