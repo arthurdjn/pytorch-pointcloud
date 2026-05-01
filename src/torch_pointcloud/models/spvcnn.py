@@ -23,7 +23,7 @@ from torch_geometric.nn.resolver import activation_resolver, normalization_resol
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
-from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -31,53 +31,57 @@ from torch_pointcloud.utils.imports import optional_import
 from ._registry import register_model
 
 if TYPE_CHECKING:
+    import torch_scatter
     import torchsparse
     import torchsparse.nn as spnn
     import torchsparse.nn.functional as spF
     from torchsparse.tensor import SparseTensor
 
 
-torchsparse, _ = optional_import("torchsparse")
+torch_scatter, _ = optional_import("torch_scatter")
+torchsparse, _IS_TORCHSPARSE_AVAILABLE = optional_import("torchsparse")
 spnn, _ = optional_import("torchsparse.nn")
 spF, _ = optional_import("torchsparse.nn.functional")
 SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor")
 
+if _IS_TORCHSPARSE_AVAILABLE:
 
-class PointTensor(SparseTensor):
-    """A SparseTensor subclass that caches per-stride point↔voxel mappings.
+    class PointTensor(SparseTensor):
+        """A SparseTensor subclass that caches per-stride point↔voxel mappings.
 
-    This mirrors `mit-han-lab/spvnas` `core/models/utils.py:PointTensor`. The model's
-    voxelisation helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
-    expect coordinates in **batch-FIRST** layout `[B, X, Y, Z]` (matching torchsparse's
-    `SparseTensor.C`).
-    """
+        This mirrors `mit-han-lab/spvnas` `core/models/utils.py:PointTensor`. The
+        voxelisation helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
+        expect coordinates in **batch-FIRST** layout `[B, X, Y, Z]` (matching torchsparse's
+        `SparseTensor.C`).
+        """
 
-    def __init__(
-        self,
-        feats: Tensor,
-        coords: Tensor,
-        stride: Union[int, Tuple[int, ...]] = 1,
-    ) -> None:
-        super().__init__(feats=feats, coords=coords, stride=stride)
-        self._caches.idx_query = dict()
-        self._caches.idx_query_devox = dict()
-        self._caches.weights_devox = dict()
+        def __init__(
+            self,
+            feats: Tensor,
+            coords: Tensor,
+            stride: Union[int, Tuple[int, ...]] = 1,
+        ) -> None:
+            super().__init__(feats=feats, coords=coords, stride=stride)
+            self._caches.idx_query = dict()
+            self._caches.idx_query_devox = dict()
+            self._caches.weights_devox = dict()
+
+else:
+    PointTensor = SparseTensor  # type: ignore[misc]
 
 
 def _sphashquery(query: Tensor, target: Tensor, kernel_size: int = 1) -> Tensor:
     """SPVNAS-style hash lookup that maps each row of `query` to its position in
     `target` (or to `-1` when not found). Both tensors use batch-FIRST coords.
     """
-    from torchsparse.utils import make_ntuple, make_tensor  # local import — not ABI-stable
-
     hashmap_keys = torch.zeros(2 * target.shape[0], dtype=torch.int64, device=target.device)
     hashmap_vals = torch.zeros(2 * target.shape[0], dtype=torch.int32, device=target.device)
     hashmap = torchsparse.backend.GPUHashTable(hashmap_keys, hashmap_vals)
     hashmap.insert_coords(target[:, [1, 2, 3, 0]])
-    ks = make_ntuple(kernel_size, 3)
+    ks = ensure_tuple_size(kernel_size, 3)
     kernel_volume = int(np.prod(ks))
-    ks_tensor = make_tensor(ks, device=target.device, dtype=torch.int32)
-    stride = make_tensor((1, 1, 1), device=target.device, dtype=torch.int32)
+    ks_tensor = torch.tensor(ks, dtype=torch.int32, device=target.device)
+    stride = torch.tensor((1, 1, 1), dtype=torch.int32, device=target.device)
     return (hashmap.lookup_coords(query[:, [1, 2, 3, 0]], ks_tensor, stride, kernel_volume) - 1)[: query.shape[0]]
 
 
@@ -88,8 +92,6 @@ def initial_voxelize(z: "PointTensor", init_res: float = 1.0, after_res: float =
     rescaled (voxel-unit) float coordinates so subsequent `voxel_to_point` calls
     can stay in voxel space.
     """
-    import torch_scatter  # local import — heavy dep used only inside this op
-
     new_float_coord = torch.cat(
         [z.C[:, 0].view(-1, 1), (z.C[:, 1:] * init_res) / after_res],
         1,
@@ -107,8 +109,6 @@ def initial_voxelize(z: "PointTensor", init_res: float = 1.0, after_res: float =
 
 def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
     """Aggregate point features (`z.F`) onto the voxel grid of `x`."""
-    import torch_scatter
-
     if z._caches.idx_query.get(x.s) is None:
         # x.C has been downsampled by stride x.s[0]; re-query against the new grid.
         new_int_coord = torch.cat(
@@ -627,7 +627,7 @@ class SPVCNNDecoder(nn.Module):
         return x_voxels, x_points
 
 
-class SPVCNNClassification(nn.Module):
+class SPVCNNClassification(ClassificationModel):
     def __init__(
         self,
         in_channels: int,
@@ -649,15 +649,14 @@ class SPVCNNClassification(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
-        super().__init__()
-        self.in_channels = in_channels or spatial_dim
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.spatial_dim = spatial_dim
         self.embedding_dim = encoder_channels[-1]
         self.dropout = dropout
 
         self.stem = nn.Sequential(
             BasicBlock(
-                self.in_channels,
+                self.in_channels or self.spatial_dim,
                 stem_channels,
                 kernel_size=3,
                 stride=1,
@@ -748,35 +747,11 @@ class SPVCNNSegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.in_channels = in_channels or spatial_dim
-        self.num_classes = num_classes
+        self.spatial_dim = spatial_dim
         self.stem_channels = stem_channels
-        # Print all hparams
-        # hparams = dict(
-        #     in_channels=in_channels,
-        #     num_classes=num_classes,
-        #     spatial_dim=spatial_dim,
-        #     stem_channels=stem_channels,
-        #     encoder_channels=encoder_channels,
-        #     encoder_depths=encoder_depths,
-        #     encoder_fusion_stages=encoder_fusion_stages,
-        #     decoder_channels=decoder_channels,
-        #     decoder_depths=decoder_depths,
-        #     decoder_fusion_stages=decoder_fusion_stages,
-        #     kernel_size=kernel_size,
-        #     stride=stride,
-        #     dilation=dilation,
-        #     drop_path=drop_path,
-        #     act=act,
-        #     act_kwargs=act_kwargs,
-        #     norm=norm,
-        #     norm_kwargs=norm_kwargs,
-        # )
-        # print(f"SPVCNNSegmentation hparams: {hparams}")
-
         self.stem = nn.Sequential(
             BasicBlock(
-                self.in_channels,
+                self.in_channels or self.spatial_dim,
                 stem_channels,
                 kernel_size=3,
                 stride=1,
@@ -836,17 +811,12 @@ class SPVCNNSegmentation(SegmentationModel):
         batch: Tensor,
     ) -> Tensor:
         x = pos.float() if x is None else x
-        # Batch-FIRST coords [B, X, Y, Z], matching torchsparse.SparseTensor.C convention
-        # used by `initial_voxelize` / `point_to_voxel` / `voxel_to_point`.
         coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
         x_points = PointTensor(x, coords)
-        x_voxels = initial_voxelize(x_points, init_res=1.0, after_res=1.0)
+        x_voxels = initial_voxelize(x_points)
 
         x_voxels = self.stem(x_voxels)
-        x_points = voxel_to_point(x_voxels, x_points, nearest=False)
-        # SPVNAS does an extra point -> voxel step here before the encoder, so the encoder
-        # sees a smoothed copy of the stem output. Without it, accuracy collapses.
-        x_voxels = point_to_voxel(x_voxels, x_points)
+        x_points = voxel_to_point(x_voxels, x_points)
 
         x_voxels, x_points, intermediates = self.encoder(x_voxels, x_points, return_intermediates=True)
         x_voxels, x_points = self.decoder(x_voxels, x_points, intermediates)
