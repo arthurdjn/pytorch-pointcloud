@@ -15,6 +15,7 @@ from torch_pointcloud.utils.imports import (
     _OCNN_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
+    _TORCHSPARSE_AVAILABLE,
 )
 from torch_pointcloud.utils.octree import build_octree
 
@@ -90,6 +91,9 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area5",
     "pointnext-xl.s3dis-area6",
     "sonata-lp.scannet20",
+    "spvcnn-30gmacs.semantickitti",
+    "spvcnn-47gmacs.semantickitti",
+    "spvcnn-119gmacs.semantickitti",
 ]
 
 
@@ -100,6 +104,8 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("dwconv is not installed")
     if model_name.startswith("sonata") and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
+    if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
+        pytest.skip("torchsparse is not installed")
 
 
 def _check_architecture_or_regen(
