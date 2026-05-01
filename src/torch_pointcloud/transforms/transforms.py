@@ -1000,27 +1000,64 @@ class OctreeFeatures(DictTransform):
 class Relabel(DictTransform):
     """Remap integer labels in dictionary entries via a lookup table.
 
+    `labels` can be either:
+
+    - a sequence of source values (1:1) — each value at index `i` is mapped to `i`;
+    - a `dict[int, int]` (general source → target) — supports N-to-1 merges
+      (e.g. SemanticKITTI's `moving-car` and `car` both → 0).
+
+    Source values not listed in `labels` are set to `default`.
+
     Args:
         keys: Keys holding label tensors to remap.
-        labels: Valid source label values; mapped to 0..len-1.
-        default: Value assigned to out-of-range labels.
+        labels: Source-value listing (1:1) or explicit `{source: target}` dict (N:1).
+        default: Value assigned to source values not listed in `labels`.
         allow_missing_keys: If `True`, skip missing keys instead of raising.
+
+    Example:
+        ```python
+        # 1:1 — keep raw NYU40 ids 1, 2, 3, 4, 5 and remap them to 0..4
+        T.Relabel(keys="segment", labels=[1, 2, 3, 4, 5])
+
+        # N:1 — SemanticKITTI 19-class benchmark (merges moving-* into static)
+        T.Relabel(
+            keys="segment",
+            labels={
+                10: 0, 252: 0,    # car        (+ moving-car)
+                11: 1,             # bicycle
+                15: 2,             # motorcycle
+                18: 3, 258: 3,    # truck      (+ moving-truck)
+                # ...
+            },
+            default=255,
+        )
+        ```
     """
 
     def __init__(
         self,
         keys: KeyCollection,
-        labels: Sequence[int],
+        labels: Sequence[int] | Dict[int, int],
         default: int = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.labels = ensure_tuple(labels)
         self.default = default
 
-        num_labels = max(self.labels) + 1
+        if isinstance(labels, dict):
+            self.labels: Dict[int, int] = dict(labels)
+            sources = list(self.labels.keys())
+        else:
+            self.labels = {int(value): idx for idx, value in enumerate(labels)}
+            sources = list(self.labels.keys())
+
+        if not sources:
+            raise ValueError("Relabel requires at least one source value in `labels`.")
+
+        num_labels = max(sources) + 1
         self._lookup = torch.full((num_labels,), self.default)
-        self._lookup[torch.tensor(self.labels)] = torch.arange(len(self.labels))
+        for source, target in self.labels.items():
+            self._lookup[source] = target
 
     def transform(self, data: dict) -> dict:
         data = dict(data)
