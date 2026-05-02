@@ -33,7 +33,7 @@ def model_clf() -> PointMLPClassification:
     return PointMLPClassification(
         in_channels=6,
         num_classes=10,
-        channels=[32, 64, 128, 256],
+        encoder_channels=[32, 64, 128, 256],
         num_neighbors=[16, 16, 16],
         ratios=[0.5, 0.5, 0.5],
         num_pre_blocks=2,

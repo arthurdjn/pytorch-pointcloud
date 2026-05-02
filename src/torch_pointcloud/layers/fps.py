@@ -1,14 +1,9 @@
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import List, Optional, Union
 
 import torch.nn as nn
 from torch import Tensor
 
-from torch_pointcloud.utils.imports import optional_import
-
-if TYPE_CHECKING:
-    from torch_cluster import fps
-
-fps, _ = optional_import("torch_cluster", name="fps")
+from torch_pointcloud.utils.cluster import fps
 
 
 class FPS(nn.Module):
