@@ -21,10 +21,12 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.inits import reset
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import FPS, ActLike, PoolLike, create_pool
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import OptTensor
@@ -222,6 +224,7 @@ class PointMLPEncoderBlock(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
         add_self_loops: bool = False,
+        use_pos: bool = True,
         downsample: Optional[nn.Module] = None,
     ):
         super().__init__()
@@ -238,9 +241,11 @@ class PointMLPEncoderBlock(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.k = k
+        self.use_pos = use_pos
 
+        pre_mlp_in = 2 * in_channels + (spatial_dim if use_pos else 0)
         pre_mlp = nn.Sequential(
-            LinearBlock(2 * in_channels + spatial_dim, out_channels, **kwargs),
+            LinearBlock(pre_mlp_in, out_channels, **kwargs),
             *[ResidualLinearBlock(out_channels, expansion=res_expansion, **kwargs) for _ in range(num_pre_blocks)],
         )
 
@@ -248,6 +253,7 @@ class PointMLPEncoderBlock(nn.Module):
             local_nn=pre_mlp,
             channels=in_channels,
             spatial_dim=spatial_dim,
+            use_pos=use_pos,
             normalize=normalize,
             add_self_loops=add_self_loops,
             aggr="max",
@@ -344,6 +350,8 @@ class PointMLPEncoder(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         add_self_loops: bool = False,
+        use_pos: bool = True,
+        fps_random_start: bool = True,
         aggr: str = "max",
     ):
         super().__init__()
@@ -356,6 +364,8 @@ class PointMLPEncoder(nn.Module):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
         self.add_self_loops = add_self_loops
+        self.use_pos = use_pos
+        self.fps_random_start = fps_random_start
         self.normalize = normalize
         self.res_expansion = res_expansion
 
@@ -400,6 +410,7 @@ class PointMLPEncoder(nn.Module):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             add_self_loops=self.add_self_loops,
+            use_pos=self.use_pos,
             downsample=downsample,
         )
 
@@ -525,7 +536,10 @@ class PointMLPClassification(ClassificationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         add_self_loops: bool = False,
+        use_pos: bool = True,
         dropout: float = 0.0,
+        head_channels: Optional[Sequence[int]] = None,
+        head_dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -544,7 +558,10 @@ class PointMLPClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
         self.add_self_loops = add_self_loops
+        self.use_pos = use_pos
         self.dropout = dropout
+        self.head_channels = list(head_channels) if head_channels else []
+        self.head_dropout = head_dropout
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -585,10 +602,23 @@ class PointMLPClassification(ClassificationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             add_self_loops=self.add_self_loops,
+            use_pos=self.use_pos,
         )
 
     def configure_head(self) -> nn.Module:
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        if not self.head_channels:
+            return nn.Linear(self.embedding_dim, self.num_classes)
+        return MLP(
+            [self.embedding_dim] + list(self.head_channels) + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=True,
+            dropout=self.head_dropout,
+            plain_last=True,
+        )
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -791,11 +821,9 @@ class PointMLPSegmentation(SegmentationModel):
         return self.forward_head(x)
 
 
-@register_model("pointmlp-base", task="classification")
-def pointmlp_base_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+def _pointmlp_base_hparams(**kwargs: Any) -> Dict[str, Any]:
+    hparams = dict(
+        in_channels=3,
         spatial_dim=3,
         channels=(64, 128, 256, 512, 1024),
         ratios=(0.5, 0.5, 0.5, 0.5),
@@ -805,24 +833,25 @@ def pointmlp_base_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: Any
         normalize="anchor",
         res_expansion=1.0,
         act="relu",
-        act_first=True,
+        act_first=False,
         norm="batch_norm",
         bias=False,
+        use_pos=False,
         dropout=0.0,
+        head_channels=(512, 256),
+        head_dropout=0.5,
         global_pool="max",
         add_self_loops=False,
     )
     hparams.update(kwargs)
-    return PointMLPClassification(**hparams)
+    return hparams
 
 
-@register_model("pointmlp-elite", task="classification")
-def pointmlp_elite_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPClassification:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
+def _pointmlp_elite_hparams(**kwargs: Any) -> Dict[str, Any]:
+    hparams = dict(
+        in_channels=3,
         spatial_dim=3,
-        channels=(64, 128, 256, 512, 512),
+        channels=(32, 64, 128, 256, 256),
         ratios=(0.5, 0.5, 0.5, 0.5),
         num_neighbors=(24, 24, 24, 24),
         num_pre_blocks=(1, 1, 2, 1),
@@ -830,38 +859,92 @@ def pointmlp_elite_clf(in_channels: int = 3, num_classes: int = 40, **kwargs: An
         normalize="anchor",
         res_expansion=0.25,
         act="relu",
-        act_first=True,
+        act_first=False,
         norm="batch_norm",
         bias=False,
+        use_pos=False,
         dropout=0.0,
+        head_channels=(512, 256),
+        head_dropout=0.5,
         global_pool="max",
         add_self_loops=False,
     )
     hparams.update(kwargs)
+    return hparams
+
+
+@register_model("pointmlp-base", task="classification", hparams=_pointmlp_base_hparams())
+def pointmlp_base_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-@register_model("pointmlp-base", task="segmentation")
-def pointmlp_original_seg(in_channels: int = 3, num_classes: int = 40, **kwargs: Any) -> PointMLPSegmentation:
-    hparams: Dict[str, Any] = dict(
-        in_channels=in_channels,
-        num_classes=num_classes,
-        spatial_dim=3,
-        encoder_channels=(64, 128, 256, 512, 1024),
-        decoder_channels=(512, 256, 128, 128),
-        decoder_blocks=(4, 4, 4, 4),
-        ratios=(0.25, 0.25, 0.25, 0.25),
-        num_neighbors=(32, 32, 32, 32),
-        num_pre_blocks=(2, 2, 2, 2),
-        num_pos_blocks=(2, 2, 2, 2),
-        normalize="anchor",
-        res_expansion=1.0,
-        act="relu",
-        act_first=True,
-        norm="batch_norm",
-        bias=False,
-        dropout=0.0,
-        add_self_loops=False,
-    )
-    hparams.update(kwargs)
+@register_model("pointmlp-elite", task="classification", hparams=_pointmlp_elite_hparams())
+def pointmlp_elite_clf(**hparams: Any) -> PointMLPClassification:
+    return PointMLPClassification(**hparams)
+
+
+@register_model("pointmlp-base", task="segmentation", hparams=_pointmlp_base_hparams())
+def pointmlp_base_seg(**hparams: Any) -> PointMLPSegmentation:
     return PointMLPSegmentation(**hparams)
+
+
+@register_model("pointmlp-elite", task="segmentation", hparams=_pointmlp_elite_hparams())
+def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
+    return PointMLPSegmentation(**hparams)
+
+
+@register_model(
+    "pointmlp-base.modelnet40",
+    task="classification",
+    weights="hf://torch-pointcloud/pointmlp/pointmlp-base.modelnet40.pt",
+    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    hparams=_pointmlp_base_hparams(num_classes=40),
+)
+def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
+    return PointMLPClassification(**hparams)
+
+
+@register_model(
+    "pointmlp-elite.modelnet40",
+    task="classification",
+    weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.modelnet40.pt",
+    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    hparams=_pointmlp_elite_hparams(num_classes=40),
+)
+def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
+    return PointMLPClassification(**hparams)
+
+
+# NOTE: The ScanObjectNN weights below are converted from the pre-"std-fix"
+# checkpoints distributed by the original authors (the `model31C-demo1`
+# snapshots in the Google Drive archive at
+# https://drive.google.com/drive/folders/1Jn9HNpPsrq-1XqSmOUtw4cwPMjsIiIpz).
+# Re-evaluating these checkpoints with the verbatim upstream code (model31.py +
+# pointnet2_ops) on the same h5 test split yields ~77% OA / ~73% mAcc, ~9
+# points below the 86.1% / 84.4% headline number quoted in the upstream README.
+# That headline number requires the "fixed pointMLP" checkpoint
+# (`fixstd/scanobjectnn/pointMLP-20220204021453/`), which is hosted only on
+# Northeastern's now-dead `web.northeastern.edu/smilelab/...` URLs.
+# Our conversion reproduces upstream-on-this-checkpoint to within ~1%, so the
+# residual gap is intrinsic to the demo1 weights, not a refactor regression.
+@register_model(
+    "pointmlp-base.scanobjectnn",
+    task="classification",
+    weights="hf://torch-pointcloud/pointmlp/pointmlp-base.scanobjectnn.pt",
+    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    hparams=_pointmlp_base_hparams(num_classes=15),
+)
+def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
+    return PointMLPClassification(**hparams)
+
+
+# NOTE: Same caveat as `pointmlp-base.scanobjectnn`
+@register_model(
+    "pointmlp-elite.scanobjectnn",
+    task="classification",
+    weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.scanobjectnn.pt",
+    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    hparams=_pointmlp_elite_hparams(num_classes=15),
+)
+def pointmlp_elite_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
+    return PointMLPClassification(**hparams)
