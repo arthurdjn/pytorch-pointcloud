@@ -1,5 +1,5 @@
 {
-  "num_params": 16536418,
+  "num_params": 16530634,
   "state_dict": {
     "stem.lins.0.weight": [
       64,
@@ -19,14 +19,14 @@
     ],
     "stem.norms.0.module.num_batches_tracked": [],
     "encoder.blocks.0.conv.alpha": [
-      67
+      64
     ],
     "encoder.blocks.0.conv.beta": [
-      67
+      64
     ],
     "encoder.blocks.0.conv.local_nn.0.lin.weight": [
       128,
-      131
+      128
     ],
     "encoder.blocks.0.conv.local_nn.0.norm.module.weight": [
       128
@@ -178,14 +178,14 @@
     ],
     "encoder.blocks.0.pos_mlp.1.norm2.module.num_batches_tracked": [],
     "encoder.blocks.1.conv.alpha": [
-      131
+      128
     ],
     "encoder.blocks.1.conv.beta": [
-      131
+      128
     ],
     "encoder.blocks.1.conv.local_nn.0.lin.weight": [
       256,
-      259
+      256
     ],
     "encoder.blocks.1.conv.local_nn.0.norm.module.weight": [
       256
@@ -337,14 +337,14 @@
     ],
     "encoder.blocks.1.pos_mlp.1.norm2.module.num_batches_tracked": [],
     "encoder.blocks.2.conv.alpha": [
-      259
+      256
     ],
     "encoder.blocks.2.conv.beta": [
-      259
+      256
     ],
     "encoder.blocks.2.conv.local_nn.0.lin.weight": [
       512,
-      515
+      512
     ],
     "encoder.blocks.2.conv.local_nn.0.norm.module.weight": [
       512
@@ -496,14 +496,14 @@
     ],
     "encoder.blocks.2.pos_mlp.1.norm2.module.num_batches_tracked": [],
     "encoder.blocks.3.conv.alpha": [
-      515
+      512
     ],
     "encoder.blocks.3.conv.beta": [
-      515
+      512
     ],
     "encoder.blocks.3.conv.local_nn.0.lin.weight": [
       1024,
-      1027
+      1024
     ],
     "encoder.blocks.3.conv.local_nn.0.norm.module.weight": [
       1024
