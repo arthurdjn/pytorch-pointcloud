@@ -63,6 +63,7 @@ SEGMENTATION_MODELS = [
     "octformer-base.scannet200",
     "pointcnn-base",
     "pointmlp-base",
+    "pointmlp-elite",
     "pointnext-base",
     "pointnext-base.s3dis-area1",
     "pointnext-base.s3dis-area2",
@@ -119,9 +120,16 @@ def _check_architecture_or_regen(
     models_dir: Path,
     force_regen: bool,
 ) -> None:
+    # Skip uninitialized lazy parameters since their shape is only known after a forward pass
+    parameters = [p for p in model.parameters() if not isinstance(p, nn.parameter.UninitializedParameter)]
+    state_dict = {
+        k: list(v.shape)
+        for k, v in model.state_dict().items()
+        if not isinstance(v, nn.parameter.UninitializedParameter)
+    }
     metadata = {
-        "num_params": sum(p.numel() for p in model.parameters()),
-        "state_dict": {k: list(v.shape) for k, v in model.state_dict().items()},
+        "num_params": sum(p.numel() for p in parameters),
+        "state_dict": state_dict,
     }
 
     expected_path = models_dir / f"{model_name}_{task}.json"

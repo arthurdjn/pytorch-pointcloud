@@ -522,7 +522,7 @@ class PointMLPClassification(ClassificationModel):
         num_classes: int,
         *,
         spatial_dim: int = 3,
-        channels: Sequence[int],
+        encoder_channels: Sequence[int],
         num_neighbors: Union[int, Sequence[int]],
         ratios: Union[float, Sequence[float]],
         num_pre_blocks: Union[int, Sequence[int]] = 2,
@@ -543,7 +543,7 @@ class PointMLPClassification(ClassificationModel):
         global_pool: PoolLike = "max",
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.channels = ensure_list(channels)
+        self.encoder_channels = ensure_list(encoder_channels)
         self.spatial_dim = spatial_dim
         self.num_neighbors = num_neighbors
         self.ratios = ratios
@@ -570,11 +570,11 @@ class PointMLPClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
-        return self.channels[-1]
+        return self.encoder_channels[-1]
 
     def configure_stem(self) -> nn.Module:
         return MLP(
-            [self.in_channels, self.channels[0]],
+            [self.in_channels, self.encoder_channels[0]],
             dropout=0.0,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -587,7 +587,7 @@ class PointMLPClassification(ClassificationModel):
 
     def configure_encoder(self) -> PointMLPEncoder:
         return PointMLPEncoder(
-            channels=self.channels,
+            channels=self.encoder_channels,
             spatial_dim=self.spatial_dim,
             num_neighbors=self.num_neighbors,
             ratios=self.ratios,
@@ -688,6 +688,7 @@ class PointMLPSegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         add_self_loops: bool = False,
+        use_pos: bool = True,
         dropout: float = 0.0,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -708,6 +709,7 @@ class PointMLPSegmentation(SegmentationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
         self.add_self_loops = add_self_loops
+        self.use_pos = use_pos
         self.dropout = dropout
 
         self.stem = self.configure_stem()
@@ -749,6 +751,7 @@ class PointMLPSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             add_self_loops=self.add_self_loops,
+            use_pos=self.use_pos,
         )
 
     def configure_decoder(self) -> PointMLPDecoder:
@@ -822,10 +825,11 @@ class PointMLPSegmentation(SegmentationModel):
 
 
 def _pointmlp_base_hparams(**kwargs: Any) -> Dict[str, Any]:
+    """Shared encoder/backbone hparams for pointmlp-base."""
     hparams = dict(
         in_channels=3,
         spatial_dim=3,
-        channels=(64, 128, 256, 512, 1024),
+        encoder_channels=(64, 128, 256, 512, 1024),
         ratios=(0.5, 0.5, 0.5, 0.5),
         num_neighbors=(24, 24, 24, 24),
         num_pre_blocks=(2, 2, 2, 2),
@@ -838,9 +842,6 @@ def _pointmlp_base_hparams(**kwargs: Any) -> Dict[str, Any]:
         bias=False,
         use_pos=False,
         dropout=0.0,
-        head_channels=(512, 256),
-        head_dropout=0.5,
-        global_pool="max",
         add_self_loops=False,
     )
     hparams.update(kwargs)
@@ -848,10 +849,11 @@ def _pointmlp_base_hparams(**kwargs: Any) -> Dict[str, Any]:
 
 
 def _pointmlp_elite_hparams(**kwargs: Any) -> Dict[str, Any]:
+    """Shared encoder/backbone hparams for pointmlp-elite."""
     hparams = dict(
         in_channels=3,
         spatial_dim=3,
-        channels=(32, 64, 128, 256, 256),
+        encoder_channels=(32, 64, 128, 256, 256),
         ratios=(0.5, 0.5, 0.5, 0.5),
         num_neighbors=(24, 24, 24, 24),
         num_pre_blocks=(1, 1, 2, 1),
@@ -864,31 +866,66 @@ def _pointmlp_elite_hparams(**kwargs: Any) -> Dict[str, Any]:
         bias=False,
         use_pos=False,
         dropout=0.0,
-        head_channels=(512, 256),
-        head_dropout=0.5,
-        global_pool="max",
         add_self_loops=False,
     )
     hparams.update(kwargs)
     return hparams
 
 
-@register_model("pointmlp-base", task="classification", hparams=_pointmlp_base_hparams())
+def _pointmlp_base_clf_hparams(**kwargs: Any) -> Dict[str, Any]:
+    hparams = _pointmlp_base_hparams()
+    hparams.update(head_channels=(512, 256), head_dropout=0.5, global_pool="max")
+    hparams.update(kwargs)
+    return hparams
+
+
+def _pointmlp_elite_clf_hparams(**kwargs: Any) -> Dict[str, Any]:
+    hparams = _pointmlp_elite_hparams()
+    hparams.update(head_channels=(512, 256), head_dropout=0.5, global_pool="max")
+    hparams.update(kwargs)
+    return hparams
+
+
+def _pointmlp_base_seg_hparams(**kwargs: Any) -> Dict[str, Any]:
+    hparams = _pointmlp_base_hparams()
+    hparams.update(
+        ratios=(0.25, 0.25, 0.25, 0.25),
+        num_neighbors=(32, 32, 32, 32),
+        decoder_channels=(512, 256, 128, 128),
+        decoder_blocks=(4, 4, 4, 4),
+    )
+    hparams.update(kwargs)
+    return hparams
+
+
+def _pointmlp_elite_seg_hparams(**kwargs: Any) -> Dict[str, Any]:
+    hparams = _pointmlp_elite_hparams()
+    hparams.update(
+        ratios=(0.25, 0.25, 0.25, 0.25),
+        num_neighbors=(32, 32, 32, 32),
+        decoder_channels=(128, 64, 32, 32),
+        decoder_blocks=(1, 1, 2, 1),
+    )
+    hparams.update(kwargs)
+    return hparams
+
+
+@register_model("pointmlp-base", task="classification", hparams=_pointmlp_base_clf_hparams())
 def pointmlp_base_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-@register_model("pointmlp-elite", task="classification", hparams=_pointmlp_elite_hparams())
+@register_model("pointmlp-elite", task="classification", hparams=_pointmlp_elite_clf_hparams())
 def pointmlp_elite_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-@register_model("pointmlp-base", task="segmentation", hparams=_pointmlp_base_hparams())
+@register_model("pointmlp-base", task="segmentation", hparams=_pointmlp_base_seg_hparams())
 def pointmlp_base_seg(**hparams: Any) -> PointMLPSegmentation:
     return PointMLPSegmentation(**hparams)
 
 
-@register_model("pointmlp-elite", task="segmentation", hparams=_pointmlp_elite_hparams())
+@register_model("pointmlp-elite", task="segmentation", hparams=_pointmlp_elite_seg_hparams())
 def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     return PointMLPSegmentation(**hparams)
 
@@ -898,7 +935,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-base.modelnet40.pt",
     transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
-    hparams=_pointmlp_base_hparams(num_classes=40),
+    hparams=_pointmlp_base_clf_hparams(num_classes=40),
 )
 def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
@@ -909,7 +946,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.modelnet40.pt",
     transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
-    hparams=_pointmlp_elite_hparams(num_classes=40),
+    hparams=_pointmlp_elite_clf_hparams(num_classes=40),
 )
 def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
@@ -932,7 +969,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-base.scanobjectnn.pt",
     transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
-    hparams=_pointmlp_base_hparams(num_classes=15),
+    hparams=_pointmlp_base_clf_hparams(num_classes=15),
 )
 def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
@@ -944,7 +981,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.scanobjectnn.pt",
     transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
-    hparams=_pointmlp_elite_hparams(num_classes=15),
+    hparams=_pointmlp_elite_clf_hparams(num_classes=15),
 )
 def pointmlp_elite_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
