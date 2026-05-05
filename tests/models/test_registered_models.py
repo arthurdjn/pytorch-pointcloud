@@ -95,7 +95,7 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area4",
     "pointnext-xl.s3dis-area5",
     "pointnext-xl.s3dis-area6",
-    "randlanet.semantickitti",
+    "randlanet-tsunghanwu.semantickitti",
     "sonata-lp.scannet20",
     "spvcnn-30gmacs.semantickitti",
     "spvcnn-47gmacs.semantickitti",

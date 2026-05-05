@@ -392,7 +392,7 @@ class RandLANetEncoder(nn.Module):
                 pos,
                 batch,
                 factor=self.decimation[i],
-                num_neighbors=block.num_neighbors,  # type: ignore[arg-type]
+                num_neighbors=block.num_neighbors,
             )
 
             if return_intermediates and i < len(self.blocks) - 1:
@@ -808,9 +808,9 @@ class RandLANetSegmentation(SegmentationModel):
 
 
 @register_model(
-    "randlanet.semantickitti",
+    "randlanet-tsunghanwu.semantickitti",
     task="segmentation",
-    weights="hf://torch-pointcloud/randlanet/randlanet.semantickitti.pt",
+    weights="hf://torch-pointcloud/randlanet/randlanet-tsunghanwu.semantickitti.pt",
     transforms=T.Compose(
         [
             T.Relabel(
@@ -870,7 +870,7 @@ class RandLANetSegmentation(SegmentationModel):
         bias=False,
     ),
 )
-def randlanet_semantickitti_seg(**hparams: Any) -> RandLANetSegmentation:
+def randlanet_tsunghanwu_semantickitti_seg(**hparams: Any) -> RandLANetSegmentation:
     model = RandLANetSegmentation(**hparams)
     # Upstream `tsunghan-wu/RandLA-Net-pytorch` uses BN `eps=1e-6` (vs PyTorch's 1e-5)
     # and `momentum=0.99` (BNMomentumScheduler default, vs PyTorch's 0.1). The eps
