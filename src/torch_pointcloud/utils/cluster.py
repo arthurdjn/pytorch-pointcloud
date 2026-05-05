@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from torch_pointcloud.config import FPS_RANDOM_START
+from torch_pointcloud.config import FPS_RANDOM_START, KNN_DENSE_BUDGET
 
 from .imports import optional_import
 from .types import OptTensor
@@ -71,6 +71,11 @@ def knn(
     N_y = int(counts_y[0].item())
     B = counts_x.numel()
 
+    # cdist materialises the full $(B, N, N)$ distance matrix; fall back to the
+    # streaming `torch_cluster` implementation for larger clouds.
+    if B * N_x * N_y > KNN_DENSE_BUDGET or N_x < k:
+        return _torch_cluster_knn()
+
     x_3d = x.view(B, N_x, -1)
     y_3d = y.view(B, N_y, -1)
 
@@ -88,6 +93,99 @@ def knn(
     dst = (torch.arange(N_y, device=x.device).view(1, N_y, 1).expand(B, N_y, k) + offsets_y).reshape(-1)
 
     return torch.stack([dst, src], dim=0)
+
+
+def knn_graph(
+    x: Tensor,
+    k: int,
+    batch: OptTensor = None,
+    loop: bool = False,
+    flow: str = "source_to_target",
+    cosine: bool = False,
+    num_workers: int = 1,
+    batch_size: Optional[int] = None,
+) -> Tensor:
+    r"""Compute the kNN graph of $x$.
+
+    This function is a drop-in for `torch_cluster.knn_graph`, except that when the
+    `batch` tensor partitions the points into uniformly-sized samples this function
+    uses a `torch.cdist` + `topk` implementation that is significantly faster on GPU
+    than the underlying `torch_cluster.knn_graph`.
+
+    Args:
+        x: The input tensor of shape $(N, *)$.
+        k: The number of nearest neighbors to find. When `loop=False`, the
+            self-edge is excluded from the result.
+        batch: The batch tensor of shape $(N,)$.
+        loop: Whether to include self-edges.
+        flow: Either `"source_to_target"` (PyG default — `edge_index = (src, dst)`
+            where `src` is the neighbor and `dst` is the central point) or `"target_to_source"`.
+        cosine: Whether to use cosine distance.
+        num_workers: Forwarded to the `torch_cluster` fallback.
+        batch_size: Forwarded to the `torch_cluster` fallback.
+
+    Returns:
+        Edge index of shape $(2, k \cdot N)$.
+    """
+
+    def _torch_cluster_knn_graph() -> Tensor:
+        return torch_cluster.knn_graph(
+            x=x,
+            k=k,
+            batch=batch,
+            loop=loop,
+            flow=flow,
+            cosine=cosine,
+            num_workers=num_workers,
+            batch_size=batch_size,
+        )
+
+    if batch is None:
+        return _torch_cluster_knn_graph()
+
+    counts = batch.bincount()
+    if counts.numel() == 0 or not (counts[0] == counts).all():
+        return _torch_cluster_knn_graph()
+
+    N = int(counts[0].item())
+    B = counts.numel()
+    if loop and N < k or not loop and N < k + 1:
+        return _torch_cluster_knn_graph()
+
+    # cdist materialises the full $(B, N, N)$ distance matrix; fall back to the
+    # streaming `torch_cluster` implementation for larger clouds.
+    if B * N * N > KNN_DENSE_BUDGET:
+        return _torch_cluster_knn_graph()
+
+    x_3d = x.view(B, N, -1)
+    if cosine:
+        x_3d = F.normalize(x_3d, dim=-1)
+
+    # `torch.cdist` returns squared euclidean^0.5; for top-k argmin the order is the same
+    # as for the squared distance, so we use the cheaper `cdist` directly.
+    dist = torch.cdist(x_3d, x_3d)  # (B, N, N)
+    k_query = k if loop else k + 1
+    _, idx = dist.topk(k_query, dim=-1, largest=False)  # (B, N, k_query)
+
+    if not loop:
+        # Drop the self-edge. `topk` is not guaranteed to put the self-distance first if
+        # there are exact-zero ties, so mask explicitly on the global node index.
+        offsets = torch.arange(B, device=x.device).view(B, 1, 1) * N
+        idx_global = idx + offsets
+        self_idx = (torch.arange(N, device=x.device).view(1, N, 1) + offsets).expand(B, N, k_query)
+        keep_mask = idx_global != self_idx  # (B, N, k_query)
+        # Sort so that the self-edge (if any) drops to the end, then take the first k.
+        sort_keys = (~keep_mask).long()
+        order = torch.argsort(sort_keys, dim=-1, stable=True)
+        idx = torch.gather(idx, -1, order)[..., :k]
+
+    offsets = torch.arange(B, device=x.device).view(B, 1, 1) * N
+    src = (idx + offsets).reshape(-1)
+    dst = (torch.arange(N, device=x.device).view(1, N, 1).expand(B, N, k) + offsets).reshape(-1)
+
+    if flow == "target_to_source":
+        return torch.stack([dst, src], dim=0)
+    return torch.stack([src, dst], dim=0)
 
 
 def fps(
