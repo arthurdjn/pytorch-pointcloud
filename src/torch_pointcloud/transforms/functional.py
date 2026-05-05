@@ -174,7 +174,7 @@ def sample_farthest_points(
 def normalize_scale(
     points: Tensor,
     eps: float = 1e-6,
-    method: Literal["centroid", "bbox"] = "centroid",
+    method: Literal["centroid", "bbox", "linear"] = "centroid",
 ) -> Tensor:
     r"""Normalize the scale of a point set along the point dimension `dim=-2`.
 
@@ -197,14 +197,22 @@ def normalize_scale(
               \mathbf{x} \leftarrow \frac{\mathbf{x} - \mathbf{c}}{r}
               $$
 
+            * `"linear"` — subtract the centroid then divide by the longest axis-aligned
+              span (matches Open3D-ML's `Augmentation.normalize` `linear` method, used
+              by the published RandLA-Net Toronto-3D / Semantic3D checkpoints):
+
+              $$
+              \mathbf{x} \leftarrow \frac{\mathbf{x} - \boldsymbol{\mu}}{\max_j (x_{\max,j} - x_{\min,j}) + \epsilon}
+              $$
+
     Returns:
         Normalized tensor, same shape as `points`.
 
     Raises:
-        ValueError: If `method` is not `"centroid"` or `"bbox"`.
+        ValueError: If `method` is not `"centroid"`, `"bbox"`, or `"linear"`.
     """
-    if method not in ["centroid", "bbox"]:
-        raise ValueError(f"Invalid method: {method!r}. Expected 'centroid' or 'bbox'.")
+    if method not in ["centroid", "bbox", "linear"]:
+        raise ValueError(f"Invalid method: {method!r}. Expected 'centroid', 'bbox', or 'linear'.")
 
     if method == "bbox":
         bbmin = points.min(dim=-2).values
@@ -212,6 +220,13 @@ def normalize_scale(
         center = (bbmin + bbmax) / 2
         radius = (bbmax - bbmin).max() / 2
         return (points - center) / (radius + eps)
+
+    if method == "linear":
+        bbmin = points.min(dim=-2).values
+        bbmax = points.max(dim=-2).values
+        scale = (bbmax - bbmin).max()
+        centroid = points.mean(dim=-2, keepdim=True)
+        return (points - centroid) / (scale + eps)
 
     centroid = points.mean(dim=-2, keepdim=True)
     points = points - centroid

@@ -37,7 +37,7 @@ def main() -> None:
         encoder_channels=[32, 128, 256, 512],
         aggr_channels=512,
         num_neighbors=[16, 16, 16, 16],
-        fp_channels=[[256], [128], [32], [50]],
+        fp_channels=[256, 128, 32, 50],
         dropout=0.2,
         decimation=4,
     ).to(args.device)

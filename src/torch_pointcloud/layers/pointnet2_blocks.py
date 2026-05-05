@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -202,6 +202,22 @@ class PointNet2GlobalSetAbstraction(nn.Module):
 
 
 class PointNet2FeaturePropagation(nn.Module):
+    r"""K-NN interpolation + skip concatenation + MLP, as in
+    [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413).
+
+    The interpolated features are concatenated **before** the skip features
+    (`cat([interp, skip])`). Models with the opposite upstream cat order
+    (RandLA-Net's `cat([skip, interp])`) must swap the first linear layer's
+    column blocks at conversion time to stay weight-compatible.
+
+    Args:
+        channels: Per-layer channel sizes for the post-concat MLP.
+        k: Number of neighbors for the K-NN interpolation. PointNet++ uses $k = 3$
+            with inverse-distance weighting; RandLA-Net uses $k = 1$ (nearest only).
+        weighting: Inverse-distance weighting scheme passed to `knn_interpolate`.
+            Irrelevant when $k = 1$.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -214,9 +230,11 @@ class PointNet2FeaturePropagation(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
         plain_last: bool = True,
+        weighting: Literal["squared", "inverse"] = "inverse",
     ) -> None:
         super().__init__()
         self.k = k
+        self.weighting = weighting
         self.mlp = MLP(
             channels,
             act=act,
@@ -238,7 +256,7 @@ class PointNet2FeaturePropagation(nn.Module):
         pos_skip: Tensor,
         batch_skip: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        x = knn_interpolate(x, pos, pos_skip, batch_x=batch, batch_y=batch_skip, k=self.k, weighting="inverse")
+        x = knn_interpolate(x, pos, pos_skip, batch_x=batch, batch_y=batch_skip, k=self.k, weighting=self.weighting)
         if x_skip is not None:
             x = torch.cat([x, x_skip], dim=1)
 
