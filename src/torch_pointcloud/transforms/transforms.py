@@ -395,7 +395,7 @@ class NormalizeScale(DictTransform):
         self,
         keys: KeyCollection,
         eps: float = 1e-6,
-        method: Literal["centroid", "bbox"] = "centroid",
+        method: Literal["centroid", "bbox", "linear"] = "centroid",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -679,6 +679,9 @@ class Shift(DictTransform):
         keys: The keys to shift.
         method: `"bbox"` (midrange), `"mean"` (centroid), or `"min"` (shift to origin).
         dim: The dimension to reduce over.
+        axes: Which axes (last-dim indices) to shift. ``None`` (default) shifts every axis;
+            pass e.g. ``axes=[0, 1]`` to recenter only XY (matching Open3D-ML's
+            ``recenter: dim: [0, 1]`` augmentation).
         dst_keys: The keys to store the shifted data in.
         allow_missing_keys: If `True`, skip missing keys silently.
     """
@@ -688,11 +691,13 @@ class Shift(DictTransform):
         keys: KeyCollection,
         method: ValueCollection[Literal["bbox", "mean", "min"]],
         dim: int = 0,
+        axes: Optional[Sequence[int]] = None,
         dst_keys: Optional[KeyCollection] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.dim = dim
+        self.axes = tuple(axes) if axes is not None else None
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.method = ensure_tuple_size(method, len(self.keys))
         if not set(self.method).issubset({"bbox", "mean", "min"}):
@@ -711,7 +716,14 @@ class Shift(DictTransform):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
-            data[dst_key] = x - self.offset(x, method)
+            offset = self.offset(x, method)
+            if self.axes is not None:
+                # Mask out the offset on axes we are not shifting.
+                full_offset = torch.zeros_like(offset)
+                axes_idx = torch.tensor(self.axes, device=offset.device, dtype=torch.long)
+                full_offset.index_copy_(0, axes_idx, offset.index_select(0, axes_idx))
+                offset = full_offset
+            data[dst_key] = x - offset
         return data
 
 
@@ -1222,6 +1234,26 @@ class ToTensor(DictTransform):
 
 
 class VoxelGrid(DictTransform):
+    """Voxel-grid sub-samples a point cloud and optionally preserves the inverse
+    cluster mapping for full-resolution back-projection.
+
+    Operates on a single sample (pre-collate); see Pointcept's `GridSample` for
+    the convention. With `cluster_key` set, ``data[pos_key][cluster[i]]`` is the
+    voxel-mean position of original point ``i`` — handy when the model evaluates
+    at sub-resolution but mIoU is reported at full resolution.
+
+    Args:
+        pos_key: Key holding the positions to sub-sample.
+        pos_reduce: How to reduce positions per voxel (`mean`/`min`/`max`/`sum`/`first`/`grid`).
+        size: Voxel edge length in the same units as the positions.
+        method: Voxel-id hashing scheme (``fnv`` matches Pointcept; ``pyg`` is the default).
+        reduce: Per-key reduction for `keys` (defaults to ``mean`` if `None`).
+        keys: Additional per-point keys to sub-sample (e.g. ``color``, ``segment``).
+        cluster_key: When set, store the inverse cluster mapping ``(N_full,)`` under
+            this key.
+        allow_missing_keys: If True, missing keys are skipped silently.
+    """
+
     def __init__(
         self,
         pos_key: str,
@@ -1230,6 +1262,7 @@ class VoxelGrid(DictTransform):
         method: Literal["fnv", "pyg"] = "pyg",
         reduce: Optional[ValueCollection[Literal["mean", "min", "max", "sum", "first"]]] = None,
         keys: Optional[KeyCollection] = None,
+        cluster_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1238,6 +1271,7 @@ class VoxelGrid(DictTransform):
         self.size = size
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
         self.method = method
+        self.cluster_key = cluster_key
 
     def _reduce(
         self,
@@ -1276,6 +1310,9 @@ class VoxelGrid(DictTransform):
 
         for key, reduce in self.iter_keys(data, self.reduce):
             data[key] = self._reduce(data[key], reduce, cluster, perm)
+
+        if self.cluster_key is not None:
+            data[self.cluster_key] = cluster
 
         return data
 
