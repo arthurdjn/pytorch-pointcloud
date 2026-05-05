@@ -35,3 +35,4 @@ DATA_DIR = os.getenv("TORCH_POINTCLOUD_DATA_DIR", Path(CWD_DIR, "data").as_posix
 # Some variables to affect how random operations are performed.
 RANDOM_SEED = asint(os.getenv("TORCH_POINTCLOUD_RANDOM_SEED", None))
 FPS_RANDOM_START = asbool(os.getenv("TORCH_POINTCLOUD_FPS_RANDOM_START", None))
+KNN_DENSE_BUDGET = asint(os.getenv("TORCH_POINTCLOUD_KNN_DENSE_BUDGET", None)) or 16_000_000
