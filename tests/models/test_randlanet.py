@@ -119,9 +119,7 @@ def test_randlanet_encoder_intermediates(data: Dict[str, Tensor], mlp_kwargs: Di
         num_neighbors=8,
         **mlp_kwargs,
     )
-    _, _, _, intermediates = encoder(
-        data["features"], data["pos"], data["batch"], return_intermediates=True
-    )
+    _, _, _, intermediates = encoder(data["features"], data["pos"], data["batch"], return_intermediates=True)
     assert len(intermediates) == 3
     for inter in intermediates:
         assert isinstance(inter, RandLANetIntermediate)
@@ -159,9 +157,7 @@ def test_randlanet_decoder_forward(data: Dict[str, Tensor], mlp_kwargs: Dict[str
         fp_channels=[32, 16, 8],
         **mlp_kwargs,
     )
-    x, pos, batch, intermediates = encoder(
-        data["features"], data["pos"], data["batch"], return_intermediates=True
-    )
+    x, pos, batch, intermediates = encoder(data["features"], data["pos"], data["batch"], return_intermediates=True)
     x, pos, batch = decoder(x, pos, batch, intermediates)
     assert x.shape == (data["pos"].shape[0], 8)
 
@@ -188,17 +184,13 @@ def test_randlanet_segmentation_forward(model_seg: RandLANetSegmentation, data: 
     assert logits.dtype == data["features"].dtype
 
 
-def test_randlanet_classification_reset_classifier(
-    model_clf: RandLANetClassification, data: Dict[str, Tensor]
-) -> None:
+def test_randlanet_classification_reset_classifier(model_clf: RandLANetClassification, data: Dict[str, Tensor]) -> None:
     model_clf.reset_classifier(num_classes=42)
     logits = model_clf(data["features"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
 
 
-def test_randlanet_segmentation_reset_classifier(
-    model_seg: RandLANetSegmentation, data: Dict[str, Tensor]
-) -> None:
+def test_randlanet_segmentation_reset_classifier(model_seg: RandLANetSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)
