@@ -46,7 +46,7 @@ class SerializedPool(nn.Module):
     def forward(
         self,
         x: Tensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: Literal[True] = True,
@@ -56,7 +56,7 @@ class SerializedPool(nn.Module):
     def forward(
         self,
         x: Tensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: Literal[False] = False,
@@ -65,7 +65,7 @@ class SerializedPool(nn.Module):
     def forward(
         self,
         x: Tensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: bool = False,
@@ -81,7 +81,7 @@ class SerializedPool(nn.Module):
 
         # Pool features, positions and batch indices
         x = torch_scatter.segment_csr(self.proj(x)[indices], idx_ptr, reduce="max")
-        pos = pos[head_indices] >> pooling_depth
+        pos_grid = pos_grid[head_indices] >> pooling_depth
         batch = batch[head_indices]
         pooled_code = pooled_code[:, head_indices]
 
@@ -91,8 +91,8 @@ class SerializedPool(nn.Module):
             x = self.act(x)
 
         if return_inverse:
-            return x, pos, batch, pooled_code, cluster
-        return x, pos, batch, pooled_code
+            return x, pos_grid, batch, pooled_code, cluster
+        return x, pos_grid, batch, pooled_code
 
 
 class SerializedUpsample(nn.Module):

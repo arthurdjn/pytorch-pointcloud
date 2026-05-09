@@ -95,7 +95,7 @@ class SonataSegmentation(SegmentationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -104,7 +104,7 @@ class SonataSegmentation(SegmentationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
@@ -112,33 +112,41 @@ class SonataSegmentation(SegmentationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos, batch, return_intermediates=True)
-        return self.encoder.forward(x, pos, batch, return_intermediates=False)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
 
     def forward_decoder(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
-        pos = batch = None
+        pos_grid = batch = None
         for intermediate in reversed(intermediates):
             inverse = intermediate["inverse"]
             x = torch.cat([intermediate["x"], x[inverse]], dim=-1)
-            pos = intermediate["pos"]
+            pos_grid = intermediate["pos_grid"]
             batch = intermediate["batch"]
 
-        if pos is None or batch is None:
+        if pos_grid is None or batch is None:
             raise ValueError("Sonata segmentation requires encoder intermediates for feature unpooling.")
-        return x, pos, batch
+        return x, pos_grid, batch
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
+        """Forward pass.
+
+        Args:
+            x: Per-point features of shape $(N, C)$.
+            pos_grid: Integer voxel-grid coordinates of shape $(N, 3)$ (used by the
+                encoder for Z-order / Hilbert serialisation — not float positions).
+            batch: Per-point batch index of shape $(N,)$.
+        """
+        x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, intermediates)
         return self.forward_head(x)
 
@@ -201,8 +209,9 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
             T.CenterShift(keys=DataKeys.POS, apply_z=True),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
             T.VoxelGrid(
-                pos_key=DataKeys.POS,
+                pos_key=DataKeys.POS_GRID,
                 pos_reduce="grid",
                 keys=[DataKeys.X, DataKeys.SEGMENT],
                 reduce=["first", "first"],
