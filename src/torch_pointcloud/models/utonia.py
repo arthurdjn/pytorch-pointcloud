@@ -46,7 +46,6 @@ class UtoniaSegmentation(SegmentationModel):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        use_rpe: bool = False,
         use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
@@ -76,7 +75,6 @@ class UtoniaSegmentation(SegmentationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            use_rpe=use_rpe,
             use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
@@ -84,7 +82,7 @@ class UtoniaSegmentation(SegmentationModel):
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
-            use_rope=True,
+            attention="rope",
             rope_base=rope_base,
         )
         self.dropout = dropout
@@ -216,14 +214,13 @@ def _utonia_encoder_hparams() -> Dict[str, Any]:
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.3,
-        use_rpe=False,
         use_flash_attn=True,
         upcast_attention=False,
         upcast_softmax=False,
         pooling="grid",
         stem_type="linear",
         norm_kwargs={"mode": "node"},
-        use_rope=True,
+        attention="rope",
         rope_base=10.0,
     )
 
@@ -262,7 +259,6 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.3,
-        use_rpe=False,
         use_flash_attn=True,
         upcast_attention=False,
         upcast_softmax=False,

@@ -1,5 +1,7 @@
+"""Serialized attention variants used by Point Transformer V3 and descendants."""
+
 import math
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 import torch
 import torch.nn as nn
@@ -46,10 +48,39 @@ class RelativePositionalEncoding(nn.Module):
         return f"patch_size={self.patch_size}, num_heads={self.num_heads}"
 
 
+def _flash_attend_qkv(
+    qkv_packed: Tensor,
+    padded_batch: Tensor,
+    patch_size: int,
+    scale: float,
+    attn_drop: float,
+    training: bool,
+) -> Tensor:
+    """Variable-length flash attention over fixed-size patches.
+
+    Wraps `flash_attn.flash_attn_varlen_qkvpacked_func` with the per-batch
+    `cu_seqlens` derivation that all variants share.
+    """
+    patch_idxs = split_batch(padded_batch, patch_size)
+    offset = batch_to_offset(patch_idxs)
+    # cu_seqlens must start at 0 and be int32 for flash-attn
+    cu_seqlens = torch.cat([torch.tensor([0], device=padded_batch.device, dtype=torch.int), offset.int()])
+    return flash_attn.flash_attn_varlen_qkvpacked_func(
+        qkv_packed,
+        cu_seqlens,
+        max_seqlen=patch_size,
+        dropout_p=attn_drop if training else 0,
+        softmax_scale=scale,
+    )
+
+
 class SerializedAttention(nn.Module):
-    r"""
-    Serialized attention layer, introduced in the paper
-    [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035).
+    r"""Vanilla serialized attention from
+    [Point Transformer V3](https://arxiv.org/abs/2312.10035).
+
+    No positional information is added inside attention itself — relative
+    structure comes from the conditional position embedding (CPE) applied
+    around each block.
     """
 
     def __init__(
@@ -61,119 +92,32 @@ class SerializedAttention(nn.Module):
         qk_scale: Optional[float] = None,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
-        use_rpe: bool = False,
         use_flash_attn: bool = True,
         upcast_attention: bool = True,
         upcast_softmax: bool = True,
-        use_rope: bool = False,
-        rope_base: float = 10.0,
-    ):
+    ) -> None:
         super().__init__()
+        if channels % num_heads != 0:
+            raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(flash_attn)
-            elif use_rpe:
-                raise ValueError("Relative positional encoding is not supported with Flash Attention.")
-            elif upcast_attention:
+            if upcast_attention:
                 raise ValueError("Upcasting attention is not supported with Flash Attention.")
-            elif upcast_softmax:
+            if upcast_softmax:
                 raise ValueError("Upcasting softmax is not supported with Flash Attention.")
-
-        assert channels % num_heads == 0
         self.channels = channels
         self.num_heads = num_heads
-        self.scale = qk_scale or (channels // num_heads) ** -0.5
-        self.upcast_attention = upcast_attention
-        self.upcast_softmax = upcast_softmax
-        self.use_rpe = use_rpe
-        self.use_flash_attn = use_flash_attn
-        self.use_rope = use_rope
         self.patch_size = patch_size
+        self.scale = qk_scale or (channels // num_heads) ** -0.5
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
+        self.use_flash_attn = use_flash_attn
+        self.upcast_attention = upcast_attention
+        self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.proj = nn.Linear(channels, channels)
-        self.softmax = nn.Softmax(dim=-1)
-        self.rpe = RelativePositionalEncoding(patch_size, num_heads) if self.use_rpe else None
-        self.rope = Point3DRoPE(head_dim=channels // num_heads, base=rope_base) if self.use_rope else None
-
-    def _forward_default_attn(
-        self,
-        qkv: Tensor,
-        pos_grid: OptTensor,
-        patch_size: int,
-        pos: OptTensor = None,
-    ) -> Tensor:
-        K, H, C = patch_size, self.num_heads, self.channels
-
-        if self.use_rope:
-            if pos is None or self.rope is None:
-                raise ValueError("`pos` and `rope` must be set when `use_rope=True`.")
-            q_flat, k_flat, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
-            q_flat, k_flat = self.rope(q_flat, k_flat, pos)
-            q = q_flat.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
-            k = k_flat.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
-            v = v.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
-        else:
-            # Encode and reshape qkv: (N', K, 3, H, C') -> (3, N', H, K, C')
-            q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
-
-        if self.upcast_attention:
-            q = q.float()
-            k = k.float()
-
-        attn = (q * self.scale) @ k.transpose(-2, -1)  # (N', H, K, K)
-
-        if self.use_rpe:
-            if self.rpe is None:
-                raise RuntimeError(
-                    "`rpe` must be provided when `use_rpe` is True. "
-                    "Please check the model configuration or reinitialize the model."
-                )
-
-            if pos_grid is None:
-                raise ValueError("`pos_grid` must be provided when `use_rpe` is True")
-
-            pos_grid = pos_grid.reshape(-1, K, 3)
-            relative_coords = pos_grid.unsqueeze(2) - pos_grid.unsqueeze(1)
-            attn = attn + self.rpe(relative_coords)
-
-        if self.upcast_softmax:
-            attn = attn.float()
-
-        attn = self.softmax(attn)
-        attn = F.dropout(attn, p=self.attn_drop, training=self.training).to(qkv.dtype)
-
-        feat = (attn @ v).transpose(1, 2).reshape(-1, C)
-        return feat
-
-    def _forward_flash_attn(self, qkv: Tensor, batch: Tensor, pos: OptTensor = None) -> Tensor:
-        H, C = self.num_heads, self.channels
-
-        patch_idxs = split_batch(batch, self.patch_size)
-        offset = batch_to_offset(patch_idxs)
-        # NOTE: The first element of `cu_seqlens` is always 0, and should be int32 to work with `flash-attn`
-        cu_seqlens = torch.cat([torch.tensor([0], device=batch.device, dtype=torch.int), offset.int()])
-
-        if self.use_rope:
-            if pos is None or self.rope is None:
-                raise ValueError("`pos` and `rope` must be set when `use_rope=True`.")
-            q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
-            q, k = self.rope(q, k, pos)
-            qkv_packed = torch.stack([q, k, v], dim=1).to(torch.bfloat16)
-        else:
-            qkv_packed = qkv.half().reshape(-1, 3, H, C // H)
-
-        feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-            qkv_packed,
-            cu_seqlens,
-            max_seqlen=self.patch_size,
-            dropout_p=self.attn_drop if self.training else 0,
-            softmax_scale=self.scale,
-        )
-
-        return feat.reshape(-1, C).to(qkv.dtype)
 
     def forward(
         self,
@@ -183,38 +127,218 @@ class SerializedAttention(nn.Module):
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
-    ) -> Any:
-        patch_size = self.patch_size
-        # NOTE: For default attention (i.e. without Flash Attention), we use the patch size
-        # as the minimum between the batch sizes and the specified patch size
-        if not self.use_flash_attn:
-            patch_size = min(int(torch.bincount(batch).min().item()), self.patch_size)
-
-        # Only pad batches larger than the patch size
-        padded_indices, unpadded_indices, padded_batch = divisible_pad(
-            batch,
-            patch_size,
-            mode="above",
-            pad_fill="replicate",
-            return_inverse=True,
+    ) -> Tensor:
+        H, C = self.num_heads, self.channels
+        patch_size = (
+            self.patch_size if self.use_flash_attn else min(int(torch.bincount(batch).min().item()), self.patch_size)
         )
 
+        padded_indices, unpadded_indices, padded_batch = divisible_pad(
+            batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
+        )
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
-
-        # Apply attention
         qkv = self.qkv(x)[order]
-        rope_pos = pos[padded_indices][order] if (self.use_rope and pos is not None) else None
+
         if self.use_flash_attn:
-            x = self._forward_flash_attn(qkv, padded_batch, pos=rope_pos)
+            qkv_packed = qkv.half().reshape(-1, 3, H, C // H)
+            feat = _flash_attend_qkv(qkv_packed, padded_batch, patch_size, self.scale, self.attn_drop, self.training)
+            feat = feat.reshape(-1, C).to(qkv.dtype)
         else:
-            if pos_grid is not None:
-                pos_grid = pos_grid[order]
-            x = self._forward_default_attn(qkv, pos_grid, patch_size, pos=rope_pos)
+            K = patch_size
+            q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
+            if self.upcast_attention:
+                q = q.float()
+                k = k.float()
+            attn = (q * self.scale) @ k.transpose(-2, -1)
+            if self.upcast_softmax:
+                attn = attn.float()
+            attn = attn.softmax(dim=-1)
+            attn = F.dropout(attn, p=self.attn_drop, training=self.training).to(qkv.dtype)
+            feat = (attn @ v).transpose(1, 2).reshape(-1, C)
 
-        x = x[inverse]
+        feat = feat[inverse]
+        feat = self.proj(feat)
+        return F.dropout(feat, p=self.proj_drop, training=self.training)
 
-        # Head projection
-        x = self.proj(x)
-        x = F.dropout(x, p=self.proj_drop, training=self.training)
-        return x
+
+class SerializedAttentionRPE(nn.Module):
+    r"""Serialized attention with the relative position bias from PT-V3.
+
+    Adds a learned per-head bias indexed by the integer voxel-grid offset
+    between query and key inside each patch. Flash Attention does not support
+    arbitrary attention biases, so this variant always uses the manual softmax
+    path.
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        num_heads: int,
+        patch_size: int,
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        upcast_attention: bool = True,
+        upcast_softmax: bool = True,
+    ) -> None:
+        super().__init__()
+        if channels % num_heads != 0:
+            raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
+        self.channels = channels
+        self.num_heads = num_heads
+        self.patch_size = patch_size
+        self.scale = qk_scale or (channels // num_heads) ** -0.5
+        self.attn_drop = attn_drop
+        self.proj_drop = proj_drop
+        self.use_flash_attn = False
+        self.upcast_attention = upcast_attention
+        self.upcast_softmax = upcast_softmax
+
+        self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
+        self.proj = nn.Linear(channels, channels)
+        self.rpe = RelativePositionalEncoding(patch_size, num_heads)
+
+    def forward(
+        self,
+        x: Tensor,
+        pos_grid: OptTensor,
+        batch: Tensor,
+        serialized_order: OptTensor = None,
+        serialized_inverse: OptTensor = None,
+        pos: OptTensor = None,
+    ) -> Tensor:
+        if pos_grid is None:
+            raise ValueError("`pos_grid` must be provided for SerializedAttentionRPE.")
+
+        H, C = self.num_heads, self.channels
+        patch_size = min(int(torch.bincount(batch).min().item()), self.patch_size)
+
+        padded_indices, unpadded_indices, _ = divisible_pad(
+            batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
+        )
+        order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
+        inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
+        qkv = self.qkv(x)[order]
+        pos_grid_ordered = pos_grid[order]
+
+        K = patch_size
+        q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
+        if self.upcast_attention:
+            q = q.float()
+            k = k.float()
+        attn = (q * self.scale) @ k.transpose(-2, -1)
+
+        pos_grid_ordered = pos_grid_ordered.reshape(-1, K, 3)
+        relative_coords = pos_grid_ordered.unsqueeze(2) - pos_grid_ordered.unsqueeze(1)
+        attn = attn + self.rpe(relative_coords)
+
+        if self.upcast_softmax:
+            attn = attn.float()
+        attn = attn.softmax(dim=-1)
+        attn = F.dropout(attn, p=self.attn_drop, training=self.training).to(qkv.dtype)
+        feat = (attn @ v).transpose(1, 2).reshape(-1, C)
+
+        feat = feat[inverse]
+        feat = self.proj(feat)
+        return F.dropout(feat, p=self.proj_drop, training=self.training)
+
+
+class SerializedAttentionRoPE(nn.Module):
+    r"""Serialized attention with 3D rotary position embedding from
+    [Utonia](https://arxiv.org/abs/2603.03283).
+
+    Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
+    position of each token. Flash Attention is supported and uses bfloat16
+    (matching upstream Utonia's reference implementation).
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        num_heads: int,
+        patch_size: int,
+        qkv_bias: bool = True,
+        qk_scale: Optional[float] = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        use_flash_attn: bool = True,
+        upcast_attention: bool = True,
+        upcast_softmax: bool = True,
+        rope_base: float = 10.0,
+    ) -> None:
+        super().__init__()
+        if channels % num_heads != 0:
+            raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
+        if use_flash_attn:
+            if not _FLASH_ATTN_AVAILABLE:
+                raise ImportError(flash_attn)
+            if upcast_attention:
+                raise ValueError("Upcasting attention is not supported with Flash Attention.")
+            if upcast_softmax:
+                raise ValueError("Upcasting softmax is not supported with Flash Attention.")
+        self.channels = channels
+        self.num_heads = num_heads
+        self.patch_size = patch_size
+        self.scale = qk_scale or (channels // num_heads) ** -0.5
+        self.attn_drop = attn_drop
+        self.proj_drop = proj_drop
+        self.use_flash_attn = use_flash_attn
+        self.upcast_attention = upcast_attention
+        self.upcast_softmax = upcast_softmax
+
+        self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
+        self.proj = nn.Linear(channels, channels)
+        self.rope = Point3DRoPE(head_dim=channels // num_heads, base=rope_base)
+
+    def forward(
+        self,
+        x: Tensor,
+        pos_grid: OptTensor,
+        batch: Tensor,
+        serialized_order: OptTensor = None,
+        serialized_inverse: OptTensor = None,
+        pos: OptTensor = None,
+    ) -> Tensor:
+        if pos is None:
+            raise ValueError("`pos` must be provided for SerializedAttentionRoPE.")
+
+        H, C = self.num_heads, self.channels
+        patch_size = (
+            self.patch_size if self.use_flash_attn else min(int(torch.bincount(batch).min().item()), self.patch_size)
+        )
+
+        padded_indices, unpadded_indices, padded_batch = divisible_pad(
+            batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
+        )
+        order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
+        inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
+        qkv = self.qkv(x)[order]
+        pos_ordered = pos[padded_indices][order]
+
+        q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
+        q, k = self.rope(q, k, pos_ordered)
+
+        if self.use_flash_attn:
+            qkv_packed = torch.stack([q, k, v], dim=1).to(torch.bfloat16)
+            feat = _flash_attend_qkv(qkv_packed, padded_batch, patch_size, self.scale, self.attn_drop, self.training)
+            feat = feat.reshape(-1, C).to(qkv.dtype)
+        else:
+            K = patch_size
+            q = q.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            k = k.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            v = v.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            if self.upcast_attention:
+                q = q.float()
+                k = k.float()
+            attn = (q * self.scale) @ k.transpose(-2, -1)
+            if self.upcast_softmax:
+                attn = attn.float()
+            attn = attn.softmax(dim=-1)
+            attn = F.dropout(attn, p=self.attn_drop, training=self.training).to(qkv.dtype)
+            feat = (attn @ v).transpose(1, 2).reshape(-1, C)
+
+        feat = feat[inverse]
+        feat = self.proj(feat)
+        return F.dropout(feat, p=self.proj_drop, training=self.training)
