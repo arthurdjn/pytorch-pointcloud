@@ -44,7 +44,7 @@ def main() -> None:
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.3,
-        use_rpe=False,
+        attention="default",
         use_flash_attn=True,
         upcast_attention=False,
         upcast_softmax=False,
