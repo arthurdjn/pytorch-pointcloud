@@ -1,1 +1,0 @@
-{"params": {"kThresh": "0.0001", "segMinVerts": "20", "minPoints": "750", "maxPoints": "30000", "thinThresh": "0.05", "flatThresh": "0.001", "minLength": "0.02", "maxLength": "1"}, "sceneId": "scene0707_00", "segIndices": [12, 8, 2, 6, 5, 7, 8, 4, 0, 18]}

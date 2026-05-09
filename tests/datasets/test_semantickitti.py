@@ -18,7 +18,7 @@ from torch_pointcloud.datasets.semantickitti import (
 # `train` and `val` have labels; `test` doesn't (matches the real release).
 ALL_SPLITS = ["train", "val", "trainval", "test"]
 SPLITS_WITH_LABELS = ["train", "val", "trainval"]
-NUM_POINTS_PER_SCAN = 50  # must match generate.py's `--num-points` default
+NUM_POINTS_PER_SCAN = 1024  # must match generate.py's `--num-points` default
 
 
 def test_load_semantickitti_scan(datasets_dir: Path) -> None:

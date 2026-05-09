@@ -1,37 +1,22 @@
 # S3DIS
 
-This folder contains a small subset of the S3DIS dataset for testing purposes.
+Tiny S3DIS fixture obtained by subsampling real per-annotation `.txt` files from
+the original release. For each of the six areas we keep 2 rooms and 64 points per
+annotation; the room-level concatenated file (`{room}/{room}.txt`) and
+`{Area}_alignmentAngle.txt` are written so the standard loader works unchanged.
 
-## Data
-
-The data is taken from the original S3DIS dataset, and contains 10 points per objects and two objects per category.
+The HDF5 fixture under `indoor3d_sem_seg_hdf5_data/` is the real Pointcept release
+(4096 points per block) and is consumed by `S3DISHdf5` in the pretrained tests.
 
 ## Generation
 
-The data was generated using the `scripts/generate.py` script.
-
-### Raw data generation
-
-To generate a subset of the raw data, run the following command:
-
-> [!NOTE]
-> You must provide the path to the original raw S3DIS dataset in the `--data-dir` argument.
+`scripts/generate.py` reads from `$TORCH_POINTCLOUD_DATA_DIR/S3DIS/raw/` by
+default (override with `--src-dir`).
 
 ```bash
-python scripts/generate.py raw \
-    /HDD/Datasets/S3DIS/raw \
-    ./raw \
-    --max-points 10 \
-    --max-rooms 2
-```
-
-### Processed data generation
-
-To generate the processed data, run the following command:
-
-```bash
-python scripts/generate.py process ./raw
+uv run --no-sync python scripts/generate.py raw ./raw
+uv run --no-sync python scripts/generate.py process ./raw
 ```
 
 > [!NOTE]
-> The processed data is saved in the `processed` folder.
+> The processed files land under `processed_aligned/{Area}/`.

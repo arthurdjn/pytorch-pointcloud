@@ -1,36 +1,35 @@
 # ScanNet
 
-This folder contains a small subset of the ScanNet dataset for testing purposes.
-
-## Data
-
-The generated data will contain random points with no semantic meaning, for testing purposes. The structure of the data will respect the original ScanNet dataset structure however.
+Tiny ScanNet fixture obtained by subsampling real scenes from the v2 release.
+For each `(version, split)` combination we keep up to 5 scenes drawn from
+`metadata/scannetv2_{split}.txt`. Each scene's `_vh_clean_2.ply` is subsampled
+to ≈1024 vertices via face-preserving sampling, the segment JSON is filtered to
+the kept vertices, and the aggregation / metadata files are copied verbatim. The
+v1 fixture reuses the v2 PLY data shipped under a v1-labelled labels file.
 
 ## Generation
 
-The data was generated using the `scripts/generate.py` script.
+`scripts/generate.py` reads from `$TORCH_POINTCLOUD_DATA_DIR/ScanNet/raw/` by
+default (override with `--src-dir`). The user-local source only ships v2 scenes;
+the script reuses them for v1 too.
 
-### Raw data generation
-
-To generate a subset of the raw data, run the following command:
-
-> [!NOTE]
-> You must provide the path to the original raw S3DIS dataset in the `--data-dir` argument.
+### Raw
 
 ```bash
-python scripts/generate.py raw \
-    ./raw \
-    --split train \
-    --version v2
+uv run --no-sync python scripts/generate.py raw ./raw --version v2 --split train
 ```
 
-### Processed data generation
+### Processed
 
-To generate the processed data, run the following command:
+Builds both `ScanNet/processed/{split}/` and `ScanNet/processed_20/{split}/`
+caches in one go (the latter is consumed by `ScanNet20`).
 
 ```bash
-python scripts/generate.py process ./raw --version v2 --split train
+uv run --no-sync python scripts/generate.py process ./raw --version v2 --split train
 ```
 
-> [!NOTE]
-> The processed data is saved in the `processed` folder.
+### Full regeneration
+
+```bash
+bash scripts/generate.sh
+```
