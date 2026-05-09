@@ -372,7 +372,7 @@ class EncoderBlock(nn.Module):
                     pos_grid,
                     batch,
                     orders=self.serialization_orders,
-                    shuffle=self.shuffle_serialization_orders,
+                    shuffle=self.shuffle_serialization_orders and self.training,
                 )
             else:
                 x, pos_grid, batch, serialized_code, inverse = self.downsample(
@@ -767,7 +767,7 @@ class PointTransformerV3Encoder(nn.Module):
             pos_grid,
             batch,
             orders=self.serialization_orders,
-            shuffle=self.shuffle_serialization_orders,
+            shuffle=self.shuffle_serialization_orders and self.training,
         )
 
         x = self.stem(x, pos_grid, batch)
