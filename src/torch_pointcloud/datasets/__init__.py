@@ -6,3 +6,4 @@ from .scanobjectnn import ScanObjectNN
 from .semantic3d import Semantic3D
 from .semantickitti import SemanticKITTI
 from .shapenetpart import ShapeNetPart
+from .toronto3d import Toronto3D
