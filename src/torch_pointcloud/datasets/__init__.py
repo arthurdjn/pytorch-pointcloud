@@ -3,5 +3,6 @@ from .parislille3d import ParisLille3D
 from .s3dis import S3DIS, S3DISHdf5
 from .scannet import ScanNet, ScanNet20, ScanNet200
 from .scanobjectnn import ScanObjectNN
+from .semantic3d import Semantic3D
 from .semantickitti import SemanticKITTI
 from .shapenetpart import ShapeNetPart
