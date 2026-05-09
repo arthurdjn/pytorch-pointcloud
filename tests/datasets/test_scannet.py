@@ -12,12 +12,12 @@ from torch_pointcloud.datasets.scannet import load_scannet_scene
 
 def test_load_scannet_scene(datasets_dir: Path) -> None:
     """Test that the ScanNet scene data is loaded correctly"""
-    scene_dir = datasets_dir / "ScanNet" / "raw" / "v2" / "scans" / "scene0000_00"
+    scene_dir = datasets_dir / "ScanNet" / "raw" / "v2" / "scans" / "scene0191_00"
     data = load_scannet_scene(
-        mesh_path=scene_dir / "scene0000_00_vh_clean_2.ply",
-        meta_path=scene_dir / "scene0000_00.txt",
-        aggregation_path=scene_dir / "scene0000_00.aggregation.json",
-        segments_path=scene_dir / "scene0000_00_vh_clean_2.0.010000.segs.json",
+        mesh_path=scene_dir / "scene0191_00_vh_clean_2.ply",
+        meta_path=scene_dir / "scene0191_00.txt",
+        aggregation_path=scene_dir / "scene0191_00.aggregation.json",
+        segments_path=scene_dir / "scene0191_00_vh_clean_2.0.010000.segs.json",
     )
 
     assert isinstance(data["pos"], torch.Tensor)
@@ -96,11 +96,11 @@ def test_scannet_dataset_missing_scenes(datasets_dir_factory: Callable[..., Path
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     # Remove a scene's mesh file to trigger the warning
-    mesh_files = list(datasets_dir.glob("**/scene0000_00_vh_clean_2.ply"))
+    mesh_files = list(datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"))
     for mesh_file in mesh_files:
         mesh_file.unlink()
 
-    with pytest.warns(RuntimeWarning, match="Scene 'scene0000_00' is missing a mesh file"):
+    with pytest.warns(RuntimeWarning, match="Scene 'scene0191_00' is missing a mesh file"):
         _ = ScanNet(root=datasets_dir, show_progress=False)
 
 
@@ -110,13 +110,13 @@ def test_scannet_dataset_corrupted_ply(datasets_dir_factory: Callable[..., Path]
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     # Corrupt a scene's PLY file
-    mesh_files = list(datasets_dir.glob("**/scene0000_00_vh_clean_2.ply"))
+    mesh_files = list(datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"))
     for mesh_file in mesh_files:
         mesh_file.unlink()
         with open(mesh_file, "w") as f:
             f.write("invalid PLY data")
 
-    with pytest.warns(RuntimeWarning, match="Error loading scene 'scene0000_00'"):
+    with pytest.warns(RuntimeWarning, match="Error loading scene 'scene0191_00'"):
         dataset = ScanNet(root=datasets_dir, show_progress=False)
         assert len(dataset) > 0  # Other valid scenes should still be loaded
 
@@ -127,13 +127,13 @@ def test_scannet_dataset_corrupted_segments(datasets_dir_factory: Callable[..., 
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     # Corrupt a scene's segments file
-    segs_files = list(datasets_dir.glob("**/scene0000_00_vh_clean_2.0.010000.segs.json"))
+    segs_files = list(datasets_dir.glob("**/scene0191_00_vh_clean_2.0.010000.segs.json"))
     for segs_file in segs_files:
         segs_file.unlink()
         with open(segs_file, "w") as f:
             f.write("invalid JSON data")
 
-    with pytest.warns(RuntimeWarning, match="Error loading scene 'scene0000_00'"):
+    with pytest.warns(RuntimeWarning, match="Error loading scene 'scene0191_00'"):
         dataset = ScanNet(root=datasets_dir, show_progress=False)
         assert len(dataset) > 0  # Other valid scenes should still be loaded
 
@@ -144,13 +144,13 @@ def test_scannet_dataset_corrupted_aggregation(datasets_dir_factory: Callable[..
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     # Corrupt a scene's aggregation file
-    agg_files = list(datasets_dir.glob("**/scene0000_00.aggregation.json"))
+    agg_files = list(datasets_dir.glob("**/scene0191_00.aggregation.json"))
     for agg_file in agg_files:
         agg_file.unlink()
         with open(agg_file, "w") as f:
             f.write("invalid JSON data")
 
-    with pytest.warns(RuntimeWarning, match="Error loading scene 'scene0000_00'"):
+    with pytest.warns(RuntimeWarning, match="Error loading scene 'scene0191_00'"):
         dataset = ScanNet(root=datasets_dir, show_progress=False)
         assert len(dataset) > 0  # Other valid scenes should still be loaded
 

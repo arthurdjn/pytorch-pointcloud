@@ -1,15 +1,16 @@
-uv run python scripts/generate.py raw ./raw --split train --version v1        
-uv run python scripts/generate.py raw ./raw --split val --version v1        
-uv run python scripts/generate.py raw ./raw --split test --version v1        
+#!/usr/bin/env bash
+set -euo pipefail
 
-uv run python scripts/generate.py raw ./raw --split train --version v2        
-uv run python scripts/generate.py raw ./raw --split val --version v2        
-uv run python scripts/generate.py raw ./raw --split test --version v2        
+# Subsample real scenes for both v1 and v2; raw v1 reuses v2 PLY/aggregation files
+# but ships under a v1-labelled labels file (matching the real version split).
+for VER in v1 v2; do
+    for SPLIT in train val test; do
+        uv run --no-sync python scripts/generate.py raw ./raw --version "$VER" --split "$SPLIT" --ignore-warnings
+    done
+done
 
-uv run python scripts/generate.py process ./raw --ignore-warnings --split train --version v1
-uv run python scripts/generate.py process ./raw --ignore-warnings --split val --version v1
-uv run python scripts/generate.py process ./raw --ignore-warnings --split test --version v1
-
-uv run python scripts/generate.py process ./raw --ignore-warnings --split train --version v2
-uv run python scripts/generate.py process ./raw --ignore-warnings --split val --version v2
-uv run python scripts/generate.py process ./raw --ignore-warnings --split test --version v2
+for VER in v1 v2; do
+    for SPLIT in train val test; do
+        uv run --no-sync python scripts/generate.py process ./raw --version "$VER" --split "$SPLIT" --ignore-warnings
+    done
+done
