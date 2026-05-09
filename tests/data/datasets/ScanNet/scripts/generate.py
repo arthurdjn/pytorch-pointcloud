@@ -78,8 +78,7 @@ def generate_raw(args: Namespace) -> None:
     dst_root = Path(args.dst_dir)
     if not src_root.exists():
         raise FileNotFoundError(
-            f"Source ScanNet raw directory not found: {src_root!r}. "
-            f"Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
+            f"Source ScanNet raw directory not found: {src_root!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
         )
 
     # The source ships only v2 scans; we use the same vertex data for v1 too.

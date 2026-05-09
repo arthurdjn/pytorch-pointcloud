@@ -62,8 +62,7 @@ def generate_raw(args: Namespace) -> None:
     dst_data_dir = Path(args.dst_dir)
     if not src_data_dir.exists():
         raise FileNotFoundError(
-            f"Source S3DIS raw directory not found: {src_data_dir!r}. "
-            f"Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
+            f"Source S3DIS raw directory not found: {src_data_dir!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
         )
 
     rng = np.random.default_rng(args.seed)

@@ -102,8 +102,7 @@ def generate_raw(args: Namespace) -> None:
     src_root = Path(args.src_dir)
     if not src_root.exists():
         raise FileNotFoundError(
-            f"Source ScanObjectNN raw directory not found: {src_root!r}. "
-            f"Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
+            f"Source ScanObjectNN raw directory not found: {src_root!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
         )
 
     rng = np.random.default_rng(args.seed)
@@ -119,9 +118,7 @@ def generate_raw(args: Namespace) -> None:
                 # first available source file so the fixture preserves the layout.
                 fallback = _find_fallback(src_root, stem)
                 if fallback is None:
-                    raise FileNotFoundError(
-                        f"Could not find any source .h5 for stem {stem!r} under {src_root!r}."
-                    )
+                    raise FileNotFoundError(f"Could not find any source .h5 for stem {stem!r} under {src_root!r}.")
                 src_h5 = fallback
 
             with h5py.File(src_h5, "r") as f:
