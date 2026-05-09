@@ -26,7 +26,7 @@ spconv, _ = optional_import("spconv.pytorch")
 
 
 def serialize(
-    pos: Tensor,
+    pos_grid: Tensor,
     batch: Tensor,
     orders: Sequence[SerializationOrder],
     shuffle: bool = False,
@@ -35,8 +35,8 @@ def serialize(
         perm = torch.randperm(len(orders))
         orders = [orders[i] for i in perm]
 
-    depth = int(pos.max()).bit_length()
-    serialized_code = torch.stack([serialize_coords(pos, batch, depth=depth, order=order) for order in orders])
+    depth = int(pos_grid.max()).bit_length()
+    serialized_code = torch.stack([serialize_coords(pos_grid, batch, depth=depth, order=order) for order in orders])
     serialized_order = torch.argsort(serialized_code, dim=1)
     serialized_inverse = torch.argsort(serialized_order, dim=1)
     return serialized_code, serialized_order, serialized_inverse
@@ -106,14 +106,14 @@ class Block(nn.Module):
     def forward(
         self,
         x: Tensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
     ) -> Any:
         # Conv + Skip connection
         shortcut = x
-        sparse_x = convert_to_spconv_tensor(x, pos, batch)
+        sparse_x = convert_to_spconv_tensor(x, pos_grid, batch)
         sparse_x = self.cpe_conv(sparse_x)
         x = sparse_x.features
         x = self.cpe_proj(x)
@@ -126,7 +126,7 @@ class Block(nn.Module):
         x = self.norm1(x)
         x = self.attn(
             x,
-            pos,
+            pos_grid,
             batch,
             serialized_order=serialized_order,
             serialized_inverse=serialized_inverse,
@@ -176,10 +176,10 @@ class SubMConv3dBlock(nn.Module):
     def forward(
         self,
         x: Tensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
     ) -> Tensor:
-        sparse_x = convert_to_spconv_tensor(x, pos, batch)
+        sparse_x = convert_to_spconv_tensor(x, pos_grid, batch)
         sparse_x = self.stem(sparse_x)
 
         x = sparse_x.features
@@ -252,7 +252,7 @@ class EncoderBlock(nn.Module):
     def forward(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         serialized_order: Tensor,
@@ -264,7 +264,7 @@ class EncoderBlock(nn.Module):
     def forward(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         serialized_order: Tensor,
@@ -275,7 +275,7 @@ class EncoderBlock(nn.Module):
     def forward(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
         serialized_order: Tensor,
@@ -295,17 +295,17 @@ class EncoderBlock(nn.Module):
         if self.downsample is not None:
             if isinstance(self.downsample, GridPool):
                 assert self.serialization_orders is not None, "serialization_orders must be provided for grid pooling"
-                x, pos, batch, inverse = self.downsample(x, pos, batch)
+                x, pos_grid, batch, inverse = self.downsample(x, pos_grid, batch)
                 serialized_code, serialized_order, serialized_inverse = serialize(
-                    pos,
+                    pos_grid,
                     batch,
                     orders=self.serialization_orders,
                     shuffle=self.shuffle_serialization_orders,
                 )
             else:
-                x, pos, batch, serialized_code, inverse = self.downsample(
+                x, pos_grid, batch, serialized_code, inverse = self.downsample(
                     x,
-                    pos,
+                    pos_grid,
                     batch,
                     serialized_code,
                     return_inverse=True,
@@ -317,15 +317,15 @@ class EncoderBlock(nn.Module):
             order_idx = i % num_serializations
             x = block(
                 x,
-                pos,
+                pos_grid,
                 batch,
                 serialized_order=serialized_order[order_idx],
                 serialized_inverse=serialized_inverse[order_idx],
             )
 
         if return_inverse:
-            return x, pos, batch, serialized_code, serialized_order, serialized_inverse, inverse
-        return x, pos, batch, serialized_code, serialized_order, serialized_inverse
+            return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse, inverse
+        return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse
 
 
 class DecoderBlock(nn.Module):
@@ -385,7 +385,7 @@ class DecoderBlock(nn.Module):
         self,
         x: Tensor,
         x_skip: Tensor,
-        pos_skip: Tensor,
+        pos_grid_skip: Tensor,
         batch_skip: Tensor,
         serialized_order_skip: Tensor,
         serialized_inverse_skip: Tensor,
@@ -410,13 +410,13 @@ class DecoderBlock(nn.Module):
             order_idx = i % num_serializations
             x = block(
                 x,
-                pos_skip,
+                pos_grid_skip,
                 batch_skip,
                 serialized_order=serialized_order_skip[order_idx],
                 serialized_inverse=serialized_inverse_skip[order_idx],
             )
 
-        return x, pos_skip, batch_skip
+        return x, pos_grid_skip, batch_skip
 
 
 class PointTransformerV3Encoder(nn.Module):
@@ -457,7 +457,7 @@ class PointTransformerV3Encoder(nn.Module):
 
     Inputs:
         x: Float tensor of shape $(N, \\text{in\\_channels})$.
-        pos: Int tensor of shape $(N, 3)$.
+        pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -654,7 +654,7 @@ class PointTransformerV3Encoder(nn.Module):
     def forward(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -663,7 +663,7 @@ class PointTransformerV3Encoder(nn.Module):
     def forward(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
@@ -671,26 +671,26 @@ class PointTransformerV3Encoder(nn.Module):
     def forward(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        x = x if x is not None else pos.float()
+        x = x if x is not None else pos_grid.float()
 
         serialized_code, serialized_order, serialized_inverse = serialize(
-            pos,
+            pos_grid,
             batch,
             orders=self.serialization_orders,
             shuffle=self.shuffle_serialization_orders,
         )
 
-        x = self.stem(x, pos, batch)
+        x = self.stem(x, pos_grid, batch)
 
         intermediates = []
         for i, block in enumerate(self.blocks):
             intermediate = {
                 "x": x,
-                "pos": pos,
+                "pos_grid": pos_grid,
                 "batch": batch,
                 "serialized_code": serialized_code,
                 "serialized_order": serialized_order,
@@ -699,7 +699,7 @@ class PointTransformerV3Encoder(nn.Module):
 
             (
                 x,
-                pos,
+                pos_grid,
                 batch,
                 serialized_code,
                 serialized_order,
@@ -707,7 +707,7 @@ class PointTransformerV3Encoder(nn.Module):
                 inverse,
             ) = block(
                 x,
-                pos,
+                pos_grid,
                 batch,
                 serialized_code=serialized_code,
                 serialized_order=serialized_order,
@@ -720,8 +720,8 @@ class PointTransformerV3Encoder(nn.Module):
                 intermediates.append(intermediate)
 
         if return_intermediates:
-            return x, pos, batch, intermediates
-        return x, pos, batch
+            return x, pos_grid, batch, intermediates
+        return x, pos_grid, batch
 
 
 class PointTransformerV3Decoder(nn.Module):
@@ -882,8 +882,8 @@ class PointTransformerV3Decoder(nn.Module):
         for block, intermediate in zip(self.blocks, reversed(intermediates)):
             intermediate.pop("serialized_code", None)
             intermediate = {f"{k}_skip" if k != "inverse" else k: v for k, v in intermediate.items()}
-            x, pos, batch = block(x, **intermediate)
-        return x, pos, batch
+            x, pos_grid, batch = block(x, **intermediate)
+        return x, pos_grid, batch
 
 
 class PointTransformerV3Classification(ClassificationModel):
@@ -929,7 +929,7 @@ class PointTransformerV3Classification(ClassificationModel):
 
     Inputs:
         x: Float tensor of shape $(N, in_channels)$.
-        pos: Int tensor of shape $(N, 3)$.
+        pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -1020,7 +1020,7 @@ class PointTransformerV3Classification(ClassificationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -1029,7 +1029,7 @@ class PointTransformerV3Classification(ClassificationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
@@ -1037,13 +1037,13 @@ class PointTransformerV3Classification(ClassificationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos, batch, return_intermediates=True)
-        return self.encoder.forward(x, pos, batch, return_intermediates=False)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         """Forward pass of the classification head from pre-pooling features.
@@ -1061,18 +1061,20 @@ class PointTransformerV3Classification(ClassificationModel):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
         """Forward pass of the PointNet classification network.
 
         Args:
             x: Additional point features of shape $(N, C)$.
-            pos: Grid coordinates of shape $(N, 3)$.
+            pos_grid: Integer grid coordinates of shape $(N, 3)$. The encoder uses
+                these to derive the Z-order / Hilbert serialisation index, so they
+                must be voxel indices, not float positions.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
             Classification logits of shape $(B, num\\_classes)$.
         """
-        x, pos, batch = self.forward_features(x, pos, batch)
+        x, _pos_grid, batch = self.forward_features(x, pos_grid, batch)
         return self.forward_head(x, batch)
 
 
@@ -1213,7 +1215,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
@@ -1222,7 +1224,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
@@ -1230,13 +1232,13 @@ class PointTransformerV3Segmentation(SegmentationModel):
     def forward_features(
         self,
         x: OptTensor,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos, batch, return_intermediates=True)
-        return self.encoder.forward(x, pos, batch, return_intermediates=False)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
 
     def forward_decoder(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder.forward(x, intermediates)
@@ -1246,7 +1248,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
+        x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, intermediates)
         return self.forward_head(x)

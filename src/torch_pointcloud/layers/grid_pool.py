@@ -23,7 +23,7 @@ torch_scatter, _ = optional_import("torch_scatter")
 class GridPool(nn.Module):
     """Grid-based downsampling that clusters points by quantized coordinates.
 
-    Divides `pos` by `stride`, groups unique voxels via
+    Divides `pos_grid` by `stride`, groups unique voxels via
     `torch.unique`, and reduces features with `torch_scatter.segment_csr`.
 
     Args:
@@ -64,22 +64,22 @@ class GridPool(nn.Module):
         self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
         self.act = activation_resolver(act, **act_kwargs) if act is not None else None
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """Downsample points by grid quantization.
 
         Args:
             x: Point features of shape $(N, C_{in})$.
-            pos: Integer grid coordinates of shape $(N, 3)$.
+            pos_grid: Integer grid coordinates of shape $(N, 3)$.
             batch: Batch indices of shape $(N,)$.
 
         Returns:
-            Tuple of `(x_pooled, pos_pooled, batch_pooled, pooling_inverse)`
+            Tuple of `(x_pooled, pos_grid_pooled, batch_pooled, pooling_inverse)`
             where `pooling_inverse` maps each input point to its pooled cluster index.
         """
-        pos_pooled = torch.div(pos, self.stride, rounding_mode="trunc")
-        tagged = pos_pooled | batch.view(-1, 1) << 48
+        pos_grid_pooled = torch.div(pos_grid, self.stride, rounding_mode="trunc")
+        tagged = pos_grid_pooled | batch.view(-1, 1) << 48
         tagged, cluster, counts = torch.unique(tagged, sorted=True, return_inverse=True, return_counts=True, dim=0)
-        pos_pooled = tagged & ((1 << 48) - 1)
+        pos_grid_pooled = tagged & ((1 << 48) - 1)
 
         _, indices = torch.sort(cluster)
         idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
@@ -99,4 +99,4 @@ class GridPool(nn.Module):
             if self.act is not None:
                 x_pooled = self.act(x_pooled)
 
-        return x_pooled, pos_pooled, batch_pooled, cluster
+        return x_pooled, pos_grid_pooled, batch_pooled, cluster

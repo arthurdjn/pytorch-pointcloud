@@ -93,7 +93,7 @@ class SerializedAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.rpe = RelativePositionalEncoding(patch_size, num_heads) if self.use_rpe else None
 
-    def _forward_default_attn(self, qkv: Tensor, pos: OptTensor, patch_size: int) -> Tensor:
+    def _forward_default_attn(self, qkv: Tensor, pos_grid: OptTensor, patch_size: int) -> Tensor:
         K, H, C = patch_size, self.num_heads, self.channels
 
         # Encode and reshape qkv: (N', K, 3, H, C') -> (3, N', H, K, C')
@@ -112,11 +112,11 @@ class SerializedAttention(nn.Module):
                     "Please check the model configuration or reinitialize the model."
                 )
 
-            if pos is None:
-                raise ValueError("`pos` must be provided when `use_rpe` is True")
+            if pos_grid is None:
+                raise ValueError("`pos_grid` must be provided when `use_rpe` is True")
 
-            pos = pos.reshape(-1, K, 3)
-            relative_coords = pos.unsqueeze(2) - pos.unsqueeze(1)
+            pos_grid = pos_grid.reshape(-1, K, 3)
+            relative_coords = pos_grid.unsqueeze(2) - pos_grid.unsqueeze(1)
             attn = attn + self.rpe(relative_coords)
 
         if self.upcast_softmax:
@@ -149,7 +149,7 @@ class SerializedAttention(nn.Module):
     def forward(
         self,
         x: Tensor,
-        pos: OptTensor,
+        pos_grid: OptTensor,
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
@@ -177,9 +177,9 @@ class SerializedAttention(nn.Module):
         if self.use_flash_attn:
             x = self._forward_flash_attn(qkv, padded_batch)
         else:
-            if pos is not None:
-                pos = pos[order]
-            x = self._forward_default_attn(qkv, pos, patch_size)
+            if pos_grid is not None:
+                pos_grid = pos_grid[order]
+            x = self._forward_default_attn(qkv, pos_grid, patch_size)
 
         x = x[inverse]
 
