@@ -1,5 +1,6 @@
 from ._base import ClassificationModel, DetectionModel, SegmentationModel
 from ._registry import create_model, list_models, register_model
+from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
@@ -18,7 +19,6 @@ from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtSegmentation
-from .concerto import ConcertoSegmentation
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
