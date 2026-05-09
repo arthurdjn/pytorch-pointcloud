@@ -38,8 +38,10 @@ __all__ = [
     "InboxMask",
     "KeepItems",
     "NormalizeScale",
+    "OneHot",
     "OnesLike",
     "RandomSample",
+    "Reduce",
     "RandomSampleFaceVertices",
     "Relabel",
     "RemoveNearOrigin",
@@ -1474,6 +1476,92 @@ class Cat(DictTransform):
         data = dict(data)
         tensors = [data[key].float() for key in self.iter_keys(data)]
         data[self.dst_key] = torch.cat(tensors, dim=self.dim)
+        return data
+
+
+class OneHot(DictTransform):
+    r"""One-hot encode integer-class tensors.
+
+    Wraps `torch.nn.functional.one_hot` and casts the result to float so the
+    output is ready to feed into a model.
+
+    Args:
+        keys: Keys holding integer (long) class indices.
+        num_classes: Number of classes $C$ in the one-hot encoding.
+        dst_keys: Where to store the one-hot tensors. Defaults to `keys`.
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Shape:
+        Input class tensor of shape $(N,)$ becomes $(N, C)$. A scalar input
+        becomes shape $(C,)$, which after batched collate stacks to $(B, C)$.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        num_classes: ValueCollection[int],
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.num_classes = ensure_tuple_size(num_classes, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key, num_classes in self.iter_keys(data, self.dst_keys, self.num_classes):
+            x = data[key].long()
+            out = torch.nn.functional.one_hot(x, num_classes=num_classes).float()
+            # A 0-d input (per-sample scalar label) one-hots to `(num_classes,)`. Unsqueeze
+            # so packed-batch collate yields `(B, num_classes)` after `torch.cat(dim=0)`.
+            if x.ndim == 0:
+                out = out.unsqueeze(0)
+            data[dst_key] = out
+        return data
+
+
+class Reduce(DictTransform):
+    r"""Reduce a tensor along a dimension and store the scalar/vector result.
+
+    Useful for capturing per-sample statistics (e.g. axis-wise scene maxima or
+    centroids) as standalone keys that downstream transforms can reference.
+
+    Args:
+        keys: Keys to reduce.
+        op: Reduction operator: `"amax"`, `"amin"`, `"mean"`, or `"sum"`.
+        dim: Dimension to reduce. Defaults to `0`.
+        keepdim: Pass `keepdim=True` to keep the reduced axis as size $1$. This
+            is helpful when the result is meant to broadcast against a $(N, D)$
+            tensor (e.g. per-sample bbox stats) and to survive the packed-batch
+            collate — a $(1, D)$ tensor collates to $(B, D)$ via `torch.cat`,
+            whereas a $(D,)$ tensor would concatenate to $(B \cdot D,)$.
+        dst_keys: Output keys. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        op: ValueCollection[Literal["amax", "amin", "mean", "sum"]],
+        dim: ValueCollection[int] = 0,
+        keepdim: bool = False,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.op = ensure_tuple_size(op, len(self.keys))
+        self.dim = ensure_tuple_size(dim, len(self.keys))
+        self.keepdim = keepdim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key, op, dim in self.iter_keys(data, self.dst_keys, self.op, self.dim):
+            x = data[key]
+            if op == "mean":
+                data[dst_key] = x.float().mean(dim=dim, keepdim=self.keepdim)
+            else:
+                data[dst_key] = getattr(x, op)(dim=dim, keepdim=self.keepdim)
         return data
 
 
