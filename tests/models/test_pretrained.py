@@ -183,7 +183,10 @@ def test_pretrained_model(
     dataset_name: str,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+
     models_dir = models_dir_factory("*.safetensors")
     _skip_if_deps_missing(model_name)
 
