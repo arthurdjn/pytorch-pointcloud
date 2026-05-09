@@ -125,6 +125,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnext-sm.scanobjectnn", "classification", "scanobjectnn"),
     # ScanNet20 based models
     ("sonata-lp.scannet20", "segmentation", "scannet20"),
+    ("concerto-large-lp.scannet20", "segmentation", "scannet20"),
     ("octformer-base.scannet20", "segmentation", "scannet20"),
     ("octformer-base.scannet200", "segmentation", "scannet20"),
     ("dgcnn-antao.scannet20", "segmentation", "scannet20"),
@@ -142,7 +143,7 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith("sonata") and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")

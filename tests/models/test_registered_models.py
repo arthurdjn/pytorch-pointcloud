@@ -44,7 +44,16 @@ CLASSIFICATION_MODELS = [
     "pointnext-sm.scanobjectnn",
     "pointnext-xl",
 ]
+BASE_MODELS = [
+    "concerto-base",
+    "concerto-large",
+    "concerto-small",
+    "concerto-tiny",
+    "point-mamba-base.pretrain",
+    "sonata-base",
+]
 SEGMENTATION_MODELS = [
+    "concerto-large-lp.scannet20",
     "dgcnn-antao.shapenetpart",
     "dgcnn-antao.s3dis.area1",
     "dgcnn-antao.s3dis.area2",
@@ -108,7 +117,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith("sonata") and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -150,7 +159,11 @@ def _check_architecture_or_regen(
 
 @pytest.mark.parametrize(
     "task,expected_models",
-    [("classification", CLASSIFICATION_MODELS), ("segmentation", SEGMENTATION_MODELS)],
+    [
+        ("base", BASE_MODELS),
+        ("classification", CLASSIFICATION_MODELS),
+        ("segmentation", SEGMENTATION_MODELS),
+    ],
 )
 def test_list_models(task: str, expected_models: List[str]) -> None:
     """Test that the list of models is correct."""
@@ -288,7 +301,12 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     _skip_if_model_deps_missing(model_name)
     # TODO: fix later, need to support for grid pos (Point Transformer like models)
     # TODO: and fix input features type / nempty -> maybe use the transforms that are registered with the model
-    if model_name in ["octformer-base.modelnet40", "octformer-base.lg", "sonata-lp.scannet20"]:
+    if model_name in [
+        "octformer-base.modelnet40",
+        "octformer-base.lg",
+        "sonata-lp.scannet20",
+        "concerto-large-lp.scannet20",
+    ]:
         pytest.skip("Model is not supported yet")
     if model_name.startswith("randlanet."):
         # Decimation by /4..16x reduces the synthetic 512+768 points below the K=16
