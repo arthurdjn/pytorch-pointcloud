@@ -187,8 +187,8 @@ def test_pretrained_model(
 ) -> None:
     monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
 
-    models_dir = models_dir_factory("*.safetensors")
     _skip_if_deps_missing(model_name)
+    models_dir = models_dir_factory("*.safetensors")
 
     # Load the pretrained model
     model, info = create_model(model_name, task=task, pretrained=True, return_info=True)  # type: ignore[call-overload]
