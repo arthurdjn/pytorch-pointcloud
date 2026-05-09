@@ -8,7 +8,7 @@ from torch import Tensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
-from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder
+from torch_pointcloud.models.point_transformer_v3 import AttentionKind, PointTransformerV3Encoder
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.serialization import SerializationOrder
 from torch_pointcloud.utils.types import OptTensor
@@ -48,7 +48,7 @@ class ConcertoSegmentation(SegmentationModel):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        use_rpe: bool = False,
+        attention: AttentionKind = "default",
         use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
@@ -77,7 +77,7 @@ class ConcertoSegmentation(SegmentationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            use_rpe=use_rpe,
+            attention=attention,
             use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
@@ -207,7 +207,6 @@ def _concerto_encoder_hparams(
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.3,
-        use_rpe=False,
         use_flash_attn=True,
         upcast_attention=False,
         upcast_softmax=False,

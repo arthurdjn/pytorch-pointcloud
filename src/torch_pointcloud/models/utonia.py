@@ -8,19 +8,23 @@ from torch import Tensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
-from torch_pointcloud.models.point_transformer_v3 import AttentionKind, PointTransformerV3Encoder
+from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.serialization import SerializationOrder
 from torch_pointcloud.utils.types import OptTensor
 
 
-class SonataSegmentation(SegmentationModel):
-    """Sonata linear-probing segmentation model.
+class UtoniaSegmentation(SegmentationModel):
+    r"""Utonia linear-probing segmentation model.
 
-    This variant follows the segmentation demo from
-    [facebookresearch/sonata](https://github.com/facebookresearch/sonata): the
-    encoder features are unpooled through the saved pooling inverses, concatenated
-    with each parent stage, then projected by a linear segmentation head.
+    Linear-probe variant from
+    [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283)
+    (Pointcept, ICML 2026). Architecturally similar to Sonata / Concerto's
+    linear-probe head, with one key change: every attention layer adds a 3D
+    rotary position embedding ([`Point3DRoPE`](../layers/rope.md)) on top of
+    `(q, k)`, indexed by the real-valued metric position rather than the
+    integer voxel grid. The position is mean-pooled at every encoder stage so
+    each level operates at its natural scale.
     """
 
     def __init__(
@@ -31,7 +35,7 @@ class SonataSegmentation(SegmentationModel):
         shuffle_serialization_orders: bool = True,
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (3, 3, 3, 12, 3),
-        encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
+        encoder_channels: Sequence[int] = (54, 108, 216, 432, 576),
         encoder_num_head: Sequence[int] = (3, 6, 12, 24, 32),
         encoder_patch_size: Sequence[int] = (1024, 1024, 1024, 1024, 1024),
         norm: Union[str, Callable] = "layer_norm",
@@ -42,10 +46,10 @@ class SonataSegmentation(SegmentationModel):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        attention: AttentionKind = "default",
         use_flash_attn: bool = True,
         upcast_attention: bool = False,
         upcast_softmax: bool = False,
+        rope_base: float = 10.0,
         dropout: float = 0.0,
         pooling: str = "grid",
         stem_type: str = "linear",
@@ -71,7 +75,6 @@ class SonataSegmentation(SegmentationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
             use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
@@ -79,6 +82,8 @@ class SonataSegmentation(SegmentationModel):
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            attention="rope",
+            rope_base=rope_base,
         )
         self.dropout = dropout
         self.head = nn.Linear(self.embedding_dim, num_classes)
@@ -98,6 +103,7 @@ class SonataSegmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
+        pos: OptTensor = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
@@ -107,6 +113,7 @@ class SonataSegmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
+        pos: OptTensor = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -115,10 +122,11 @@ class SonataSegmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
+        pos: OptTensor = None,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
-        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos)
 
     def forward_decoder(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
         pos_grid = batch = None
@@ -129,7 +137,7 @@ class SonataSegmentation(SegmentationModel):
             batch = intermediate["batch"]
 
         if pos_grid is None or batch is None:
-            raise ValueError("Sonata segmentation requires encoder intermediates for feature unpooling.")
+            raise ValueError("Utonia segmentation requires encoder intermediates for feature unpooling.")
         return x, pos_grid, batch
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
@@ -137,50 +145,65 @@ class SonataSegmentation(SegmentationModel):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: Tensor, pos: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
         """Forward pass.
 
         Args:
             x: Per-point features of shape $(N, C)$.
-            pos_grid: Integer voxel-grid coordinates of shape $(N, 3)$ (used by the
-                encoder for Z-order / Hilbert serialisation — not float positions).
+            pos: Real-valued metric positions of shape $(N, 3)$ used by 3D RoPE.
+            pos_grid: Integer voxel-grid coordinates of shape $(N, 3)$ used by the
+                encoder for serialization and sparse convolutions.
             batch: Per-point batch index of shape $(N,)$.
         """
-        x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
+        x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True, pos=pos)
         x, _, _ = self.forward_decoder(x, intermediates)
         return self.forward_head(x)
 
 
-@register_model(
-    "sonata-base",
-    task="base",
-    weights="hf://torch-pointcloud/sonata/sonata-base.pth",
-    transforms=T.Compose(
-        [
-            T.CenterShift(keys=DataKeys.POS, apply_z=True),
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-            # Voxelize POS in place so collate's default `batch_from="pos"` produces
-            # a `batch` tensor of length M (post-dedup). Then mirror it into POS_GRID
-            # so the model's `pos_grid` argument resolves via signature inspection.
-            T.VoxelGrid(
-                pos_key=DataKeys.POS,
-                pos_reduce="grid",
-                keys=[DataKeys.X],
-                reduce=["first"],
-                size=0.02,
-                method="fnv",
-            ),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-        ]
-    ),
-    hparams=dict(
+_UTONIA_TRANSFORMS = T.Compose(
+    [
+        T.CenterShift(keys=DataKeys.POS, apply_z=True),
+        T.Divide(keys=DataKeys.COLOR, divisor=255),
+        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        T.VoxelGrid(
+            pos_key=DataKeys.POS,
+            pos_reduce="mean",
+            grid_pos_key=DataKeys.POS_GRID,
+            keys=[DataKeys.X],
+            reduce=["first"],
+            size=0.01,
+            method="fnv",
+        ),
+    ]
+)
+
+_UTONIA_SEG_TRANSFORMS = T.Compose(
+    [
+        T.CenterShift(keys=DataKeys.POS, apply_z=True),
+        T.Divide(keys=DataKeys.COLOR, divisor=255),
+        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        T.VoxelGrid(
+            pos_key=DataKeys.POS,
+            pos_reduce="mean",
+            grid_pos_key=DataKeys.POS_GRID,
+            keys=[DataKeys.X, DataKeys.SEGMENT],
+            reduce=["first", "first"],
+            size=0.01,
+            method="fnv",
+        ),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+    ]
+)
+
+
+def _utonia_encoder_hparams() -> Dict[str, Any]:
+    return dict(
         in_channels=9,
         serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders=True,
         strides=(2, 2, 2, 2),
         encoder_depths=(3, 3, 3, 12, 3),
-        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_channels=(54, 108, 216, 432, 576),
         encoder_num_head=(3, 6, 12, 24, 32),
         encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
         norm="layer_norm",
@@ -197,41 +220,35 @@ class SonataSegmentation(SegmentationModel):
         pooling="grid",
         stem_type="linear",
         norm_kwargs={"mode": "node"},
-    ),
+        attention="rope",
+        rope_base=10.0,
+    )
+
+
+@register_model(
+    "utonia",
+    task="base",
+    weights="hf://torch-pointcloud/utonia/utonia.pth",
+    transforms=_UTONIA_TRANSFORMS,
+    hparams=_utonia_encoder_hparams(),
 )
-def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
+def utonia(**hparams: Any) -> PointTransformerV3Encoder:
     return PointTransformerV3Encoder(**hparams)
 
 
 @register_model(
-    "sonata-lp.scannet20",
+    "utonia-lp.scannet20",
     task="segmentation",
-    weights="hf://torch-pointcloud/sonata/sonata-lp.scannet20.pth",
-    transforms=T.Compose(
-        [
-            T.CenterShift(keys=DataKeys.POS, apply_z=True),
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-            T.VoxelGrid(
-                pos_key=DataKeys.POS,
-                pos_reduce="grid",
-                keys=[DataKeys.X, DataKeys.SEGMENT],
-                reduce=["first", "first"],
-                size=0.02,
-                method="fnv",
-            ),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
-        ]
-    ),
+    weights="hf://torch-pointcloud/utonia/utonia-lp.scannet20.pth",
+    transforms=_UTONIA_SEG_TRANSFORMS,
     hparams=dict(
-        in_channels=9,
         num_classes=20,
+        in_channels=9,
         serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders=True,
         strides=(2, 2, 2, 2),
         encoder_depths=(3, 3, 3, 12, 3),
-        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_channels=(54, 108, 216, 432, 576),
         encoder_num_head=(3, 6, 12, 24, 32),
         encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
         norm="layer_norm",
@@ -248,7 +265,8 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
         pooling="grid",
         stem_type="linear",
         norm_kwargs={"mode": "node"},
+        rope_base=10.0,
     ),
 )
-def sonata_scannet20(**hparams: Any) -> SonataSegmentation:
-    return SonataSegmentation(**hparams)
+def utonia_scannet20(**hparams: Any) -> UtoniaSegmentation:
+    return UtoniaSegmentation(**hparams)

@@ -1253,6 +1253,10 @@ class VoxelGrid(DictTransform):
         keys: Additional per-point keys to sub-sample (e.g. ``color``, ``segment``).
         cluster_key: When set, store the inverse cluster mapping ``(N_full,)`` under
             this key.
+        grid_pos_key: When set together with a non-``grid`` `pos_reduce`, also store
+            the integer voxel-grid coordinates under this key. Useful when a model
+            needs both real-valued positions (e.g. for rotary position embedding)
+            and integer grid coordinates (for serialization / sparse-conv stems).
         allow_missing_keys: If True, missing keys are skipped silently.
     """
 
@@ -1265,6 +1269,7 @@ class VoxelGrid(DictTransform):
         reduce: Optional[ValueCollection[Literal["mean", "min", "max", "sum", "first"]]] = None,
         keys: Optional[KeyCollection] = None,
         cluster_key: Optional[str] = None,
+        grid_pos_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1274,6 +1279,7 @@ class VoxelGrid(DictTransform):
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
         self.method = method
         self.cluster_key = cluster_key
+        self.grid_pos_key = grid_pos_key
 
     def _reduce(
         self,
@@ -1309,6 +1315,9 @@ class VoxelGrid(DictTransform):
             data[self.pos_key] = pos_grid - pos_grid.min(dim=0).values
         else:
             data[self.pos_key] = self._reduce(pos, self.pos_reduce, cluster, perm)
+            if self.grid_pos_key is not None:
+                pos_grid = torch.floor((pos[perm] - start) / self.size).long()
+                data[self.grid_pos_key] = pos_grid - pos_grid.min(dim=0).values
 
         for key, reduce in self.iter_keys(data, self.reduce):
             data[key] = self._reduce(data[key], reduce, cluster, perm)
