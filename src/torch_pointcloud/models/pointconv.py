@@ -266,6 +266,7 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
                 num_samples=1024,
                 random_start=False,
             ),
+            T.CopyItems(keys=DataKeys.NORMAL, names=DataKeys.X),
         ]
     ),
     hparams=dict(

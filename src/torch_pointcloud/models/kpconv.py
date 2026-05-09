@@ -1176,8 +1176,8 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
         T.VoxelGrid(
             pos_key=DataKeys.POS,
             pos_reduce="mean",
-            keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
-            reduce=["mean", "first", "first"],
+            keys=[DataKeys.COLOR, DataKeys.SEGMENT],
+            reduce=["mean", "first"],
             size=0.03,
             method="pyg",
         ),
