@@ -56,8 +56,7 @@ def generate_raw(args: Namespace) -> None:
     dst_root = Path(args.dst_dir)
     if not src_root.exists():
         raise FileNotFoundError(
-            f"Source ParisLille3D raw directory not found: {src_root!r}. "
-            f"Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
+            f"Source ParisLille3D raw directory not found: {src_root!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
         )
 
     rng = np.random.default_rng(args.seed)
