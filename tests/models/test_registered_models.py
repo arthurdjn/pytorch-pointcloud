@@ -51,9 +51,11 @@ BASE_MODELS = [
     "concerto-tiny",
     "point-mamba-base.pretrain",
     "sonata-base",
+    "utonia",
 ]
 SEGMENTATION_MODELS = [
     "concerto-large-lp.scannet20",
+    "utonia-lp.scannet20",
     "dgcnn-antao.shapenetpart",
     "dgcnn-antao.s3dis.area1",
     "dgcnn-antao.s3dis.area2",
@@ -117,7 +119,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -306,6 +308,7 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
         "octformer-base.lg",
         "sonata-lp.scannet20",
         "concerto-large-lp.scannet20",
+        "utonia-lp.scannet20",
     ]:
         pytest.skip("Model is not supported yet")
     if model_name.startswith("randlanet."):

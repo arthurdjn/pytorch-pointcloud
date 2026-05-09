@@ -63,6 +63,8 @@ class Block(nn.Module):
         use_flash_attn: bool = True,
         upcast_attention: bool = True,
         upcast_softmax: bool = True,
+        use_rope: bool = False,
+        rope_base: float = 10.0,
     ):
         super().__init__()
         act_kwargs = act_kwargs or {}
@@ -91,6 +93,8 @@ class Block(nn.Module):
             use_flash_attn=use_flash_attn,
             upcast_attention=upcast_attention,
             upcast_softmax=upcast_softmax,
+            use_rope=use_rope,
+            rope_base=rope_base,
         )
 
         self.norm2 = normalization_resolver(norm, channels, **norm_kwargs)
@@ -110,6 +114,7 @@ class Block(nn.Module):
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
+        pos: OptTensor = None,
     ) -> Any:
         # Conv + Skip connection
         shortcut = x
@@ -130,6 +135,7 @@ class Block(nn.Module):
             batch,
             serialized_order=serialized_order,
             serialized_inverse=serialized_inverse,
+            pos=pos,
         )
         x = self.drop_path(x)
         x = shortcut + x
@@ -216,6 +222,8 @@ class EncoderBlock(nn.Module):
         downsample: Optional[nn.Module] = None,
         serialization_orders: Optional[Sequence[SerializationOrder]] = None,
         shuffle_serialization_orders: bool = False,
+        use_rope: bool = False,
+        rope_base: float = 10.0,
     ):
         super().__init__()
         self.downsample = downsample
@@ -245,6 +253,8 @@ class EncoderBlock(nn.Module):
                     use_flash_attn=use_flash_attn,
                     upcast_attention=upcast_attention,
                     upcast_softmax=upcast_softmax,
+                    use_rope=use_rope,
+                    rope_base=rope_base,
                 )
             )
 
@@ -258,7 +268,8 @@ class EncoderBlock(nn.Module):
         serialized_order: Tensor,
         serialized_inverse: Tensor,
         return_inverse: Literal[True] = True,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]: ...
+        pos: OptTensor = None,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, OptTensor]: ...
 
     @overload
     def forward(
@@ -270,7 +281,8 @@ class EncoderBlock(nn.Module):
         serialized_order: Tensor,
         serialized_inverse: Tensor,
         return_inverse: Literal[False] = False,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]: ...
+        pos: OptTensor = None,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, OptTensor]: ...
 
     def forward(
         self,
@@ -281,6 +293,7 @@ class EncoderBlock(nn.Module):
         serialized_order: Tensor,
         serialized_inverse: Tensor,
         return_inverse: bool = False,
+        pos: OptTensor = None,
     ) -> Any:
         if not serialized_code.shape == serialized_order.shape == serialized_inverse.shape:
             raise ValueError(
@@ -295,7 +308,7 @@ class EncoderBlock(nn.Module):
         if self.downsample is not None:
             if isinstance(self.downsample, GridPool):
                 assert self.serialization_orders is not None, "serialization_orders must be provided for grid pooling"
-                x, pos_grid, batch, inverse = self.downsample(x, pos_grid, batch)
+                x, pos_grid, batch, inverse, pos = self.downsample(x, pos_grid, batch, pos=pos)
                 serialized_code, serialized_order, serialized_inverse = serialize(
                     pos_grid,
                     batch,
@@ -321,11 +334,12 @@ class EncoderBlock(nn.Module):
                 batch,
                 serialized_order=serialized_order[order_idx],
                 serialized_inverse=serialized_inverse[order_idx],
+                pos=pos,
             )
 
         if return_inverse:
-            return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse, inverse
-        return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse
+            return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse, inverse, pos
+        return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse, pos
 
 
 class DecoderBlock(nn.Module):
@@ -491,12 +505,15 @@ class PointTransformerV3Encoder(nn.Module):
         upcast_softmax: bool = False,
         pooling: str = "serialized",
         stem_type: str = "sparse_conv",
+        use_rope: bool = False,
+        rope_base: float = 10.0,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__()
         self.in_channels = in_channels
         self.serialization_orders = ensure_tuple(serialization_orders)
         self.shuffle_serialization_orders = shuffle_serialization_orders
+        self.use_rope = use_rope
 
         self.stem = self.configure_stem(
             in_channels=in_channels,
@@ -531,6 +548,8 @@ class PointTransformerV3Encoder(nn.Module):
             shuffle_serialization_orders=shuffle_serialization_orders,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            use_rope=use_rope,
+            rope_base=rope_base,
         )
 
     @property
@@ -596,6 +615,8 @@ class PointTransformerV3Encoder(nn.Module):
         shuffle_serialization_orders: bool = False,
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        use_rope: bool = False,
+        rope_base: float = 10.0,
     ) -> nn.ModuleList:
         depths = ensure_tuple(depths)
         n = len(depths)
@@ -645,6 +666,8 @@ class PointTransformerV3Encoder(nn.Module):
                 downsample=downsample,
                 serialization_orders=serialization_orders if use_grid_pool else None,
                 shuffle_serialization_orders=shuffle_serialization_orders if use_grid_pool else False,
+                use_rope=use_rope,
+                rope_base=rope_base,
             )
 
             blocks.append(block)
@@ -657,6 +680,7 @@ class PointTransformerV3Encoder(nn.Module):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
+        pos: OptTensor = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
@@ -666,6 +690,7 @@ class PointTransformerV3Encoder(nn.Module):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
+        pos: OptTensor = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
@@ -674,6 +699,7 @@ class PointTransformerV3Encoder(nn.Module):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
+        pos: OptTensor = None,
     ) -> Any:
         x = x if x is not None else pos_grid.float()
 
@@ -705,6 +731,7 @@ class PointTransformerV3Encoder(nn.Module):
                 serialized_order,
                 serialized_inverse,
                 inverse,
+                pos,
             ) = block(
                 x,
                 pos_grid,
@@ -713,6 +740,7 @@ class PointTransformerV3Encoder(nn.Module):
                 serialized_order=serialized_order,
                 serialized_inverse=serialized_inverse,
                 return_inverse=True,
+                pos=pos,
             )
 
             if i > 0:

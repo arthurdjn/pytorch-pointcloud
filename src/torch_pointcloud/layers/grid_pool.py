@@ -64,17 +64,26 @@ class GridPool(nn.Module):
         self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
         self.act = activation_resolver(act, **act_kwargs) if act is not None else None
 
-    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(
+        self,
+        x: Tensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        pos: Optional[Tensor] = None,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Optional[Tensor]]:
         """Downsample points by grid quantization.
 
         Args:
             x: Point features of shape $(N, C_{in})$.
             pos_grid: Integer grid coordinates of shape $(N, 3)$.
             batch: Batch indices of shape $(N,)$.
+            pos: Optional real-valued positions of shape $(N, 3)$ to mean-pool
+                alongside the features (e.g. for downstream rotary position embedding).
 
         Returns:
-            Tuple of `(x_pooled, pos_grid_pooled, batch_pooled, pooling_inverse)`
-            where `pooling_inverse` maps each input point to its pooled cluster index.
+            Tuple of `(x_pooled, pos_grid_pooled, batch_pooled, pooling_inverse, pos_pooled)`.
+            `pooling_inverse` maps each input point to its pooled cluster index.
+            `pos_pooled` is `None` when `pos` is not provided.
         """
         pos_grid_pooled = torch.div(pos_grid, self.stride, rounding_mode="trunc")
         tagged = pos_grid_pooled | batch.view(-1, 1) << 48
@@ -87,6 +96,7 @@ class GridPool(nn.Module):
 
         x_pooled = torch_scatter.segment_csr(self.proj(x)[indices], idx_ptr, reduce=self.reduce)
         batch_pooled = batch[head_indices]
+        pos_pooled = torch_scatter.segment_csr(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
 
         if self.act_first:
             if self.act is not None:
@@ -99,4 +109,4 @@ class GridPool(nn.Module):
             if self.act is not None:
                 x_pooled = self.act(x_pooled)
 
-        return x_pooled, pos_grid_pooled, batch_pooled, cluster
+        return x_pooled, pos_grid_pooled, batch_pooled, cluster, pos_pooled

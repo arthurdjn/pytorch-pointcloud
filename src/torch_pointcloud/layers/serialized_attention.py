@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from torch_pointcloud.layers.rope import Point3DRoPE
 from torch_pointcloud.transforms.functional import divisible_pad, split_batch
 from torch_pointcloud.utils.conversion import batch_to_offset
 from torch_pointcloud.utils.imports import optional_import
@@ -64,6 +65,8 @@ class SerializedAttention(nn.Module):
         use_flash_attn: bool = True,
         upcast_attention: bool = True,
         upcast_softmax: bool = True,
+        use_rope: bool = False,
+        rope_base: float = 10.0,
     ):
         super().__init__()
         if use_flash_attn:
@@ -84,6 +87,7 @@ class SerializedAttention(nn.Module):
         self.upcast_softmax = upcast_softmax
         self.use_rpe = use_rpe
         self.use_flash_attn = use_flash_attn
+        self.use_rope = use_rope
         self.patch_size = patch_size
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
@@ -92,12 +96,28 @@ class SerializedAttention(nn.Module):
         self.proj = nn.Linear(channels, channels)
         self.softmax = nn.Softmax(dim=-1)
         self.rpe = RelativePositionalEncoding(patch_size, num_heads) if self.use_rpe else None
+        self.rope = Point3DRoPE(head_dim=channels // num_heads, base=rope_base) if self.use_rope else None
 
-    def _forward_default_attn(self, qkv: Tensor, pos_grid: OptTensor, patch_size: int) -> Tensor:
+    def _forward_default_attn(
+        self,
+        qkv: Tensor,
+        pos_grid: OptTensor,
+        patch_size: int,
+        pos: OptTensor = None,
+    ) -> Tensor:
         K, H, C = patch_size, self.num_heads, self.channels
 
-        # Encode and reshape qkv: (N', K, 3, H, C') -> (3, N', H, K, C')
-        q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
+        if self.use_rope:
+            if pos is None or self.rope is None:
+                raise ValueError("`pos` and `rope` must be set when `use_rope=True`.")
+            q_flat, k_flat, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
+            q_flat, k_flat = self.rope(q_flat, k_flat, pos)
+            q = q_flat.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            k = k_flat.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            v = v.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+        else:
+            # Encode and reshape qkv: (N', K, 3, H, C') -> (3, N', H, K, C')
+            q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
 
         if self.upcast_attention:
             q = q.float()
@@ -128,7 +148,7 @@ class SerializedAttention(nn.Module):
         feat = (attn @ v).transpose(1, 2).reshape(-1, C)
         return feat
 
-    def _forward_flash_attn(self, qkv: Tensor, batch: Tensor) -> Tensor:
+    def _forward_flash_attn(self, qkv: Tensor, batch: Tensor, pos: OptTensor = None) -> Tensor:
         H, C = self.num_heads, self.channels
 
         patch_idxs = split_batch(batch, self.patch_size)
@@ -136,8 +156,17 @@ class SerializedAttention(nn.Module):
         # NOTE: The first element of `cu_seqlens` is always 0, and should be int32 to work with `flash-attn`
         cu_seqlens = torch.cat([torch.tensor([0], device=batch.device, dtype=torch.int), offset.int()])
 
+        if self.use_rope:
+            if pos is None or self.rope is None:
+                raise ValueError("`pos` and `rope` must be set when `use_rope=True`.")
+            q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
+            q, k = self.rope(q, k, pos)
+            qkv_packed = torch.stack([q, k, v], dim=1).to(torch.bfloat16)
+        else:
+            qkv_packed = qkv.half().reshape(-1, 3, H, C // H)
+
         feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-            qkv.half().reshape(-1, 3, H, C // H),
+            qkv_packed,
             cu_seqlens,
             max_seqlen=self.patch_size,
             dropout_p=self.attn_drop if self.training else 0,
@@ -153,6 +182,7 @@ class SerializedAttention(nn.Module):
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
+        pos: OptTensor = None,
     ) -> Any:
         patch_size = self.patch_size
         # NOTE: For default attention (i.e. without Flash Attention), we use the patch size
@@ -174,12 +204,13 @@ class SerializedAttention(nn.Module):
 
         # Apply attention
         qkv = self.qkv(x)[order]
+        rope_pos = pos[padded_indices][order] if (self.use_rope and pos is not None) else None
         if self.use_flash_attn:
-            x = self._forward_flash_attn(qkv, padded_batch)
+            x = self._forward_flash_attn(qkv, padded_batch, pos=rope_pos)
         else:
             if pos_grid is not None:
                 pos_grid = pos_grid[order]
-            x = self._forward_default_attn(qkv, pos_grid, patch_size)
+            x = self._forward_default_attn(qkv, pos_grid, patch_size, pos=rope_pos)
 
         x = x[inverse]
 
