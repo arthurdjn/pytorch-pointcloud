@@ -710,7 +710,7 @@ class ScanNet(PointCloudDataset):
 
     def __init__(
         self,
-        root: str,
+        root: PathLike,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         label_name: str = "nyu40class",
@@ -979,7 +979,7 @@ class ScanNet(PointCloudDataset):
 class ScanNet20(ScanNet):
     def __init__(
         self,
-        root: str,
+        root: PathLike,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         use_axis_alignment: bool = True,

@@ -651,6 +651,7 @@ def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
             bias=True,
             dropout=0.5,
         ),
+        transforms=T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
     )
 
 
@@ -733,12 +734,16 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
         bias=True,
         dropout=0.5,
     ),
-    transforms=T.SampleFarthestPoints(
-        keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
-        pos_key=DataKeys.POS,
-        num_samples=2048,
+    transforms=T.Compose(
+        [
+            T.SampleFarthestPoints(
+                keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
+                pos_key=DataKeys.POS,
+                num_samples=2048,
+            ),
+            T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
+        ]
     ),
-    # transforms=T.RandomSample(keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT], num_samples=2048),
 )
 def dgcnn_antao_shapenet_partseg(**hparams: Any) -> DGCNNPartSegmentation:
     return DGCNNPartSegmentation(**hparams)
@@ -799,9 +804,12 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
             # so we relabel the segmentation labels from [0, 20] -> [0, 19] and set "unknown" objects to 255.
             T.Relabel(keys=DataKeys.SEGMENT, labels=list(range(1, 21)), default=255),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
+            T.Reduce(keys=DataKeys.POS, op="amax", dim=0, keepdim=True, dst_keys="scene_max"),
+            T.Reduce(keys=DataKeys.POS, op="mean", dim=0, keepdim=True, dst_keys="block_center"),
             T.CopyItems(keys=DataKeys.POS, names="norm_pos"),
             T.DivideKey(keys="norm_pos", div_keys="scene_max"),
             T.SubtractKey(keys=DataKeys.POS, sub_keys="block_center"),
+            T.Cat(keys=["norm_pos", DataKeys.COLOR], dst_key=DataKeys.X),
         ]
     ),
 )

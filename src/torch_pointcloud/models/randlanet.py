@@ -53,8 +53,9 @@ def random_max_pool(
     batch: Tensor,
     factor: int,
     num_neighbors: int,
+    generator: Optional[torch.Generator] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]:
-    decim_idx, decim_batch = decimate_indices(batch, factor)
+    decim_idx, decim_batch = decimate_indices(batch, factor, generator=generator)
     pos_decim = pos[decim_idx]
     edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
     pooled, _ = scatter_max(features[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0))
@@ -387,12 +388,19 @@ class RandLANetEncoder(nn.Module):
                 # the decoder consumes it last to upsample back to the input resolution.
                 intermediates.append(RandLANetIntermediate(x=x, pos=pos, batch=batch))
 
+            generator: Optional[torch.Generator] = None
+            if not self.training:
+                # Stable seed derived from input so eval is reproducible per-input
+                generator = torch.Generator(device=batch.device)
+                generator.manual_seed(int(batch.numel()))
+
             x, pos, batch = random_max_pool(
                 x,
                 pos,
                 batch,
                 factor=self.decimation[i],
                 num_neighbors=block.num_neighbors,
+                generator=generator,
             )
 
             if return_intermediates and i < len(self.blocks) - 1:

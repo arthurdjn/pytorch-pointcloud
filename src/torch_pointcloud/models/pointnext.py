@@ -1632,6 +1632,7 @@ _SHAPENETPART_TRANSFORMS = T.Compose(
         T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
         T.NormalizeScale(keys=[DataKeys.POS], method="centroid"),
         T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL, "height"], dst_key=DataKeys.X),
+        T.OneHot(keys=DataKeys.CATEGORY, num_classes=16, dst_keys="cls_onehot"),
     ]
 )
 
