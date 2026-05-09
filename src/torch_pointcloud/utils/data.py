@@ -20,6 +20,7 @@ class DataKeys(StrEnum):
     # General keys (PyG convention)
     X = "x"
     POS = "pos"
+    POS_GRID = "pos_grid"
     COLOR = "color"
     NORMAL = "normal"
     FACE = "face"
