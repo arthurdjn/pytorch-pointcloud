@@ -160,6 +160,9 @@ class SonataSegmentation(SegmentationModel):
             T.CenterShift(keys=DataKeys.POS, apply_z=True),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            # Voxelize POS in place so collate's default `batch_from="pos"` produces
+            # a `batch` tensor of length M (post-dedup). Then mirror it into POS_GRID
+            # so the model's `pos_grid` argument resolves via signature inspection.
             T.VoxelGrid(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
@@ -168,6 +171,7 @@ class SonataSegmentation(SegmentationModel):
                 size=0.02,
                 method="fnv",
             ),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
         ]
     ),
     hparams=dict(
@@ -209,15 +213,15 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
             T.CenterShift(keys=DataKeys.POS, apply_z=True),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
             T.VoxelGrid(
-                pos_key=DataKeys.POS_GRID,
+                pos_key=DataKeys.POS,
                 pos_reduce="grid",
                 keys=[DataKeys.X, DataKeys.SEGMENT],
                 reduce=["first", "first"],
                 size=0.02,
                 method="fnv",
             ),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
             T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
         ]
     ),
