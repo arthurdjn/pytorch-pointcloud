@@ -117,6 +117,35 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Regenerate the expected files used for anti-regression tests",
     )
+    parser.addoption(
+        "--run-pretrained",
+        action="store_true",
+        default=False,
+        help="Run pretrained model regression tests (require local weights, skipped by default in CI)",
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers",
+        "pretrained: tests that load pretrained weights and compare numerical outputs. "
+        "Skipped unless --run-pretrained is passed.",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip tests marked `pretrained` unless `--run-pretrained` is passed.
+
+    This keeps pretrained-weight regression tests local-only by default — CI does not
+    have the weights cached, so opting in is explicit.
+    """
+    if config.getoption("--run-pretrained"):
+        return
+    skip_pretrained = pytest.mark.skip(reason="needs --run-pretrained to run")
+    for item in items:
+        if "pretrained" in item.keywords:
+            item.add_marker(skip_pretrained)
 
 
 @pytest.fixture

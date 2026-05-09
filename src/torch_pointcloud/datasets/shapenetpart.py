@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, TypedDict, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, Union
 
 import numpy as np
 import torch
@@ -277,7 +277,7 @@ class ShapeNetPart(PointCloudDataset):
         return len(self.samples)
 
     @override
-    def __getitem__(self, index: int) -> Mapping:
+    def __getitem__(self, index: int) -> Dict[str, Any]:
         data: dict = self.samples[index]
         if self.transform is not None:
             data = self.transform(data)
