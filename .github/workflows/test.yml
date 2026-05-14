@@ -8,6 +8,8 @@ concurrency:
 
 jobs:
   # Light tests with no extras (tests requiring extras should be skipped and core components should work)
+  # This ensure that optional imports are wrapped with `optional_import`, such that importing them
+  # does not raise an ImportError (only when using it).
   light:
     runs-on: ubuntu-latest
     strategy:
@@ -31,7 +33,8 @@ jobs:
         run: uv run --frozen pytest
 
   # Full tests with all extras (except non-regression tests with pretrained models)
-  test:
+  # Here most of optional imports are installed depending on the runner's capabilities.
+  full:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
