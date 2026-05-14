@@ -15,20 +15,20 @@ def parallel_map(
     desc: Optional[str] = None,
     show_progress: bool = False,
 ) -> List[T]:
-    """Apply ``func`` to every item in ``iterable``, optionally in parallel.
+    """Apply `func` to every item in `iterable`, optionally in parallel.
 
-    When ``num_workers`` is ``None``, items are processed sequentially in the
-    current process. Otherwise ``joblib`` spawns ``num_workers`` workers and
+    When `num_workers` is `None`, items are processed sequentially in the
+    current process. Otherwise `joblib` spawns `num_workers` workers and
     results are streamed back as each task completes.
 
     Args:
         func: Callable invoked on each item.
         iterable: Items to map over.
-        num_workers: Number of worker processes. ``None`` disables parallelism.
-        total: Item count for the progress bar. Inferred from ``len(iterable)``
+        num_workers: Number of worker processes. `None` disables parallelism.
+        total: Item count for the progress bar. Inferred from `len(iterable)`
             when not provided.
         desc: Progress bar description.
-        show_progress: Whether to display a ``tqdm`` progress bar. The bar
+        show_progress: Whether to display a `tqdm` progress bar. The bar
             advances on task *completion* (not dispatch), so it stays accurate
             under parallel execution.
     """

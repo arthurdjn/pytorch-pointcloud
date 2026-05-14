@@ -1,6 +1,6 @@
 """The Toronto-3D dataset.
 
-[Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways](https://arxiv.org/abs/2003.08284)
+:arxiv: [Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways](https://arxiv.org/abs/2003.08284)
 by Tan, Ma, Liu, Bobkov, Pukhalskaya, Eichenberger, Tatarchenko, Kosinka, et al.
 
 The dataset contains four large-scale outdoor mobile LiDAR scans (`L001.ply`,
@@ -124,7 +124,7 @@ class Toronto3D(PointCloudDataset):
 
     !!! note
         The raw dataset must be downloaded manually from
-        [WeikaiTan/Toronto-3D](https://github.com/WeikaiTan/Toronto-3D) (a license
+        :github: [WeikaiTan/Toronto-3D](https://github.com/WeikaiTan/Toronto-3D) (a license
         must be accepted). The expected layout is `<root>/Toronto3D/raw/L00{1,2,3,4}.ply`.
     """
 

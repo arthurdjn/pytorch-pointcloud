@@ -16,8 +16,8 @@ scatter, _ = optional_import("torch_scatter", "scatter")
 
 
 class TNet(nn.Module):
-    """Transformation Network (T-Net) module as described in PointNet paper
-    [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
+    r"""Transformation Network (T-Net) module as described in PointNet paper
+    :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
     T-Net predicts an affine transformation matrix that helps align input point clouds
     or feature spaces to a canonical space. This network acts as a mini-PointNet that

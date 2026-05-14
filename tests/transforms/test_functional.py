@@ -44,33 +44,17 @@ def batch() -> Tensor:
     return torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4])
 
 
-@patch("torch_pointcloud.transforms.functional.torch.randint")
-def test_random_sample(mock_randint: Mock) -> None:
-    """Test that the random sample uses torch.randint correctly to sample indices."""
-    tensor = MagicMock()
-    num_samples = 10
-
-    result = F.random_sample(tensor, num_samples)
-    mock_randint.assert_called_once_with(0, tensor.size(0), (num_samples,), generator=None)
-    assert tensor[mock_randint.return_value] is result
-
-
-@patch("torch_pointcloud.transforms.functional.torch.Generator")
-@patch("torch_pointcloud.transforms.functional.torch.randint")
-def test_random_sample_with_seed(mock_randint: Mock, mock_generator: Mock) -> None:
-    """Test that the random sample uses torch.randint correctly to sample indices with seed."""
-    tensor = MagicMock()
-    num_samples = 10
-    generator = MagicMock()
-    mock_generator.return_value = generator
-
-    result = F.random_sample(tensor, num_samples, generator=generator)
-    mock_randint.assert_called_once_with(0, tensor.size(0), (num_samples,), generator=generator)
-    assert tensor[mock_randint.return_value] is result
+def test_random_sample_default_without_replacement() -> None:
+    """Default `replace=False` samples without duplicates."""
+    tensor = torch.arange(10, dtype=torch.float32).reshape(10, 1)
+    result = F.random_sample(tensor, num_samples=5)
+    assert result.shape == (5, 1)
+    # Without replacement, all sampled values are unique.
+    assert result.unique().numel() == 5
 
 
 def test_random_sample_return_indices() -> None:
-    """Test that random_sample returns both the sampled tensor and indices when return_indices=True."""
+    """random_sample returns both the sampled tensor and indices when return_indices=True."""
     tensor = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
     sampled, indices = F.random_sample(tensor, num_samples=3, return_indices=True)
 
@@ -79,11 +63,28 @@ def test_random_sample_return_indices() -> None:
     assert torch.equal(sampled, tensor[indices])
 
 
-def test_random_sample_oversampling() -> None:
-    """Test that random_sample allows num_samples > tensor size (sampling with replacement)."""
+def test_random_sample_oversample_without_replace_raises() -> None:
     tensor = torch.tensor([[1.0], [2.0]])
-    result = F.random_sample(tensor, num_samples=10)
+    with pytest.raises(ValueError, match="without replacement"):
+        F.random_sample(tensor, num_samples=10)
+
+
+def test_random_sample_oversample_with_replace_ok() -> None:
+    tensor = torch.tensor([[1.0], [2.0]])
+    result = F.random_sample(tensor, num_samples=10, replace=True)
     assert result.shape == (10, 1)
+
+
+def test_random_sample_empty_raises() -> None:
+    tensor = torch.empty(0, 3)
+    with pytest.raises(ValueError, match="empty tensor"):
+        F.random_sample(tensor, num_samples=4)
+
+
+def test_random_sample_empty_zero_samples_ok() -> None:
+    tensor = torch.empty(0, 3)
+    result = F.random_sample(tensor, num_samples=0)
+    assert result.shape == (0, 3)
 
 
 def test_random_sample_seed_reproducibility() -> None:
@@ -542,8 +543,8 @@ def test_bounding_box_single_point() -> None:
     assert result == (3.0, 5.0, 7.0, 3.0, 5.0, 7.0)
 
 
-def test_bounding_box_negative_coords() -> None:
-    """Test bounding_box with all-negative coordinates."""
+def test_bounding_box_negative_positions() -> None:
+    """Test bounding_box with all-negative positions."""
     x = torch.tensor([[-5.0, -3.0, -1.0], [-10.0, -7.0, -2.0]])
     result = F.bounding_box(x, dim=0)
     assert result == (-10.0, -7.0, -2.0, -5.0, -3.0, -1.0)

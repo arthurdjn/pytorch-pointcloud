@@ -18,7 +18,7 @@ class UtoniaSegmentation(SegmentationModel):
     r"""Utonia linear-probing segmentation model.
 
     Linear-probe variant from
-    [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283)
+    :arxiv: [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283)
     (Pointcept, ICML 2026). Architecturally similar to Sonata / Concerto's
     linear-probe head, with one key change: every attention layer adds a 3D
     rotary position embedding ([`Point3DRoPE`](../layers/rope.md)) on top of
