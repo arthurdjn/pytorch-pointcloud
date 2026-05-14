@@ -126,3 +126,24 @@ def test_octformer_segmentation_reset_classifier(model_seg: OctFormerSegmentatio
     model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["x"], data["octree"], data["depth"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_octformer_classification_forward_features_and_head(
+    model_clf: OctFormerClassification, data: Dict[str, Tensor]
+) -> None:
+    x = model_clf.forward_features(data["x"], data["octree"], data["depth"])
+    assert x.dim() == 2
+    logits = model_clf.forward_head(x, data["octree"], model_clf.get_head_depth(data["depth"]))
+    assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
+
+
+def test_octformer_segmentation_forward_features_decoder_head(
+    model_seg: OctFormerSegmentation, data: Dict[str, Tensor]
+) -> None:
+    x, intermediates = model_seg.forward_features(
+        data["x"], data["octree"], data["depth"], return_intermediates=True
+    )
+    assert len(intermediates) > 0
+    x = model_seg.forward_decoder(x, data["octree"], data["depth"], intermediates)
+    logits = model_seg.forward_head(x, data["octree"], data["depth"], data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

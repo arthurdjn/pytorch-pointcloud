@@ -81,3 +81,21 @@ def test_pointnet_segmentation_forward(model_seg: PointNetSegmentation, data: Di
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
     assert logits.dtype == data["x"].dtype
+
+
+def test_pointnet_classification_forward_features_and_head(
+    model_clf: PointNetClassification, data: Dict[str, Tensor]
+) -> None:
+    x = model_clf.forward_features(data["x"], data["pos"], data["batch"])
+    assert x.dim() == 2
+    logits = model_clf.forward_head(x, data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
+
+
+def test_pointnet_segmentation_forward_features_and_head(
+    model_seg: PointNetSegmentation, data: Dict[str, Tensor]
+) -> None:
+    x, point_features = model_seg.forward_features(data["x"], data["pos"], data["batch"])
+    assert x.shape[0] == point_features.shape[0] == data["pos"].shape[0]
+    logits = model_seg.forward_head(x, point_features, data["batch"])
+    assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

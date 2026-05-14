@@ -92,3 +92,25 @@ def test_pt_v2_segmentation_forward(model_seg: PointTransformerV2Segmentation, d
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
     assert logits.dtype == data["x"].dtype
+
+
+def test_pt_v2_classification_forward_features_and_head(
+    model_clf: PointTransformerV2Classification, data: Dict[str, Tensor]
+) -> None:
+    x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
+    assert x.shape[0] == batch.shape[0]
+    logits = model_clf.forward_head(x, batch)
+    assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
+
+
+def test_pt_v2_segmentation_forward_features_decoder_head(
+    model_seg: PointTransformerV2Segmentation, data: Dict[str, Tensor]
+) -> None:
+    x, _, _, intermediates = model_seg.forward_features(
+        data["x"], data["pos"], data["batch"], return_intermediates=True
+    )
+    assert len(intermediates) > 0
+    x, _, _ = model_seg.forward_decoder(x, intermediates)
+    assert x.shape[0] == data["pos"].shape[0]
+    logits = model_seg.forward_head(x)
+    assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

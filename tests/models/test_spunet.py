@@ -56,3 +56,13 @@ def test_spunet_segmentation_reset_classifier(model_seg: SparseUNetSegmentation,
     model_seg.cuda()
     logits = model_seg(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 42)
+
+
+def test_spunet_segmentation_forward_features_decoder_head(
+    model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]
+) -> None:
+    sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"])
+    assert len(skips) > 0
+    sparse_x = model_seg.forward_decoder(sparse_x, skips)
+    logits = model_seg.forward_head(sparse_x)
+    assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)

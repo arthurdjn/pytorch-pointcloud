@@ -91,3 +91,21 @@ def test_dgcnn_segmentation_reset_classifier(model_seg: DGCNNSegmentation, data:
     model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_dgcnn_classification_forward_features_and_head(
+    model_clf: DGCNNClassification, data: Dict[str, Tensor]
+) -> None:
+    x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
+    assert x.shape[0] == batch.shape[0]
+    logits = model_clf.forward_head(x, batch)
+    assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
+
+
+def test_dgcnn_segmentation_forward_features_and_head(
+    model_seg: DGCNNSegmentation, data: Dict[str, Tensor]
+) -> None:
+    x, _, batch = model_seg.forward_features(data["x"], data["pos"], data["batch"])
+    assert x.shape[0] == batch.shape[0] == data["pos"].shape[0]
+    logits = model_seg.forward_head(x, batch)
+    assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

@@ -79,3 +79,23 @@ def test_pvcnn_segmentation_forward(model_seg: PVCNNSegmentation, data: Dict[str
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
     assert logits.dtype == data["x"].dtype
+
+
+def test_pvcnn_classification_forward_features_and_head(
+    model_clf: PVCNNClassification, data: Dict[str, Tensor]
+) -> None:
+    x = model_clf.forward_features(data["x"], data["pos"], data["batch"])
+    assert x.dim() == 2
+    logits = model_clf.forward_head(x, data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
+
+
+def test_pvcnn_segmentation_forward_features_decoder_head(
+    model_seg: PVCNNSegmentation, data: Dict[str, Tensor]
+) -> None:
+    x, intermediates = model_seg.forward_features(data["x"], data["pos"], data["batch"], return_intermediates=True)
+    assert len(intermediates) > 0
+    x = model_seg.forward_decoder(x, data["batch"], intermediates)
+    assert x.shape[0] == data["pos"].shape[0]
+    logits = model_seg.forward_head(x)
+    assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
