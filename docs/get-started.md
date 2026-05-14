@@ -1,48 +1,89 @@
 # Get Started
 
-![PyTorch PointCloud](/assets/medias/pytorch-pointcloud.png)
+This page takes you from zero to running a pretrained model on a point cloud in about fifteen lines.
 
-## About
+## Install
 
-:pytorch-pointcloud: [`torch-pointcloud`](https://github.com/arthurdjn/pytorch-pointcloud) is a PyTorch library for deep learning on point clouds build on top of popular and powerful libraries such as :pytorch: [`torch`](https://pytorch.org) and :pyg: [`torch-geometric`](https://pytorch-geometric.readthedocs.io/en/latest/). It implements a wide range of State-of-the-Art models for point cloud classification, segmentation, and other tasks.
+```bash
+uv add torch-pointcloud
+# or: pip install torch-pointcloud
+```
 
-## Installation
+See [Installation](installation.md) for CUDA extensions and optional features.
 
-The :pytorch-pointcloud: `torch-pointcloud` package requires the :pytorch: `torch` package as a dependency.
-To install it, run:
+## Hello, point cloud
 
-=== "pip"
+```python
+import torch
+import torch_pointcloud as tp
 
-    ```bash
-    pip install torch_pointcloud
-    ```
+# 1. Build a pretrained model. `create_model` returns the model AND its
+#    matching transform pipeline; the transform converts raw point clouds
+#    into the dict shape the model expects.
+model = tp.create_model("pointnext-base.scanobjectnn", pretrained=True).eval()
 
-=== "uv"
+# 2. A toy "scene" with 2048 random points.
+pos = torch.randn(2048, 3)
+batch = torch.zeros(2048, dtype=torch.long)
 
-    ```bash
-    uv add torch-pointcloud
-    ```
+# 3. Forward pass. Models accept packed batches: a flat (N, ...) tensor
+#    plus a (N,) `batch` index, never padded (B, N, ...) tensors.
+with torch.no_grad():
+    logits = model(pos, pos, batch=batch)
 
-To install all extras, run:
+print(logits.shape)  # (1, num_classes)
+```
 
-=== "pip"
+The packed-batch convention comes from :pyg: PyTorch Geometric: instead of zero-padding clouds to a common size, we concatenate them and tag each point with its sample index. See [Data conventions](#data-conventions) below.
 
-    ```bash
-    pip install torch-pointcloud[all]
-    ```
-    
-=== "uv"
+## With a real dataset
 
-    ```bash
-    uv add torch-pointcloud[all]
-    ```
+```python
+from torch.utils.data import DataLoader
+from torch_pointcloud.datasets import ModelNet10
+from torch_pointcloud.utils.data import collate
+import torch_pointcloud.transforms as T
 
-## Contributing & Supporting
+transform = T.Compose([
+    T.Rescale(keys="pos", method="centroid"),
+    T.RandomSampleFaceVertices(
+        keys="pos", face_key="face", normal_key="normal", num_samples=1024,
+    ),
+])
 
-We welcome any contributions, from bug reports to new features! If you want to contribute to the package, please read the [For Developers](https://github.com/arthurdjn/pytorch-pointcloud#-for-developers) section.
+dataset = ModelNet10(root="data/ModelNet10", train=False, transform=transform)
+loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 
-If you simply find the package useful, please consider giving it a star ⭐️ on GitHub.
+for batch in loader:
+    logits = model(batch["pos"], batch["pos"], batch=batch["batch"])
+    preds = logits.argmax(dim=-1)
+    break
+```
 
-## License
+`collate` understands the packed format: it concatenates per-point tensors along the batch axis and builds the `batch` index for you. Scene-level tensors (e.g. `label`) are stacked normally.
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE) file for details.
+## Data conventions
+
+All point clouds use a **packed (flat-batch) format**. For a batch of B samples with $N_i$ points each:
+
+| Tensor | Shape | Meaning |
+| --- | --- | --- |
+| `pos` | $(N, 3)$ | 3D coordinates, all points concatenated |
+| `x` | $(N, C)$ | Per-point features |
+| `batch` | $(N,)$ | Per-point batch index $(0, \ldots, B-1)$ |
+| `normal`, `color` | $(N, 3)$ | Per-point attributes |
+| `segment` | $(N,)$ | Per-point semantic label |
+| `label` | $(B,)$ | Scene / object-level label |
+
+$N = N_1 + N_2 + \ldots + N_B$.
+
+## Next steps
+
+<div class="grid cards" markdown>
+
+-   :material-cube-outline: __[Models](models/overview.md)__: what's available, what each is good for
+-   :material-database: __[Datasets](datasets/overview.md)__: built-in dataset loaders
+-   :material-tune: __[Transforms](transforms/overview.md)__: composable preprocessing
+-   :material-book-open-page-variant: __[API Reference](api/index.md)__: every public class and function
+
+</div>

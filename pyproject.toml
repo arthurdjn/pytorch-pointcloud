@@ -47,7 +47,7 @@ dev-dependencies = [
     "mkdocstrings-python>=1.13.0",
     "types-requests>=2.32.0.20241016",
     "mypy>=1.19.0",
-    "zensical>=0.0.36",
+    "zensical>=0.0.41",
 ]
 
 [[tool.uv.dependency-metadata]]
