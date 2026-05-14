@@ -47,7 +47,7 @@ _ALL_NAMES = [
 
 @pytest.mark.parametrize("name", _ALL_NAMES)
 def test_create_act(name: str) -> None:
-    layer = create_act(name)
+    layer = create_act(name)  # type: ignore[arg-type]
     assert isinstance(layer, nn.Module)
     out = layer(torch.randn(8, 16))
     assert out.shape == (8, 16)

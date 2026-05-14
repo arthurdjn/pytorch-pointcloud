@@ -38,7 +38,7 @@ def test_drop_path_extra_repr() -> None:
     "name", ["dropout", "dropout2d", "dropout3d", "alpha_dropout", "feature_alpha_dropout", "drop_path"]
 )
 def test_create_dropout_by_name(name: str) -> None:
-    layer = create_dropout(name)
+    layer = create_dropout(name)  # type: ignore[arg-type]
     assert isinstance(layer, nn.Module)
 
 

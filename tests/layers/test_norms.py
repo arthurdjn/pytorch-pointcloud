@@ -18,7 +18,7 @@ from torch_pointcloud.layers.norms import create_norm
     ],
 )
 def test_create_norm_by_name(name: str, expected_cls: type) -> None:
-    layer = create_norm(name, 16)
+    layer = create_norm(name, 16)  # type: ignore[arg-type]
     assert isinstance(layer, expected_cls)
 
 

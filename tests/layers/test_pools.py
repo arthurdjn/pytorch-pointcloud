@@ -38,7 +38,7 @@ def test_pool_forward(cls: type) -> None:
 
 @pytest.mark.parametrize("name", _POOL_NAMES)
 def test_create_pool_by_name(name: str) -> None:
-    pool = create_pool(name)
+    pool = create_pool(name)  # type: ignore[arg-type]
     assert isinstance(pool, nn.Module)
 
 
@@ -53,5 +53,5 @@ def test_cat_pool() -> None:
 
 @pytest.mark.parametrize("name,expected_cls", [("mean", nn.AdaptiveAvgPool1d), ("max", nn.AdaptiveMaxPool1d)])
 def test_create_adaptive_pool(name: str, expected_cls: type) -> None:
-    pool = create_adaptive_pool(name)
+    pool = create_adaptive_pool(name)  # type: ignore[arg-type]
     assert isinstance(pool, expected_cls)
