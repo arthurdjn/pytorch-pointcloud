@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, Mock, patch, sentinel
 
+import pytest
 import torch
 
 import torch_pointcloud.transforms as T
@@ -423,3 +424,158 @@ def test_keep_items() -> None:
     assert set(result.keys()) == {"pos", "color"}
     assert result["pos"] is sentinel.pos
     assert result["color"] is sentinel.color
+
+
+def test_to_float() -> None:
+    data = {"x": torch.ones(4, dtype=torch.int64), "other": sentinel.other}
+    result = T.ToFloat(keys=["x"])(data)
+    assert result["x"].dtype == torch.float32
+    assert result["other"] is sentinel.other
+
+
+def test_normalize() -> None:
+    data = {"x": torch.tensor([[1.0, 2.0, 3.0], [4.0, 6.0, 8.0]])}
+    transform = T.Normalize(keys=["x"], mean=[1.0, 2.0, 3.0], std=[1.0, 2.0, 5.0])
+    result = transform(data)
+    expected = torch.tensor([[0.0, 0.0, 0.0], [3.0, 2.0, 1.0]])
+    assert torch.allclose(result["x"], expected)
+
+
+def test_shift_min_method() -> None:
+    pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    result = T.Shift(keys=["pos"], method="min")({"pos": pos})
+    assert torch.allclose(result["pos"], pos - pos.min(dim=0).values)
+
+
+def test_shift_axes_subset() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
+    # bbox midrange is (1, 1, 1); axes=[0] shifts only X.
+    result = T.Shift(keys=["pos"], method="bbox", axes=[0])({"pos": pos})
+    expected = torch.tensor([[-1.0, 0.0, 0.0], [1.0, 2.0, 2.0]])
+    assert torch.allclose(result["pos"], expected)
+
+
+def test_shift_invalid_method_raises() -> None:
+    with pytest.raises(ValueError, match="Invalid method"):
+        T.Shift(keys=["pos"], method="bogus")  # type: ignore[arg-type]
+
+
+def test_shift_dst_keys() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
+    result = T.Shift(keys=["pos"], method="bbox", dst_keys=["shifted"])({"pos": pos})
+    assert "shifted" in result
+    assert torch.allclose(result["pos"], pos)  # source untouched
+
+
+def test_center_shift_apply_z_true() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 4.0, 6.0]])
+    result = T.CenterShift(keys=["pos"], apply_z=True)({"pos": pos})
+    expected = torch.tensor([[-1.0, -2.0, 0.0], [1.0, 2.0, 6.0]])
+    assert torch.allclose(result["pos"], expected)
+
+
+def test_center_shift_apply_z_false() -> None:
+    pos = torch.tensor([[0.0, 0.0, 1.0], [2.0, 4.0, 7.0]])
+    result = T.CenterShift(keys=["pos"], apply_z=False)({"pos": pos})
+    # Z is left unchanged
+    assert torch.allclose(result["pos"][:, 2], pos[:, 2])
+    # XY are bbox-centered
+    assert torch.allclose(result["pos"][:, :2], pos[:, :2] - torch.tensor([1.0, 2.0]))
+
+
+def test_to_device_cpu() -> None:
+    data = {"x": torch.zeros(4), "other": sentinel.other}
+    result = T.ToDevice(keys=["x"], device="cpu")(data)
+    assert result["x"].device.type == "cpu"
+    assert result["other"] is sentinel.other
+
+
+def test_to_device_non_tensor_raises() -> None:
+    with pytest.raises(TypeError, match="tensor"):
+        T.ToDevice(keys=["x"], device="cpu")({"x": "not a tensor"})
+
+
+def test_one_hot_basic() -> None:
+    data = {"label": torch.tensor([0, 2, 1])}
+    result = T.OneHot(keys=["label"], num_classes=3)(data)
+    expected = torch.tensor([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
+    assert torch.allclose(result["label"], expected)
+
+
+def test_one_hot_scalar_input_gets_batch_dim() -> None:
+    # A 0-d label one-hots to (1, num_classes) so packed-batch cat yields (B, num_classes).
+    data = {"label": torch.tensor(2)}
+    result = T.OneHot(keys=["label"], num_classes=4, dst_keys=["onehot"])(data)
+    assert result["onehot"].shape == (1, 4)
+    assert torch.allclose(result["onehot"][0], torch.tensor([0.0, 0.0, 1.0, 0.0]))
+
+
+def test_reduce_amax() -> None:
+    data = {"pos": torch.tensor([[1.0, 5.0], [3.0, 2.0]])}
+    result = T.Reduce(keys=["pos"], op="amax", dim=0)(data)
+    assert torch.allclose(result["pos"], torch.tensor([3.0, 5.0]))
+
+
+def test_reduce_mean_keepdim() -> None:
+    data = {"pos": torch.tensor([[1.0, 5.0], [3.0, 7.0]])}
+    result = T.Reduce(keys=["pos"], op="mean", dim=0, keepdim=True, dst_keys=["center"])(data)
+    assert result["center"].shape == (1, 2)
+    assert torch.allclose(result["center"], torch.tensor([[2.0, 6.0]]))
+
+
+def test_reduce_sum_dst_key() -> None:
+    data = {"x": torch.tensor([[1.0, 2.0], [3.0, 4.0]])}
+    result = T.Reduce(keys=["x"], op="sum", dim=0, dst_keys=["total"])(data)
+    assert torch.allclose(result["total"], torch.tensor([4.0, 6.0]))
+
+
+def test_voxel_grid_basic() -> None:
+    # Two points that fall in the same voxel + one in another voxel
+    pos = torch.tensor([[0.05, 0.05, 0.05], [0.06, 0.06, 0.06], [1.0, 1.0, 1.0]])
+    data = {"pos": pos, "feat": torch.tensor([[1.0], [3.0], [5.0]])}
+    result = T.VoxelGrid(
+        pos_key="pos",
+        pos_reduce="mean",
+        size=0.1,
+        keys=["feat"],
+        reduce=["mean"],
+    )(data)
+    assert result["pos"].shape[0] <= 3
+    assert result["feat"].shape == (result["pos"].shape[0], 1)
+
+
+def test_voxel_grid_with_cluster_key() -> None:
+    pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    result = T.VoxelGrid(
+        pos_key="pos",
+        pos_reduce="mean",
+        size=0.1,
+        cluster_key="cluster",
+    )({"pos": pos})
+    # `cluster` maps each original point to its voxel index
+    assert result["cluster"].shape == (3,)
+    assert result["cluster"][0] == result["cluster"][1]
+    assert result["cluster"][0] != result["cluster"][2]
+
+
+def test_voxel_grid_grid_pos_key() -> None:
+    pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    result = T.VoxelGrid(
+        pos_key="pos",
+        pos_reduce="mean",
+        size=0.1,
+        grid_pos_key="pos_grid",
+    )({"pos": pos})
+    assert "pos_grid" in result
+    assert result["pos_grid"].dtype == torch.long
+    assert result["pos_grid"].shape == result["pos"].shape
+
+
+def test_voxel_grid_grid_pos_reduce() -> None:
+    pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    result = T.VoxelGrid(
+        pos_key="pos",
+        pos_reduce="grid",
+        size=0.1,
+    )({"pos": pos})
+    assert result["pos"].dtype == torch.long
