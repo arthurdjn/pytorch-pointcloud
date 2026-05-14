@@ -2,6 +2,10 @@ name: Tests
 
 on: push
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Light tests with no extras (tests requiring extras should be skipped and core components should work)
   light:
