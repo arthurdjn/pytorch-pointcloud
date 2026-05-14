@@ -39,28 +39,6 @@ _SparseModuleBase: Any = spconv.SparseModule if _IS_SPCONV_AVAILABLE else nn.Mod
 
 
 class SparseBasicBlock(_SparseModuleBase):
-    r"""Residual SubMConv3d block used by Pointcept's `SpUNetBase`.
-
-    Two `SubMConv3d` convolutions wrapped by `norm` + `act`, with a residual
-    projection that is either `Identity` (when input and output channels match)
-    or a `kernel_size=1` `SubMConv3d` followed by `norm`.
-
-    Args:
-        in_channels: Input feature dimension.
-        out_channels: Output feature dimension.
-        kernel_size: Conv kernel size, default $3$.
-        bias: Whether to add a bias to the convolutions.
-        indice_key: spconv indice cache key shared between `conv1` and `conv2`.
-        act: Activation — resolved by `torch_geometric.nn.activation_resolver`.
-        act_kwargs: Activation kwargs.
-        norm: Normalization — resolved by `torch_geometric.nn.normalization_resolver`.
-        norm_kwargs: Normalization kwargs.
-
-    Shape:
-        - Input: spconv `SparseConvTensor` with `features` of shape $(M, C_\text{in})$.
-        - Output: spconv `SparseConvTensor` with `features` of shape $(M, C_\text{out})$.
-    """
-
     def __init__(
         self,
         in_channels: int,
@@ -117,7 +95,6 @@ class SparseBasicBlock(_SparseModuleBase):
 
 
 def _init_spunet_weights(m: nn.Module) -> None:
-    """Pointcept's SpUNet weight init: trunc-normal for linear/SubMConv3d, BN bias=0/weight=1."""
     if isinstance(m, nn.Linear):
         nn.init.trunc_normal_(m.weight, std=0.02)
         if m.bias is not None:
@@ -144,15 +121,7 @@ def _make_block_seq(
     norm: Union[str, Callable, None] = "batch_norm",
     norm_kwargs: Optional[Dict[str, Any]] = None,
 ) -> "spconv.SparseSequential":
-    """Build a `spconv.SparseSequential` of `SparseBasicBlock`s.
-
-    The first block accepts `first_in_channels` if given, otherwise `in_channels`.
-    Subsequent blocks all consume `out_channels`. This pattern is used by the
-    decoder, where block 0 of each stage receives the concatenation of upsampled
-    and skip features. The `block{i}` naming is preserved so converted Pointcept
-    state-dicts (which name their blocks identically) load by name.
-    """
-    blocks: "OrderedDict[str, nn.Module]" = OrderedDict()
+    blocks = OrderedDict()
     for i in range(depth):
         if i == 0:
             block_in = first_in_channels if first_in_channels is not None else in_channels
@@ -172,42 +141,6 @@ def _make_block_seq(
 
 
 class SparseUNetEncoder(nn.Module):
-    r"""SpUNet encoder: SubMConv3d stem + N stride-2 downsampling stages.
-
-    Each stage downsamples by 2 with a `SparseConv3d`, followed by `depth`
-    `SparseBasicBlock`s. Reusable on its own as a backbone (`forward` returns
-    the bottleneck `SparseConvTensor`); `forward(..., return_intermediates=True)`
-    additionally returns the per-stage skip tensors that `SparseUNetDecoder`
-    consumes for symmetrical upsampling.
-
-    !!! note
-        Requires `spconv` to be installed.
-
-    Args:
-        in_channels: Number of input feature channels.
-        base_channels: Stem output channels.
-        channels: Output channels per encoder stage (length = `num_stages`).
-        layers: Block depths per encoder stage (same length as `channels`).
-        stem_kernel_size: Kernel size of the stem `SubMConv3d`.
-        kernel_size: Kernel size of the residual blocks.
-        spatial_padding: Padding added to the spatial bounds of the
-            `SparseConvTensor` constructed from `pos_grid`.
-        act: Activation, resolved via `torch_geometric.nn.activation_resolver`.
-        act_kwargs: Activation kwargs.
-        norm: Normalization, resolved via `torch_geometric.nn.normalization_resolver`.
-        norm_kwargs: Normalization kwargs.
-
-    Shape:
-        - Input `x`: $(N, C_\text{in})$ float features (or `None` to use `pos_grid`).
-        - Input `pos_grid`: $(N, 3)$ integer voxel coordinates.
-        - Input `batch`: $(N,)$ long batch indices.
-        - Output: spconv `SparseConvTensor` with `features` of shape
-          $(M, \text{channels}[-1])$ at the deepest resolution.
-        - When `return_intermediates=True`: also returns a list of
-          `num_stages` skip `SparseConvTensor`s in insertion order
-          (stem output, then stage 0, …, stage $N-2$ outputs).
-    """
-
     def __init__(
         self,
         in_channels: int,
@@ -333,40 +266,6 @@ class SparseUNetEncoder(nn.Module):
 
 
 class SparseUNetDecoder(nn.Module):
-    r"""SpUNet decoder: N upsampling stages with skip-cat residual blocks.
-
-    Mirrors the encoder structure: each stage upsamples via
-    `SparseInverseConv3d` (sharing `indice_key` with its encoder counterpart),
-    concatenates the corresponding encoder skip features, and runs `depth`
-    `SparseBasicBlock`s. Build-time stage index `s` corresponds to the runtime
-    stage that's executed at position `num_stages - 1 - s` (since decoder
-    stages run in reverse), preserving Pointcept's attribute naming convention
-    so converted state-dicts load by name.
-
-    !!! note
-        Requires `spconv` to be installed.
-
-    Args:
-        in_channels: Encoder bottleneck channels (input to the deepest decoder
-            stage's upsample).
-        skip_channels: Channels of the encoder skips, in **insertion** order:
-            `[stem_out, enc[0]_out, …, enc[num_stages-2]_out]`.
-        channels: Output channels per build-time decoder stage. The runtime
-            order is reversed (stage `s` runs at runtime position `num_stages-1-s`).
-        layers: Block depths per build-time decoder stage (same layout as `channels`).
-        kernel_size: Kernel size of the residual blocks.
-        act / act_kwargs: Activation, resolved via `torch_geometric`.
-        norm / norm_kwargs: Normalization, resolved via `torch_geometric`.
-
-    Shape:
-        - Input `x`: bottleneck spconv `SparseConvTensor`, `features` shape
-          $(M_\text{deepest}, \text{in\_channels})$.
-        - Input `skips`: list of `num_stages` spconv `SparseConvTensor` skips
-          in **insertion** order (popped right-to-left during forward).
-        - Output: spconv `SparseConvTensor` at the original (stem-level)
-          resolution with `features` shape $(N, \text{channels}[0])$.
-    """
-
     def __init__(
         self,
         in_channels: int,
@@ -459,53 +358,6 @@ class SparseUNetDecoder(nn.Module):
 
 
 class SparseUNetSegmentation(SegmentationModel):
-    r"""SpUNet-v1m1: a sparse 3D U-Net with spconv submanifold convolutions.
-
-    Composes [`SparseUNetEncoder`][torch_pointcloud.models.sparse_unet.SparseUNetEncoder]
-    + [`SparseUNetDecoder`][torch_pointcloud.models.sparse_unet.SparseUNetDecoder]
-    + a `kernel_size=1` `SubMConv3d` classification head. Mirrors
-    `pointcept.models.sparse_unet.spconv_unet_v1m1_base.SpUNetBase` but exposes
-    a torch-pointcloud `forward(x, pos_grid, batch)` interface.
-
-    !!! note "Coordinate convention"
-        `pos_grid` must be **integer voxel-grid coordinates**, not float metric
-        positions. Quantize upstream via the `VoxelGrid` transform with
-        `pos_reduce="grid"`.
-
-    !!! warning "Converting Pointcept checkpoints"
-        Pointcept's published `SpUNet-v1m1` checkpoints store BatchNorm layers
-        as `bn1`/`bn2` and are typically wrapped under a top-level `state_dict`
-        key with a `module.` (DDP) and `backbone.` prefix. The
-        `notebooks/sparse_unet/convert_spunet.py` script handles the renaming
-        and adds the `encoder.`/`decoder.` prefixes used by this composed model.
-
-    Args:
-        in_channels: Number of input feature channels.
-        num_classes: Number of segmentation classes. Pass $0$ for an
-            encoder/decoder backbone with no classification head.
-        base_channels: Stem output channels.
-        channels: Per-stage channels for the encoder + decoder. Length must be
-            even and equal to `len(layers)`. The first half describes the
-            encoder, the second half the decoder (in build order, applied in
-            reverse at runtime).
-        layers: Per-stage block depths, same layout as `channels`.
-        stem_kernel_size: Kernel size of the stem `SubMConv3d`.
-        kernel_size: Kernel size of the residual blocks.
-        spatial_padding: Padding added to the spatial bounds of the
-            `SparseConvTensor` constructed from `pos_grid`.
-        act / act_kwargs: Activation passed to `torch_geometric.nn.activation_resolver`.
-        norm / norm_kwargs: Normalization passed to `torch_geometric.nn.normalization_resolver`.
-
-    Shape:
-        - Input `x`: $(N, C_\text{in})$ float features (or `None` to use
-          `pos_grid` as features).
-        - Input `pos_grid`: $(N, 3)$ integer voxel coordinates.
-        - Input `batch`: $(N,)$ long batch indices.
-        - Output: $(N, \text{num\_classes})$ per-point logits, in the input row
-          order. When `num_classes == 0`, output is the per-voxel decoder
-          features of shape $(N, C_\text{last})$.
-    """
-
     def __init__(
         self,
         in_channels: int,
