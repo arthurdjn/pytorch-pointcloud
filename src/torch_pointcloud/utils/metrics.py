@@ -107,9 +107,10 @@ def compute_iou(
         preds: Predicted class indices, shape $(N,)$.
         target: Ground truth class indices, shape $(N,)$.
         num_classes: Total number of classes.
+        batch: Optional per-point batch index for per-sample IoU.
         ignore_index: Class index to exclude from computation.
             The returned IoU at this index will be $0$.
-        eps: Small constant to avoid division by zero.
+        default: Value returned for classes with zero union (avoids division by zero).
 
     Returns:
         Per-class IoU tensor of shape $(\text{num_classes},)$
@@ -138,11 +139,11 @@ def compute_mean_iou(
     Averages IoU over all classes except `ignore_index`.
 
     Args:
-        preds: Predicted class indices, shape `(N,)`.
-        target: Ground truth class indices, shape `(N,)`.
+        preds: Predicted class indices, shape $(N,)$.
+        target: Ground truth class indices, shape $(N,)$.
         num_classes: Total number of classes.
+        batch: Optional per-point batch index for per-sample mIoU.
         ignore_index: Class index to exclude from the mean.
-        eps: Small constant to avoid division by zero.
 
     Returns:
         Scalar mIoU value or per-batch mIoU value if `batch` is provided.

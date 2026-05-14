@@ -19,7 +19,7 @@ from torch_pointcloud.utils.types import MessagePassingParams
 # Adapted from: https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/nn/conv/transformer_conv.py
 class PointTransformerConv(MessagePassing):
     r"""The Point Transformer layer from the
-    ["Point Transformer"](https://arxiv.org/abs/2012.09164) paper
+    :arxiv: ["Point Transformer"](https://arxiv.org/abs/2012.09164) paper
     by Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun.
 
     Note:

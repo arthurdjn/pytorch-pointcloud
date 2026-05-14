@@ -76,7 +76,7 @@ def _flash_attend_qkv(
 
 class SerializedAttention(nn.Module):
     r"""Vanilla serialized attention from
-    [Point Transformer V3](https://arxiv.org/abs/2312.10035).
+    :arxiv: [Point Transformer V3](https://arxiv.org/abs/2312.10035).
 
     No positional information is added inside attention itself — relative
     structure comes from the conditional position embedding (CPE) applied
@@ -247,7 +247,7 @@ class SerializedAttentionRPE(nn.Module):
 
 class SerializedAttentionRoPE(nn.Module):
     r"""Serialized attention with 3D rotary position embedding from
-    [Utonia](https://arxiv.org/abs/2603.03283).
+    :arxiv: [Utonia](https://arxiv.org/abs/2603.03283).
 
     Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
     position of each token. Flash Attention is supported and uses bfloat16

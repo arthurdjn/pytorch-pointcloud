@@ -203,7 +203,7 @@ class PointNet2GlobalSetAbstraction(nn.Module):
 
 class PointNet2FeaturePropagation(nn.Module):
     r"""K-NN interpolation + skip concatenation + MLP, as in
-    [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413).
+    :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413).
 
     The interpolated features are concatenated **before** the skip features
     (`cat([interp, skip])`). Models with the opposite upstream cat order

@@ -18,7 +18,7 @@ class ConcertoSegmentation(SegmentationModel):
     r"""Concerto linear-probing segmentation model.
 
     Linear-probe variant from
-    [Concerto: Joint 2D-3D Self-Supervised Learning](https://arxiv.org/abs/2510.23607)
+    :arxiv: [Concerto: Joint 2D-3D Self-Supervised Learning](https://arxiv.org/abs/2510.23607)
     (Zhang et al., NeurIPS 2025). The pretrained PT-V3 encoder is run with
     intermediate features captured at every encoder stage; those features are
     successively unpooled through the saved pooling inverses, concatenated with

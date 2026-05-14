@@ -10,16 +10,18 @@ from torch_pointcloud.utils.cluster import fps
 def random_sample(
     tensor: Tensor,
     num_samples: int,
-    return_indices: Literal[True] = True,
+    return_indices: Literal[True],
+    replace: bool = False,
     generator: Optional[torch.Generator] = None,
-) -> Tensor: ...
+) -> Tuple[Tensor, Tensor]: ...
 
 
 @overload
 def random_sample(
     tensor: Tensor,
     num_samples: int,
-    return_indices: bool = False,
+    return_indices: Literal[False] = False,
+    replace: bool = False,
     generator: Optional[torch.Generator] = None,
 ) -> Tensor: ...
 
@@ -28,24 +30,44 @@ def random_sample(
     tensor: Tensor,
     num_samples: int,
     return_indices: bool = False,
+    replace: bool = False,
     generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-    """Randomly sample a fixed number of values from a tensor.
+    r"""Randomly sample a fixed number of values from a tensor.
 
     Note:
-        The data is sampled uniformly from the tensor.
+        The data is sampled uniformly along `dim=0`.
 
     Args:
-        tensor: The input tensor.
+        tensor: The input tensor of shape $(N, \ldots)$.
         num_samples: The number of values to sample.
         return_indices: Whether to return the indices of the sampled values.
+        replace: If `True`, sample with replacement (duplicates allowed). If `False`,
+            sample without replacement and raise `ValueError` when `num_samples > N`.
         generator: The generator for the random number generator.
 
     Returns:
         If `return_indices` is `True`, the function returns a tuple of the sampled values and their indices.
         Otherwise, it returns the sampled values.
+
+    Raises:
+        ValueError: If `replace=False` and `num_samples > tensor.size(0)`,
+            or if `num_samples > 0` and the input is empty.
     """
-    indices = torch.randint(0, tensor.size(0), (num_samples,), generator=generator)
+    n = tensor.size(0)
+    if num_samples == 0:
+        indices = torch.empty(0, dtype=torch.long, device=tensor.device)
+    elif n == 0:
+        raise ValueError(f"Cannot sample {num_samples} values from an empty tensor (N=0).")
+    elif replace:
+        indices = torch.randint(0, n, (num_samples,), generator=generator, device=tensor.device)
+    elif num_samples <= n:
+        indices = torch.randperm(n, generator=generator, device=tensor.device)[:num_samples]
+    elif num_samples > n:
+        raise ValueError(
+            f"Requested {num_samples} samples without replacement from a tensor of size {n}. "
+            "Pass `replace=True` to allow duplicates."
+        )
 
     if return_indices:
         return tensor[indices], indices
@@ -214,6 +236,9 @@ def normalize_scale(
     if method not in ["centroid", "bbox", "linear"]:
         raise ValueError(f"Invalid method: {method!r}. Expected 'centroid', 'bbox', or 'linear'.")
 
+    if points.shape[-2] == 0:
+        return points
+
     if method == "bbox":
         bbmin = points.min(dim=-2).values
         bbmax = points.max(dim=-2).values
@@ -266,14 +291,14 @@ def divisible_pad(
 
     Consider a batch with three samples of sizes 2, 7, and 4, and `k=4`:
 
-    ``text
+    ```text
     batch:  [0 0 | 1 1 1 1 1 1 1 | 2 2 2 2]
     size:     2          7            4
-    ``
+    ```
 
     **Mode** controls *which* batches get padded (`·` = padded slot):
 
-    ``text
+    ```text
     mode="all"    [0 0 · · | 1 1 1 1 1 1 1 · | 2 2 2 2]
                      2→4          7→8             4 (ok)
 
@@ -284,12 +309,12 @@ def divisible_pad(
     mode="above"  [0 0 | 1 1 1 1 1 1 1 · | 2 2 2 2]
                     2        7→8  ↑           4 (ok)
                   (<k)      only ≥k
-    ``
+    ```
 
     **Pad fill** controls *how* padded slots are filled.  Given batch 1
     with 7 elements (`A B C D E F G`) and `k=4`:
 
-    ``text
+    ```text
     Original patches:  [A B C D] [E F G ·]
                         patch₀    patch₁ (incomplete)
 
@@ -299,16 +324,16 @@ def divisible_pad(
     pad_fill="replicate"  → [A B C D] [E F G D]
       Copies from previous patch             ↑ same position as D
       at same offset
-    ``
+    ```
 
     When `batch_size < k` there is no previous patch, so `"replicate"`
     falls back to `"cycle"`:
 
-    ``text
+    ```text
     batch 0 (size 2, k=4):  [A B · ·]
     pad_fill="cycle"      → [A B A B]
     pad_fill="replicate"  → [A B A B]   (same — no prior patch)
-    ``
+    ```
 
     Args:
         batch: The batch indices of the tensor.

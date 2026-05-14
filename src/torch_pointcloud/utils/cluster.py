@@ -197,7 +197,7 @@ def fps(
     batch_size: Optional[int] = None,
     ptr: Optional[Union[Tensor, List[int]]] = None,
 ) -> Tensor:
-    r"""A sampling algorithm from the paper [PointNet++: Deep Hierarchical Feature
+    r"""A sampling algorithm from the paper :arxiv: [PointNet++: Deep Hierarchical Feature
     Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
     by Qi et al., which iteratively samples the most distant point with regard
     to the rest points.

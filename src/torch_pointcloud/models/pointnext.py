@@ -295,17 +295,17 @@ class PointNeXtPartDecoder(nn.Module):
     global features from two encoder levels and a shape-category one-hot
     vector before the FP layer.
 
-    This matches the OpenPoints ``PointNextPartDecoder`` with
-    ``cls_map='curvenet'``.
+    This matches the OpenPoints `PointNextPartDecoder` with
+    `cls_map='curvenet'`.
 
     Args:
         channels: List of channels for each FP block.
         skip_channels: List of channels for the skip connections.
         depths: List of depths for each FP block.
         global_conv1_in: Input channels for global_conv1 (typically
-            ``encoder_channels[-2]``).
+            `encoder_channels[-2]`).
         global_conv2_in: Input channels for global_conv2 (typically
-            ``encoder_channels[-1]``).
+            `encoder_channels[-1]`).
         num_categories: Number of shape categories (16 for ShapeNetPart).
     """
 
@@ -565,7 +565,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
 class PointNeXtClassification(ClassificationModel):
     r"""
     PointNeXt classification model as described in the paper
-    [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
+    :arxiv: [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
     by Guocheng Qian, Yuchen Li, Houwen Peng, Jinjie Mai, Hasan Abed Al Kader Hammoud, Mohamed Elhoseiny, Bernard Ghanem.
 
     PointNeXt modernizes PointNet++ through improved training strategies and architectural enhancements,
@@ -765,7 +765,7 @@ class PointNeXtClassification(ClassificationModel):
 class PointNeXtSegmentation(SegmentationModel):
     r"""
     PointNeXt segmentation model as described in the paper
-    [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
+    :arxiv: [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
     by Guocheng Qian, Yuchen Li, Houwen Peng, Jinjie Mai, Hasan Abed Al Kader Hammoud, Mohamed Elhoseiny, Bernard Ghanem.
 
     PointNeXt modernizes PointNet++ through improved training strategies and architectural enhancements,
@@ -1281,7 +1281,7 @@ _S3DIS_TRANSFORMS = T.Compose(
             method="fnv",  # Use the same method as PointNext, for reproducibility.
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
-        T.Shift(keys=DataKeys.POS, method="mean"),
+        T.Shift(keys=DataKeys.POS, method="centroid"),
         T.AlignAxis(keys=DataKeys.POS, dim=2),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),
         T.Normalize(

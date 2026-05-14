@@ -39,7 +39,7 @@ def serialize_coords(
 ) -> Tensor:
     """Encode / serialize grid coordinates into a code depending on the serialization order.
     The code can be used to sort the grid coordinates or to index them, and was introduced in the paper
-    [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/pdf/2312.10035)
+    :arxiv: [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/pdf/2312.10035)
     by Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao.
 
     Note:

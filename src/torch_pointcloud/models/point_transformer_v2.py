@@ -517,14 +517,14 @@ def create_decoder_blocks(
 
 class PointTransformerV2Classification(nn.Module):
     r"""Implementation of the Point Transformer V2 model for classification as described in the paper
-    [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
+    :arxiv: [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
 
-    This implementation is based on the original implementation from [Pointcept](https://github.com/Pointcept/Pointcept).
+    This implementation is based on the original implementation from :github: [Pointcept](https://github.com/Pointcept/Pointcept).
 
     Note:
-        This implementation requires [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
-        and [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
+        and :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
 
     Args:
         in_channels: Number of input channels.
@@ -709,14 +709,14 @@ class PointTransformerV2Classification(nn.Module):
 
 class PointTransformerV2Segmentation(nn.Module):
     r"""Implementation of the Point Transformer V2 model for semantic segmentation as described in the paper
-    [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
+    :arxiv: [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
 
-    This implementation is based on the original implementation from [Pointcept](https://github.com/Pointcept/Pointcept).
+    This implementation is based on the original implementation from :github: [Pointcept](https://github.com/Pointcept/Pointcept).
 
     Note:
-        This implementation requires [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
-        and [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
+        and :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
 
     Args:
         in_channels: Number of input channels.

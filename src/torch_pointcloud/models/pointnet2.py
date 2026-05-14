@@ -225,8 +225,8 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
 
 class PointNet2Encoder(nn.Module):
     """PointNet++ encoder from the paper
-    `PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space
-    <https://arxiv.org/abs/1706.02413>`_ by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+    :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 
     Processes raw point clouds through an optional linear stem followed by multiple Set Abstraction (SA)
     blocks that progressively downsample the points while learning local features using radius-based
@@ -246,7 +246,7 @@ class PointNet2Encoder(nn.Module):
         spatial_dim: Spatial dimensionality of point coordinates (e.g. 3 for 3D, 2 for 2D).
         act: Activation function type or callable.
         act_kwargs: Additional keyword arguments for the activation function.
-        act_first: If ``True``, activation is applied before normalization.
+        act_first: If `True`, activation is applied before normalization.
         norm: Normalization layer type or callable.
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
@@ -370,8 +370,8 @@ class PointNet2Encoder(nn.Module):
 
 class PointNet2Decoder(nn.Module):
     """PointNet++ decoder (feature propagation) from the paper
-    `PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space
-    <https://arxiv.org/abs/1706.02413>`_ by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+    :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 
     Upsamples features from the encoder back to the original resolution using kNN interpolation
     and skip connections from encoder intermediates.
@@ -383,14 +383,14 @@ class PointNet2Decoder(nn.Module):
         fp_channels: List of channel configurations for Feature Propagation (FP) blocks.
             Each element defines the MLP channels for one FP block.
         spatial_dim: Spatial dimensionality of point coordinates. Also used as the default
-            number of neighbors ``k`` for kNN interpolation.
+            number of neighbors `k` for kNN interpolation.
         act: Activation function type or callable.
         act_kwargs: Additional keyword arguments for the activation function.
-        act_first: If ``True``, activation is applied before normalization.
+        act_first: If `True`, activation is applied before normalization.
         norm: Normalization layer type or callable.
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
-        k: Number of neighbors for kNN interpolation. Defaults to ``spatial_dim``.
+        k: Number of neighbors for kNN interpolation. Defaults to `spatial_dim`.
     """
 
     def __init__(
@@ -452,8 +452,8 @@ class PointNet2Decoder(nn.Module):
 
 class PointNet2Classification(nn.Module):
     """PointNet++ classification model from the paper
-    `PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space
-    <https://arxiv.org/abs/1706.02413>`_ by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+    :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 
     This network is a hierarchical point cloud classification model. It processes raw point clouds through
     a `PointNet2Encoder` (optional stem + SA blocks), an optional aggregation MLP, global pooling,
@@ -475,7 +475,7 @@ class PointNet2Classification(nn.Module):
         spatial_dim: Spatial dimensionality of point coordinates (e.g. 3 for 3D, 2 for 2D).
         act: Activation function type or callable.
         act_kwargs: Additional keyword arguments for the activation function.
-        act_first: If ``True``, activation is applied before normalization.
+        act_first: If `True`, activation is applied before normalization.
         norm: Normalization layer type or callable.
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
@@ -608,8 +608,8 @@ class PointNet2Classification(nn.Module):
 
 class PointNet2Segmentation(nn.Module):
     """PointNet++ segmentation model from the paper
-    `PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space
-    <https://arxiv.org/abs/1706.02413>`_ by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+    :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 
     This network is a hierarchical point cloud segmentation model built from a
     `PointNet2Encoder` (optional stem + SA blocks), an optional aggregation MLP,
@@ -634,7 +634,7 @@ class PointNet2Segmentation(nn.Module):
         spatial_dim: Spatial dimensionality of point coordinates (e.g. 3 for 3D, 2 for 2D).
         act: Activation function type or callable.
         act_kwargs: Additional keyword arguments for the activation function.
-        act_first: If ``True``, activation is applied before normalization.
+        act_first: If `True`, activation is applied before normalization.
         norm: Normalization layer type or callable.
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.

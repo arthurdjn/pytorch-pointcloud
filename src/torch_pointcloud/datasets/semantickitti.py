@@ -1,6 +1,6 @@
 """
 The SemanticKITTI dataset, as described in the paper
-[SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences](https://arxiv.org/abs/1904.01416).
+:arxiv: [SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences](https://arxiv.org/abs/1904.01416).
 """
 
 from pathlib import Path
@@ -161,7 +161,7 @@ def load_semantickitti_labels(file_path: PathLike) -> tuple[Tensor, Tensor]:
 
 class SemanticKITTI(PointCloudDataset):
     """The SemanticKITTI dataset, as described in the paper
-    [SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences](https://arxiv.org/abs/1904.01416).
+    :arxiv: [SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences](https://arxiv.org/abs/1904.01416).
 
     The dataset contains a sequence of LiDAR scans collected from a vehicle driving in
     several urban areas, with point-wise semantic and instance annotations. The 22

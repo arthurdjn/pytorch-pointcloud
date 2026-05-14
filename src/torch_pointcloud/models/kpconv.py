@@ -657,7 +657,7 @@ def create_encoder_blocks(
 
 class KPFCNNClassification(ClassificationModel):
     """KPConv Network for classification tasks as described in the paper
-    [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
+    :arxiv: [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
 
     KPConv introduces a novel point convolution operator that uses kernel points to define the spatial extent and weights
@@ -668,11 +668,11 @@ class KPFCNNClassification(ClassificationModel):
 
     Note:
         The implementation is based on the original paper and the authors' code
-        [KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch).
+        :github: [KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch).
 
     Important:
         This implementation was completely rewritten to be compatible with
-        [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
+        :github: [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
 
     Args:
         num_classes: Number of output classes.
@@ -836,7 +836,7 @@ class KPFCNNClassification(ClassificationModel):
         """Forward pass of the encoder, returning pre-pooling features.
 
         Args:
-            x: Point features of shape $(N, C)$. If ``None``, ``pos`` is used as features.
+            x: Point features of shape $(N, C)$. If `None`, `pos` is used as features.
             pos: Point coordinates of shape $(N, D)$.
             batch: Batch indices for each point of shape $(N,)$.
 
@@ -892,7 +892,7 @@ class KPFCNNClassification(ClassificationModel):
         """Forward pass of the classification model.
 
         Args:
-            x: Point features of shape $(N, C)$. If ``None``, ``pos`` is used as features.
+            x: Point features of shape $(N, C)$. If `None`, `pos` is used as features.
             pos: Point coordinates of shape $(N, D)$.
             batch: Batch indices for each point of shape $(N,)$.
 
@@ -905,7 +905,7 @@ class KPFCNNClassification(ClassificationModel):
 
 class KPFCNNSegmentation(SegmentationModel):
     """KPConv Network for segmentation tasks as described in the paper
-    [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
+    :arxiv: [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
 
     KPConv introduces a novel point convolution operator that uses kernel points to define the spatial extent and weights
@@ -916,11 +916,11 @@ class KPFCNNSegmentation(SegmentationModel):
 
     Note:
         The implementation is based on the original paper and the authors' code
-        [KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch).
+        :github: [KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch).
 
     Important:
         This implementation was completely rewritten to be compatible with
-        [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
+        :github: [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
 
     Args:
         num_classes: Number of output classes.
