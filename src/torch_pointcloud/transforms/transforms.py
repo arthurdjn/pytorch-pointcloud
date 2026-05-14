@@ -24,7 +24,6 @@ from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 from . import functional as F
 from .functional import RescaleMethod, ShiftMethod
 
-
 # Type aliases for the literal-valued parameters used by class transforms below.
 
 ReduceOp = Literal["min", "max", "mean", "sum"]
