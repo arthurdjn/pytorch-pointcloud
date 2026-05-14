@@ -1,17 +1,17 @@
 r"""
 PointNeXt convolution layer introduced in the
-[PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
+:arxiv: [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
 by Guocheng Qian et al.
 
-> [!NOTE]
-> This layer is also referred to Local Aggregation in different papers and implementations.
+!!! note
+    This layer is also referred to as Local Aggregation in different papers and implementations.
 
 This layer implements the `torch_geometric.nn.conv.MessagePassing` interface from PyTorch Geometric,
 which allows for local aggregation of features.
 
-> [!TIP]
-> This layer is similar to the `torch_geometric.nn.conv.PointNetConv` layer from PyTorch Geometric,
-> and introduces relative position normalization.
+!!! tip
+    This layer is similar to the `torch_geometric.nn.conv.PointNetConv` layer from PyTorch Geometric,
+    and introduces relative position normalization.
 
 You can use it as follows:
 

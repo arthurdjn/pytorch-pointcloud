@@ -294,7 +294,7 @@ class PointCNNDecoder(nn.Module):
 class PointCNNClassification(ClassificationModel):
     r"""
     Classification model as described in the paper
-    ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
+    :arxiv: ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
     by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.
 
     This classification model consists of a encoder of XConv layers and FPS downsampling layers,

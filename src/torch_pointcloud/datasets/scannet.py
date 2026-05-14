@@ -1,6 +1,6 @@
 """
 The ScanNet dataset as described in the paper
-[ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405).
+:arxiv: [ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405).
 
 """
 
@@ -318,7 +318,7 @@ def load_scannet_scene_aggregation_and_segs(
 
     Args:
         aggregation_path: Path to the aggregation JSON file.
-        segments_path: Path to the segments JSON file.
+        segs_path: Path to the segments JSON file.
         label_to_idx: Optional mapping from `raw_category` string to NYU40 id
             (or any integer label). Built from the TSV with e.g.
             `{row["raw_category"]: int(row["nyu40id"]) for _, row in df.iterrows()}`.
@@ -457,7 +457,7 @@ def load_scannet_scene(
             in the labels CSV file, or to the `label` key in the aggregation JSON file.
             This mapping is used to map object labels to their associated target indices.
         use_axis_alignment: Whether to apply the axis alignment transformation from the
-            scene metadata.  Set to ``False`` to keep the raw PLY coordinates.
+            scene metadata.  Set to `False` to keep the raw PLY coordinates.
 
     Returns:
         The loaded scene.
@@ -529,18 +529,18 @@ def tile_scannet_scene(
     DGCNN ScanNet evaluation protocol.
 
     Args:
-        scene: Dict with at least ``DataKeys.POS`` (float32, $(N, 3)$).
+        scene: Dict with at least `DataKeys.POS` (float32, $(N, 3)$).
             All other tensors with a leading dimension of $N$ are sliced in parallel.
         block_size: Side length of each square block in meters.
         block_stride: Step size for the sliding window in meters.
         num_nodes: Fixed number of nodes per block.
         min_num_nodes: Minimum number of raw nodes for a block to be kept.
-        scene_index: If provided, each block will include ``"scene_index"`` and
-            ``"num_scene_points"`` entries.
+        scene_index: If provided, each block will include `"scene_index"` and
+            `"num_scene_points"` entries.
 
     Returns:
         List of dicts, one per retained block.  Each block has exactly
-        ``num_nodes`` nodes and an extra ``"scene_max"`` key with the scene-level
+        `num_nodes` nodes and an extra `"scene_max"` key with the scene-level
         coordinate maxima (useful for downstream normalization).
     """
     pos = scene[DataKeys.POS]
@@ -596,7 +596,7 @@ def tile_scannet_scene(
 
 class ScanNet(PointCloudDataset):
     """The ScanNet dataset as described in the paper
-    [ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405).
+    :arxiv: [ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405).
     This dataset contains 2.5M views in 1513 scans acquired in 707 distinct spaces.
     Each scan is annotated with 3D camera poses, meshes, object segmentation, and scene semantics for
     a total of 36,000 annotated object instance.

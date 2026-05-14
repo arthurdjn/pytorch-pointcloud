@@ -11,7 +11,7 @@ from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
 
 def swish(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
-    """Swish - Described in: https://arxiv.org/abs/1710.05941"""
+    """Swish activation. :arxiv: [Searching for Activation Functions](https://arxiv.org/abs/1710.05941)."""
     return x.mul_(x.sigmoid()) if inplace else x.mul(x.sigmoid())
 
 
@@ -25,13 +25,13 @@ class Swish(nn.Module):
 
 
 def mish(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
-    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681"""
+    """Mish activation. :arxiv: [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681)."""
     inner = F.softplus(x).tanh()
     return x.mul_(inner) if inplace else x.mul(inner)
 
 
 class Mish(nn.Module):
-    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681"""
+    """Mish activation. :arxiv: [Mish: A Self Regularized Non-Monotonic Neural Activation Function](https://arxiv.org/abs/1908.08681)."""
 
     def __init__(self, inplace: bool = False) -> None:
         super().__init__()

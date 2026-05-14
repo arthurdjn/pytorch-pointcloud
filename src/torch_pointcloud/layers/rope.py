@@ -1,6 +1,6 @@
 """3D rotary position embedding for point-cloud attention.
 
-Introduced in [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283).
+Introduced in :arxiv: [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283).
 Splits each attention head's channel dimension into three equal chunks (one per
 spatial axis) and rotates the query/key vectors by a per-axis sinusoidal phase
 indexed by the real-valued coordinate. This injects continuous 3D position

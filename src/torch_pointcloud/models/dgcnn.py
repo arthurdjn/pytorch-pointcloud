@@ -118,7 +118,7 @@ class DGCNNEncoder(nn.Module):
 class DGCNNClassification(ClassificationModel):
     """
     Classification model as described in the paper
-    ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
+    :arxiv: ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
     by Yue Wang, Yongbin Sun, Ziwei Liu, Sanjay E. Sarma, Michael M. Bronstein, Justin M. Solomon.
 
     DGCNN introduces the EdgeConv operator, which computes features on dynamically constructed
@@ -135,7 +135,7 @@ class DGCNNClassification(ClassificationModel):
             If None, the spatial transformer network is not used.
         channels: List of channels for each encoder block.
         proj_channels: If set, projects the concatenated encoder features through an MLP
-            of this width before pooling. Matches the ``conv5`` layer in the original DGCNN paper.
+            of this width before pooling. Matches the `conv5` layer in the original DGCNN paper.
         head_channels: List of channels for each head block.
         num_neighbors: Maximum number of neighbors for each encoder block.
         act: Activation function.
@@ -294,7 +294,7 @@ class DGCNNClassification(ClassificationModel):
 class DGCNNSegmentation(SegmentationModel):
     """
     Semantic segmentation model as described in the paper
-    ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
+    :arxiv: ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
     by Yue Wang, Yongbin Sun, Ziwei Liu, Sanjay E. Sarma, Michael M. Bronstein, Justin M. Solomon.
 
     DGCNN introduces the EdgeConv operator, which computes features on dynamically constructed
@@ -454,7 +454,7 @@ class DGCNNSegmentation(SegmentationModel):
 class DGCNNPartSegmentation(SegmentationModel):
     """
     Part segmentation model as described in the paper
-    ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
+    :arxiv: ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
     by Yue Wang, Yongbin Sun, Ziwei Liu, Sanjay E. Sarma, Michael M. Bronstein, Justin M. Solomon.
 
     Extends the DGCNN encoder with a category-conditioned global feature branch for
@@ -804,7 +804,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
             # so we relabel the segmentation labels from [0, 20] -> [0, 19] and set "unknown" objects to 255.
             T.Relabel(keys=DataKeys.SEGMENT, labels=list(range(1, 21)), default=255),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Reduce(keys=DataKeys.POS, op="amax", dim=0, keepdim=True, dst_keys="scene_max"),
+            T.Reduce(keys=DataKeys.POS, op="max", dim=0, keepdim=True, dst_keys="scene_max"),
             T.Reduce(keys=DataKeys.POS, op="mean", dim=0, keepdim=True, dst_keys="block_center"),
             T.CopyItems(keys=DataKeys.POS, names="norm_pos"),
             T.DivideKey(keys="norm_pos", div_keys="scene_max"),

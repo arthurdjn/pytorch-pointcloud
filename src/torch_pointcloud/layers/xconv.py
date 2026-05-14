@@ -13,7 +13,7 @@ from torch_pointcloud.utils.types import OptTensor, PairTensor
 
 class XConv(nn.Module):
     r"""XConv layer as described in the paper
-    ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
+    :arxiv: ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
     by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.
 
     This layer is inspired by the PyTorch Geometric `torch_geometric.nn.XConv` layer implementation,
