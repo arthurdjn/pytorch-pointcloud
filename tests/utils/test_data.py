@@ -1,3 +1,4 @@
+# mypy: disable-error-code="list-item"
 import pytest
 import torch
 
