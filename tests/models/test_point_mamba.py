@@ -9,11 +9,14 @@ from torch_pointcloud.utils.imports import (
     _TORCH_SCATTER_AVAILABLE,
 )
 
+pytestmark = [
+    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
+    pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available"),
+    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
+    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
+]
 
-@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
-@pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available")
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
-@pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available")
+
 def test_point_mamba_encoder_basic() -> None:
     """Test the basic functionality of the PointMambaEncoder model,
     following similar architecture as the original PointMamba model."""
@@ -41,10 +44,6 @@ def test_point_mamba_encoder_basic() -> None:
     assert out.shape == (2, 128, 384)
 
 
-@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
-@pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available")
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
-@pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available")
 def test_point_mamba_classification_basic() -> None:
     """Test the basic functionality of the PointMambaClassification model,
     following similar architecture as the original PointMamba model."""
@@ -77,10 +76,6 @@ def test_point_mamba_classification_basic() -> None:
     assert out.shape == (2, 10)
 
 
-@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
-@pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available")
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
-@pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available")
 def test_point_mamba_mae_basic() -> None:
     """Test the basic functionality of the PointMambaMAE model,
     following similar architecture as the original PointMamba model."""

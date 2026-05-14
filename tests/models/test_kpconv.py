@@ -15,6 +15,11 @@ from torch_pointcloud.models.kpconv import (
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -38,10 +43,6 @@ def data() -> Dict[str, Tensor]:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_module(data: Dict[str, Tensor]) -> None:
     conv = KPConv(
         spatial_dim=3,
@@ -75,10 +76,6 @@ def test_kpconv_module(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_block_layer(data: Dict[str, Tensor]) -> None:
     block = KPConvBlock(
         spatial_dim=3,
@@ -93,10 +90,6 @@ def test_kpconv_block_layer(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
     block = KPResidualBlock(
         spatial_dim=3,
@@ -124,10 +117,6 @@ def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_encoder_block(data: Dict[str, Tensor]) -> None:
     block = EncoderBlock(
         depth=2,
@@ -205,19 +194,11 @@ def model_seg() -> KPFCNNSegmentation:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_clf_forward(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_clf_reset_classifier(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
     new_num_classes = 20
     model_clf.reset_classifier(new_num_classes)
@@ -228,10 +209,6 @@ def test_kpconv_clf_reset_classifier(model_clf: KPFCNNClassification, data: Dict
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_clf_forward_features(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
     out_x, out_pos, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
     assert out_x.dim() == 2
@@ -254,29 +231,17 @@ def test_kpconv_clf_forward_features(model_clf: KPFCNNClassification, data: Dict
             assert intermediate["pooling_inverse"].dim() == 1
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_clf_forward_features_and_head(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
     out_x, _, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
     logits = model_clf.forward_head(out_x, out_batch)
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_seg_forward(model_seg: KPFCNNSegmentation, data: Dict[str, Tensor]) -> None:
     logits = model_seg(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_seg_forward_features(model_seg: KPFCNNSegmentation, data: Dict[str, Tensor]) -> None:
     out_x, out_pos, out_batch = model_seg.forward_features(data["features"], data["pos"], data["batch"])
     assert out_x.shape[0] == out_pos.shape[0] == out_batch.shape[0]
@@ -285,10 +250,6 @@ def test_kpconv_seg_forward_features(model_seg: KPFCNNSegmentation, data: Dict[s
     assert out_batch.dim() == 1
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_kpconv_seg_forward_features_and_head(model_seg: KPFCNNSegmentation, data: Dict[str, Tensor]) -> None:
     out_x, out_pos, out_batch, intermediates = model_seg.forward_features(
         data["features"],

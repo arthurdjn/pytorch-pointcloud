@@ -11,6 +11,11 @@ from torch_pointcloud.models.point_transformer import (
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -34,10 +39,6 @@ def data() -> Dict[str, Tensor]:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_conv(data: Dict[str, Tensor]) -> None:
     conv = PointTransformerConv(
         spatial_dim=3,
@@ -79,19 +80,11 @@ def model_seg() -> PointTransformerSegmentation:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_clf_forward(model_clf: PointTransformerClassification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_clf_reset_classifier(
     model_clf: PointTransformerClassification,
     data: Dict[str, Tensor],
@@ -105,10 +98,6 @@ def test_point_transformer_clf_reset_classifier(
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_clf_forward_encoder(
     model_clf: PointTransformerClassification,
     data: Dict[str, Tensor],
@@ -132,10 +121,6 @@ def test_point_transformer_clf_forward_encoder(
         assert "batch" in intermediate
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_clf_forward_encoder_and_head(
     model_clf: PointTransformerClassification,
     data: Dict[str, Tensor],
@@ -145,19 +130,11 @@ def test_point_transformer_clf_forward_encoder_and_head(
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_seg_forward(model_seg: PointTransformerSegmentation, data: Dict[str, Tensor]) -> None:
     logits = model_seg(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_seg_reset_classifier(
     model_seg: PointTransformerSegmentation,
     data: Dict[str, Tensor],
@@ -171,10 +148,6 @@ def test_point_transformer_seg_reset_classifier(
     assert logits.shape == (data["pos"].shape[0], new_num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_seg_forward_encoder(
     model_seg: PointTransformerSegmentation,
     data: Dict[str, Tensor],
@@ -186,10 +159,6 @@ def test_point_transformer_seg_forward_encoder(
     assert batch.dim() == 1
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_point_transformer_seg_forward_features_and_head(
     model_seg: PointTransformerSegmentation,
     data: Dict[str, Tensor],

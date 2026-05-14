@@ -13,6 +13,11 @@ from torch_pointcloud.models.pointnext import (
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -59,10 +64,6 @@ def model_seg() -> PointNeXtSegmentation:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_encoder_block_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointNeXtEncoderBlock functionality."""
     block = PointNeXtEncoderBlock(
@@ -83,10 +84,6 @@ def test_pointnext_encoder_block_basic(data: Dict[str, Tensor]) -> None:
     assert out_batch.shape[0] <= data["batch"].shape[0]  # May be downsampled
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_encoder_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointNeXtEncoder functionality."""
     encoder = PointNeXtEncoder(
@@ -104,10 +101,6 @@ def test_pointnext_encoder_basic(data: Dict[str, Tensor]) -> None:
     assert out_pos.shape[1] == 3
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
     """Test PointNeXtEncoder with intermediate outputs."""
     encoder = PointNeXtEncoder(
@@ -133,10 +126,6 @@ def test_pointnext_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
         assert intermediate.x.shape[0] == intermediate.pos.shape[0] == intermediate.batch.shape[0]
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointNeXtDecoder functionality."""
     encoder = PointNeXtEncoder(
@@ -161,10 +150,6 @@ def test_pointnext_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
     assert pos.shape[1] == 3
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_classification_forward(model_clf: PointNeXtClassification, data: Dict[str, Tensor]) -> None:
     """Test PointNeXtClassification forward pass."""
     logits = model_clf(data["features"], data["pos"], data["batch"])
@@ -172,10 +157,6 @@ def test_pointnext_classification_forward(model_clf: PointNeXtClassification, da
     assert logits.dtype == data["features"].dtype
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_segmentation_forward(model_seg: PointNeXtSegmentation, data: Dict[str, Tensor]) -> None:
     """Test PointNeXtSegmentation forward pass."""
     logits = model_seg(data["features"], data["pos"], data["batch"])
