@@ -474,6 +474,8 @@ class SparseUNetSegmentation(SegmentationModel):
             T.CenterShift(keys=DataKeys.POS, apply_z=True),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+            T.CopyItems(keys=DataKeys.SEGMENT, names="origin_segment"),
             T.VoxelGrid(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
@@ -481,9 +483,9 @@ class SparseUNetSegmentation(SegmentationModel):
                 reduce=["first", "first"],
                 size=0.02,
                 method="fnv",
+                cluster_key=DataKeys.CLUSTER,
             ),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
         ]
     ),
     hparams=dict(

@@ -12,23 +12,19 @@ Usage:
 import argparse
 import os
 import time
-from typing import Any, Callable, Dict
+from typing import Any, Dict
 
 import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
-import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
 from torch_pointcloud.utils.random import seed_everything
-
-ORIGIN_SEGMENT_KEY = "origin_segment"
-CLUSTER_KEY = "cluster"
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -57,38 +53,12 @@ def forward_once(
     return logits, latency_ms
 
 
-def _full_resolution_transforms() -> Callable:
-    """Like the registered transforms but also stores the per-raw-point cluster
-    index and the pre-voxelization segment, so we can broadcast voxel logits
-    back to per-point predictions (matches Pointcept's val evaluation)."""
-    return T.Compose(
-        [
-            T.CenterShift(keys=DataKeys.POS, apply_z=True),
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
-            T.CopyItems(keys=DataKeys.SEGMENT, names=ORIGIN_SEGMENT_KEY),
-            T.VoxelGrid(
-                pos_key=DataKeys.POS,
-                pos_reduce="grid",
-                keys=[DataKeys.X, DataKeys.SEGMENT],
-                reduce=["first", "first"],
-                size=0.02,
-                method="fnv",
-                cluster_key=CLUSTER_KEY,
-            ),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-        ]
-    )
-
-
 @torch.no_grad()
 def evaluate(
     model: Module,
     dataloader: DataLoader,
     device: str,
     num_classes: int,
-    full_resolution: bool = True,
 ) -> Dict[str, Any]:
     model.to(device).eval()
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
@@ -102,14 +72,9 @@ def evaluate(
         batch = data[DataKeys.BATCH].to(device)
 
         logits, latency_ms = forward_once(model, x, pos, batch, device)
-
-        if full_resolution:
-            cluster = data[CLUSTER_KEY].to(device)  # (N_raw,) → voxel idx
-            target = data[ORIGIN_SEGMENT_KEY].to(device)  # (N_raw,) raw labels (already 0-19)
-            preds = logits[cluster].argmax(dim=1)  # broadcast voxel preds to raw points
-        else:
-            target = data[DataKeys.SEGMENT].to(device)
-            preds = logits.argmax(dim=1)
+        cluster = data[DataKeys.CLUSTER].to(device)  # (N_raw,) → voxel idx
+        target = data["origin_segment"].to(device)  # (N_raw,) raw labels (already 0-19)
+        preds = logits[cluster].argmax(dim=1)  # broadcast voxel preds to raw points
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
         total_latency_ms += latency_ms
@@ -140,11 +105,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
     parser.add_argument("--download", action="store_true", help="Download ScanNet if missing.")
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
-    parser.add_argument(
-        "--voxel-eval",
-        action="store_true",
-        help="Evaluate at voxel resolution (faster, biased). Default: full point resolution.",
-    )
     return parser.parse_args()
 
 
@@ -155,7 +115,7 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
-    transform = model_info.get("transforms") if args.voxel_eval else _full_resolution_transforms()
+    transform = model_info.get("transforms")
 
     dataset: Dataset = ScanNet20(
         root=args.root,
@@ -179,8 +139,8 @@ def main() -> None:
         collate_fn=collate,
     )
 
-    print(f"Test set: {len(dataset)} scenes  (eval @ {'voxel' if args.voxel_eval else 'full point'} resolution)")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device, num_classes, full_resolution=not args.voxel_eval)
+    print(f"Test set: {len(dataset)} scenes  (eval @ full point resolution)")  # type: ignore[arg-type]
+    metrics = evaluate(model, dataloader, args.device, num_classes)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
