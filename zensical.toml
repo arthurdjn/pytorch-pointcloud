@@ -80,26 +80,28 @@ extra_javascript = [
 # Read more: https://zensical.org/docs/setup/navigation/
 nav = [
     { "Get Started" = [
-        "index.md",
-        "about.md",
-        "installation.md",
-        "get-started.md",
+        { "Overview" = "index.md" },
+        { "Installation" = "installation.md" },
+        { "Quick Start" = "get-started.md" },
     ] },
-    { "Models" = [
-        "models/overview.md",
-    ] },
-    { "Datasets" = [
-        "datasets/overview.md",
-    ] },
+    { "Models" = "models/overview.md" },
+    { "Datasets" = "datasets/overview.md" },
+    { "Transforms" = "transforms/overview.md" },
     { "API Reference" = [
         { "Overview" = "api/index.md" },
+        { "config" = "api/config.md" },
         { Datasets = [
             { "Overview" = "api/datasets/index.md" },
             { "modelnet" = "api/datasets/modelnet.md" },
+            { "parislille3d" = "api/datasets/parislille3d.md" },
             { "pointcloud" = "api/datasets/pointcloud.md" },
             { "s3dis" = "api/datasets/s3dis.md" },
             { "scannet" = "api/datasets/scannet.md" },
-            { "shapenetpart" = "api/datasets/shapenet.md" },
+            { "scanobjectnn" = "api/datasets/scanobjectnn.md" },
+            { "semantic3d" = "api/datasets/semantic3d.md" },
+            { "semantickitti" = "api/datasets/semantickitti.md" },
+            { "shapenetpart" = "api/datasets/shapenetpart.md" },
+            { "toronto3d" = "api/datasets/toronto3d.md" },
             { "utils" = "api/datasets/utils.md" },
         ] },
         { Layers = [
@@ -110,8 +112,10 @@ nav = [
             { "dropouts" = "api/layers/dropouts.md" },
             { "fps" = "api/layers/fps.md" },
             { "geometric_affine" = "api/layers/geometric_affine.md" },
+            { "grid_pool" = "api/layers/grid_pool.md" },
             { "heads" = "api/layers/heads.md" },
             { "layer_container" = "api/layers/layer_container.md" },
+            { "linear_blocks" = "api/layers/linear_blocks.md" },
             { "mlp" = "api/layers/mlp.md" },
             { "norms" = "api/layers/norms.md" },
             { "octree_attention" = "api/layers/octree_attention.md" },
@@ -122,12 +126,17 @@ nav = [
             { "pointnext_blocks" = "api/layers/pointnext_blocks.md" },
             { "pools" = "api/layers/pools.md" },
             { "reshape" = "api/layers/reshape.md" },
+            { "rope" = "api/layers/rope.md" },
+            { "serialized_attention" = "api/layers/serialized_attention.md" },
+            { "serialized_pool" = "api/layers/serialized_pool.md" },
+            { "spconv_blocks" = "api/layers/spconv_blocks.md" },
             { "tnet" = "api/layers/tnet.md" },
             { "view" = "api/layers/view.md" },
             { "xconv" = "api/layers/xconv.md" },
         ] },
         { Models = [
             { "Overview" = "api/models/index.md" },
+            { "concerto" = "api/models/concerto.md" },
             { "dgcnn" = "api/models/dgcnn.md" },
             { "kpconv" = "api/models/kpconv.md" },
             { "octformer" = "api/models/octformer.md" },
@@ -144,7 +153,10 @@ nav = [
             { "pvcnn" = "api/models/pvcnn.md" },
             { "pvcnn2" = "api/models/pvcnn2.md" },
             { "randlanet" = "api/models/randlanet.md" },
+            { "sontata" = "api/models/sontata.md" },
+            { "spunet" = "api/models/spunet.md" },
             { "spvcnn" = "api/models/spvcnn.md" },
+            { "utonia" = "api/models/utonia.md" },
         ] },
         { Transforms = [
             { "Overview" = "api/transforms/index.md" },
@@ -154,12 +166,14 @@ nav = [
         { Utils = [
             { "Overview" = "api/utils/index.md" },
             { "cluster" = "api/utils/cluster.md" },
-            { "config" = "api/utils/config.md" },
             { "conversion" = "api/utils/conversion.md" },
+            { "data" = "api/utils/data.md" },
             { "geometry" = "api/utils/geometry.md" },
             { "hilbert" = "api/utils/hilbert.md" },
             { "imports" = "api/utils/imports.md" },
+            { "inference" = "api/utils/inference.md" },
             { "io" = "api/utils/io.md" },
+            { "metrics" = "api/utils/metrics.md" },
             { "misc" = "api/utils/misc.md" },
             { "neighbors" = "api/utils/neighbors.md" },
             { "octree" = "api/utils/octree.md" },
@@ -465,6 +479,7 @@ show_source = false
 show_symbol_type_heading = true
 signature_crossrefs = true
 allow_inspection = true
+summary = true
 
 # ----------------------------------------------------------------------------
 # Add support for github releases and versioning
