@@ -156,7 +156,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     transform: Callable
 
     if args.dataset.lower() == "shapenetpart":
-        transform = T.NormalizeScale(keys=DataKeys.POS)
+        transform = T.Rescale(keys=DataKeys.POS)
         train_dataset = ShapeNetPart(
             args.root,
             split="train",
@@ -172,7 +172,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     elif args.dataset.lower() == "s3dis":
         transform = T.Compose(
             [
-                T.NormalizeScale(keys=DataKeys.POS),
+                T.Rescale(keys=DataKeys.POS),
                 T.RandomSample(
                     keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
                     num_samples=4096,

@@ -864,7 +864,7 @@ def _spvcnn_semantickitti_transforms() -> Callable:
                 default=255,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
-            T.VoxelGrid(
+            T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
                 keys=[DataKeys.X, DataKeys.SEGMENT],

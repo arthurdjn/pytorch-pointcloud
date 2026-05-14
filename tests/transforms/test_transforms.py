@@ -80,12 +80,12 @@ def test_compose_with_list_input() -> None:
 
 def test_compose_repr() -> None:
     t1 = T.Abs(keys="pos")
-    t2 = T.NormalizeScale(keys="pos", eps=1e-6)
+    t2 = T.Rescale(keys="pos", eps=1e-6)
     compose = T.Compose([t1, t2])
     repr_str = repr(compose)
     assert "Compose" in repr_str
     assert "Abs" in repr_str
-    assert "NormalizeScale" in repr_str
+    assert "Rescale" in repr_str
 
 
 def test_random_sample_preserves_correspondence() -> None:
@@ -167,12 +167,12 @@ def test_random_sample_face_vertices_determinism() -> None:
 
 
 @pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
-def test_sample_farthest_points_num_samples() -> None:
+def test_farthest_point_sample_num_samples() -> None:
     pos = torch.randn(20, 3)
     labels = torch.arange(20)
     data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    result = T.SampleFarthestPoints(pos_key="pos", keys=["label"], num_samples=5)(data)
+    result = T.FarthestPointSample(pos_key="pos", keys=["label"], num_samples=5)(data)
     assert result["pos"].shape == (5, 3)
     assert result["label"].shape == (5,)
     assert result["other"] is sentinel.other
@@ -181,26 +181,26 @@ def test_sample_farthest_points_num_samples() -> None:
 
 
 @pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
-def test_sample_farthest_points_ratio() -> None:
+def test_farthest_point_sample_ratio() -> None:
     pos = torch.randn(10, 3)
-    result = T.SampleFarthestPoints(pos_key="pos", ratio=0.5)({"pos": pos})
+    result = T.FarthestPointSample(pos_key="pos", ratio=0.5)({"pos": pos})
     assert result["pos"].shape[0] == 5
 
 
-def test_normalize_scale_centroid_default() -> None:
+def test_rescale_centroid_default() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]])
     data = {"pos": pos, "other": sentinel.other}
 
-    result = T.NormalizeScale(keys=["pos"])(data)
+    result = T.Rescale(keys=["pos"])(data)
 
     # Centroid: subtract mean (2, 0, 0); divide by max-radius (2). Output spans [-1, 1].
     assert torch.allclose(result["pos"], torch.tensor([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]), atol=1e-5)
     assert result["other"] is sentinel.other
 
 
-def test_normalize_scale_bbox_method() -> None:
+def test_rescale_bbox_method() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [4.0, 2.0, 1.0]])
-    result = T.NormalizeScale(keys=["pos"], method="bbox")({"pos": pos})
+    result = T.Rescale(keys=["pos"], method="bbox")({"pos": pos})
     # bbox center (2,1,0.5); half-diagonal = max((4,2,1))/2 = 2; output range [-1, 1] on longest axis
     assert result["pos"].abs().max().item() == pytest.approx(1.0, abs=1e-5)
 
@@ -250,17 +250,17 @@ def test_abs_multiple_keys() -> None:
     assert result["c"] is sentinel.c
 
 
-def test_inbox_mask_basic() -> None:
+def test_box_mask_basic() -> None:
     pos = torch.tensor([[0.5, 0.5], [2.0, 0.5], [0.5, 2.0]])
-    result = T.InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))({"pos": pos})
+    result = T.BoxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))({"pos": pos})
     # in-place overwrite: result["pos"] is the mask now
     assert result["pos"].dtype == torch.bool
     assert result["pos"].tolist() == [True, False, False]
 
 
-def test_inbox_mask_with_dst_keys() -> None:
+def test_box_mask_with_dst_keys() -> None:
     pos = torch.tensor([[0.5, 0.5], [2.0, 0.5]])
-    result = T.InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0), dst_keys=["mask"])({"pos": pos})
+    result = T.BoxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0), dst_keys=["mask"])({"pos": pos})
     assert "mask" in result
     assert result["mask"].dtype == torch.bool
     # source pos preserved
@@ -353,14 +353,38 @@ def test_align_axis() -> None:
     assert result["pos"][:, -1].min() == 0.0
 
 
-def test_ball_mask() -> None:
+def test_cube_mask() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [10.0, 10.0, 10.0]])
     data = {"pos": pos}
-    transform = T.BallMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])
+    transform = T.CubeMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])
     result = transform(data)
 
     assert result["mask"][0].item() is True
     assert result["mask"][1].item() is False
+
+
+def test_sphere_mask_basic() -> None:
+    pos = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],  # center
+            [0.5, 0.0, 0.0],  # inside (L2 = 0.5)
+            [10.0, 0.0, 0.0],  # outside
+        ]
+    )
+    transform = T.SphereMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])
+    result = transform({"pos": pos})
+    assert result["mask"].dtype == torch.bool
+    assert result["mask"].tolist() == [True, True, False]
+
+
+def test_sphere_mask_l2_vs_cube_mask_l_infinity_corner() -> None:
+    """At a unit-cube corner, CubeMask says inside (L∞=1) but SphereMask says outside (L2≈√3)."""
+    pos = torch.tensor([[1.0, 1.0, 1.0]])
+    data = {"pos": pos}
+    cube = T.CubeMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])(data)
+    sphere = T.SphereMask(keys=["pos"], center=[0.0, 0.0, 0.0], radius=1.0, dst_keys=["mask"])(data)
+    assert cube["mask"].item() is True
+    assert sphere["mask"].item() is False
 
 
 def test_relabel() -> None:
@@ -500,20 +524,49 @@ def test_shift_dst_keys() -> None:
     assert torch.allclose(result["pos"], pos)  # source untouched
 
 
-def test_center_shift_apply_z_true() -> None:
+def test_shift_pointcept_centering_with_z() -> None:
+    """Pointcept-style centering (XY bbox + Z min) via Compose, replacing the
+    old CenterShift(apply_z=True)."""
     pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 4.0, 6.0]])
-    result = T.CenterShift(keys=["pos"], apply_z=True)({"pos": pos})
+    transform = T.Compose(
+        [
+            T.Shift(keys=["pos"], method="bbox", axes=[0, 1]),  # XY: bbox midrange
+            T.Shift(keys=["pos"], method="min", axes=[2]),  # Z:  min
+        ]
+    )
+    result = transform({"pos": pos})
     expected = torch.tensor([[-1.0, -2.0, 0.0], [1.0, 2.0, 6.0]])
     assert torch.allclose(result["pos"], expected)
 
 
-def test_center_shift_apply_z_false() -> None:
+def test_shift_pointcept_centering_without_z() -> None:
+    """Pointcept-style centering with Z untouched, replacing CenterShift(apply_z=False)."""
     pos = torch.tensor([[0.0, 0.0, 1.0], [2.0, 4.0, 7.0]])
-    result = T.CenterShift(keys=["pos"], apply_z=False)({"pos": pos})
+    result = T.Shift(keys=["pos"], method="bbox", axes=[0, 1])({"pos": pos})
     # Z is left unchanged
     assert torch.allclose(result["pos"][:, 2], pos[:, 2])
     # XY are bbox-centered
     assert torch.allclose(result["pos"][:, :2], pos[:, :2] - torch.tensor([1.0, 2.0]))
+
+
+def test_shift_disjoint_axes_commute() -> None:
+    """Two Shift calls on disjoint axes commute: the second min/max sees the
+    first's mutation, but only on axes the second ignores, so the result is
+    invariant to ordering."""
+    pos = torch.tensor([[0.0, 0.0, 0.0], [4.0, 6.0, 8.0]])
+    a = T.Compose(
+        [
+            T.Shift(keys=["pos"], method="bbox", axes=[0, 1]),
+            T.Shift(keys=["pos"], method="min", axes=[2]),
+        ]
+    )({"pos": pos})
+    b = T.Compose(
+        [
+            T.Shift(keys=["pos"], method="min", axes=[2]),
+            T.Shift(keys=["pos"], method="bbox", axes=[0, 1]),
+        ]
+    )({"pos": pos})
+    assert torch.allclose(a["pos"], b["pos"])
 
 
 def test_to_device_cpu() -> None:
@@ -581,7 +634,7 @@ def test_voxel_grid_basic() -> None:
     # Two points that fall in the same voxel + one in another voxel
     pos = torch.tensor([[0.05, 0.05, 0.05], [0.06, 0.06, 0.06], [1.0, 1.0, 1.0]])
     data = {"pos": pos, "feat": torch.tensor([[1.0], [3.0], [5.0]])}
-    result = T.VoxelGrid(
+    result = T.Voxelize(
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
@@ -598,7 +651,7 @@ def test_voxel_grid_basic() -> None:
 )
 def test_voxel_grid_with_cluster_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
-    result = T.VoxelGrid(
+    result = T.Voxelize(
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
@@ -616,7 +669,7 @@ def test_voxel_grid_with_cluster_key() -> None:
 )
 def test_voxel_grid_grid_pos_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
-    result = T.VoxelGrid(
+    result = T.Voxelize(
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
@@ -633,7 +686,7 @@ def test_voxel_grid_grid_pos_key() -> None:
 )
 def test_voxel_grid_grid_pos_reduce() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
-    result = T.VoxelGrid(
+    result = T.Voxelize(
         pos_key="pos",
         pos_reduce="grid",
         size=0.1,
@@ -660,24 +713,14 @@ def test_compose_over_list_applies_per_item() -> None:
     assert torch.equal(out[1]["x"], torch.tensor([2.0]))
 
 
-def test_normalize_scale_empty_passthrough(empty_scene: dict) -> None:
-    out = T.NormalizeScale(keys=["pos"])(empty_scene)
+def test_rescale_empty_passthrough(empty_scene: dict) -> None:
+    out = T.Rescale(keys=["pos"])(empty_scene)
     assert out["pos"].shape == (0, 3)
 
 
 def test_shift_empty_passthrough(empty_scene: dict) -> None:
     out = T.Shift(keys=["pos"], method="bbox")(empty_scene)
     assert out["pos"].shape == (0, 3)
-
-
-def test_center_shift_empty_passthrough(empty_scene: dict) -> None:
-    out = T.CenterShift(keys=["pos"])(empty_scene)
-    assert out["pos"].shape == (0, 3)
-
-
-def test_center_shift_wrong_shape_raises() -> None:
-    with pytest.raises(ValueError, match=r"\(N, 3\)"):
-        T.CenterShift(keys=["pos"])({"pos": torch.zeros(10, 2)})
 
 
 def test_axis_min_offset_empty_passthrough(empty_scene: dict) -> None:
@@ -701,7 +744,7 @@ def test_align_axis_inplace_on_non_contiguous_does_not_raise() -> None:
     reason="torch-cluster or torch-scatter is not installed",
 )
 def test_voxel_grid_empty_passthrough(empty_scene: dict) -> None:
-    out = T.VoxelGrid(
+    out = T.Voxelize(
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
@@ -711,9 +754,9 @@ def test_voxel_grid_empty_passthrough(empty_scene: dict) -> None:
     assert out["cluster"].shape == (0,)
 
 
-def test_normalize_scale_single_point(single_point_scene: dict) -> None:
+def test_rescale_single_point(single_point_scene: dict) -> None:
     # Single point: radius is 0 → eps prevents NaN. Result should be all zeros.
-    out = T.NormalizeScale(keys=["pos"])(single_point_scene)
+    out = T.Rescale(keys=["pos"])(single_point_scene)
     assert torch.allclose(out["pos"], torch.zeros_like(out["pos"]))
 
 
@@ -721,7 +764,7 @@ def test_normalize_scale_single_point(single_point_scene: dict) -> None:
     "transform",
     [
         T.Abs(keys=["absent"], allow_missing_keys=True),
-        T.NormalizeScale(keys=["absent"], allow_missing_keys=True),
+        T.Rescale(keys=["absent"], allow_missing_keys=True),
         T.Shift(keys=["absent"], method="bbox", allow_missing_keys=True),
         T.Scale(keys=["absent"], scale=2.0, allow_missing_keys=True),
         T.Divide(keys=["absent"], divisor=2.0, allow_missing_keys=True),
@@ -746,7 +789,7 @@ def test_allow_missing_keys_true_is_noop(transform: T.DictTransform) -> None:
     "transform",
     [
         T.Abs(keys=["absent"]),
-        T.NormalizeScale(keys=["absent"]),
+        T.Rescale(keys=["absent"]),
         T.Shift(keys=["absent"], method="bbox"),
         T.Scale(keys=["absent"], scale=2.0),
         T.ToFloat(keys=["absent"]),
@@ -762,9 +805,9 @@ def test_transforms_do_not_mutate_input_dict(sample_scene: dict) -> None:
     original = copy.copy(sample_scene)
     for transform in [
         T.Abs(keys=["pos"]),
-        T.NormalizeScale(keys=["pos"]),
+        T.Rescale(keys=["pos"]),
         T.Shift(keys=["pos"], method="bbox"),
-        T.CenterShift(keys=["pos"]),
+        T.Shift(keys=["pos"], method="bbox", axes=[0, 1]),
         T.AlignAxis(keys=["pos"], dim=2),
         T.AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"]),
     ]:
