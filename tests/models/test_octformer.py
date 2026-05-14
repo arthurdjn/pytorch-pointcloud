@@ -2,7 +2,6 @@ from typing import Any, Dict
 
 import pytest
 import torch
-from torch import Tensor
 
 from torch_pointcloud.models.octformer import OctFormerClassification, OctFormerSegmentation
 from torch_pointcloud.utils.imports import _DWCONV_AVAILABLE, _OCNN_AVAILABLE
