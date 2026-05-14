@@ -13,6 +13,7 @@ from torch_pointcloud.utils.imports import (
     _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
+    _SPCONV_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
@@ -108,6 +109,7 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area6",
     "randlanet-tsunghanwu.semantickitti",
     "sonata-lp.scannet20",
+    "spunet-v1m1.scannet20",
     "spvcnn-30gmacs.semantickitti",
     "spvcnn-47gmacs.semantickitti",
     "spvcnn-119gmacs.semantickitti",
@@ -123,6 +125,8 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
+    if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
 
 
 def _check_architecture_or_regen(
@@ -309,6 +313,7 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
         "sonata-lp.scannet20",
         "concerto-large-lp.scannet20",
         "utonia-lp.scannet20",
+        "spunet-v1m1.scannet20",
     ]:
         pytest.skip("Model is not supported yet")
     if model_name.startswith("randlanet."):
