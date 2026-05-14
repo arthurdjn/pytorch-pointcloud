@@ -1,6 +1,5 @@
 import copy
 from typing import Any, Dict
-
 from unittest.mock import MagicMock, sentinel
 
 import pytest
