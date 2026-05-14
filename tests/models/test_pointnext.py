@@ -9,6 +9,7 @@ from torch_pointcloud.models.pointnext import (
     PointNeXtDecoder,
     PointNeXtEncoder,
     PointNeXtEncoderBlock,
+    PointNeXtPartSegmentation,
     PointNeXtSegmentation,
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
@@ -163,3 +164,57 @@ def test_pointnext_segmentation_forward(model_seg: PointNeXtSegmentation, data: 
     logits = model_seg(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
     assert logits.dtype == data["features"].dtype
+
+
+@pytest.fixture
+def model_partseg() -> PointNeXtPartSegmentation:
+    return PointNeXtPartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        stem_channels=32,
+        stem_plain_last=False,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        encoder_expansion=4,
+        sa_layers=1,
+        sa_use_res=True,
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        decoder_plain_last=True,
+        ratios=[0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        add_self_loops=False,
+        spatial_dim=3,
+        act="relu",
+        act_kwargs=None,
+        act_first=False,
+        norm="batch_norm",
+        norm_kwargs=None,
+        bias=True,
+        dropout=0.0,
+        head_channels=None,
+    )
+
+
+@pytest.fixture
+def partseg_cls_onehot(data: Dict[str, Tensor]) -> Tensor:
+    num_batches = int(data["batch"].max()) + 1
+    return torch.nn.functional.one_hot(torch.arange(num_batches) % 4, num_classes=4).float()
+
+
+def test_pointnext_part_segmentation_forward(
+    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_cls_onehot: Tensor
+) -> None:
+    logits = model_partseg(data["features"], data["pos"], data["batch"], partseg_cls_onehot)
+    assert logits.shape == (data["pos"].shape[0], model_partseg.num_classes)
+    assert logits.dtype == data["features"].dtype
+
+
+def test_pointnext_part_segmentation_reset_classifier(
+    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_cls_onehot: Tensor
+) -> None:
+    model_partseg.reset_classifier(num_classes=42)
+    logits = model_partseg(data["features"], data["pos"], data["batch"], partseg_cls_onehot)
+    assert logits.shape == (data["pos"].shape[0], 42)

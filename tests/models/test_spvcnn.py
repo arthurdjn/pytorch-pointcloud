@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.spvcnn import SPVCNNSegmentation
+from torch_pointcloud.models.spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _TORCHSPARSE_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -55,3 +55,38 @@ def model_seg() -> SPVCNNSegmentation:
 def test_spvcnn_segmentation_forward(model_seg: SPVCNNSegmentation, data: Dict[str, Tensor]) -> None:
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+@pytest.fixture
+def model_clf() -> SPVCNNClassification:
+    return SPVCNNClassification(
+        in_channels=6,
+        num_classes=10,
+        spatial_dim=3,
+        stem_channels=16,
+        encoder_channels=(16, 32, 64),
+        encoder_depths=(1, 1, 1),
+        encoder_fusion_stages=(False, False, True),
+        kernel_size=3,
+        stride=1,
+        dilation=1,
+        drop_path=0.3,
+        global_pool="max",
+        dropout=0.0,
+        act="relu",
+        act_kwargs=None,
+        norm="batch_norm",
+        norm_kwargs=None,
+    ).cuda()
+
+
+def test_spvcnn_classification_forward(model_clf: SPVCNNClassification, data: Dict[str, Tensor]) -> None:
+    logits = model_clf(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
+
+
+def test_spvcnn_classification_reset_classifier(model_clf: SPVCNNClassification, data: Dict[str, Tensor]) -> None:
+    model_clf.reset_classifier(num_classes=42)
+    model_clf.cuda()
+    logits = model_clf(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, 42)
