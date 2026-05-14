@@ -109,9 +109,7 @@ def test_octformer_classification_forward(model_clf: OctFormerClassification, da
     assert logits.dtype == data["x"].dtype
 
 
-def test_octformer_classification_reset_classifier(
-    model_clf: OctFormerClassification, data: Dict[str, Tensor]
-) -> None:
+def test_octformer_classification_reset_classifier(model_clf: OctFormerClassification, data: Dict[str, Tensor]) -> None:
     model_clf.reset_classifier(num_classes=42)
     logits = model_clf(data["x"], data["octree"], data["depth"])
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
@@ -123,9 +121,7 @@ def test_octformer_segmentation_forward(model_seg: OctFormerSegmentation, data: 
     assert logits.dtype == data["x"].dtype
 
 
-def test_octformer_segmentation_reset_classifier(
-    model_seg: OctFormerSegmentation, data: Dict[str, Tensor]
-) -> None:
+def test_octformer_segmentation_reset_classifier(model_seg: OctFormerSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["x"], data["octree"], data["depth"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)

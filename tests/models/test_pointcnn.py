@@ -76,9 +76,7 @@ def test_pointcnn_classification_forward(model_clf: PointCNNClassification, data
     assert logits.dtype == data["x"].dtype
 
 
-def test_pointcnn_classification_reset_classifier(
-    model_clf: PointCNNClassification, data: Dict[str, Tensor]
-) -> None:
+def test_pointcnn_classification_reset_classifier(model_clf: PointCNNClassification, data: Dict[str, Tensor]) -> None:
     model_clf.reset_classifier(num_classes=42)
     logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
