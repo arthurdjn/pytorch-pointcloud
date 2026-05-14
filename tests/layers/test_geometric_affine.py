@@ -9,6 +9,11 @@ from torch_geometric.nn import MLP, knn, knn_graph
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -20,10 +25,6 @@ def data() -> Dict[str, Tensor]:
     return dict(x=x, pos=pos, batch=batch, edge_index=edge_index)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 @pytest.mark.parametrize("use_pos", [True, False])
 @pytest.mark.parametrize("normalize", ["center", "anchor"])
 def test_geometric_affine_conv_basic(
@@ -47,10 +48,6 @@ def test_geometric_affine_conv_basic(
     assert output.dtype == data["x"].dtype
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_geometric_affine_conv_with_self_loops(data: Dict[str, Tensor]) -> None:
     """Test GeometricAffineConv with self loops."""
     local_nn = MLP([2 * 3 + 3, 32])
@@ -67,10 +64,6 @@ def test_geometric_affine_conv_with_self_loops(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_geometric_affine_conv_pair_tensor(data: Dict[str, Tensor]) -> None:
     """Test GeometricAffineConv with pair tensor inputs (different source and destination)."""
     local_nn = MLP([2 * 3 + 3, 32])
@@ -100,10 +93,6 @@ def test_geometric_affine_conv_pair_tensor(data: Dict[str, Tensor]) -> None:
     assert output.shape == (num_dst, 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_geometric_affine_conv_reset_parameters() -> None:
     """Test GeometricAffineConv reset_parameters."""
     conv = GeometricAffineConv(
