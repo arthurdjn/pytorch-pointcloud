@@ -49,9 +49,14 @@ def test_collate_mismatched_tails_falls_back_to_list() -> None:
     assert len(out["extra"]) == 2
 
 
-@pytest.mark.parametrize("value,expected", [(True, torch.tensor([True, False])),
-                                              (1, torch.tensor([1, 2])),
-                                              (1.5, torch.tensor([1.5, 2.5]))])
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (True, torch.tensor([True, False])),
+        (1, torch.tensor([1, 2])),
+        (1.5, torch.tensor([1.5, 2.5])),
+    ],
+)
 def test_collate_scalar_python_values_become_tensor(value: object, expected: torch.Tensor) -> None:
     pair = [True, False] if isinstance(value, bool) else ([1, 2] if isinstance(value, int) else [1.5, 2.5])
     samples = [{"pos": torch.randn(1, 3), "v": pair[0]}, {"pos": torch.randn(1, 3), "v": pair[1]}]
