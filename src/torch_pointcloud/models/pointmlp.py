@@ -934,7 +934,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     "pointmlp-base.modelnet40",
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-base.modelnet40.pt",
-    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_base_clf_hparams(num_classes=40),
 )
 def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
@@ -945,7 +945,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-elite.modelnet40",
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.modelnet40.pt",
-    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_elite_clf_hparams(num_classes=40),
 )
 def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
@@ -968,7 +968,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-base.scanobjectnn",
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-base.scanobjectnn.pt",
-    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_base_clf_hparams(num_classes=15),
 )
 def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
@@ -980,7 +980,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-elite.scanobjectnn",
     task="classification",
     weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.scanobjectnn.pt",
-    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024),
+    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_elite_clf_hparams(num_classes=15),
 )
 def pointmlp_elite_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:

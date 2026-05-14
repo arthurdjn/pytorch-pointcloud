@@ -1173,7 +1173,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
         # which behaves differently from the PyG implementation, but is close enough.
         # The main difference is that labels are reduced using the most frequent value per voxel.
         # NOTE: tensors are automatically converted to float before reduction (if other than "first")
-        T.VoxelGrid(
+        T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="mean",
             keys=[DataKeys.COLOR, DataKeys.SEGMENT],

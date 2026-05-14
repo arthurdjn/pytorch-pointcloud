@@ -147,9 +147,9 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
                 num_samples=args.num_points,
             ),
             T.Shift(keys=DataKeys.POS, method="bbox"),
-            T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
-            T.InboxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
-            T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
+            T.Rescale(keys=DataKeys.POS, method="bbox"),
+            T.BoxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.BOX_MASK),
+            T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.BOX_MASK),
             T.Abs(keys=DataKeys.NORMAL),
             T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
             T.BuildOctree(

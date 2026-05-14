@@ -35,7 +35,7 @@ class DataKeys(StrEnum):
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
     POINTS = "points"
-    INBOX_MASK = "inbox_mask"
+    BOX_MASK = "box_mask"
 
 
 def _tails_equal(tensors: List[Tensor]) -> bool:

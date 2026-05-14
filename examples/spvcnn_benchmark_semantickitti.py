@@ -7,7 +7,7 @@ Its registered `transforms` field already encodes the full eval-time pipeline:
     1. `Relabel`: raw SemanticKITTI label ids → 19-class indices (`moving-*` merged into
        their static counterpart, `bus`/`on-rails`/`lane-marking`/... → ignore (255)).
     2. `Cat([pos, intensity], dst_key="x")`: build the 4-channel per-point feature.
-    3. `VoxelGrid(size=0.05, pos_reduce="grid")`: voxelise to integer voxel coords and
+    3. `Voxelize(size=0.05, pos_reduce="grid")`: voxelise to integer voxel coords and
        deduplicate (one point per voxel, "first" reduction for `x` and `segment`).
 
 mIoU is therefore computed per-voxel — close to (but not identical to) the

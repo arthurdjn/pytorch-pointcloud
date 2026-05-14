@@ -140,9 +140,9 @@ def test_random_sample_face_vertices_single_face() -> None:
     assert sampled.shape == (5, 3)
 
 
-def test_normalize_scale(sample_points: Tensor) -> None:
+def test_rescale(sample_points: Tensor) -> None:
     """Test that the normalize scale function returns the correct shape."""
-    normalized = F.normalize_scale(sample_points)
+    normalized = F.rescale(sample_points)
     expected = torch.tensor(
         [
             [-0.3015, -0.3015, -0.3015],
@@ -155,62 +155,62 @@ def test_normalize_scale(sample_points: Tensor) -> None:
     assert torch.allclose(normalized, expected, atol=1e-4)
 
 
-def test_normalize_scale_single_point() -> None:
-    """Test normalize_scale with a single point — centroid subtraction should yield zero, eps prevents div-by-zero."""
+def test_rescale_single_point() -> None:
+    """Test rescale with a single point — centroid subtraction should yield zero, eps prevents div-by-zero."""
     points = torch.tensor([[5.0, 3.0, 1.0]])
-    normalized = F.normalize_scale(points)
+    normalized = F.rescale(points)
     assert torch.allclose(normalized, torch.zeros(1, 3), atol=1e-4)
 
 
-def test_normalize_scale_all_zeros() -> None:
-    """Test normalize_scale with all-zero points — eps prevents division by zero."""
+def test_rescale_all_zeros() -> None:
+    """Test rescale with all-zero points — eps prevents division by zero."""
     points = torch.zeros(4, 3)
-    normalized = F.normalize_scale(points)
+    normalized = F.rescale(points)
     assert torch.allclose(normalized, torch.zeros(4, 3))
     assert not torch.isnan(normalized).any()
     assert not torch.isinf(normalized).any()
 
 
-def test_normalize_scale_already_centered() -> None:
-    """Test normalize_scale with already-centered data."""
+def test_rescale_already_centered() -> None:
+    """Test rescale with already-centered data."""
     points = torch.tensor([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
-    normalized = F.normalize_scale(points)
+    normalized = F.rescale(points)
     # Centroid is (0,0,0), max norm is 1.0
     expected = torch.tensor([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
     assert torch.allclose(normalized, expected, atol=1e-6)
 
 
-def test_normalize_scale_output_unit_scale() -> None:
+def test_rescale_output_unit_scale() -> None:
     """Test that normalized points have a max norm of at most 1."""
     points = torch.randn(50, 3) * 100
-    normalized = F.normalize_scale(points)
+    normalized = F.rescale(points)
     norms = torch.norm(normalized, dim=-1)
     assert norms.max() <= 1.0 + 1e-6
 
 
-def test_normalize_scale_bbox_matches_midrange_scale() -> None:
+def test_rescale_bbox_matches_midrange_scale() -> None:
     """Axis-aligned bbox: center (4,5,6), longest edge 6, radius 3 + eps."""
     points = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
     eps = 1e-6
-    out = F.normalize_scale(points, eps=eps, method="bbox")
+    out = F.rescale(points, eps=eps, method="bbox")
     radius = 3.0 + eps
     expected = (points - torch.tensor([4.0, 5.0, 6.0])) / radius
     assert torch.allclose(out, expected)
 
 
-def test_normalize_scale_bbox_all_zeros() -> None:
+def test_rescale_bbox_all_zeros() -> None:
     """Degenerate bbox: radius is ``eps`` only."""
     points = torch.zeros(4, 3)
     eps = 1e-6
-    out = F.normalize_scale(points, eps=eps, method="bbox")
+    out = F.rescale(points, eps=eps, method="bbox")
     assert torch.allclose(out, torch.zeros_like(points))
     assert not torch.isnan(out).any()
 
 
-def test_normalize_scale_invalid_method_raises() -> None:
+def test_rescale_invalid_method_raises() -> None:
     points = torch.randn(3, 3)
     with pytest.raises(ValueError, match="Invalid method"):
-        F.normalize_scale(points, method="typo")  # type: ignore[arg-type]
+        F.rescale(points, method="typo")  # type: ignore[arg-type]
 
 
 def test_divisible_pad() -> None:
@@ -550,23 +550,23 @@ def test_bounding_box_negative_positions() -> None:
     assert result == (-10.0, -7.0, -2.0, -5.0, -3.0, -1.0)
 
 
-def test_bounding_box_composable_with_inbox_mask() -> None:
-    """Test that bounding_box output can be directly fed into inbox_mask."""
+def test_bounding_box_composable_with_box_mask() -> None:
+    """Test that bounding_box output can be directly fed into box_mask."""
     x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [0.0, -1.0, 7.0]])
     bbox = F.bounding_box(x, dim=0)
-    mask = F.inbox_mask(x, bbox, dim=-1)
+    mask = F.box_mask(x, bbox, dim=-1)
     assert mask.shape == (3,)
 
 
-def test_inbox_mask_all_inside() -> None:
+def test_box_mask_all_inside() -> None:
     """Test that all points inside the bounding box produce True mask."""
     x = torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]])
     bbox = (0.0, 0.0, 0.0, 3.0, 3.0, 3.0)  # min x,y,z=0, max x,y,z=3
-    result = F.inbox_mask(x, bbox, dim=-1)
+    result = F.box_mask(x, bbox, dim=-1)
     assert torch.equal(result, torch.tensor([True, True]))
 
 
-def test_inbox_mask_some_outside() -> None:
+def test_box_mask_some_outside() -> None:
     """Test that points outside the bounding box produce False mask."""
     x = torch.tensor(
         [
@@ -576,11 +576,11 @@ def test_inbox_mask_some_outside() -> None:
         ]
     )
     bbox = (0.0, 0.0, 0.0, 3.0, 3.0, 3.0)
-    result = F.inbox_mask(x, bbox, dim=-1)
+    result = F.box_mask(x, bbox, dim=-1)
     assert torch.equal(result, torch.tensor([True, False, True]))
 
 
-def test_inbox_mask_boundary_exclusive() -> None:
+def test_box_mask_boundary_exclusive() -> None:
     """Test that points exactly on the boundary are excluded (strict inequality)."""
     x = torch.tensor(
         [
@@ -590,12 +590,12 @@ def test_inbox_mask_boundary_exclusive() -> None:
         ]
     )
     bbox = (0.0, 0.0, 0.0, 3.0, 3.0, 3.0)
-    result = F.inbox_mask(x, bbox, dim=-1)
+    result = F.box_mask(x, bbox, dim=-1)
     assert torch.equal(result, torch.tensor([False, False, True]))
 
 
-def test_inbox_mask_2d() -> None:
-    """Test inbox_mask with 2D data."""
+def test_box_mask_2d() -> None:
+    """Test box_mask with 2D data."""
     x = torch.tensor(
         [
             [1.0, 1.0],
@@ -604,16 +604,16 @@ def test_inbox_mask_2d() -> None:
         ]
     )
     bbox = (0.0, 0.0, 3.0, 3.0)  # min x,y=0, max x,y=3
-    result = F.inbox_mask(x, bbox, dim=-1)
+    result = F.box_mask(x, bbox, dim=-1)
     assert torch.equal(result, torch.tensor([True, False, False]))
 
 
-def test_inbox_mask_invalid_bbox_size() -> None:
-    """Test that inbox_mask raises ValueError for mismatched bbox size."""
+def test_box_mask_invalid_bbox_size() -> None:
+    """Test that box_mask raises ValueError for mismatched bbox size."""
     x = torch.tensor([[1.0, 2.0, 3.0]])
     bbox = (0.0, 0.0, 3.0, 3.0)  # size 4, but dim size is 3 -> expects 6
     with pytest.raises(ValueError, match="Bounding box size mismatch"):
-        F.inbox_mask(x, bbox, dim=-1)
+        F.box_mask(x, bbox, dim=-1)
 
 
 def test_apply_mask_basic() -> None:
@@ -657,35 +657,226 @@ def test_apply_mask_2d() -> None:
 
 
 @patch("torch_pointcloud.transforms.functional.fps")
-def test_sample_farthest_points_with_num_samples(mock_fps: Mock) -> None:
-    """Test that sample_farthest_points delegates to fps with num_samples."""
+def test_farthest_point_sample_with_num_samples(mock_fps: Mock) -> None:
+    """Test that farthest_point_sample delegates to fps with num_samples."""
     pos = MagicMock()
     num_samples = 10
 
-    result = F.sample_farthest_points(pos, num_samples=num_samples)
+    result = F.farthest_point_sample(pos, num_samples=num_samples)
 
     mock_fps.assert_called_once_with(pos, num_nodes=num_samples, ratio=None, random_start=False)
     assert result is mock_fps.return_value
 
 
 @patch("torch_pointcloud.transforms.functional.fps")
-def test_sample_farthest_points_with_ratio(mock_fps: Mock) -> None:
-    """Test that sample_farthest_points delegates to fps with ratio."""
+def test_farthest_point_sample_with_ratio(mock_fps: Mock) -> None:
+    """Test that farthest_point_sample delegates to fps with ratio."""
     pos = MagicMock()
     ratio = 0.5
 
-    result = F.sample_farthest_points(pos, ratio=ratio)
+    result = F.farthest_point_sample(pos, ratio=ratio)
 
     mock_fps.assert_called_once_with(pos, num_nodes=None, ratio=ratio, random_start=False)
     assert result is mock_fps.return_value
 
 
 @patch("torch_pointcloud.transforms.functional.fps")
-def test_sample_farthest_points_random_start(mock_fps: Mock) -> None:
-    """Test that sample_farthest_points delegates to fps with random_start."""
+def test_farthest_point_sample_random_start(mock_fps: Mock) -> None:
+    """Test that farthest_point_sample delegates to fps with random_start."""
     pos = MagicMock()
 
-    result = F.sample_farthest_points(pos, num_samples=5, random_start=True)
+    result = F.farthest_point_sample(pos, num_samples=5, random_start=True)
 
     mock_fps.assert_called_once_with(pos, num_nodes=5, ratio=None, random_start=True)
     assert result is mock_fps.return_value
+
+
+def test_cube_mask_keeps_points_inside_chebyshev_ball() -> None:
+    x = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],  # at center
+            [0.5, 0.5, 0.5],  # inside (Linf 0.5 <= 1)
+            [1.0, 1.0, 1.0],  # on boundary (inclusive)
+            [1.5, 0.0, 0.0],  # outside on axis X
+        ]
+    )
+    mask = F.cube_mask(x, center=[0.0, 0.0, 0.0], radius=1.0, dim=-1)
+    assert mask.dtype == torch.bool
+    assert mask.tolist() == [True, True, True, False]
+
+
+def test_cube_mask_off_center() -> None:
+    x = torch.tensor([[5.0, 5.0, 5.0], [4.0, 4.0, 4.0]])
+    mask = F.cube_mask(x, center=[5.0, 5.0, 5.0], radius=0.5, dim=-1)
+    assert mask.tolist() == [True, False]
+
+
+def test_cube_mask_empty() -> None:
+    x = torch.empty(0, 3)
+    mask = F.cube_mask(x, center=[0.0, 0.0, 0.0], radius=1.0)
+    assert mask.shape == (0,)
+    assert mask.dtype == torch.bool
+
+
+def test_sphere_mask_keeps_points_inside_euclidean_ball() -> None:
+    x = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],  # at center
+            [0.5, 0.5, 0.5],  # inside (L2 ≈ 0.87 <= 1)
+            [1.0, 0.0, 0.0],  # on boundary
+            [1.0, 1.0, 1.0],  # outside (L2 ≈ 1.73)
+        ]
+    )
+    mask = F.sphere_mask(x, center=[0.0, 0.0, 0.0], radius=1.0, dim=-1)
+    assert mask.dtype == torch.bool
+    assert mask.tolist() == [True, True, True, False]
+
+
+def test_sphere_mask_differs_from_cube_mask_in_corners() -> None:
+    """A corner of the unit cube (L∞=1) is outside the unit sphere (L2≈√3)."""
+    x = torch.tensor([[1.0, 1.0, 1.0]])  # L∞=1, L2=√3
+    assert F.cube_mask(x, [0.0, 0.0, 0.0], 1.0).item() is True
+    assert F.sphere_mask(x, [0.0, 0.0, 0.0], 1.0).item() is False
+
+
+def test_sphere_mask_empty() -> None:
+    x = torch.empty(0, 3)
+    mask = F.sphere_mask(x, center=[0.0, 0.0, 0.0], radius=1.0)
+    assert mask.shape == (0,)
+    assert mask.dtype == torch.bool
+
+
+def test_remove_near_origin_uses_sphere_mask_semantics() -> None:
+    """remove_near_origin now delegates to sphere_mask; verify L2 semantics preserved."""
+    pos = torch.tensor(
+        [
+            [0.5, 0.0, 0.0],  # close (L2=0.5)
+            [2.0, 0.0, 0.0],  # far (L2=2.0)
+            [0.6, 0.6, 0.6],  # L2 ≈ 1.04 — borderline
+        ]
+    )
+    filtered = F.remove_near_origin(pos, radius=1.0)
+    # Points with L2 > 1.0 survive: the (2, 0, 0) and (0.6, 0.6, 0.6)
+    assert filtered.shape == (2, 3)
+
+
+def test_shift_bbox_centers_on_midrange() -> None:
+    x = torch.tensor([[0.0, 0.0, 0.0], [2.0, 4.0, 6.0]])
+    out = F.shift(x, method="bbox")
+    expected = x - torch.tensor([1.0, 2.0, 3.0])  # bbox midrange
+    assert torch.allclose(out, expected)
+
+
+def test_shift_centroid_subtracts_mean() -> None:
+    x = torch.tensor([[0.0, 0.0, 0.0], [2.0, 4.0, 6.0]])
+    out = F.shift(x, method="centroid")
+    assert torch.allclose(out, x - x.mean(dim=0))
+
+
+def test_shift_min_aligns_positive_octant() -> None:
+    x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    out = F.shift(x, method="min")
+    assert torch.allclose(out, x - x.min(dim=0).values)
+    assert out.min().item() == pytest.approx(0.0)
+
+
+def test_shift_axes_subset_leaves_other_axes_untouched() -> None:
+    x = torch.tensor([[0.0, 0.0, 0.0], [2.0, 4.0, 6.0]])
+    out = F.shift(x, method="bbox", axes=[0, 1])  # XY only
+    # XY shifted by their midranges (1, 2); Z unchanged.
+    assert torch.allclose(out[:, :2], x[:, :2] - torch.tensor([1.0, 2.0]))
+    assert torch.allclose(out[:, 2], x[:, 2])
+
+
+def test_shift_chained_disjoint_axes_match_pointcept_centering() -> None:
+    """F.shift composes the way the Pointcept-style centering recipe expects."""
+    x = torch.tensor([[0.0, 0.0, 0.0], [2.0, 4.0, 6.0]])
+    out = F.shift(x, method="bbox", axes=[0, 1])
+    out = F.shift(out, method="min", axes=[2])
+    expected = torch.tensor([[-1.0, -2.0, 0.0], [1.0, 2.0, 6.0]])
+    assert torch.allclose(out, expected)
+
+
+def test_shift_empty_passthrough() -> None:
+    x = torch.empty(0, 3)
+    out = F.shift(x, method="bbox")
+    assert out.shape == (0, 3)
+
+
+def test_shift_invalid_method_raises() -> None:
+    x = torch.zeros(5, 3)
+    with pytest.raises(ValueError, match="Invalid method"):
+        F.shift(x, method="typo")  # type: ignore[arg-type]
+
+
+def test_axis_min_offset_height_feature() -> None:
+    x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [0.0, 0.0, 9.0]])
+    out = F.axis_min_offset(x, axis=2)
+    assert out.shape == (3, 1)
+    # Z column [3, 6, 9], min=3; offsets are [0, 3, 6]
+    assert torch.allclose(out, torch.tensor([[0.0], [3.0], [6.0]]))
+
+
+def test_axis_min_offset_preserves_dtype() -> None:
+    x = torch.tensor([[1.0, 2.0, 3.0]], dtype=torch.float64)
+    out = F.axis_min_offset(x, axis=0)
+    assert out.dtype == torch.float64
+
+
+def test_axis_min_offset_empty() -> None:
+    x = torch.empty(0, 3)
+    out = F.axis_min_offset(x, axis=2)
+    assert out.shape == (0, 1)
+
+
+def test_normalize_standardizes_per_channel() -> None:
+    x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 6.0, 8.0]])
+    out = F.normalize(x, mean=[1.0, 2.0, 3.0], std=[1.0, 2.0, 5.0])
+    expected = torch.tensor([[0.0, 0.0, 0.0], [3.0, 2.0, 1.0]])
+    assert torch.allclose(out, expected)
+
+
+def test_normalize_clamps_zero_std() -> None:
+    x = torch.tensor([[1.0, 2.0]])
+    out = F.normalize(x, mean=[1.0, 2.0], std=[0.0, 0.0], eps=1e-5)
+    assert torch.all(torch.isfinite(out))
+    assert torch.allclose(out, torch.zeros_like(out))
+
+
+def test_normalize_accepts_tensor_inputs() -> None:
+    x = torch.tensor([[2.0, 4.0]])
+    mean = torch.tensor([2.0, 4.0])
+    std = torch.tensor([1.0, 2.0])
+    out = F.normalize(x, mean, std)
+    assert torch.allclose(out, torch.zeros_like(out))
+
+
+def test_relabel_one_to_one_mapping() -> None:
+    labels = torch.tensor([1, 2, 5, 255])
+    out = F.relabel(labels, mapping=[1, 2, 5], default=255)
+    assert out.tolist() == [0, 1, 2, 255]
+
+
+def test_relabel_n_to_one_mapping_via_dict() -> None:
+    # SemanticKITTI-style merge: moving-car (252) and car (10) both → 0
+    labels = torch.tensor([10, 252, 11, 9999])
+    out = F.relabel(labels, mapping={10: 0, 252: 0, 11: 1}, default=255)
+    assert out.tolist() == [0, 0, 1, 255]
+
+
+def test_relabel_preserves_dtype() -> None:
+    labels = torch.tensor([0, 1, 2, 7], dtype=torch.int32)
+    out = F.relabel(labels, mapping=[0, 1, 2], default=99)
+    assert out.dtype == torch.int32
+
+
+def test_relabel_sparse_sources_no_oom() -> None:
+    labels = torch.tensor([2**20, 5, 2**18, 0])
+    out = F.relabel(labels, mapping={2**20: 0, 5: 1, 2**18: 2}, default=255)
+    assert out.tolist() == [0, 1, 2, 255]
+
+
+def test_relabel_empty_mapping_raises() -> None:
+    labels = torch.tensor([1, 2, 3])
+    with pytest.raises(ValueError, match="at least one source"):
+        F.relabel(labels, mapping=[])
