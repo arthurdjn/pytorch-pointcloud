@@ -616,7 +616,7 @@ class PointTransformerV3Encoder(nn.Module):
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
+        return self.blocks[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
     def configure_stem(
         self,
@@ -899,7 +899,7 @@ class PointTransformerV3Decoder(nn.Module):
 
     @property
     def out_channels(self) -> int:
-        return self.stages[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
+        return self.blocks[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
     def configure_blocks(
         self,
