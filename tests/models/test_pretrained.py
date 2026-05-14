@@ -39,6 +39,7 @@ from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
+    _SPCONV_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
 
@@ -130,6 +131,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("octformer-base.scannet20", "segmentation", "scannet20"),
     ("octformer-base.scannet200", "segmentation", "scannet20"),
     ("dgcnn-antao.scannet20", "segmentation", "scannet20"),
+    ("spunet-v1m1.scannet20", "segmentation", "scannet20"),
     # SemanticKITTI based models
     ("randlanet-tsunghanwu.semantickitti", "segmentation", "semantickitti"),
     ("spvcnn-30gmacs.semantickitti", "segmentation", "semantickitti"),
@@ -148,7 +150,9 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn")) and not torch.cuda.is_available():
+    if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+    if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 
