@@ -31,6 +31,7 @@ class DataKeys(StrEnum):
     CATEGORY = "category"
     LABEL = "label"
     BATCH = "batch"
+    CLUSTER = "cluster"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
     POINTS = "points"
