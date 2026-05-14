@@ -9,6 +9,7 @@ from torch_pointcloud.utils.imports import (
     _TORCH_SCATTER_AVAILABLE,
 )
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = [
     pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
     pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available"),

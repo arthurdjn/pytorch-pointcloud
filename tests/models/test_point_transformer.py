@@ -11,6 +11,7 @@ from torch_pointcloud.models.point_transformer import (
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",

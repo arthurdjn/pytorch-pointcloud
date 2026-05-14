@@ -8,6 +8,7 @@ from torch_pointcloud.models.octformer import OctFormerClassification, OctFormer
 from torch_pointcloud.utils.imports import _DWCONV_AVAILABLE, _OCNN_AVAILABLE
 from torch_pointcloud.utils.octree import build_octree
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
     not (_OCNN_AVAILABLE and _DWCONV_AVAILABLE),
     reason="ocnn or dwconv is not installed",

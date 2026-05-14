@@ -7,6 +7,7 @@ from torch import Tensor
 from torch_pointcloud.models.pointnet import PointNetClassification, PointNetSegmentation
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
     not _TORCH_SCATTER_AVAILABLE,
     reason="torch-scatter is not installed",

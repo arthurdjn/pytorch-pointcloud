@@ -7,6 +7,7 @@ from torch import Tensor
 from torch_pointcloud.models.pointnet2 import PointNet2Classification, PointNet2Segmentation
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
     not _TORCH_CLUSTER_AVAILABLE,
     reason="torch-cluster is not installed",
