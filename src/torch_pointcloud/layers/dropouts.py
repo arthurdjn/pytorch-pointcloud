@@ -8,7 +8,7 @@ from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
 def drop_path(x: Tensor, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True) -> Tensor:
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks),
-    as described in the paper [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382)
+    as described in the paper :arxiv: [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382)
     by Gao Huang, Yu Sun, Zhuang Liu, Daniel Sedra, Kilian Weinberger.
 
     Implementation is taken from original implementation by Ross Wightman in

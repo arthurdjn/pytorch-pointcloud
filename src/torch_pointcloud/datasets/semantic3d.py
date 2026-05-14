@@ -1,6 +1,6 @@
 """The Semantic3D dataset.
 
-[Semantic3D.net: A new Large-scale Point Cloud Classification Benchmark](https://arxiv.org/abs/1704.03847)
+:arxiv: [Semantic3D.net: A new Large-scale Point Cloud Classification Benchmark](https://arxiv.org/abs/1704.03847)
 by Hackel, Savinov, Ladicky, Wegner, Schindler and Pollefeys (2017).
 
 Each scene is distributed as a pair of plain-text files:

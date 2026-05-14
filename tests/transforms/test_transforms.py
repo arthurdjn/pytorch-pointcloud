@@ -1,10 +1,47 @@
-from unittest.mock import MagicMock, Mock, patch, sentinel
+import copy
+from typing import Any, Dict
+
+from unittest.mock import MagicMock, sentinel
 
 import pytest
 import torch
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+
+
+@pytest.fixture
+def sample_scene() -> Dict[str, Any]:
+    """100-point single-scene dict with all standard Pointcept-style keys."""
+    g = torch.Generator().manual_seed(0)
+    return {
+        "pos": torch.randn(100, 3, generator=g),
+        "color": (torch.rand(100, 3, generator=g) * 255).to(torch.uint8),
+        "normal": torch.nn.functional.normalize(torch.randn(100, 3, generator=g), dim=-1),
+        "segment": torch.randint(0, 10, (100,), generator=g),
+    }
+
+
+@pytest.fixture
+def empty_scene() -> Dict[str, Any]:
+    """Empty single-scene dict (N=0) with all standard keys."""
+    return {
+        "pos": torch.empty(0, 3),
+        "color": torch.empty(0, 3, dtype=torch.uint8),
+        "normal": torch.empty(0, 3),
+        "segment": torch.empty(0, dtype=torch.long),
+    }
+
+
+@pytest.fixture
+def single_point_scene() -> Dict[str, Any]:
+    """Single-point (N=1) dict with all standard keys."""
+    return {
+        "pos": torch.tensor([[1.0, 2.0, 3.0]]),
+        "color": torch.tensor([[128, 64, 32]], dtype=torch.uint8),
+        "normal": torch.tensor([[0.0, 0.0, 1.0]]),
+        "segment": torch.tensor([5], dtype=torch.long),
+    }
 
 
 def test_compose_applies_transforms_in_order() -> None:
@@ -52,216 +89,212 @@ def test_compose_repr() -> None:
     assert "NormalizeScale" in repr_str
 
 
-@patch("torch_pointcloud.transforms.transforms.F.random_sample")
-def test_random_sample(mock_fn: Mock) -> None:
-    sampled_tensor = sentinel.sampled_tensor
-    sampled_indices = sentinel.indices
-    mock_fn.return_value = (sampled_tensor, sampled_indices)
+def test_random_sample_preserves_correspondence() -> None:
+    pos = torch.arange(20, dtype=torch.float32).reshape(10, 2)
+    normal = torch.arange(20, 30, dtype=torch.float32).reshape(10, 1)
+    other = torch.tensor([42.0])
+    data = {"pos": pos, "normal": normal, "other": other}
 
-    data = {"pos": MagicMock(), "normal": MagicMock(), "other": MagicMock()}
-    transform = T.RandomSample(keys=["pos", "normal"], num_samples=10)
+    gen = torch.Generator().manual_seed(0)
+    result = T.RandomSample(keys=["pos", "normal"], num_samples=5, generator=gen)(data)
+
+    assert result["pos"].shape == (5, 2)
+    assert result["normal"].shape == (5, 1)
+    # correspondence: row i of result["pos"] and result["normal"] came from the same input row
+    for i in range(5):
+        src_row = int(result["pos"][i, 0].item()) // 2
+        assert torch.equal(result["normal"][i], normal[src_row])
+    # untouched key passed through
+    assert result["other"] is other
+    # input dict not mutated
+    assert set(data.keys()) == {"pos", "normal", "other"}
+    assert data["pos"] is pos
+
+
+def test_random_sample_replace_false_rejects_oversample() -> None:
+    data = {"pos": torch.randn(3, 2)}
+    with pytest.raises(ValueError, match="without replacement"):
+        T.RandomSample(keys=["pos"], num_samples=10)(data)
+
+
+def test_random_sample_replace_true_allows_oversample() -> None:
+    data = {"pos": torch.arange(6, dtype=torch.float32).reshape(3, 2)}
+    gen = torch.Generator().manual_seed(0)
+    result = T.RandomSample(keys=["pos"], num_samples=10, replace=True, generator=gen)(data)
+    assert result["pos"].shape == (10, 2)
+
+
+def test_random_sample_determinism() -> None:
+    data = {"pos": torch.randn(50, 3)}
+    g1 = torch.Generator().manual_seed(7)
+    g2 = torch.Generator().manual_seed(7)
+    a = T.RandomSample(keys=["pos"], num_samples=10, generator=g1)(data)
+    b = T.RandomSample(keys=["pos"], num_samples=10, generator=g2)(data)
+    assert torch.equal(a["pos"], b["pos"])
+
+
+def test_random_sample_face_vertices_basic() -> None:
+    vertices = torch.tensor(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0]],
+    )
+    face = torch.tensor([[0, 1, 2], [1, 2, 3]], dtype=torch.long)
+    data = {"vertices": vertices, "face": face, "other": sentinel.other}
+
+    gen = torch.Generator().manual_seed(0)
+    transform = T.RandomSampleFaceVertices(
+        keys=["vertices"], face_key="face", normal_key="normal", num_samples=5, generator=gen
+    )
     result = transform(data)
 
-    mock_fn.assert_called_once_with(data["pos"], 10, return_indices=True, generator=None)
-    assert result["pos"] is sampled_tensor
-    assert result["normal"] is data["normal"][sampled_indices]
-    assert result["other"] is data["other"]
+    assert result["vertices"].shape == (5, 3)
+    assert result["normal"].shape == (5, 3)
+    # Z is 0 since the mesh lies in the XY plane
+    assert torch.allclose(result["vertices"][:, 2], torch.zeros(5), atol=1e-5)
+    assert result["other"] is sentinel.other
 
 
-@patch("torch_pointcloud.transforms.transforms.F.random_sample_face_vertices")
-def test_random_sample_face_vertices(mock_fn: Mock) -> None:
-    mock_fn.return_value = (sentinel.sampled_vertices, sentinel.sampled_normals)
+def test_random_sample_face_vertices_determinism() -> None:
+    vertices = torch.randn(8, 3)
+    face = torch.tensor([[0, 1, 2], [3, 4, 5], [5, 6, 7]], dtype=torch.long)
+    g1 = torch.Generator().manual_seed(1)
+    g2 = torch.Generator().manual_seed(1)
+    a = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, generator=g1)(
+        {"vertices": vertices, "face": face}
+    )
+    b = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, generator=g2)(
+        {"vertices": vertices, "face": face}
+    )
+    assert torch.equal(a["vertices"], b["vertices"])
 
-    data = {"vertices": MagicMock(), "face": MagicMock(), "other": MagicMock()}
-    transform = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", normal_key="normal", num_samples=5)
-    result = transform(data)
 
-    mock_fn.assert_called_once_with(data["vertices"], data["face"], 5, generator=None, return_normals=True)
-    assert result["vertices"] is sentinel.sampled_vertices
-    assert result["normal"] is sentinel.sampled_normals
-    assert result["other"] is data["other"]
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+def test_sample_farthest_points_num_samples() -> None:
+    pos = torch.randn(20, 3)
+    labels = torch.arange(20)
+    data = {"pos": pos, "label": labels, "other": sentinel.other}
+
+    result = T.SampleFarthestPoints(pos_key="pos", keys=["label"], num_samples=5)(data)
+    assert result["pos"].shape == (5, 3)
+    assert result["label"].shape == (5,)
+    assert result["other"] is sentinel.other
+    # subsampled labels must be a subset of input labels
+    assert set(result["label"].tolist()).issubset(set(labels.tolist()))
 
 
-@patch("torch_pointcloud.transforms.transforms.F.sample_farthest_points")
-def test_sample_farthest_points(mock_fn: Mock) -> None:
-    indices = torch.tensor([0, 3, 7])
-    mock_fn.return_value = indices
-
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+def test_sample_farthest_points_ratio() -> None:
     pos = torch.randn(10, 3)
-    labels = torch.arange(10)
+    result = T.SampleFarthestPoints(pos_key="pos", ratio=0.5)({"pos": pos})
+    assert result["pos"].shape[0] == 5
+
+
+def test_normalize_scale_centroid_default() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]])
+    data = {"pos": pos, "other": sentinel.other}
+
+    result = T.NormalizeScale(keys=["pos"])(data)
+
+    # Centroid: subtract mean (2, 0, 0); divide by max-radius (2). Output spans [-1, 1].
+    assert torch.allclose(result["pos"], torch.tensor([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]), atol=1e-5)
+    assert result["other"] is sentinel.other
+
+
+def test_normalize_scale_bbox_method() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [4.0, 2.0, 1.0]])
+    result = T.NormalizeScale(keys=["pos"], method="bbox")({"pos": pos})
+    # bbox center (2,1,0.5); half-diagonal = max((4,2,1))/2 = 2; output range [-1, 1] on longest axis
+    assert result["pos"].abs().max().item() == pytest.approx(1.0, abs=1e-5)
+
+
+def test_remove_near_origin_filters_near_points() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [0.0001, 0.0, 0.0]])
+    labels = torch.tensor([0, 1, 2])
     data = {"pos": pos, "label": labels, "other": sentinel.other}
 
-    transform = T.SampleFarthestPoints(pos_key="pos", keys=["label"], num_samples=3)
-    result = transform(data)
+    result = T.RemoveNearOrigin(pos_key="pos", keys=["label"], radius=0.01)(data)
 
-    mock_fn.assert_called_once_with(pos, num_samples=3, ratio=None, random_start=False)
-    assert torch.equal(result["pos"], pos[indices])
-    assert torch.equal(result["label"], labels[indices])
+    # Only point 1 (10, 0, 0) is far enough from origin
+    assert result["pos"].shape == (1, 3)
+    assert torch.equal(result["pos"][0], pos[1])
+    assert torch.equal(result["label"], torch.tensor([1]))
     assert result["other"] is sentinel.other
 
 
-@patch("torch_pointcloud.transforms.transforms.F.sample_farthest_points")
-def test_sample_farthest_points_ratio(mock_fn: Mock) -> None:
-    mock_fn.return_value = torch.tensor([0, 2])
-    data = {"pos": torch.randn(5, 3)}
-
-    transform = T.SampleFarthestPoints(pos_key="pos", ratio=0.5)
-    transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], num_samples=None, ratio=0.5, random_start=False)
+def test_remove_near_origin_default_radius_keeps_all() -> None:
+    pos = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    result = T.RemoveNearOrigin(pos_key="pos")({"pos": pos})
+    assert torch.equal(result["pos"], pos)
 
 
-@patch("torch_pointcloud.transforms.transforms.F.sample_farthest_points")
-def test_sample_farthest_points_random_start(mock_fn: Mock) -> None:
-    mock_fn.return_value = torch.tensor([0])
-    data = {"pos": torch.randn(5, 3)}
+def test_abs_default() -> None:
+    pos = torch.tensor([-1.0, 2.0, -3.0])
+    data = {"pos": pos, "other": sentinel.other}
 
-    transform = T.SampleFarthestPoints(pos_key="pos", num_samples=1, random_start=True)
-    transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], num_samples=1, ratio=None, random_start=True)
-
-
-@patch("torch_pointcloud.transforms.transforms.F.normalize_scale")
-def test_normalize_scale(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.normalized
-    data = {"pos": MagicMock(), "other": sentinel.other}
-
-    transform = T.NormalizeScale(keys=["pos"])
-    result = transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], eps=1e-6, method="centroid")
-    assert result["pos"] is sentinel.normalized
+    result = T.Abs(keys=["pos"])(data)
+    assert torch.equal(result["pos"], torch.tensor([1.0, 2.0, 3.0]))
     assert result["other"] is sentinel.other
+    # default inplace=False does not mutate input
+    assert torch.equal(pos, torch.tensor([-1.0, 2.0, -3.0]))
 
 
-@patch("torch_pointcloud.transforms.transforms.F.normalize_scale")
-def test_normalize_scale_bbox_method(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.normalized
-    data = {"pos": MagicMock()}
-
-    transform = T.NormalizeScale(keys=["pos"], method="bbox", eps=1e-8)
-    transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], eps=1e-8, method="bbox")
+def test_abs_inplace_mutates() -> None:
+    pos = torch.tensor([-1.0, -2.0])
+    T.Abs(keys=["pos"], inplace=True)({"pos": pos})
+    assert torch.equal(pos, torch.tensor([1.0, 2.0]))
 
 
-@patch("torch_pointcloud.transforms.transforms.F.remove_near_origin")
-def test_remove_near_origin(mock_fn: Mock) -> None:
-    mask = torch.tensor([False, True, True, False])
-    mock_fn.return_value = (sentinel.filtered_pos, mask)
-
-    pos = torch.randn(4, 3)
-    labels = torch.tensor([0, 1, 2, 3])
-    data = {"pos": pos, "label": labels, "other": sentinel.other}
-
-    transform = T.RemoveNearOrigin(pos_key="pos", keys=["label"], radius=0.01)
-    result = transform(data)
-
-    mock_fn.assert_called_once_with(pos, radius=0.01, return_mask=True)
-    assert torch.equal(result["pos"], pos[mask])
-    assert torch.equal(result["label"], labels[mask])
-    assert result["other"] is sentinel.other
-
-
-@patch("torch_pointcloud.transforms.transforms.F.remove_near_origin")
-def test_remove_near_origin_defaults(mock_fn: Mock) -> None:
-    mock_fn.return_value = (sentinel.filtered, torch.tensor([True]))
-    data = {"pos": torch.randn(1, 3)}
-
-    transform = T.RemoveNearOrigin(pos_key="pos")
-    transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], radius=1e-3, return_mask=True)
-
-
-@patch("torch_pointcloud.transforms.transforms.F.abs")
-def test_abs_default(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.abs_result
-    data = {"pos": MagicMock(), "other": sentinel.other}
-
-    transform = T.Abs(keys=["pos"])
-    result = transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], inplace=False)
-    assert result["pos"] is sentinel.abs_result
-    assert result["other"] is sentinel.other
-
-
-@patch("torch_pointcloud.transforms.transforms.F.abs")
-def test_abs_inplace(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.result
-    data = {"pos": MagicMock()}
-
-    transform = T.Abs(keys=["pos"], inplace=True)
-    transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], inplace=True)
-
-
-@patch("torch_pointcloud.transforms.transforms.F.abs")
-def test_abs_multiple_keys(mock_fn: Mock) -> None:
-    mock_fn.side_effect = [sentinel.abs_a, sentinel.abs_b]
-    data = {"a": MagicMock(), "b": MagicMock(), "c": sentinel.c}
-
-    transform = T.Abs(keys=["a", "b"])
-    result = transform(data)
-
-    assert mock_fn.call_count == 2
-    assert result["a"] is sentinel.abs_a
-    assert result["b"] is sentinel.abs_b
+def test_abs_multiple_keys() -> None:
+    data = {"a": torch.tensor([-1.0]), "b": torch.tensor([-2.0]), "c": sentinel.c}
+    result = T.Abs(keys=["a", "b"])(data)
+    assert torch.equal(result["a"], torch.tensor([1.0]))
+    assert torch.equal(result["b"], torch.tensor([2.0]))
     assert result["c"] is sentinel.c
 
 
-@patch("torch_pointcloud.transforms.transforms.F.inbox_mask")
-def test_inbox_mask(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.mask
-    data = {"pos": MagicMock()}
-
-    transform = T.InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))
-    result = transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], (0.0, 0.0, 1.0, 1.0), dim=-1)
-    assert result["pos"] is sentinel.mask
+def test_inbox_mask_basic() -> None:
+    pos = torch.tensor([[0.5, 0.5], [2.0, 0.5], [0.5, 2.0]])
+    result = T.InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0))({"pos": pos})
+    # in-place overwrite: result["pos"] is the mask now
+    assert result["pos"].dtype == torch.bool
+    assert result["pos"].tolist() == [True, False, False]
 
 
-@patch("torch_pointcloud.transforms.transforms.F.inbox_mask")
-def test_inbox_mask_with_dst_keys(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.mask
-    data = {"pos": MagicMock()}
-
-    transform = T.InboxMask(keys=["pos"], bbox=(0.0, 1.0), dst_keys=["mask"], dim=0)
-    result = transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], (0.0, 1.0), dim=0)
-    assert result["mask"] is sentinel.mask
-    assert result["pos"] is data["pos"]
+def test_inbox_mask_with_dst_keys() -> None:
+    pos = torch.tensor([[0.5, 0.5], [2.0, 0.5]])
+    result = T.InboxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0), dst_keys=["mask"])({"pos": pos})
+    assert "mask" in result
+    assert result["mask"].dtype == torch.bool
+    # source pos preserved
+    assert torch.equal(result["pos"], pos)
 
 
-@patch("torch_pointcloud.transforms.transforms.F.apply_mask")
-def test_apply_mask(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.masked
-    mask = sentinel.mask
-    data = {"pos": MagicMock(), "mask": mask, "other": sentinel.other}
+def test_apply_mask_basic() -> None:
+    pos = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    mask = torch.tensor([True, False, True])
+    result = T.ApplyMask(keys=["pos"], mask_key="mask")({"pos": pos, "mask": mask, "other": sentinel.other})
 
-    transform = T.ApplyMask(keys=["pos"], mask_key="mask")
-    result = transform(data)
-
-    mock_fn.assert_called_once_with(data["pos"], mask)
-    assert result["pos"] is sentinel.masked
+    assert torch.equal(result["pos"], pos[mask])
     assert result["other"] is sentinel.other
 
 
-@patch("torch_pointcloud.transforms.transforms.F.apply_mask")
-def test_apply_mask_with_dst_keys(mock_fn: Mock) -> None:
-    mock_fn.return_value = sentinel.masked
-    data = {"pos": MagicMock(), "mask": sentinel.mask}
+def test_apply_mask_with_dst_keys() -> None:
+    pos = torch.tensor([[1.0], [2.0], [3.0]])
+    mask = torch.tensor([True, False, True])
+    result = T.ApplyMask(keys=["pos"], mask_key="mask", dst_keys=["filtered"])({"pos": pos, "mask": mask})
+    assert torch.equal(result["filtered"], pos[mask])
+    # source untouched
+    assert torch.equal(result["pos"], pos)
 
-    transform = T.ApplyMask(keys=["pos"], mask_key="mask", dst_keys=["filtered"])
-    result = transform(data)
 
-    assert result["filtered"] is sentinel.masked
-    assert result["pos"] is data["pos"]
+def test_apply_mask_missing_key_raises() -> None:
+    with pytest.raises(KeyError, match="mask"):
+        T.ApplyMask(keys=["pos"], mask_key="mask")({"pos": torch.zeros(3)})
+
+
+def test_apply_mask_missing_key_allowed() -> None:
+    data = {"pos": torch.tensor([[1.0], [2.0]])}
+    result = T.ApplyMask(keys=["pos"], mask_key="mask", allow_missing_keys=True)(data)
+    assert torch.equal(result["pos"], data["pos"])
 
 
 def test_set_value() -> None:
@@ -302,10 +335,10 @@ def test_center_bbox() -> None:
     assert torch.allclose(result["pos"], expected)
 
 
-def test_center_mean() -> None:
+def test_center_centroid() -> None:
     pos = torch.tensor([[0.0, 0.0, 0.0], [2.0, 2.0, 2.0]])
     data = {"pos": pos}
-    transform = T.Shift(keys=["pos"], method="mean")
+    transform = T.Shift(keys=["pos"], method="centroid")
     result = transform(data)
 
     expected = pos - pos.mean(dim=0)
@@ -511,10 +544,21 @@ def test_one_hot_scalar_input_gets_batch_dim() -> None:
     assert torch.allclose(result["onehot"][0], torch.tensor([0.0, 0.0, 1.0, 0.0]))
 
 
-def test_reduce_amax() -> None:
+def test_reduce_max() -> None:
     data = {"pos": torch.tensor([[1.0, 5.0], [3.0, 2.0]])}
-    result = T.Reduce(keys=["pos"], op="amax", dim=0)(data)
+    result = T.Reduce(keys=["pos"], op="max", dim=0)(data)
     assert torch.allclose(result["pos"], torch.tensor([3.0, 5.0]))
+
+
+def test_reduce_min() -> None:
+    data = {"pos": torch.tensor([[1.0, 5.0], [3.0, 2.0]])}
+    result = T.Reduce(keys=["pos"], op="min", dim=0)(data)
+    assert torch.allclose(result["pos"], torch.tensor([1.0, 2.0]))
+
+
+def test_reduce_invalid_op_raises() -> None:
+    with pytest.raises(ValueError, match="Invalid op"):
+        T.Reduce(keys=["pos"], op="amax")  # type: ignore[arg-type]
 
 
 def test_reduce_mean_keepdim() -> None:
@@ -596,3 +640,218 @@ def test_voxel_grid_grid_pos_reduce() -> None:
         size=0.1,
     )({"pos": pos})
     assert result["pos"].dtype == torch.long
+
+
+def test_compose_empty_is_passthrough() -> None:
+    data = {"pos": torch.tensor([1.0, 2.0])}
+    result = T.Compose([])(data)
+    assert result is data
+
+
+def test_compose_propagates_exceptions() -> None:
+    boom = MagicMock(side_effect=RuntimeError("boom"))
+    with pytest.raises(RuntimeError, match="boom"):
+        T.Compose([boom])({"pos": torch.zeros(3)})
+
+
+def test_compose_over_list_applies_per_item() -> None:
+    items = [{"x": torch.tensor([-1.0])}, {"x": torch.tensor([-2.0])}]
+    out = T.Compose([T.Abs(keys=["x"])])(items)
+    assert torch.equal(out[0]["x"], torch.tensor([1.0]))
+    assert torch.equal(out[1]["x"], torch.tensor([2.0]))
+
+
+def test_normalize_scale_empty_passthrough(empty_scene: dict) -> None:
+    out = T.NormalizeScale(keys=["pos"])(empty_scene)
+    assert out["pos"].shape == (0, 3)
+
+
+def test_shift_empty_passthrough(empty_scene: dict) -> None:
+    out = T.Shift(keys=["pos"], method="bbox")(empty_scene)
+    assert out["pos"].shape == (0, 3)
+
+
+def test_center_shift_empty_passthrough(empty_scene: dict) -> None:
+    out = T.CenterShift(keys=["pos"])(empty_scene)
+    assert out["pos"].shape == (0, 3)
+
+
+def test_center_shift_wrong_shape_raises() -> None:
+    with pytest.raises(ValueError, match=r"\(N, 3\)"):
+        T.CenterShift(keys=["pos"])({"pos": torch.zeros(10, 2)})
+
+
+def test_axis_min_offset_empty_passthrough(empty_scene: dict) -> None:
+    out = T.AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"])(empty_scene)
+    assert out["h"].shape == (0, 1)
+
+
+def test_align_axis_empty_passthrough(empty_scene: dict) -> None:
+    out = T.AlignAxis(keys=["pos"], dim=2)(empty_scene)
+    assert out["pos"].shape == (0, 3)
+
+
+def test_align_axis_inplace_on_non_contiguous_does_not_raise() -> None:
+    pos = torch.arange(12, dtype=torch.float32).reshape(3, 4)[:, :3]
+    assert not pos.is_contiguous()
+    T.AlignAxis(keys=["pos"], dim=2, inplace=True)({"pos": pos})  # should not crash
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxel_grid_empty_passthrough(empty_scene: dict) -> None:
+    out = T.VoxelGrid(
+        pos_key="pos",
+        pos_reduce="mean",
+        size=0.1,
+        cluster_key="cluster",
+    )(empty_scene)
+    assert out["pos"].shape[0] == 0
+    assert out["cluster"].shape == (0,)
+
+
+def test_normalize_scale_single_point(single_point_scene: dict) -> None:
+    # Single point: radius is 0 → eps prevents NaN. Result should be all zeros.
+    out = T.NormalizeScale(keys=["pos"])(single_point_scene)
+    assert torch.allclose(out["pos"], torch.zeros_like(out["pos"]))
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        T.Abs(keys=["absent"], allow_missing_keys=True),
+        T.NormalizeScale(keys=["absent"], allow_missing_keys=True),
+        T.Shift(keys=["absent"], method="bbox", allow_missing_keys=True),
+        T.Scale(keys=["absent"], scale=2.0, allow_missing_keys=True),
+        T.Divide(keys=["absent"], divisor=2.0, allow_missing_keys=True),
+        T.ToFloat(keys=["absent"], allow_missing_keys=True),
+        T.RenameItems(keys=["absent"], names=["new"], allow_missing_keys=True),
+        T.CopyItems(keys=["absent"], names=["new"], allow_missing_keys=True),
+        T.KeepItems(keys=["pos"], allow_missing_keys=True),
+    ],
+    ids=lambda t: type(t).__name__,
+)
+def test_allow_missing_keys_true_is_noop(transform: T.DictTransform) -> None:
+    data = {"pos": torch.randn(5, 3)}
+    out = transform(data)
+    # Either pass-through (most) or filter to existing keys (KeepItems)
+    if isinstance(transform, T.KeepItems):
+        assert set(out.keys()) == {"pos"}
+    else:
+        assert "absent" not in out
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        T.Abs(keys=["absent"]),
+        T.NormalizeScale(keys=["absent"]),
+        T.Shift(keys=["absent"], method="bbox"),
+        T.Scale(keys=["absent"], scale=2.0),
+        T.ToFloat(keys=["absent"]),
+    ],
+    ids=lambda t: type(t).__name__,
+)
+def test_allow_missing_keys_false_raises(transform: T.DictTransform) -> None:
+    with pytest.raises(KeyError, match="absent"):
+        transform({"pos": torch.randn(5, 3)})
+
+
+def test_transforms_do_not_mutate_input_dict(sample_scene: dict) -> None:
+    original = copy.copy(sample_scene)
+    for transform in [
+        T.Abs(keys=["pos"]),
+        T.NormalizeScale(keys=["pos"]),
+        T.Shift(keys=["pos"], method="bbox"),
+        T.CenterShift(keys=["pos"]),
+        T.AlignAxis(keys=["pos"], dim=2),
+        T.AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"]),
+    ]:
+        _ = transform(sample_scene)
+        assert set(sample_scene.keys()) == set(original.keys())
+        for k in original:
+            assert sample_scene[k] is original[k], f"{type(transform).__name__} replaced key {k!r}"
+
+
+def test_relabel_sparse_sources_does_not_oom() -> None:
+    # Sparse source values (e.g., 2**20) used to allocate a 1M-entry lookup table.
+    # Searchsorted-based impl handles this in O(|sources|) memory.
+    transform = T.Relabel(keys=["seg"], labels={2**20: 0, 5: 1, 2**18: 2}, default=255)
+    labels = torch.tensor([2**20, 5, 2**18, 0])
+    result = transform({"seg": labels})
+    assert result["seg"].tolist() == [0, 1, 2, 255]
+
+
+def test_relabel_preserves_dtype() -> None:
+    transform = T.Relabel(keys=["seg"], labels=[0, 1, 2], default=99)
+    labels = torch.tensor([0, 1, 2, 7], dtype=torch.int32)
+    result = transform({"seg": labels})
+    assert result["seg"].dtype == torch.int32
+
+
+def test_relabel_empty_labels_raises() -> None:
+    with pytest.raises(ValueError, match="at least one source"):
+        T.Relabel(keys=["seg"], labels=[])
+
+
+def test_normalize_zero_std_does_not_divide_by_zero() -> None:
+    data = {"x": torch.tensor([[1.0, 2.0]])}
+    out = T.Normalize(keys=["x"], mean=[1.0, 2.0], std=[0.0, 0.0], eps=1e-5)(data)
+    # (x - mean) is zero, divided by clamped eps; result is zero (not NaN)
+    assert torch.all(torch.isfinite(out["x"]))
+    assert torch.allclose(out["x"], torch.zeros_like(out["x"]))
+
+
+def test_build_octree_happy_path() -> None:
+    ocnn = pytest.importorskip("ocnn")
+    pos = torch.rand(64, 3) * 2 - 1  # cube [-1, 1]
+    normal = torch.nn.functional.normalize(torch.randn(64, 3), dim=-1)
+    transform = T.BuildOctree(
+        pos_key="pos",
+        octree_key="octree",
+        normal_key="normal",
+        depth=4,
+    )
+    out = transform({"pos": pos, "normal": normal})
+    assert "octree" in out
+    assert isinstance(out["octree"], ocnn.octree.Octree)
+
+
+def test_build_octree_with_points_key() -> None:
+    ocnn = pytest.importorskip("ocnn")
+    pos = torch.rand(32, 3) * 2 - 1
+    transform = T.BuildOctree(
+        pos_key="pos",
+        octree_key="octree",
+        points_key="points",
+        depth=3,
+    )
+    out = transform({"pos": pos})
+    assert "octree" in out and "points" in out
+    assert isinstance(out["octree"], ocnn.octree.Octree)
+
+
+def test_build_octree_rejects_same_octree_and_points_key() -> None:
+    pytest.importorskip("ocnn")
+    with pytest.raises(ValueError, match="must be different"):
+        T.BuildOctree(pos_key="pos", octree_key="octree", points_key="octree", depth=3)
+
+
+def test_octree_features_nd() -> None:
+    pytest.importorskip("ocnn")
+    pos = torch.rand(64, 3) * 2 - 1
+    normal = torch.nn.functional.normalize(torch.randn(64, 3), dim=-1)
+    data = {"pos": pos, "normal": normal}
+    data = T.BuildOctree(
+        pos_key="pos",
+        octree_key="octree",
+        normal_key="normal",
+        depth=4,
+    )(data)
+    out = T.OctreeFeatures(keys=["octree"], features_type="ND", dst_keys=["feat"])(data)
+    # "N" = normal (3 channels), "D" = displacement (1 channel) → 4 channels total.
+    # ocnn's get_input_feature returns (C, K) where C is channels and K is num nodes.
+    assert out["feat"].ndim == 2
+    assert 4 in out["feat"].shape

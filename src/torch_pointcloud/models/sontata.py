@@ -18,7 +18,7 @@ class SonataSegmentation(SegmentationModel):
     """Sonata linear-probing segmentation model.
 
     This variant follows the segmentation demo from
-    [facebookresearch/sonata](https://github.com/facebookresearch/sonata): the
+    :github: [facebookresearch/sonata](https://github.com/facebookresearch/sonata): the
     encoder features are unpooled through the saved pooling inverses, concatenated
     with each parent stage, then projected by a linear segmentation head.
     """

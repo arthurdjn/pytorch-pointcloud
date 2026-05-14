@@ -1,3 +1,14 @@
+"""Dict transforms.
+
+All transforms in this module operate on a **single scene** (one sample, pre-collate).
+The `batch` key is not consumed at this layer; reductions like `mean`, `min`, and `max`
+are computed over the whole tensor, not per-batch. Apply transforms before DataLoader
+collation if you want per-scene behavior.
+
+Transforms are non-mutating: each transform returns a new shallow-copy dict. Tensors
+inside the dict are not cloned unless the transform's documentation says so.
+"""
+
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence
 
@@ -205,11 +216,19 @@ class DictTransform(Transform, metaclass=ABCMeta):
     """Base class for dictionary transforms.
 
     This class is used to define transforms that operate on a dictionary of data,
-    and implement utility methods for key iteration and error handling.
+    and implements utility methods for key iteration and error handling.
+
+    Note:
+        `allow_missing_keys` controls the iteration over `self.keys` performed by
+        `iter_keys`. Auxiliary keys read by individual transforms (e.g. `mask_key`
+        in `ApplyMask`, `pos_key` in `RemoveNearOrigin` / `SampleFarthestPoints`,
+        `face_key` in `RandomSampleFaceVertices`) document their own missing-key
+        behavior in their respective docstrings.
 
     Args:
         keys: The keys to apply the transform to.
-        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+        allow_missing_keys: If `True`, the transform will not raise an error if
+            keys listed in `self.keys` are missing from the input dict.
 
     """
 
@@ -262,27 +281,42 @@ class RandomSample(DictTransform):
     Args:
         keys: The keys to sample from.
         num_samples: The number of values to sample.
+        replace: If `True`, sample with replacement (duplicates allowed). If `False`
+            (default), raise `ValueError` when `num_samples > N`.
         generator: The generator for the random number generator.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Raises:
+        ValueError: If `replace=False` and `num_samples > N` for the first sampled key,
+            or if the first sampled tensor is empty and `num_samples > 0`.
     """
 
     def __init__(
         self,
         keys: KeyCollection,
         num_samples: int,
+        replace: bool = False,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.num_samples = num_samples
+        self.replace = replace
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         iterator = self.iter_keys(d)
-        first_key = next(iterator)
+        try:
+            first_key = next(iterator)
+        except StopIteration:
+            return d
         sampled_tensor, indices = F.random_sample(
-            d[first_key], self.num_samples, return_indices=True, generator=self.generator
+            d[first_key],
+            self.num_samples,
+            return_indices=True,
+            replace=self.replace,
+            generator=self.generator,
         )
         d[first_key] = sampled_tensor
         for key in iterator:
@@ -342,6 +376,11 @@ class SampleFarthestPoints(DictTransform):
 
     See Also:
         `torch_pointcloud.transforms.functional.sample_farthest_points`
+
+    Note:
+        The underlying `fps` does not accept a `torch.Generator`. To make
+        `random_start=True` reproducible, seed PyTorch globally via
+        `torch.manual_seed(...)` before applying this transform.
 
     Args:
         pos_key: The key holding the positions used for FPS.
@@ -531,9 +570,11 @@ class ApplyMask(DictTransform):
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, size=len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if self.mask_key not in data:
-            raise KeyError(f"Mask key {self.mask_key!r} not found in data.")
         d = dict(data)
+        if self.mask_key not in data:
+            if self.allow_missing_keys:
+                return d
+            raise KeyError(f"Mask key {self.mask_key!r} not found in data.")
         mask = d[self.mask_key]
         for key, dst_key in self.iter_keys(d, self.dst_keys):
             d[dst_key] = F.apply_mask(d[key], mask)
@@ -541,15 +582,19 @@ class ApplyMask(DictTransform):
 
 
 class SetValue(DictTransform):
-    """Set a value to a key in the dictionary.
+    """Set values for keys in the dictionary, creating or overwriting them.
+
+    Unlike most `DictTransform` subclasses, `SetValue` does not read existing
+    values, so `allow_missing_keys` has no meaning and is not accepted.
 
     Args:
-        keys: The keys to set the values to.
-        values: The values to set.
+        keys: The keys to set.
+        values: The values to set. Either a single value broadcast to every key,
+            or a sequence of values the same length as `keys`.
     """
 
     def __init__(self, keys: KeyCollection, values: Any) -> None:
-        super().__init__(keys, False)
+        super().__init__(keys, allow_missing_keys=False)
         self.values = ensure_tuple_size(values, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -636,13 +681,14 @@ class ToFloat(DictTransform):
 
 
 class Normalize(DictTransform):
-    r"""Normalize dictionary tensor entries: $x' = (x - \mu) / \sigma$.
+    r"""Normalize dictionary tensor entries: $x' = (x - \mu) / \max(\sigma, \epsilon)$.
 
     Args:
         keys: The keys to standardize.
         mean: Per-channel mean(s).  Broadcast against the last dimension of
             each tensor.
         std: Per-channel standard deviation(s).
+        eps: Lower bound on $\sigma$ to prevent division by zero. Defaults to $10^{-7}$.
         allow_missing_keys: If `True`, missing keys are silently ignored.
     """
 
@@ -651,18 +697,21 @@ class Normalize(DictTransform):
         keys: KeyCollection,
         mean: Sequence[float],
         std: Sequence[float],
+        eps: float = 1e-7,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mean = torch.tensor(mean, dtype=torch.float32)
         self.std = torch.tensor(std, dtype=torch.float32)
+        self.eps = eps
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        mean = self.mean.to(data[next(iter(self.keys))].device)
-        std = self.std.to(data[next(iter(self.keys))].device)
         for key in self.iter_keys(data):
-            data[key] = (data[key] - mean) / std
+            x = data[key]
+            mean = self.mean.to(x.device)
+            std = self.std.to(x.device).clamp(min=self.eps)
+            data[key] = (x - mean) / std
         return data
 
 
@@ -671,15 +720,17 @@ class Shift(DictTransform):
 
     Each key is offset independently. The offset is determined by `method`:
 
-    | Method   | Offset                                           |
-    | -------- | ------------------------------------------------ |
-    | `"bbox"` | Midrange: `(min + max) / 2`                      |
-    | `"mean"` | Centroid: `mean`                                 |
-    | `"min"`  | Per-axis minimum (shifts to the positive octant) |
+    | Method       | Offset                                           |
+    | ------------ | ------------------------------------------------ |
+    | `"bbox"`     | Midrange: `(min + max) / 2`                      |
+    | `"centroid"` | Mean across the reduced dimension                |
+    | `"min"`      | Per-axis minimum (shifts to the positive octant) |
+
+    On empty inputs (size $0$ along `dim`) the tensor is returned unchanged.
 
     Args:
         keys: The keys to shift.
-        method: `"bbox"` (midrange), `"mean"` (centroid), or `"min"` (shift to origin).
+        method: `"bbox"` (midrange), `"centroid"` (mean), or `"min"` (shift to origin).
         dim: The dimension to reduce over.
         axes: Which axes (last-dim indices) to shift. `None` (default) shifts every axis;
             pass e.g. `axes=[0, 1]` to recenter only XY (matching Open3D-ML's
@@ -688,10 +739,12 @@ class Shift(DictTransform):
         allow_missing_keys: If `True`, skip missing keys silently.
     """
 
+    _VALID_METHODS = ("bbox", "centroid", "min")
+
     def __init__(
         self,
         keys: KeyCollection,
-        method: ValueCollection[Literal["bbox", "mean", "min"]],
+        method: ValueCollection[Literal["bbox", "centroid", "min"]],
         dim: int = 0,
         axes: Optional[Sequence[int]] = None,
         dst_keys: Optional[KeyCollection] = None,
@@ -702,13 +755,13 @@ class Shift(DictTransform):
         self.axes = tuple(axes) if axes is not None else None
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.method = ensure_tuple_size(method, len(self.keys))
-        if not set(self.method).issubset({"bbox", "mean", "min"}):
-            raise ValueError(f"Invalid method: {method!r}. Expected 'bbox', 'mean', or 'min'.")
+        if not set(self.method).issubset(self._VALID_METHODS):
+            raise ValueError(f"Invalid method: {method!r}. Expected one of {self._VALID_METHODS}.")
 
-    def offset(self, x: Tensor, method: Literal["bbox", "mean", "min"]) -> Tensor:
+    def offset(self, x: Tensor, method: Literal["bbox", "centroid", "min"]) -> Tensor:
         if method == "bbox":
             return (x.min(dim=self.dim).values + x.max(dim=self.dim).values) / 2
-        if method == "mean":
+        if method == "centroid":
             return x.mean(dim=self.dim)
         return x.min(dim=self.dim).values
 
@@ -718,6 +771,9 @@ class Shift(DictTransform):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+            if x.size(self.dim) == 0:
+                data[dst_key] = x
+                continue
             offset = self.offset(x, method)
             if self.axes is not None:
                 # Mask out the offset on axes we are not shifting.
@@ -736,10 +792,15 @@ class CenterShift(DictTransform):
     shifted by their respective bbox midpoints, and the Z axis is shifted
     by its minimum when `apply_z=True` or left unchanged when `apply_z=False`.
 
+    Empty inputs (`N=0`) are returned unchanged.
+
     Args:
-        keys: The position keys to shift (each must be `(N, 3)`).
+        keys: The position keys to shift (each must be shape $(N, 3)$).
         apply_z: If `True`, shift Z by its minimum; otherwise leave Z unchanged.
         allow_missing_keys: If `True`, silently skip absent keys.
+
+    Raises:
+        ValueError: If any input does not have shape $(N, 3)$.
     """
 
     def __init__(
@@ -755,6 +816,10 @@ class CenterShift(DictTransform):
         data = dict(data)
         for key in self.iter_keys(data):
             pos = data[key]
+            if pos.dim() != 2 or pos.shape[-1] != 3:
+                raise ValueError(f"CenterShift expects key {key!r} to be (N, 3); got shape {tuple(pos.shape)}.")
+            if pos.shape[0] == 0:
+                continue
             mins = pos.min(dim=0).values
             maxs = pos.max(dim=0).values
             shift = torch.stack(
@@ -771,10 +836,14 @@ class CenterShift(DictTransform):
 class AlignAxis(DictTransform):
     """Shift dictionary tensor entries so that the minimum along a chosen axis is zero.
 
+    Empty inputs (`N=0`) are returned unchanged.
+
     Args:
         keys: The keys to align.
         dim: The coordinate axis to align.
-        inplace: Whether to modify the tensor in place.
+        inplace: Whether to modify the tensor in place. Non-contiguous inputs are
+            materialized to contiguous via `.contiguous()` before the in-place op,
+            so the caller's original tensor may not be mutated in that case.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -797,7 +866,13 @@ class AlignAxis(DictTransform):
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
 
-            if not self.inplace:
+            if x.shape[0] == 0:
+                data[key] = x
+                continue
+
+            if self.inplace:
+                x = x.contiguous()
+            else:
                 x = x.clone()
 
             x[:, self.dim] -= x[:, self.dim].min()
@@ -1065,35 +1140,36 @@ class Relabel(DictTransform):
         self.default = default
 
         if isinstance(labels, dict):
-            self.labels: Dict[int, int] = dict(labels)
-            sources = list(self.labels.keys())
+            self.labels: Dict[int, int] = {int(k): int(v) for k, v in labels.items()}
         else:
             self.labels = {int(value): idx for idx, value in enumerate(labels)}
-            sources = list(self.labels.keys())
 
-        if not sources:
+        if not self.labels:
             raise ValueError("Relabel requires at least one source value in `labels`.")
 
-        num_labels = max(sources) + 1
-        self._lookup = torch.full((num_labels,), self.default)
-        for source, target in self.labels.items():
-            self._lookup[source] = target
+        sorted_sources = sorted(self.labels.keys())
+        self._src = torch.tensor(sorted_sources, dtype=torch.long)
+        self._tgt = torch.tensor([self.labels[s] for s in sorted_sources], dtype=torch.long)
 
     def transform(self, data: dict) -> dict:
         data = dict(data)
 
         for key in self.iter_keys(data):
-            labels = data[key].long()
+            tensor = data[key]
+            if not isinstance(tensor, torch.Tensor):
+                raise TypeError(f"Expected torch.Tensor for key {key!r}, got {type(tensor).__name__}")
 
-            if not isinstance(labels, torch.Tensor):
-                raise TypeError(f"Expected torch.Tensor for key {key!r}, got {type(labels).__name__}")
+            labels = tensor.long()
+            src = self._src.to(labels.device)
+            tgt = self._tgt.to(labels.device)
 
-            lookup = self._lookup.to(labels.device)
+            idx = torch.searchsorted(src, labels)
+            idx_clamped = idx.clamp(max=src.numel() - 1)
+            hit = src[idx_clamped] == labels
 
-            mask = (labels >= 0) & (labels < lookup.numel())
             dst_labels = torch.full_like(labels, self.default)
-            dst_labels[mask] = lookup[labels[mask]]
-            data[key] = dst_labels.to(data[key].dtype)
+            dst_labels[hit] = tgt[idx_clamped[hit]]
+            data[key] = dst_labels.to(tensor.dtype)
 
         return data
 
@@ -1304,6 +1380,13 @@ class VoxelGrid(DictTransform):
         data = dict(data)
         pos = data[self.pos_key]
 
+        if pos.shape[0] == 0:
+            if self.cluster_key is not None:
+                data[self.cluster_key] = torch.empty(0, dtype=torch.long, device=pos.device)
+            if self.grid_pos_key is not None:
+                data[self.grid_pos_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
+            return data
+
         start = torch.floor(pos.min(dim=0).values / self.size) * self.size
 
         if self.method == "fnv":
@@ -1441,6 +1524,9 @@ class AxisMinOffset(DictTransform):
         for key, dst_key, axis in self.iter_keys(data, self.dst_keys, self.axis):
             x = data[key]
             col = x[:, axis]
+            if col.numel() == 0:
+                data[dst_key] = col.unsqueeze(-1).to(x.dtype)
+                continue
             data[dst_key] = (col - col.min()).unsqueeze(-1).to(x.dtype)
         return data
 
@@ -1543,7 +1629,8 @@ class Reduce(DictTransform):
 
     Args:
         keys: Keys to reduce.
-        op: Reduction operator: `"amax"`, `"amin"`, `"mean"`, or `"sum"`.
+        op: Reduction operator: `"min"`, `"max"`, `"mean"`, or `"sum"` (matches the
+            vocabulary used by `VoxelGrid`).
         dim: Dimension to reduce. Defaults to `0`.
         keepdim: Pass `keepdim=True` to keep the reduced axis as size $1$. This
             is helpful when the result is meant to broadcast against a $(N, D)$
@@ -1554,10 +1641,16 @@ class Reduce(DictTransform):
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
+    _OP_FUNCS: Dict[str, Any] = {
+        "min": torch.amin,
+        "max": torch.amax,
+        "sum": torch.sum,
+    }
+
     def __init__(
         self,
         keys: KeyCollection,
-        op: ValueCollection[Literal["amax", "amin", "mean", "sum"]],
+        op: ValueCollection[Literal["min", "max", "mean", "sum"]],
         dim: ValueCollection[int] = 0,
         keepdim: bool = False,
         dst_keys: Optional[KeyCollection] = None,
@@ -1569,6 +1662,10 @@ class Reduce(DictTransform):
         self.dim = ensure_tuple_size(dim, len(self.keys))
         self.keepdim = keepdim
 
+        invalid = set(self.op) - {"min", "max", "mean", "sum"}
+        if invalid:
+            raise ValueError(f"Invalid op(s): {invalid}. Expected one of 'min', 'max', 'mean', 'sum'.")
+
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key, op, dim in self.iter_keys(data, self.dst_keys, self.op, self.dim):
@@ -1576,7 +1673,7 @@ class Reduce(DictTransform):
             if op == "mean":
                 data[dst_key] = x.float().mean(dim=dim, keepdim=self.keepdim)
             else:
-                data[dst_key] = getattr(x, op)(dim=dim, keepdim=self.keepdim)
+                data[dst_key] = self._OP_FUNCS[op](x, dim=dim, keepdim=self.keepdim)
         return data
 
 

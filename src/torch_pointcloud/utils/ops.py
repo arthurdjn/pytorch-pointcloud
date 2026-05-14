@@ -20,9 +20,9 @@ knn, _ = optional_import("torch_cluster", name="knn")
 def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("nan")) -> Tensor:
     """Safely divide two tensors, returning a default value if the denominator is zero.
 
-    > [!NOTE]
-    > If the inputs are not floating point numbers,
-    > they will be converted to floating point numbers (float32).
+    !!! note
+        If the inputs are not floating point numbers,
+        they will be converted to floating point numbers (float32).
 
     Args:
         a: The numerator tensor.
@@ -88,8 +88,8 @@ def voxel_grid(
     batched coordinates in a packed format.
 
     Note:
-        This function is adapted from [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric)
-        and depends on the [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) package.
+        This function is adapted from :github: [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric)
+        and depends on the :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) package.
 
     Args:
         coords: The 3D coordinates of shape `(N, 3)`.
@@ -188,7 +188,7 @@ def knn_interpolate(
 ) -> Tensor:
     r"""k-NN interpolation with inverse-distance weighting.
 
-    From [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a
+    From :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a
     Metric Space](https://arxiv.org/abs/1706.02413).
 
     For each point $y$ with position $\mathbf{p}(y)$, its

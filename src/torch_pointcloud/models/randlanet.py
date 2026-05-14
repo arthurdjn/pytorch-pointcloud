@@ -154,7 +154,7 @@ class LocalFeatureAggregation(nn.Module):
     the receptive field, doubling a per-point feature of dim $d_\text{out} / 2$ to
     $d_\text{out}$. Mirrors the *LocSE + Attentive Pooling* "dilated" combination in
     Fig. 3 of the paper. The 10-channel relative positional encoding follows the
-    original [QingyongHu/RandLA-Net](https://github.com/QingyongHu/RandLA-Net) channel
+    original :github: [QingyongHu/RandLA-Net](https://github.com/QingyongHu/RandLA-Net) channel
     order (`cat([rel_dist, rel_xyz, xyz_i, xyz_j], dim=-1)`) so pretrained weights load
     without permuting the first 1x1 kernel. The second LSE re-projects the output of
     the first LSE to match the original `building_block`.
@@ -431,9 +431,16 @@ class RandLANetDecoder(nn.Module):
         in_channels: Channels at the bottleneck (input to the first FP).
         skip_channels: Per-stage encoder skip channels in coarse-to-fine order.
         fp_channels: Per-stage decoder output channels (same length as `skip_channels`).
-        act / act_kwargs / norm / norm_kwargs / bias: MLP configuration forwarded to
-            each `PointNet2FeaturePropagation`. No paper-specific defaults are baked in
-            here; callers (typically the registered model factory) supply them.
+        act: Activation passed to each `PointNet2FeaturePropagation` MLP.
+        act_kwargs: Activation kwargs.
+        act_first: If `True`, activation is applied before normalization.
+        norm: Normalization passed to each `PointNet2FeaturePropagation` MLP.
+        norm_kwargs: Normalization kwargs.
+        bias: Whether to use bias in the MLP layers.
+
+    Note:
+        No paper-specific defaults are baked in here; callers (typically the
+        registered model factory) supply them.
     """
 
     def __init__(
@@ -484,7 +491,7 @@ class RandLANetDecoder(nn.Module):
 
 class RandLANetClassification(ClassificationModel):
     """RandLA-Net classification model from
-    [RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds](https://arxiv.org/abs/1911.11236)
+    :arxiv: [RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds](https://arxiv.org/abs/1911.11236)
     by Qingyong Hu, Bo Yang, Linhai Xie, Stefano Rosa, Yulan Guo, Zhihua Wang, Niki Trigoni, Andrew Markham.
 
     Random sampling for downsampling and dilated residual blocks with local feature aggregation;
@@ -493,7 +500,7 @@ class RandLANetClassification(ClassificationModel):
     Args:
         in_channels: Number of input channels.
         num_classes: Number of classes.
-        stem_channels: Number of channels in the stem MLP. Set to ``None`` to skip the stem.
+        stem_channels: Number of channels in the stem MLP. Set to `None` to skip the stem.
         encoder_channels: Output channels of each dilated residual block (must be even).
         decimation: Decimation factor between consecutive encoder blocks.
         num_neighbors: Number of neighbors for the kNN graph in each block.
@@ -619,7 +626,7 @@ class RandLANetClassification(ClassificationModel):
 
 class RandLANetSegmentation(SegmentationModel):
     """RandLA-Net segmentation model from
-    [RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds](https://arxiv.org/abs/1911.11236)
+    :arxiv: [RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds](https://arxiv.org/abs/1911.11236)
     by Qingyong Hu, Bo Yang, Linhai Xie, Stefano Rosa, Yulan Guo, Zhihua Wang, Niki Trigoni, Andrew Markham.
 
     Encoder uses random sampling between dilated residual blocks; decoder uses 1-NN
@@ -630,7 +637,7 @@ class RandLANetSegmentation(SegmentationModel):
     Args:
         in_channels: Number of input channels.
         num_classes: Number of classes.
-        stem_channels: Number of channels in the stem MLP. Set to ``None`` to skip the stem.
+        stem_channels: Number of channels in the stem MLP. Set to `None` to skip the stem.
         encoder_channels: Output channels of each dilated residual block (must be even).
         fp_channels: Per-stage decoder channels (one list per upsampling step).
         head_channels: Hidden channels of the segmentation head MLP.

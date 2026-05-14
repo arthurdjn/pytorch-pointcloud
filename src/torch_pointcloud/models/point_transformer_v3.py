@@ -981,10 +981,10 @@ class PointTransformerV3Decoder(nn.Module):
 
 class PointTransformerV3Classification(ClassificationModel):
     """PyTorch implementation of the Point Transformer V3 model, as described in the paper
-    [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
+    :arxiv: [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
     by Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao.
 
-    This implementation is based on the original implementation from [Pointcept](https://github.com/Pointcept/Pointcept).
+    This implementation is based on the original implementation from :github: [Pointcept](https://github.com/Pointcept/Pointcept).
 
     Important:
         This model requires `spconv`, `torch-scatter` to be installed.
@@ -1177,7 +1177,7 @@ class PointTransformerV3Classification(ClassificationModel):
 class PointTransformerV3Segmentation(SegmentationModel):
     """PyTorch implementation of the Point Transformer V3 model for segmentation tasks.
 
-    Based on the paper [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
+    Based on the paper :arxiv: [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
     by Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao.
 
     This segmentation variant uses an encoder-decoder architecture with skip connections.
