@@ -1,3 +1,4 @@
+import math
 from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
 
 import torch
@@ -805,3 +806,444 @@ def relabel(
     dst = torch.full_like(labels_long, default)
     dst[hit] = tgt[idx_clamped[hit]]
     return dst.to(labels.dtype)
+
+
+def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] = None) -> Tensor:
+    r"""3x3 rotation matrix for `angle` radians around an axis-aligned axis.
+
+    Args:
+        angle: Rotation angle in **radians**.
+        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
+        device: Output device. Defaults to CPU.
+
+    Returns:
+        Rotation matrix of shape `(3, 3)`.
+
+    Raises:
+        ValueError: If `axis` is not in `{0, 1, 2}`.
+    """
+    if axis not in (0, 1, 2):
+        raise ValueError(f"axis must be 0, 1, or 2; got {axis}.")
+    c = math.cos(angle)
+    s = math.sin(angle)
+    R = torch.eye(3, device=device, dtype=torch.float32)
+    i, j = [(1, 2), (2, 0), (0, 1)][axis]
+    R[i, i] = c
+    R[j, j] = c
+    R[i, j] = -s
+    R[j, i] = s
+    return R
+
+
+def rotate(x: Tensor, R: Tensor) -> Tensor:
+    """Apply a rotation matrix to a 3D tensor.
+
+    Args:
+        x: Input tensor of shape `(..., 3)`.
+        R: Rotation matrix of shape `(3, 3)`.
+
+    Returns:
+        Rotated tensor with the same shape as `x`.
+    """
+    return x @ R.to(x.dtype).to(x.device).T
+
+
+def random_rotate(
+    x: Tensor,
+    angle_range: Tuple[float, float] = (-180.0, 180.0),
+    axis: int = 2,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Rotate `x` by a uniformly random angle around an axis.
+
+    Args:
+        x: Input tensor of shape `(..., 3)`.
+        angle_range: Min and max rotation angle, in **degrees**.
+        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Rotated tensor with the same shape as `x`.
+    """
+    lo, hi = angle_range
+    angle_deg = torch.empty(1, device=x.device).uniform_(lo, hi, generator=generator).item()
+    R = rotation_matrix(math.radians(angle_deg), axis, device=x.device)
+    return rotate(x, R)
+
+
+def random_scale(
+    x: Tensor,
+    scale_range: Tuple[float, float] = (0.8, 1.25),
+    anisotropic: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Scale `x` by a uniformly random factor.
+
+    Args:
+        x: Input tensor of shape `(..., D)`.
+        scale_range: Min and max scaling factor.
+        anisotropic: If `True`, sample a different scale per axis; otherwise apply a single scalar.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Scaled tensor with the same shape as `x`.
+    """
+    lo, hi = scale_range
+    if anisotropic:
+        d = x.shape[-1]
+        scale = torch.empty(d, device=x.device).uniform_(lo, hi, generator=generator)
+    else:
+        scale = torch.empty(1, device=x.device).uniform_(lo, hi, generator=generator)
+    return x * scale.to(x.dtype)
+
+
+def random_flip(
+    x: Tensor,
+    axes: Sequence[int] = (0, 1),
+    p: float = 0.5,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Independently flip each listed axis with probability `p`.
+
+    Args:
+        x: Input tensor of shape `(..., D)`.
+        axes: Indices into the last dim to consider for flipping.
+        p: Per-axis flip probability.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Flipped tensor with the same shape as `x`.
+    """
+    sign = torch.ones(x.shape[-1], device=x.device, dtype=x.dtype)
+    for ax in axes:
+        if torch.rand(1, generator=generator).item() < p:
+            sign[ax] = -1.0
+    return x * sign
+
+
+def random_jitter(
+    x: Tensor,
+    sigma: float = 0.01,
+    clip: Optional[float] = 0.05,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Add Gaussian noise to `x`, optionally clipped.
+
+    Args:
+        x: Input tensor.
+        sigma: Standard deviation of the Gaussian noise.
+        clip: If not `None`, clip the noise to `[-clip, clip]`.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Jittered tensor with the same shape as `x`.
+    """
+    noise = torch.empty_like(x).normal_(mean=0.0, std=sigma, generator=generator)
+    if clip is not None:
+        noise = noise.clamp(min=-clip, max=clip)
+    return x + noise
+
+
+def random_shift(
+    x: Tensor,
+    shift_range: Tuple[float, float] = (-0.2, 0.2),
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Translate `x` by a uniformly random vector.
+
+    Args:
+        x: Input tensor of shape `(..., D)`.
+        shift_range: Min and max per-axis translation.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Translated tensor with the same shape as `x`.
+    """
+    lo, hi = shift_range
+    shift = torch.empty(x.shape[-1], device=x.device).uniform_(lo, hi, generator=generator)
+    return x + shift.to(x.dtype)
+
+
+def random_dropout_mask(
+    n: int,
+    p_drop: float,
+    device: Optional[torch.device] = None,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Return a boolean keep-mask of length `n` where each entry is kept with probability `1 - p_drop`.
+
+    Args:
+        n: Number of points.
+        p_drop: Probability of dropping a point. Must be in $[0, 1)$.
+        device: Output device.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Boolean tensor of shape `(n,)`.
+
+    Raises:
+        ValueError: If `p_drop` is not in `[0, 1)`.
+    """
+    if not 0.0 <= p_drop < 1.0:
+        raise ValueError(f"p_drop must be in [0, 1); got {p_drop}.")
+    device = device or torch.device("cpu")
+    rand = torch.rand(n, device=device, generator=generator)
+    return rand >= p_drop
+
+
+def shuffle_indices(
+    n: int,
+    device: Optional[torch.device] = None,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Return a random permutation of `[0, n)`.
+
+    Args:
+        n: Sequence length.
+        device: Output device.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Long tensor of shape `(n,)`.
+    """
+    device = device or torch.device("cpu")
+    return torch.randperm(n, device=device, generator=generator)
+
+
+def _color_max(int_color: bool) -> float:
+    return 255.0 if int_color else 1.0
+
+
+def random_color_jitter(
+    color: Tensor,
+    brightness: float = 0.0,
+    contrast: float = 0.0,
+    saturation: float = 0.0,
+    int_color: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Jitter colors by brightness, contrast, and saturation, in that order.
+
+    Each strength is a relative delta sampled uniformly from `[-x, x]` and
+    applied multiplicatively (`out = x * factor`).
+
+    Args:
+        color: Color tensor of shape `(N, 3)`.
+        brightness: Max relative brightness change. `0.2` means ±20%.
+        contrast: Max relative contrast change.
+        saturation: Max relative saturation change. Saturation moves toward
+            (or away from) the per-channel grayscale luminance.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Jittered colors with the same shape and dtype as `color`.
+    """
+    max_val = _color_max(int_color)
+    out = color.float() / max_val
+
+    if brightness > 0:
+        b = torch.empty(1).uniform_(1 - brightness, 1 + brightness, generator=generator).item()
+        out = out * b
+    if contrast > 0:
+        c = torch.empty(1).uniform_(1 - contrast, 1 + contrast, generator=generator).item()
+        mean = out.mean(dim=0, keepdim=True)
+        out = (out - mean) * c + mean
+    if saturation > 0:
+        s = torch.empty(1).uniform_(1 - saturation, 1 + saturation, generator=generator).item()
+        # Luminance per point, broadcast across channels.
+        gray = (out * torch.tensor([0.299, 0.587, 0.114], device=out.device)).sum(dim=-1, keepdim=True)
+        out = (out - gray) * s + gray
+
+    out = out.clamp(0.0, 1.0) * max_val
+    return out.to(color.dtype)
+
+
+def random_color_drop(
+    color: Tensor,
+    fill: float = 0.5,
+    int_color: bool = False,
+) -> Tensor:
+    """Replace colors with a constant gray value (drops chromatic information).
+
+    Args:
+        color: Color tensor of shape `(N, 3)`.
+        fill: Replacement value, expressed in the same range as `color`.
+            For `int_color=False`, a sensible default is `0.5`; for `int_color=True`, `128`.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+
+    Returns:
+        Tensor of the same shape and dtype as `color`, filled with `fill`.
+    """
+    return torch.full_like(color, fill if not int_color else int(fill))
+
+
+def color_grayscale(color: Tensor, int_color: bool = False) -> Tensor:
+    """Convert RGB colors to grayscale using the BT.601 luminance weights.
+
+    Args:
+        color: Color tensor of shape `(N, 3)`.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+
+    Returns:
+        Tensor with the same shape and dtype as `color`, with R=G=B = luminance.
+    """
+    weights = torch.tensor([0.299, 0.587, 0.114], device=color.device)
+    if int_color:
+        lum = (color.float() * weights).sum(dim=-1, keepdim=True)
+        return lum.expand_as(color).to(color.dtype)
+    lum = (color * weights).sum(dim=-1, keepdim=True)
+    return lum.expand_as(color).to(color.dtype)
+
+
+def color_auto_contrast(color: Tensor, blend: float = 0.5, int_color: bool = False) -> Tensor:
+    """Stretch per-cloud color range to the full `[0, max]` interval, then blend.
+
+    For each channel, the min becomes 0 and the max becomes `max_val`. The
+    output is then linearly blended with the original by `blend`
+    (`blend=1.0` is the fully stretched version, `blend=0.0` is the input).
+
+    Args:
+        color: Color tensor of shape `(N, 3)`.
+        blend: Blend weight in `[0, 1]`.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+
+    Returns:
+        Auto-contrast tensor with the same shape and dtype as `color`.
+    """
+    max_val = _color_max(int_color)
+    out = color.float()
+    lo = out.min(dim=0).values
+    hi = out.max(dim=0).values
+    scale = max_val / (hi - lo).clamp(min=1e-6)
+    stretched = (out - lo) * scale
+    blended = blend * stretched + (1.0 - blend) * out
+    return blended.clamp(0.0, max_val).to(color.dtype)
+
+
+def random_rotate_choice(
+    x: Tensor,
+    angles: Sequence[float],
+    axis: int = 2,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Rotate `x` by an angle chosen uniformly from a discrete list.
+
+    Common use: ModelNet / ScanObjectNN augmentation with `angles=[0, 90, 180, 270]`
+    around the z-axis (cubic-symmetric class invariance).
+
+    Args:
+        x: Input tensor of shape `(..., 3)`.
+        angles: Candidate rotation angles, in **degrees**. Must be non-empty.
+        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Rotated tensor with the same shape as `x`.
+
+    Raises:
+        ValueError: If `angles` is empty.
+    """
+    if len(angles) == 0:
+        raise ValueError("angles must be non-empty.")
+    idx = int(torch.randint(0, len(angles), (1,), generator=generator).item())
+    R = rotation_matrix(math.radians(float(angles[idx])), axis, device=x.device)
+    return rotate(x, R)
+
+
+def random_color_shift(
+    color: Tensor,
+    shift_range: Tuple[float, float] = (-0.05, 0.05),
+    int_color: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Additive per-channel color shift sampled uniformly per channel.
+
+    For each of the 3 channels, sample one offset uniformly from `shift_range`
+    and add it to every point's value. Result is clamped to the valid range.
+
+    Args:
+        color: Color tensor of shape `(N, 3)`.
+        shift_range: Min and max per-channel offset (in the same range as `color`).
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Shifted colors with the same shape and dtype as `color`.
+    """
+    max_val = _color_max(int_color)
+    lo, hi = shift_range
+    shift = torch.empty(3, device=color.device).uniform_(lo, hi, generator=generator)
+    out = color.float() + shift
+    return out.clamp(0.0, max_val).to(color.dtype)
+
+
+def random_elastic_distortion(
+    pos: Tensor,
+    granularity: float = 0.2,
+    magnitude: float = 0.4,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Apply a smooth random displacement field to `pos`.
+
+    Implements the SparseConvNet / MinkowskiEngine / Pointcept elastic
+    distortion recipe: sample Gaussian noise on a coarse 3D grid (cells of
+    side `granularity`), smooth it with two passes of a 3x3x3 mean filter,
+    trilinear-interpolate the smoothed displacement at each point, and add it
+    to the position. Net effect is a locally-coherent, low-frequency
+    deformation that preserves nearby-point relationships.
+
+    Args:
+        pos: Input positions of shape `(N, 3)`.
+        granularity: Size of the noise grid cells (in the same units as `pos`).
+            Smaller values give higher-frequency distortion.
+        magnitude: Standard deviation of the per-cell Gaussian noise (in the
+            same units as `pos`). Larger values give stronger deformation.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Distorted positions of shape `(N, 3)`.
+    """
+    if pos.shape[0] == 0:
+        return pos
+    if pos.shape[-1] != 3:
+        raise ValueError(f"random_elastic_distortion expects shape (N, 3); got {tuple(pos.shape)}.")
+
+    pos_min = pos.min(dim=0).values
+    pos_max = pos.max(dim=0).values
+    extent = (pos_max - pos_min).clamp(min=granularity)
+
+    # Coarse grid for the noise, with 2-cell padding for safe interpolation
+    grid_int = (extent / granularity).ceil().to(torch.long) + 3
+    grid_x, grid_y, grid_z = (int(grid_int[i].item()) for i in range(3))
+
+    # Sample noise on the coarse grid: (N, C, D, H, W) for grid_sample input
+    noise = (
+        torch.randn(
+            1,
+            3,
+            grid_z,
+            grid_y,
+            grid_x,
+            generator=generator,
+            device=pos.device,
+            dtype=torch.float32,
+        )
+        * magnitude
+    )
+
+    # Smooth via two passes of 3x3x3 mean filter
+    for _ in range(2):
+        noise = torch.nn.functional.avg_pool3d(noise, kernel_size=3, stride=1, padding=1)
+
+    # Normalize positions to [-1, 1] for grid_sample.
+    # grid_sample's grid last dim is (x, y, z) which indexes (W, H, D) of the input.
+    normalized = 2.0 * (pos - pos_min) / extent - 1.0
+    sample_coords = normalized.to(noise.dtype).view(1, 1, 1, -1, 3)
+
+    displacement = torch.nn.functional.grid_sample(
+        noise, sample_coords, mode="bilinear", padding_mode="zeros", align_corners=True
+    )
+    # displacement: (1, 3, 1, 1, N) -> (N, 3)
+    displacement = displacement.squeeze(2).squeeze(2).squeeze(0).T
+    return pos + displacement.to(pos.dtype)
