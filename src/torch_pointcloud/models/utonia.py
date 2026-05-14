@@ -162,10 +162,11 @@ class UtoniaSegmentation(SegmentationModel):
 
 _UTONIA_TRANSFORMS = T.Compose(
     [
-        T.CenterShift(keys=DataKeys.POS, apply_z=True),
+        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
         T.Divide(keys=DataKeys.COLOR, divisor=255),
         T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-        T.VoxelGrid(
+        T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="mean",
             grid_pos_key=DataKeys.POS_GRID,
@@ -179,10 +180,11 @@ _UTONIA_TRANSFORMS = T.Compose(
 
 _UTONIA_SEG_TRANSFORMS = T.Compose(
     [
-        T.CenterShift(keys=DataKeys.POS, apply_z=True),
+        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
         T.Divide(keys=DataKeys.COLOR, divisor=255),
         T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-        T.VoxelGrid(
+        T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="mean",
             grid_pos_key=DataKeys.POS_GRID,

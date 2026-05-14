@@ -139,7 +139,7 @@ def test_collate_uses_first_sample_keys() -> None:
         (DataKeys.CLUSTER, "cluster"),
         (DataKeys.OCTREE, "octree"),
         (DataKeys.POINTS, "points"),
-        (DataKeys.INBOX_MASK, "inbox_mask"),
+        (DataKeys.BOX_MASK, "box_mask"),
     ],
 )
 def test_data_keys_string_values(member: DataKeys, expected: str) -> None:

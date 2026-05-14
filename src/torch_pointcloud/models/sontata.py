@@ -157,13 +157,14 @@ class SonataSegmentation(SegmentationModel):
     weights="hf://torch-pointcloud/sonata/sonata-base.pth",
     transforms=T.Compose(
         [
-            T.CenterShift(keys=DataKeys.POS, apply_z=True),
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
             # Voxelize POS in place so collate's default `batch_from="pos"` produces
             # a `batch` tensor of length M (post-dedup). Then mirror it into POS_GRID
             # so the model's `pos_grid` argument resolves via signature inspection.
-            T.VoxelGrid(
+            T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
                 keys=[DataKeys.X],
@@ -209,10 +210,11 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
     weights="hf://torch-pointcloud/sonata/sonata-lp.scannet20.pth",
     transforms=T.Compose(
         [
-            T.CenterShift(keys=DataKeys.POS, apply_z=True),
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-            T.VoxelGrid(
+            T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
                 keys=[DataKeys.X, DataKeys.SEGMENT],

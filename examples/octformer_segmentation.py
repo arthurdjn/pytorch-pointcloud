@@ -194,7 +194,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
         transform = T.Compose(
             [
                 T.Shift(keys=DataKeys.POS, method="bbox"),
-                T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
+                T.Rescale(keys=DataKeys.POS, method="bbox"),
                 T.Divide(keys=DataKeys.POS, divisor=10.24),
                 T.AlignAxis(keys=DataKeys.POS, dim=-1),
                 T.BuildOctree(

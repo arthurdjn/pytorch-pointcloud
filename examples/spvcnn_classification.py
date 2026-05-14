@@ -155,7 +155,7 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") 
 def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     transform = T.Compose(
         [
-            T.NormalizeScale(keys=DataKeys.POS),
+            T.Rescale(keys=DataKeys.POS),
             T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
                 face_key=DataKeys.FACE,

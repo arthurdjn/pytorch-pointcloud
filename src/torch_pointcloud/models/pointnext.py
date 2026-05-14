@@ -1084,8 +1084,8 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     transforms=T.Compose(
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
-            T.NormalizeScale(keys=DataKeys.POS, method="centroid"),
-            T.SampleFarthestPoints(pos_key=DataKeys.POS, keys=("height",), num_samples=1024, random_start=False),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=("height",), num_samples=1024, random_start=False),
             T.Cat(keys=(DataKeys.POS, "height"), dst_key=DataKeys.X),
         ]
     ),
@@ -1121,7 +1121,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     "pointnext-sm-c64.modelnet40",
     task="classification",
     weights="hf://torch-pointcloud/pointnext/pointnext-sm-c64.modelnet40.pt",
-    transforms=T.SampleFarthestPoints(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
     hparams=dict(
         in_channels=3,
         num_classes=40,
@@ -1272,7 +1272,7 @@ _S3DIS_TRANSFORMS = T.Compose(
         ),
         T.Shift(keys=DataKeys.POS, method="min"),
         # NOTE: tensors are automatically converted to float before reduction (if other than "first")
-        T.VoxelGrid(
+        T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="first",
             keys=[DataKeys.COLOR, DataKeys.SEGMENT],
@@ -1624,13 +1624,13 @@ def pointnext_xl_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 _SHAPENETPART_TRANSFORMS = T.Compose(
     [
-        T.SampleFarthestPoints(
+        T.FarthestPointSample(
             num_samples=2048,
             keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT],
             pos_key=DataKeys.POS,
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
-        T.NormalizeScale(keys=[DataKeys.POS], method="centroid"),
+        T.Rescale(keys=[DataKeys.POS], method="centroid"),
         T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL, "height"], dst_key=DataKeys.X),
         T.OneHot(keys=DataKeys.CATEGORY, num_classes=16, dst_keys="cls_onehot"),
     ]

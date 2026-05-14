@@ -259,8 +259,8 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
     weights="hf://torch-pointcloud/pointconv/pointconv-density-base.modelnet40.pt",
     transforms=T.Compose(
         [
-            T.NormalizeScale(keys=DataKeys.POS),
-            T.SampleFarthestPoints(
+            T.Rescale(keys=DataKeys.POS),
+            T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
                 num_samples=1024,
