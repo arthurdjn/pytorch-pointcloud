@@ -926,11 +926,11 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
                 num_samples=8000,
             ),
             T.Shift(keys=DataKeys.POS, method="bbox"),
-            T.NormalizeScale(keys=DataKeys.POS, method="bbox"),
+            T.Rescale(keys=DataKeys.POS, method="bbox"),
             # NOTE: Original OctFormer uses inbox masking to remove outliers, but at the cost of performance drop,
             # we found that removing this step improves performance by ~1% on ModelNet40.
-            # T.InboxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.INBOX_MASK),
-            # T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.INBOX_MASK),
+            # T.BoxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.BOX_MASK),
+            # T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.BOX_MASK),
             T.Abs(keys=DataKeys.NORMAL),
             T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
             T.BuildOctree(

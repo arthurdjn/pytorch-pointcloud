@@ -859,7 +859,7 @@ class RandLANetSegmentation(SegmentationModel):
                 },
                 default=255,
             ),
-            T.VoxelGrid(
+            T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
                 keys=[DataKeys.SEGMENT],

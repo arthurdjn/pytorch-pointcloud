@@ -1,9 +1,17 @@
-from typing import Any, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
 
 import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.cluster import fps
+
+ShiftMethod = Literal["bbox", "centroid", "min"]
+
+RescaleMethod = Literal["centroid", "bbox", "linear"]
+
+PadMode = Literal["below", "above", "all"]
+
+PadFill = Literal["cycle", "replicate"]
 
 
 @overload
@@ -160,21 +168,22 @@ def random_sample_face_vertices(
     return vertices
 
 
-def sample_farthest_points(
+def farthest_point_sample(
     pos: Tensor,
     num_samples: Optional[int] = None,
     ratio: Optional[float] = None,
     random_start: bool = False,
 ) -> Tensor:
-    """Sample the farthest points from a tensor.
-    This function is a wrapper around the `torch_pointcloud.utils.cluster.fps` function,
-    and is provided here for convenience.
+    """Farthest-point sampling (FPS) from a tensor of positions.
+
+    Thin wrapper around `torch_pointcloud.utils.cluster.fps`, provided for
+    convenience and naming symmetry with `random_sample`.
 
     See Also:
         `torch_pointcloud.utils.cluster.fps` for more details and advanced usage.
 
     Args:
-        pos: The input tensor.
+        pos: The input tensor of shape $(N, D)$.
         num_samples: The number of points to sample.
         ratio: The ratio of points to sample.
         random_start: Whether to start the sampling from a random point.
@@ -184,21 +193,24 @@ def sample_farthest_points(
 
     Examples:
         >>> import torch
-        >>> from torch_pointcloud.transforms.functional import sample_farthest_points
+        >>> from torch_pointcloud.transforms.functional import farthest_point_sample
         >>> pos = torch.randn(100, 3)
-        >>> idx = sample_farthest_points(pos, num_samples=10)
+        >>> idx = farthest_point_sample(pos, num_samples=10)
         >>> print(idx.shape)
         torch.Size([10])
     """
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
 
-def normalize_scale(
+def rescale(
     points: Tensor,
     eps: float = 1e-6,
-    method: Literal["centroid", "bbox", "linear"] = "centroid",
+    method: RescaleMethod = "centroid",
 ) -> Tensor:
-    r"""Normalize the scale of a point set along the point dimension `dim=-2`.
+    r"""Center a point set and rescale it to a unit extent.
+
+    Operates along the point dimension `dim=-2`. Pairs a centering step with a
+    scale-by-extent step that share the same statistics.
 
     Args:
         points: Tensor of shape `(..., N, C)` with $C \geq 1$; min/max and means are over $N$.
@@ -233,8 +245,8 @@ def normalize_scale(
     Raises:
         ValueError: If `method` is not `"centroid"`, `"bbox"`, or `"linear"`.
     """
-    if method not in ["centroid", "bbox", "linear"]:
-        raise ValueError(f"Invalid method: {method!r}. Expected 'centroid', 'bbox', or 'linear'.")
+    if method not in get_args(RescaleMethod):
+        raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(RescaleMethod)}.")
 
     if points.shape[-2] == 0:
         return points
@@ -263,8 +275,8 @@ def normalize_scale(
 def divisible_pad(
     batch: Tensor,
     k: int,
-    mode: Literal["below", "above", "all"] = "all",
-    pad_fill: Literal["cycle", "replicate"] = "cycle",
+    mode: PadMode = "all",
+    pad_fill: PadFill = "cycle",
     return_inverse: Literal[False] = False,
 ) -> Tuple[Tensor, Tensor]: ...
 
@@ -273,8 +285,8 @@ def divisible_pad(
 def divisible_pad(
     batch: Tensor,
     k: int,
-    mode: Literal["below", "above", "all"] = "all",
-    pad_fill: Literal["cycle", "replicate"] = "cycle",
+    mode: PadMode = "all",
+    pad_fill: PadFill = "cycle",
     return_inverse: Literal[True] = ...,
 ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
@@ -283,8 +295,8 @@ def divisible_pad(
 def divisible_pad(
     batch: Tensor,
     k: int,
-    mode: Literal["below", "above", "all"] = "all",
-    pad_fill: Literal["cycle", "replicate"] = "cycle",
+    mode: PadMode = "all",
+    pad_fill: PadFill = "cycle",
     return_inverse: bool = False,
 ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
     """Pad the batch indices of a tensor to make them divisible by a given integer.
@@ -357,10 +369,10 @@ def divisible_pad(
         Returns a tuple of `(indices, padded_batch)`.
         If `return_inverse` is `True`, returns `(indices, inverse_indices, padded_batch)`.
     """
-    if mode not in ["below", "above", "all"]:
-        raise ValueError(f"Unknown mode: {mode!r}. Expected 'below', 'above', or 'all'")
-    if pad_fill not in ["cycle", "replicate"]:
-        raise ValueError(f"Unknown pad_fill: {pad_fill!r}. Expected 'cycle' or 'replicate'")
+    if mode not in get_args(PadMode):
+        raise ValueError(f"Unknown mode: {mode!r}. Expected one of {get_args(PadMode)}.")
+    if pad_fill not in get_args(PadFill):
+        raise ValueError(f"Unknown pad_fill: {pad_fill!r}. Expected one of {get_args(PadFill)}.")
 
     device = batch.device
 
@@ -482,16 +494,20 @@ def remove_near_origin(pos: Tensor, radius: float, return_mask: bool) -> Union[T
 
 
 def remove_near_origin(pos: Tensor, radius: float = 1e-3, return_mask: bool = False) -> Any:
-    """Remove points that are within a given radius of the origin.
+    """Remove points that are within a given radius (L2) of the origin.
+
+    Equivalent to inverting `sphere_mask(pos, center=0, radius=r)` and indexing.
 
     Args:
-        pos: The input tensor.
-        radius: The radius of the sphere.
+        pos: The input tensor of shape $(N, D)$.
+        radius: The L2 radius (Euclidean distance) below which points are removed.
+        return_mask: If `True`, also return the keep-mask.
 
     Returns:
-        The tensor with the points removed.
+        The filtered tensor; or `(filtered, mask)` if `return_mask=True`.
     """
-    mask = pos.norm(dim=-1) > radius
+    center = pos.new_zeros(pos.shape[-1])
+    mask = ~sphere_mask(pos, center, radius, dim=-1)
     if return_mask:
         return pos[mask], mask
     return pos[mask]
@@ -535,16 +551,25 @@ def bounding_box(x: Tensor, dim: int = 0) -> tuple[float, ...]:
     return (*bbmin, *bbmax)
 
 
-def inbox_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
-    """Create a mask for the input tensor that is within a given bounding box.
+def box_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
+    r"""Create a boolean mask for points inside an axis-aligned bounding box (AABB).
+
+    Membership condition along `dim`:
+
+    $$
+    \text{bbmin}_j < x_j < \text{bbmax}_j \quad \forall j
+    $$
 
     Args:
-        x: The input tensor.
-        bbox: The bounding box.
+        x: The input tensor of shape `(..., D)` along `dim`.
+        bbox: AABB as a flat tuple `(*bbmin, *bbmax)` of length `2 * D`.
         dim: The dimension to compute the mask over.
 
     Returns:
-        The mask.
+        The boolean mask, with `dim` reduced.
+
+    Raises:
+        ValueError: If `len(bbox) != 2 * x.shape[dim]`.
     """
     size = len(bbox)
     if not size == x.shape[dim] * 2:
@@ -553,6 +578,66 @@ def inbox_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1) -> Tensor:
     bbmin = torch.tensor(bbox[: size // 2], device=x.device, dtype=x.dtype)
     bbmax = torch.tensor(bbox[size // 2 :], device=x.device, dtype=x.dtype)
     return (x > bbmin).all(dim=dim) & (x < bbmax).all(dim=dim)
+
+
+def cube_mask(
+    x: Tensor,
+    center: Union[Tensor, Sequence[float], float],
+    radius: float,
+    dim: int = -1,
+) -> Tensor:
+    r"""Create a boolean mask for points inside an axis-aligned cube (L∞ / Chebyshev ball).
+
+    Membership condition along `dim`:
+
+    $$
+    \| x - c \|_{\infty} \leq r
+    $$
+
+    Geometrically, the L∞ ball of radius $r$ centered at $c$ is a hypercube
+    with edge $2r$ aligned to the axes. Pair with `sphere_mask` (L2) and
+    `box_mask` (explicit AABB).
+
+    Args:
+        x: The input tensor of shape `(..., D)` along `dim`.
+        center: The center of the cube, shape `(D,)` or broadcastable.
+        radius: The half-edge (radius) of the cube.
+        dim: The dimension to reduce the per-axis comparison over.
+
+    Returns:
+        The boolean mask, with `dim` reduced.
+    """
+    center_t = torch.as_tensor(center, device=x.device, dtype=x.dtype)
+    return (x - center_t).abs().amax(dim=dim) <= radius
+
+
+def sphere_mask(
+    x: Tensor,
+    center: Union[Tensor, Sequence[float], float],
+    radius: float,
+    dim: int = -1,
+) -> Tensor:
+    r"""Create a boolean mask for points inside an L2 (Euclidean) ball.
+
+    Membership condition along `dim`:
+
+    $$
+    \| x - c \|_2 \leq r
+    $$
+
+    Pair with `cube_mask` (L∞) and `box_mask` (explicit AABB).
+
+    Args:
+        x: The input tensor of shape `(..., D)` along `dim`.
+        center: The center of the sphere, shape `(D,)` or broadcastable.
+        radius: The radius of the sphere.
+        dim: The dimension to compute the Euclidean norm over.
+
+    Returns:
+        The boolean mask, with `dim` reduced.
+    """
+    center_t = torch.as_tensor(center, device=x.device, dtype=x.dtype)
+    return (x - center_t).norm(dim=dim) <= radius
 
 
 def apply_mask(x: Tensor, mask: Tensor) -> Tensor:
@@ -574,3 +659,149 @@ def apply_mask(x: Tensor, mask: Tensor) -> Tensor:
         tensor([1.0, 3.0])
     """
     return x[mask]
+
+
+def shift(
+    x: Tensor,
+    method: ShiftMethod,
+    dim: int = 0,
+    axes: Optional[Sequence[int]] = None,
+) -> Tensor:
+    r"""Subtract a data-driven offset from `x`.
+
+    The offset is computed from `x` itself along the reduction dimension `dim`:
+
+    | `method`     | Offset                                           |
+    | ------------ | ------------------------------------------------ |
+    | `"bbox"`     | Midrange: `(min + max) / 2`                      |
+    | `"centroid"` | Mean across the reduced dimension                |
+    | `"min"`      | Per-axis minimum (shifts to the positive octant) |
+
+    When `axes` is given, only those axis-indices of the offset are non-zero,
+    so axes not listed are left untouched. This is the composable knob for
+    mixed-method shifts:
+
+    ```python
+    # Pointcept-style centering: XY by bbox-mid, Z by min
+    x = F.shift(x, method="bbox", axes=[0, 1])
+    x = F.shift(x, method="min",  axes=[2])
+    ```
+
+    The two calls touch disjoint axes, so they commute.
+
+    Args:
+        x: Input tensor.
+        method: How the offset is computed. See the table.
+        dim: The dimension to reduce over when computing the offset.
+        axes: Last-dim axis indices to shift. `None` (default) shifts every axis.
+
+    Returns:
+        The shifted tensor, same shape as `x`. Returns `x` unchanged when
+        `x.size(dim) == 0`.
+
+    Raises:
+        ValueError: If `method` is not one of `"bbox"`, `"centroid"`, `"min"`.
+    """
+    if method not in get_args(ShiftMethod):
+        raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(ShiftMethod)}.")
+    if x.size(dim) == 0:
+        return x
+    if method == "bbox":
+        offset = (x.min(dim=dim).values + x.max(dim=dim).values) / 2
+    elif method == "centroid":
+        offset = x.mean(dim=dim)
+    else:  # "min"
+        offset = x.min(dim=dim).values
+    if axes is not None:
+        full_offset = torch.zeros_like(offset)
+        axes_idx = torch.tensor(tuple(axes), device=offset.device, dtype=torch.long)
+        full_offset.index_copy_(0, axes_idx, offset.index_select(0, axes_idx))
+        offset = full_offset
+    return x - offset
+
+
+def axis_min_offset(x: Tensor, axis: int) -> Tensor:
+    r"""Per-point offset from the minimum along a chosen coordinate axis.
+
+    For positions of shape $(N, D)$ and an axis $a \in [0, D)$, returns a
+    tensor of shape $(N, 1)$ whose entries are $x_{i, a} - \min_j x_{j, a}$.
+    Useful for extracting "height above the local floor" as a per-point feature.
+
+    Args:
+        x: Input tensor of shape `(N, D)`.
+        axis: Axis index in the last dimension.
+
+    Returns:
+        Tensor of shape `(N, 1)` with the same dtype as `x`. Returns an empty
+        `(0, 1)` tensor when `x` is empty.
+    """
+    col = x[:, axis]
+    if col.numel() == 0:
+        return col.unsqueeze(-1).to(x.dtype)
+    return (col - col.min()).unsqueeze(-1).to(x.dtype)
+
+
+def normalize(
+    x: Tensor,
+    mean: Union[Tensor, Sequence[float], float],
+    std: Union[Tensor, Sequence[float], float],
+    eps: float = 1e-7,
+) -> Tensor:
+    r"""Per-channel standardization: $x' = (x - \mu) / \max(\sigma, \epsilon)$.
+
+    Args:
+        x: Input tensor. The last dimension is treated as the channel dim.
+        mean: Per-channel mean(s). Broadcast against the last dimension.
+        std: Per-channel standard deviation(s).
+        eps: Lower bound on $\sigma$ to prevent division by zero.
+
+    Returns:
+        Standardized tensor, same shape as `x`.
+    """
+    mean_t = torch.as_tensor(mean, dtype=x.dtype, device=x.device)
+    std_t = torch.as_tensor(std, dtype=x.dtype, device=x.device).clamp(min=eps)
+    return (x - mean_t) / std_t
+
+
+def relabel(
+    labels: Tensor,
+    mapping: Union[Sequence[int], Dict[int, int]],
+    default: int = 0,
+) -> Tensor:
+    """Remap integer labels via a lookup table.
+
+    `mapping` can be either:
+
+    - a sequence of source values (1:1) — each value at index $i$ is mapped to $i$;
+    - a `dict[int, int]` (general source → target) — supports N-to-1 merges
+      (e.g. SemanticKITTI's `moving-car` and `car` both → 0).
+
+    Source values not listed in `mapping` are set to `default`.
+
+    Args:
+        labels: Integer label tensor (any integer dtype). Output preserves dtype.
+        mapping: Source-value listing (1:1) or explicit `{source: target}` dict (N:1).
+        default: Value assigned to source values not listed in `mapping`.
+
+    Returns:
+        Remapped tensor with the same shape and dtype as `labels`.
+
+    Raises:
+        ValueError: If `mapping` is empty.
+    """
+    if isinstance(mapping, dict):
+        table: Dict[int, int] = {int(k): int(v) for k, v in mapping.items()}
+    else:
+        table = {int(v): i for i, v in enumerate(mapping)}
+    if not table:
+        raise ValueError("relabel requires at least one source value in `mapping`.")
+    sorted_sources = sorted(table.keys())
+    src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)
+    tgt = torch.tensor([table[s] for s in sorted_sources], dtype=torch.long, device=labels.device)
+    labels_long = labels.long()
+    idx = torch.searchsorted(src, labels_long)
+    idx_clamped = idx.clamp(max=src.numel() - 1)
+    hit = src[idx_clamped] == labels_long
+    dst = torch.full_like(labels_long, default)
+    dst[hit] = tgt[idx_clamped[hit]]
+    return dst.to(labels.dtype)

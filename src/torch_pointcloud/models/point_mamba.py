@@ -812,8 +812,8 @@ class PointMambaMAE(BaseModel):
     weights="hf://torch-pointcloud/point-mamba/point-mamba-base.modelnet40.pth",
     transforms=T.Compose(
         [
-            T.NormalizeScale(keys="pos"),
-            T.SampleFarthestPoints(pos_key="pos", num_samples=1024, random_start=False),
+            T.Rescale(keys="pos"),
+            T.FarthestPointSample(pos_key="pos", num_samples=1024, random_start=False),
         ]
     ),
     hparams=dict(
@@ -848,7 +848,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     transforms=T.Compose(
         [
             T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
-            T.SampleFarthestPoints(pos_key="pos", num_samples=2048, random_start=False),
+            T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
     hparams=dict(
@@ -883,7 +883,7 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
     transforms=T.Compose(
         [
             T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
-            T.SampleFarthestPoints(pos_key="pos", num_samples=2048, random_start=False),
+            T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
     hparams=dict(
@@ -918,7 +918,7 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
     transforms=T.Compose(
         [
             T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
-            T.SampleFarthestPoints(pos_key="pos", num_samples=2048, random_start=False),
+            T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False),
         ]
     ),
     hparams=dict(

@@ -86,7 +86,7 @@ def _eval_transforms() -> Any:
     return T.Compose(
         [
             T.Relabel(keys=DataKeys.SEGMENT, labels=_LEARNING_MAP, default=IGNORE_INDEX),
-            T.VoxelGrid(
+            T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
                 size=GRID_SIZE,
