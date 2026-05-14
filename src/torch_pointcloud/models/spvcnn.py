@@ -708,8 +708,8 @@ class SPVCNNClassification(ClassificationModel):
         batch: Tensor,
     ) -> Tensor:
         x = pos.float() if x is None else x
-        pos = torch.cat([pos.float(), batch.unsqueeze(-1).float()], dim=1).contiguous()
-        x_points = PointTensor(x, pos)
+        coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
+        x_points = PointTensor(x, coords)
         x_voxels = initial_voxelize(x_points)
 
         x_voxels = self.stem(x_voxels)

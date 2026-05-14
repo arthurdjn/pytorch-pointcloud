@@ -10,6 +10,12 @@ from torch_pointcloud.models.pointconv import (
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -40,10 +46,6 @@ def model_clf() -> PointConvDensityClassification:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointconv_encoder_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointConvDensityEncoder functionality."""
     encoder = PointConvDensityEncoder(
@@ -65,10 +67,6 @@ def test_pointconv_encoder_basic(data: Dict[str, Tensor]) -> None:
     assert out_batch.shape[0] < data["batch"].shape[0]  # Should be downsampled
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointconv_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
     """Test PointConvDensityEncoder with intermediate outputs."""
     encoder = PointConvDensityEncoder(
@@ -97,10 +95,6 @@ def test_pointconv_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
         assert intermediate.x.shape[0] == intermediate.pos.shape[0] == intermediate.batch.shape[0]
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointconv_classification_forward(model_clf: PointConvDensityClassification, data: Dict[str, Tensor]) -> None:
     """Test PointConvDensityClassification forward pass."""
     logits = model_clf(data["features"], data["pos"], data["batch"])
@@ -108,10 +102,6 @@ def test_pointconv_classification_forward(model_clf: PointConvDensityClassificat
     assert logits.dtype == data["features"].dtype
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointconv_classification_reset_classifier(
     model_clf: PointConvDensityClassification, data: Dict[str, Tensor]
 ) -> None:
@@ -124,10 +114,6 @@ def test_pointconv_classification_reset_classifier(
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointconv_classification_forward_features(
     model_clf: PointConvDensityClassification, data: Dict[str, Tensor]
 ) -> None:

@@ -12,6 +12,12 @@ from torch_pointcloud.models.pointmlp import (
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -56,10 +62,6 @@ def model_seg() -> PointMLPSegmentation:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
     """Test PointMLPEncoder with intermediate outputs."""
     encoder = PointMLPEncoder(
@@ -85,10 +87,6 @@ def test_pointmlp_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
         assert intermediate.x.shape[0] == intermediate.pos.shape[0] == intermediate.batch.shape[0]
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointMLPDecoder functionality."""
     encoder = PointMLPEncoder(
@@ -113,10 +111,6 @@ def test_pointmlp_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
     assert pos.shape[1] == 3
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_classification_forward(model_clf: PointMLPClassification, data: Dict[str, Tensor]) -> None:
     """Test PointMLPClassification forward pass."""
     logits = model_clf(data["x"], data["pos"], data["batch"])
@@ -124,10 +118,6 @@ def test_pointmlp_classification_forward(model_clf: PointMLPClassification, data
     assert logits.dtype == data["x"].dtype
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_classification_reset_classifier(
     model_clf: PointMLPClassification,
     data: Dict[str, Tensor],
@@ -142,10 +132,6 @@ def test_pointmlp_classification_reset_classifier(
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_classification_forward_features(
     model_clf: PointMLPClassification,
     data: Dict[str, Tensor],
@@ -170,10 +156,6 @@ def test_pointmlp_classification_forward_features(
         assert hasattr(intermediate, "batch")
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_classification_forward_features_and_head(
     model_clf: PointMLPClassification,
     data: Dict[str, Tensor],
@@ -184,10 +166,6 @@ def test_pointmlp_classification_forward_features_and_head(
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_segmentation_forward(model_seg: PointMLPSegmentation, data: Dict[str, Tensor]) -> None:
     """Test PointMLPSegmentation forward pass."""
     logits = model_seg(data["x"], data["pos"], data["batch"])
@@ -195,10 +173,6 @@ def test_pointmlp_segmentation_forward(model_seg: PointMLPSegmentation, data: Di
     assert logits.dtype == data["x"].dtype
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_segmentation_reset_classifier(
     model_seg: PointMLPSegmentation,
     data: Dict[str, Tensor],
@@ -213,10 +187,6 @@ def test_pointmlp_segmentation_reset_classifier(
     assert logits.shape == (data["pos"].shape[0], new_num_classes)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_segmentation_forward_features(
     model_seg: PointMLPSegmentation,
     data: Dict[str, Tensor],
@@ -229,10 +199,6 @@ def test_pointmlp_segmentation_forward_features(
     assert batch.dim() == 1
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointmlp_segmentation_forward_features_and_head(
     model_seg: PointMLPSegmentation,
     data: Dict[str, Tensor],
