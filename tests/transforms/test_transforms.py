@@ -4,6 +4,7 @@ import pytest
 import torch
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 
 def test_compose_applies_transforms_in_order() -> None:
@@ -529,6 +530,10 @@ def test_reduce_sum_dst_key() -> None:
     assert torch.allclose(result["total"], torch.tensor([4.0, 6.0]))
 
 
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_voxel_grid_basic() -> None:
     # Two points that fall in the same voxel + one in another voxel
     pos = torch.tensor([[0.05, 0.05, 0.05], [0.06, 0.06, 0.06], [1.0, 1.0, 1.0]])
@@ -544,6 +549,10 @@ def test_voxel_grid_basic() -> None:
     assert result["feat"].shape == (result["pos"].shape[0], 1)
 
 
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_voxel_grid_with_cluster_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
     result = T.VoxelGrid(
@@ -558,6 +567,10 @@ def test_voxel_grid_with_cluster_key() -> None:
     assert result["cluster"][0] != result["cluster"][2]
 
 
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_voxel_grid_grid_pos_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
     result = T.VoxelGrid(
@@ -571,6 +584,10 @@ def test_voxel_grid_grid_pos_key() -> None:
     assert result["pos_grid"].shape == result["pos"].shape
 
 
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_voxel_grid_grid_pos_reduce() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
     result = T.VoxelGrid(
