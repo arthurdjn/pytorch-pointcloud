@@ -5,6 +5,12 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models.pointnet import PointNetClassification, PointNetSegmentation
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
+
+pytestmark = pytest.mark.skipif(
+    not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-scatter is not installed",
+)
 
 
 @pytest.fixture
