@@ -612,13 +612,13 @@ class Divide(DictTransform):
 class ToFloat(DictTransform):
     """Cast dictionary tensor entries to float32.
 
-    Useful when tensors are stored in integer formats (e.g. ``uint8`` for
+    Useful when tensors are stored in integer formats (e.g. `uint8` for
     colors) and need to be promoted to floating point before arithmetic
     transforms like `Divide` or `Normalize`.
 
     Args:
         keys: The keys to cast.
-        allow_missing_keys: If ``True``, missing keys are silently ignored.
+        allow_missing_keys: If `True`, missing keys are silently ignored.
     """
 
     def __init__(
@@ -636,14 +636,14 @@ class ToFloat(DictTransform):
 
 
 class Normalize(DictTransform):
-    r"""Normalize dictionary tensor entries: :math:`x' = (x - \mu) / \sigma`.
+    r"""Normalize dictionary tensor entries: $x' = (x - \mu) / \sigma$.
 
     Args:
         keys: The keys to standardize.
         mean: Per-channel mean(s).  Broadcast against the last dimension of
             each tensor.
         std: Per-channel standard deviation(s).
-        allow_missing_keys: If ``True``, missing keys are silently ignored.
+        allow_missing_keys: If `True`, missing keys are silently ignored.
     """
 
     def __init__(
@@ -681,9 +681,9 @@ class Shift(DictTransform):
         keys: The keys to shift.
         method: `"bbox"` (midrange), `"mean"` (centroid), or `"min"` (shift to origin).
         dim: The dimension to reduce over.
-        axes: Which axes (last-dim indices) to shift. ``None`` (default) shifts every axis;
-            pass e.g. ``axes=[0, 1]`` to recenter only XY (matching Open3D-ML's
-            ``recenter: dim: [0, 1]`` augmentation).
+        axes: Which axes (last-dim indices) to shift. `None` (default) shifts every axis;
+            pass e.g. `axes=[0, 1]` to recenter only XY (matching Open3D-ML's
+            `recenter: dim: [0, 1]` augmentation).
         dst_keys: The keys to store the shifted data in.
         allow_missing_keys: If `True`, skip missing keys silently.
     """
@@ -983,11 +983,17 @@ class BuildOctree(DictTransform):
 
 
 class OctreeFeatures(DictTransform):
-    """Extract features from an octree.
+    """Extract per-node features from an octree via `octree.get_input_feature`.
 
     Args:
-        octree_key: Key holding the octree.
-        features_key: Key under which the features are stored.
+        keys: Keys holding `Octree` instances to extract features from.
+        features_type: Feature spec passed to `octree.get_input_feature` (e.g.
+            `"ND"` for normals + depth, `"NDFP"` for normals + depth + features
+            + position).
+        nempty: If `True`, return features only for non-empty nodes; otherwise
+            include empty-node padding.
+        dst_keys: Where to store the extracted feature tensors. Defaults to `keys`.
+        allow_missing_keys: If `True`, silently skip absent keys.
     """
 
     def __init__(
@@ -1240,24 +1246,24 @@ class VoxelGrid(DictTransform):
     cluster mapping for full-resolution back-projection.
 
     Operates on a single sample (pre-collate); see Pointcept's `GridSample` for
-    the convention. With `cluster_key` set, ``data[pos_key][cluster[i]]`` is the
-    voxel-mean position of original point ``i`` — handy when the model evaluates
+    the convention. With `cluster_key` set, `data[pos_key][cluster[i]]` is the
+    voxel-mean position of original point `i` — handy when the model evaluates
     at sub-resolution but mIoU is reported at full resolution.
 
     Args:
         pos_key: Key holding the positions to sub-sample.
         pos_reduce: How to reduce positions per voxel (`mean`/`min`/`max`/`sum`/`first`/`grid`).
         size: Voxel edge length in the same units as the positions.
-        method: Voxel-id hashing scheme (``fnv`` matches Pointcept; ``pyg`` is the default).
-        reduce: Per-key reduction for `keys` (defaults to ``mean`` if `None`).
-        keys: Additional per-point keys to sub-sample (e.g. ``color``, ``segment``).
-        cluster_key: When set, store the inverse cluster mapping ``(N_full,)`` under
-            this key.
-        grid_pos_key: When set together with a non-``grid`` `pos_reduce`, also store
+        method: Voxel-id hashing scheme (`fnv` matches Pointcept; `pyg` is the default).
+        reduce: Per-key reduction for `keys` (defaults to `mean` if `None`).
+        keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
+        cluster_key: When set, store the inverse cluster mapping shaped $(N_\text{full},)$
+            under this key.
+        grid_pos_key: When set together with a non-`grid` `pos_reduce`, also store
             the integer voxel-grid coordinates under this key. Useful when a model
             needs both real-valued positions (e.g. for rotary position embedding)
             and integer grid coordinates (for serialization / sparse-conv stems).
-        allow_missing_keys: If True, missing keys are skipped silently.
+        allow_missing_keys: If `True`, missing keys are skipped silently.
     """
 
     def __init__(
