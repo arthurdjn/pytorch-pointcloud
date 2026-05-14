@@ -140,9 +140,7 @@ def test_octformer_classification_forward_features_and_head(
 def test_octformer_segmentation_forward_features_decoder_head(
     model_seg: OctFormerSegmentation, data: Dict[str, Tensor]
 ) -> None:
-    x, intermediates = model_seg.forward_features(
-        data["x"], data["octree"], data["depth"], return_intermediates=True
-    )
+    x, intermediates = model_seg.forward_features(data["x"], data["octree"], data["depth"], return_intermediates=True)
     assert len(intermediates) > 0
     x = model_seg.forward_decoder(x, data["octree"], data["depth"], intermediates)
     logits = model_seg.forward_head(x, data["octree"], data["depth"], data["pos"], data["batch"])

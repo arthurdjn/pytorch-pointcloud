@@ -73,9 +73,7 @@ def test_sonata_segmentation_reset_classifier(model: SonataSegmentation, data: D
     assert logits.shape == (data["pos_grid"].shape[0], 42)
 
 
-def test_sonata_segmentation_forward_features_decoder_head(
-    model: SonataSegmentation, data: Dict[str, Tensor]
-) -> None:
+def test_sonata_segmentation_forward_features_decoder_head(model: SonataSegmentation, data: Dict[str, Tensor]) -> None:
     x, _, _, intermediates = model.forward_features(
         data["x"], data["pos_grid"], data["batch"], return_intermediates=True
     )
