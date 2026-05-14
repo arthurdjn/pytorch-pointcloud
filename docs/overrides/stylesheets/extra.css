@@ -4,7 +4,7 @@
   --md-typeset-a-color: var(--md-default-fg-color) !important;
   --md-typeset-table-color: var(--md-code-bg-color);
 
-  /* Admonition colors */
+  /* Admonition color */
   --admonition-note-fg-color: #448aff;
   --admonition-note-bg-color: #448aff1a;
   --admonition-abstract-fg-color: #00b0ff;
@@ -37,7 +37,7 @@
   --md-typeset-a-color: hsla(var(--md-hue), 0%, 100%, .9) !important;
   --md-typeset-table-color: var(--md-code-bg-color);
 
-  /* Admonition colors */
+  /* Admonition color */
   --admonition-note-fg-color: #448aff;
   --admonition-note-bg-color: #448aff1a;
   --admonition-abstract-fg-color: #00b0ff;
@@ -108,7 +108,7 @@ p > code, a > code, li > code, td > code {
 .md-typeset ol li, .md-typeset ul li {
   margin-bottom: 0.25em !important;
 }
-/* Navbar link colors */
+/* Navbar link color */
 .md-sidebar.md-sidebar--secondary .md-nav__link--active {
   color: var(--md-accent-fg-color);
 }
