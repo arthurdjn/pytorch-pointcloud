@@ -8,6 +8,11 @@ from torch_geometric.nn import MLP, radius_graph
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtConv, PointNeXtResidualBlock, PointNeXtSetAbstraction
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
+pytestmark = pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+
 
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
@@ -28,10 +33,6 @@ def data() -> Dict[str, Tensor]:
     )
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_conv_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointNeXtConv functionality."""
     local_nn = MLP([3 + 3, 32])  # features + spatial_dim -> out_channels
@@ -42,10 +43,6 @@ def test_pointnext_conv_basic(data: Dict[str, Tensor]) -> None:
     assert output.dtype == data["features"].dtype
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_conv_with_pos_divisor(data: Dict[str, Tensor]) -> None:
     """Test PointNeXtConv with position normalization."""
     local_nn = MLP([3 + 3, 32])
@@ -60,10 +57,6 @@ def test_pointnext_conv_with_pos_divisor(data: Dict[str, Tensor]) -> None:
     assert output_no_div.shape == (len(data["pos"]), 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_conv_with_none_features(data: Dict[str, Tensor]) -> None:
     """Test PointNeXtConv with None features (position-only)."""
     local_nn = MLP([0 + 3, 32])  # no features, only spatial info
@@ -73,10 +66,6 @@ def test_pointnext_conv_with_none_features(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_set_abstraction_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointNeXtSetAbstraction functionality."""
     sa = PointNeXtSetAbstraction(
@@ -97,10 +86,6 @@ def test_pointnext_set_abstraction_basic(data: Dict[str, Tensor]) -> None:
     assert out_batch.shape[0] <= data["batch"].shape[0]  # downsampled
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_set_abstraction_multiple_radii(data: Dict[str, Tensor]) -> None:
     """Test PointNeXtSetAbstraction with multiple radii."""
     sa = PointNeXtSetAbstraction(
@@ -119,10 +104,6 @@ def test_pointnext_set_abstraction_multiple_radii(data: Dict[str, Tensor]) -> No
     assert out_pos.shape[0] == out_features.shape[0] == out_batch.shape[0]
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_set_abstraction_skip_connections(data: Dict[str, Tensor]) -> None:
     """Test that skip connections are properly configured."""
     sa = PointNeXtSetAbstraction(
@@ -142,10 +123,6 @@ def test_pointnext_set_abstraction_skip_connections(data: Dict[str, Tensor]) -> 
     assert out_features.shape[1] == 32
 
 
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
 def test_pointnext_residual_block_basic(data: Dict[str, Tensor]) -> None:
     """Test basic PointNeXtResidualBlock functionality."""
     block = PointNeXtResidualBlock(
