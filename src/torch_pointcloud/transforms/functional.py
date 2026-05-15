@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.utils.geometry import rotate
 
 ShiftMethod = Literal["bbox", "centroid", "min"]
 
@@ -833,19 +834,6 @@ def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] 
     R[i, j] = -s
     R[j, i] = s
     return R
-
-
-def rotate(x: Tensor, R: Tensor) -> Tensor:
-    """Apply a rotation matrix to a 3D tensor.
-
-    Args:
-        x: Input tensor of shape `(..., 3)`.
-        R: Rotation matrix of shape `(3, 3)`.
-
-    Returns:
-        Rotated tensor with the same shape as `x`.
-    """
-    return x @ R.to(x.dtype).to(x.device).T
 
 
 def random_rotate(
