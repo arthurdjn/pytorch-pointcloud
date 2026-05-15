@@ -67,6 +67,19 @@ def transform_points(points: Tensor, transform: Tensor) -> Tensor:
     return transformed[:, :3]
 
 
+def rotate(x: Tensor, R: Tensor) -> Tensor:
+    r"""Apply a rotation matrix to a 3D tensor.
+
+    Args:
+        x: Input tensor of shape $(\ldots, 3)$.
+        R: Rotation matrix of shape $(3, 3)$.
+
+    Returns:
+        Rotated tensor with the same shape as `x`.
+    """
+    return x @ R.to(x.dtype).to(x.device).T
+
+
 def cross_product_matrix(k: Tensor) -> Tensor:
     r"""Constructs a skew-symmetric matrix (also known as a cross-product matrix)
     for a given 3D vector $k = [k1, k2, k3]$. The function returns a

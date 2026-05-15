@@ -880,3 +880,245 @@ def test_relabel_empty_mapping_raises() -> None:
     labels = torch.tensor([1, 2, 3])
     with pytest.raises(ValueError, match="at least one source"):
         F.relabel(labels, mapping=[])
+
+
+def test_rotation_matrix_z_90deg() -> None:
+    """Rotation matrix around z by 90deg maps (1, 0, 0) to (0, 1, 0)."""
+    import math
+
+    R = F.rotation_matrix(math.pi / 2, axis=2)
+    v = torch.tensor([1.0, 0.0, 0.0])
+    rotated = F.rotate(v, R)
+    assert torch.allclose(rotated, torch.tensor([0.0, 1.0, 0.0]), atol=1e-5)
+
+
+def test_rotation_matrix_is_orthonormal_for_every_axis() -> None:
+    """Rotation matrices are orthonormal: R @ R.T = I with det = 1."""
+    for axis in (0, 1, 2):
+        R = F.rotation_matrix(1.234, axis=axis)
+        assert torch.allclose(R @ R.T, torch.eye(3), atol=1e-5)
+        assert torch.allclose(torch.det(R), torch.tensor(1.0), atol=1e-5)
+
+
+def test_rotation_matrix_invalid_axis_raises() -> None:
+    with pytest.raises(ValueError, match="axis"):
+        F.rotation_matrix(0.0, axis=3)
+    with pytest.raises(ValueError, match="axis"):
+        F.rotation_matrix(0.0, axis=-1)
+
+
+def test_random_rotate_in_range_and_deterministic() -> None:
+    pos = torch.tensor([[1.0, 0.0, 0.0]])
+    g1 = torch.Generator().manual_seed(0)
+    g2 = torch.Generator().manual_seed(0)
+    a = F.random_rotate(pos, angle_range=(-30, 30), axis=2, generator=g1)
+    b = F.random_rotate(pos, angle_range=(-30, 30), axis=2, generator=g2)
+    assert torch.equal(a, b)
+    # Z-rotation preserves the Z coordinate.
+    assert a[0, 2].item() == 0.0
+
+
+def test_random_scale_uniform_factor() -> None:
+    pos = torch.tensor([[1.0, 1.0, 1.0]])
+    g = torch.Generator().manual_seed(0)
+    out = F.random_scale(pos, scale_range=(2.0, 2.0), generator=g)
+    assert torch.allclose(out, torch.tensor([[2.0, 2.0, 2.0]]))
+
+
+def test_random_scale_anisotropic_per_axis() -> None:
+    pos = torch.ones(1, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_scale(pos, scale_range=(0.5, 2.0), anisotropic=True, generator=g)
+    # Each axis scaled independently within range.
+    assert (out >= 0.5).all() and (out <= 2.0).all()
+
+
+def test_random_flip_p_one_flips_all_listed_axes() -> None:
+    pos = torch.tensor([[1.0, 2.0, 3.0]])
+    out = F.random_flip(pos, axes=(0, 1), p=1.0)
+    assert torch.allclose(out, torch.tensor([[-1.0, -2.0, 3.0]]))
+
+
+def test_random_flip_p_zero_is_noop() -> None:
+    pos = torch.tensor([[1.0, 2.0, 3.0]])
+    out = F.random_flip(pos, axes=(0, 1, 2), p=0.0)
+    assert torch.equal(out, pos)
+
+
+def test_random_jitter_clipped() -> None:
+    pos = torch.zeros(100, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_jitter(pos, sigma=1.0, clip=0.1, generator=g)
+    assert out.abs().max().item() <= 0.1 + 1e-6
+
+
+def test_random_jitter_no_clip() -> None:
+    pos = torch.zeros(1000, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_jitter(pos, sigma=0.1, clip=None, generator=g)
+    # Without clip some samples should exceed 0.1.
+    assert out.abs().max().item() > 0.1
+
+
+def test_random_shift_within_range() -> None:
+    pos = torch.zeros(5, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_shift(pos, shift_range=(-1.0, 1.0), generator=g)
+    # Every point in the cloud is shifted by the SAME vector (so all rows equal).
+    assert torch.allclose(out, out[0:1].expand_as(out))
+    assert (out.abs() <= 1.0 + 1e-6).all()
+
+
+def test_random_dropout_mask_keep_rate() -> None:
+    g = torch.Generator().manual_seed(0)
+    mask = F.random_dropout_mask(10000, p_drop=0.3, generator=g)
+    rate = mask.float().mean().item()
+    assert abs(rate - 0.7) < 0.05  # within statistical noise
+
+
+def test_random_dropout_mask_invalid_p_drop() -> None:
+    with pytest.raises(ValueError, match=r"\[0, 1\)"):
+        F.random_dropout_mask(10, p_drop=1.0)
+
+
+def test_shuffle_indices_is_permutation() -> None:
+    g = torch.Generator().manual_seed(0)
+    perm = F.shuffle_indices(20, generator=g)
+    assert perm.dtype == torch.long
+    assert sorted(perm.tolist()) == list(range(20))
+
+
+def test_random_color_jitter_preserves_range() -> None:
+    color = torch.rand(50, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_jitter(color, brightness=0.5, contrast=0.5, saturation=0.3, generator=g)
+    assert out.min().item() >= 0.0
+    assert out.max().item() <= 1.0
+    assert out.shape == color.shape
+
+
+def test_random_color_jitter_int_dtype_preserved() -> None:
+    color = (torch.rand(10, 3) * 255).to(torch.uint8)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_jitter(color, brightness=0.2, int_color=True, generator=g)
+    assert out.dtype == torch.uint8
+
+
+def test_random_color_drop_returns_constant() -> None:
+    color = torch.rand(10, 3)
+    out = F.random_color_drop(color, fill=0.5)
+    assert torch.allclose(out, torch.full_like(color, 0.5))
+
+
+def test_color_grayscale_makes_channels_equal() -> None:
+    color = torch.rand(10, 3)
+    out = F.color_grayscale(color)
+    assert torch.allclose(out[:, 0], out[:, 1])
+    assert torch.allclose(out[:, 1], out[:, 2])
+
+
+def test_color_grayscale_uses_bt601_weights() -> None:
+    # Pure red (1, 0, 0) gives luminance 0.299.
+    color = torch.tensor([[1.0, 0.0, 0.0]])
+    out = F.color_grayscale(color)
+    assert torch.allclose(out, torch.full_like(color, 0.299), atol=1e-5)
+
+
+def test_color_auto_contrast_full_blend_stretches_range() -> None:
+    color = torch.tensor([[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]])
+    out = F.color_auto_contrast(color, blend=1.0)
+    assert torch.allclose(out.min(dim=0).values, torch.zeros(3), atol=1e-5)
+    assert torch.allclose(out.max(dim=0).values, torch.ones(3), atol=1e-5)
+
+
+def test_color_auto_contrast_zero_blend_is_identity() -> None:
+    color = torch.tensor([[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]])
+    out = F.color_auto_contrast(color, blend=0.0)
+    assert torch.allclose(out, color, atol=1e-5)
+
+
+def test_random_rotate_choice_picks_from_list() -> None:
+    """The rotation is drawn from the given list (so output should land on one of those poses)."""
+    pos = torch.tensor([[1.0, 0.0, 0.0]])
+    g = torch.Generator().manual_seed(42)
+    # angles=[0, 90, 180, 270] around z map (1,0,0) to one of (1,0,0), (0,1,0), (-1,0,0), (0,-1,0)
+    candidates = torch.tensor(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+        ]
+    )
+    out = F.random_rotate_choice(pos, angles=[0, 90, 180, 270], axis=2, generator=g)
+    diffs = (candidates - out).norm(dim=-1)
+    assert diffs.min().item() < 1e-4
+
+
+def test_random_rotate_choice_empty_raises() -> None:
+    pos = torch.zeros(3, 3)
+    with pytest.raises(ValueError, match="non-empty"):
+        F.random_rotate_choice(pos, angles=[])
+
+
+def test_random_rotate_choice_determinism() -> None:
+    pos = torch.tensor([[1.0, 0.0, 0.0]])
+    g1 = torch.Generator().manual_seed(7)
+    g2 = torch.Generator().manual_seed(7)
+    a = F.random_rotate_choice(pos, angles=[0, 90, 180, 270], generator=g1)
+    b = F.random_rotate_choice(pos, angles=[0, 90, 180, 270], generator=g2)
+    assert torch.equal(a, b)
+
+
+def test_random_color_shift_constant_offset_within_range() -> None:
+    color = torch.full((5, 3), 0.5)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_shift(color, shift_range=(0.1, 0.1), generator=g)
+    assert torch.allclose(out, torch.full_like(color, 0.6))
+
+
+def test_random_color_shift_clamps_to_valid_range() -> None:
+    color = torch.full((5, 3), 0.95)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_shift(color, shift_range=(0.5, 0.5), generator=g)
+    # Would go to 1.45 but clamped to 1.0.
+    assert torch.all(out <= 1.0)
+
+
+def test_random_color_shift_int_dtype_preserved() -> None:
+    color = torch.full((5, 3), 128, dtype=torch.uint8)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_shift(color, shift_range=(10, 10), int_color=True, generator=g)
+    assert out.dtype == torch.uint8
+
+
+def test_random_elastic_distortion_changes_positions() -> None:
+    pos = torch.randn(200, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_elastic_distortion(pos, granularity=0.5, magnitude=0.1, generator=g)
+    assert out.shape == pos.shape
+    # Should not be identity at any reasonable magnitude.
+    assert (out - pos).abs().max().item() > 0.0
+
+
+def test_random_elastic_distortion_preserves_local_structure() -> None:
+    """Nearby points should still be nearby after distortion (low-frequency field)."""
+    pos = torch.tensor([[0.0, 0.0, 0.0], [0.001, 0.0, 0.0]])
+    g = torch.Generator().manual_seed(0)
+    out = F.random_elastic_distortion(pos, granularity=0.5, magnitude=0.5, generator=g)
+    # Displacement at two very close points should also be very close.
+    delta_in = (pos[0] - pos[1]).norm().item()
+    delta_out = (out[0] - out[1]).norm().item()
+    assert abs(delta_out - delta_in) < 0.01
+
+
+def test_random_elastic_distortion_empty_passthrough() -> None:
+    pos = torch.empty(0, 3)
+    out = F.random_elastic_distortion(pos, granularity=0.2, magnitude=0.4)
+    assert out.shape == (0, 3)
+
+
+def test_random_elastic_distortion_wrong_shape_raises() -> None:
+    pos = torch.randn(10, 2)
+    with pytest.raises(ValueError, match=r"\(N, 3\)"):
+        F.random_elastic_distortion(pos, granularity=0.2, magnitude=0.4)

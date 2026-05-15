@@ -9,8 +9,9 @@ Transforms are non-mutating: each transform returns a new shallow-copy dict. Ten
 inside the dict are not cloned unless the transform's documentation says so.
 """
 
+import math
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence, get_args
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence, Tuple, get_args
 
 import numpy as np
 import torch
@@ -52,6 +53,7 @@ __all__ = [
     "BoxMask",
     "BuildOctree",
     "Cat",
+    "Clamp",
     "OctreeFeatures",
     "Compose",
     "CopyItems",
@@ -64,8 +66,21 @@ __all__ = [
     "Normalize",
     "OneHot",
     "OnesLike",
+    "RandomColorAutoContrast",
+    "RandomColorDrop",
+    "RandomColorGrayScale",
+    "RandomColorJitter",
+    "RandomColorShift",
+    "RandomDropout",
+    "RandomElasticDistortion",
+    "RandomFlip",
+    "RandomJitter",
+    "RandomRotate",
+    "RandomRotateChoice",
     "RandomSample",
     "RandomSampleFaceVertices",
+    "RandomScale",
+    "RandomShift",
     "Reduce",
     "ReduceOp",
     "Relabel",
@@ -77,6 +92,8 @@ __all__ = [
     "SetValue",
     "Shift",
     "ShiftMethod",
+    "ShufflePoint",
+    "SphereCrop",
     "SphereMask",
     "SubtractKey",
     "ToDevice",
@@ -1760,3 +1777,775 @@ class KeepItems(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         return {key: data[key] for key in self.iter_keys(data)}
+
+
+class RandomRotate(DictTransform):
+    """Rotate one or more keys by a uniformly random angle around an axis.
+
+    Sampling is done once per call: all listed keys get the same rotation
+    matrix. Pair `keys=("pos", "normal")` to keep positions and normals
+    consistent.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_rotate`,
+        `torch_pointcloud.transforms.functional.rotation_matrix`
+
+    Args:
+        keys: Keys to rotate. Each must have shape `(..., 3)`.
+        angle_range: Min and max rotation angle, in **degrees**.
+        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
+        p: Probability of applying the transform.
+        dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        angle_range: Tuple[float, float] = (-180.0, 180.0),
+        axis: int = 2,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.angle_range = angle_range
+        self.axis = axis
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        lo, hi = self.angle_range
+        angle_deg = torch.empty(1).uniform_(lo, hi, generator=self.generator).item()
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            R = F.rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
+            data[dst_key] = F.rotate(x, R)
+        return data
+
+
+class RandomScale(DictTransform):
+    """Scale one or more keys by a uniformly random factor.
+
+    Sampling is done once per call: all listed keys are scaled by the same
+    factor (or per-axis factor vector when `anisotropic=True`).
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_scale`
+
+    Args:
+        keys: Keys to scale.
+        scale_range: Min and max scaling factor.
+        anisotropic: If `True`, sample a separate scale per axis of the last dim.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the scaled tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        scale_range: Tuple[float, float] = (0.8, 1.25),
+        anisotropic: bool = False,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.scale_range = scale_range
+        self.anisotropic = anisotropic
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        lo, hi = self.scale_range
+        first_key = next(iter(self.iter_keys(data)), None)
+        if first_key is None:
+            return data
+        d = data[first_key].shape[-1]
+        if self.anisotropic:
+            scale = torch.empty(d).uniform_(lo, hi, generator=self.generator)
+        else:
+            scale = torch.empty(1).uniform_(lo, hi, generator=self.generator)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            data[dst_key] = x * scale.to(x.dtype).to(x.device)
+        return data
+
+
+class RandomFlip(DictTransform):
+    """Flip listed axes independently with probability `p` each.
+
+    Sampling is done once per call: all listed keys are flipped on the same
+    axes.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_flip`
+
+    Args:
+        keys: Keys to flip.
+        axes: Axis indices (into the last dim) to consider for flipping.
+        p: Per-axis flip probability.
+        dst_keys: Where to store the flipped tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        axes: Sequence[int] = (0, 1),
+        p: float = 0.5,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.axes = tuple(axes)
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        first_key = next(iter(self.iter_keys(data)), None)
+        if first_key is None:
+            return data
+        d = data[first_key].shape[-1]
+        flips = torch.zeros(d)
+        for ax in self.axes:
+            flips[ax] = 1.0 if torch.rand(1, generator=self.generator).item() < self.p else 0.0
+        sign = torch.where(flips > 0, -torch.ones(d), torch.ones(d))
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            data[dst_key] = x * sign.to(x.dtype).to(x.device)
+        return data
+
+
+class RandomJitter(DictTransform):
+    """Add Gaussian noise to listed keys, optionally clipped.
+
+    Each key gets its own independent noise tensor (because the noise shape
+    matches the key shape). Pair-rotation-style consistency does not apply here.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_jitter`
+
+    Args:
+        keys: Keys to jitter.
+        sigma: Standard deviation of the Gaussian noise.
+        clip: If not `None`, clip the noise to `[-clip, clip]`.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the jittered tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        sigma: float = 0.01,
+        clip: Optional[float] = 0.05,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sigma = sigma
+        self.clip = clip
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.random_jitter(data[key], self.sigma, self.clip, generator=self.generator)
+        return data
+
+
+class RandomShift(DictTransform):
+    """Translate listed keys by a uniformly random vector.
+
+    Sampling is done once per call: all listed keys are shifted by the same
+    translation vector.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_shift`
+
+    Args:
+        keys: Keys to shift.
+        shift_range: Min and max per-axis translation.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the shifted tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        shift_range: Tuple[float, float] = (-0.2, 0.2),
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.shift_range = shift_range
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        lo, hi = self.shift_range
+        first_key = next(iter(self.iter_keys(data)), None)
+        if first_key is None:
+            return data
+        d = data[first_key].shape[-1]
+        shift = torch.empty(d).uniform_(lo, hi, generator=self.generator)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            data[dst_key] = x + shift.to(x.dtype).to(x.device)
+        return data
+
+
+class RandomDropout(DictTransform):
+    """Randomly drop a fraction of points across all listed keys.
+
+    The same boolean keep-mask is applied to every key so per-point
+    correspondence is preserved. Sampling is once per call.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_dropout_mask`
+
+    Args:
+        keys: Keys to subset. All must share the same leading dimension `N`.
+        p_drop: Fraction of points to drop per call (uniform across points).
+            Must lie in $[0, 1)$.
+        p: Probability of applying the transform.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        p_drop: float = 0.1,
+        p: float = 1.0,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if not 0.0 <= p_drop < 1.0:
+            raise ValueError(f"p_drop must be in [0, 1); got {p_drop}.")
+        self.p_drop = p_drop
+        self.p = p
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        first_key = next(iter(self.iter_keys(data)), None)
+        if first_key is None:
+            return data
+        n = data[first_key].shape[0]
+        keep = F.random_dropout_mask(n, self.p_drop, device=data[first_key].device, generator=self.generator)
+        for key in self.iter_keys(data):
+            data[key] = data[key][keep]
+        return data
+
+
+class RandomColorJitter(DictTransform):
+    """Jitter colors by brightness, contrast, and saturation strengths.
+
+    Each strength is a relative delta uniformly sampled from `[-x, x]`. Same
+    factors are applied to every listed key in one call.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_color_jitter`
+
+    Args:
+        keys: Color keys to jitter, shape `(N, 3)`.
+        brightness: Max relative brightness change in $[0, 1]$.
+        contrast: Max relative contrast change in $[0, 1]$.
+        saturation: Max relative saturation change in $[0, 1]$.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the jittered tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        brightness: float = 0.4,
+        contrast: float = 0.4,
+        saturation: float = 0.2,
+        int_color: bool = False,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.brightness = brightness
+        self.contrast = contrast
+        self.saturation = saturation
+        self.int_color = int_color
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.random_color_jitter(
+                data[key],
+                brightness=self.brightness,
+                contrast=self.contrast,
+                saturation=self.saturation,
+                int_color=self.int_color,
+                generator=self.generator,
+            )
+        return data
+
+
+class RandomColorDrop(DictTransform):
+    """Replace colors with a constant gray value with probability `p`.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_color_drop`
+
+    Args:
+        keys: Color keys to drop.
+        fill: Replacement value in the same range as the colors. For
+            `int_color=False`, sensible default is `0.5`; for `int_color=True`, `128`.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        p: Probability of dropping colors.
+        dst_keys: Where to store the result.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        fill: float = 0.5,
+        int_color: bool = False,
+        p: float = 0.2,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.fill = fill
+        self.int_color = int_color
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.random_color_drop(data[key], fill=self.fill, int_color=self.int_color)
+        return data
+
+
+class RandomColorGrayScale(DictTransform):
+    """Convert listed color keys to grayscale (BT.601 luminance) with probability `p`.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.color_grayscale`
+
+    Args:
+        keys: Color keys, shape `(N, 3)`.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        p: Probability of converting to grayscale.
+        dst_keys: Where to store the result.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        int_color: bool = False,
+        p: float = 0.2,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.int_color = int_color
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.color_grayscale(data[key], int_color=self.int_color)
+        return data
+
+
+class RandomColorAutoContrast(DictTransform):
+    """Stretch per-cloud color range to the full extent, then blend back, with probability `p`.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.color_auto_contrast`
+
+    Args:
+        keys: Color keys, shape `(N, 3)`.
+        blend: Blend weight in `[0, 1]`. `1.0` is fully auto-contrasted; `0.0` is the input.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the result.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        blend: float = 0.5,
+        int_color: bool = False,
+        p: float = 0.2,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.blend = blend
+        self.int_color = int_color
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.color_auto_contrast(data[key], blend=self.blend, int_color=self.int_color)
+        return data
+
+
+class SphereCrop(DictTransform):
+    """Keep only points inside an L2 sphere of given radius.
+
+    The mask is computed from `pos_key` and applied to every listed `keys`.
+    Equivalent to `Compose([SphereMask(...), ApplyMask(...)])`, kept as a
+    convenience preset (the dual of `RemoveNearOrigin`).
+
+    Args:
+        pos_key: Key with positions used to compute the mask.
+        keys: Extra keys to filter with the same mask.
+        center: Center of the sphere. If `"centroid"`, uses the per-cloud centroid;
+            if `"random_point"`, picks a random point as the center; otherwise treat as a 3-vector.
+        radius: Radius of the sphere (Euclidean).
+        p: Probability of applying the transform.
+        generator: Optional `torch.Generator` for reproducibility (used when
+            `center="random_point"`).
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        radius: float,
+        keys: Optional[KeyCollection] = None,
+        center: Any = "centroid",
+        p: float = 1.0,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        all_keys = ensure_tuple(keys, none_as_empty=True)
+        if pos_key not in all_keys:
+            all_keys = (pos_key,) + all_keys
+        super().__init__(all_keys, allow_missing_keys)
+        self.pos_key = pos_key
+        self.radius = radius
+        self.center = center
+        self.p = p
+        self.generator = generator
+
+    def _resolve_center(self, pos: torch.Tensor) -> torch.Tensor:
+        if isinstance(self.center, str):
+            if self.center == "centroid":
+                return pos.mean(dim=0)
+            if self.center == "random_point":
+                if pos.shape[0] == 0:
+                    return pos.new_zeros(pos.shape[-1])
+                idx = int(torch.randint(0, pos.shape[0], (1,), generator=self.generator).item())
+                return pos[idx]
+            raise ValueError(f"Invalid center: {self.center!r}. Expected 'centroid', 'random_point', or a 3-vector.")
+        return torch.as_tensor(self.center, device=pos.device, dtype=pos.dtype)
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        pos = data[self.pos_key]
+        center = self._resolve_center(pos)
+        mask = F.sphere_mask(pos, center, self.radius, dim=-1)
+        for key in self.iter_keys(data):
+            data[key] = data[key][mask]
+        return data
+
+
+class ShufflePoint(DictTransform):
+    """Randomly permute the order of points across listed keys.
+
+    The same permutation is applied to every key so per-point correspondence
+    is preserved. Useful before `RandomSample` when you want to break any
+    structural ordering in the input.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.shuffle_indices`
+
+    Args:
+        keys: Keys to permute. All must share the same leading dimension `N`.
+        p: Probability of applying the transform.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        p: float = 1.0,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.p = p
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        first_key = next(iter(self.iter_keys(data)), None)
+        if first_key is None:
+            return data
+        n = data[first_key].shape[0]
+        perm = F.shuffle_indices(n, device=data[first_key].device, generator=self.generator)
+        for key in self.iter_keys(data):
+            data[key] = data[key][perm]
+        return data
+
+
+class Clamp(DictTransform):
+    """Clamp tensor entries to a range (a thin wrapper over `torch.clamp`).
+
+    Args:
+        keys: Keys to clamp.
+        min: Lower bound. `None` disables the lower clamp.
+        max: Upper bound. `None` disables the upper clamp.
+        dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        min: Optional[float] = None,
+        max: Optional[float] = None,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if min is None and max is None:
+            raise ValueError("Clamp requires at least one of `min` or `max`.")
+        self.min = min
+        self.max = max
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = data[key].clamp(min=self.min, max=self.max)
+        return data
+
+
+class RandomRotateChoice(DictTransform):
+    """Rotate one or more keys by an angle chosen uniformly from a discrete list.
+
+    Common use: ModelNet / ScanObjectNN augmentation with `angles=[0, 90, 180, 270]`
+    around the z-axis. Sampling is done once per call: every listed key gets
+    the same rotation matrix.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_rotate_choice`
+
+    Args:
+        keys: Keys to rotate. Each must have shape `(..., 3)`.
+        angles: Candidate rotation angles, in **degrees**. Must be non-empty.
+        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
+        p: Probability of applying the transform.
+        dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        angles: Sequence[float],
+        axis: int = 2,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if len(angles) == 0:
+            raise ValueError("RandomRotateChoice requires at least one angle.")
+        self.angles = tuple(float(a) for a in angles)
+        self.axis = axis
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        idx = int(torch.randint(0, len(self.angles), (1,), generator=self.generator).item())
+        angle_deg = self.angles[idx]
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            R = F.rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
+            data[dst_key] = F.rotate(x, R)
+        return data
+
+
+class RandomColorShift(DictTransform):
+    """Additive per-channel color shift sampled uniformly per channel.
+
+    For each of the 3 channels, sample one offset uniformly from `shift_range`
+    and add it to every point's value. Sampling is once per call (same shift
+    across all listed keys). Result is clamped to the valid color range.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_color_shift`
+
+    Args:
+        keys: Color keys to shift, shape `(N, 3)`.
+        shift_range: Min and max per-channel offset (in the same range as the colors).
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the shifted tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        shift_range: Tuple[float, float] = (-0.05, 0.05),
+        int_color: bool = False,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.shift_range = shift_range
+        self.int_color = int_color
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        lo, hi = self.shift_range
+        max_val = 255.0 if self.int_color else 1.0
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            shift = torch.empty(3, device=x.device).uniform_(lo, hi, generator=self.generator)
+            out = x.float() + shift
+            data[dst_key] = out.clamp(0.0, max_val).to(x.dtype)
+        return data
+
+
+class RandomElasticDistortion(DictTransform):
+    """Apply a smooth random displacement field (elastic distortion).
+
+    Used in SparseConvNet / MinkowskiEngine / Pointcept indoor segmentation
+    recipes. Sampling is done once per call so multi-key consistency is
+    preserved (the same displacement field is applied to every listed key).
+
+    For multi-scale distortion (the standard Pointcept default), compose two
+    `RandomElasticDistortion` calls with different `granularity` / `magnitude`.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.random_elastic_distortion`
+
+    Args:
+        keys: Position keys to distort, shape `(N, 3)`.
+        granularity: Size of the displacement-field grid cells. Smaller values
+            give higher-frequency distortion.
+        magnitude: Standard deviation of the per-cell Gaussian noise. Larger
+            values give stronger deformation.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the distorted tensors.
+        generator: Optional `torch.Generator` for reproducibility.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        granularity: float = 0.2,
+        magnitude: float = 0.4,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        generator: Optional[torch.Generator] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.granularity = granularity
+        self.magnitude = magnitude
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return data
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.random_elastic_distortion(
+                data[key], self.granularity, self.magnitude, generator=self.generator
+            )
+        return data
