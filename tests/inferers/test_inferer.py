@@ -10,7 +10,7 @@ from torch_pointcloud.inferers import Inferer
 def test_inferer_is_abstract_and_cannot_be_instantiated() -> None:
     """Inferer cannot be instantiated directly -- it is an abstract base class."""
     with pytest.raises(TypeError):
-        Inferer()
+        Inferer()  # type: ignore[abstract]
 
 
 def test_subclass_without_forward_cannot_be_instantiated() -> None:
@@ -20,7 +20,7 @@ def test_subclass_without_forward_cannot_be_instantiated() -> None:
         pass
 
     with pytest.raises(TypeError):
-        Incomplete()
+        Incomplete()  # type: ignore[abstract]
 
 
 def test_call_delegates_to_forward_with_same_args_and_returns_its_value() -> None:
