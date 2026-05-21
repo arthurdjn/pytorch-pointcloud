@@ -35,12 +35,12 @@ def model_clf() -> PointNetClassification:
         mlp1_dims=(32,),
         mlp2_dims=(64, 128),
         act="relu",
-        norm="batch_norm1d",
+        norm="batch_norm",
         use_features_transform=True,
         tnet_mlp1_dims=(32, 64, 128),
         tnet_mlp2_dims=(64, 32),
         tnet_act="relu",
-        tnet_norm="batch_norm1d",
+        tnet_norm="batch_norm",
     )
 
 
@@ -54,13 +54,13 @@ def model_seg() -> PointNetSegmentation:
         mlp1_dims=(32,),
         mlp2_dims=(64, 128),
         act="relu",
-        norm="batch_norm1d",
+        norm="batch_norm",
         global_pool="max",
         use_features_transform=True,
         tnet_mlp1_dims=(32, 64, 128),
         tnet_mlp2_dims=(64, 32),
         tnet_act="relu",
-        tnet_norm="batch_norm1d",
+        tnet_norm="batch_norm",
         seg_head_dims=(64, 32),
     )
 

@@ -4,15 +4,13 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from torch_geometric.nn import MLP
+from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
+
 from torch_pointcloud.layers import (
-    ActLike,
-    NormLike,
     PoolLike,
-    create_act,
     create_cls_head,
-    create_norm,
     create_pool,
-    linear_block,
 )
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
@@ -38,8 +36,8 @@ class GroupedVectorAttention(nn.Module):
         qkv_bias: bool = True,
         pe_multiplier: bool = False,
         pe_bias: bool = True,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
     ):
         super().__init__()
         if channels % num_groups != 0:
@@ -50,13 +48,13 @@ class GroupedVectorAttention(nn.Module):
 
         self.q = nn.Sequential(
             nn.Linear(channels, channels, bias=qkv_bias),
-            create_norm(norm, channels),
-            create_act(act),
+            normalization_resolver(norm, channels),
+            activation_resolver(act),
         )
         self.k = nn.Sequential(
             nn.Linear(channels, channels, bias=qkv_bias),
-            create_norm(norm, channels),
-            create_act(act),
+            normalization_resolver(norm, channels),
+            activation_resolver(act),
         )
         self.v = nn.Linear(channels, channels, bias=qkv_bias)
 
@@ -64,8 +62,8 @@ class GroupedVectorAttention(nn.Module):
         if pe_multiplier:
             self.pe_multiplier = nn.Sequential(
                 nn.Linear(3, channels),
-                create_norm(norm, channels),
-                create_act(act),
+                normalization_resolver(norm, channels),
+                activation_resolver(act),
                 nn.Linear(channels, channels),
             )
 
@@ -73,15 +71,15 @@ class GroupedVectorAttention(nn.Module):
         if pe_bias:
             self.pe_bias = nn.Sequential(
                 nn.Linear(3, channels),
-                create_norm(norm, channels),
-                create_act(act),
+                normalization_resolver(norm, channels),
+                activation_resolver(act),
                 nn.Linear(channels, channels),
             )
 
         self.weight_encoding = nn.Sequential(
             nn.Linear(channels, num_groups),
-            create_norm(norm, num_groups),
-            create_act(act),
+            normalization_resolver(norm, num_groups),
+            activation_resolver(act),
             nn.Linear(num_groups, num_groups),
         )
 
@@ -124,8 +122,8 @@ class Block(nn.Module):
         pe_bias: bool = True,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
     ):
         super().__init__()
         self.attn = GroupedVectorAttention(
@@ -140,10 +138,10 @@ class Block(nn.Module):
         )
         self.fc1 = nn.Linear(channels, channels, bias=False)
         self.fc3 = nn.Linear(channels, channels, bias=False)
-        self.norm1 = create_norm(norm, channels)
-        self.norm2 = create_norm(norm, channels)
-        self.norm3 = create_norm(norm, channels)
-        self.act = create_act(act)
+        self.norm1 = normalization_resolver(norm, channels)
+        self.norm2 = normalization_resolver(norm, channels)
+        self.norm3 = normalization_resolver(norm, channels)
+        self.act = activation_resolver(act)
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
@@ -165,8 +163,8 @@ class GridPool(nn.Module):
         grid_size: float,
         bias: bool = False,
         reduce: str = "max",
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -175,8 +173,8 @@ class GridPool(nn.Module):
         self.reduce = reduce
 
         self.fc = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = create_norm(norm, out_channels)
-        self.act = create_act(act)
+        self.norm = normalization_resolver(norm, out_channels)
+        self.act = activation_resolver(act)
 
     @overload
     def forward(
@@ -232,31 +230,29 @@ class InversePool(nn.Module):
         skip_channels: int,
         out_channels: int,
         bias: bool = True,
-        norm: Optional[NormLike] = "batch_norm1d",
-        act: Optional[ActLike] = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
     ):
         super().__init__()
         self.in_channels = in_channels
         self.skip_channels = skip_channels
         self.out_channels = out_channels
 
-        self.proj = linear_block(
-            in_features=in_channels,
-            out_features=out_channels,
-            bias=bias,
-            norm=norm,
+        self.proj = MLP(
+            [in_channels, out_channels],
             act=act,
-            dropout=None,
-            order="lna",
+            norm=norm,
+            act_first=False,
+            plain_last=False,
+            bias=bias,
         )
-        self.proj_skip = linear_block(
-            in_features=skip_channels,
-            out_features=out_channels,
-            bias=bias,
-            norm=norm,
+        self.proj_skip = MLP(
+            [skip_channels, out_channels],
             act=act,
-            dropout=None,
-            order="lna",
+            norm=norm,
+            act_first=False,
+            plain_last=False,
+            bias=bias,
         )
 
     def forward(self, x: Tensor, x_skip: Tensor, inverse: Tensor) -> Tensor:
@@ -275,8 +271,8 @@ class EncoderBlock(nn.Module):
         qkv_bias: bool = True,
         pe_multiplier: bool = False,
         pe_bias: bool = True,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
         attn_drop: ValueCollection[float] = 0.0,
         drop_path: ValueCollection[float] = 0.0,
         downsample: Optional[GridPool] = None,
@@ -353,8 +349,8 @@ class DecoderBlock(nn.Module):
         qkv_bias: bool = True,
         pe_multiplier: bool = False,
         pe_bias: bool = True,
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
         attn_drop: ValueCollection[float] = 0.0,
         drop_path: ValueCollection[float] = 0.0,
         upsample: Optional[InversePool] = None,
@@ -404,8 +400,8 @@ def create_encoder_blocks(
     num_groups: Sequence[int],
     num_neighbors: Sequence[int],
     grid_sizes: Sequence[float],
-    norm: NormLike = "batch_norm1d",
-    act: ActLike = "relu",
+    norm: Optional[str] = "batch_norm",
+    act: Optional[str] = "relu",
     qkv_bias: bool = True,
     pe_multiplier: bool = False,
     pe_bias: bool = True,
@@ -462,8 +458,8 @@ def create_decoder_blocks(
     skip_channels: Sequence[int],
     num_groups: Sequence[int],
     num_neighbors: Sequence[int],
-    norm: NormLike = "batch_norm1d",
-    act: ActLike = "relu",
+    norm: Optional[str] = "batch_norm",
+    act: Optional[str] = "relu",
     qkv_bias: bool = True,
     pe_multiplier: bool = False,
     pe_bias: bool = True,
@@ -561,8 +557,8 @@ class PointTransformerV2Classification(nn.Module):
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
         encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
         encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
         qkv_bias: bool = True,
         attn_drop: float = 0.0,
         pe_multiplier: bool = False,
@@ -577,8 +573,8 @@ class PointTransformerV2Classification(nn.Module):
 
         self.embedding = nn.Sequential(
             nn.Linear(in_channels, encoder_channels[0]),
-            create_norm(norm, encoder_channels[0]),
-            create_act(act),
+            normalization_resolver(norm, encoder_channels[0]),
+            activation_resolver(act),
         )
 
         self.encoder = self.configure_encoder_blocks(
@@ -761,8 +757,8 @@ class PointTransformerV2Segmentation(nn.Module):
         decoder_channels: Sequence[int] = (384, 192, 96, 48),
         decoder_num_groups: Sequence[int] = (48, 24, 12, 6),
         decoder_num_neighbors: Sequence[int] = (16, 16, 16, 16),
-        norm: NormLike = "batch_norm1d",
-        act: ActLike = "relu",
+        norm: Optional[str] = "batch_norm",
+        act: Optional[str] = "relu",
         qkv_bias: bool = True,
         attn_drop: float = 0.0,
         pe_multiplier: bool = False,
@@ -776,8 +772,8 @@ class PointTransformerV2Segmentation(nn.Module):
 
         self.embedding = nn.Sequential(
             nn.Linear(in_channels, encoder_channels[0]),
-            create_norm(norm, encoder_channels[0]),
-            create_act(act),
+            normalization_resolver(norm, encoder_channels[0]),
+            activation_resolver(act),
         )
 
         self.encoder = self.configure_encoder_blocks(

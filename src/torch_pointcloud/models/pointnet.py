@@ -1,18 +1,15 @@
-import itertools
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import (
-    ActLike,
-    NormLike,
     PoolLike,
     create_cls_head,
     create_pool,
     create_seg_head,
-    linear_block,
 )
 from torch_pointcloud.utils.imports import optional_import
 
@@ -53,8 +50,8 @@ class TNet(nn.Module):
         k: int = 3,
         mlp1_dims: Sequence[int] = (64, 128, 1024),
         mlp2_dims: Sequence[int] = (512, 256),
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Optional[str] = "relu",
+        norm: Optional[str] = "batch_norm",
         global_pool: str = "max",
     ) -> None:
         super().__init__()
@@ -64,17 +61,8 @@ class TNet(nn.Module):
         mlp1_dims = list(mlp1_dims)
         mlp2_dims = list(mlp2_dims)
 
-        blocks = []
-        for in_features, out_features in itertools.pairwise([k] + mlp1_dims):
-            block = linear_block(in_features, out_features, act=act, norm=norm, dropout=None, order="lan")
-            blocks.append(block)
-        self.mlp1 = nn.Sequential(*blocks)
-
-        blocks = []
-        for in_features, out_features in itertools.pairwise([mlp1_dims[-1]] + mlp2_dims):
-            block = linear_block(in_features, out_features, act=act, norm=norm, dropout=None, order="lan")
-            blocks.append(block)
-        self.mlp2 = nn.Sequential(*blocks)
+        self.mlp1 = MLP([k] + mlp1_dims, act=act, norm=norm, act_first=True, plain_last=False)
+        self.mlp2 = MLP([mlp1_dims[-1]] + mlp2_dims, act=act, norm=norm, act_first=True, plain_last=False)
 
         self.transform = nn.Linear(mlp2_dims[-1], k * k)
         nn.init.zeros_(self.transform.weight)
@@ -149,13 +137,13 @@ class PointNetEncoder(nn.Module):
         in_channels: int = 0,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Optional[str] = "relu",
+        norm: Optional[str] = "batch_norm",
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
-        tnet_act: ActLike = "relu",
-        tnet_norm: NormLike = "batch_norm1d",
+        tnet_act: Optional[str] = "relu",
+        tnet_norm: Optional[str] = "batch_norm",
     ) -> None:
         super().__init__()
         mlp1_dims = [spatial_dim + in_channels] + list(mlp1_dims)
@@ -179,17 +167,8 @@ class PointNetEncoder(nn.Module):
                 norm=tnet_norm,
             )
 
-        blocks = []
-        for in_features, out_features in itertools.pairwise(mlp1_dims):
-            block = linear_block(in_features, out_features, act=act, norm=norm, dropout=None, order="lan")
-            blocks.append(block)
-        self.mlp1 = nn.Sequential(*blocks)
-
-        blocks = []
-        for in_features, out_features in itertools.pairwise(mlp2_dims):
-            block = linear_block(in_features, out_features, act=act, norm=norm, dropout=None, order="lan")
-            blocks.append(block)
-        self.mlp2 = nn.Sequential(*blocks)
+        self.mlp1 = MLP(mlp1_dims, act=act, norm=norm, act_first=True, plain_last=False)
+        self.mlp2 = MLP(mlp2_dims, act=act, norm=norm, act_first=True, plain_last=False)
 
     @overload
     def forward(
@@ -299,13 +278,13 @@ class PointNetClassification(nn.Module):
         global_pool: PoolLike = "max",
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Optional[str] = "relu",
+        norm: Optional[str] = "batch_norm",
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
-        tnet_act: ActLike = "relu",
-        tnet_norm: NormLike = "batch_norm1d",
+        tnet_act: Optional[str] = "relu",
+        tnet_norm: Optional[str] = "batch_norm",
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
@@ -446,14 +425,14 @@ class PointNetSegmentation(nn.Module):
         dropout: float = 0.3,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
-        act: ActLike = "relu",
-        norm: NormLike = "batch_norm1d",
+        act: Optional[str] = "relu",
+        norm: Optional[str] = "batch_norm",
         global_pool: PoolLike = "max",
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
-        tnet_act: ActLike = "relu",
-        tnet_norm: NormLike = "batch_norm1d",
+        tnet_act: Optional[str] = "relu",
+        tnet_norm: Optional[str] = "batch_norm",
         seg_head_dims: Sequence[int] = (512, 256, 128),
     ) -> None:
         super().__init__()
@@ -487,7 +466,6 @@ class PointNetSegmentation(nn.Module):
             act=act,
             norm=norm,
             dropout=dropout,
-            order="land",
         )
 
     def reset_classifier(
