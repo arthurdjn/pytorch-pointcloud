@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -40,7 +40,9 @@ class TNet(nn.Module):
         mlp1_dims: Dimensions of the first MLP. Default: (64, 128, 1024).
         mlp2_dims: Dimensions of the second MLP after pooling. Default: (512, 256).
         act: Activation function to use. Default: "relu".
+        act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use. Default: "batch_norm1d".
+        norm_kwargs: Keyword arguments for the normalization layers.
         global_pool: Pooling method to use ("max" or "mean"). Default: "max".
 
     """
@@ -50,8 +52,10 @@ class TNet(nn.Module):
         k: int = 3,
         mlp1_dims: Sequence[int] = (64, 128, 1024),
         mlp2_dims: Sequence[int] = (512, 256),
-        act: Optional[str] = "relu",
-        norm: Optional[str] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         global_pool: str = "max",
     ) -> None:
         super().__init__()
@@ -61,8 +65,24 @@ class TNet(nn.Module):
         mlp1_dims = list(mlp1_dims)
         mlp2_dims = list(mlp2_dims)
 
-        self.mlp1 = MLP([k] + mlp1_dims, act=act, norm=norm, act_first=True, plain_last=False)
-        self.mlp2 = MLP([mlp1_dims[-1]] + mlp2_dims, act=act, norm=norm, act_first=True, plain_last=False)
+        self.mlp1 = MLP(
+            [k] + mlp1_dims,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            act_first=True,
+            plain_last=False,
+        )
+        self.mlp2 = MLP(
+            [mlp1_dims[-1]] + mlp2_dims,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            act_first=True,
+            plain_last=False,
+        )
 
         self.transform = nn.Linear(mlp2_dims[-1], k * k)
         nn.init.zeros_(self.transform.weight)
@@ -122,12 +142,16 @@ class PointNetEncoder(nn.Module):
         mlp1_dims: Dimensions of the first MLP.
         mlp2_dims: Dimensions of the second MLP.
         act: Activation function to use.
+        act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use.
+        norm_kwargs: Keyword arguments for the normalization layers.
         use_features_transform: Whether to use the feature transformer network.
         tnet_mlp1_dims: Dimensions of T-Net first MLP.
         tnet_mlp2_dims: Dimensions of T-Net second MLP.
         tnet_act: Activation function for T-Net.
+        tnet_act_kwargs: Keyword arguments for the T-Net activation function.
         tnet_norm: Normalization for T-Net.
+        tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
 
     """
 
@@ -137,13 +161,17 @@ class PointNetEncoder(nn.Module):
         in_channels: int = 0,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
-        act: Optional[str] = "relu",
-        norm: Optional[str] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
-        tnet_act: Optional[str] = "relu",
-        tnet_norm: Optional[str] = "batch_norm",
+        tnet_act: Union[str, Callable, None] = "relu",
+        tnet_act_kwargs: Optional[Dict[str, Any]] = None,
+        tnet_norm: Union[str, Callable, None] = "batch_norm",
+        tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         mlp1_dims = [spatial_dim + in_channels] + list(mlp1_dims)
@@ -154,7 +182,9 @@ class PointNetEncoder(nn.Module):
             mlp1_dims=tnet_mlp1_dims,
             mlp2_dims=tnet_mlp2_dims,
             act=tnet_act,
+            act_kwargs=tnet_act_kwargs,
             norm=tnet_norm,
+            norm_kwargs=tnet_norm_kwargs,
         )
 
         self.ftnet = None
@@ -164,11 +194,29 @@ class PointNetEncoder(nn.Module):
                 mlp1_dims=tnet_mlp1_dims,
                 mlp2_dims=tnet_mlp2_dims,
                 act=tnet_act,
+                act_kwargs=tnet_act_kwargs,
                 norm=tnet_norm,
+                norm_kwargs=tnet_norm_kwargs,
             )
 
-        self.mlp1 = MLP(mlp1_dims, act=act, norm=norm, act_first=True, plain_last=False)
-        self.mlp2 = MLP(mlp2_dims, act=act, norm=norm, act_first=True, plain_last=False)
+        self.mlp1 = MLP(
+            mlp1_dims,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            act_first=True,
+            plain_last=False,
+        )
+        self.mlp2 = MLP(
+            mlp2_dims,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            act_first=True,
+            plain_last=False,
+        )
 
     @overload
     def forward(
@@ -257,12 +305,16 @@ class PointNetClassification(nn.Module):
         mlp1_dims: Dimensions of encoder's first MLP.
         mlp2_dims: Dimensions of encoder's second MLP.
         act: Activation function to use.
+        act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use.
+        norm_kwargs: Keyword arguments for the normalization layers.
         use_features_transform: Whether to use feature transformation.
         tnet_mlp1_dims: Dimensions of T-Net first MLP.
         tnet_mlp2_dims: Dimensions of T-Net second MLP.
         tnet_act: Activation function for T-Net.
+        tnet_act_kwargs: Keyword arguments for the T-Net activation function.
         tnet_norm: Normalization for T-Net.
+        tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
 
     Shape:
         - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape $(N, \text{spatial\_dim})$
@@ -278,13 +330,17 @@ class PointNetClassification(nn.Module):
         global_pool: PoolLike = "max",
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
-        act: Optional[str] = "relu",
-        norm: Optional[str] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
-        tnet_act: Optional[str] = "relu",
-        tnet_norm: Optional[str] = "batch_norm",
+        tnet_act: Union[str, Callable, None] = "relu",
+        tnet_act_kwargs: Optional[Dict[str, Any]] = None,
+        tnet_norm: Union[str, Callable, None] = "batch_norm",
+        tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
@@ -296,12 +352,16 @@ class PointNetClassification(nn.Module):
             mlp1_dims=mlp1_dims,
             mlp2_dims=mlp2_dims,
             act=act,
+            act_kwargs=act_kwargs,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             use_features_transform=use_features_transform,
             tnet_mlp1_dims=tnet_mlp1_dims,
             tnet_mlp2_dims=tnet_mlp2_dims,
             tnet_act=tnet_act,
+            tnet_act_kwargs=tnet_act_kwargs,
             tnet_norm=tnet_norm,
+            tnet_norm_kwargs=tnet_norm_kwargs,
         )
 
         self.num_features = mlp2_dims[-1]
@@ -403,13 +463,17 @@ class PointNetSegmentation(nn.Module):
         mlp1_dims: Dimensions of encoder's first MLP.
         mlp2_dims: Dimensions of encoder's second MLP.
         act: Activation function to use.
+        act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use.
+        norm_kwargs: Keyword arguments for the normalization layers.
         global_pool: Pooling method for global features ("max" or "mean").
         use_features_transform: Whether to use feature transformation.
         tnet_mlp1_dims: Dimensions of T-Net first MLP.
         tnet_mlp2_dims: Dimensions of T-Net second MLP.
         tnet_act: Activation function for T-Net.
+        tnet_act_kwargs: Keyword arguments for the T-Net activation function.
         tnet_norm: Normalization for T-Net.
+        tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
         seg_head_dims: Dimensions of segmentation head MLPs.
 
     Shape:
@@ -425,14 +489,18 @@ class PointNetSegmentation(nn.Module):
         dropout: float = 0.3,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
-        act: Optional[str] = "relu",
-        norm: Optional[str] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         global_pool: PoolLike = "max",
         use_features_transform: bool = True,
         tnet_mlp1_dims: Sequence[int] = (64, 128, 1024),
         tnet_mlp2_dims: Sequence[int] = (512, 256),
-        tnet_act: Optional[str] = "relu",
-        tnet_norm: Optional[str] = "batch_norm",
+        tnet_act: Union[str, Callable, None] = "relu",
+        tnet_act_kwargs: Optional[Dict[str, Any]] = None,
+        tnet_norm: Union[str, Callable, None] = "batch_norm",
+        tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
         seg_head_dims: Sequence[int] = (512, 256, 128),
     ) -> None:
         super().__init__()
@@ -445,12 +513,16 @@ class PointNetSegmentation(nn.Module):
             mlp1_dims=mlp1_dims,
             mlp2_dims=mlp2_dims,
             act=act,
+            act_kwargs=act_kwargs,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             use_features_transform=use_features_transform,
             tnet_mlp1_dims=tnet_mlp1_dims,
             tnet_mlp2_dims=tnet_mlp2_dims,
             tnet_act=tnet_act,
+            tnet_act_kwargs=tnet_act_kwargs,
             tnet_norm=tnet_norm,
+            tnet_norm_kwargs=tnet_norm_kwargs,
         )
 
         self.global_pool = create_pool(global_pool)
@@ -464,7 +536,9 @@ class PointNetSegmentation(nn.Module):
             [self.num_features] + list(seg_head_dims),
             num_classes,
             act=act,
+            act_kwargs=act_kwargs,
             norm=norm,
+            norm_kwargs=norm_kwargs,
             dropout=dropout,
         )
 

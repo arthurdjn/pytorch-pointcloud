@@ -1,9 +1,8 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-
 from torch_geometric.nn import MLP
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
@@ -36,8 +35,10 @@ class GroupedVectorAttention(nn.Module):
         qkv_bias: bool = True,
         pe_multiplier: bool = False,
         pe_bias: bool = True,
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         if channels % num_groups != 0:
@@ -46,15 +47,25 @@ class GroupedVectorAttention(nn.Module):
         self.channels = channels
         self.num_groups = num_groups
 
-        self.q = nn.Sequential(
-            nn.Linear(channels, channels, bias=qkv_bias),
-            normalization_resolver(norm, channels),
-            activation_resolver(act),
+        self.q = MLP(
+            [channels, channels],
+            act=act,
+            norm=norm,
+            act_first=False,
+            plain_last=False,
+            bias=qkv_bias,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
-        self.k = nn.Sequential(
-            nn.Linear(channels, channels, bias=qkv_bias),
-            normalization_resolver(norm, channels),
-            activation_resolver(act),
+        self.k = MLP(
+            [channels, channels],
+            act=act,
+            norm=norm,
+            act_first=False,
+            plain_last=False,
+            bias=qkv_bias,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
         self.v = nn.Linear(channels, channels, bias=qkv_bias)
 
@@ -62,8 +73,8 @@ class GroupedVectorAttention(nn.Module):
         if pe_multiplier:
             self.pe_multiplier = nn.Sequential(
                 nn.Linear(3, channels),
-                normalization_resolver(norm, channels),
-                activation_resolver(act),
+                normalization_resolver(norm, channels, **(norm_kwargs or {})),
+                activation_resolver(act, **(act_kwargs or {})),
                 nn.Linear(channels, channels),
             )
 
@@ -71,15 +82,15 @@ class GroupedVectorAttention(nn.Module):
         if pe_bias:
             self.pe_bias = nn.Sequential(
                 nn.Linear(3, channels),
-                normalization_resolver(norm, channels),
-                activation_resolver(act),
+                normalization_resolver(norm, channels, **(norm_kwargs or {})),
+                activation_resolver(act, **(act_kwargs or {})),
                 nn.Linear(channels, channels),
             )
 
         self.weight_encoding = nn.Sequential(
             nn.Linear(channels, num_groups),
-            normalization_resolver(norm, num_groups),
-            activation_resolver(act),
+            normalization_resolver(norm, num_groups, **(norm_kwargs or {})),
+            activation_resolver(act, **(act_kwargs or {})),
             nn.Linear(num_groups, num_groups),
         )
 
@@ -122,8 +133,10 @@ class Block(nn.Module):
         pe_bias: bool = True,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         self.attn = GroupedVectorAttention(
@@ -135,13 +148,15 @@ class Block(nn.Module):
             pe_bias=pe_bias,
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
         self.fc1 = nn.Linear(channels, channels, bias=False)
         self.fc3 = nn.Linear(channels, channels, bias=False)
-        self.norm1 = normalization_resolver(norm, channels)
-        self.norm2 = normalization_resolver(norm, channels)
-        self.norm3 = normalization_resolver(norm, channels)
-        self.act = activation_resolver(act)
+        self.norm1 = normalization_resolver(norm, channels, **(norm_kwargs or {}))
+        self.norm2 = normalization_resolver(norm, channels, **(norm_kwargs or {}))
+        self.norm3 = normalization_resolver(norm, channels, **(norm_kwargs or {}))
+        self.act = activation_resolver(act, **(act_kwargs or {}))
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
@@ -163,8 +178,10 @@ class GridPool(nn.Module):
         grid_size: float,
         bias: bool = False,
         reduce: str = "max",
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -173,8 +190,8 @@ class GridPool(nn.Module):
         self.reduce = reduce
 
         self.fc = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = normalization_resolver(norm, out_channels)
-        self.act = activation_resolver(act)
+        self.norm = normalization_resolver(norm, out_channels, **(norm_kwargs or {}))
+        self.act = activation_resolver(act, **(act_kwargs or {}))
 
     @overload
     def forward(
@@ -230,8 +247,10 @@ class InversePool(nn.Module):
         skip_channels: int,
         out_channels: int,
         bias: bool = True,
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -245,6 +264,8 @@ class InversePool(nn.Module):
             act_first=False,
             plain_last=False,
             bias=bias,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
         self.proj_skip = MLP(
             [skip_channels, out_channels],
@@ -253,6 +274,8 @@ class InversePool(nn.Module):
             act_first=False,
             plain_last=False,
             bias=bias,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
 
     def forward(self, x: Tensor, x_skip: Tensor, inverse: Tensor) -> Tensor:
@@ -271,8 +294,10 @@ class EncoderBlock(nn.Module):
         qkv_bias: bool = True,
         pe_multiplier: bool = False,
         pe_bias: bool = True,
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         attn_drop: ValueCollection[float] = 0.0,
         drop_path: ValueCollection[float] = 0.0,
         downsample: Optional[GridPool] = None,
@@ -296,6 +321,8 @@ class EncoderBlock(nn.Module):
                 drop_path=drop_path[i],
                 norm=norm,
                 act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
             )
             self.blocks.append(block)
 
@@ -349,8 +376,10 @@ class DecoderBlock(nn.Module):
         qkv_bias: bool = True,
         pe_multiplier: bool = False,
         pe_bias: bool = True,
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         attn_drop: ValueCollection[float] = 0.0,
         drop_path: ValueCollection[float] = 0.0,
         upsample: Optional[InversePool] = None,
@@ -374,6 +403,8 @@ class DecoderBlock(nn.Module):
                 drop_path=drop_path[i],
                 norm=norm,
                 act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
             )
             self.blocks.append(block)
 
@@ -400,8 +431,10 @@ def create_encoder_blocks(
     num_groups: Sequence[int],
     num_neighbors: Sequence[int],
     grid_sizes: Sequence[float],
-    norm: Optional[str] = "batch_norm",
-    act: Optional[str] = "relu",
+    norm: Union[str, Callable, None] = "batch_norm",
+    act: Union[str, Callable, None] = "relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     qkv_bias: bool = True,
     pe_multiplier: bool = False,
     pe_bias: bool = True,
@@ -432,6 +465,10 @@ def create_encoder_blocks(
                 out_channels=channels[i],
                 grid_size=grid_sizes[i - 1],
                 reduce="max",
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
             )
 
         block = EncoderBlock(
@@ -441,6 +478,8 @@ def create_encoder_blocks(
             num_neighbors=num_neighbors[i],
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
             qkv_bias=qkv_bias,
             pe_multiplier=pe_multiplier,
             pe_bias=pe_bias,
@@ -458,8 +497,10 @@ def create_decoder_blocks(
     skip_channels: Sequence[int],
     num_groups: Sequence[int],
     num_neighbors: Sequence[int],
-    norm: Optional[str] = "batch_norm",
-    act: Optional[str] = "relu",
+    norm: Union[str, Callable, None] = "batch_norm",
+    act: Union[str, Callable, None] = "relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     qkv_bias: bool = True,
     pe_multiplier: bool = False,
     pe_bias: bool = True,
@@ -490,6 +531,8 @@ def create_decoder_blocks(
             out_channels=channels[i + 1],
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
 
         # NOTE: For decoder blocks, the drop paths should be in reverse order (i.e. higher -> lower within each block)
@@ -500,6 +543,8 @@ def create_decoder_blocks(
             num_neighbors=num_neighbors[i],
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
             qkv_bias=qkv_bias,
             pe_multiplier=pe_multiplier,
             pe_bias=pe_bias,
@@ -557,8 +602,10 @@ class PointTransformerV2Classification(nn.Module):
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
         encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
         encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         qkv_bias: bool = True,
         attn_drop: float = 0.0,
         pe_multiplier: bool = False,
@@ -571,10 +618,15 @@ class PointTransformerV2Classification(nn.Module):
         self.in_channels = in_channels
         self.num_classes = num_classes
 
-        self.embedding = nn.Sequential(
-            nn.Linear(in_channels, encoder_channels[0]),
-            normalization_resolver(norm, encoder_channels[0]),
-            activation_resolver(act),
+        self.embedding = MLP(
+            [in_channels, encoder_channels[0]],
+            act=act,
+            norm=norm,
+            act_first=False,
+            plain_last=False,
+            bias=True,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
 
         self.encoder = self.configure_encoder_blocks(
@@ -583,6 +635,10 @@ class PointTransformerV2Classification(nn.Module):
             num_groups=encoder_num_groups,
             num_neighbors=encoder_num_neighbors,
             grid_sizes=grid_sizes,
+            norm=norm,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
             qkv_bias=qkv_bias,
             pe_multiplier=pe_multiplier,
             pe_bias=pe_bias,
@@ -757,8 +813,10 @@ class PointTransformerV2Segmentation(nn.Module):
         decoder_channels: Sequence[int] = (384, 192, 96, 48),
         decoder_num_groups: Sequence[int] = (48, 24, 12, 6),
         decoder_num_neighbors: Sequence[int] = (16, 16, 16, 16),
-        norm: Optional[str] = "batch_norm",
-        act: Optional[str] = "relu",
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         qkv_bias: bool = True,
         attn_drop: float = 0.0,
         pe_multiplier: bool = False,
@@ -770,10 +828,15 @@ class PointTransformerV2Segmentation(nn.Module):
         self.in_channels = in_channels
         self.num_classes = num_classes
 
-        self.embedding = nn.Sequential(
-            nn.Linear(in_channels, encoder_channels[0]),
-            normalization_resolver(norm, encoder_channels[0]),
-            activation_resolver(act),
+        self.embedding = MLP(
+            [in_channels, encoder_channels[0]],
+            act=act,
+            norm=norm,
+            act_first=False,
+            plain_last=False,
+            bias=True,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
 
         self.encoder = self.configure_encoder_blocks(
@@ -789,6 +852,8 @@ class PointTransformerV2Segmentation(nn.Module):
             drop_path=drop_path,
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
 
         self.decoder = self.configure_decoder_blocks(
@@ -803,6 +868,8 @@ class PointTransformerV2Segmentation(nn.Module):
             attn_drop=attn_drop,
             norm=norm,
             act=act,
+            act_kwargs=act_kwargs,
+            norm_kwargs=norm_kwargs,
         )
 
         self.dropout = dropout
