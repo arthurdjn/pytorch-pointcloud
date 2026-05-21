@@ -31,6 +31,7 @@ pyg-lib = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
 
 [tool.uv]
 package = true
+exclude-newer = "14 days"
 find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
 no-build-isolation-package = ["flash-attn", "torchsparse"]
 dev-dependencies = [
