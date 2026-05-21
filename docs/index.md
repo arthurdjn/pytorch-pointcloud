@@ -39,7 +39,7 @@ logits = model(data["color"], data["pos"], batch=torch.zeros(1024, dtype=torch.l
 
 -   :material-tune: __[Transforms](transforms/overview.md)__
 
-    Composable, non-mutating dict transforms inspired by :monai: MONAI: `Compose`, `Rescale`, `Shift`, `Voxelize`, `FarthestPointSample`, mask family, and more.
+    Composable, non-mutating dict transforms inspired by [MONAI](https://docs.monai.io/): `Compose`, `Rescale`, `Shift`, `Voxelize`, `FarthestPointSample`, mask family, and more.
 
 -   :material-book-open-page-variant: __[API Reference](api/index.md)__
 
