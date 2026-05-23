@@ -1,6 +1,9 @@
 import pytest
 
 from torch_pointcloud.utils.hydra import instantiate_list
+from torch_pointcloud.utils.imports import _HYDRA_AVAILABLE
+
+pytestmark = pytest.mark.skipif(not _HYDRA_AVAILABLE, reason="hydra-core is not installed")
 
 
 def test_none_returns_empty_list() -> None:

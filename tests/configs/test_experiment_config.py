@@ -2,10 +2,12 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-from hydra import compose, initialize_config_dir
-from hydra.core.global_hydra import GlobalHydra
-from hydra.core.hydra_config import HydraConfig
-from omegaconf import OmegaConf
+
+from torch_pointcloud.utils.imports import _HYDRA_AVAILABLE
+
+# Hydra is an optional dev dependency, so gate the whole module on it being
+# importable. The `hydra` / `omegaconf` imports live inside fixtures and tests.
+pytestmark = pytest.mark.skipif(not _HYDRA_AVAILABLE, reason="hydra-core is not installed")
 
 CONFIGS_DIR = Path(__file__).resolve().parents[2] / "configs"
 EXPERIMENTS = sorted(p.stem for p in (CONFIGS_DIR / "experiment").glob("*.yaml"))
@@ -14,12 +16,16 @@ EXPERIMENTS = sorted(p.stem for p in (CONFIGS_DIR / "experiment").glob("*.yaml")
 @pytest.fixture(autouse=True)
 def _register_eval_resolver() -> None:
     """train.py registers this at startup; tests need it too."""
+    from omegaconf import OmegaConf
+
     OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 
 @pytest.fixture(autouse=True)
 def _clear_hydra() -> Iterator[None]:
     """Hydra refuses to initialize twice in the same process."""
+    from hydra.core.global_hydra import GlobalHydra
+
     GlobalHydra.instance().clear()
     yield
     GlobalHydra.instance().clear()
@@ -34,6 +40,9 @@ def _fake_data_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 @pytest.mark.parametrize("experiment", EXPERIMENTS)
 def test_experiment_composes(experiment: str) -> None:
     """`hydra.compose(config_name='train', overrides=[f'experiment={exp}'])` succeeds."""
+    from hydra import compose, initialize_config_dir
+    from hydra.core.hydra_config import HydraConfig
+
     with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
         cfg = compose(
             config_name="train",
@@ -55,6 +64,10 @@ def test_experiment_resolves_user_config(experiment: str) -> None:
     """Every user-side interpolation (paths, run_id, model targets, etc.) resolves
     without `MissingMandatoryValue`. The `hydra.*` namespace is excluded because
     sweep-only fields like `hydra.job.num` are legitimately missing outside a sweep."""
+    from hydra import compose, initialize_config_dir
+    from hydra.core.hydra_config import HydraConfig
+    from omegaconf import OmegaConf
+
     with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
         cfg = compose(
             config_name="train",
@@ -74,6 +87,9 @@ def test_experiment_resolves_user_config(experiment: str) -> None:
 @pytest.mark.parametrize("experiment", EXPERIMENTS)
 def test_experiment_run_dir_under_task_runs(experiment: str) -> None:
     """`hydra.run.dir` lands in the expected `logs/<task>/runs/<run_name>/<timestamp>/` layout."""
+    from hydra import compose, initialize_config_dir
+    from hydra.core.hydra_config import HydraConfig
+
     with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
         cfg = compose(
             config_name="train",

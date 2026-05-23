@@ -1,31 +1,30 @@
 from pathlib import Path
 from typing import Callable, Dict, Iterator, List
 
-import lightning.pytorch as L
 import pytest
 import torch
-from hydra import compose, initialize_config_dir
-from hydra.core.global_hydra import GlobalHydra
-from hydra.core.hydra_config import HydraConfig
-from hydra.utils import instantiate
-from omegaconf import OmegaConf
 from torch import Tensor
 from torch.utils.data import Dataset
 
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
+    _HYDRA_AVAILABLE,
     _LIGHTNING_AVAILABLE,
     _SPCONV_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
 )
 
+# Module-level skip: hydra and lightning are dev/optional deps. Their imports
+# (and `import lightning.pytorch as L` in particular) would otherwise run at
+# collection time on a bare install and crash pytest discovery.
+pytestmark = [
+    pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed"),
+    pytest.mark.skipif(not _HYDRA_AVAILABLE, reason="hydra-core is not installed"),
+]
+
 SampleFn = Callable[[], Dict[str, Tensor]]
 CONFIGS_DIR = Path(__file__).resolve().parents[2] / "configs"
-
-
-pytestmark = pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed")
-
 
 _REQUIRES_SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 _REQUIRES_CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
@@ -109,11 +108,15 @@ class _StubDataset(Dataset):
 
 @pytest.fixture(autouse=True)
 def _register_eval_resolver() -> None:
+    from omegaconf import OmegaConf
+
     OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 
 @pytest.fixture(autouse=True)
 def _clear_hydra() -> Iterator[None]:
+    from hydra.core.global_hydra import GlobalHydra
+
     GlobalHydra.instance().clear()
     yield
     GlobalHydra.instance().clear()
@@ -127,6 +130,11 @@ def _fake_data_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 @pytest.mark.parametrize("experiment,sample_fn", EXPERIMENTS)
 def test_experiment_fit_two_epochs(experiment: str, sample_fn: SampleFn, tmp_path: Path) -> None:
     """Compose the experiment, swap in a stub datamodule, fit 2 epochs on CPU."""
+    import lightning.pytorch as L
+    from hydra import compose, initialize_config_dir
+    from hydra.core.hydra_config import HydraConfig
+    from hydra.utils import instantiate
+
     from torch_pointcloud.lightning import PointCloudDataModule
 
     overrides: List[str] = [
