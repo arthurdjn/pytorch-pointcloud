@@ -1030,6 +1030,30 @@ def test_sphere_crop_applies_mask_to_other_keys() -> None:
     assert out["pos"].shape == out["color"].shape
 
 
+def test_sphere_crop_max_nodes_keeps_nearest() -> None:
+    # Centroid of the five points is (2, 0, 0); a wide radius keeps all five, so
+    # max_nodes=3 must keep the three nearest the centroid: x = 1, 2, 3.
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [4.0, 0.0, 0.0]])
+    out = T.SphereCrop(pos_key="pos", radius=10.0, max_nodes=3, center="centroid")({"pos": pos})
+    assert out["pos"].shape[0] == 3
+    assert set(out["pos"][:, 0].tolist()) == {1.0, 2.0, 3.0}
+
+
+def test_sphere_crop_max_nodes_above_count_is_noop() -> None:
+    # Only three points fall in the sphere; max_nodes=10 leaves them untouched.
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]])
+    out = T.SphereCrop(pos_key="pos", radius=10.0, max_nodes=10, center="centroid")({"pos": pos})
+    assert out["pos"].shape[0] == 3
+
+
+def test_sphere_crop_accepts_integer_coords() -> None:
+    # Grid coordinates are integer-typed; SphereCrop must not choke on them.
+    pos = torch.tensor([[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], dtype=torch.long)
+    out = T.SphereCrop(pos_key="pos", radius=1000.0, max_nodes=2, center="centroid")({"pos": pos})
+    assert out["pos"].shape[0] == 2
+    assert out["pos"].dtype == torch.long
+
+
 def test_shuffle_point_preserves_correspondence_and_count() -> None:
     pos = torch.arange(20, dtype=torch.float32).reshape(10, 2)
     color = torch.arange(10, dtype=torch.float32).reshape(10, 1)
