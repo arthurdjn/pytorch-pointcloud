@@ -1,10 +1,4 @@
 # @package _global_
-# PT-v3 ScanNet, fix iteration v3: adds Pointcept-style per-voxel random sampling
-# during training (the strongest remaining augmentation gap from the v2 run).
-# Train Voxelize now picks a random point per voxel each epoch (matches Pointcept
-# `GridSample(mode="train")`); val Voxelize stays deterministic.
-# Inherits everything else from scannet_ptv3_v2 (decoder fix, Mix3D, loop=8).
-# Run: uv run --no-sync python train.py experiment=scannet_ptv3_v3
 defaults:
   - scannet_ptv3_v2
 
@@ -75,7 +69,29 @@ data:
           p: 0.95
         - _target_: torch_pointcloud.transforms.Relabel
           keys: segment
-          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          labels:
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+            ]
           default: -1
         # GridSample(mode='train'): per-voxel RANDOM point (the v3 change)
         - _target_: torch_pointcloud.transforms.Voxelize
