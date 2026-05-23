@@ -22,7 +22,7 @@ from torch_geometric.nn.inits import reset
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import FPS, ActLike, PoolLike, create_pool
+from torch_pointcloud.layers import FPS, PoolLike, create_pool
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
@@ -80,7 +80,7 @@ class LinearBlock(nn.Module):
     Examples:
         >>> import torch
         >>> from torch_pointcloud.layers import LinearBlock
-        >>> block = LinearBlock(64, 128, act="relu", norm="batch_norm1d", bias=False)
+        >>> block = LinearBlock(64, 128, act="relu", norm="batch_norm", bias=False)
         >>> x = torch.randn(32, 64)
         >>> y = block(x)
         >>> print(y.shape)
@@ -217,7 +217,7 @@ class PointMLPEncoderBlock(nn.Module):
         normalize: Literal["center", "anchor"] = "center",
         res_expansion: float = 1.0,
         dropout: float = 0.0,
-        act: ActLike = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -343,7 +343,7 @@ class PointMLPEncoder(nn.Module):
         num_pos_blocks: Union[int, Sequence[int]] = 2,
         normalize: Literal["center", "anchor"] = "center",
         res_expansion: float = 1.0,
-        act: ActLike = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -529,7 +529,7 @@ class PointMLPClassification(ClassificationModel):
         num_pos_blocks: Union[int, Sequence[int]] = 2,
         normalize: Literal["center", "anchor"] = "center",
         res_expansion: float = 1.0,
-        act: ActLike = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -681,7 +681,7 @@ class PointMLPSegmentation(SegmentationModel):
         decoder_blocks: Sequence[nn.Module],
         normalize: Literal["center", "anchor"] = "center",
         res_expansion: float = 1.0,
-        act: ActLike = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",

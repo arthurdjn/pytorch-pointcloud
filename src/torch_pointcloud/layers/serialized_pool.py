@@ -80,7 +80,7 @@ class SerializedPool(nn.Module):
         head_indices = indices[idx_ptr[:-1]]
 
         # Pool features, positions and batch indices
-        x = torch_scatter.segment_csr(self.proj(x)[indices], idx_ptr, reduce="max")
+        x = torch_scatter.segment_csr(self.proj(x)[indices], idx_ptr, reduce=self.reduce)
         pos_grid = pos_grid[head_indices] >> pooling_depth
         batch = batch[head_indices]
         pooled_code = pooled_code[:, head_indices]
