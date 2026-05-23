@@ -1,0 +1,14 @@
+# @package hydra
+# Output layout: logs/${task_name}/runs/${run_name}/${timestamp}/{checkpoints,csv,tensorboard,.hydra,*.log}
+# Sweeps land under logs/${task_name}/multiruns/${run_name}/${timestamp}/${job}.
+run:
+  dir: ${paths.log_dir}/${task_name}/runs/${run_name}/${timestamp}
+
+sweep:
+  dir: ${paths.log_dir}/${task_name}/multiruns/${run_name}/${timestamp}
+  subdir: ${hydra.job.num}
+
+job_logging:
+  handlers:
+    file:
+      filename: ${hydra.runtime.output_dir}/${task_name}.log

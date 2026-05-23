@@ -1,0 +1,30 @@
+# SpUNet v1m1 LightningModule (Pointcept semseg-spunet-v1m1-0-base backbone).
+# Optimizer is AdamW, not Pointcept's SGD, to test whether it trains SpUNet better.
+# `total_steps` is set explicitly below. Override at the CLI or compute it inline
+# via OmegaConf's `${eval:...}` resolver (registered in train.py), e.g.:
+#   train.py model.scheduler.total_steps='${eval:"800 * 1201 // 12"}'
+_target_: torch_pointcloud.lightning.LitSegmentationModel
+scheduler_interval: step
+ignore_index: -1 # Relabel remaps raw labels 1-20 to 0-19 and unannotated to -1
+mix_prob: 0.8 # Mix3D: probability of merging scene pairs per training batch
+
+model:
+  _target_: torch_pointcloud.create_model
+  name: spunet-v1m1.scannet20
+  task: segmentation
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 0.006
+  weight_decay: 0.05
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  _partial_: true
+  max_lr: 0.006
+  total_steps: 80000 # ScanNet train (1201 scenes) at batch_size 12 over 800 epochs
+  pct_start: 0.05
+  anneal_strategy: cos
+  div_factor: 10.0
+  final_div_factor: 10000.0

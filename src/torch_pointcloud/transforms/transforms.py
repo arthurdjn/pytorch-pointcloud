@@ -1402,6 +1402,12 @@ class Voxelize(DictTransform):
             the integer voxel-grid coordinates under this key. Useful when a model
             needs both real-valued positions (e.g. for rotary position embedding)
             and integer grid coordinates (for serialization / sparse-conv stems).
+        random_sample: If `True`, the per-voxel representative used by `reduce="first"`
+            (and the `pos`/`grid_pos` derivations) is chosen *randomly* within each
+            voxel on every call. Matches Pointcept `GridSample(mode="train")`'s
+            per-voxel random sampling, a meaningful training augmentation; leave
+            `False` (default) for deterministic validation.
+        generator: Optional `torch.Generator` for `random_sample` reproducibility.
         allow_missing_keys: If `True`, missing keys are skipped silently.
     """
 
@@ -1415,6 +1421,8 @@ class Voxelize(DictTransform):
         keys: Optional[KeyCollection] = None,
         cluster_key: Optional[str] = None,
         grid_pos_key: Optional[str] = None,
+        random_sample: bool = False,
+        generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1425,6 +1433,17 @@ class Voxelize(DictTransform):
         self.method = method
         self.cluster_key = cluster_key
         self.grid_pos_key = grid_pos_key
+        self.random_sample = random_sample
+        self.generator = generator
+
+    def _random_perm(self, cluster: torch.Tensor, num_clusters: int) -> torch.Tensor:
+        """Pick one random representative-index per cluster (replaces the deterministic perm)."""
+        sort_idx = torch.argsort(cluster, stable=True)
+        counts = torch.bincount(cluster, minlength=num_clusters)
+        idx_ptr = torch.cat([counts.new_zeros(1), counts.cumsum(0)[:-1]])
+        rand = torch.rand(num_clusters, device=cluster.device, generator=self.generator)
+        offsets = torch.minimum((rand * counts.float()).long(), counts - 1)
+        return sort_idx[idx_ptr + offsets]
 
     def _reduce(
         self,
@@ -1461,6 +1480,9 @@ class Voxelize(DictTransform):
             cluster = voxel_grid(pos, size=self.size, start=start)
 
         cluster, perm = consecutive_cluster(cluster, return_permutation=True)
+
+        if self.random_sample:
+            perm = self._random_perm(cluster, num_clusters=perm.numel())
 
         if self.pos_reduce == "grid":
             pos_grid = torch.floor((pos[perm] - start) / self.size).long()
@@ -2264,12 +2286,18 @@ class SphereCrop(DictTransform):
     Equivalent to `Compose([SphereMask(...), ApplyMask(...)])`, kept as a
     convenience preset (the dual of `RemoveNearOrigin`).
 
+    When `max_nodes` is set and the sphere holds more than `max_nodes` points,
+    only the `max_nodes` nearest the center are kept. This matches Pointcept's
+    `SphereCrop(point_max=...)` and bounds memory on large scenes.
+
     Args:
         pos_key: Key with positions used to compute the mask.
         keys: Extra keys to filter with the same mask.
         center: Center of the sphere. If `"centroid"`, uses the per-cloud centroid;
             if `"random_point"`, picks a random point as the center; otherwise treat as a 3-vector.
         radius: Radius of the sphere (Euclidean).
+        max_nodes: Optional cap on the number of kept points. If `None` (default),
+            no cap is applied; otherwise the `max_nodes` points nearest the center are kept.
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility (used when
             `center="random_point"`).
@@ -2280,6 +2308,7 @@ class SphereCrop(DictTransform):
         self,
         pos_key: str,
         radius: float,
+        max_nodes: Optional[int] = None,
         keys: Optional[KeyCollection] = None,
         center: Any = "centroid",
         p: float = 1.0,
@@ -2292,6 +2321,7 @@ class SphereCrop(DictTransform):
         super().__init__(all_keys, allow_missing_keys)
         self.pos_key = pos_key
         self.radius = radius
+        self.max_nodes = max_nodes
         self.center = center
         self.p = p
         self.generator = generator
@@ -2312,9 +2342,15 @@ class SphereCrop(DictTransform):
         data = dict(data)
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
-        pos = data[self.pos_key]
+        # pos may be integer grid coords (post-Voxelize); norm() needs float.
+        pos = data[self.pos_key].float()
         center = self._resolve_center(pos)
         mask = F.sphere_mask(pos, center, self.radius, dim=-1)
+        if self.max_nodes is not None and int(mask.sum()) > self.max_nodes:
+            dist = (pos - center).norm(dim=-1)
+            keep = torch.topk(dist, self.max_nodes, largest=False).indices
+            mask = torch.zeros_like(mask)
+            mask[keep] = True
         for key in self.iter_keys(data):
             data[key] = data[key][mask]
         return data

@@ -1,0 +1,46 @@
+# @package _global_
+# DGCNN part segmentation on ShapeNetPart.
+# Run: uv run --no-sync python train.py experiment=shapenetpart_dgcnn
+defaults:
+  - override /data: shapenetpart
+  - override /model: dgcnn
+
+trainer:
+  max_epochs: 100
+
+data:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+        # Fix every cloud to 2048 points: uniform batch shapes (stable cuDNN kernels).
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, normal, segment]
+          num_samples: 2048
+          replace: true
+        # DGCNN part-seg conditions on a (B, 16) one-hot category; the dataset
+        # provides a scalar index, so tensor-ify then one-hot it.
+        - _target_: torch_pointcloud.transforms.ToTensor
+          keys: category
+        - _target_: torch_pointcloud.transforms.OneHot
+          keys: category
+          num_classes: 16
+
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+        # Fix every cloud to 2048 points: uniform batch shapes (stable cuDNN kernels).
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, normal, segment]
+          num_samples: 2048
+          replace: true
+        - _target_: torch_pointcloud.transforms.ToTensor
+          keys: category
+        - _target_: torch_pointcloud.transforms.OneHot
+          keys: category
+          num_classes: 16

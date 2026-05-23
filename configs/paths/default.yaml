@@ -1,0 +1,6 @@
+# Directory layout, resolved at runtime.
+root_dir: ${oc.env:TORCH_POINTCLOUD_ROOT,${hydra:runtime.cwd}}
+data_dir: ${oc.env:TORCH_POINTCLOUD_DATA_DIR}
+log_dir: ${paths.root_dir}/logs
+output_dir: ${hydra:runtime.output_dir}
+work_dir: ${hydra:runtime.cwd}

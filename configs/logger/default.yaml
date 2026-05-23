@@ -1,0 +1,28 @@
+# Combined logger: every tracking backend at once, sharing the same `run_id`.
+# aim / tensorboard / mlflow live in the uv dev-dependencies; a default
+# `uv sync` already installs them.
+csv:
+  _target_: lightning.pytorch.loggers.CSVLogger
+  save_dir: ${paths.output_dir}
+  name: csv
+  version: ""
+
+tensorboard:
+  _target_: lightning.pytorch.loggers.TensorBoardLogger
+  save_dir: ${paths.output_dir}
+  name: tensorboard
+  version: ""
+  default_hp_metric: false
+
+mlflow:
+  _target_: lightning.pytorch.loggers.MLFlowLogger
+  experiment_name: ${task_name}
+  run_name: ${run_id}
+  tracking_uri: "file:${paths.log_dir}/mlflow"
+  log_model: false
+
+aim:
+  _target_: aim.pytorch_lightning.AimLogger
+  repo: ${paths.log_dir}/aim
+  experiment: ${task_name}
+  run_name: ${run_id}
