@@ -1,0 +1,28 @@
+# @package _global_
+# Point Transformer V3 on ScanNet20 (Pointcept reproduction, fix iteration).
+# Inherits `scannet_ptv3`'s transforms, optimizer, and criterion; applies the
+# verified fixes hunting Pointcept's 0.40 epoch-1 mIoU:
+#   - decoder_channels / decoder_num_head reversed to deep-to-shallow order
+#     (the model code consumes them deepest-stage-first; the baseline copied
+#     Pointcept's literal which is shallow-to-deep).
+#   - batch_size=2 + accumulate_grad_batches=6: enables Mix3D (a no-op at
+#     batch 1 because `batch//2` on all-zeros does nothing) and lets BatchNorm
+#     see more than one scene per forward.
+#   - scheduler total_steps is auto-resolved from `trainer.estimated_stepping_batches`.
+# To recover the Pointcept-style 8x epoch loop, wrap `data.train_dataset` with
+# `torch_pointcloud.datasets.RepeatDataset(dataset=<ScanNet20>, loop=8)`.
+# Run: uv run --no-sync python train.py experiment=scannet_ptv3_v2
+defaults:
+  - scannet_ptv3
+
+trainer:
+  max_epochs: 100
+  accumulate_grad_batches: 6  # batch_size 2 x 6 = Pointcept's effective batch 12
+
+data:
+  batch_size: 2
+
+model:
+  model:
+    decoder_channels: [256, 128, 64, 64]
+    decoder_num_head: [16, 8, 4, 4]
