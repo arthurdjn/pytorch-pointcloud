@@ -1,0 +1,118 @@
+# @package _global_
+defaults:
+  - scannet_ptv3_v2
+
+data:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+          axes: [2]
+        - _target_: torch_pointcloud.transforms.RandomDropout
+          keys: [pos, color, normal, segment]
+          p_drop: 0.2
+          p: 0.2
+        - _target_: torch_pointcloud.transforms.RandomRotate
+          keys: [pos, normal]
+          angle_range: [-180.0, 180.0]
+          axis: 2
+          p: 0.5
+        - _target_: torch_pointcloud.transforms.RandomRotate
+          keys: [pos, normal]
+          angle_range: [-2.8125, 2.8125]
+          axis: 0
+          p: 0.5
+        - _target_: torch_pointcloud.transforms.RandomRotate
+          keys: [pos, normal]
+          angle_range: [-2.8125, 2.8125]
+          axis: 1
+          p: 0.5
+        - _target_: torch_pointcloud.transforms.RandomScale
+          keys: pos
+          scale_range: [0.9, 1.1]
+        - _target_: torch_pointcloud.transforms.RandomFlip
+          keys: [pos, normal]
+          axes: [0, 1]
+          p: 0.5
+        - _target_: torch_pointcloud.transforms.RandomJitter
+          keys: pos
+          sigma: 0.005
+          clip: 0.02
+        - _target_: torch_pointcloud.transforms.RandomElasticDistortion
+          keys: pos
+          granularity: 0.2
+          magnitude: 0.4
+        - _target_: torch_pointcloud.transforms.RandomElasticDistortion
+          keys: pos
+          granularity: 0.8
+          magnitude: 1.6
+        - _target_: torch_pointcloud.transforms.RandomColorAutoContrast
+          keys: color
+          int_color: true
+          p: 0.2
+        - _target_: torch_pointcloud.transforms.RandomColorShift
+          keys: color
+          shift_range: [-12.75, 12.75]
+          int_color: true
+          p: 0.95
+        - _target_: torch_pointcloud.transforms.RandomJitter
+          keys: color
+          sigma: 12.75
+          clip: null
+          p: 0.95
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels:
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+            ]
+          default: -1
+        # GridSample(mode='train'): per-voxel RANDOM point (the v3 change)
+        - _target_: torch_pointcloud.transforms.Voxelize
+          pos_key: pos
+          pos_reduce: grid
+          size: 0.02
+          method: fnv
+          keys: [color, normal, segment]
+          reduce: first
+          random_sample: true
+        - _target_: torch_pointcloud.transforms.SphereCrop
+          pos_key: pos
+          keys: [color, normal, segment]
+          radius: 1000000.0
+          max_nodes: 102400
+          center: random_point
+        - _target_: torch_pointcloud.transforms.Normalize
+          keys: color
+          mean: [0.0, 0.0, 0.0]
+          std: [255.0, 255.0, 255.0]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [color, normal]
+          dst_key: x
+          dim: 1
