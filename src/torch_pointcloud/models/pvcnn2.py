@@ -7,10 +7,10 @@ from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 
 from .pointnet2 import FPModule, SAModule, ensure_msg_list
-from .pvcnn import PVConv
 
 
 def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -> Sequence[Any]:

@@ -33,6 +33,21 @@ from .pointnext_blocks import (
     PointNeXtResidualBlock,
     PointNeXtSetAbstraction,
 )
+from .pvcnn_blocks import (
+    PVConv,
+    PVConvBlock,
+    SE3d,
+    Voxelization,
+    avg_voxelize,
+    trilinear_devoxelize,
+)
+from .randlanet_blocks import (
+    AttentivePooling,
+    DilatedResidualBlock,
+    LocalFeatureAggregation,
+    LocalSpatialEncoding,
+    random_max_pool,
+)
 from .pools import (
     AdaptivePoolLike,
     AdaptivePoolName,
@@ -59,6 +74,7 @@ from .serialized_attention import (
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import SubMConv3dBlock
+from .spunet_blocks import SparseBasicBlock
 from .tnet import DynamicTNet, TNet
 from .view import View
 from .xconv import XConv
