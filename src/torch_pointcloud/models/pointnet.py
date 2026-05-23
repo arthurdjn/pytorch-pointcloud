@@ -41,7 +41,7 @@ class TNet(nn.Module):
         mlp2_dims: Dimensions of the second MLP after pooling. Default: (512, 256).
         act: Activation function to use. Default: "relu".
         act_kwargs: Keyword arguments for the activation function.
-        norm: Normalization to use. Default: "batch_norm1d".
+        norm: Normalization to use. Default: "batch_norm".
         norm_kwargs: Keyword arguments for the normalization layers.
         global_pool: Pooling method to use ("max" or "mean"). Default: "max".
 

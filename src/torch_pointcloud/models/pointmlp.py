@@ -80,7 +80,7 @@ class LinearBlock(nn.Module):
     Examples:
         >>> import torch
         >>> from torch_pointcloud.layers import LinearBlock
-        >>> block = LinearBlock(64, 128, act="relu", norm="batch_norm1d", bias=False)
+        >>> block = LinearBlock(64, 128, act="relu", norm="batch_norm", bias=False)
         >>> x = torch.randn(32, 64)
         >>> y = block(x)
         >>> print(y.shape)
