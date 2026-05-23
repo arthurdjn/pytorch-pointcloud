@@ -1,12 +1,8 @@
-import itertools
-from typing import List, Sequence
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
-
-from .activations import ActLike
-from .blocks import LinearBlockOrderLike, linear_block
-from .norms import NormLike
+from torch_geometric.nn import MLP
 
 
 def create_cls_head(num_features: int, num_classes: int) -> torch.nn.Module:
@@ -19,16 +15,22 @@ def create_cls_head(num_features: int, num_classes: int) -> torch.nn.Module:
 def create_seg_head(
     dims: Sequence[int],
     num_classes: int,
-    act: ActLike = "relu",
-    norm: NormLike = "batch_norm1d",
+    act: Union[str, Callable, None] = "relu",
+    act_kwargs: Optional[Dict[str, Any]] = None,
+    norm: Union[str, Callable, None] = "batch_norm",
+    norm_kwargs: Optional[Dict[str, Any]] = None,
     dropout: float = 0.0,
-    order: LinearBlockOrderLike = "land",
 ) -> torch.nn.Module:
     if not dims or num_classes == 0:
         return nn.Identity()
 
-    blocks: List[nn.Module] = []
-    for in_features, out_features in itertools.pairwise(dims[:-1]):
-        blocks.append(linear_block(in_features, out_features, act=act, norm=norm, dropout=dropout, order=order))
-    blocks.append(nn.Linear(dims[-2], num_classes))
-    return nn.Sequential(*blocks)
+    return MLP(
+        [*dims[:-1], num_classes],
+        act=act,
+        act_kwargs=act_kwargs,
+        norm=norm,
+        norm_kwargs=norm_kwargs,
+        dropout=dropout,
+        act_first=True,
+        plain_last=True,
+    )
