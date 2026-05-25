@@ -4,8 +4,10 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import activation_resolver
 from torch_geometric.utils import scatter
+
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 
 
 def avg_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int) -> Tensor:
@@ -150,7 +152,7 @@ class SE3d(nn.Module):
         act_kwargs = act_kwargs or {}
 
         self.squeeze = nn.Linear(channels, channels // reduction, bias=False)
-        self.act = activation_resolver(act, **act_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.excitation = nn.Linear(channels // reduction, channels, bias=False)
         self.sigmoid = nn.Sigmoid()
 
@@ -169,7 +171,7 @@ class PVConv(nn.Module):
         out_channels: int,
         kernel_size: int,
         resolution: int,
-        with_se: bool = False,
+        use_se: bool = False,
         normalize: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_first: bool = False,
@@ -178,33 +180,22 @@ class PVConv(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
         self.resolution = resolution
         self.voxelization = Voxelization(resolution, normalize=normalize)
 
-        if act_first:
-            voxel_layers = [
-                nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
-                activation_resolver(act, **act_kwargs) or nn.Identity(),
-                nn.BatchNorm3d(out_channels),
-                nn.Conv3d(out_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
-                activation_resolver(act, **act_kwargs) or nn.Identity(),
-                nn.BatchNorm3d(out_channels),
-            ]
-        else:
-            voxel_layers = [
-                nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
-                nn.BatchNorm3d(out_channels),
-                activation_resolver(act, **act_kwargs) or nn.Identity(),
-                nn.Conv3d(out_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
-                nn.BatchNorm3d(out_channels),
-                activation_resolver(act, **act_kwargs) or nn.Identity(),
-            ]
-        if with_se:
-            voxel_layers.append(SE3d(out_channels, act=act, act_kwargs=act_kwargs))
+        self.voxel_layers = Conv3dBlock(
+            [in_channels, out_channels, out_channels],
+            kernel_size=kernel_size,
+            act=act,
+            act_first=act_first,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            plain_last=False,
+        )
+        if use_se:
+            self.voxel_layers.append(SE3d(out_channels, act=act, act_kwargs=act_kwargs))
 
-        self.voxel_layers = nn.Sequential(*voxel_layers)
         self.mlp = MLP(
             [in_channels, out_channels],
             act=act,
@@ -216,10 +207,7 @@ class PVConv(nn.Module):
         )
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        # Voxelize the input point cloud, resulting in a voxelized feature map and voxel coordinates
-        # x_voxels: (B, C, R, R, R) - voxel_coords: (N, 3)
         x_voxels, voxel_coords = self.voxelization(x, pos, batch)
-        x_voxels = self.voxel_layers(x_voxels)  # (B, C, R, R, R)
-        # Devoxelize the features back to the "packed" representation
-        x_voxels = trilinear_devoxelize(x_voxels, voxel_coords, batch, self.resolution)  # (N, C)
-        return x_voxels + self.mlp(x)  # (N, C)
+        x_voxels = self.voxel_layers(x_voxels)
+        x_voxels = trilinear_devoxelize(x_voxels, voxel_coords, batch, self.resolution)
+        return x_voxels + self.mlp(x)

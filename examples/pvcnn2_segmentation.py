@@ -44,7 +44,7 @@ def main() -> None:
         decoder_channels=[128, 128, 64],
         decoder_resolutions=[32, 16, 8],
         decoder_kernel_sizes=[3, 3, 3],
-        with_se=True,
+        use_se=True,
         normalize=True,
     ).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)

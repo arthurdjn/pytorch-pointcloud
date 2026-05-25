@@ -1,0 +1,376 @@
+{
+  "num_params": 2560970,
+  "state_dict": {
+    "blocks.0.layers.0.voxel_layers.0.weight": [
+      64,
+      3,
+      3,
+      3,
+      3
+    ],
+    "blocks.0.layers.0.voxel_layers.0.bias": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.1.weight": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.1.bias": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.1.running_mean": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.1.running_var": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.1.num_batches_tracked": [],
+    "blocks.0.layers.0.voxel_layers.3.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "blocks.0.layers.0.voxel_layers.3.bias": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.4.weight": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.4.bias": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.4.running_mean": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.4.running_var": [
+      64
+    ],
+    "blocks.0.layers.0.voxel_layers.4.num_batches_tracked": [],
+    "blocks.0.layers.0.mlp.lins.0.weight": [
+      64,
+      3
+    ],
+    "blocks.0.layers.0.mlp.lins.0.bias": [
+      64
+    ],
+    "blocks.0.layers.0.mlp.norms.0.module.weight": [
+      64
+    ],
+    "blocks.0.layers.0.mlp.norms.0.module.bias": [
+      64
+    ],
+    "blocks.0.layers.0.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "blocks.0.layers.0.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "blocks.0.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "blocks.1.layers.0.voxel_layers.0.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "blocks.1.layers.0.voxel_layers.0.bias": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.1.weight": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.1.bias": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.1.running_mean": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.1.running_var": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.1.num_batches_tracked": [],
+    "blocks.1.layers.0.voxel_layers.3.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "blocks.1.layers.0.voxel_layers.3.bias": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.4.weight": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.4.bias": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.4.running_mean": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.4.running_var": [
+      64
+    ],
+    "blocks.1.layers.0.voxel_layers.4.num_batches_tracked": [],
+    "blocks.1.layers.0.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "blocks.1.layers.0.mlp.lins.0.bias": [
+      64
+    ],
+    "blocks.1.layers.0.mlp.norms.0.module.weight": [
+      64
+    ],
+    "blocks.1.layers.0.mlp.norms.0.module.bias": [
+      64
+    ],
+    "blocks.1.layers.0.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "blocks.1.layers.0.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "blocks.1.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "blocks.1.layers.1.voxel_layers.0.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "blocks.1.layers.1.voxel_layers.0.bias": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.1.weight": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.1.bias": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.1.running_mean": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.1.running_var": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.1.num_batches_tracked": [],
+    "blocks.1.layers.1.voxel_layers.3.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "blocks.1.layers.1.voxel_layers.3.bias": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.4.weight": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.4.bias": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.4.running_mean": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.4.running_var": [
+      64
+    ],
+    "blocks.1.layers.1.voxel_layers.4.num_batches_tracked": [],
+    "blocks.1.layers.1.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "blocks.1.layers.1.mlp.lins.0.bias": [
+      64
+    ],
+    "blocks.1.layers.1.mlp.norms.0.module.weight": [
+      64
+    ],
+    "blocks.1.layers.1.mlp.norms.0.module.bias": [
+      64
+    ],
+    "blocks.1.layers.1.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "blocks.1.layers.1.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "blocks.1.layers.1.mlp.norms.0.module.num_batches_tracked": [],
+    "blocks.2.layers.0.voxel_layers.0.weight": [
+      128,
+      64,
+      3,
+      3,
+      3
+    ],
+    "blocks.2.layers.0.voxel_layers.0.bias": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.1.weight": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.1.bias": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.1.running_mean": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.1.running_var": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.1.num_batches_tracked": [],
+    "blocks.2.layers.0.voxel_layers.3.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "blocks.2.layers.0.voxel_layers.3.bias": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.4.weight": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.4.bias": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.4.running_mean": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.4.running_var": [
+      128
+    ],
+    "blocks.2.layers.0.voxel_layers.4.num_batches_tracked": [],
+    "blocks.2.layers.0.mlp.lins.0.weight": [
+      128,
+      64
+    ],
+    "blocks.2.layers.0.mlp.lins.0.bias": [
+      128
+    ],
+    "blocks.2.layers.0.mlp.norms.0.module.weight": [
+      128
+    ],
+    "blocks.2.layers.0.mlp.norms.0.module.bias": [
+      128
+    ],
+    "blocks.2.layers.0.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "blocks.2.layers.0.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "blocks.2.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "blocks.3.layers.0.lins.0.weight": [
+      1024,
+      128
+    ],
+    "blocks.3.layers.0.lins.0.bias": [
+      1024
+    ],
+    "blocks.3.layers.0.norms.0.module.weight": [
+      1024
+    ],
+    "blocks.3.layers.0.norms.0.module.bias": [
+      1024
+    ],
+    "blocks.3.layers.0.norms.0.module.running_mean": [
+      1024
+    ],
+    "blocks.3.layers.0.norms.0.module.running_var": [
+      1024
+    ],
+    "blocks.3.layers.0.norms.0.module.num_batches_tracked": [],
+    "global_mlp.lins.0.weight": [
+      256,
+      1024
+    ],
+    "global_mlp.lins.0.bias": [
+      256
+    ],
+    "global_mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "global_mlp.lins.1.bias": [
+      128
+    ],
+    "global_mlp.norms.0.module.weight": [
+      256
+    ],
+    "global_mlp.norms.0.module.bias": [
+      256
+    ],
+    "global_mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "global_mlp.norms.0.module.running_var": [
+      256
+    ],
+    "global_mlp.norms.0.module.num_batches_tracked": [],
+    "global_mlp.norms.1.module.weight": [
+      128
+    ],
+    "global_mlp.norms.1.module.bias": [
+      128
+    ],
+    "global_mlp.norms.1.module.running_mean": [
+      128
+    ],
+    "global_mlp.norms.1.module.running_var": [
+      128
+    ],
+    "global_mlp.norms.1.module.num_batches_tracked": [],
+    "head.lins.0.weight": [
+      512,
+      1472
+    ],
+    "head.lins.0.bias": [
+      512
+    ],
+    "head.lins.1.weight": [
+      256,
+      512
+    ],
+    "head.lins.1.bias": [
+      256
+    ],
+    "head.lins.2.weight": [
+      10,
+      256
+    ],
+    "head.lins.2.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      512
+    ],
+    "head.norms.0.module.bias": [
+      512
+    ],
+    "head.norms.0.module.running_mean": [
+      512
+    ],
+    "head.norms.0.module.running_var": [
+      512
+    ],
+    "head.norms.0.module.num_batches_tracked": [],
+    "head.norms.1.module.weight": [
+      256
+    ],
+    "head.norms.1.module.bias": [
+      256
+    ],
+    "head.norms.1.module.running_mean": [
+      256
+    ],
+    "head.norms.1.module.running_var": [
+      256
+    ],
+    "head.norms.1.module.num_batches_tracked": []
+  }
+}

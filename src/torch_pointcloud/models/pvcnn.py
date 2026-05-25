@@ -6,10 +6,15 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
+
+from ._base import SegmentationModel
+from ._registry import register_model
 
 
 class PVConvBlock(nn.Module):
@@ -20,7 +25,7 @@ class PVConvBlock(nn.Module):
         depth: int,
         kernel_size: int,
         resolution: int,
-        with_se: bool = False,
+        use_se: bool = False,
         normalize: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -50,7 +55,7 @@ class PVConvBlock(nn.Module):
                     out_channels=out_channels,
                     kernel_size=kernel_size,
                     resolution=resolution,
-                    with_se=with_se,
+                    use_se=use_se,
                     normalize=normalize,
                     **kwargs,  # type: ignore[arg-type]
                 )
@@ -99,7 +104,7 @@ class PVCNNClassification(nn.Module):
         depths: Sequence[int],
         kernel_sizes: Sequence[int],
         resolutions: Sequence[int],
-        with_se: bool = False,
+        use_se: bool = False,
         normalize: bool = True,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -118,7 +123,7 @@ class PVCNNClassification(nn.Module):
         self.global_channels = ensure_tuple(global_channels, none_as_empty=True)
         self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
         self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
-        self.with_se = with_se
+        self.use_se = use_se
         self.normalize = normalize
         self.dropout = dropout
         self.act = act
@@ -147,7 +152,7 @@ class PVCNNClassification(nn.Module):
                 depth=self.depths[i],
                 kernel_size=self.kernel_sizes[i],
                 resolution=self.resolutions[i],
-                with_se=self.with_se,
+                use_se=self.use_se,
                 normalize=self.normalize,
                 act=self.act,
                 act_kwargs=self.act_kwargs,
@@ -215,7 +220,7 @@ class PVCNNClassification(nn.Module):
         return x
 
 
-class PVCNNSegmentation(nn.Module):
+class PVCNNSegmentation(SegmentationModel):
     def __init__(
         self,
         in_channels: int,
@@ -227,7 +232,7 @@ class PVCNNSegmentation(nn.Module):
         kernel_sizes: Sequence[int],
         resolutions: Sequence[int],
         spatial_dim: int = 3,
-        with_se: bool = False,
+        use_se: bool = False,
         normalize: bool = True,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -236,17 +241,17 @@ class PVCNNSegmentation(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        head_channels: Optional[Sequence[int]] = None,
+        head_dropout: float = 0.0,
     ):
-        super().__init__()
-        self.in_channels = max(in_channels, spatial_dim)
-        self.num_classes = num_classes
+        super().__init__(in_channels=max(in_channels, spatial_dim), num_classes=num_classes)
 
         self.depths = ensure_tuple(depths)
         self.channels = ensure_tuple_size([self.in_channels] + list(channels), size=len(self.depths) + 1)
         self.global_channels = ensure_tuple(global_channels, none_as_empty=True)
         self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
         self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
-        self.with_se = with_se
+        self.use_se = use_se
         self.normalize = normalize
         self.dropout = dropout
         self.act = act
@@ -254,11 +259,13 @@ class PVCNNSegmentation(nn.Module):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
+        self.head_dropout = head_dropout
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
@@ -278,7 +285,7 @@ class PVCNNSegmentation(nn.Module):
                 depth=self.depths[i],
                 kernel_size=self.kernel_sizes[i],
                 resolution=self.resolutions[i],
-                with_se=self.with_se,
+                use_se=self.use_se,
                 normalize=self.normalize,
                 act=self.act,
                 act_kwargs=self.act_kwargs,
@@ -301,6 +308,23 @@ class PVCNNSegmentation(nn.Module):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             plain_last=False,
+        )
+
+    def configure_head(self) -> nn.Module:
+        if not self.head_channels:
+            return create_cls_head(self.embedding_dim, self.num_classes)
+
+        channels = [self.embedding_dim, *self.head_channels, self.num_classes]
+        dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]
+        return MLP(
+            channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            dropout=dropout,
+            plain_last=True,
         )
 
     @overload
@@ -334,9 +358,6 @@ class PVCNNSegmentation(nn.Module):
             return x, intermediates
         return x
 
-    # NOTE: Does it make sense to have this forward_decoder?
-    # NOTE: Maybe we should raise an error/warning specifying that this method
-    # NOTE: is irrelevant for this model. ...And include the global_mlp in the head instead?
     def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[Tensor]) -> Tensor:
         x_global = self.global_pool(x, batch)
         if self.global_mlp:
@@ -346,7 +367,7 @@ class PVCNNSegmentation(nn.Module):
         return torch.cat(intermediates, dim=1)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-        if self.dropout:
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
@@ -355,3 +376,46 @@ class PVCNNSegmentation(nn.Module):
         x = self.forward_decoder(x, batch, intermediates)
         x = self.forward_head(x)
         return x
+
+
+@register_model(
+    "pvcnn-mit-han-lab.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pvcnn/pvcnn-mit-han-lab.s3dis-area5.pt",
+    hparams=dict(
+        in_channels=9,
+        num_classes=13,
+        channels=[64, 64, 128, 1024],
+        global_channels=[256, 128],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 16, 0],
+        use_se=False,
+        normalize=True,
+        head_channels=[512, 256],
+        head_dropout=0.3,
+        act="relu",
+    ),
+    transforms=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
+        ]
+    ),
+)
+def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
+    r"""Paper-faithful PVCNN for S3DIS Area-5, from :github: [mit-han-lab/pvcnn](https://github.com/mit-han-lab/pvcnn).
+
+    The generic `PVCNNSegmentation` uses `act="relu"` and `nn.BatchNorm3d` defaults for
+    both branches. Upstream's reference implementation splits them: the voxel branch
+    uses `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\epsilon=10^{-4}$, while the point branch keeps ReLU.
+    """
+    model = PVCNNSegmentation(**hparams)
+    for pv in model.modules():
+        if not isinstance(pv, PVConv):
+            continue
+        for i, layer in enumerate(pv.voxel_layers):
+            if isinstance(layer, nn.BatchNorm3d):
+                layer.eps = 1e-4
+            elif isinstance(layer, nn.ReLU):
+                pv.voxel_layers[i] = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+    return model
