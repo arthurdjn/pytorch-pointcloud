@@ -20,7 +20,7 @@ def test_create_cls_head_zero_classes_is_identity() -> None:
 
 
 def test_create_seg_head() -> None:
-    head = create_seg_head(dims=[64, 32, 16], num_classes=10, act="relu", norm="batch_norm1d", dropout=0.0)
+    head = create_seg_head(dims=[64, 32, 16], num_classes=10, act="relu", norm="batch_norm", dropout=0.0)
     x = torch.randn(8, 64)
     out = head(x)
     assert out.shape == (8, 10)

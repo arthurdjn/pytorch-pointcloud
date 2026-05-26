@@ -16,6 +16,7 @@ from torch_pointcloud.layers.serialized_attention import (
     SerializedAttentionRPE,
 )
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
+from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
@@ -211,53 +212,6 @@ class Block(nn.Module):
         return x
 
 
-class SubMConv3dBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
-        padding: int,
-        norm: Union[str, Callable, None] = None,
-        act: Union[str, Callable, None] = None,
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = True,
-        stem_indice_key: Optional[str] = None,
-    ):
-        super().__init__()
-        norm_kwargs = norm_kwargs or {}
-        act_kwargs = act_kwargs or {}
-
-        self.stem = spconv.SubMConv3d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
-            bias=bias,
-            indice_key=stem_indice_key,
-        )
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
-        self.act = activation_resolver(act, **act_kwargs) if act is not None else None
-
-    def forward(
-        self,
-        x: Tensor,
-        pos_grid: Tensor,
-        batch: Tensor,
-    ) -> Tensor:
-        sparse_x = convert_to_spconv_tensor(x, pos_grid, batch)
-        sparse_x = self.stem(sparse_x)
-
-        x = sparse_x.features
-        if self.norm is not None:
-            x = self.norm(x)
-        if self.act is not None:
-            x = self.act(x)
-
-        return x
-
-
 class EncoderBlock(nn.Module):
     def __init__(
         self,
@@ -414,7 +368,7 @@ class DecoderBlock(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
@@ -553,7 +507,7 @@ class PointTransformerV3Encoder(nn.Module):
         encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
         encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
         act: Union[str, Callable] = "gelu",
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
@@ -661,7 +615,7 @@ class PointTransformerV3Encoder(nn.Module):
         strides: Sequence[int],
         mlp_ratio: float = 4.0,
         bias: bool = True,
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         qkv_bias: bool = True,
         qk_scale: Optional[float] = None,
@@ -857,7 +811,7 @@ class PointTransformerV3Decoder(nn.Module):
         decoder_channels: Sequence[int] = (256, 128, 64, 64),
         decoder_num_head: Sequence[int] = (16, 8, 4, 4),
         decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         mlp_ratio: float = 4,
         qkv_bias: bool = True,
@@ -909,7 +863,7 @@ class PointTransformerV3Decoder(nn.Module):
         num_heads: Sequence[int],
         patch_sizes: Sequence[int],
         mlp_ratio: float = 4.0,
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         qkv_bias: bool = True,
         qk_scale: Optional[float] = None,
@@ -1041,7 +995,7 @@ class PointTransformerV3Classification(ClassificationModel):
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
         encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
         encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         mlp_ratio: float = 4,
         qkv_bias: bool = True,
@@ -1230,7 +1184,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         decoder_channels: Sequence[int] = (256, 128, 64, 64),
         decoder_num_head: Sequence[int] = (16, 8, 4, 4),
         decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
-        norm: Union[str, Callable] = "batch_norm1d",
+        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         mlp_ratio: float = 4,
         qkv_bias: bool = True,
