@@ -112,6 +112,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     *[(f"pointnext-lg.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 7)],
     *[(f"pointnext-xl.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 6)],
     *[(f"dgcnn-antao.s3dis.area{i}", "segmentation", "s3dis") for i in range(1, 7)],
+    ("pvcnn-mit-han-lab.s3dis-area5", "segmentation", "s3dis"),
     # ShapenetPart based models
     ("pointnext-sm.shapenetpart", "segmentation", "shapenetpart"),
     ("pointnext-sm-c64.shapenetpart", "segmentation", "shapenetpart"),

@@ -30,10 +30,9 @@ def confusion_matrix(
         preds = preds[mask]
         target = target[mask]
 
-    cm = torch.zeros(num_classes, num_classes, dtype=torch.long, device=preds.device)
-    indices = target * num_classes + preds
-    cm.view(-1).scatter_add_(0, indices.long(), torch.ones_like(indices, dtype=torch.long))
-    return cm
+    indices = (target.long() * num_classes + preds.long()).view(-1)
+    flat = torch.bincount(indices, minlength=num_classes * num_classes)
+    return flat.view(num_classes, num_classes)
 
 
 def compute_intersection_union(
