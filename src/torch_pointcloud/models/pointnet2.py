@@ -13,6 +13,7 @@ from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import KeyCollection, OptTensor
 
+from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 
@@ -259,7 +260,7 @@ class PointNet2Decoder(nn.Module):
         return x, pos, batch
 
 
-class PointNet2Classification(nn.Module):
+class PointNet2Classification(ClassificationModel):
     """PointNet++ classification model from the paper
     :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
     by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
@@ -320,9 +321,7 @@ class PointNet2Classification(nn.Module):
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ) -> None:
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.aggr_use_pos = aggr_use_pos
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.dropout = dropout
@@ -450,7 +449,7 @@ class PointNet2Classification(nn.Module):
         return self.forward_head(x, batch)
 
 
-class PointNet2Segmentation(nn.Module):
+class PointNet2Segmentation(SegmentationModel):
     """PointNet++ segmentation model from the paper
     :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
     by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
@@ -514,9 +513,7 @@ class PointNet2Segmentation(nn.Module):
         skip_input: bool = True,
         fp_k: Optional[Union[int, Sequence[int]]] = None,
     ) -> None:
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.dropout = dropout
         self.act = act
@@ -674,7 +671,7 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
     inference-time quirks live on the blocks themselves so the public model API
     stays free of them. FPS is already deterministic in `.eval()` mode.
     """
-    for sa in model.encoder.sa_blocks:  # type: ignore[attr-defined]
+    for sa in getattr(getattr(model, "encoder", None), "sa_blocks", ()):
         sa.sort_neighbors = True
     for fp in getattr(getattr(model, "decoder", None), "fp_blocks", ()):
         fp.weighting = "squared"
@@ -958,7 +955,7 @@ _OPENPOINTS_S3DIS_TRANSFORM = T.Compose(
 )
 
 
-def _make_openpoints_s3dis_factory(area: int) -> Callable[..., PointNet2Segmentation]:
+def _make_openpoints_s3dis_factory(area: int) -> Callable[..., SegmentationModel]:
     name = f"pointnet2-openpoints.s3dis-area{area}"
 
     @register_model(
