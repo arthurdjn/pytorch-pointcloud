@@ -9,7 +9,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
 
 
-def _grid(n_per_voxel: int, n_voxels: int, voxel_size: float) -> Dict[str, Any]:
+def _make_grid(n_per_voxel: int, n_voxels: int, voxel_size: float) -> Dict[str, Any]:
     """Build a deterministic 1D grid of `n_voxels` voxels with `n_per_voxel` points each."""
     chunks = []
     for v in range(n_voxels):
@@ -28,7 +28,7 @@ def test_cyclic_voxel_uniform_voxels_average_to_their_own_x() -> None:
     the same participation count).
     """
     n_per_voxel, n_voxels, voxel_size = 4, 6, 1.0
-    data = _grid(n_per_voxel, n_voxels, voxel_size)
+    data = _make_grid(n_per_voxel, n_voxels, voxel_size)
 
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
@@ -40,7 +40,7 @@ def test_cyclic_voxel_uniform_voxels_average_to_their_own_x() -> None:
 
 def test_cyclic_voxel_every_point_participates_at_least_once() -> None:
     """Cyclic indexing guarantees every original point lands in $\\geq 1$ sub-cloud."""
-    data = _grid(n_per_voxel=3, n_voxels=4, voxel_size=1.0)
+    data = _make_grid(n_per_voxel=3, n_voxels=4, voxel_size=1.0)
 
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.ones(window[DataKeys.POS].size(0), 2)
@@ -51,7 +51,7 @@ def test_cyclic_voxel_every_point_participates_at_least_once() -> None:
 
 def test_cyclic_voxel_seed_is_reproducible() -> None:
     """Identical `seed` yields identical output."""
-    data = _grid(n_per_voxel=3, n_voxels=5, voxel_size=1.0)
+    data = _make_grid(n_per_voxel=3, n_voxels=5, voxel_size=1.0)
 
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :2].clone()
@@ -65,7 +65,7 @@ def test_cyclic_voxel_softmax_yields_probabilities() -> None:
     """`softmax=True` softmaxes per pass, so scatter-summed predictions over $K/c_v$ passes still
     average to a probability vector (rows sum to 1).
     """
-    data = _grid(n_per_voxel=2, n_voxels=3, voxel_size=1.0)
+    data = _make_grid(n_per_voxel=2, n_voxels=3, voxel_size=1.0)
 
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.full((window[DataKeys.POS].size(0), 3), 10.0)
@@ -79,7 +79,7 @@ def test_cyclic_voxel_with_transform_applies_per_subcloud() -> None:
     """The optional `transform` is applied independently to each sub-cloud's data dict."""
     from torch_pointcloud import transforms as T
 
-    data = _grid(n_per_voxel=3, n_voxels=4, voxel_size=1.0)
+    data = _make_grid(n_per_voxel=3, n_voxels=4, voxel_size=1.0)
     transform = T.Shift(keys=DataKeys.POS, method="min")
 
     def predictor(window: Dict[str, Any]) -> Tensor:
