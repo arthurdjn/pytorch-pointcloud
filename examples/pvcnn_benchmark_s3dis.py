@@ -1,17 +1,12 @@
-"""Evaluate `pvcnn-mit-han-lab.s3dis-area5` on S3DIS Area-5 HDF5 blocks (per-block protocol).
+"""Evaluate `pvcnn-mit-han-lab.s3dis-area5` on S3DIS Area-5, per-block protocol.
 
-Same per-block evaluation as `pointnet2_benchmark_s3dis.py`: load the pre-tiled
-$4096$-point HDF5 blocks from `indoor3d_sem_seg_hdf5_data`, run the model once
-per block, and aggregate IoU without cross-block voting. The per-block
-protocol is a lower bound because each block is classified in isolation;
-see `pvcnn_benchmark_s3dis_sw.py` for the upstream-style $1.5\\,\\text{m}$
-sliding-window protocol that recovers the missing room-level context.
+Each pre-tiled $4096$-point block is classified in isolation, so the result is
+a lower bound on what the model can do. For the upstream sliding-window
+protocol that recovers room-level context, see `pvcnn_benchmark_s3dis_sw.py`.
 
-Reproduced performance on S3DIS Area-5 (seed=42, batch_size=16):
-
-| Setting                             | Upstream paper | per-block (this script)   | sliding-window |
-| ----------------------------------- | -------------- | ------------------------- | -------------- |
-| `pvcnn-mit-han-lab.s3dis-area5`     | 56.64 % mIoU   | 35.93 % mIoU / 76.54 % OA | 57.71 % mIoU   |
+| Model                             | Paper        | Per-block (here)          | Sliding-window |
+| --------------------------------- | ------------ | ------------------------- | -------------- |
+| `pvcnn-mit-han-lab.s3dis-area5`   | 56.64 % mIoU | 35.93 % mIoU / 76.54 % OA | 57.51 % mIoU   |
 
 Usage:
 

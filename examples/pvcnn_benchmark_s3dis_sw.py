@@ -1,32 +1,13 @@
-r"""Reproduce mit-han-lab's S3DIS Area-5 numbers for `pvcnn-mit-han-lab.s3dis-area5`.
+r"""Reproduce mit-han-lab's PVCNN numbers on S3DIS Area-5.
 
-Implements the PVCNN evaluation protocol from
-https://github.com/mit-han-lab/pvcnn/blob/master/evaluate/s3dis/eval.py
-and the matching preprocessing from
-https://github.com/mit-han-lab/pvcnn/blob/master/data/s3dis/prepare_data.py
-on top of the library's own `SlidingWindowInferer` (no custom tiling loop):
+Follows the upstream evaluation protocol:
 
-- Shift each room so $(\min_x, \min_y, \min_z)$ sits at the origin.
-- 2D tile the room (`dims=(0, 1)`) with $1.5\,\text{m}$ blocks at
-  $0.75\,\text{m}$ stride (`block_size=1.5`, `overlap=0.5`) and a $1\,\text{mm}$
-  membership margin (`padding=1e-3`).
-- Force every predictor call to exactly $4096$ points via `roi_num_points=4096`
-  composed with a `DivisiblePad(pad_fill="random")` transform that pads each
-  block to a multiple of $4096$ via uniform sampling with replacement.
-- Per-block features built as a single `Compose` chain of atomic transforms
-  (`BBoxCenter`, `CopyItems`, `DivideKey`, `SubtractKey`, `ToFloat`, `Divide`,
-  `Cat`) that produces $[x - c_x,\; y - c_y,\; z,\; r/255,\; g/255,\; b/255,\;
-  x/x_\text{max},\; y/y_\text{max},\; z/z_\text{max}]$, where $(c_x, c_y)$ are
-  the inferer-supplied `block_bbox`'s $xy$ midpoints.
-- Softmax votes accumulated per point across overlapping blocks
-  (`softmax=True`).
-- Multi-vote is a thin outer loop that reseeds the inferer per pass.
+- https://github.com/mit-han-lab/pvcnn/blob/master/evaluate/s3dis/eval.py
+- https://github.com/mit-han-lab/pvcnn/blob/master/data/s3dis/prepare_data.py
 
-Reproduced performance on S3DIS Area-5 (default args: 1 vote, 1.5 m blocks, 0.75 m stride):
-
-| Setting                             | Upstream paper | torch-pointcloud sliding-window |
-| ----------------------------------- | -------------- | ------------------------------- |
-| `pvcnn-mit-han-lab.s3dis-area5`     | 56.64 % mIoU   | 57.51 % mIoU / 86.63 % OA (seed=42, 1 vote) |
+| Model                             | Paper        | This script                                 |
+| --------------------------------- | ------------ | ------------------------------------------- |
+| `pvcnn-mit-han-lab.s3dis-area5`   | 56.64 % mIoU | 57.51 % mIoU / 86.63 % OA (seed=42, 1 vote) |
 
 Usage:
 
@@ -63,6 +44,7 @@ SEED = 42
 COORD_MAX_KEY = "coord_max"
 NORM_POS_KEY = "norm_pos"
 BLOCK_CENTER_KEY = "block_center"
+PAD_INVERSE_KEY = "pad_inverse"
 
 
 def predict(model: Module, data: Dict[str, Any], device: str) -> Tensor:
@@ -107,7 +89,12 @@ def evaluate(
                     T.ToFloat(keys=DataKeys.COLOR),
                     T.Divide(keys=DataKeys.COLOR, divisor=255.0),
                     T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, NORM_POS_KEY], dst_key=DataKeys.X, dim=1),
-                    T.DivisiblePad(num_samples=block_points, pad_fill="random", generator=pad_rng),
+                    T.DivisiblePad(
+                        num_samples=block_points,
+                        pad_fill="random",
+                        generator=pad_rng,
+                        dst_inverse_key=PAD_INVERSE_KEY,
+                    ),
                 ]
             )
             inferer = SlidingWindowInferer(
@@ -118,6 +105,7 @@ def evaluate(
                 roi_num_points=block_points,
                 softmax=True,
                 transform=transform,
+                inverse_key=PAD_INVERSE_KEY,
                 seed=room_seed + vote_i,
             )
             outputs.append(inferer(room, predictor=lambda window: predict(model, window, device)))
