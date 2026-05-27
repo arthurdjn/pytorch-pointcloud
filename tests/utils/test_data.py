@@ -136,7 +136,7 @@ def test_collate_uses_first_sample_keys() -> None:
         (DataKeys.CATEGORY, "category"),
         (DataKeys.LABEL, "label"),
         (DataKeys.BATCH, "batch"),
-        (DataKeys.CLUSTER, "cluster"),
+        (DataKeys.INVERSE, "inverse"),
         (DataKeys.OCTREE, "octree"),
         (DataKeys.POINTS, "points"),
         (DataKeys.BOX_MASK, "box_mask"),

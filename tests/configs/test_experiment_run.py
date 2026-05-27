@@ -35,7 +35,7 @@ _REQUIRES_TORCH_SCATTER = pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reaso
 def _scannet_sample(n: int = 256, dtype: torch.dtype = torch.float32) -> Dict[str, Tensor]:
     return {
         "x": torch.randn(n, 6, dtype=dtype),
-        "pos": (torch.randn(n, 3, dtype=dtype) * 10).round(),  # integer-ish grid coords
+        "pos": (torch.randn(n, 3, dtype=dtype) * 10).long(),  # integer grid coords (Voxelize output dtype)
         "segment": torch.randint(0, 20, (n,), dtype=torch.long),
     }
 
