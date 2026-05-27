@@ -649,18 +649,18 @@ def test_voxel_grid_basic() -> None:
     not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_voxel_grid_with_cluster_key() -> None:
+def test_voxel_grid_with_dst_inverse_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
     result = T.Voxelize(
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
-        cluster_key="cluster",
+        dst_inverse_key="inverse",
     )({"pos": pos})
-    # `cluster` maps each original point to its voxel index
-    assert result["cluster"].shape == (3,)
-    assert result["cluster"][0] == result["cluster"][1]
-    assert result["cluster"][0] != result["cluster"][2]
+    # `inverse` maps each original point to its voxel index
+    assert result["inverse"].shape == (3,)
+    assert result["inverse"][0] == result["inverse"][1]
+    assert result["inverse"][0] != result["inverse"][2]
 
 
 @pytest.mark.skipif(
@@ -748,10 +748,10 @@ def test_voxel_grid_empty_passthrough(empty_scene: dict) -> None:
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
-        cluster_key="cluster",
+        dst_inverse_key="inverse",
     )(empty_scene)
     assert out["pos"].shape[0] == 0
-    assert out["cluster"].shape == (0,)
+    assert out["inverse"].shape == (0,)
 
 
 def test_rescale_single_point(single_point_scene: dict) -> None:
@@ -1166,3 +1166,115 @@ def test_random_elastic_distortion_multi_key_shares_field() -> None:
     assert out["pos"].shape == out["pos_copy"].shape
     assert torch.isfinite(out["pos"]).all()
     assert torch.isfinite(out["pos_copy"]).all()
+
+
+def test_divisible_pad_default_does_not_write_inverse_key() -> None:
+    """`dst_inverse_key=None` (default) keeps the dict free of an inverse map."""
+    pos = torch.randn(5, 3)
+    batch = torch.zeros(5, dtype=torch.long)
+    out = T.DivisiblePad(num_samples=4)({"pos": pos, "batch": batch})
+    assert out["pos"].shape[0] == 8  # padded to multiple of 4
+    assert "inverse" not in out
+
+
+def test_divisible_pad_writes_source_to_padded_inverse() -> None:
+    """`dst_inverse_key` stores a $(N_\\text{src},) \\to [0, N_\\text{padded})$ map.
+
+    Gathering the padded `pos` with the stored map must recover the original `pos`
+    exactly: this is the contract relied on by sliding-window inference.
+    """
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [4.0, 0.0, 0.0]])
+    batch = torch.zeros(5, dtype=torch.long)
+    out = T.DivisiblePad(num_samples=4, dst_inverse_key="inverse")({"pos": pos.clone(), "batch": batch})
+    inverse = out["inverse"]
+    assert inverse.dtype == torch.long
+    assert inverse.shape == (5,)
+    assert int(inverse.min()) >= 0 and int(inverse.max()) < out["pos"].shape[0]
+    # Round-trip: gather the padded positions back to the source rows
+    assert torch.equal(out["pos"][inverse], pos)
+
+
+def test_divisible_pad_composes_through_prior_inverse() -> None:
+    """When `dst_inverse_key` already exists in the dict, the new map composes via gather.
+
+    The composed map is the outer-source -> current-predictor index map: applying it to
+    padded positions recovers the outer-source positions one-shot, without intermediate
+    bookkeeping.
+    """
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]])
+    batch = torch.zeros(3, dtype=torch.long)
+    # Simulate a prior transform that already wrote an outer-source -> input-row map.
+    prior = torch.tensor([0, 1, 2], dtype=torch.long)
+    out = T.DivisiblePad(num_samples=4, dst_inverse_key="inverse")(
+        {"pos": pos.clone(), "batch": batch, "inverse": prior}
+    )
+    inverse = out["inverse"]
+    assert inverse.shape == (3,)  # length = outer source size, not pre-pad size
+    # Composed map gathers from padded back to outer source.
+    assert torch.equal(out["pos"][inverse], pos)
+
+
+def test_divisible_pad_zero_points_passthrough() -> None:
+    pos = torch.zeros(0, 3)
+    batch = torch.zeros(0, dtype=torch.long)
+    out = T.DivisiblePad(num_samples=4, dst_inverse_key="inverse")({"pos": pos, "batch": batch})
+    assert out["pos"].shape == (0, 3)
+    # Empty input is a no-op; no inverse needs to be recorded.
+    assert "inverse" not in out
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_dst_inverse_key_composes_through_prior() -> None:
+    """`Voxelize` composes its source-to-voxel map with an existing inverse via gather."""
+    pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    prior = torch.tensor([0, 1, 2], dtype=torch.long)
+    out = T.Voxelize(
+        pos_key="pos",
+        pos_reduce="mean",
+        size=0.1,
+        dst_inverse_key="inverse",
+    )({"pos": pos, "inverse": prior})
+    inverse = out["inverse"]
+    assert inverse.shape == (3,)
+    # Gather voxel-mean positions back to per-source rows; first two map to the same voxel.
+    recovered = out["pos"][inverse]
+    assert torch.allclose(recovered[0], recovered[1])
+    assert not torch.allclose(recovered[0], recovered[2])
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_then_divisible_pad_chain_yields_single_combined_inverse() -> None:
+    """Composing Voxelize -> DivisiblePad via a shared `dst_inverse_key` collapses to one map.
+
+    The composed inverse maps each original source row directly to a padded predictor row,
+    so a one-shot gather recovers per-source predictions without any intermediate state.
+    Voxelize runs pre-collate (no `batch` key), DivisiblePad synthesizes a zero batch.
+    """
+    pos = torch.tensor([[0.0, 0.0, 0.0], [0.01, 0.0, 0.0], [1.0, 0.0, 0.0], [1.01, 0.0, 0.0], [2.0, 0.0, 0.0]])
+    pipeline = T.Compose(
+        [
+            T.Voxelize(
+                pos_key="pos",
+                pos_reduce="mean",
+                size=0.1,
+                dst_inverse_key="inverse",
+            ),
+            T.DivisiblePad(num_samples=4, dst_inverse_key="inverse"),
+        ]
+    )
+    out = pipeline({"pos": pos.clone()})
+    inverse = out["inverse"]
+    assert inverse.shape == (5,)  # length = outer-source size
+    n_padded = out["pos"].shape[0]
+    assert int(inverse.min()) >= 0 and int(inverse.max()) < n_padded
+    # Per-source gather: same-voxel sources land on the same padded row; different voxels split.
+    rows = inverse.tolist()
+    assert rows[0] == rows[1]  # both in voxel near origin
+    assert rows[2] == rows[3]  # both in voxel near x=1
+    assert len({rows[0], rows[2], rows[4]}) == 3  # three distinct voxels

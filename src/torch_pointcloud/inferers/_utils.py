@@ -22,10 +22,10 @@ def index_select_dict(data: Dict[str, Any], idx: Tensor, n_points: int) -> Dict[
 def split_chunks(n: int, max_size: Optional[int], rng: torch.Generator) -> List[Tensor]:
     r"""Partition `range(n)` into index chunks of at most `max_size` points each.
 
-    When `max_size` is `None`, or `n` is within `max_size`, returns a single in-order
-    chunk holding every index. Otherwise the indices are permuted with `rng` and sliced
-    into $\lceil n / \text{max\_size} \rceil$ chunks, so each index lands in exactly one
-    chunk.
+    When `max_size` is `None` or `n` is within `max_size`, returns a single in-order
+    chunk holding every index. Otherwise the indices are permuted with `rng` and
+    sliced into $\lceil n / \text{max\_size} \rceil$ chunks. Chunk sizes sum to `n`;
+    the last chunk may be smaller than `max_size`.
 
     Args:
         n: Number of indices to partition.
@@ -33,10 +33,13 @@ def split_chunks(n: int, max_size: Optional[int], rng: torch.Generator) -> List[
         rng: Generator for the permutation. Only consumed when a split is needed.
 
     Returns:
-        List of 1-D `long` index tensors on `rng`'s device, with sizes summing to `n`.
+        List of 1-D `long` index tensors on `rng`'s device. The chunks partition
+        `range(n)` exactly: every index appears in one and only one chunk.
     """
     device = rng.device
-    if max_size is not None and n > max_size:
+    if max_size is None:
+        return [torch.arange(n, device=device)]
+    if n > max_size:
         perm = torch.randperm(n, generator=rng, device=device)
         return [perm[i : i + max_size] for i in range(0, n, max_size)]
     return [torch.arange(n, device=device)]

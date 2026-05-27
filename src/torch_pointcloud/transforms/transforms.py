@@ -17,6 +17,7 @@ import numpy as np
 import torch
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
@@ -50,6 +51,7 @@ __all__ = [
     "AlignAxis",
     "ApplyMask",
     "AxisMinOffset",
+    "BBoxCenter",
     "BoxMask",
     "BuildOctree",
     "Cat",
@@ -61,6 +63,7 @@ __all__ = [
     "DictTransform",
     "Divide",
     "DivideKey",
+    "DivisiblePad",
     "FarthestPointSample",
     "KeepItems",
     "Normalize",
@@ -358,6 +361,105 @@ class RandomSample(DictTransform):
         d[first_key] = sampled_tensor
         for key in iterator:
             d[key] = d[key][indices]
+        return d
+
+
+class DivisiblePad(DictTransform):
+    r"""Pad per-point tensors so each batch is divisible by `num_samples`.
+
+    Thin dict wrapper around `divisible_pad`; see its docstring for the full
+    behavior of each `pad_fill` strategy (`"cycle"`, `"replicate"`, `"random"`).
+    The tensor at `ref_key` defines the packed count $n$ and the device. If a
+    batch index tensor lives at `batch_key`, padding is done per-batch; otherwise
+    a single zero batch is synthesized. Every tensor in the dict whose first dim
+    equals $n$ (positions, features, labels, ...) is re-indexed by the same
+    gather map, so per-point correspondence is preserved.
+
+    When `dst_inverse_key` is set, the transform also records a source-to-padded
+    index map under that dict key: a 1-D long tensor of length $n$ with values
+    in $[0, n_\text{padded})$ giving the canonical padded row for each source
+    row. If the key already holds a prior inverse map (from an earlier
+    invertible transform), the new map composes with it via gather, so the
+    stored tensor always maps from the outermost source space to the current
+    predictor space. Consumers such as `SlidingWindowInferer` read this key
+    once and gather predictions back to the source rows.
+
+    Args:
+        num_samples: Target chunk size $k$ for divisibility.
+        pad_fill: Fill strategy passed through to `divisible_pad`.
+        ref_key: Key whose tensor defines $n$ and the device.
+        batch_key: Key for an optional batch index tensor. When present in the
+            data, padding runs per-batch; otherwise a single zero batch is
+            synthesized for the whole scene.
+        generator: Optional `torch.Generator`. Only consumed when
+            `pad_fill="random"`.
+        dst_inverse_key: When set, store the source-to-padded index map under
+            this key (auto-composes with any existing value at the same key).
+            Leave `None` for training pipelines that never need the inverse.
+        allow_missing_keys: If `True`, return the data unchanged when `ref_key`
+            is missing instead of raising.
+
+    Example:
+        ```python
+        from torch_pointcloud.transforms import DivisiblePad
+
+        # Pad a 5000-point block to 8192 (= 2 * 4096) before sliding-window
+        # sub-chunking. Random fill duplicates points uniformly at random.
+        transform = DivisiblePad(num_samples=4096, pad_fill="random")
+        ```
+    """
+
+    def __init__(
+        self,
+        num_samples: int,
+        pad_fill: "F.PadFill" = "cycle",
+        ref_key: str = DataKeys.POS,
+        batch_key: str = DataKeys.BATCH,
+        generator: Optional[torch.Generator] = None,
+        dst_inverse_key: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys=ref_key, allow_missing_keys=allow_missing_keys)
+        self.num_samples = num_samples
+        self.pad_fill = pad_fill
+        self.ref_key = ref_key
+        self.batch_key = batch_key
+        self.generator = generator
+        self.dst_inverse_key = dst_inverse_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if self.ref_key not in d:
+            if self.allow_missing_keys:
+                return d
+            raise KeyError(f"`DivisiblePad` requires {self.ref_key!r} in data.")
+        ref = d[self.ref_key]
+        if not torch.is_tensor(ref):
+            raise TypeError(f"Expected tensor at {self.ref_key!r}, got {type(ref).__name__}.")
+        n = int(ref.size(0))
+        if n == 0:
+            return d
+        if self.batch_key in d and torch.is_tensor(d[self.batch_key]):
+            batch = d[self.batch_key]
+        else:
+            batch = torch.zeros(n, dtype=torch.long, device=ref.device)
+        indices, inverse_indices, padded_batch = F.divisible_pad(
+            batch,
+            k=self.num_samples,
+            mode="all",
+            pad_fill=self.pad_fill,
+            return_inverse=True,
+            generator=self.generator,
+        )
+        prior = d.get(self.dst_inverse_key) if self.dst_inverse_key is not None else None
+        for key, value in d.items():
+            if key == self.dst_inverse_key:
+                continue
+            if torch.is_tensor(value) and value.size(0) == n:
+                d[key] = value[indices]
+        d[self.batch_key] = padded_batch
+        if self.dst_inverse_key is not None:
+            d[self.dst_inverse_key] = inverse_indices if prior is None else inverse_indices[prior]
         return d
 
 
@@ -1291,12 +1393,16 @@ class CopyItems(DictTransform):
 class SubtractKey(DictTransform):
     """Subtract the value of a reference key from target keys element-wise.
 
-    Computes `data[key] = data[key] - data[sub_key]` for each key.
+    Computes `data[key] = data[key] - data[sub_key]` for each key. With `axes`
+    set, only the listed last-dim indices are subtracted; the other components
+    pass through unchanged (useful to shift only XY while keeping Z absolute).
 
     Args:
         keys: Keys whose tensors are modified (subtracted from).
         sub_keys: Keys whose values are subtracted from each target key.
         dst_keys: Where to store results. Defaults to `keys`.
+        axes: Optional indices into the last dim restricting which components are
+            subtracted. `None` (default) subtracts every component.
         allow_missing_keys: If `True`, silently skip absent target keys.
     """
 
@@ -1305,16 +1411,68 @@ class SubtractKey(DictTransform):
         keys: KeyCollection,
         sub_keys: KeyCollection,
         dst_keys: Optional[KeyCollection] = None,
+        axes: Optional[Sequence[int]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.sub_keys = ensure_tuple_size(sub_keys, len(self.keys))
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.axes = tuple(axes) if axes is not None else None
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, sub_key, dst_key in self.iter_keys(data, self.sub_keys, self.dst_keys):
-            data[dst_key] = data[key] - data[sub_key]
+            if self.axes is None:
+                data[dst_key] = data[key] - data[sub_key]
+            else:
+                out = data[key].clone()
+                idx = list(self.axes)
+                out[..., idx] = out[..., idx] - data[sub_key][..., idx]
+                data[dst_key] = out
+        return data
+
+
+class BBoxCenter(DictTransform):
+    r"""Derive the center of an axis-aligned bbox stored as a flat tensor.
+
+    Reads a bbox at each source key, laid out as a $(2D,)$ vector
+    $[\,\min_0, \ldots, \min_{D-1},\, \max_0, \ldots, \max_{D-1}\,]$, and writes
+    the per-axis midpoint $(\min + \max) / 2$ (shape $(D,)$) at the matching
+    destination key.
+
+    Args:
+        keys: Source keys holding flat bbox tensors of shape $(2D,)$.
+        dst_keys: Destination keys for the centers. Defaults to overwriting
+            the source keys.
+        allow_missing_keys: If `True`, silently skip absent source keys.
+
+    Example:
+        ```python
+        from torch_pointcloud.transforms import BBoxCenter
+
+        data = {"block_bbox": torch.tensor([0.0, 0.0, 0.0, 1.5, 1.5, 2.8])}
+        BBoxCenter(keys="block_bbox", dst_keys="block_center")(data)
+        # data["block_center"] == tensor([0.75, 0.75, 1.40])
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            bbox = data[key]
+            if bbox.numel() % 2 != 0:
+                raise ValueError(f"`{key}` must have an even number of elements (got {bbox.numel()}).")
+            n_dim = bbox.numel() // 2
+            data[dst_key] = (bbox[:n_dim] + bbox[n_dim:]) / 2.0
         return data
 
 
@@ -1377,17 +1535,22 @@ class ToTensor(DictTransform):
 
 
 class Voxelize(DictTransform):
-    """Voxelize a point cloud by grid-binning and per-voxel reduction.
+    r"""Voxelize a point cloud by grid-binning and per-voxel reduction.
 
     Sub-samples a point cloud to one representative point per occupied voxel,
-    and optionally preserves the inverse cluster mapping for full-resolution
+    and optionally records a source-to-voxel index map for full-resolution
     back-projection.
 
     Operates on a single sample (pre-collate); equivalent to Pointcept's
-    `GridSample` for the convention. With `cluster_key` set,
-    `data[pos_key][cluster[i]]` is the voxel-mean position of original point
-    `i` - handy when the model evaluates at sub-resolution but mIoU is reported
-    at full resolution.
+    `GridSample` for the convention. With `dst_inverse_key` set, the stored
+    tensor has shape $(N_\text{full},)$ with values in $[0, N_\text{voxel})$:
+    for each original point $i$, the voxel it belongs to. Downstream code can
+    recover full-resolution predictions with `preds_full = preds_voxel[inverse]`.
+
+    If the key already holds a prior inverse map (e.g. from an earlier
+    invertible transform), the new map composes with it via gather, so the
+    stored tensor always maps from the outermost source space to the current
+    predictor space.
 
     Args:
         pos_key: Key holding the positions to sub-sample.
@@ -1396,8 +1559,9 @@ class Voxelize(DictTransform):
         method: Voxel-id hashing scheme (`fnv` matches Pointcept; `pyg` is the default).
         reduce: Per-key reduction for `keys` (defaults to `mean` if `None`).
         keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
-        cluster_key: When set, store the inverse cluster mapping shaped $(N_\text{full},)$
-            under this key.
+        dst_inverse_key: When set, store the source-to-voxel index map under
+            this key (auto-composes with any existing value at the same key).
+            Leave `None` for training pipelines that never need the inverse.
         grid_pos_key: When set together with a non-`grid` `pos_reduce`, also store
             the integer voxel-grid coordinates under this key. Useful when a model
             needs both real-valued positions (e.g. for rotary position embedding)
@@ -1419,7 +1583,7 @@ class Voxelize(DictTransform):
         method: VoxelMethod = "pyg",
         reduce: Optional[ValueCollection[VoxelReduce]] = None,
         keys: Optional[KeyCollection] = None,
-        cluster_key: Optional[str] = None,
+        dst_inverse_key: Optional[str] = None,
         grid_pos_key: Optional[str] = None,
         random_sample: bool = False,
         generator: Optional[torch.Generator] = None,
@@ -1431,7 +1595,7 @@ class Voxelize(DictTransform):
         self.size = size
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
         self.method = method
-        self.cluster_key = cluster_key
+        self.dst_inverse_key = dst_inverse_key
         self.grid_pos_key = grid_pos_key
         self.random_sample = random_sample
         self.generator = generator
@@ -1463,8 +1627,8 @@ class Voxelize(DictTransform):
         pos = data[self.pos_key]
 
         if pos.shape[0] == 0:
-            if self.cluster_key is not None:
-                data[self.cluster_key] = torch.empty(0, dtype=torch.long, device=pos.device)
+            if self.dst_inverse_key is not None:
+                data[self.dst_inverse_key] = torch.empty(0, dtype=torch.long, device=pos.device)
             if self.grid_pos_key is not None:
                 data[self.grid_pos_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
             return data
@@ -1496,8 +1660,9 @@ class Voxelize(DictTransform):
         for key, reduce in self.iter_keys(data, self.reduce):
             data[key] = self._reduce(data[key], reduce, cluster, perm)
 
-        if self.cluster_key is not None:
-            data[self.cluster_key] = cluster
+        if self.dst_inverse_key is not None:
+            prior = data.get(self.dst_inverse_key)
+            data[self.dst_inverse_key] = cluster if prior is None else cluster[prior]
 
         return data
 

@@ -72,9 +72,9 @@ def evaluate(
         batch = data[DataKeys.BATCH].to(device)
 
         logits, latency_ms = forward_once(model, x, pos, batch, device)
-        cluster = data[DataKeys.CLUSTER].to(device)  # (N_raw,) → voxel idx
+        inverse = data[DataKeys.INVERSE].to(device)  # (N_raw,) → voxel idx
         target = data["origin_segment"].to(device)  # (N_raw,) raw labels (already 0-19)
-        preds = logits[cluster].argmax(dim=1)  # broadcast voxel preds to raw points
+        preds = logits[inverse].argmax(dim=1)  # broadcast voxel preds to raw points
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
         total_latency_ms += latency_ms

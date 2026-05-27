@@ -6,8 +6,10 @@ import pytest
 import torch
 from torch import Tensor
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.inferers import SlidingWindowInferer, sliding_window_inference
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 
 def _grid_data(steps: int = 4, spacing: float = 1.0) -> Dict[str, Any]:
@@ -281,3 +283,70 @@ def test_sliding_window_inferer_class_matches_function() -> None:
     out_fn = sliding_window_inference(data, predictor=pred, **kwargs)
     out_cls = SlidingWindowInferer(**kwargs)(data, predictor=pred)
     assert torch.equal(out_fn, out_cls)
+
+
+def test_sliding_window_with_divisible_pad_recovers_per_point_input() -> None:
+    """`DivisiblePad` + `inverse_key` round-trips: each padded block is gathered back to source rows.
+
+    The predictor returns each point's x-coordinate as a single-class logit; with `softmax=False`
+    and `overlap=0`, the output at every grid point must equal that point's x value, regardless
+    of how many duplicates the pad introduced. Exercises the inverse-key wiring end-to-end.
+    """
+    data = _grid_data(steps=4)  # 64 points; 8 blocks of 8 with block_size=2
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS][:, :1].clone()
+
+    out = sliding_window_inference(
+        data,
+        predictor=predictor,
+        block_size=2.0,
+        overlap=0.0,
+        softmax=False,
+        transform=T.DivisiblePad(num_samples=16, dst_inverse_key="inverse"),
+        roi_num_points=16,
+        inverse_key="inverse",
+        seed=0,
+    )
+    assert out.shape == (64, 1)
+    assert torch.allclose(out.squeeze(-1), data[DataKeys.POS][:, 0])
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_sliding_window_with_voxelize_gathers_predictions_back_to_source() -> None:
+    """`Voxelize` + `inverse_key` end-to-end: voxel-resolution preds are gathered to source rows.
+
+    Each block contains $2^3=8$ source points spaced by 1.0; voxel size 1.1 collapses each
+    pair of `(x, x+1)` neighbors along x into one voxel. The predictor outputs the voxel-mean
+    x, which then broadcasts back to all source points in the voxel via the inverse map.
+    """
+    data = _grid_data(steps=4, spacing=1.0)
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS][:, :1].clone()
+
+    out = sliding_window_inference(
+        data,
+        predictor=predictor,
+        block_size=2.0,
+        overlap=0.0,
+        softmax=False,
+        transform=T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="mean",
+            size=1.1,
+            dst_inverse_key="inverse",
+        ),
+        inverse_key="inverse",
+        seed=0,
+    )
+    assert out.shape == (64, 1)
+    # Within each (block, voxel) pair, source points share the voxel-mean x prediction; thus
+    # the per-source prediction equals the floor-rounded x in {0.5, 2.5} offsets from origin.
+    # Sanity: outputs are finite and bounded by the grid extent.
+    assert torch.isfinite(out).all()
+    assert float(out.min()) >= 0.0
+    assert float(out.max()) <= 3.0

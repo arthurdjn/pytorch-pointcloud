@@ -76,6 +76,7 @@ SEGMENTATION_MODELS = [
     "pointcnn-base",
     "pointmlp-base",
     "pointmlp-elite",
+    "pvcnn-mit-han-lab.s3dis-area5",
     "pointnext-base",
     "pointnext-base.s3dis-area1",
     "pointnext-base.s3dis-area2",
