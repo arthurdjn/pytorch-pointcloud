@@ -102,6 +102,9 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointconv-density-base.modelnet40", "classification", "modelnet_resampled"),
     ("dgcnn-antao.modelnet40.1024", "classification", "modelnet_resampled"),
     ("dgcnn-antao.modelnet40.2048", "classification", "modelnet_resampled"),
+    ("pointnet2-yanx27-ssg.modelnet40", "classification", "modelnet_resampled"),
+    ("pointnet2-yanx27-msg.modelnet40", "classification", "modelnet_resampled"),
+    ("pointnet2-openpoints.modelnet40", "classification", "modelnet_resampled"),
     # S3DIS based models
     ("kpfcnn-base.s3dis", "segmentation", "s3dis"),
     ("kpfcnn-base-sm.s3dis", "segmentation", "s3dis"),
@@ -112,6 +115,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     *[(f"pointnext-lg.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 7)],
     *[(f"pointnext-xl.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 6)],
     *[(f"dgcnn-antao.s3dis.area{i}", "segmentation", "s3dis") for i in range(1, 7)],
+    ("pointnet2-yanx27.s3dis-area5", "segmentation", "s3dis"),
+    *[(f"pointnet2-openpoints.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 7)],
     ("pvcnn-mit-han-lab.s3dis-area5", "segmentation", "s3dis"),
     # ShapenetPart based models
     ("pointnext-sm.shapenetpart", "segmentation", "shapenetpart"),
@@ -125,6 +130,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("point-mamba-base.scanobjectnn-nobg", "classification", "scanobjectnn"),
     ("point-mamba-base.scanobjectnn-augmentedrot-scale75", "classification", "scanobjectnn"),
     ("pointnext-sm.scanobjectnn", "classification", "scanobjectnn"),
+    ("pointnet2-openpoints.scanobjectnn", "classification", "scanobjectnn"),
     # ScanNet20 based models
     ("sonata-lp.scannet20", "segmentation", "scannet20"),
     ("concerto-large-lp.scannet20", "segmentation", "scannet20"),
