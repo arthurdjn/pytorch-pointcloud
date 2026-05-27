@@ -13,7 +13,7 @@ RescaleMethod = Literal["centroid", "bbox", "linear"]
 
 PadMode = Literal["below", "above", "all"]
 
-PadFill = Literal["cycle", "replicate"]
+PadFill = Literal["cycle", "replicate", "random"]
 
 
 @overload
@@ -280,6 +280,7 @@ def divisible_pad(
     mode: PadMode = "all",
     pad_fill: PadFill = "cycle",
     return_inverse: Literal[False] = False,
+    generator: Optional[torch.Generator] = None,
 ) -> Tuple[Tensor, Tensor]: ...
 
 
@@ -290,6 +291,7 @@ def divisible_pad(
     mode: PadMode = "all",
     pad_fill: PadFill = "cycle",
     return_inverse: Literal[True] = ...,
+    generator: Optional[torch.Generator] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
 
@@ -300,6 +302,7 @@ def divisible_pad(
     mode: PadMode = "all",
     pad_fill: PadFill = "cycle",
     return_inverse: bool = False,
+    generator: Optional[torch.Generator] = None,
 ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
     """Pad the batch indices of a tensor to make them divisible by a given integer.
 
@@ -338,6 +341,9 @@ def divisible_pad(
     pad_fill="replicate"  → [A B C D] [E F G D]
       Copies from previous patch             ↑ same position as D
       at same offset
+
+    pad_fill="random"     → [A B C D] [E F G ?]
+      Random sample from the batch           ↑ uniform over {A..G}
     ```
 
     When `batch_size < k` there is no previous patch, so `"replicate"`
@@ -346,7 +352,8 @@ def divisible_pad(
     ```text
     batch 0 (size 2, k=4):  [A B · ·]
     pad_fill="cycle"      → [A B A B]
-    pad_fill="replicate"  → [A B A B]   (same — no prior patch)
+    pad_fill="replicate"  → [A B A B]   (same, no prior patch)
+    pad_fill="random"     → [A B ? ?]
     ```
 
     Args:
@@ -365,7 +372,11 @@ def divisible_pad(
               corresponding positions from the preceding full group.  Falls
               back to `"cycle"` when there is no preceding group (i.e. the
               batch has fewer than `k` elements).
+            - `"random"`: Sample padded indices uniformly with replacement from
+              within the batch's original indices. Consumes `generator` if given.
         return_inverse: Whether to return the inverse of the padded indices.
+        generator: Optional `torch.Generator` for reproducibility (used only by
+            `pad_fill="random"`).
 
     Returns:
         Returns a tuple of `(indices, padded_batch)`.
@@ -417,7 +428,10 @@ def divisible_pad(
         indices[new_start : new_start + batch_size] = torch.arange(original_start, original_start + batch_size)
 
         if pad_size > 0:
-            if pad_fill == "replicate" and batch_size > k:
+            if pad_fill == "random":
+                offsets = torch.randint(high=batch_size, size=(pad_size,), generator=generator, device=device)
+                indices[new_start + batch_size : new_start + batch_size + pad_size] = original_start + offsets
+            elif pad_fill == "replicate" and batch_size > k:
                 rem = batch_size % k
                 last_patch_start = new_start + batch_size - rem
                 prev_patch_start = last_patch_start - k

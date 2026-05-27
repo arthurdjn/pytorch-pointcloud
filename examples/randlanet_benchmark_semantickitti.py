@@ -91,7 +91,7 @@ def _eval_transforms() -> Any:
                 pos_reduce="mean",
                 size=GRID_SIZE,
                 method="fnv",
-                cluster_key="cluster",
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     )
@@ -134,16 +134,16 @@ def evaluate(
     for data in pbar:
         data = {k: v.to(device) if torch.is_tensor(v) else v for k, v in data.items()}
         # Dataset transform already grid-sub-sampled `pos`/`batch` and produced the
-        # inverse `cluster` mapping for full-resolution back-projection.
+        # source-to-voxel inverse map for full-resolution back-projection.
         target_full = data[DataKeys.SEGMENT]
-        cluster_full = data["cluster"]
+        inverse_full = data[DataKeys.INVERSE]
         n_full = int(target_full.shape[0])
 
         logits_sub, latency_ms = forward_once(model, data[DataKeys.POS], data[DataKeys.BATCH], device)
         preds_sub = logits_sub.argmax(dim=1)
         # Project predictions back to full resolution: every original point gets the label
         # of its enclosing voxel (matches upstream's `KDTree(sub_pc).query(pc)` semantics).
-        preds_full = preds_sub[cluster_full]
+        preds_full = preds_sub[inverse_full]
 
         cm += confusion_matrix(preds_full.cpu(), target_full.cpu(), num_classes, ignore_index=IGNORE_INDEX)
         total_latency_ms += latency_ms

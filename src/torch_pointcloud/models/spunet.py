@@ -484,7 +484,7 @@ class SparseUNetSegmentation(SegmentationModel):
                 reduce=["first", "first"],
                 size=0.02,
                 method="fnv",
-                cluster_key=DataKeys.CLUSTER,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
         ]

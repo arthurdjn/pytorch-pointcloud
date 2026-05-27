@@ -37,7 +37,7 @@ def main() -> None:
         encoder_depths=[2, 2, 0],
         encoder_kernel_sizes=[3, 3, 0],
         encoder_resolutions=[32, 16, 8],
-        with_se=True,
+        use_se=True,
         normalize=True,
     ).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

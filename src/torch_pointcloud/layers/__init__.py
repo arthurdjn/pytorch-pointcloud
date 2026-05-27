@@ -5,7 +5,9 @@ from ._modules import (
     RegisteredModuleLike,
     create_module,
 )
+from .act import create_act
 from .affine import Affine, affine
+from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -19,6 +21,7 @@ from .grid_pool import GridPool
 from .heads import create_cls_head, create_seg_head
 from .layer_container import LayerContainer
 from .linear_blocks import LinearBlock
+from .norms import create_norm
 from .octree_attention import RPE, OctreeAttention, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from .pointconv import PointConv, PointConvDensity
