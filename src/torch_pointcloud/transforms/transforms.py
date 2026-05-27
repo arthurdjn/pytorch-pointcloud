@@ -17,6 +17,7 @@ import numpy as np
 import torch
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
@@ -412,8 +413,8 @@ class DivisiblePad(DictTransform):
         self,
         num_samples: int,
         pad_fill: "F.PadFill" = "cycle",
-        ref_key: str = "pos",
-        batch_key: str = "batch",
+        ref_key: str = DataKeys.POS,
+        batch_key: str = DataKeys.BATCH,
         generator: Optional[torch.Generator] = None,
         dst_inverse_key: Optional[str] = None,
         allow_missing_keys: bool = False,
@@ -438,11 +439,10 @@ class DivisiblePad(DictTransform):
         n = int(ref.size(0))
         if n == 0:
             return d
-        device = ref.device
         if self.batch_key in d and torch.is_tensor(d[self.batch_key]):
             batch = d[self.batch_key]
         else:
-            batch = torch.zeros(n, dtype=torch.long, device=device)
+            batch = torch.zeros(n, dtype=torch.long, device=ref.device)
         indices, inverse_indices, padded_batch = F.divisible_pad(
             batch,
             k=self.num_samples,
@@ -451,8 +451,6 @@ class DivisiblePad(DictTransform):
             return_inverse=True,
             generator=self.generator,
         )
-        # The inverse-trace key is in outer-source coordinates, not pre-pad coordinates, so
-        # it must not be gathered by `indices`. Compose it explicitly after the gather loop.
         prior = d.get(self.dst_inverse_key) if self.dst_inverse_key is not None else None
         for key, value in d.items():
             if key == self.dst_inverse_key:

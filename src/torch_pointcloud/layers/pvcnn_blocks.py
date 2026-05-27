@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -183,18 +183,31 @@ class PVConv(nn.Module):
         self.resolution = resolution
         self.voxelization = Voxelization(resolution, normalize=normalize)
 
-        self.voxel_layers = Conv3dBlock(
-            [in_channels, out_channels, out_channels],
-            kernel_size=kernel_size,
-            act=act,
-            act_first=act_first,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            plain_last=False,
-        )
+        voxel_layers: List[nn.Module] = [
+            Conv3dBlock(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                act=act,
+                act_first=act_first,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            ),
+            Conv3dBlock(
+                out_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                act=act,
+                act_first=act_first,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            ),
+        ]
         if use_se:
-            self.voxel_layers.append(SE3d(out_channels, act=act, act_kwargs=act_kwargs))
+            voxel_layers.append(SE3d(out_channels, act=act, act_kwargs=act_kwargs))
+        self.voxel_layers = nn.Sequential(*voxel_layers)
 
         self.mlp = MLP(
             [in_channels, out_channels],

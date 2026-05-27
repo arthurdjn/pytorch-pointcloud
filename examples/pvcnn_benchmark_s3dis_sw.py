@@ -44,7 +44,6 @@ SEED = 42
 COORD_MAX_KEY = "coord_max"
 NORM_POS_KEY = "norm_pos"
 BLOCK_CENTER_KEY = "block_center"
-PAD_INVERSE_KEY = "pad_inverse"
 
 
 def predict(model: Module, data: Dict[str, Any], device: str) -> Tensor:
@@ -93,7 +92,7 @@ def evaluate(
                         num_samples=block_points,
                         pad_fill="random",
                         generator=pad_rng,
-                        dst_inverse_key=PAD_INVERSE_KEY,
+                        dst_inverse_key=DataKeys.INVERSE,
                     ),
                 ]
             )
@@ -105,7 +104,7 @@ def evaluate(
                 roi_num_points=block_points,
                 softmax=True,
                 transform=transform,
-                inverse_key=PAD_INVERSE_KEY,
+                inverse_key=DataKeys.INVERSE,
                 seed=room_seed + vote_i,
             )
             outputs.append(inferer(room, predictor=lambda window: predict(model, window, device)))

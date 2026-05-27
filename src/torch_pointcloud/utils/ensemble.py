@@ -2,21 +2,8 @@ r"""Prediction reducers for ensemble / TTA / voting workflows.
 
 Pure callables on a sequence of per-point prediction tensors. They aggregate
 without knowing how the predictions were produced (live inference, saved files,
-multi-model fold ensemble, multi-seed voting).
-
-Two reductions:
-
-- **`mean_ensemble`** / **`MeanEnsemble`**: stack outputs along a new leading
-  dim and average. Matches nnUNet's softmax fold-ensembling and MONAI's
-  `MeanEnsemble`.
-- **`vote_ensemble`** / **`VoteEnsemble`**: argmax each output, one-hot, sum.
-  The result's `argmax` is the majority-vote label. Matches MONAI's
-  `VoteEnsemble`.
-
-Both functional and class forms ship side-by-side, mirroring
-`transforms.functional` ↔ `transforms.transforms`. Call the function inline
-when the choice is fixed; instantiate the class when the reducer is selected
-by config.
+multi-model fold ensemble, multi-seed voting). Each reducer ships as a function
+(call inline) and a class (instantiate when chosen by config).
 """
 
 from abc import ABCMeta, abstractmethod

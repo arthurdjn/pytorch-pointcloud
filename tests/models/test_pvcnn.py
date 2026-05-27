@@ -112,28 +112,34 @@ def test_pvconv_voxel_branch_uses_generic_act_and_norm() -> None:
     `nn.ReLU` and `norm="batch_norm"` (with `dim=3` inside Conv3dBlock) yields
     `nn.BatchNorm3d` with PyTorch's default eps.
     """
+    from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
+
     pv = PVConv(in_channels=4, out_channels=8, kernel_size=3, resolution=4, act="relu")
-    assert isinstance(pv.voxel_layers[1], nn.BatchNorm3d)
-    assert pv.voxel_layers[1].eps == 1e-5
-    assert isinstance(pv.voxel_layers[2], nn.ReLU)
+    first = pv.voxel_layers[0]
+    assert isinstance(first, Conv3dBlock)
+    assert isinstance(first.norm, nn.BatchNorm3d)
+    assert first.norm.eps == 1e-5
+    assert isinstance(first.act, nn.ReLU)
 
 
 def test_pvcnn_mit_han_lab_factory_patches_voxel_branch_to_paper_recipe() -> None:
     """The registered S3DIS Area-5 factory should patch every PVConv voxel branch
     to upstream's LeakyReLU(0.1) + BN3d(eps=1e-4) recipe after construction,
     while keeping the point branch on ReLU."""
+    from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
     from torch_pointcloud.models._registry import create_model
 
     model = create_model("pvcnn-mit-han-lab.s3dis-area5", task="segmentation", pretrained=False)
     pvconvs = [m for m in model.modules() if isinstance(m, PVConv)]
     assert pvconvs, "Expected at least one PVConv in the factory-built model."
     for pv in pvconvs:
-        for layer in pv.voxel_layers:
-            if isinstance(layer, nn.BatchNorm3d):
-                assert layer.eps == 1e-4
-            elif isinstance(layer, (nn.ReLU, nn.LeakyReLU)):
-                assert isinstance(layer, nn.LeakyReLU)
-                assert layer.negative_slope == 0.1
+        for block in pv.voxel_layers:
+            if not isinstance(block, Conv3dBlock):
+                continue
+            assert isinstance(block.norm, nn.BatchNorm3d)
+            assert block.norm.eps == 1e-4
+            assert isinstance(block.act, nn.LeakyReLU)
+            assert block.act.negative_slope == 0.1
         assert pv.mlp.act.__class__.__name__ == "ReLU"
 
 

@@ -1,80 +1,67 @@
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn
+from torch import Tensor
+from torch_geometric.nn.resolver import activation_resolver
 
-from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 
 
-class Conv3dBlock(nn.Sequential):
-    r"""Stacked $\text{Conv3d} \to \text{Norm} \to \text{Act}$ block, mirroring `torch_geometric.nn.MLP`.
-
-    Builds groups of $\text{Conv3d} \to \text{Norm} \to \text{Act}$ (or
-    $\text{Conv3d} \to \text{Act} \to \text{Norm}$ when `act_first=True`). When
-    `plain_last=True`, the final layer skips norm and activation. Norms are
-    resolved via `create_norm` with `dim=3`, so passing `norm="batch_norm"`
-    yields `nn.BatchNorm3d`.
+class Conv3dBlock(nn.Module):
+    r"""Single `nn.Conv3d` + optional `nn.BatchNorm3d` + optional activation.
 
     Shape:
         Input: $(B, C_\text{in}, R, R, R)$
         Output: $(B, C_\text{out}, R, R, R)$
 
     Args:
-        channel_list: Channel counts per layer including both endpoints.
-        kernel_size: Kernel size for each Conv3d. Pass a sequence to vary per layer.
-        act: Activation between layers.
-        act_first: If `True`, place activation before normalization.
+        in_channels: Input channel count.
+        out_channels: Output channel count.
+        kernel_size: Conv3d kernel size.
+        act: Activation, name resolved by `activation_resolver`. `None` disables.
+        act_first: If `True`, run activation before normalization.
         act_kwargs: Extra kwargs for the activation.
-        norm: Normalization between layers.
+        norm: Normalization, name resolved by `create_norm`. `None` disables.
         norm_kwargs: Extra kwargs for the normalization.
-        plain_last: If `True`, the final layer skips norm and activation.
-        bias: Whether the Conv3d layers use a bias term.
+        bias: Whether the Conv3d has a bias term.
     """
 
     def __init__(
         self,
-        channel_list: Sequence[int],
-        kernel_size: Union[int, Sequence[int]] = 3,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
         *,
         act: Union[str, Callable, None] = "relu",
         act_first: bool = False,
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        plain_last: bool = True,
         bias: bool = True,
     ):
-        channels = list(channel_list)
-        if len(channels) < 2:
-            raise ValueError(f"channel_list must have at least 2 entries, got {len(channels)}.")
-        n_layers = len(channels) - 1
-        kernels = [int(kernel_size)] * n_layers if isinstance(kernel_size, int) else [int(k) for k in kernel_size]
-        if len(kernels) != n_layers:
-            raise ValueError(
-                f"kernel_size sequence length ({len(kernels)}) does not match number of layers ({n_layers})."
-            )
+        super().__init__()
+        self.act_first = act_first
+        self.conv = nn.Conv3d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            padding=kernel_size // 2,
+            bias=bias,
+        )
+        self.norm = create_norm(norm, out_channels, dim=3, **(norm_kwargs or {})) if norm is not None else None
+        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
 
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-
-        layers: List[nn.Module] = []
-        for i in range(n_layers):
-            in_c, out_c = channels[i], channels[i + 1]
-            k = kernels[i]
-            layers.append(nn.Conv3d(in_c, out_c, k, stride=1, padding=k // 2, bias=bias))
-            if i == n_layers - 1 and plain_last:
-                continue
-            norm_layer = create_norm(norm, out_c, dim=3, **norm_kwargs)
-            act_layer = create_act(act, **act_kwargs)
-            if act_first:
-                if act_layer is not None:
-                    layers.append(act_layer)
-                if norm_layer is not None:
-                    layers.append(norm_layer)
-            else:
-                if norm_layer is not None:
-                    layers.append(norm_layer)
-                if act_layer is not None:
-                    layers.append(act_layer)
-
-        super().__init__(*layers)
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.conv(x)
+        if self.act_first:
+            if self.act is not None:
+                x = self.act(x)
+            if self.norm is not None:
+                x = self.norm(x)
+        else:
+            if self.norm is not None:
+                x = self.norm(x)
+            if self.act is not None:
+                x = self.act(x)
+        return x

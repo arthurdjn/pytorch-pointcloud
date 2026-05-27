@@ -8,6 +8,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -413,9 +414,10 @@ def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     for pv in model.modules():
         if not isinstance(pv, PVConv):
             continue
-        for i, layer in enumerate(pv.voxel_layers):
-            if isinstance(layer, nn.BatchNorm3d):
-                layer.eps = 1e-4
-            elif isinstance(layer, nn.ReLU):
-                pv.voxel_layers[i] = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+        for block in pv.voxel_layers:
+            if isinstance(block, Conv3dBlock):
+                if isinstance(block.norm, nn.BatchNorm3d):
+                    block.norm.eps = 1e-4
+                if isinstance(block.act, nn.ReLU):
+                    block.act = nn.LeakyReLU(negative_slope=0.1, inplace=True)
     return model

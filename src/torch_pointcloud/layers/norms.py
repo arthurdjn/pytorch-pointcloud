@@ -1,19 +1,10 @@
 r"""Normalization factory wrapper with spatial dimensionality support.
 
-PyG's `normalization_resolver` covers graph-aware norms and `nn.BatchNorm1d` but
-does not register `nn.BatchNorm2d` / `nn.BatchNorm3d`. For convolutional stacks
-operating on 2D feature maps or 3D voxel grids we want those Nd variants from
-the same string name. `create_norm` adds a `dim` parameter (1, 2, or 3) that
-selects the corresponding `nn.*Nd` class for the common families:
-
-| `norm`             | `dim=1`          | `dim=2`               | `dim=3`               |
-| ------------------ | ---------------- | --------------------- | --------------------- |
-| `"batch_norm"`     | (PyG `BatchNorm`)| `nn.BatchNorm2d`      | `nn.BatchNorm3d`      |
-| `"instance_norm"`  | (PyG resolver)   | `nn.InstanceNorm2d`   | `nn.InstanceNorm3d`   |
-| `"group_norm"`     | `nn.GroupNorm`   | `nn.GroupNorm`        | `nn.GroupNorm`        |
-| `"layer_norm"`     | `nn.LayerNorm`   | `nn.LayerNorm`        | `nn.LayerNorm`        |
-
-Inspired by MONAI's `Norm[name, dim]` factory pattern.
+PyG's `normalization_resolver` covers graph-aware norms and `nn.BatchNorm1d`
+but does not register the `nn.BatchNorm2d` / `nn.BatchNorm3d` variants needed
+by convolutional stacks. `create_norm` adds a `dim` parameter that selects the
+matching `nn.*Nd` class for the common families when `dim > 1`, and defers to
+PyG's resolver otherwise.
 """
 
 from typing import Any, Callable, Dict, Optional, Type, Union
