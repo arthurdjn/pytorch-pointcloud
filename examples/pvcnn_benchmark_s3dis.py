@@ -23,7 +23,6 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict
 
 import torch
-from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -32,6 +31,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DISHdf5
 from torch_pointcloud.models._registry import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
+from torch_pointcloud.utils.metrics import confusion_matrix
 from torch_pointcloud.utils.random import seed_everything
 
 CUDA_AVAILABLE = torch.cuda.is_available()
@@ -106,12 +106,7 @@ def evaluate(
     num_classes: int,
 ) -> Dict[str, float]:
     model.to(device).eval()
-
-    intersection_total = torch.zeros(num_classes, dtype=torch.float64)
-    union_total = torch.zeros(num_classes, dtype=torch.float64)
-    target_total = torch.zeros(num_classes, dtype=torch.float64)
-    correct_total = 0
-    seen_total = 0
+    cm = torch.zeros(num_classes, num_classes, dtype=torch.int64)
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
@@ -122,40 +117,21 @@ def evaluate(
 
         logits = model(x, pos, batch)
         preds = logits.argmax(dim=1)
+        cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
 
-        inter, union, gt = _intersection_union_target(preds, target, num_classes)
-        intersection_total += inter.cpu().double()
-        union_total += union.cpu().double()
-        target_total += gt.cpu().double()
-        correct_total += int(preds.eq(target).sum().item())
-        seen_total += int(target.numel())
+        diag = cm.diag().float()
+        iou = diag / (cm.sum(0) + cm.sum(1) - cm.diag()).clamp_min(1).float()
+        acc = diag.sum() / cm.sum().clamp_min(1).float()
+        pbar.set_postfix({"mIoU": f"{iou.mean().item():.4f}", "oa": f"{acc.item():.4f}"})
 
-        running_iou = (intersection_total / union_total.clamp_min(1)).mean().item()
-        pbar.set_postfix({"mIoU": f"{running_iou:.4f}", "oa": f"{correct_total / seen_total:.4f}"})
-
-    iou_per_class = (intersection_total / union_total.clamp_min(1)).float()
-    acc_per_class = (intersection_total / target_total.clamp_min(1)).float()
+    diag = cm.diag().float()
+    iou = diag / (cm.sum(0) + cm.sum(1) - cm.diag()).clamp_min(1).float()
+    per_class_acc = diag / cm.sum(1).clamp_min(1).float()
     return {
-        "test/mIoU": iou_per_class.mean().item(),
-        "test/mean_class_acc": acc_per_class.mean().item(),
-        "test/overall_acc": correct_total / max(seen_total, 1),
+        "test/mIoU": iou.mean().item(),
+        "test/mean_class_acc": per_class_acc.mean().item(),
+        "test/overall_acc": diag.sum().item() / max(int(cm.sum()), 1),
     }
-
-
-def _intersection_union_target(preds: Tensor, target: Tensor, num_classes: int) -> tuple[Tensor, Tensor, Tensor]:
-    valid = target >= 0
-    preds, target = preds[valid], target[valid]
-    bins = num_classes
-    inter = torch.zeros(bins, dtype=torch.long, device=preds.device)
-    union = torch.zeros(bins, dtype=torch.long, device=preds.device)
-    gt = torch.zeros(bins, dtype=torch.long, device=preds.device)
-    for c in range(bins):
-        pred_c = preds == c
-        target_c = target == c
-        inter[c] = int((pred_c & target_c).sum().item())
-        union[c] = int((pred_c | target_c).sum().item())
-        gt[c] = int(target_c.sum().item())
-    return inter, union, gt
 
 
 if __name__ == "__main__":
