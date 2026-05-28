@@ -779,8 +779,6 @@ def pointnet2_yanx27_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
     return model
 
 
-# Shared hparams for the openpoints / PointNeXt-trained PointNet++ classifiers
-# (`cfgs/{modelnet40ply2048,scanobjectnn}/pointnet++.yaml`).
 _OPENPOINTS_CLS_HPARAMS: Dict[str, Any] = dict(
     sa_channels=[[64, 64, 128], [128, 128, 256]],
     aggr_channels=[256, 512, 1024],
