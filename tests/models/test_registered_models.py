@@ -90,7 +90,6 @@ SEGMENTATION_MODELS = [
     "pointnet2-openpoints.s3dis-area5",
     "pointnet2-openpoints.s3dis-area6",
     "pointnet2-yanx27.s3dis-area5",
-    "ptv3-base.scannet20",
     "pvcnn-mit-han-lab.s3dis-area5",
     "pointnext-base",
     "pointnext-base.s3dis-area1",
