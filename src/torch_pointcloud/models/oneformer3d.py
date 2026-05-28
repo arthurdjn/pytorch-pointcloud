@@ -23,6 +23,8 @@ from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.models.spformer_unet import SPFormerUNet
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.ops import consecutive_cluster
+from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
     from torch_scatter import scatter_mean
@@ -167,6 +169,9 @@ class OneFormer3DQueryDecoder(nn.Module):
         attn_mask: If `True`, the predicted masks are turned into attention masks
             for the next layer.
         objectness_flag: If `True`, predicts a per-query confidence score.
+        semantic_head: If `True`, adds an `out_sem` head that predicts a semantic
+            label per query (ScanNet). Set `False` when semantics come from dedicated
+            semantic queries instead (S3DIS).
         num_semantic_linears: `1` or `2` linear layers in the semantic head.
     """
 
@@ -187,6 +192,7 @@ class OneFormer3DQueryDecoder(nn.Module):
         iter_pred: bool = True,
         attn_mask: bool = True,
         objectness_flag: bool = False,
+        semantic_head: bool = True,
         num_semantic_linears: int = 1,
     ) -> None:
         super().__init__()
@@ -198,10 +204,12 @@ class OneFormer3DQueryDecoder(nn.Module):
         self.num_semantic_classes = num_semantic_classes
         self.d_model = d_model
         self.num_layers = num_layers
+        self.num_instance_queries = num_instance_queries
         self.num_queries = num_instance_queries + num_semantic_queries
         self.iter_pred = iter_pred
         self.attn_mask = attn_mask
         self.objectness_flag = objectness_flag
+        self.semantic_head = semantic_head
 
         self.input_proj = nn.Sequential(
             nn.Linear(in_channels, d_model),
@@ -244,14 +252,15 @@ class OneFormer3DQueryDecoder(nn.Module):
             nn.ReLU(),
             nn.Linear(d_model, d_model),
         )
-        if num_semantic_linears == 2:
-            self.out_sem: nn.Module = nn.Sequential(
-                nn.Linear(d_model, d_model),
-                nn.ReLU(),
-                nn.Linear(d_model, num_semantic_classes + 1),
-            )
-        else:
-            self.out_sem = nn.Linear(d_model, num_semantic_classes + 1)
+        if semantic_head:
+            if num_semantic_linears == 2:
+                self.out_sem: nn.Module = nn.Sequential(
+                    nn.Linear(d_model, d_model),
+                    nn.ReLU(),
+                    nn.Linear(d_model, num_semantic_classes + 1),
+                )
+            else:
+                self.out_sem = nn.Linear(d_model, num_semantic_classes + 1)
 
         self.init_weights()
 
@@ -288,10 +297,11 @@ class OneFormer3DQueryDecoder(nn.Module):
         pred_scores: List[Optional[Tensor]] = []
         pred_masks: List[Tensor] = []
         attn_masks: List[Tensor] = []
+        emit_sem = last_layer and self.semantic_head
         for i, q in enumerate(queries):
             norm_q = self.out_norm(q)
             cls_preds.append(self.out_cls(norm_q))
-            if last_layer:
+            if emit_sem:
                 sem_preds.append(self.out_sem(norm_q))
             pred_scores.append(self.out_score(norm_q) if self.objectness_flag else None)
             pred_mask = torch.einsum("nd,md->nm", norm_q, mask_feats[i])
@@ -304,7 +314,7 @@ class OneFormer3DQueryDecoder(nn.Module):
 
         return (
             cls_preds,
-            sem_preds if last_layer else None,
+            sem_preds if emit_sem else None,
             pred_scores,
             pred_masks,
             attn_masks if self.attn_mask else None,
@@ -381,23 +391,21 @@ class OneFormer3DSegmentation(SegmentationModel):
     [filaPro/oneformer3d](https://github.com/filaPro/oneformer3d).
 
     Voxel features go through the [`SPFormerUNet`](#) backbone `unet` (built with
-    `num_classes=0`, so it returns per-voxel features). Those features are projected
-    back to the original points via `inverse` and aggregated into superpoints by
-    `scatter_mean`. The query decoder `head` consumes the per-superpoint features and produces a dict
-    containing `cls_preds`, `sem_preds`, `masks` (one per superpoint), `scores`,
-    and optional `aux_outputs`. Use [`predict_instance`](#) and
-    [`predict_semantic`](#) for the final point-level instance and semantic
-    masks respectively.
+    `num_classes=0`, so it returns per-voxel features). With `superpoint_pooling`
+    (ScanNet), those features are projected back to points via `inverse` and
+    aggregated into superpoints by `scatter_mean`; otherwise (S3DIS) the per-voxel
+    features are used directly. The query decoder `head` consumes them and produces
+    a dict with `cls_preds`, `masks`, `scores`, optional `sem_preds`, and optional
+    `aux_outputs`. Use [`predict_instance`](#) and [`predict_semantic`](#) for the
+    final point-level instance and semantic masks.
 
     Args:
         in_channels: Number of input voxel features (typically $6$: RGB + centered $xyz$).
         num_classes: Number of semantic classes including stuff classes ($20$ on ScanNet).
         num_instance_classes: Number of instance / thing classes ($18$ on ScanNet).
             Defaults to `num_classes` when not given.
-        num_channels: Base width of the U-Net and the input embedding.
-        num_levels: Number of U-Net levels; channels grow as
-            `num_channels * (i + 1)` per level.
-        block_reps: Residual blocks per U-Net level.
+        channels: Per-level U-Net channel widths, deepest level last.
+        layers: Residual blocks per U-Net level; an `int` is broadcast to every level.
         d_model: Decoder embedding dimension.
         num_layers: Number of decoder layers.
         num_instance_queries: Number of learned instance queries.
@@ -408,6 +416,10 @@ class OneFormer3DSegmentation(SegmentationModel):
         iter_pred: Whether to run iterative mask-attention prediction.
         attn_mask: Whether to mask attention with the previous prediction.
         objectness_flag: Predict a per-query confidence score.
+        semantic_head: Add an `out_sem` head over queries (ScanNet); `False` when
+            semantics come from dedicated semantic queries (S3DIS).
+        superpoint_pooling: Pool voxel features into superpoints before the decoder
+            (ScanNet); `False` runs the decoder on voxel features directly (S3DIS).
         num_semantic_linears: Number of linear layers in the semantic head.
         act: Backbone activation passed to `create_act`.
         act_kwargs: Extra keyword arguments for the backbone activation.
@@ -423,9 +435,8 @@ class OneFormer3DSegmentation(SegmentationModel):
         num_classes: int,
         *,
         num_instance_classes: Optional[int] = None,
-        num_channels: int = 32,
-        num_levels: int = 5,
-        block_reps: int = 2,
+        channels: Sequence[int] = (32, 64, 96, 128, 160),
+        layers: Union[int, Sequence[int]] = 2,
         d_model: int = 256,
         num_layers: int = 6,
         num_instance_queries: int = 0,
@@ -436,6 +447,8 @@ class OneFormer3DSegmentation(SegmentationModel):
         iter_pred: bool = True,
         attn_mask: bool = True,
         objectness_flag: bool = False,
+        semantic_head: bool = True,
+        superpoint_pooling: bool = True,
         num_semantic_linears: int = 1,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -446,9 +459,8 @@ class OneFormer3DSegmentation(SegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.num_semantic_classes = num_classes
         self.num_instance_classes = num_instance_classes if num_instance_classes is not None else num_classes
-        self.num_channels = num_channels
-        self.num_levels = num_levels
-        self.block_reps = block_reps
+        self.channels = tuple(channels)
+        self.layers = layers
         self.d_model = d_model
         self.num_layers = num_layers
         self.num_instance_queries = num_instance_queries
@@ -459,6 +471,8 @@ class OneFormer3DSegmentation(SegmentationModel):
         self.iter_pred = iter_pred
         self.attn_mask = attn_mask
         self.objectness_flag = objectness_flag
+        self.semantic_head = semantic_head
+        self.superpoint_pooling = superpoint_pooling
         self.num_semantic_linears = num_semantic_linears
         self.act = act
         self.act_kwargs = act_kwargs
@@ -473,8 +487,8 @@ class OneFormer3DSegmentation(SegmentationModel):
         return SPFormerUNet(
             in_channels=self.in_channels,
             num_classes=0,
-            channels=[self.num_channels * (i + 1) for i in range(self.num_levels)],
-            layers=self.block_reps,
+            channels=self.channels,
+            layers=self.layers,
             stem_kernel_size=3,
             spatial_padding=self.spatial_padding,
             act=self.act,
@@ -485,7 +499,7 @@ class OneFormer3DSegmentation(SegmentationModel):
 
     def configure_head(self) -> OneFormer3DQueryDecoder:
         return OneFormer3DQueryDecoder(
-            in_channels=self.num_channels,
+            in_channels=self.channels[0],
             num_instance_classes=self.num_instance_classes,
             num_semantic_classes=self.num_semantic_classes,
             d_model=self.d_model,
@@ -498,6 +512,7 @@ class OneFormer3DSegmentation(SegmentationModel):
             iter_pred=self.iter_pred,
             attn_mask=self.attn_mask,
             objectness_flag=self.objectness_flag,
+            semantic_head=self.semantic_head,
             num_semantic_linears=self.num_semantic_linears,
         )
 
@@ -523,53 +538,71 @@ class OneFormer3DSegmentation(SegmentationModel):
     def forward_decoder(
         self,
         feats: Tensor,
-        superpoint: Tensor,
-        inverse: Tensor,
-        batch_offsets: Sequence[int],
+        batch: Tensor,
+        superpoint: OptTensor = None,
+        inverse: OptTensor = None,
     ) -> List[Tensor]:
-        sp_feat = scatter_mean(feats[inverse], superpoint, dim=0)
-        out: List[Tensor] = []
-        for i in range(len(batch_offsets) - 1):
-            out.append(sp_feat[batch_offsets[i] : batch_offsets[i + 1]])
-        return out
+        r"""Split per-voxel features into per-scene decoder sources.
 
-    def forward_head(self, sp_feat: List[Tensor]) -> OneFormer3DOutput:
-        return self.head(sp_feat, sp_feat)
+        With `superpoint_pooling` (ScanNet), features are projected back to points
+        via `inverse` and aggregated into superpoints by `scatter_mean`. Otherwise
+        (S3DIS) the per-voxel features are used directly, split by scene.
+        """
+        if self.superpoint_pooling:
+            assert superpoint is not None and inverse is not None
+            sp_shift, batch_offsets = _shift_superpoints(superpoint, inverse, batch)
+            sp_feat = scatter_mean(feats[inverse], sp_shift, dim=0)
+            return [sp_feat[batch_offsets[i] : batch_offsets[i + 1]] for i in range(len(batch_offsets) - 1)]
+        batch_size = int(batch.max().item()) + 1 if batch.numel() > 0 else 0
+        return [feats[batch == i] for i in range(batch_size)]
+
+    def forward_head(self, sources: List[Tensor]) -> OneFormer3DOutput:
+        # With learned instance queries (S3DIS), the decoder ignores the source
+        # features as queries; otherwise (ScanNet) the superpoint features seed them.
+        queries = sources if self.num_instance_queries == 0 else None
+        return self.head(sources, queries)
 
     def forward(
         self,
         x: Tensor,
         pos_grid: Tensor,
         batch: Tensor,
-        superpoint: Tensor,
-        inverse: Tensor,
+        superpoint: OptTensor = None,
+        inverse: OptTensor = None,
     ) -> OneFormer3DOutput:
         feats = self.forward_features(x, pos_grid, batch)
-        sp_shift, batch_offsets = _shift_superpoints(superpoint, inverse, batch)
-        sp_feat = self.forward_decoder(feats, sp_shift, inverse, batch_offsets)
-        return self.forward_head(sp_feat)
+        sources = self.forward_decoder(feats, batch, superpoint, inverse)
+        return self.forward_head(sources)
 
     @torch.no_grad()
     def predict_semantic(
         self,
         output: OneFormer3DOutput,
-        superpoint_per_point: Tensor,
+        index: Tensor,
         classes: Optional[Sequence[int]] = None,
     ) -> Tensor:
         r"""Per-point semantic predictions for a single scene.
 
         Args:
             output: Decoder output for a single scene (first batch element).
-            superpoint_per_point: Per-point superpoint indices for that scene,
-                shape $(N,)$.
+            index: Maps each output point to its prediction unit, shape $(N,)$.
+                With `semantic_head` (ScanNet) this is the per-point superpoint id;
+                otherwise (S3DIS) it is the voxel index each point falls into.
             classes: Optional subset of semantic class ids to argmax over.
 
         Returns:
             Per-point semantic labels of shape $(N,)$.
         """
-        sem_preds = output["sem_preds"][0]
-        cols = list(classes) if classes is not None else list(range(sem_preds.shape[1] - 1))
-        return sem_preds[:, cols].argmax(dim=1)[superpoint_per_point]
+        if self.semantic_head:
+            sem_preds = output["sem_preds"][0]
+            cols = list(classes) if classes is not None else list(range(sem_preds.shape[1] - 1))
+            return sem_preds[:, cols].argmax(dim=1)[index]
+
+        # S3DIS: semantics come from the last `num_semantic_queries` mask predictions.
+        # `argmax` is invariant to the monotonic sigmoid; reducing over voxels before
+        # indexing avoids expanding to all points first.
+        sem_masks = output["masks"][0][-self.num_semantic_queries :]
+        return sem_masks.argmax(dim=0)[index]
 
     @torch.no_grad()
     def predict_instance(
@@ -625,7 +658,11 @@ class OneFormer3DSegmentation(SegmentationModel):
 
         if nms:
             scores_flat, labels, mask_sig, _ = _mask_matrix_nms(
-                mask_sig, labels, scores_flat, kernel=nms_kernel, sigma=nms_sigma
+                mask_sig,
+                labels,
+                scores_flat,
+                kernel=nms_kernel,
+                sigma=nms_sigma,
             )
 
         mask_sig = mask_sig[:, superpoint_per_point]
@@ -649,23 +686,27 @@ def _shift_superpoints(
     inverse: Tensor,
     batch: Tensor,
 ) -> Tuple[Tensor, List[int]]:
-    """Re-base each scene's superpoint ids so they're globally contiguous.
+    """Relabel per-scene superpoint ids into globally consecutive ids.
 
-    Returns the shifted superpoint tensor and a `batch_offsets` list of length
-    `B + 1` describing the cumulative number of superpoints per scene.
+    Each scene's superpoints are relabelled to a gap-free range (so backbone
+    features `scatter_mean` into a dense per-superpoint tensor) and offset so the
+    per-scene ranges are disjoint. Returns the relabelled per-point ids and a
+    `batch_offsets` list of length `B + 1` giving the cumulative superpoint count
+    per scene.
     """
     voxel_batch = batch[inverse]
-    batch_size = int(voxel_batch.max().item()) + 1 if voxel_batch.numel() > 0 else 0
-    shifted = superpoint.clone()
-    offsets: List[int] = [0]
-    bias = 0
-    for b in range(batch_size):
-        scene_mask = voxel_batch == b
-        if scene_mask.any():
-            local = superpoint[scene_mask]
-            shifted[scene_mask] = local + bias - int(local.min().item())
-            bias = int(shifted[scene_mask].max().item()) + 1
-        offsets.append(bias)
+    if superpoint.numel() == 0:
+        return superpoint.clone(), [0]
+
+    # Joint key unique per (scene, superpoint); the scene term is high-order so the
+    # consecutive ids come out grouped by scene in ascending order, giving disjoint
+    # per-scene blocks usable as `batch_offsets` slices.
+    key = voxel_batch * (int(superpoint.max()) + 1) + superpoint
+    shifted = consecutive_cluster(key)
+    assert isinstance(shifted, Tensor)
+    scene_of = shifted.new_zeros(int(shifted.max()) + 1).scatter_(0, shifted, voxel_batch)
+    counts = torch.bincount(scene_of, minlength=int(voxel_batch.max()) + 1)
+    offsets: List[int] = [0, *torch.cumsum(counts, dim=0).tolist()]
     return shifted, offsets
 
 
@@ -760,9 +801,8 @@ _ONEFORMER3D_SCANNET_TRANSFORMS: Callable[..., Any] = T.Compose(
         in_channels=6,
         num_classes=20,
         num_instance_classes=18,
-        num_channels=32,
-        num_levels=5,
-        block_reps=2,
+        channels=[32, 64, 96, 128, 160],
+        layers=2,
         d_model=256,
         num_layers=6,
         num_heads=8,
@@ -789,9 +829,8 @@ def oneformer3d_base_scannet20(**hparams: Any) -> OneFormer3DSegmentation:
         in_channels=6,
         num_classes=200,
         num_instance_classes=198,
-        num_channels=32,
-        num_levels=5,
-        block_reps=2,
+        channels=[32, 64, 96, 128, 160],
+        layers=2,
         d_model=256,
         num_layers=6,
         num_heads=8,
@@ -839,9 +878,8 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
         in_channels=6,
         num_classes=13,
         num_instance_classes=13,
-        num_channels=64,
-        num_levels=5,
-        block_reps=2,
+        channels=[64, 128, 192, 256, 320],
+        layers=2,
         d_model=256,
         num_layers=3,
         num_instance_queries=400,
@@ -852,7 +890,8 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
         iter_pred=True,
         attn_mask=True,
         objectness_flag=True,
-        num_semantic_linears=1,
+        semantic_head=False,
+        superpoint_pooling=False,
         norm_kwargs=dict(eps=1e-4, momentum=0.1),
         spatial_padding=96,
     ),

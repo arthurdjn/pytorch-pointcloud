@@ -66,9 +66,8 @@ def tiny_model() -> OneFormer3DSegmentation:
         in_channels=6,
         num_classes=20,
         num_instance_classes=18,
-        num_channels=16,
-        num_levels=3,
-        block_reps=1,
+        channels=(16, 32, 64),
+        layers=1,
         d_model=32,
         num_layers=2,
         num_heads=4,
@@ -126,9 +125,8 @@ def test_oneformer3d_iter_pred_off() -> None:
         in_channels=6,
         num_classes=20,
         num_instance_classes=18,
-        num_channels=16,
-        num_levels=3,
-        block_reps=1,
+        channels=(16, 32, 64),
+        layers=1,
         d_model=32,
         num_layers=2,
         num_heads=4,
@@ -143,6 +141,35 @@ def test_oneformer3d_iter_pred_off() -> None:
     assert "aux_outputs" not in out
     assert "sem_preds" in out
     assert len(out["sem_preds"]) == 2
+
+
+def test_oneformer3d_s3dis_mode_no_pooling() -> None:
+    # S3DIS-style config: no superpoint pooling, learned queries, no out_sem head.
+    model = OneFormer3DSegmentation(
+        in_channels=6,
+        num_classes=13,
+        channels=(16, 32, 64),
+        layers=1,
+        d_model=32,
+        num_layers=2,
+        num_instance_queries=40,
+        num_semantic_queries=13,
+        num_heads=4,
+        hidden_dim=64,
+        objectness_flag=True,
+        semantic_head=False,
+        superpoint_pooling=False,
+    ).cuda()
+    data = _make_inputs(num_voxels_per_scene=32, batch_size=2, grid_size=16)
+    model.eval()
+    with torch.no_grad():
+        out = model(data["x"], data["pos_grid"], data["batch"])
+    assert "sem_preds" not in out
+    assert len(out["cls_preds"]) == 2
+    for cls_pred in out["cls_preds"]:
+        assert cls_pred.shape == (40 + 13, model.num_instance_classes + 1)
+    for score in out["scores"]:
+        assert score is not None and score.shape == (40 + 13, 1)
 
 
 def test_oneformer3d_reset_classifier(tiny_model: OneFormer3DSegmentation) -> None:

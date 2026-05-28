@@ -1,5 +1,5 @@
 {
-  "num_params": 47313114,
+  "num_params": 47310287,
   "state_dict": {
     "unet.encoder.stem.weight": [
       64,
@@ -1173,13 +1173,6 @@
     ],
     "head.x_mask.2.bias": [
       256
-    ],
-    "head.out_sem.weight": [
-      11,
-      256
-    ],
-    "head.out_sem.bias": [
-      11
     ]
   }
 }
