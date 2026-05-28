@@ -394,14 +394,12 @@ class RandLANetEncoder(nn.Module):
                 generator = torch.Generator(device=batch.device)
                 generator.manual_seed(int(batch.numel()))
 
-            num_neighbors = block.num_neighbors
-            assert isinstance(num_neighbors, int)
             x, pos, batch = random_max_pool(
                 x,
                 pos,
                 batch,
                 factor=self.decimation[i],
-                num_neighbors=num_neighbors,
+                num_neighbors=block.num_neighbors,
                 generator=generator,
             )
 
