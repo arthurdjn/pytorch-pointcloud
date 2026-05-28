@@ -14,11 +14,6 @@ Reproduced performance on ModelNet40 test split (seed=42, batch_size=32):
 | `pointnet2-yanx27-ssg.modelnet40`  | 92.0% OA                 | 92.30% OA / 88.23% mAcc |
 | `pointnet2-yanx27-msg.modelnet40`  | 92.8% OA                 | 92.67% OA / 90.60% mAcc |
 
-The match holds because `_apply_yanx27_compat` (in
-`torch_pointcloud.models.pointnet2`) patches each `SAModule` to use the
-sort-by-source-index ball query that the upstream weights overfit to, and
-`SAModule.forward` switches to deterministic FPS in `.eval()` mode.
-
 Usage:
 
     uv run --no-sync python examples/pointnet2_benchmark_modelnet.py

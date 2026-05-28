@@ -667,9 +667,7 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
 
     yanx27 / charlesq34 keep the $k$ smallest source indices in each ball
     (PointNet++'s reference `query_ball_point`) and weight FP interpolation by
-    `1 / (d^2 + 1e-8)` rather than the `1 / d^2` clamp PyG defaults to. These
-    inference-time quirks live on the blocks themselves so the public model API
-    stays free of them. FPS is already deterministic in `.eval()` mode.
+    `1 / (d^2 + 1e-8)` rather than the `1 / d^2` clamp PyG defaults to.
     """
     for sa in getattr(getattr(model, "encoder", None), "sa_blocks", ()):
         sa.sort_neighbors = True
