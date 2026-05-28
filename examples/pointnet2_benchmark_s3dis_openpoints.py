@@ -1,8 +1,8 @@
-r"""Evaluate `pointnet2-openpoints.s3dis-area5` on S3DIS via the cyclic-voxel test protocol.
+r"""Evaluate `pointnet2-openpoints.s3dis-area5` on S3DIS via the voxel-partition test protocol.
 
 The protocol partitions each room into FNV voxel buckets and runs the model on $K = \max_v c_v$
 sub-clouds; per-sub-cloud logits are scatter-summed to original-point indices. See
-`CyclicVoxelInferer` for the full description.
+`VoxelPartitionInferer` for the full description.
 
 | Model                              | This script             | Reference  |
 | ---------------------------------- | ----------------------- | ---------- |
@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.inferers import CyclicVoxelInferer
+from torch_pointcloud.inferers import VoxelPartitionInferer
 from torch_pointcloud.models._registry import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
@@ -63,7 +63,7 @@ def evaluate(
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for room_idx, room in enumerate(pbar):
-        inferer = CyclicVoxelInferer(
+        inferer = VoxelPartitionInferer(
             voxel_size=voxel_size,
             transform=model_transform,
             sub_batch_size=sub_batch_size,
@@ -134,7 +134,7 @@ def main() -> None:
         print(f"Subset: {len(dataset)} rooms.")
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=args.num_workers, collate_fn=collate)
-    print(f"Voxel: {args.voxel_size} m (cyclic-voxel scatter-back testing)")
+    print(f"Voxel: {args.voxel_size} m (voxel-partition scatter-back testing)")
 
     metrics = evaluate(
         model,

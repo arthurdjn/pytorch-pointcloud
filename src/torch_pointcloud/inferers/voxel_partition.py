@@ -12,7 +12,7 @@ from ._utils import index_select_dict
 from .inferer import Inferer
 
 
-class CyclicVoxelInferer(Inferer):
+class VoxelPartitionInferer(Inferer):
     r"""$K$-pass voxel-partition inferer with scatter-back aggregation.
 
     Partitions input points into FNV voxel buckets at `voxel_size` and runs the predictor on
@@ -37,9 +37,9 @@ class CyclicVoxelInferer(Inferer):
 
     Example:
         ```python
-        from torch_pointcloud.inferers import CyclicVoxelInferer
+        from torch_pointcloud.inferers import VoxelPartitionInferer
 
-        inferer = CyclicVoxelInferer(voxel_size=0.04, sub_batch_size=4, transform=model.transforms)
+        inferer = VoxelPartitionInferer(voxel_size=0.04, sub_batch_size=4, transform=model.transforms)
         logits = inferer(room, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """

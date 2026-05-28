@@ -11,7 +11,7 @@ from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import KeyCollection, OptTensor
+from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
@@ -798,25 +798,6 @@ _OPENPOINTS_CLS_HPARAMS: Dict[str, Any] = dict(
 )
 
 
-class _TakeFirstN(T.DictTransform):
-    """Slice the leading $N$ rows of each listed key.
-
-    Matches openpoints' val protocol on ModelNet40Ply2048 (`current_points = points[:num_points]`):
-    HDF5 / resampled ModelNet variants already store points in FPS-sorted order, so the first $N$
-    points form a deterministic FPS subset without re-running FPS.
-    """
-
-    def __init__(self, keys: KeyCollection, num: int, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.num = num
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        for key in self.iter_keys(d):
-            d[key] = d[key][: self.num]
-        return d
-
-
 @register_model(
     "pointnet2-openpoints.modelnet40",
     task="classification",
@@ -828,40 +809,13 @@ class _TakeFirstN(T.DictTransform):
     ),
     transforms=T.Compose(
         [
-            _TakeFirstN(keys=DataKeys.POS, num=1024),
+            T.Slice(keys=DataKeys.POS, stop=1024),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
         ]
     ),
 )
 def pointnet2_openpoints_modelnet40(**hparams: Any) -> PointNet2Classification:
-    # from the openpoints model zoo: https://guochengqian.github.io/PointNeXt/modelzoo/
     return PointNet2Classification(**hparams)
-
-
-class _OpenPointsStashHeight(T.DictTransform):
-    """Snapshot openpoints' gravity-axis height in `'height'` before pos rescaling.
-
-    openpoints' `PointCloudCenterAndNormalize` computes `heights = pos[:, gravity_dim] - min`
-    on the raw point cloud **before** centering and unit-sphere normalization, so the
-    height channel stays in the original cube units even though `pos` is later normalized.
-    This transform mirrors that ordering: it must run before `T.Rescale` so the height
-    sees raw coordinates.
-
-    openpoints uses `gravity_dim=2` (z-up) on ModelNet40 and `gravity_dim=1` (y-up) on
-    ScanObjectNN.
-    """
-
-    def __init__(self, gravity_dim: int = 2, dst_key: str = "height") -> None:
-        super().__init__(keys=DataKeys.POS, allow_missing_keys=False)
-        self.gravity_dim = gravity_dim
-        self.dst_key = dst_key
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        pos = d[DataKeys.POS]
-        height = pos[:, self.gravity_dim : self.gravity_dim + 1]
-        d[self.dst_key] = height - height.min()
-        return d
 
 
 @register_model(
@@ -876,27 +830,15 @@ class _OpenPointsStashHeight(T.DictTransform):
     transforms=T.Compose(
         [
             T.FarthestPointSample(pos_key=DataKeys.POS, keys=[], num_samples=1024),
-            _OpenPointsStashHeight(gravity_dim=1),
+            T.Slice(keys=DataKeys.POS, start=1, stop=2, dim=1, dst_keys="height"),
+            T.Shift(keys="height", method="min"),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.Cat(keys=[DataKeys.POS, "height"], dst_key=DataKeys.X),
         ]
     ),
 )
 def pointnet2_openpoints_scanobjectnn(**hparams: Any) -> PointNet2Classification:
-    # from the openpoints model zoo: https://guochengqian.github.io/PointNeXt/modelzoo/
     return PointNet2Classification(**hparams)
-
-
-def _apply_openpoints_seg_compat(model: nn.Module) -> None:
-    """Match openpoints' FP interpolation: $1 / (d + 1\\text{e-}8)$ inverse weighting.
-
-    openpoints' `three_interpolation` uses inverse-distance weighting on Euclidean
-    distance (not squared). yanx27 weights by `1 / d^2`; we expose this on each
-    `FPModule` so the openpoints factories can swap in the inverse mode.
-    """
-    for fp in getattr(getattr(model, "decoder", None), "fp_blocks", ()):
-        fp.weighting = "inverse"
-        fp.eps = 1e-8
 
 
 _OPENPOINTS_SEG_HPARAMS: Dict[str, Any] = dict(
@@ -917,37 +859,16 @@ _OPENPOINTS_SEG_HPARAMS: Dict[str, Any] = dict(
 )
 
 
-class _OpenPointsChromaticNormalize(T.DictTransform):
-    """openpoints' `ChromaticNormalize`: optionally divide by 255 then standardize.
-
-    Matches the val-time transform from `openpoints/transforms/point_transformer_gpu.py`
-    (ImageNet-style RGB stats). The auto-divide branch lets the same transform handle
-    HDF5 colors (already in $[0, 1]$) and raw S3DIS rooms (uint8 in $[0, 255]$).
-    """
-
-    _MEAN = torch.tensor([0.5136457, 0.49523646, 0.44921124])
-    _STD = torch.tensor([0.18308958, 0.18415008, 0.19252081])
-
-    def __init__(self) -> None:
-        super().__init__(keys=DataKeys.COLOR, allow_missing_keys=False)
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        color = d[DataKeys.COLOR].float()
-        if color.max() > 1:
-            color = color / 255.0
-        d[DataKeys.COLOR] = (color - self._MEAN.to(color.device)) / self._STD.to(color.device)
-        return d
-
-
 _OPENPOINTS_S3DIS_TRANSFORM = T.Compose(
     [
-        # openpoints' S3DIS model receives `x = cat([color_norm, height])`. Heights come
-        # from `pos[:, gravity_dim]` shifted to start at 0; colors go through
-        # ChromaticNormalize. We add a final `T.Shift` to mirror `PointCloudXYZAlign`
-        # (center pos on its mean, snap z to min) which is what the model saw at training.
-        _OpenPointsStashHeight(gravity_dim=2),
-        _OpenPointsChromaticNormalize(),
+        T.Slice(keys=DataKeys.POS, start=2, stop=3, dim=1, dst_keys="height"),
+        T.Shift(keys="height", method="min"),
+        T.Divide(keys=DataKeys.COLOR, divisor=255.0),
+        T.Normalize(
+            keys=DataKeys.COLOR,
+            mean=[0.5136457, 0.49523646, 0.44921124],
+            std=[0.18308958, 0.18415008, 0.19252081],
+        ),
         T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
         T.Cat(keys=[DataKeys.COLOR, "height"], dst_key=DataKeys.X),
@@ -955,29 +876,75 @@ _OPENPOINTS_S3DIS_TRANSFORM = T.Compose(
 )
 
 
-def _make_openpoints_s3dis_factory(area: int) -> Callable[..., SegmentationModel]:
-    name = f"pointnet2-openpoints.s3dis-area{area}"
-
-    @register_model(
-        name,
-        task="segmentation",
-        weights=f"hf://torch-pointcloud/pointnet2/{name}.pt",
-        hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-        transforms=_OPENPOINTS_S3DIS_TRANSFORM,
-    )
-    def factory(**hparams: Any) -> PointNet2Segmentation:
-        # from the openpoints model zoo: https://guochengqian.github.io/PointNeXt/modelzoo/
-        model = PointNet2Segmentation(**hparams)
-        _apply_openpoints_seg_compat(model)
-        return model
-
-    factory.__name__ = f"pointnet2_openpoints_s3dis_area{area}"
-    return factory
+def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
+    model = PointNet2Segmentation(**hparams)
+    for fp in getattr(getattr(model, "decoder", None), "fp_blocks", ()):
+        fp.weighting = "inverse"
+        fp.eps = 1e-8
+    return model
 
 
-pointnet2_openpoints_s3dis_area1 = _make_openpoints_s3dis_factory(1)
-pointnet2_openpoints_s3dis_area2 = _make_openpoints_s3dis_factory(2)
-pointnet2_openpoints_s3dis_area3 = _make_openpoints_s3dis_factory(3)
-pointnet2_openpoints_s3dis_area4 = _make_openpoints_s3dis_factory(4)
-pointnet2_openpoints_s3dis_area5 = _make_openpoints_s3dis_factory(5)
-pointnet2_openpoints_s3dis_area6 = _make_openpoints_s3dis_factory(6)
+@register_model(
+    "pointnet2-openpoints.s3dis-area1",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area1.pt",
+    hparams=dict(_OPENPOINTS_SEG_HPARAMS),
+    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+)
+def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
+    return _pointnet2_openpoints_s3dis(**hparams)
+
+
+@register_model(
+    "pointnet2-openpoints.s3dis-area2",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area2.pt",
+    hparams=dict(_OPENPOINTS_SEG_HPARAMS),
+    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+)
+def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
+    return _pointnet2_openpoints_s3dis(**hparams)
+
+
+@register_model(
+    "pointnet2-openpoints.s3dis-area3",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area3.pt",
+    hparams=dict(_OPENPOINTS_SEG_HPARAMS),
+    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+)
+def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
+    return _pointnet2_openpoints_s3dis(**hparams)
+
+
+@register_model(
+    "pointnet2-openpoints.s3dis-area4",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area4.pt",
+    hparams=dict(_OPENPOINTS_SEG_HPARAMS),
+    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+)
+def pointnet2_openpoints_s3dis_area4(**hparams: Any) -> PointNet2Segmentation:
+    return _pointnet2_openpoints_s3dis(**hparams)
+
+
+@register_model(
+    "pointnet2-openpoints.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area5.pt",
+    hparams=dict(_OPENPOINTS_SEG_HPARAMS),
+    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+)
+def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
+    return _pointnet2_openpoints_s3dis(**hparams)
+
+
+@register_model(
+    "pointnet2-openpoints.s3dis-area6",
+    task="segmentation",
+    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area6.pt",
+    hparams=dict(_OPENPOINTS_SEG_HPARAMS),
+    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+)
+def pointnet2_openpoints_s3dis_area6(**hparams: Any) -> PointNet2Segmentation:
+    return _pointnet2_openpoints_s3dis(**hparams)

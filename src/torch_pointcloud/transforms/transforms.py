@@ -96,6 +96,7 @@ __all__ = [
     "Shift",
     "ShiftMethod",
     "ShufflePoint",
+    "Slice",
     "SphereCrop",
     "SphereMask",
     "SubtractKey",
@@ -2518,6 +2519,61 @@ class SphereCrop(DictTransform):
             mask[keep] = True
         for key in self.iter_keys(data):
             data[key] = data[key][mask]
+        return data
+
+
+class Slice(DictTransform):
+    """Slice each listed tensor along a chosen dimension via standard Python slicing.
+
+    Useful for taking the first $N$ rows (e.g. on FPS-sorted point clouds), or extracting a
+    single column of `pos` into a separate key (set `dim=1` with `start=axis, stop=axis+1`).
+
+    Args:
+        keys: Keys to slice.
+        start: Start index (inclusive). `None` is equivalent to `0`.
+        stop: Stop index (exclusive). `None` means "to the end".
+        step: Stride between selected positions. `None` is equivalent to `1`.
+        dim: Dimension along which to slice. Defaults to `0` (the row axis).
+        dst_keys: Where to store results. Defaults to `keys`.
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        ```python
+        from torch_pointcloud.transforms import Slice
+
+        # First 1024 rows of `pos` (e.g. an FPS-sorted ModelNet sample).
+        Slice(keys="pos", stop=1024)
+
+        # Extract the gravity axis (z=2) into a `(N, 1)` `height` key.
+        Slice(keys="pos", start=2, stop=3, dim=1, dst_keys="height")
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        step: Optional[int] = None,
+        dim: int = 0,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.start = start
+        self.stop = stop
+        self.step = step
+        self.dim = dim
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        sl = slice(self.start, self.stop, self.step)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            index: list[Any] = [slice(None)] * x.ndim
+            index[self.dim] = sl
+            data[dst_key] = x[tuple(index)]
         return data
 
 
