@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP, MessagePassing, fps, radius
+from torch_geometric.nn import MLP, MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.nn.resolver import activation_resolver
 from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
@@ -11,6 +11,7 @@ from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
 from torch_pointcloud.layers.pools import PoolLike, create_pool
+from torch_pointcloud.utils.cluster import fps, radius
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size, is_iterable
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
@@ -31,16 +32,18 @@ class SAModule(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
-        use_coords: bool = True,
-        normalize_coords: bool = True,
+        use_pos: bool = True,
+        normalize_pos: bool = True,
         pool: PoolLike = "max",
+        sort_neighbors: bool = False,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.channels = ensure_list(channels, recursive=True)
         self.ratio = ratio
-        self.use_coords = use_coords
-        self.normalize_coords = normalize_coords
+        self.use_pos = use_pos
+        self.normalize_pos = normalize_pos
+        self.sort_neighbors = sort_neighbors
 
         # Wrap parameters in list of lists to be compatible with Multi-Scale Grouping (MSG) mode
         self.channels = [self.channels] if not isinstance(self.channels[0], list) else self.channels
@@ -54,7 +57,7 @@ class SAModule(nn.Module):
             extra_msg=extra_msg.format(param="num_neighbors"),
         )
 
-        in_channels = in_channels + spatial_dim if use_coords else in_channels
+        in_channels = in_channels + spatial_dim if use_pos else in_channels
         self.mlps = nn.ModuleList()
         for i in range(len(self.channels)):
             mlp = MLP(
@@ -77,19 +80,20 @@ class SAModule(nn.Module):
         pos: Tensor,
         batch: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        idx = fps(pos, batch, ratio=self.ratio)
+        # In eval mode pin the FPS start to make predictions reproducible across runs.
+        idx = fps(pos, batch, ratio=self.ratio, random_start=self.training)
         new_pos = pos[idx]
         new_batch = batch[idx]
         msg_out = []
 
         for r, k, mlp in zip(self.radii, self.num_neighbors, self.mlps):
-            row, col = radius(pos, new_pos, r, batch, new_batch, max_num_neighbors=k)
+            row, col = radius(pos, new_pos, r, batch, new_batch, max_num_neighbors=k, sort=self.sort_neighbors)
             rel_pos = pos[col] - new_pos[row]
-            if self.normalize_coords:
+            if self.normalize_pos:
                 rel_pos = rel_pos / r
 
             x_j = x[col]
-            if self.use_coords:
+            if self.use_pos:
                 x_j = torch.cat([x_j, rel_pos], dim=1)
 
             x_j = mlp(x_j)
@@ -148,9 +152,13 @@ class FPModule(torch.nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
+        weighting: Literal["squared", "inverse"] = "squared",
+        eps: float = 1e-16,
     ) -> None:
         super().__init__()
         self.k = k
+        self.weighting = weighting
+        self.eps = eps
         self.mlp = MLP(
             [in_channels, *channels],
             act=act,
@@ -171,7 +179,7 @@ class FPModule(torch.nn.Module):
         pos_skip: Tensor,
         batch_skip: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        x = knn_interpolate(x, pos, pos_skip, batch, batch_skip, k=self.k)
+        x = knn_interpolate(x, pos, pos_skip, batch, batch_skip, k=self.k, weighting=self.weighting, eps=self.eps)
         if x_skip is not None:
             x = torch.cat([x, x_skip], dim=1)
 

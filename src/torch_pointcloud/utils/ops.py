@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
 
 import numpy as np
 import torch
@@ -126,9 +126,74 @@ def voxel_grid(
     return grid_cluster(coords, size, start, end)
 
 
-def voxel_grid_fnv(pos: Tensor, size: float, start: Optional[Tensor] = None) -> Tensor:
-    # FNV-1a 64-bit hash of integer coordinate rows.  (N, D) -> (N,)
-    # Adapted from https://github.com/Pointcept/Pointcept/blob/d74c646db6abec569d0f23e0c34e7ddfce142789/pointcept/datasets/transform.py#L840
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[False] = False,
+    return_counts: Literal[False] = False,
+) -> Tensor: ...
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[True],
+    return_counts: Literal[False] = False,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[False] = False,
+    return_counts: Literal[True],
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[True],
+    return_counts: Literal[True],
+) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: bool = False,
+    return_counts: bool = False,
+) -> Union[Tensor, Tuple[Tensor, ...]]:
+    r"""FNV-1a 64-bit hash of integer voxel-grid coordinates. $(N, D) \to (N,)$.
+
+    Args:
+        pos: Point positions of shape $(N, D)$.
+        size: Voxel side length in the same units as `pos`.
+        start: Optional voxel-grid origin. When `None`, the grid origin is implicit via the
+            internal `pos_grid -= pos_grid.min(0)` shift.
+        return_inverse: If `True`, also return the per-point consecutive voxel index in $[0, V)$,
+            following the semantics of `torch.unique(..., return_inverse=True)`.
+        return_counts: If `True`, also return the per-voxel point count of shape $(V,)$.
+
+    Returns:
+        `hashed` of shape $(N,)$ when both flags are `False`. With `return_inverse=True` adds
+        `inverse` of shape $(N,)$; with `return_counts=True` adds `count` of shape $(V,)$; both
+        flags enabled returns `(hashed, inverse, count)`.
+    """
     if start is not None:
         pos_grid = torch.floor((pos - start) / size).int()
     else:
@@ -142,7 +207,17 @@ def voxel_grid_fnv(pos: Tensor, size: float, start: Optional[Tensor] = None) -> 
         hashed *= np.uint64(1099511628211)
         hashed = np.bitwise_xor(hashed, arr[:, j])
 
-    return torch.from_numpy(hashed.view(np.int64)).to(pos.device)
+    hashed_tensor = torch.from_numpy(hashed.view(np.int64)).to(pos.device)
+    if not return_inverse and not return_counts:
+        return hashed_tensor
+
+    inverse = consecutive_cluster(hashed_tensor)
+    assert isinstance(inverse, Tensor)
+    if return_inverse and return_counts:
+        return hashed_tensor, inverse, torch.bincount(inverse)
+    if return_inverse:
+        return hashed_tensor, inverse
+    return hashed_tensor, torch.bincount(inverse)
 
 
 def consecutive_cluster(cluster: Tensor, return_permutation: bool = False) -> Union[Tuple[Tensor, Tensor], Tensor]:
@@ -238,10 +313,10 @@ def knn_interpolate(
         squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
 
         if weighting == "squared":
-            weights = 1.0 / torch.clamp(squared_distance, min=eps)
+            weights = 1.0 / (squared_distance + eps)
         else:
             dist = squared_distance.sqrt()
-            weights = 1.0 / torch.clamp(dist, min=eps)
+            weights = 1.0 / (dist + eps)
 
     y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
     y = y / scatter(weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
