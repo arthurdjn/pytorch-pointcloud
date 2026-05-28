@@ -36,7 +36,6 @@ def main() -> None:
         ratios=[0.2, 0.2, 0.2, 0.2],
         radii=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[32, 32, 32, 32],
-        use_coords=True,
     ).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
