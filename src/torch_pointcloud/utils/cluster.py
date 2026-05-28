@@ -321,3 +321,83 @@ def local_grid(src: Tensor, size: float, batch: Tensor | None = None) -> Tensor:
         src_min = src_min[batch]
 
     return src_quantized - src_min
+
+
+def radius(
+    x: Tensor,
+    y: Tensor,
+    r: float,
+    batch_x: OptTensor = None,
+    batch_y: OptTensor = None,
+    max_num_neighbors: int = 32,
+    sort: bool = False,
+) -> tuple[Tensor, Tensor]:
+    r"""`torch_cluster.radius` wrapper with an optional sort-by-source-index tie-breaker.
+
+    With `sort=False` (default) this just delegates to `torch_cluster.radius` and
+    returns edges in kernel-traversal order. With `sort=True`, when more than
+    `max_num_neighbors` source points lie inside a ball, the $k$ smallest source
+    indices are kept (PointNet++'s reference `query_ball_point` behavior). Pretrained
+    PointNet++ checkpoints from yanx27 / charlesq34 overfit to this selection rule,
+    so reproducing their accuracy requires `sort=True`.
+
+    Args:
+        x: Source positions, shape $(N_x, d)$.
+        y: Query positions, shape $(N_y, d)$.
+        r: Ball radius.
+        batch_x: Batch index for $x$, shape $(N_x,)$. `None` for a single batch.
+        batch_y: Batch index for $y$, shape $(N_y,)$. `None` for a single batch.
+        max_num_neighbors: Max neighbors $k$ kept per query.
+        sort: Sort in-ball source indices ascending and keep the first $k$.
+
+    Returns:
+        `(row, col)` edges. `row` is the query index, `col` is the source index.
+        Centroids with no in-ball neighbors emit zero edges; pooling leaves those
+        rows at the reduction identity.
+    """
+    if not sort:
+        return torch_cluster.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
+
+    # Custom sort-by-source-index ball query. Asking `torch_cluster.radius` for the
+    # full `max_num_neighbors=Nx` over-allocates memory; instead we materialise the
+    # squared-distance matrix per batch element (bounded by $(N_y^b \cdot N_x^b)$).
+    device = x.device
+    if batch_x is None:
+        batch_x = torch.zeros(x.size(0), dtype=torch.long, device=device)
+    if batch_y is None:
+        batch_y = torch.zeros(y.size(0), dtype=torch.long, device=device)
+    n_batches = int(batch_x.max().item()) + 1 if batch_x.numel() else 1
+    k = int(max_num_neighbors)
+    r_sq = float(r) * float(r)
+
+    rows_out: List[Tensor] = []
+    cols_out: List[Tensor] = []
+    for b in range(n_batches):
+        x_mask = batch_x == b
+        y_mask = batch_y == b
+        x_b = x[x_mask]
+        y_b = y[y_mask]
+        if x_b.numel() == 0 or y_b.numel() == 0:
+            continue
+        x_idx_global = torch.nonzero(x_mask, as_tuple=False).flatten()
+        y_idx_global = torch.nonzero(y_mask, as_tuple=False).flatten()
+        nx_b = x_b.size(0)
+        ny_b = y_b.size(0)
+
+        sqr = ((y_b.unsqueeze(1) - x_b.unsqueeze(0)) ** 2).sum(-1)  # (Ny_b, Nx_b)
+        local = torch.arange(nx_b, device=device).unsqueeze(0).expand(ny_b, -1).clone()
+        local = local.masked_fill(sqr > r_sq, nx_b)  # nx_b is the out-of-radius sentinel
+        sorted_local, _ = local.sort(dim=-1)
+        picked = sorted_local[:, :k]  # (Ny_b, min(k, Nx_b))
+        valid_mask = picked < nx_b
+        kept = picked.size(-1)
+
+        local_cols = picked[valid_mask]
+        local_rows = torch.arange(ny_b, device=device).unsqueeze(-1).expand(-1, kept)[valid_mask]
+        rows_out.append(y_idx_global[local_rows])
+        cols_out.append(x_idx_global[local_cols])
+
+    if not rows_out:
+        empty = torch.empty(0, dtype=torch.long, device=device)
+        return empty, empty
+    return torch.cat(rows_out), torch.cat(cols_out)
