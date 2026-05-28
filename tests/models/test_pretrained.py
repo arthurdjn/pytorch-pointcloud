@@ -26,8 +26,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from torch_pointcloud.datasets import (
-    ModelNetNormalResampled,
     S3DIS,
+    ModelNetNormalResampled,
     S3DISHdf5,
     ScanNet20,
     ScanObjectNN,
