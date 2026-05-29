@@ -34,7 +34,7 @@ SEED = 42
 
 
 @torch.inference_mode()
-def forward_once(
+def predict(
     model: torch.nn.Module,
     feat: torch.Tensor,
     grid_coord: torch.Tensor,
@@ -66,7 +66,7 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
         batch = data[DataKeys.BATCH].to(device)
         target = data[DataKeys.SEGMENT].to(device)
 
-        logits, latency_ms = forward_once(model, x, pos_grid, batch, device)
+        logits, latency_ms = predict(model, x, pos_grid, batch, device)
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
