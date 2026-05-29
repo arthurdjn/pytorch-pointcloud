@@ -128,6 +128,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnet2-yanx27.s3dis-area5", "segmentation", "s3dis_hdf5"),
     *[(f"pointnet2-openpoints.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 7)],
     ("pvcnn-mit-han-lab.s3dis-area5", "segmentation", "s3dis_hdf5"),
+    ("ptv3-base.s3dis-area5", "segmentation", "s3dis"),
     # ShapenetPart based models
     ("pointnext-sm.shapenetpart", "segmentation", "shapenetpart"),
     ("pointnext-sm-c64.shapenetpart", "segmentation", "shapenetpart"),
@@ -145,6 +146,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("sonata-lp.scannet20", "segmentation", "scannet20"),
     ("concerto-large-lp.scannet20", "segmentation", "scannet20"),
     ("utonia-lp.scannet20", "segmentation", "scannet20"),
+    ("ptv3-base.scannet20", "segmentation", "scannet20"),
+    ("ptv3-base.scannet200", "segmentation", "scannet20"),
     ("octformer-base.scannet20", "segmentation", "scannet20"),
     ("octformer-base.scannet200", "segmentation", "scannet20"),
     ("dgcnn-antao.scannet20", "segmentation", "scannet20"),

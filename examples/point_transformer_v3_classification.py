@@ -44,9 +44,9 @@ def main() -> None:
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.3,
-        attention="default",
+        attn_kind="default",
         use_flash_attn=True,
-        upcast_attention=False,
+        upcast_attn=False,
         upcast_softmax=False,
     ).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

@@ -5,6 +5,13 @@ For the linear-probe segmentation variant (`utonia-lp.scannet20`), reports mIoU
 latency / throughput is reported (no head, no labels). Utonia's forward takes
 real-valued positions (`pos`) for 3D RoPE in addition to integer grid coords.
 
+Single-forward, voxel-level mIoU on ScanNet20 val (published numbers add test-time augmentation and
+full-resolution per-point evaluation):
+
+| Model               | Here                  |
+| ------------------- | --------------------- |
+| utonia-lp.scannet20 | 71.11 mIoU / 89.04 OA |
+
 Usage:
     uv run --no-sync python examples/utonia_benchmark.py --model utonia-lp.scannet20 --limit 5
     uv run --no-sync python examples/utonia_benchmark.py --model utonia --limit 5

@@ -473,6 +473,20 @@ def test_cat() -> None:
     assert result["x"].shape == (4, 5)
 
 
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster not installed")
+def test_estimate_normals() -> None:
+    grid = torch.linspace(-1.0, 1.0, 20)
+    xx, yy = torch.meshgrid(grid, grid, indexing="ij")
+    plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
+    data = {"pos": plane}
+
+    result = T.EstimateNormals(keys="pos", normal_key="normal", k=16)(data)
+
+    assert result["normal"].shape == (400, 3)
+    # The z=0 plane's normal is the unit z axis.
+    assert torch.allclose(result["normal"][:, 2].abs(), torch.ones(400), atol=1e-5)
+
+
 def test_keep_items() -> None:
     data = {"pos": sentinel.pos, "color": sentinel.color, "drop": sentinel.drop}
     transform = T.KeepItems(keys=["pos", "color"])
