@@ -4,6 +4,13 @@ For the linear-probe segmentation variant (`concerto-large-lp.scannet20`), repor
 mIoU + OA + latency on ScanNet20 val. For encoder-only variants (tiny / small /
 base / large), only latency / throughput is reported (no head, no labels).
 
+Single-forward, voxel-level mIoU on ScanNet20 val (published numbers add test-time augmentation and
+full-resolution per-point evaluation):
+
+| Model                       | Here                  |
+| --------------------------- | --------------------- |
+| concerto-large-lp.scannet20 | 77.68 mIoU / 92.35 OA |
+
 Usage:
     uv run --no-sync python examples/concerto_benchmark.py --model concerto-large-lp.scannet20 --limit 5
     uv run --no-sync python examples/concerto_benchmark.py --model concerto-base --limit 5

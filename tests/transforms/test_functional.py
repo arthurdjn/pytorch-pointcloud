@@ -691,6 +691,35 @@ def test_farthest_point_sample_random_start(mock_fps: Mock) -> None:
     assert result is mock_fps.return_value
 
 
+def test_estimate_normals_planar_patch() -> None:
+    pytest.importorskip("torch_cluster")
+    grid = torch.linspace(-1.0, 1.0, 20)
+    xx, yy = torch.meshgrid(grid, grid, indexing="ij")
+    plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
+
+    normals = F.estimate_normals(plane, k=16)
+
+    assert normals.shape == (400, 3)
+    assert torch.allclose(normals.norm(dim=1), torch.ones(400), atol=1e-5)
+    # The z=0 plane's normal is the z axis.
+    assert torch.allclose(normals[:, 2].abs(), torch.ones(400), atol=1e-5)
+
+
+def test_estimate_normals_respects_batch() -> None:
+    pytest.importorskip("torch_cluster")
+    grid = torch.linspace(-1.0, 1.0, 20)
+    xx, yy = torch.meshgrid(grid, grid, indexing="ij")
+    plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
+    # Second cloud is the same plane translated far along x; neighbours must not cross.
+    pos = torch.cat([plane, plane + torch.tensor([100.0, 0.0, 0.0])])
+    batch = torch.cat([torch.zeros(400, dtype=torch.long), torch.ones(400, dtype=torch.long)])
+
+    normals = F.estimate_normals(pos, k=16, batch=batch)
+
+    assert normals.shape == (800, 3)
+    assert torch.allclose(normals[:, 2].abs(), torch.ones(800), atol=1e-5)
+
+
 def test_cube_mask_keeps_points_inside_chebyshev_ball() -> None:
     x = torch.tensor(
         [
@@ -815,6 +844,15 @@ def test_axis_min_offset_height_feature() -> None:
     assert out.shape == (3, 1)
     # Z column [3, 6, 9], min=3; offsets are [0, 3, 6]
     assert torch.allclose(out, torch.tensor([[0.0], [3.0], [6.0]]))
+
+
+def test_axis_min_offset_quantile_floor() -> None:
+    # Z column 0..100; the q=0.25 quantile is 25, so offsets are z - 25 (VoteNet-style robust floor).
+    z = torch.arange(101, dtype=torch.float32)
+    x = torch.stack([torch.zeros_like(z), torch.zeros_like(z), z], dim=1)
+    out = F.axis_min_offset(x, axis=2, quantile=0.25)
+    assert out.shape == (101, 1)
+    assert torch.allclose(out[:, 0], z - 25.0)
 
 
 def test_axis_min_offset_preserves_dtype() -> None:

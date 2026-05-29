@@ -52,7 +52,7 @@ def model() -> UtoniaSegmentation:
         proj_drop=0.0,
         drop_path=0.3,
         use_flash_attn=False,
-        upcast_attention=False,
+        upcast_attn=False,
         upcast_softmax=False,
         rope_base=10.0,
         dropout=0.0,

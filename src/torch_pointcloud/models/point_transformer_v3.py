@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
@@ -18,7 +19,9 @@ from torch_pointcloud.layers.serialized_attention import (
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
 from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
@@ -33,7 +36,7 @@ AttentionKind = Literal["default", "rpe", "rope"]
 
 
 def _build_attention(
-    attention: AttentionKind,
+    attn_kind: AttentionKind,
     *,
     channels: int,
     num_heads: int,
@@ -43,11 +46,11 @@ def _build_attention(
     attn_drop: float,
     proj_drop: float,
     use_flash_attn: bool,
-    upcast_attention: bool,
+    upcast_attn: bool,
     upcast_softmax: bool,
     rope_base: float,
 ) -> nn.Module:
-    if attention == "default":
+    if attn_kind == "default":
         return SerializedAttention(
             channels=channels,
             num_heads=num_heads,
@@ -57,10 +60,10 @@ def _build_attention(
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
         )
-    if attention == "rpe":
+    if attn_kind == "rpe":
         return SerializedAttentionRPE(
             channels=channels,
             num_heads=num_heads,
@@ -69,10 +72,10 @@ def _build_attention(
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=proj_drop,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
         )
-    if attention == "rope":
+    if attn_kind == "rope":
         return SerializedAttentionRoPE(
             channels=channels,
             num_heads=num_heads,
@@ -82,11 +85,11 @@ def _build_attention(
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             rope_base=rope_base,
         )
-    raise ValueError(f"Unknown attention kind {attention!r}; expected 'default', 'rpe', or 'rope'.")
+    raise ValueError(f"Unknown attention kind {attn_kind!r}; expected 'default', 'rpe', or 'rope'.")
 
 
 def serialize(
@@ -123,13 +126,15 @@ class Block(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         cpe_indice_key: Optional[str] = None,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = True,
+        upcast_attn: bool = True,
         upcast_softmax: bool = True,
         rope_base: float = 10.0,
+        legacy: bool = False,
     ):
         super().__init__()
+        self.legacy = legacy
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
 
@@ -141,11 +146,11 @@ class Block(nn.Module):
             indice_key=cpe_indice_key,
         )
         self.cpe_proj = nn.Linear(channels, channels)
-        self.cpe_norm = normalization_resolver(norm, channels, **norm_kwargs)
+        self.cpe_norm = normalization_resolver("layer_norm", channels, mode="node")
 
-        self.norm1 = normalization_resolver(norm, channels, **norm_kwargs)
+        self.norm1 = normalization_resolver("layer_norm", channels, mode="node")
         self.attn = _build_attention(
-            attention,
+            attn_kind,
             channels=channels,
             num_heads=num_heads,
             patch_size=patch_size,
@@ -154,12 +159,12 @@ class Block(nn.Module):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             rope_base=rope_base,
         )
 
-        self.norm2 = normalization_resolver(norm, channels, **norm_kwargs)
+        self.norm2 = normalization_resolver("layer_norm", channels, mode="node")
         self.mlp = nn.Sequential(
             nn.Linear(channels, int(channels * mlp_ratio)),
             activation_resolver(act, **act_kwargs),
@@ -172,21 +177,17 @@ class Block(nn.Module):
     def forward(
         self,
         x: Tensor,
+        x_sparse: Any,
         pos_grid: Tensor,
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
-    ) -> Any:
-        # Conv + Skip connection
+    ) -> Tuple[Tensor, Any]:
         shortcut = x
-        sparse_x = convert_to_spconv_tensor(x, pos_grid, batch)
-        sparse_x = self.cpe_conv(sparse_x)
-        x = sparse_x.features
-        x = self.cpe_proj(x)
+        x_sparse = self.cpe_conv(x_sparse)
+        x = self.cpe_proj(x_sparse.features)
         x = self.cpe_norm(x)
-
-        # NOTE: Skip connection and save the new shortcut
         x = shortcut = shortcut + x
 
         # Attention branch
@@ -207,9 +208,10 @@ class Block(nn.Module):
         x = self.norm2(x)
         x = self.mlp(x)
         x = self.drop_path(x)
+        x_sparse = x_sparse.replace_feature(x if self.legacy else shortcut + x)
         x = shortcut + x
 
-        return x
+        return x, x_sparse
 
 
 class EncoderBlock(nn.Module):
@@ -229,15 +231,16 @@ class EncoderBlock(nn.Module):
         act: Union[str, Callable] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         cpe_indice_key: Optional[str] = None,
         downsample: Optional[nn.Module] = None,
         serialization_orders: Optional[Sequence[SerializationOrder]] = None,
         shuffle_serialization_orders: bool = False,
         rope_base: float = 10.0,
+        legacy: bool = False,
     ):
         super().__init__()
         self.downsample = downsample
@@ -263,11 +266,12 @@ class EncoderBlock(nn.Module):
                     act_kwargs=act_kwargs,
                     norm_kwargs=norm_kwargs,
                     cpe_indice_key=cpe_indice_key,
-                    attention=attention,
+                    attn_kind=attn_kind,
                     use_flash_attn=use_flash_attn,
-                    upcast_attention=upcast_attention,
+                    upcast_attn=upcast_attn,
                     upcast_softmax=upcast_softmax,
                     rope_base=rope_base,
+                    legacy=legacy,
                 )
             )
 
@@ -339,10 +343,13 @@ class EncoderBlock(nn.Module):
                 serialized_order = torch.argsort(serialized_code, dim=1)
                 serialized_inverse = torch.argsort(serialized_order, dim=1)
 
+        assert x is not None
+        x_sparse = convert_to_spconv_tensor(x, pos_grid, batch)
         for i, block in enumerate(self.blocks):
             order_idx = i % num_serializations
-            x = block(
+            x, x_sparse = block(
                 x,
+                x_sparse,
                 pos_grid,
                 batch,
                 serialized_order=serialized_order[order_idx],
@@ -372,13 +379,14 @@ class DecoderBlock(nn.Module):
         act: Union[str, Callable] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         cpe_indice_key: Optional[str] = None,
         upsample: Optional[SerializedUpsample] = None,
         rope_base: float = 10.0,
+        legacy: bool = False,
     ):
         super().__init__()
         self.upsample = upsample
@@ -402,11 +410,12 @@ class DecoderBlock(nn.Module):
                     act_kwargs=act_kwargs,
                     norm_kwargs=norm_kwargs,
                     cpe_indice_key=cpe_indice_key,
-                    attention=attention,
+                    attn_kind=attn_kind,
                     use_flash_attn=use_flash_attn,
-                    upcast_attention=upcast_attention,
+                    upcast_attn=upcast_attn,
                     upcast_softmax=upcast_softmax,
                     rope_base=rope_base,
+                    legacy=legacy,
                 )
             )
 
@@ -429,16 +438,21 @@ class DecoderBlock(nn.Module):
 
         num_serializations = len(serialized_order_skip)
 
+        cpe_seed = x
         if self.upsample is not None:
             if inverse is None:
                 raise ValueError("`inverse` must be provided when `upsample` module is set.")
 
-            x = self.upsample(x, x_skip, inverse)
+            # Reproduce Pointcept's SerializedUnpooling: the next block's xCPE convolves only the projected
+            # skip branch. Present in every release, so it is unconditional (unlike the block write-back).
+            x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True)
 
+        x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
         for i, block in enumerate(self.blocks):
             order_idx = i % num_serializations
-            x = block(
+            x, x_sparse = block(
                 x,
+                x_sparse,
                 pos_grid_skip,
                 batch_skip,
                 serialized_order=serialized_order_skip[order_idx],
@@ -472,20 +486,23 @@ class PointTransformerV3Encoder(nn.Module):
         attn_drop: Attention dropout rate.
         proj_drop: Projection dropout rate.
         drop_path: Drop path rate.
-        attention: Attention variant: `"default"` (vanilla, PT-V3 / Sonata / Concerto),
+        attn_kind: Attention variant: `"default"` (vanilla, PT-V3 / Sonata / Concerto),
             `"rpe"` (PT-V3 with learned relative position bias), or `"rope"`
             (Utonia, 3D rotary position embedding on `Q`, `K`).
         use_flash_attn: Use Flash Attention.
-        upcast_attention: Upcast attention to fp32.
+        upcast_attn: Upcast attention to fp32.
         upcast_softmax: Upcast softmax to fp32.
         pooling: Pooling strategy — `"serialized"` (code-space bit-shift) or
             `"grid"` (grid-coordinate clustering).
         stem_type: How to embed raw features — `"sparse_conv"` (SubMConv3d stem) or
             `"linear"` (linear projection).
-        rope_base: RoPE frequency base. Only used when `attention="rope"`.
+        rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
         act_kwargs: Optional keyword arguments for the activation factory.
         norm_kwargs: Optional keyword arguments for the normalization factory.
         bias: Whether the stem and blocks use learnable bias where applicable.
+        legacy: Reproduce the Pointcept v1.5.1 block xCPE bug (the block output was not written back to
+            the sparse tensor the next block convolves; fixed in v1.5.2). The released weights need
+            `legacy=True`; leave `False` (default) for new training.
 
     Inputs:
         x: Float tensor of shape $(N, \\text{in\\_channels})$.
@@ -517,20 +534,22 @@ class PointTransformerV3Encoder(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         pooling: str = "serialized",
         stem_type: str = "sparse_conv",
         rope_base: float = 10.0,
+        legacy: bool = False,
     ):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__()
         self.in_channels = in_channels
         self.serialization_orders = ensure_tuple(serialization_orders)
         self.shuffle_serialization_orders = shuffle_serialization_orders
-        self.attention = attention
+        self.attn_kind = attn_kind
+        self.legacy = legacy
 
         self.stem = self.configure_stem(
             in_channels=in_channels,
@@ -556,9 +575,9 @@ class PointTransformerV3Encoder(nn.Module):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
+            attn_kind=attn_kind,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             pooling=pooling,
             serialization_orders=self.serialization_orders,
@@ -566,6 +585,7 @@ class PointTransformerV3Encoder(nn.Module):
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
             rope_base=rope_base,
+            legacy=legacy,
         )
 
     @property
@@ -622,9 +642,9 @@ class PointTransformerV3Encoder(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.0,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         pooling: str = "serialized",
         serialization_orders: Optional[Sequence[SerializationOrder]] = None,
@@ -632,6 +652,7 @@ class PointTransformerV3Encoder(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         rope_base: float = 10.0,
+        legacy: bool = False,
     ) -> nn.ModuleList:
         depths = ensure_tuple(depths)
         n = len(depths)
@@ -674,14 +695,15 @@ class PointTransformerV3Encoder(nn.Module):
                 act_kwargs=act_kwargs,
                 norm_kwargs=norm_kwargs,
                 cpe_indice_key=f"stage{i}",
-                attention=attention,
+                attn_kind=attn_kind,
                 use_flash_attn=use_flash_attn,
-                upcast_attention=upcast_attention,
+                upcast_attn=upcast_attn,
                 upcast_softmax=upcast_softmax,
                 downsample=downsample,
                 serialization_orders=serialization_orders if use_grid_pool else None,
                 shuffle_serialization_orders=shuffle_serialization_orders if use_grid_pool else False,
                 rope_base=rope_base,
+                legacy=legacy,
             )
 
             blocks.append(block)
@@ -788,11 +810,11 @@ class PointTransformerV3Decoder(nn.Module):
         attn_drop: Attention dropout rate.
         proj_drop: Projection dropout rate.
         drop_path: Drop path rate.
-        attention: Attention variant (`"default"`, `"rpe"`, or `"rope"`).
+        attn_kind: Attention variant (`"default"`, `"rpe"`, or `"rope"`).
         use_flash_attn: Use Flash Attention.
-        upcast_attention: Upcast attention to fp32.
+        upcast_attn: Upcast attention to fp32.
         upcast_softmax: Upcast softmax to fp32.
-        rope_base: RoPE frequency base. Only used when `attention="rope"`.
+        rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
 
     Inputs:
         x: Encoded features at the deepest encoder level.
@@ -819,13 +841,14 @@ class PointTransformerV3Decoder(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         rope_base: float = 10.0,
+        legacy: bool = False,
     ):
         super().__init__()
         self.blocks = self.configure_blocks(
@@ -842,13 +865,14 @@ class PointTransformerV3Decoder(nn.Module):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
+            attn_kind=attn_kind,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
             rope_base=rope_base,
+            legacy=legacy,
         )
 
     @property
@@ -870,13 +894,14 @@ class PointTransformerV3Decoder(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.0,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         rope_base: float = 10.0,
+        legacy: bool = False,
     ) -> nn.ModuleList:
         depths = ensure_tuple(depths)
         n = len(depths)
@@ -914,12 +939,13 @@ class PointTransformerV3Decoder(nn.Module):
                 act_kwargs=act_kwargs,
                 norm_kwargs=norm_kwargs,
                 cpe_indice_key=f"stage{i}",
-                attention=attention,
+                attn_kind=attn_kind,
                 use_flash_attn=use_flash_attn,
-                upcast_attention=upcast_attention,
+                upcast_attn=upcast_attn,
                 upcast_softmax=upcast_softmax,
                 upsample=upsample,
                 rope_base=rope_base,
+                legacy=legacy,
             )
 
             blocks.append(block)
@@ -963,11 +989,11 @@ class PointTransformerV3Classification(ClassificationModel):
         attn_drop: Dropout rate for the attention.
         proj_drop: Dropout rate for the output projection of each block.
         drop_path: Stochastic depth rate.
-        attention: Attention variant: `"default"`, `"rpe"`, or `"rope"`.
+        attn_kind: Attention variant: `"default"`, `"rpe"`, or `"rope"`.
         use_flash_attn: Whether to use flash attention.
-        upcast_attention: Whether to upcast the attention to fp32.
+        upcast_attn: Whether to upcast the attention to fp32.
         upcast_softmax: Whether to upcast the softmax in fp32.
-        rope_base: RoPE frequency base. Only used when `attention="rope"`.
+        rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
         dropout: Dropout rate before the classification head.
         global_pool: How to pool point features to a batch-level vector (`"max"`, `"mean"`, *etc.*).
         pooling: Pooling between encoder stages (`"serialized"` or `"grid"`).
@@ -1003,9 +1029,9 @@ class PointTransformerV3Classification(ClassificationModel):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         rope_base: float = 10.0,
         dropout: float = 0.0,
@@ -1014,6 +1040,7 @@ class PointTransformerV3Classification(ClassificationModel):
         stem_type: str = "sparse_conv",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        legacy: bool = False,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder = PointTransformerV3Encoder(
@@ -1033,15 +1060,16 @@ class PointTransformerV3Classification(ClassificationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
+            attn_kind=attn_kind,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             rope_base=rope_base,
             pooling=pooling,
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            legacy=legacy,
         )
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
@@ -1158,10 +1186,10 @@ class PointTransformerV3Segmentation(SegmentationModel):
         proj_drop: Dropout rate for the projection.
         drop_path: Dropout rate for the drop path.
         shuffle_serialization_orders: Whether to shuffle the serialization orders.
-        attention: Attention variant: `"default"`, `"rpe"`, or `"rope"`.
-        rope_base: RoPE frequency base. Only used when `attention="rope"`.
+        attn_kind: Attention variant: `"default"`, `"rpe"`, or `"rope"`.
+        rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
         use_flash_attn: Whether to use flash attention.
-        upcast_attention: Whether to upcast the attention.
+        upcast_attn: Whether to upcast the attention.
         upcast_softmax: Whether to upcast the softmax.
         dropout: Dropout on the per-point logits.
         pooling: Inter-stage pooling (`"serialized"` or `"grid"`).
@@ -1193,9 +1221,9 @@ class PointTransformerV3Segmentation(SegmentationModel):
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
         shuffle_serialization_orders: bool = True,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         rope_base: float = 10.0,
         dropout: float = 0.0,
@@ -1203,6 +1231,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         stem_type: str = "sparse_conv",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        legacy: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder = PointTransformerV3Encoder(
@@ -1222,15 +1251,16 @@ class PointTransformerV3Segmentation(SegmentationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
+            attn_kind=attn_kind,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             rope_base=rope_base,
             pooling=pooling,
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            legacy=legacy,
         )
         self.decoder = PointTransformerV3Decoder(
             encoder_channels=encoder_channels,
@@ -1246,13 +1276,14 @@ class PointTransformerV3Segmentation(SegmentationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
+            attn_kind=attn_kind,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             rope_base=rope_base,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            legacy=legacy,
         )
         self.dropout = dropout
         self.head = create_cls_head(num_features=self.out_channels, num_classes=self.num_classes)
@@ -1306,3 +1337,102 @@ class PointTransformerV3Segmentation(SegmentationModel):
         x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, intermediates)
         return self.forward_head(x)
+
+
+def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", patch_size: int = 1024) -> Dict[str, Any]:
+    """Shared PT-v3m1 segmentation hparams (ScanNet / ScanNet200 / S3DIS share the architecture).
+
+    `legacy=True` reproduces the released v1.5.1 checkpoints. The S3DIS variant uses `attn_kind="rpe"` with
+    `patch_size=128` (the relative-position table size is derived from the patch size). RPE attention computes
+    the explicit attention matrix, so flash attention is disabled.
+    """
+    return dict(
+        in_channels=6,
+        num_classes=num_classes,
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(32, 64, 128, 256, 512),
+        encoder_num_head=(2, 4, 8, 16, 32),
+        encoder_patch_size=(patch_size,) * 5,
+        decoder_depths=(2, 2, 2, 2),
+        decoder_channels=(256, 128, 64, 64),
+        decoder_num_head=(16, 8, 4, 4),
+        decoder_patch_size=(patch_size,) * 4,
+        mlp_ratio=4,
+        drop_path=0.3,
+        attn_kind=attn_kind,
+        use_flash_attn=attn_kind != "rpe",
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        legacy=True,
+    )
+
+
+def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimate_normals: bool = False) -> T.Compose:
+    """Color+normal feature pipeline shared by the PT-v3m1 segmentation models.
+
+    `relabel_labels` shifts the dataset's $1..K$ class labels (0 reserved for unknown) down to $0..K-1$ and
+    sends everything else to the ignore index: `range(1, 21)` for ScanNet20, `range(1, 201)` for ScanNet200.
+    Pass `None` when labels are already 0-based (S3DIS).
+
+    Set `estimate_normals=True` for datasets without normals (S3DIS): normals are estimated by local PCA, which
+    approximates (does not equal) the mesh normals the released weights were trained on.
+    """
+    steps: List[Any] = [
+        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+        T.Divide(keys=DataKeys.COLOR, divisor=255),
+    ]
+    if estimate_normals:
+        steps.append(T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True))
+    steps += [
+        T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="grid",
+            keys=[DataKeys.X, DataKeys.SEGMENT],
+            reduce=["first", "first"],
+            size=0.02,
+            method="fnv",
+        ),
+        T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
+    ]
+    if relabel_labels is not None:
+        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
+    return T.Compose(steps)
+
+
+@register_model(
+    "ptv3-base.scannet20",
+    task="segmentation",
+    weights="hf://torch-pointcloud/ptv3/ptv3-base.scannet20.pth",
+    transforms=_ptv3_seg_transforms(range(1, 21)),
+    hparams=_ptv3_seg_hparams(20),
+)
+def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-base.scannet200",
+    task="segmentation",
+    weights="hf://torch-pointcloud/ptv3/ptv3-base.scannet200.pth",
+    transforms=_ptv3_seg_transforms(range(1, 201)),
+    hparams=_ptv3_seg_hparams(200),
+)
+def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-base.s3dis-area5",
+    task="segmentation",
+    weights="hf://torch-pointcloud/ptv3/ptv3-base.s3dis-area5.pth",
+    transforms=_ptv3_seg_transforms(None, estimate_normals=True),
+    hparams=_ptv3_seg_hparams(13, attn_kind="rpe", patch_size=128),
+)
+def ptv3_base_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)

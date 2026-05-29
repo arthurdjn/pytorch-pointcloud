@@ -1,14 +1,17 @@
-"""Benchmark Sonata semantic segmentation on ScanNet.
+"""Benchmark Point Transformer V3 semantic segmentation on ScanNet / ScanNet200.
 
-`sonata-lp.scannet20` is a linear-probe head on the frozen Sonata encoder. Single-forward, voxel-level mIoU
-on ScanNet20 val (the paper's ~72.5 adds test-time augmentation and full-resolution per-point evaluation):
+The released PT-v3m1 weights are v1.5.1-trained, so the registered models load with `legacy=True`.
+Single-forward, voxel-level mIoU on val (the zoo numbers add test-time augmentation and full-resolution
+per-point evaluation):
 
-| Model               | Here                  |
-| ------------------- | --------------------- |
-| sonata-lp.scannet20 | 71.93 mIoU / 90.02 OA |
+| Model                | Zoo (TTA) | Here                  |
+| -------------------- | --------- | --------------------- |
+| ptv3-base.scannet20  | 77.6      | 76.04 mIoU / 91.67 OA |
+| ptv3-base.scannet200 | 35.3      | 32.09 mIoU / 83.34 OA |
 
 Usage:
-    uv run --no-sync python examples/sonata_benchmark_scannet.py --limit 5
+    uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet20 --limit 5
+    uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet200
 """
 
 import argparse
@@ -22,7 +25,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import ScanNet20
+from torch_pointcloud.datasets import ScanNet20, ScanNet200
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
@@ -65,11 +68,11 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         x = data[DataKeys.X].to(device)
-        pos = data[DataKeys.POS].to(device)
+        pos_grid = data[DataKeys.POS_GRID].to(device)
         batch = data[DataKeys.BATCH].to(device)
         target = data[DataKeys.SEGMENT].to(device)
 
-        logits, latency_ms = predict(model, x, pos, batch, device)
+        logits, latency_ms = predict(model, x, pos_grid, batch, device)
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
@@ -90,9 +93,9 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark Sonata semantic segmentation on ScanNet.")
-    parser.add_argument("--model", default="sonata-lp.scannet20", help="Registered segmentation model name")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser = argparse.ArgumentParser(description="Benchmark PT-v3 semantic segmentation on ScanNet.")
+    parser.add_argument("--model", default="ptv3-base.scannet20", help="Registered segmentation model name")
+    parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])
     parser.add_argument("--seed", default=SEED, type=int)
@@ -113,7 +116,8 @@ def main() -> None:
     num_classes = int(model.num_classes)
     transform = model_info.get("transforms")
 
-    dataset: Dataset = ScanNet20(
+    dataset_cls = ScanNet200 if "scannet200" in args.model else ScanNet20
+    dataset: Dataset = dataset_cls(
         root=args.root,
         split=args.split,
         transform=transform,
