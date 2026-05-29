@@ -1,21 +1,12 @@
 """Benchmark Point Transformer V3 semantic segmentation on S3DIS Area-5.
 
-The released `s3dis-semseg-pt-v3m1-0-rpe` weights (`legacy=True`, rpe attention) were trained on normals read
-from the raw Stanford mesh (`face_normals`). That mesh is not part of the S3DIS point-cloud download, so the
-registered transform estimates normals from the coordinates by local PCA (`EstimateNormals`,
-`orient_to_centroid=True`). These approximate, but do not equal, the training normals.
+The released `s3dis-semseg-pt-v3m1-0-rpe` weights were trained on mesh-derived normals, which the S3DIS
+point-cloud download does not include. The registered transform estimates normals by local PCA
+(`EstimateNormals`, `orient_to_centroid=True`), so Area-5 mIoU here (~31.0 / OA ~68.7, single forward) is well
+below the paper's 73.6 (mesh normals + TTA).
 
-Single-forward, whole-room, voxel-level mIoU on Area-5 (no test-time augmentation):
-
-| Setup                                       | mIoU   | OA     |
-| ------------------------------------------- | ------ | ------ |
-| Paper (mesh normals + TTA)                  | 73.6   | -      |
-| Here: estimated normals, single forward     | ~31.0  | ~68.7  |
-
-The gap is the estimated-vs-mesh normals plus the missing TTA, not a conversion or architecture bug (the
-checkpoint loads strictly and ScanNet reproduces). RPE attention runs without flash and materialises the
-per-patch relative-position bias, so the largest rooms can exhaust GPU memory; such rooms are skipped (counted
-as `test/skipped_rooms`). Run with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` to fit more rooms.
+RPE attention materialises the per-patch relative-position bias, so the largest rooms can exhaust GPU memory
+and are skipped (`test/skipped_rooms`); run with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` to fit more.
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_s3dis.py --limit 5

@@ -1,18 +1,13 @@
 """Benchmark Point Transformer V3 semantic segmentation on ScanNet / ScanNet200.
 
-The released PT-v3m1 weights were trained under Pointcept v1.5.1, so the registered models load with
-`legacy=True` (see `torch_pointcloud.models.point_transformer_v3`).
+The released PT-v3m1 weights are v1.5.1-trained, so the registered models load with `legacy=True`.
+Single-forward, voxel-level mIoU on val (the zoo numbers add test-time augmentation and full-resolution
+per-point evaluation):
 
-Single-forward, voxel-level mIoU on the val set (no test-time augmentation):
-
-| Model                | Pointcept zoo (TTA) | Here (single forward, voxel) |
-| -------------------- | ------------------- | ---------------------------- |
-| ptv3-base.scannet20  | 77.6 mIoU           | 76.04 mIoU / 91.67 OA        |
-| ptv3-base.scannet200 | 35.3 mIoU           | 32.09 mIoU / 83.34 OA        |
-
-The gap is the eval protocol: the zoo numbers use test-time augmentation and full-resolution (per-point)
-evaluation, while this script runs a single forward over voxelized features. The forward itself is bit-identical
-to Pointcept's reference (`notebooks/ptv3/verify_sonata.py`: cosine 1.0, max_diff 0 with explicit attention).
+| Model                | Zoo (TTA) | Here                  |
+| -------------------- | --------- | --------------------- |
+| ptv3-base.scannet20  | 77.6      | 76.04 mIoU / 91.67 OA |
+| ptv3-base.scannet200 | 35.3      | 32.09 mIoU / 83.34 OA |
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet20 --limit 5

@@ -1,15 +1,11 @@
 """Benchmark Sonata semantic segmentation on ScanNet.
 
 `sonata-lp.scannet20` is a linear-probe head on the frozen Sonata encoder. Single-forward, voxel-level mIoU
-on ScanNet20 val (no test-time augmentation):
+on ScanNet20 val (the paper's ~72.5 adds test-time augmentation and full-resolution per-point evaluation):
 
-| Model               | Reference (linear probe) | Here (single forward, voxel) |
-| ------------------- | ------------------------ | ---------------------------- |
-| sonata-lp.scannet20 | ~72.5 mIoU (paper)       | 71.93 mIoU / 90.02 OA        |
-
-The small gap is the eval protocol (published linear-probe numbers use test-time augmentation and
-full-resolution per-point evaluation), not the model: the encoder is bit-identical to Pointcept's original
-Sonata (`notebooks/ptv3/verify_sonata.py`: cosine 1.0, max_diff 0 with explicit attention).
+| Model               | Here                  |
+| ------------------- | --------------------- |
+| sonata-lp.scannet20 | 71.93 mIoU / 90.02 OA |
 
 Usage:
     uv run --no-sync python examples/sonata_benchmark_scannet.py --limit 5
