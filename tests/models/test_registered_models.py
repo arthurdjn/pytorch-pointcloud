@@ -77,6 +77,9 @@ SEGMENTATION_MODELS = [
     "octformer-base.sm",
     "octformer-base.scannet20",
     "octformer-base.scannet200",
+    "oneformer3d-base.s3dis-area5",
+    "oneformer3d-base.scannet20",
+    "oneformer3d-base.scannet200",
     "pointcnn-base",
     "pointmlp-base",
     "pointmlp-elite",
@@ -137,12 +140,14 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "oneformer3d")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
+    if model_name.startswith("oneformer3d") and not _TORCH_SCATTER_AVAILABLE:
+        pytest.skip("torch_scatter is not installed")
 
 
 # Models whose `forward` cannot run on the synthetic `data_factory` input — they expect
-# voxelized / serialized / octree-encoded inputs that the factory doesn't emit yet.
+# serialized / octree-encoded inputs that the factory doesn't emit yet.
 _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
     {
         "octformer-base.modelnet40",
@@ -150,7 +155,6 @@ _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
         "sonata-lp.scannet20",
         "concerto-large-lp.scannet20",
         "utonia-lp.scannet20",
-        "spunet-v1m1.scannet20",
     }
 )
 
@@ -158,7 +162,7 @@ _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
 def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
+    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "oneformer3d")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
@@ -168,6 +172,33 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
         pytest.skip("Synthetic test cloud is too small for /4 decimation with K=16.")
 
 
+def _check_output_tensor(output: object, *, label: str, expected_shape: tuple[int, int], allow_nonfinite: bool) -> None:
+    """Check a per-point/per-object logits tensor: float dtype, finite, expected shape."""
+    assert isinstance(output, torch.Tensor), f"{label}: expected Tensor, got {type(output).__name__}"
+    assert torch.is_floating_point(output), f"{label}: non-float dtype {output.dtype}"
+    if not allow_nonfinite:
+        assert torch.isfinite(output).all().item(), f"{label}: output contains NaN or Inf"
+    assert tuple(output.shape) == expected_shape, (
+        f"{label}: output shape {tuple(output.shape)} != expected {expected_shape}"
+    )
+
+
+def _check_output_dict(output: dict, *, label: str) -> None:
+    """Check a OneFormer3D-style output: a dict of per-scene lists, not per-point logits.
+
+    `cls_preds` is over instance classes (independent of the semantic `num_classes`), so
+    we only check structural validity, not a specific class count.
+    """
+    cls_preds = output["cls_preds"]
+    assert isinstance(cls_preds, list) and len(cls_preds) >= 1, f"{label}: empty cls_preds"
+    last_dims = {cls_pred.shape[-1] for cls_pred in cls_preds}
+    assert len(last_dims) == 1, f"{label}: inconsistent cls_preds class dims {last_dims}"
+    for cls_pred in cls_preds:
+        assert cls_pred.ndim == 2, f"{label}: cls_preds should be 2D, got {cls_pred.ndim}D"
+        assert torch.is_floating_point(cls_pred), f"{label}: non-float cls_preds {cls_pred.dtype}"
+        assert torch.isfinite(cls_pred).all().item(), f"{label}: cls_preds has NaN or Inf"
+
+
 def _check_forward_output(
     output: object,
     *,
@@ -175,20 +206,22 @@ def _check_forward_output(
     task: str,
     expected_shape: tuple[int, int],
 ) -> None:
-    """Assert that `output` is a structurally valid logits tensor.
+    """Assert that `output` is structurally valid.
 
     We deliberately don't snapshot values: random-weight numerics are fragile across
     torch / CUDA / scatter-op versions and would flap without catching real model bugs.
     """
     label = f"{model_name} ({task})"
-    assert isinstance(output, torch.Tensor), f"{label}: expected Tensor, got {type(output).__name__}"
-    assert torch.is_floating_point(output), f"{label}: non-float dtype {output.dtype}"
+    if isinstance(output, dict):
+        _check_output_dict(output, label=label)
+        return
     # KDE-based density estimation in `pointconv-density` is numerically unstable with
     # random weights at small `in_channels`. Pretrained weights converge to finite output.
-    if not model_name.startswith("pointconv-density"):
-        assert torch.isfinite(output).all().item(), f"{label}: output contains NaN or Inf"
-    assert tuple(output.shape) == expected_shape, (
-        f"{label}: output shape {tuple(output.shape)} != expected {expected_shape}"
+    _check_output_tensor(
+        output,
+        label=label,
+        expected_shape=expected_shape,
+        allow_nonfinite=model_name.startswith("pointconv-density"),
     )
 
 
@@ -316,6 +349,29 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, models_di
     )
 
 
+def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, torch.Tensor]:
+    """Synthetic sparse-voxel inputs for spconv / superpoint models.
+
+    `pos_grid` holds unique integer voxel coords per scene (no duplicates, so submanifold
+    convs are well defined); each point is its own voxel (`inverse`) and superpoint, re-based
+    per scene so ids are globally disjoint. Point-based models ignore these keys.
+    """
+    gen = torch.Generator().manual_seed(42)
+    grid_parts: List[torch.Tensor] = []
+    superpoint_parts: List[torch.Tensor] = []
+    running = 0
+    for length in lengths.tolist():
+        flat = torch.randperm(grid_size**3, generator=gen)[:length]
+        grid_parts.append(torch.stack([flat // grid_size**2, (flat // grid_size) % grid_size, flat % grid_size], 1))
+        superpoint_parts.append(torch.arange(length) + running)
+        running += length
+    return {
+        "pos_grid": torch.cat(grid_parts).long(),
+        "superpoint": torch.cat(superpoint_parts).long(),
+        "inverse": torch.arange(int(lengths.sum())),
+    }
+
+
 @pytest.fixture
 def data_factory() -> Callable[[int, int], Dict[str, Any]]:
     def create_data(
@@ -329,6 +385,7 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
         x = torch.randn(int(lengths.sum()), in_channels) if in_channels > 0 else None
         batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
         cls_onehot = torch.zeros(len(lengths), num_categories) if num_categories > 0 else None
+        voxel = _make_voxel_inputs(lengths)
 
         octree = None
         if _OCNN_AVAILABLE:
@@ -350,6 +407,7 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
             batch=batch,
             cls_onehot=cls_onehot,
             category=cls_onehot,
+            **voxel,
         )
 
     return create_data

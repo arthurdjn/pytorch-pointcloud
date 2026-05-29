@@ -1,0 +1,1361 @@
+{
+  "num_params": 17509886,
+  "state_dict": {
+    "unet.encoder.stem.weight": [
+      32,
+      3,
+      3,
+      3,
+      3
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.0.module.weight": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.0.module.bias": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.0.module.running_mean": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.0.module.running_var": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.0.blocks.block0.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.0.module.weight": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.0.module.bias": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.0.module.running_mean": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.0.module.running_var": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.0.blocks.block1.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.encoder.blocks.1.downsample.0.module.weight": [
+      32
+    ],
+    "unet.encoder.blocks.1.downsample.0.module.bias": [
+      32
+    ],
+    "unet.encoder.blocks.1.downsample.0.module.running_mean": [
+      32
+    ],
+    "unet.encoder.blocks.1.downsample.0.module.running_var": [
+      32
+    ],
+    "unet.encoder.blocks.1.downsample.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.1.downsample.2.weight": [
+      64,
+      2,
+      2,
+      2,
+      32
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.1.blocks.block0.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.1.blocks.block1.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.encoder.blocks.2.downsample.0.module.weight": [
+      64
+    ],
+    "unet.encoder.blocks.2.downsample.0.module.bias": [
+      64
+    ],
+    "unet.encoder.blocks.2.downsample.0.module.running_mean": [
+      64
+    ],
+    "unet.encoder.blocks.2.downsample.0.module.running_var": [
+      64
+    ],
+    "unet.encoder.blocks.2.downsample.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.2.downsample.2.weight": [
+      96,
+      2,
+      2,
+      2,
+      64
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.0.module.weight": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.0.module.bias": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.0.module.running_mean": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.0.module.running_var": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.2.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.3.module.weight": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.3.module.bias": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.3.module.running_mean": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.3.module.running_var": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.2.blocks.block0.conv_branch.5.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.0.module.weight": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.0.module.bias": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.0.module.running_mean": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.0.module.running_var": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.2.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.3.module.weight": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.3.module.bias": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.3.module.running_mean": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.3.module.running_var": [
+      96
+    ],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.2.blocks.block1.conv_branch.5.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.encoder.blocks.3.downsample.0.module.weight": [
+      96
+    ],
+    "unet.encoder.blocks.3.downsample.0.module.bias": [
+      96
+    ],
+    "unet.encoder.blocks.3.downsample.0.module.running_mean": [
+      96
+    ],
+    "unet.encoder.blocks.3.downsample.0.module.running_var": [
+      96
+    ],
+    "unet.encoder.blocks.3.downsample.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.3.downsample.2.weight": [
+      128,
+      2,
+      2,
+      2,
+      96
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.3.blocks.block0.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.3.blocks.block1.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.encoder.blocks.4.downsample.0.module.weight": [
+      128
+    ],
+    "unet.encoder.blocks.4.downsample.0.module.bias": [
+      128
+    ],
+    "unet.encoder.blocks.4.downsample.0.module.running_mean": [
+      128
+    ],
+    "unet.encoder.blocks.4.downsample.0.module.running_var": [
+      128
+    ],
+    "unet.encoder.blocks.4.downsample.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.4.downsample.2.weight": [
+      160,
+      2,
+      2,
+      2,
+      128
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.0.module.weight": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.0.module.bias": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.0.module.running_mean": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.0.module.running_var": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.2.weight": [
+      160,
+      3,
+      3,
+      3,
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.3.module.weight": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.3.module.bias": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.3.module.running_mean": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.3.module.running_var": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.4.blocks.block0.conv_branch.5.weight": [
+      160,
+      3,
+      3,
+      3,
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.0.module.weight": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.0.module.bias": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.0.module.running_mean": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.0.module.running_var": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.2.weight": [
+      160,
+      3,
+      3,
+      3,
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.3.module.weight": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.3.module.bias": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.3.module.running_mean": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.3.module.running_var": [
+      160
+    ],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.encoder.blocks.4.blocks.block1.conv_branch.5.weight": [
+      160,
+      3,
+      3,
+      3,
+      160
+    ],
+    "unet.decoder.blocks.0.upsample.0.module.weight": [
+      160
+    ],
+    "unet.decoder.blocks.0.upsample.0.module.bias": [
+      160
+    ],
+    "unet.decoder.blocks.0.upsample.0.module.running_mean": [
+      160
+    ],
+    "unet.decoder.blocks.0.upsample.0.module.running_var": [
+      160
+    ],
+    "unet.decoder.blocks.0.upsample.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.0.upsample.2.weight": [
+      128,
+      2,
+      2,
+      2,
+      160
+    ],
+    "unet.decoder.blocks.0.blocks.block0.i_branch.weight": [
+      128,
+      1,
+      1,
+      1,
+      256
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.0.blocks.block0.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.0.blocks.block1.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.decoder.blocks.1.upsample.0.module.weight": [
+      128
+    ],
+    "unet.decoder.blocks.1.upsample.0.module.bias": [
+      128
+    ],
+    "unet.decoder.blocks.1.upsample.0.module.running_mean": [
+      128
+    ],
+    "unet.decoder.blocks.1.upsample.0.module.running_var": [
+      128
+    ],
+    "unet.decoder.blocks.1.upsample.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.1.upsample.2.weight": [
+      96,
+      2,
+      2,
+      2,
+      128
+    ],
+    "unet.decoder.blocks.1.blocks.block0.i_branch.weight": [
+      96,
+      1,
+      1,
+      1,
+      192
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.0.module.weight": [
+      192
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.0.module.bias": [
+      192
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.0.module.running_mean": [
+      192
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.0.module.running_var": [
+      192
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.2.weight": [
+      96,
+      3,
+      3,
+      3,
+      192
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.3.module.weight": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.3.module.bias": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.3.module.running_mean": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.3.module.running_var": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.1.blocks.block0.conv_branch.5.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.0.module.weight": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.0.module.bias": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.0.module.running_mean": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.0.module.running_var": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.2.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.3.module.weight": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.3.module.bias": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.3.module.running_mean": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.3.module.running_var": [
+      96
+    ],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.1.blocks.block1.conv_branch.5.weight": [
+      96,
+      3,
+      3,
+      3,
+      96
+    ],
+    "unet.decoder.blocks.2.upsample.0.module.weight": [
+      96
+    ],
+    "unet.decoder.blocks.2.upsample.0.module.bias": [
+      96
+    ],
+    "unet.decoder.blocks.2.upsample.0.module.running_mean": [
+      96
+    ],
+    "unet.decoder.blocks.2.upsample.0.module.running_var": [
+      96
+    ],
+    "unet.decoder.blocks.2.upsample.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.2.upsample.2.weight": [
+      64,
+      2,
+      2,
+      2,
+      96
+    ],
+    "unet.decoder.blocks.2.blocks.block0.i_branch.weight": [
+      64,
+      1,
+      1,
+      1,
+      128
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.2.blocks.block0.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.2.blocks.block1.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.decoder.blocks.3.upsample.0.module.weight": [
+      64
+    ],
+    "unet.decoder.blocks.3.upsample.0.module.bias": [
+      64
+    ],
+    "unet.decoder.blocks.3.upsample.0.module.running_mean": [
+      64
+    ],
+    "unet.decoder.blocks.3.upsample.0.module.running_var": [
+      64
+    ],
+    "unet.decoder.blocks.3.upsample.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.3.upsample.2.weight": [
+      32,
+      2,
+      2,
+      2,
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.i_branch.weight": [
+      32,
+      1,
+      1,
+      1,
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.3.blocks.block0.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.0.module.weight": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.0.module.bias": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.0.module.running_mean": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.0.module.running_var": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.decoder.blocks.3.blocks.block1.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.head.0.module.weight": [
+      32
+    ],
+    "unet.head.0.module.bias": [
+      32
+    ],
+    "unet.head.0.module.running_mean": [
+      32
+    ],
+    "unet.head.0.module.running_var": [
+      32
+    ],
+    "unet.head.0.module.num_batches_tracked": [],
+    "head.input_proj.0.weight": [
+      256,
+      32
+    ],
+    "head.input_proj.0.bias": [
+      256
+    ],
+    "head.input_proj.1.weight": [
+      256
+    ],
+    "head.input_proj.1.bias": [
+      256
+    ],
+    "head.query_proj.0.weight": [
+      256,
+      32
+    ],
+    "head.query_proj.0.bias": [
+      256
+    ],
+    "head.query_proj.2.weight": [
+      256,
+      256
+    ],
+    "head.query_proj.2.bias": [
+      256
+    ],
+    "head.cross_attn_layers.0.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.cross_attn_layers.0.attn.in_proj_bias": [
+      768
+    ],
+    "head.cross_attn_layers.0.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.cross_attn_layers.0.attn.out_proj.bias": [
+      256
+    ],
+    "head.cross_attn_layers.0.norm.weight": [
+      256
+    ],
+    "head.cross_attn_layers.0.norm.bias": [
+      256
+    ],
+    "head.cross_attn_layers.1.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.cross_attn_layers.1.attn.in_proj_bias": [
+      768
+    ],
+    "head.cross_attn_layers.1.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.cross_attn_layers.1.attn.out_proj.bias": [
+      256
+    ],
+    "head.cross_attn_layers.1.norm.weight": [
+      256
+    ],
+    "head.cross_attn_layers.1.norm.bias": [
+      256
+    ],
+    "head.cross_attn_layers.2.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.cross_attn_layers.2.attn.in_proj_bias": [
+      768
+    ],
+    "head.cross_attn_layers.2.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.cross_attn_layers.2.attn.out_proj.bias": [
+      256
+    ],
+    "head.cross_attn_layers.2.norm.weight": [
+      256
+    ],
+    "head.cross_attn_layers.2.norm.bias": [
+      256
+    ],
+    "head.cross_attn_layers.3.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.cross_attn_layers.3.attn.in_proj_bias": [
+      768
+    ],
+    "head.cross_attn_layers.3.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.cross_attn_layers.3.attn.out_proj.bias": [
+      256
+    ],
+    "head.cross_attn_layers.3.norm.weight": [
+      256
+    ],
+    "head.cross_attn_layers.3.norm.bias": [
+      256
+    ],
+    "head.cross_attn_layers.4.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.cross_attn_layers.4.attn.in_proj_bias": [
+      768
+    ],
+    "head.cross_attn_layers.4.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.cross_attn_layers.4.attn.out_proj.bias": [
+      256
+    ],
+    "head.cross_attn_layers.4.norm.weight": [
+      256
+    ],
+    "head.cross_attn_layers.4.norm.bias": [
+      256
+    ],
+    "head.cross_attn_layers.5.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.cross_attn_layers.5.attn.in_proj_bias": [
+      768
+    ],
+    "head.cross_attn_layers.5.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.cross_attn_layers.5.attn.out_proj.bias": [
+      256
+    ],
+    "head.cross_attn_layers.5.norm.weight": [
+      256
+    ],
+    "head.cross_attn_layers.5.norm.bias": [
+      256
+    ],
+    "head.self_attn_layers.0.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.self_attn_layers.0.attn.in_proj_bias": [
+      768
+    ],
+    "head.self_attn_layers.0.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.self_attn_layers.0.attn.out_proj.bias": [
+      256
+    ],
+    "head.self_attn_layers.0.norm.weight": [
+      256
+    ],
+    "head.self_attn_layers.0.norm.bias": [
+      256
+    ],
+    "head.self_attn_layers.1.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.self_attn_layers.1.attn.in_proj_bias": [
+      768
+    ],
+    "head.self_attn_layers.1.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.self_attn_layers.1.attn.out_proj.bias": [
+      256
+    ],
+    "head.self_attn_layers.1.norm.weight": [
+      256
+    ],
+    "head.self_attn_layers.1.norm.bias": [
+      256
+    ],
+    "head.self_attn_layers.2.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.self_attn_layers.2.attn.in_proj_bias": [
+      768
+    ],
+    "head.self_attn_layers.2.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.self_attn_layers.2.attn.out_proj.bias": [
+      256
+    ],
+    "head.self_attn_layers.2.norm.weight": [
+      256
+    ],
+    "head.self_attn_layers.2.norm.bias": [
+      256
+    ],
+    "head.self_attn_layers.3.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.self_attn_layers.3.attn.in_proj_bias": [
+      768
+    ],
+    "head.self_attn_layers.3.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.self_attn_layers.3.attn.out_proj.bias": [
+      256
+    ],
+    "head.self_attn_layers.3.norm.weight": [
+      256
+    ],
+    "head.self_attn_layers.3.norm.bias": [
+      256
+    ],
+    "head.self_attn_layers.4.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.self_attn_layers.4.attn.in_proj_bias": [
+      768
+    ],
+    "head.self_attn_layers.4.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.self_attn_layers.4.attn.out_proj.bias": [
+      256
+    ],
+    "head.self_attn_layers.4.norm.weight": [
+      256
+    ],
+    "head.self_attn_layers.4.norm.bias": [
+      256
+    ],
+    "head.self_attn_layers.5.attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "head.self_attn_layers.5.attn.in_proj_bias": [
+      768
+    ],
+    "head.self_attn_layers.5.attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "head.self_attn_layers.5.attn.out_proj.bias": [
+      256
+    ],
+    "head.self_attn_layers.5.norm.weight": [
+      256
+    ],
+    "head.self_attn_layers.5.norm.bias": [
+      256
+    ],
+    "head.ffn_layers.0.net.0.weight": [
+      1024,
+      256
+    ],
+    "head.ffn_layers.0.net.0.bias": [
+      1024
+    ],
+    "head.ffn_layers.0.net.3.weight": [
+      256,
+      1024
+    ],
+    "head.ffn_layers.0.net.3.bias": [
+      256
+    ],
+    "head.ffn_layers.0.norm.weight": [
+      256
+    ],
+    "head.ffn_layers.0.norm.bias": [
+      256
+    ],
+    "head.ffn_layers.1.net.0.weight": [
+      1024,
+      256
+    ],
+    "head.ffn_layers.1.net.0.bias": [
+      1024
+    ],
+    "head.ffn_layers.1.net.3.weight": [
+      256,
+      1024
+    ],
+    "head.ffn_layers.1.net.3.bias": [
+      256
+    ],
+    "head.ffn_layers.1.norm.weight": [
+      256
+    ],
+    "head.ffn_layers.1.norm.bias": [
+      256
+    ],
+    "head.ffn_layers.2.net.0.weight": [
+      1024,
+      256
+    ],
+    "head.ffn_layers.2.net.0.bias": [
+      1024
+    ],
+    "head.ffn_layers.2.net.3.weight": [
+      256,
+      1024
+    ],
+    "head.ffn_layers.2.net.3.bias": [
+      256
+    ],
+    "head.ffn_layers.2.norm.weight": [
+      256
+    ],
+    "head.ffn_layers.2.norm.bias": [
+      256
+    ],
+    "head.ffn_layers.3.net.0.weight": [
+      1024,
+      256
+    ],
+    "head.ffn_layers.3.net.0.bias": [
+      1024
+    ],
+    "head.ffn_layers.3.net.3.weight": [
+      256,
+      1024
+    ],
+    "head.ffn_layers.3.net.3.bias": [
+      256
+    ],
+    "head.ffn_layers.3.norm.weight": [
+      256
+    ],
+    "head.ffn_layers.3.norm.bias": [
+      256
+    ],
+    "head.ffn_layers.4.net.0.weight": [
+      1024,
+      256
+    ],
+    "head.ffn_layers.4.net.0.bias": [
+      1024
+    ],
+    "head.ffn_layers.4.net.3.weight": [
+      256,
+      1024
+    ],
+    "head.ffn_layers.4.net.3.bias": [
+      256
+    ],
+    "head.ffn_layers.4.norm.weight": [
+      256
+    ],
+    "head.ffn_layers.4.norm.bias": [
+      256
+    ],
+    "head.ffn_layers.5.net.0.weight": [
+      1024,
+      256
+    ],
+    "head.ffn_layers.5.net.0.bias": [
+      1024
+    ],
+    "head.ffn_layers.5.net.3.weight": [
+      256,
+      1024
+    ],
+    "head.ffn_layers.5.net.3.bias": [
+      256
+    ],
+    "head.ffn_layers.5.norm.weight": [
+      256
+    ],
+    "head.ffn_layers.5.norm.bias": [
+      256
+    ],
+    "head.out_norm.weight": [
+      256
+    ],
+    "head.out_norm.bias": [
+      256
+    ],
+    "head.out_cls.0.weight": [
+      256,
+      256
+    ],
+    "head.out_cls.0.bias": [
+      256
+    ],
+    "head.out_cls.2.weight": [
+      19,
+      256
+    ],
+    "head.out_cls.2.bias": [
+      19
+    ],
+    "head.x_mask.0.weight": [
+      256,
+      32
+    ],
+    "head.x_mask.0.bias": [
+      256
+    ],
+    "head.x_mask.2.weight": [
+      256,
+      256
+    ],
+    "head.x_mask.2.bias": [
+      256
+    ],
+    "head.out_sem.weight": [
+      11,
+      256
+    ],
+    "head.out_sem.bias": [
+      11
+    ]
+  }
+}
