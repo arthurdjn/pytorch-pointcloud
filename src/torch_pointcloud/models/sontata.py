@@ -51,6 +51,7 @@ class SonataSegmentation(SegmentationModel):
         stem_type: str = "linear",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        legacy: bool = False,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder_channels = encoder_channels
@@ -79,6 +80,7 @@ class SonataSegmentation(SegmentationModel):
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            legacy=legacy,
         )
         self.dropout = dropout
         self.head = nn.Linear(self.embedding_dim, num_classes)

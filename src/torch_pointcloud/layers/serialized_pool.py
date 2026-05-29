@@ -125,7 +125,17 @@ class SerializedUpsample(nn.Module):
         self.act = activation_resolver(act, **act_kwargs) if act is not None else None
         self.act_skip = activation_resolver(act, **act_kwargs) if act is not None else None
 
-    def forward(self, x: Tensor, x_skip: Tensor, inverse: Tensor) -> Tensor:
+    @overload
+    def forward(
+        self, x: Tensor, x_skip: Tensor, inverse: Tensor, return_intermediate: Literal[False] = False
+    ) -> Tensor: ...
+
+    @overload
+    def forward(
+        self, x: Tensor, x_skip: Tensor, inverse: Tensor, return_intermediate: Literal[True]
+    ) -> Tuple[Tensor, Tensor]: ...
+
+    def forward(self, x: Tensor, x_skip: Tensor, inverse: Tensor, return_intermediate: bool = False) -> Any:
         x = self.proj(x)
         if self.norm is not None:
             x = self.norm(x)
@@ -138,4 +148,8 @@ class SerializedUpsample(nn.Module):
         if self.act_skip is not None:
             x_skip = self.act_skip(x_skip)
 
-        return x_skip + x[inverse]
+        out = x_skip + x[inverse]
+
+        if return_intermediate:
+            return out, x_skip
+        return out

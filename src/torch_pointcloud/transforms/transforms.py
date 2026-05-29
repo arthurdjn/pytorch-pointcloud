@@ -64,6 +64,7 @@ __all__ = [
     "Divide",
     "DivideKey",
     "DivisiblePad",
+    "EstimateNormals",
     "FarthestPointSample",
     "KeepItems",
     "Normalize",
@@ -509,6 +510,45 @@ class RandomSampleFaceVertices(DictTransform):
             if normal_key is not None:
                 data[normal_key] = normal
         return data
+
+
+class EstimateNormals(DictTransform):
+    r"""Estimate per-point surface normals from coordinates via local PCA.
+
+    Computes unit normals (see `torch_pointcloud.transforms.functional.estimate_normals`) for clouds that
+    ship without them (e.g. S3DIS). Each normal is the least-variance direction of a point's $k$ nearest
+    neighbours; its sign is not oriented to any viewpoint.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.estimate_normals`
+
+    Args:
+        keys: Coordinate keys to estimate normals from.
+        normal_key: Keys under which to store the normals (one per coordinate key). Defaults to `normal`.
+        k: Number of nearest neighbours (the point itself included) per local PCA.
+        batch_key: Optional key holding a per-point batch index so neighbours stay within a cloud.
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        normal_key: KeyCollection = "normal",
+        k: int = 16,
+        batch_key: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.normal_key = ensure_tuple_size(normal_key, len(self.keys))
+        self.k = k
+        self.batch_key = batch_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        batch = d.get(self.batch_key) if self.batch_key is not None else None
+        for key, normal_key in self.iter_keys(d, self.normal_key):
+            d[normal_key] = F.estimate_normals(d[key], k=self.k, batch=batch)
+        return d
 
 
 class FarthestPointSample(DictTransform):
@@ -1722,13 +1762,19 @@ class OnesLike(DictTransform):
 
 
 class AxisMinOffset(DictTransform):
-    r"""Per-point offset from the minimum along a chosen coordinate axis.
+    r"""Per-point offset from a floor reference along a chosen coordinate axis.
 
     For each point and a given axis $a$ along tensor dimension $d$, computes:
 
     $$
-    o_i = p_{i,a} - \min_j p_{j,a}
+    o_i = p_{i,a} - r
     $$
+
+    where the floor reference $r$ is either the strict minimum $\min_j p_{j,a}$
+    (default) or, when `quantile` is set, the empirical quantile
+    $Q_q(p_{\cdot,a})$. A small positive quantile gives an outlier-robust floor
+    estimate: `quantile=0.0099` reproduces VoteNet's `np.percentile(z, 0.99)`
+    height feature.
 
     The result has the same shape as the input with the coordinate dimension
     reduced to size 1 (e.g. $(N, 3) \to (N, 1)$ or $(B, N, 3) \to (B, N, 1)$).
@@ -1737,6 +1783,8 @@ class AxisMinOffset(DictTransform):
     Args:
         keys: Keys holding point positions of shape $(N, D)$.
         axis: Coordinate axis $a$ along which to compute the offset.
+        quantile: Optional quantile $q \in [0, 1]$ for the floor reference. When
+            `None`, the strict per-axis minimum is used.
         dst_keys: Keys under which the offset tensors are stored. Defaults to `keys`
             (in-place overwrite).
         allow_missing_keys: If True, skip missing keys instead of raising.
@@ -1763,17 +1811,19 @@ class AxisMinOffset(DictTransform):
         self,
         keys: KeyCollection,
         axis: ValueCollection[int],
+        quantile: Optional[float] = None,
         dst_keys: KeyCollection | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.axis = ensure_tuple_size(axis, len(self.keys))
+        self.quantile = quantile
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key, axis in self.iter_keys(data, self.dst_keys, self.axis):
-            data[dst_key] = F.axis_min_offset(data[key], axis=axis)
+            data[dst_key] = F.axis_min_offset(data[key], axis=axis, quantile=self.quantile)
         return data
 
 
