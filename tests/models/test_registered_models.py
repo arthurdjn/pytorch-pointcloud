@@ -90,6 +90,9 @@ SEGMENTATION_MODELS = [
     "pointnet2-openpoints.s3dis-area5",
     "pointnet2-openpoints.s3dis-area6",
     "pointnet2-yanx27.s3dis-area5",
+    "ptv3-base.scannet20",
+    "ptv3-base.scannet200",
+    "ptv3-base.s3dis-area5",
     "pvcnn-mit-han-lab.s3dis-area5",
     "pointnext-base",
     "pointnext-base.s3dis-area1",
@@ -136,7 +139,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -164,6 +167,8 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     _skip_if_model_deps_missing(model_name)
     if model_name.startswith(("point-mamba", "spvcnn", "spunet", "oneformer3d")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
+    if model_name.startswith("ptv3") and not _FLASH_ATTN_AVAILABLE:
+        pytest.skip("flash_attn is not installed")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
     if model_name.startswith("randlanet."):

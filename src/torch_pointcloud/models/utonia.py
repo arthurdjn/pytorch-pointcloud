@@ -47,7 +47,7 @@ class UtoniaSegmentation(SegmentationModel):
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         rope_base: float = 10.0,
         dropout: float = 0.0,
@@ -55,6 +55,7 @@ class UtoniaSegmentation(SegmentationModel):
         stem_type: str = "linear",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        legacy: bool = False,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder_channels = encoder_channels
@@ -76,14 +77,15 @@ class UtoniaSegmentation(SegmentationModel):
             proj_drop=proj_drop,
             drop_path=drop_path,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             pooling=pooling,
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
-            attention="rope",
+            attn_kind="rope",
             rope_base=rope_base,
+            legacy=legacy,
         )
         self.dropout = dropout
         self.head = nn.Linear(self.embedding_dim, num_classes)
@@ -217,12 +219,12 @@ def _utonia_encoder_hparams() -> Dict[str, Any]:
         proj_drop=0.0,
         drop_path=0.3,
         use_flash_attn=True,
-        upcast_attention=False,
+        upcast_attn=False,
         upcast_softmax=False,
         pooling="grid",
         stem_type="linear",
         norm_kwargs={"mode": "node"},
-        attention="rope",
+        attn_kind="rope",
         rope_base=10.0,
     )
 
@@ -262,7 +264,7 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
         proj_drop=0.0,
         drop_path=0.3,
         use_flash_attn=True,
-        upcast_attention=False,
+        upcast_attn=False,
         upcast_softmax=False,
         pooling="grid",
         stem_type="linear",

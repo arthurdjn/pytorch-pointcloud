@@ -4,7 +4,7 @@ from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_arg
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.utils.cluster import fps, knn
 from torch_pointcloud.utils.geometry import rotate
 
 ShiftMethod = Literal["bbox", "centroid", "min"]
@@ -202,6 +202,57 @@ def farthest_point_sample(
         torch.Size([10])
     """
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
+
+
+def estimate_normals(
+    pos: Tensor, k: int = 16, batch: Optional[Tensor] = None, orient_to_centroid: bool = False
+) -> Tensor:
+    r"""Estimate per-point unit surface normals by local PCA.
+
+    For each point the normal is the eigenvector of the smallest eigenvalue of the covariance of its $k$
+    nearest neighbours, i.e. the direction of least variance (the local tangent-plane normal).
+
+    PCA gives no canonical orientation. By default the sign is the arbitrary-but-deterministic sign returned by
+    `torch.linalg.eigh`. With `orient_to_centroid`, each normal is flipped to point towards its cloud's
+    centroid, which approximates the inward-facing orientation of meshes scanned from inside a room (S3DIS,
+    ScanNet) and matters when the consuming model was trained on oriented normals.
+
+    Args:
+        pos: Point coordinates of shape $(N, 3)$.
+        k: Number of nearest neighbours (the point itself included) used per local PCA. Must not exceed the
+            number of points in the smallest cloud.
+        batch: Optional $(N,)$ batch index so neighbours never cross cloud boundaries.
+        orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid.
+
+    Returns:
+        Unit normals of shape $(N, 3)$.
+
+    Shape:
+        - Input: $(N, 3)$
+        - Output: $(N, 3)$
+    """
+    num_points = pos.shape[0]
+    neighbor_index = knn(pos, pos, k, batch_x=batch, batch_y=batch)[1].view(num_points, k)
+    neighbors = pos[neighbor_index]
+    centered = neighbors - neighbors.mean(dim=1, keepdim=True)
+    covariance = centered.transpose(1, 2) @ centered / k
+    _, eigenvectors = torch.linalg.eigh(covariance)
+    normals = eigenvectors[..., 0]
+
+    if orient_to_centroid:
+        if batch is None:
+            centroid = pos.mean(dim=0, keepdim=True)
+        else:
+            num_clouds = int(batch.max()) + 1
+            counts = torch.zeros(num_clouds, device=pos.device, dtype=pos.dtype)
+            counts.index_add_(0, batch, torch.ones(num_points, device=pos.device, dtype=pos.dtype))
+            sums = torch.zeros(num_clouds, 3, device=pos.device, dtype=pos.dtype)
+            sums.index_add_(0, batch, pos)
+            centroid = (sums / counts.unsqueeze(1))[batch]
+        flip = ((centroid - pos) * normals).sum(dim=-1, keepdim=True) < 0
+        normals = torch.where(flip, -normals, normals)
+
+    return normals
 
 
 def rescale(
@@ -736,16 +787,22 @@ def shift(
     return x - offset
 
 
-def axis_min_offset(x: Tensor, axis: int) -> Tensor:
-    r"""Per-point offset from the minimum along a chosen coordinate axis.
+def axis_min_offset(x: Tensor, axis: int, quantile: Optional[float] = None) -> Tensor:
+    r"""Per-point offset from a floor reference along a chosen coordinate axis.
 
     For positions of shape $(N, D)$ and an axis $a \in [0, D)$, returns a
-    tensor of shape $(N, 1)$ whose entries are $x_{i, a} - \min_j x_{j, a}$.
-    Useful for extracting "height above the local floor" as a per-point feature.
+    tensor of shape $(N, 1)$ whose entries are $x_{i, a} - r$ where the floor
+    reference $r$ is either the strict minimum $\min_j x_{j, a}$ (default) or, when
+    `quantile` is given, the empirical quantile $Q_{q}(x_{\cdot, a})$. A small
+    positive quantile (e.g. $q = 0.0099$, the `np.percentile(z, 0.99)` used by
+    VoteNet) yields an outlier-robust floor estimate. Useful for extracting
+    "height above the local floor" as a per-point feature.
 
     Args:
         x: Input tensor of shape `(N, D)`.
         axis: Axis index in the last dimension.
+        quantile: Optional quantile $q \in [0, 1]$ for the floor reference. When
+            `None`, the strict per-axis minimum is used (equivalent to $q = 0$).
 
     Returns:
         Tensor of shape `(N, 1)` with the same dtype as `x`. Returns an empty
@@ -754,7 +811,11 @@ def axis_min_offset(x: Tensor, axis: int) -> Tensor:
     col = x[:, axis]
     if col.numel() == 0:
         return col.unsqueeze(-1).to(x.dtype)
-    return (col - col.min()).unsqueeze(-1).to(x.dtype)
+    if quantile is None:
+        ref = col.min()
+    else:
+        ref = torch.quantile(col.float(), quantile).to(col.dtype)
+    return (col - ref).unsqueeze(-1).to(x.dtype)
 
 
 def normalize(
@@ -774,6 +835,8 @@ def normalize(
     Returns:
         Standardized tensor, same shape as `x`.
     """
+    if not torch.is_floating_point(x):
+        x = x.float()
     mean_t = torch.as_tensor(mean, dtype=x.dtype, device=x.device)
     std_t = torch.as_tensor(std, dtype=x.dtype, device=x.device).clamp(min=eps)
     return (x - mean_t) / std_t

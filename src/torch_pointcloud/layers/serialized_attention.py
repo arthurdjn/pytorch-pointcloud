@@ -93,7 +93,7 @@ class SerializedAttention(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         use_flash_attn: bool = True,
-        upcast_attention: bool = True,
+        upcast_attn: bool = True,
         upcast_softmax: bool = True,
     ) -> None:
         super().__init__()
@@ -104,7 +104,7 @@ class SerializedAttention(nn.Module):
                 raise ImportError(
                     "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
                 )
-            if upcast_attention:
+            if upcast_attn:
                 raise ValueError("Upcasting attention is not supported with Flash Attention.")
             if upcast_softmax:
                 raise ValueError("Upcasting softmax is not supported with Flash Attention.")
@@ -115,7 +115,7 @@ class SerializedAttention(nn.Module):
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
         self.use_flash_attn = use_flash_attn
-        self.upcast_attention = upcast_attention
+        self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
@@ -149,7 +149,7 @@ class SerializedAttention(nn.Module):
         else:
             K = patch_size
             q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
-            if self.upcast_attention:
+            if self.upcast_attn:
                 q = q.float()
                 k = k.float()
             attn = (q * self.scale) @ k.transpose(-2, -1)
@@ -182,7 +182,7 @@ class SerializedAttentionRPE(nn.Module):
         qk_scale: Optional[float] = None,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
-        upcast_attention: bool = True,
+        upcast_attn: bool = True,
         upcast_softmax: bool = True,
     ) -> None:
         super().__init__()
@@ -195,7 +195,7 @@ class SerializedAttentionRPE(nn.Module):
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
         self.use_flash_attn = False
-        self.upcast_attention = upcast_attention
+        self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
@@ -227,7 +227,7 @@ class SerializedAttentionRPE(nn.Module):
 
         K = patch_size
         q, k, v = qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
-        if self.upcast_attention:
+        if self.upcast_attn:
             q = q.float()
             k = k.float()
         attn = (q * self.scale) @ k.transpose(-2, -1)
@@ -266,7 +266,7 @@ class SerializedAttentionRoPE(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         use_flash_attn: bool = True,
-        upcast_attention: bool = True,
+        upcast_attn: bool = True,
         upcast_softmax: bool = True,
         rope_base: float = 10.0,
     ) -> None:
@@ -278,7 +278,7 @@ class SerializedAttentionRoPE(nn.Module):
                 raise ImportError(
                     "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
                 )
-            if upcast_attention:
+            if upcast_attn:
                 raise ValueError("Upcasting attention is not supported with Flash Attention.")
             if upcast_softmax:
                 raise ValueError("Upcasting softmax is not supported with Flash Attention.")
@@ -289,7 +289,7 @@ class SerializedAttentionRoPE(nn.Module):
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
         self.use_flash_attn = use_flash_attn
-        self.upcast_attention = upcast_attention
+        self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
@@ -333,7 +333,7 @@ class SerializedAttentionRoPE(nn.Module):
             q = q.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
             k = k.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
             v = v.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
-            if self.upcast_attention:
+            if self.upcast_attn:
                 q = q.float()
                 k = k.float()
             attn = (q * self.scale) @ k.transpose(-2, -1)

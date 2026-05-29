@@ -27,7 +27,7 @@ def test_serialized_attention_forward_no_flash() -> None:
         attn_drop=0.0,
         proj_drop=0.0,
         use_flash_attn=False,
-        upcast_attention=True,
+        upcast_attn=True,
         upcast_softmax=True,
     )
     n = 32
@@ -51,7 +51,7 @@ def test_serialized_attention_rpe_forward() -> None:
         qk_scale=None,
         attn_drop=0.0,
         proj_drop=0.0,
-        upcast_attention=True,
+        upcast_attn=True,
         upcast_softmax=True,
     )
     n = 32
@@ -80,7 +80,7 @@ def test_serialized_attention_rope_forward_no_flash() -> None:
         attn_drop=0.0,
         proj_drop=0.0,
         use_flash_attn=False,
-        upcast_attention=True,
+        upcast_attn=True,
         upcast_softmax=True,
         rope_base=10.0,
     )

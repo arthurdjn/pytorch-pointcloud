@@ -48,15 +48,16 @@ class ConcertoSegmentation(SegmentationModel):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.3,
-        attention: AttentionKind = "default",
+        attn_kind: AttentionKind = "default",
         use_flash_attn: bool = True,
-        upcast_attention: bool = False,
+        upcast_attn: bool = False,
         upcast_softmax: bool = False,
         dropout: float = 0.0,
         pooling: str = "grid",
         stem_type: str = "linear",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        legacy: bool = False,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder_channels = encoder_channels
@@ -77,14 +78,15 @@ class ConcertoSegmentation(SegmentationModel):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             drop_path=drop_path,
-            attention=attention,
+            attn_kind=attn_kind,
             use_flash_attn=use_flash_attn,
-            upcast_attention=upcast_attention,
+            upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
             pooling=pooling,
             stem_type=stem_type,
             act_kwargs=act_kwargs,
             norm_kwargs=norm_kwargs,
+            legacy=legacy,
         )
         self.dropout = dropout
         self.head = nn.Linear(self.embedding_dim, num_classes)
@@ -210,7 +212,7 @@ def _concerto_encoder_hparams(
         proj_drop=0.0,
         drop_path=0.3,
         use_flash_attn=True,
-        upcast_attention=False,
+        upcast_attn=False,
         upcast_softmax=False,
         pooling="grid",
         stem_type="linear",
