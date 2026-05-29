@@ -98,7 +98,7 @@ def _eval_transforms() -> Any:
 
 
 @torch.inference_mode()
-def forward_once(
+def predict(
     model: torch.nn.Module,
     pos: torch.Tensor,
     batch: torch.Tensor,
@@ -139,7 +139,7 @@ def evaluate(
         inverse_full = data[DataKeys.INVERSE]
         n_full = int(target_full.shape[0])
 
-        logits_sub, latency_ms = forward_once(model, data[DataKeys.POS], data[DataKeys.BATCH], device)
+        logits_sub, latency_ms = predict(model, data[DataKeys.POS], data[DataKeys.BATCH], device)
         preds_sub = logits_sub.argmax(dim=1)
         # Project predictions back to full resolution: every original point gets the label
         # of its enclosing voxel (matches upstream's `KDTree(sub_pc).query(pc)` semantics).
