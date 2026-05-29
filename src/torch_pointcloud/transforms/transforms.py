@@ -517,7 +517,7 @@ class EstimateNormals(DictTransform):
 
     Computes unit normals (see `torch_pointcloud.transforms.functional.estimate_normals`) for clouds that
     ship without them (e.g. S3DIS). Each normal is the least-variance direction of a point's $k$ nearest
-    neighbours; its sign is not oriented to any viewpoint.
+    neighbours. With `orient_to_centroid`, normals are flipped to face the cloud centroid.
 
     See Also:
         `torch_pointcloud.transforms.functional.estimate_normals`
@@ -526,6 +526,8 @@ class EstimateNormals(DictTransform):
         keys: Coordinate keys to estimate normals from.
         normal_key: Keys under which to store the normals (one per coordinate key). Defaults to `normal`.
         k: Number of nearest neighbours (the point itself included) per local PCA.
+        orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid (approximates
+            the inward-facing normals of meshes scanned from inside a room).
         batch_key: Optional key holding a per-point batch index so neighbours stay within a cloud.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -535,19 +537,23 @@ class EstimateNormals(DictTransform):
         keys: KeyCollection,
         normal_key: KeyCollection = "normal",
         k: int = 16,
+        orient_to_centroid: bool = False,
         batch_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.normal_key = ensure_tuple_size(normal_key, len(self.keys))
         self.k = k
+        self.orient_to_centroid = orient_to_centroid
         self.batch_key = batch_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         batch = d.get(self.batch_key) if self.batch_key is not None else None
         for key, normal_key in self.iter_keys(d, self.normal_key):
-            d[normal_key] = F.estimate_normals(d[key], k=self.k, batch=batch)
+            d[normal_key] = F.estimate_normals(
+                d[key], k=self.k, batch=batch, orient_to_centroid=self.orient_to_centroid
+            )
         return d
 
 

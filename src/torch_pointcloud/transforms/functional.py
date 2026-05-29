@@ -204,19 +204,25 @@ def farthest_point_sample(
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
 
-def estimate_normals(pos: Tensor, k: int = 16, batch: Optional[Tensor] = None) -> Tensor:
+def estimate_normals(
+    pos: Tensor, k: int = 16, batch: Optional[Tensor] = None, orient_to_centroid: bool = False
+) -> Tensor:
     r"""Estimate per-point unit surface normals by local PCA.
 
     For each point the normal is the eigenvector of the smallest eigenvalue of the covariance of its $k$
-    nearest neighbours, i.e. the direction of least variance (the local tangent-plane normal). PCA gives no
-    canonical orientation, so the sign is the arbitrary-but-deterministic sign returned by `torch.linalg.eigh`
-    and is not aligned to any viewpoint.
+    nearest neighbours, i.e. the direction of least variance (the local tangent-plane normal).
+
+    PCA gives no canonical orientation. By default the sign is the arbitrary-but-deterministic sign returned by
+    `torch.linalg.eigh`. With `orient_to_centroid`, each normal is flipped to point towards its cloud's
+    centroid, which approximates the inward-facing orientation of meshes scanned from inside a room (S3DIS,
+    ScanNet) and matters when the consuming model was trained on oriented normals.
 
     Args:
         pos: Point coordinates of shape $(N, 3)$.
         k: Number of nearest neighbours (the point itself included) used per local PCA. Must not exceed the
             number of points in the smallest cloud.
         batch: Optional $(N,)$ batch index so neighbours never cross cloud boundaries.
+        orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid.
 
     Returns:
         Unit normals of shape $(N, 3)$.
@@ -231,7 +237,22 @@ def estimate_normals(pos: Tensor, k: int = 16, batch: Optional[Tensor] = None) -
     centered = neighbors - neighbors.mean(dim=1, keepdim=True)
     covariance = centered.transpose(1, 2) @ centered / k
     _, eigenvectors = torch.linalg.eigh(covariance)
-    return eigenvectors[..., 0]
+    normals = eigenvectors[..., 0]
+
+    if orient_to_centroid:
+        if batch is None:
+            centroid = pos.mean(dim=0, keepdim=True)
+        else:
+            num_clouds = int(batch.max()) + 1
+            counts = torch.zeros(num_clouds, device=pos.device, dtype=pos.dtype)
+            counts.index_add_(0, batch, torch.ones(num_points, device=pos.device, dtype=pos.dtype))
+            sums = torch.zeros(num_clouds, 3, device=pos.device, dtype=pos.dtype)
+            sums.index_add_(0, batch, pos)
+            centroid = (sums / counts.unsqueeze(1))[batch]
+        flip = ((centroid - pos) * normals).sum(dim=-1, keepdim=True) < 0
+        normals = torch.where(flip, -normals, normals)
+
+    return normals
 
 
 def rescale(
