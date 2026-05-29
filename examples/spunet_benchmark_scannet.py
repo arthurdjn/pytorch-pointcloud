@@ -35,7 +35,7 @@ SEED = 42
 
 
 @torch.inference_mode()
-def forward_once(
+def predict(
     model: torch.nn.Module,
     feat: torch.Tensor,
     grid_coord: torch.Tensor,
@@ -71,7 +71,7 @@ def evaluate(
         pos = data[DataKeys.POS].to(device)
         batch = data[DataKeys.BATCH].to(device)
 
-        logits, latency_ms = forward_once(model, x, pos, batch, device)
+        logits, latency_ms = predict(model, x, pos, batch, device)
         inverse = data[DataKeys.INVERSE].to(device)  # (N_raw,) → voxel idx
         target = data["origin_segment"].to(device)  # (N_raw,) raw labels (already 0-19)
         preds = logits[inverse].argmax(dim=1)  # broadcast voxel preds to raw points
