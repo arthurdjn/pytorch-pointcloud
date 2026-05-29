@@ -167,6 +167,8 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     _skip_if_model_deps_missing(model_name)
     if model_name.startswith(("point-mamba", "spvcnn", "spunet", "oneformer3d")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
+    if model_name.startswith("ptv3") and not _FLASH_ATTN_AVAILABLE:
+        pytest.skip("flash_attn is not installed")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
     if model_name.startswith("randlanet."):
