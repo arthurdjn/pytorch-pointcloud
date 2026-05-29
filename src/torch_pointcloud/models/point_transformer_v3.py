@@ -443,11 +443,8 @@ class DecoderBlock(nn.Module):
             if inverse is None:
                 raise ValueError("`inverse` must be provided when `upsample` module is set.")
 
-            # Pointcept's SerializedUnpooling adds the upsampled branch into `feat` with a plain assignment that
-            # never reaches `sparse_conv_feat` (it stays at the projected skip), so the next block's xCPE
-            # convolves only that skip branch. This is present in every Pointcept release (the block-level xCPE
-            # write-back was fixed in v1.5.2, the unpooling was not), so it is reproduced unconditionally,
-            # independent of `legacy` (which only gates the block write-back).
+            # Reproduce Pointcept's SerializedUnpooling: the next block's xCPE convolves only the projected
+            # skip branch. Present in every release, so it is unconditional (unlike the block write-back).
             x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True)
 
         x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
@@ -503,10 +500,9 @@ class PointTransformerV3Encoder(nn.Module):
         act_kwargs: Optional keyword arguments for the activation factory.
         norm_kwargs: Optional keyword arguments for the normalization factory.
         bias: Whether the stem and blocks use learnable bias where applicable.
-        legacy: Reproduce the Pointcept <= v1.5.1 xCPE structure bug (each block's output was not
-            written back to the sparse tensor the next block's xCPE convolves; fixed in v1.5.2). The
-            released pretrained weights were trained with this, so they set `legacy=True`; leave `False`
-            (default) for new training.
+        legacy: Reproduce the Pointcept v1.5.1 block xCPE bug (the block output was not written back to
+            the sparse tensor the next block convolves; fixed in v1.5.2). The released weights need
+            `legacy=True`; leave `False` (default) for new training.
 
     Inputs:
         x: Float tensor of shape $(N, \\text{in\\_channels})$.
@@ -1382,9 +1378,8 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     sends everything else to the ignore index: `range(1, 21)` for ScanNet20, `range(1, 201)` for ScanNet200.
     Pass `None` when labels are already 0-based (S3DIS).
 
-    Set `estimate_normals=True` for datasets that ship without normals (S3DIS): normals are estimated from the
-    coordinates by local PCA. These approximate the mesh normals the released weights were trained on, so the
-    S3DIS benchmark runs but its mIoU is below the published number.
+    Set `estimate_normals=True` for datasets without normals (S3DIS): normals are estimated by local PCA, which
+    approximates (does not equal) the mesh normals the released weights were trained on.
     """
     steps: List[Any] = [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
