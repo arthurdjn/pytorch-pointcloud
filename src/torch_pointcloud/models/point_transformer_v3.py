@@ -390,7 +390,6 @@ class DecoderBlock(nn.Module):
     ):
         super().__init__()
         self.upsample = upsample
-        self.legacy = legacy
         drop_path = ensure_tuple_size(drop_path, size=depth)
 
         self.blocks = nn.ModuleList()
@@ -444,12 +443,12 @@ class DecoderBlock(nn.Module):
             if inverse is None:
                 raise ValueError("`inverse` must be provided when `upsample` module is set.")
 
-            if self.legacy:
-                # Reproduce the Pointcept (<= v1.5.x) SerializedUnpooling artifact: the next block's xCPE
-                # convolves only the projected-skip branch, not the full upsampled feature.
-                x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True)
-            else:
-                x = cpe_seed = self.upsample(x, x_skip, inverse)
+            # Pointcept's SerializedUnpooling adds the upsampled branch into `feat` with a plain assignment that
+            # never reaches `sparse_conv_feat` (it stays at the projected skip), so the next block's xCPE
+            # convolves only that skip branch. This is present in every Pointcept release (the block-level xCPE
+            # write-back was fixed in v1.5.2, the unpooling was not), so it is reproduced unconditionally,
+            # independent of `legacy` (which only gates the block write-back).
+            x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True)
 
         x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
         for i, block in enumerate(self.blocks):

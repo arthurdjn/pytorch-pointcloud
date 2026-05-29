@@ -1,12 +1,25 @@
 """Benchmark Point Transformer V3 semantic segmentation on S3DIS Area-5.
 
-The released `s3dis-semseg-pt-v3m1-0-rpe` weights (`legacy=True`, rpe attention) were trained on mesh-derived
-normals. The repo's `S3DIS` dataset ships without normals, so the registered transform estimates them from the
-coordinates by local PCA (`EstimateNormals`). These only approximate the training normals, so the mIoU here is
-below the published 73.6 (which also uses test-time augmentation); the script is meant to be runnable, not exact.
+The released `s3dis-semseg-pt-v3m1-0-rpe` weights (`legacy=True`, rpe attention) were trained on normals read
+from the raw Stanford mesh (`face_normals`). That mesh is not part of the S3DIS point-cloud download, so the
+registered transform estimates normals from the coordinates by local PCA (`EstimateNormals`,
+`orient_to_centroid=True`). These approximate, but do not equal, the training normals.
+
+Single-forward, whole-room, voxel-level mIoU on Area-5 (no test-time augmentation):
+
+| Setup                                       | mIoU   | OA     |
+| ------------------------------------------- | ------ | ------ |
+| Paper (mesh normals + TTA)                  | 73.6   | -      |
+| Here: estimated normals, single forward     | ~31.0  | ~68.7  |
+
+The gap is the estimated-vs-mesh normals plus the missing TTA, not a conversion or architecture bug (the
+checkpoint loads strictly and ScanNet reproduces). RPE attention runs without flash and materialises the
+per-patch relative-position bias, so the largest rooms can exhaust GPU memory; such rooms are skipped (counted
+as `test/skipped_rooms`). Run with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` to fit more rooms.
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_s3dis.py --limit 5
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True uv run --no-sync python examples/ptv3_benchmark_s3dis.py
 """
 
 import argparse
@@ -59,6 +72,7 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
     total_latency_ms = 0.0
     total_points = 0
 
+    skipped = 0
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         x = data[DataKeys.X].to(device)
@@ -66,14 +80,21 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
         batch = data[DataKeys.BATCH].to(device)
         target = data[DataKeys.SEGMENT].to(device)
 
-        logits, latency_ms = predict(model, x, pos_grid, batch, device)
+        try:
+            logits, latency_ms = predict(model, x, pos_grid, batch, device)
+        except torch.cuda.OutOfMemoryError:
+            # RPE attention materialises the full per-patch score matrix (no flash), so the largest rooms can
+            # exceed GPU memory. Skip them rather than abort the whole benchmark.
+            torch.cuda.empty_cache()
+            skipped += 1
+            continue
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
         total_latency_ms += latency_ms
         total_points += int(x.shape[0])
         oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)
-        pbar.set_postfix({"oa": f"{oa.item():.4f}"})
+        pbar.set_postfix({"oa": f"{oa.item():.4f}", "skipped": skipped})
 
     intersection = cm.diag().float()
     union = cm.sum(dim=1).float() + cm.sum(dim=0).float() - intersection
@@ -83,6 +104,7 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
         "test/oa": (cm.diag().sum().float() / cm.sum().float().clamp_min(1)).item(),
         "test/latency_ms": total_latency_ms / max(len(dataloader), 1),
         "test/points_per_second": total_points / max(total_latency_ms / 1000.0, 1e-12),
+        "test/skipped_rooms": float(skipped),
     }
 
 

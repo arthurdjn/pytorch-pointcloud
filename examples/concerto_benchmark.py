@@ -4,6 +4,16 @@ For the linear-probe segmentation variant (`concerto-large-lp.scannet20`), repor
 mIoU + OA + latency on ScanNet20 val. For encoder-only variants (tiny / small /
 base / large), only latency / throughput is reported (no head, no labels).
 
+Single-forward, voxel-level mIoU on ScanNet20 val (no test-time augmentation):
+
+| Model                       | Here (single forward, voxel) |
+| --------------------------- | ---------------------------- |
+| concerto-large-lp.scannet20 | 77.68 mIoU / 92.35 OA        |
+
+This is above Sonata's linear probe, consistent with Concerto being a stronger encoder. The PT-v3 encoder
+shared with Sonata is bit-identical to Pointcept (`notebooks/ptv3/verify_sonata.py`); published numbers add
+test-time augmentation + full-resolution evaluation on top of this single-forward voxel protocol.
+
 Usage:
     uv run --no-sync python examples/concerto_benchmark.py --model concerto-large-lp.scannet20 --limit 5
     uv run --no-sync python examples/concerto_benchmark.py --model concerto-base --limit 5

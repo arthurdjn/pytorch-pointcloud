@@ -150,6 +150,7 @@ class SerializedUpsample(nn.Module):
 
         out = x_skip + x[inverse]
 
+        # Support Pointcept's `SerializedUnpooling` behavior
         if return_intermediate:
             return out, x_skip
         return out
