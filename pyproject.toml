@@ -59,11 +59,6 @@ exclude-newer = "14 days"
 find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
 no-build-isolation-package = ["flash-attn", "torchsparse"]
 
-[tool.uv]
-package = true
-find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
-no-build-isolation-package = ["flash-attn", "torchsparse"]
-
 [[tool.uv.dependency-metadata]]
 name = "flash-attn"
 version = "2.4.1"
