@@ -1,5 +1,3 @@
-from torch_pointcloud.utils.data import PointCloudDataLoader
-
 from .modelnet import ModelNet10, ModelNet40, ModelNetNormalResampled
 from .parislille3d import ParisLille3D
 from .repeat import RepeatDataset
