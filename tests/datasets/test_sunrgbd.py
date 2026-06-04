@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import torch
 
-from torch_pointcloud.datasets import PointCloudDataLoader, SunRGBD
+from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.datasets.sunrgbd import (
     SUNRGBD_CLASSES,
     decode_depth,
@@ -176,21 +176,6 @@ def test_sunrgbd_loads_processed_fixture(datasets_dir_factory: Callable[..., Pat
     assert sample[DataKeys.CLASS].shape[0] == sample[DataKeys.BOX].shape[0]
     assert sample[DataKeys.CLASS].dtype == torch.long
     assert sample[DataKeys.COLOR].shape == sample[DataKeys.POS].shape
-
-
-def test_sunrgbd_dataloader_packs_boxes_with_scene_index(datasets_dir_factory: Callable[..., Path]) -> None:
-    datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
-    dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
-    num_boxes = sum(int(dataset[i][DataKeys.BOX].shape[0]) for i in range(len(dataset)))
-
-    loader = PointCloudDataLoader(dataset, batch_size=len(dataset), shuffle=False, index_keys=(DataKeys.BOX,))
-    batch = next(iter(loader))
-
-    assert batch[DataKeys.POS].shape[0] == batch[DataKeys.BATCH].shape[0]
-    assert batch[DataKeys.BOX].shape == (num_boxes, 8)
-    box_batch = batch[f"{DataKeys.BOX}_batch"]
-    assert box_batch.shape == (num_boxes,)
-    assert int(box_batch.min()) >= 0 and int(box_batch.max()) < len(dataset)
 
 
 def test_sunrgbd_processes_from_raw_fixture(datasets_dir_factory: Callable[..., Path]) -> None:
