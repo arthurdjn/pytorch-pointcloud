@@ -258,8 +258,6 @@ class SunRGBD(PointCloudDataset):
         root: PathLike,
         *,
         split: Literal["train", "val"] = "train",
-        depth_trunc: float = DEPTH_TRUNC,
-        depth_scale: float = DEPTH_SCALE,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
