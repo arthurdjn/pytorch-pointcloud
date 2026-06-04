@@ -149,28 +149,46 @@ def test_sunrgbd_dataset_processed_files_exist(datasets_dir_factory: Callable[..
 
 
 @pytest.mark.parametrize("split", ["train", "val"])
-@patch("torch_pointcloud.datasets.sunrgbd.parse_boxes", wraps=parse_boxes)
-def test_sunrgbd_dataset_split(mock_parse: Mock, datasets_dir_factory: Callable[..., Path], split: str) -> None:
-    """Test that the dataset does not process raw data if the processed data exists"""
+@patch.object(SunRGBD, "process_scene", autospec=True, side_effect=SunRGBD.process_scene)
+def test_sunrgbd_dataset_already_processed(
+    mock_process: Mock, datasets_dir_factory: Callable[..., Path], split: str
+) -> None:
+    """Test that no scene is re-processed when the processed cache already exists"""
     datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
 
     dataset = SunRGBD(root=datasets_dir, split=split, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
-    assert mock_parse.call_count == 0
+    assert mock_process.call_count == 0
 
 
 @pytest.mark.parametrize("split", ["train", "val"])
-@patch("torch_pointcloud.datasets.sunrgbd.parse_boxes", wraps=parse_boxes)
-def test_sunrgbd_dataset_process_split(mock_parse: Mock, datasets_dir_factory: Callable[..., Path], split: str) -> None:
-    """Test that the dataset processes raw data if the processed data does not exist"""
+@patch.object(SunRGBD, "process_scene", autospec=True, side_effect=SunRGBD.process_scene)
+def test_sunrgbd_dataset_process_split(
+    mock_process: Mock, datasets_dir_factory: Callable[..., Path], split: str
+) -> None:
+    """Test that every scene is processed exactly once when no cache exists"""
     datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
 
     dataset = SunRGBD(root=datasets_dir, split=split, show_progress=False)
     assert len(dataset) > 0
 
-    assert mock_parse.call_count == len(dataset)
+    assert mock_process.call_count == len(dataset)
+
+
+@pytest.mark.parametrize("split", ["train", "val"])
+@patch.object(SunRGBD, "process_scene", autospec=True, side_effect=SunRGBD.process_scene)
+def test_sunrgbd_dataset_process_split_forced(
+    mock_process: Mock, datasets_dir_factory: Callable[..., Path], split: str
+) -> None:
+    """Test that `force_process` re-processes every scene even when the cache exists"""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*", symlinks=False)
+
+    dataset = SunRGBD(root=datasets_dir, split=split, show_progress=False, force_process=True)
+    assert len(dataset) > 0
+
+    assert mock_process.call_count == len(dataset)
 
 
 def test_sunrgbd_dataset_progress(
