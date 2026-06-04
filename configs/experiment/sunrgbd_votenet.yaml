@@ -1,0 +1,97 @@
+# @package _global_
+# VoteNet 3D object detection on SUN RGB-D.
+# Run: uv run --no-sync python train.py experiment=sunrgbd_votenet
+defaults:
+  - override /data: sunrgbd
+  - override /model: votenet
+  - override /callbacks: votenet
+
+trainer:
+  max_epochs: 180
+  precision: "32-true" # VoteNet's set-abstraction grouping trains in fp32 (matches the reference)
+
+data:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        # Floor-relative height feature, then sub-sample to a fixed 20000 points per scene.
+        - _target_: torch_pointcloud.transforms.AxisMinOffset
+          keys: pos
+          axis: 2
+          quantile: 0.0099
+          dst_keys: height
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, height]
+          num_samples: 20000
+        # Per-point votes from the GT boxes, then joint point + box + vote augmentation.
+        - _target_: torch_pointcloud.transforms.GenerateVoteLabels
+          pos_key: pos
+          box_key: gt_box
+        - _target_: torch_pointcloud.transforms.RandomFlipBoxes
+          pos_key: pos
+          box_key: gt_box
+          vote_key: vote_label
+        - _target_: torch_pointcloud.transforms.RandomRotateBoxes
+          pos_key: pos
+          box_key: gt_box
+          vote_key: vote_label
+        - _target_: torch_pointcloud.transforms.RandomScaleBoxes
+          pos_key: pos
+          box_key: gt_box
+          vote_key: vote_label
+        # Encode the augmented boxes into the padded VoteNet target tensors (full edge length means).
+        - _target_: torch_pointcloud.transforms.EncodeVoteNetTargets
+          box_key: gt_box
+          num_heading_bin: 12
+          max_num_obj: 64
+          mean_size_arr:
+            - [2.114256, 1.620300, 0.927272]
+            - [0.791118, 1.279516, 0.718182]
+            - [0.923508, 1.867419, 0.845495]
+            - [0.591958, 0.552978, 0.827272]
+            - [0.699104, 0.454178, 0.756250]
+            - [0.695190, 1.346299, 0.736364]
+            - [0.528526, 1.002642, 1.172878]
+            - [0.500618, 0.632163, 0.683424]
+            - [0.404671, 1.071108, 1.688889]
+            - [0.765840, 1.398258, 0.472728]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [height]
+          dst_key: x
+          dim: 1
+
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.AxisMinOffset
+          keys: pos
+          axis: 2
+          quantile: 0.0099
+          dst_keys: height
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, height]
+          num_samples: 20000
+        - _target_: torch_pointcloud.transforms.GenerateVoteLabels
+          pos_key: pos
+          box_key: gt_box
+        - _target_: torch_pointcloud.transforms.EncodeVoteNetTargets
+          box_key: gt_box
+          num_heading_bin: 12
+          max_num_obj: 64
+          mean_size_arr:
+            - [2.114256, 1.620300, 0.927272]
+            - [0.791118, 1.279516, 0.718182]
+            - [0.923508, 1.867419, 0.845495]
+            - [0.591958, 0.552978, 0.827272]
+            - [0.699104, 0.454178, 0.756250]
+            - [0.695190, 1.346299, 0.736364]
+            - [0.528526, 1.002642, 1.172878]
+            - [0.500618, 0.632163, 0.683424]
+            - [0.404671, 1.071108, 1.688889]
+            - [0.765840, 1.398258, 0.472728]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [height]
+          dst_key: x
+          dim: 1

@@ -1,0 +1,14 @@
+# Default callbacks, monitoring detection mAP, plus VoteNet's BatchNorm-momentum decay.
+defaults:
+  - default
+
+model_checkpoint:
+  monitor: "val/mAP@0.25"
+  mode: max
+
+bn_momentum_scheduler:
+  _target_: torch_pointcloud.lightning.BNMomentumScheduler
+  bn_momentum_init: 0.5
+  bn_decay_rate: 0.5
+  bn_decay_step: 20
+  bn_momentum_clip: 0.001

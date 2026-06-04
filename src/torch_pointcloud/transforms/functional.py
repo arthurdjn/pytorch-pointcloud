@@ -53,7 +53,9 @@ def random_sample(
         num_samples: The number of values to sample.
         return_indices: Whether to return the indices of the sampled values.
         replace: If `True`, sample with replacement (duplicates allowed). If `False`,
-            sample without replacement and raise `ValueError` when `num_samples > N`.
+            sample without replacement when $N \geq \text{num\_samples}$; when
+            $\text{num\_samples} > N$ the draw falls back to replacement so the output
+            always has `num_samples` rows.
         generator: The generator for the random number generator.
 
     Returns:
@@ -61,23 +63,17 @@ def random_sample(
         Otherwise, it returns the sampled values.
 
     Raises:
-        ValueError: If `replace=False` and `num_samples > tensor.size(0)`,
-            or if `num_samples > 0` and the input is empty.
+        ValueError: If `num_samples > 0` and the input is empty.
     """
     n = tensor.size(0)
     if num_samples == 0:
         indices = torch.empty(0, dtype=torch.long, device=tensor.device)
     elif n == 0:
         raise ValueError(f"Cannot sample {num_samples} values from an empty tensor (N=0).")
-    elif replace:
+    elif replace or num_samples > n:
         indices = torch.randint(0, n, (num_samples,), generator=generator, device=tensor.device)
-    elif num_samples <= n:
+    else:
         indices = torch.randperm(n, generator=generator, device=tensor.device)[:num_samples]
-    elif num_samples > n:
-        raise ValueError(
-            f"Requested {num_samples} samples without replacement from a tensor of size {n}. "
-            "Pass `replace=True` to allow duplicates."
-        )
 
     if return_indices:
         return tensor[indices], indices
@@ -1312,3 +1308,176 @@ def random_elastic_distortion(
     # displacement: (1, 3, 1, 1, N) -> (N, 3)
     displacement = displacement.squeeze(2).squeeze(2).squeeze(0).T
     return pos + displacement.to(pos.dtype)
+
+
+def flip_boxes(boxes: Tensor, axis: int) -> Tensor:
+    r"""Flip oriented 3D boxes along a spatial axis.
+
+    Boxes are stored as $(K, 8)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta, \text{cls}]$ with half-extents
+    and heading measured from $+x$ toward $-y$. A flip negates the center component along `axis`. A flip along
+    `axis` $0$ (the $yz$ plane) maps the heading to $\pi - \theta$; a flip along `axis` $1$ (the $xz$ plane)
+    maps the heading to $-\theta$. Sizes and class are unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 8)$.
+        axis: Center axis index to negate (0=X, 1=Y).
+
+    Returns:
+        The flipped box tensor of shape $(K, 8)$.
+    """
+    boxes = boxes.clone()
+    boxes[:, axis] = -boxes[:, axis]
+    if axis == 0:
+        boxes[:, 6] = math.pi - boxes[:, 6]
+    elif axis == 1:
+        boxes[:, 6] = -boxes[:, 6]
+    return boxes
+
+
+def rotate_boxes(boxes: Tensor, rotation: Tensor, angle: float) -> Tensor:
+    r"""Rotate oriented 3D boxes about the up axis.
+
+    Box centers are rotated by `rotation` (`centers @ rotation.transpose(-1, -2)`) and the heading is
+    decremented by `angle` to match a counterclockwise rotation about $+z$. Sizes and class are unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 8)$.
+        rotation: A $3 \times 3$ rotation matrix about the $z$ axis.
+        angle: Rotation angle in **radians**, subtracted from the heading.
+
+    Returns:
+        The rotated box tensor of shape $(K, 8)$.
+    """
+    boxes = boxes.clone()
+    boxes[:, 0:3] = boxes[:, 0:3] @ rotation.to(boxes).transpose(-1, -2)
+    boxes[:, 6] = boxes[:, 6] - angle
+    return boxes
+
+
+def scale_boxes(boxes: Tensor, scale: Union[float, Tensor]) -> Tensor:
+    r"""Scale oriented 3D boxes by an isotropic factor.
+
+    Both centers and half-extents (columns $0$ to $6$) are multiplied by `scale`. Heading and class are
+    unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 8)$.
+        scale: Isotropic scalar factor applied to centers and sizes.
+
+    Returns:
+        The scaled box tensor of shape $(K, 8)$.
+    """
+    boxes = boxes.clone()
+    factor = scale.to(boxes) if isinstance(scale, Tensor) else scale
+    boxes[:, 0:6] = boxes[:, 0:6] * factor
+    return boxes
+
+
+def flip_votes(votes: Tensor, axis: int) -> Tensor:
+    r"""Flip per-point vote offsets along a spatial axis.
+
+    Vote offsets are vectors $(\text{center} - \text{point})$, so a coordinate flip negates the matching
+    component of every tiled offset triple.
+
+    Args:
+        votes: Vote offset tensor of shape $(N, 3 G)$ holding $G$ tiled $(\Delta x, \Delta y, \Delta z)$ offsets.
+        axis: Axis index within each offset triple to negate.
+
+    Returns:
+        The flipped vote tensor of shape $(N, 3 G)$.
+    """
+    votes = votes.clone()
+    votes[:, axis::3] = -votes[:, axis::3]
+    return votes
+
+
+def rotate_votes(votes: Tensor, rotation: Tensor) -> Tensor:
+    r"""Rotate per-point vote offsets by a rotation matrix.
+
+    Vote offsets are vectors $(\text{center} - \text{point})$, so each tiled triple rotates as a vector by
+    `rotation`.
+
+    Args:
+        votes: Vote offset tensor of shape $(N, 3 G)$ holding $G$ tiled $(\Delta x, \Delta y, \Delta z)$ offsets.
+        rotation: A $3 \times 3$ rotation matrix.
+
+    Returns:
+        The rotated vote tensor of shape $(N, 3 G)$.
+    """
+    n = votes.shape[0]
+    triples = votes.reshape(n, -1, 3)
+    triples = triples @ rotation.to(votes).transpose(-1, -2)
+    return triples.reshape(n, -1)
+
+
+def scale_votes(votes: Tensor, scale: Union[float, Tensor]) -> Tensor:
+    r"""Scale per-point vote offsets by an isotropic factor.
+
+    Args:
+        votes: Vote offset tensor of shape $(N, 3 G)$ holding $G$ tiled $(\Delta x, \Delta y, \Delta z)$ offsets.
+        scale: Isotropic scalar factor.
+
+    Returns:
+        The scaled vote tensor of shape $(N, 3 G)$.
+    """
+    factor = scale.to(votes) if isinstance(scale, Tensor) else scale
+    return votes * factor
+
+
+def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:
+    r"""Test which points lie inside a single oriented 3D box.
+
+    The point offsets relative to the box center are rotated into the box frame by $-\theta$ about $+z$, then
+    compared against the half-extents with an axis-aligned bounding-box test. For a box with zero heading this
+    reduces to a plain axis-aligned test.
+
+    Args:
+        pos: Coordinate tensor of shape $(N, 3)$.
+        box: A single box of shape $(8,)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta, \text{cls}]$.
+
+    Returns:
+        A boolean mask of shape $(N,)$ that is `True` for points inside the box.
+    """
+    center = box[0:3]
+    half = box[3:6]
+    heading = box[6]
+    rotation = rotation_matrix(float(-heading), axis=2, device=pos.device).to(pos.dtype)
+    local = (pos - center) @ rotation.transpose(-1, -2)
+    return (local.abs() <= half).all(dim=1)
+
+
+def angle2class(angle: Tensor, num_heading_bin: int) -> Tuple[Tensor, Tensor]:
+    r"""Convert continuous heading angles to discrete bin classes and residuals.
+
+    The range $[0, 2\pi)$ is split into `num_heading_bin` equal bins centered at
+    $0, 1 \cdot (2\pi / N), \ldots, (N - 1) \cdot (2\pi / N)$. The returned class and residual satisfy
+    $\text{class} \cdot (2\pi / N) + \text{residual} = \text{angle}$.
+
+    Args:
+        angle: Heading angles in radians of shape $(K,)$.
+        num_heading_bin: Number of heading bins $N$.
+
+    Returns:
+        A tuple of the per-angle class indices (long, shape $(K,)$) and residual angles (shape $(K,)$).
+    """
+    two_pi = 2 * math.pi
+    angle_per_class = two_pi / num_heading_bin
+    angle = angle % two_pi
+    shifted = (angle + angle_per_class / 2) % two_pi
+    cls = (shifted / angle_per_class).long()
+    residual = shifted - (cls.to(angle.dtype) * angle_per_class + angle_per_class / 2)
+    return cls, residual
+
+
+def class2size(size_class: Tensor, size_residual: Tensor, mean_size_arr: Tensor) -> Tensor:
+    r"""Invert `size2class`: recover full box edge lengths from class and residual.
+
+    Args:
+        size_class: Size class indices (long) of shape $(K,)$.
+        size_residual: Per-axis residuals of shape $(K, 3)$.
+        mean_size_arr: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
+
+    Returns:
+        The recovered full edge lengths of shape $(K, 3)$.
+    """
+    return mean_size_arr.to(size_residual)[size_class.long()] + size_residual

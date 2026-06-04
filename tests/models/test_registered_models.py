@@ -132,6 +132,10 @@ SEGMENTATION_MODELS = [
     "spvcnn-47gmacs.semantickitti",
     "spvcnn-119gmacs.semantickitti",
 ]
+DETECTION_MODELS = [
+    "votenet-fair-base.scannet",
+    "votenet-fair-base.sunrgbd",
+]
 
 
 def _skip_if_model_deps_missing(model_name: str) -> None:
@@ -270,6 +274,7 @@ def _check_architecture_or_regen(
         ("base", BASE_MODELS),
         ("classification", CLASSIFICATION_MODELS),
         ("segmentation", SEGMENTATION_MODELS),
+        ("detection", DETECTION_MODELS),
     ],
 )
 def test_list_models(task: str, expected_models: List[str]) -> None:

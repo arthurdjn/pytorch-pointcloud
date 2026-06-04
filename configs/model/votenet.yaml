@@ -1,0 +1,30 @@
+# VoteNet 3D object detection LightningModule (facebookresearch/votenet, SUN RGB-D variant).
+# The criterion is a `_partial_` VoteNetLoss: the model's `mean_size_arr` buffer is injected
+# in `LitDetectionModel.__init__`, so it is not duplicated here.
+_target_: torch_pointcloud.lightning.LitDetectionModel
+scheduler_interval: epoch
+ap_iou_thresholds: [0.25, 0.5]
+
+model:
+  _target_: torch_pointcloud.create_model
+  name: votenet-fair-base.sunrgbd
+  task: detection
+
+criterion:
+  _target_: torch_pointcloud.losses.VoteNetLoss
+  _partial_: true
+  num_heading_bin: 12
+  num_size_cluster: 10
+  num_class: 10
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.MultiStepLR
+  _partial_: true
+  milestones: [80, 120, 160]
+  gamma: 0.1
