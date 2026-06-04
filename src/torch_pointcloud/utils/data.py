@@ -1,10 +1,13 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+import functools
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 import torch
 from torch import Tensor
+from torch.utils.data import DataLoader, Dataset
 
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE, optional_import
-from torch_pointcloud.utils.types import StrEnum
+from torch_pointcloud.utils.types import KeyCollection, StrEnum
 
 if TYPE_CHECKING:
     import ocnn
@@ -32,6 +35,8 @@ class DataKeys(StrEnum):
     LABEL = "label"
     BATCH = "batch"
     INVERSE = "inverse"
+    BOX = "box"
+    CLASS = "class"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
     POINTS = "points"
@@ -70,23 +75,100 @@ def _collate_value(values: List[Any]) -> Any:
     return list(values)
 
 
-def collate(data_list: List[Dict[str, Any]], batch_from: str = "pos", batch_key: str = "batch") -> Dict[str, Any]:
+def _leading_size(value: Any) -> int:
+    if isinstance(value, Tensor):
+        return value.shape[0] if value.ndim >= 1 else 1
+    if hasattr(value, "__len__"):
+        return len(value)
+    return 1
+
+
+def collate(
+    data_list: List[Dict[str, Any]],
+    batch_from: str = "pos",
+    batch_key: str = "batch",
+    stack_keys: Optional[KeyCollection] = None,
+    cat_keys: Optional[KeyCollection] = None,
+) -> Dict[str, Any]:
+    r"""Collate a list of point-cloud sample dicts into one batched dict.
+
+    By default every per-point tensor is concatenated PyG-style along dim 0 (packed), scalars are
+    stacked, and a per-point `batch_key` index is synthesized from `batch_from`. Two extra knobs say
+    how specific keys collate instead:
+
+    - `stack_keys`: stack to a new leading batch dim ($(M, \cdot) \to (B, M, \cdot)$, $(N, \cdot) \to (B, N, \cdot)$)
+      rather than concatenating. Used for fixed-size per-scene ground truth (the VoteNet loss consumes
+      dense $(B, M, \cdot)$ targets, which a plain cat would flatten).
+    - `cat_keys`: keep these packed (cat) but additionally emit a `<key>_batch` scene index mirroring
+      `batch_key`. Used for ragged per-scene ground truth such as `box` $(K, 8)$ -> `box_batch` $(K,)$.
+
+    Only keys present in every sample are stacked or indexed; others fall back to the default collation.
+
+    Args:
+        data_list: List of sample dicts.
+        batch_from: Key whose leading dimension defines the per-point batch index.
+        batch_key: Output key for the per-point batch index.
+        stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
+        cat_keys: Packed keys that additionally emit a `<key>_batch` per-element scene index.
+
+    Returns:
+        A single batched dict.
+    """
+    stack_keys = ensure_tuple(stack_keys)
+    cat_keys = ensure_tuple(cat_keys)
     if not data_list:
         return {}
 
-    out = {k: _collate_value([d[k] for d in data_list]) for k in data_list[0].keys()}
+    stacked = [k for k in stack_keys if all(k in d for d in data_list)]
+    out: Dict[str, Any] = {}
+    for k in data_list[0].keys():
+        values = [d[k] for d in data_list]
+        out[k] = torch.stack(values, dim=0) if k in stacked else _collate_value(values)
 
-    if batch_from in data_list[0]:
-        lengths = []
-        for d in data_list:
-            v = d[batch_from]
-            if isinstance(v, Tensor):
-                lengths.append(v.shape[0] if v.ndim >= 1 else 1)
-            elif hasattr(v, "__len__"):
-                lengths.append(len(v))
-            else:
-                lengths.append(1)
-
-        out[batch_key] = torch.cat([torch.full((n,), i, dtype=torch.long) for i, n in enumerate(lengths)])
+    for src, dst in ((batch_from, batch_key), *((k, f"{k}_batch") for k in cat_keys)):
+        if all(src in d for d in data_list):
+            lengths = [_leading_size(d[src]) for d in data_list]
+            out[dst] = torch.cat([torch.full((n,), i, dtype=torch.long) for i, n in enumerate(lengths)])
 
     return out
+
+
+class PointCloudDataLoader(DataLoader):
+    r"""`DataLoader` that batches point clouds with the packed-batch `collate` by default.
+
+    Wraps `torch.utils.data.DataLoader`, defaulting `collate_fn` to
+    [`collate`][torch_pointcloud.utils.data.collate]. How keys collate is set by the spec arguments
+    (`batch_from` / `batch_key` for the per-point index, `stack_keys` for dense per-scene ground
+    truth, `cat_keys` for ragged per-scene ground truth). These are supplied by the caller, never
+    read off the dataset: transforms rewrite the key set downstream of the dataset (a `box` key may
+    be derived from an object by a transform), so only the code building the loader knows which keys
+    must stack or cat. Passing `collate_fn=...` via the usual `DataLoader` kwarg overrides the spec.
+
+    Args:
+        dataset: The dataset to load from.
+        batch_from: Key whose leading dimension defines the per-point batch index.
+        batch_key: Output key for the per-point batch index.
+        stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
+        cat_keys: Packed keys that additionally emit a `<key>_batch` per-element scene index.
+        **kwargs: Forwarded to `torch.utils.data.DataLoader` (`batch_size`, `shuffle`, `collate_fn`, ...).
+    """
+
+    def __init__(
+        self,
+        dataset: Dataset,
+        *,
+        batch_from: str = "pos",
+        batch_key: str = "batch",
+        stack_keys: Optional[Sequence[str]] = None,
+        cat_keys: Optional[Sequence[str]] = None,
+        **kwargs: Any,
+    ) -> None:
+        collate_fn = functools.partial(
+            collate,
+            batch_from=batch_from,
+            batch_key=batch_key,
+            stack_keys=stack_keys,
+            cat_keys=cat_keys,
+        )
+        kwargs.setdefault("collate_fn", collate_fn)
+        super().__init__(dataset, **kwargs)
