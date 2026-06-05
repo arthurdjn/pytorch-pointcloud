@@ -85,7 +85,7 @@ class VoteNetBackbone(nn.Module):
         self.sa_modules = nn.ModuleList()
         for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
             block_channels = ensure_list(channels)
-            block = SAModule(
+            sa_block = SAModule(
                 in_channels=in_channels,
                 channels=block_channels,
                 num_points=npoint,
@@ -103,7 +103,7 @@ class VoteNetBackbone(nn.Module):
                 norm_kwargs=norm_kwargs,
             )
 
-            self.sa_modules.append(block)
+            self.sa_modules.append(sa_block)
             in_channels = block_channels[-1]
             skip_channels.append(in_channels)
 
@@ -112,7 +112,7 @@ class VoteNetBackbone(nn.Module):
         self.fp_modules = nn.ModuleList()
         for i, channels in enumerate(fp_channels):
             block_channels = ensure_list(channels)
-            block = FPModule(
+            fp_block = FPModule(
                 in_channels=in_channels + skip_channels[num_sa_blocks - 2 - i],
                 channels=block_channels,
                 k=3,
@@ -125,7 +125,7 @@ class VoteNetBackbone(nn.Module):
                 norm_kwargs=norm_kwargs,
             )
 
-            self.fp_modules.append(block)
+            self.fp_modules.append(fp_block)
             in_channels = block_channels[-1]
 
         self.out_channels = in_channels
