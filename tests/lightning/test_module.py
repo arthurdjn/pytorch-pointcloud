@@ -16,9 +16,8 @@ from torch_pointcloud.lightning import (
     PointCloudDataModule,
 )
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
-from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
 
-pytestmark = pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed")
+pytest.importorskip("lightning.pytorch")
 
 import lightning.pytorch as L  # noqa: E402
 
