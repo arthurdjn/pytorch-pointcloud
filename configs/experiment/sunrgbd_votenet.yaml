@@ -12,13 +12,8 @@ trainer:
 
 data:
   # Stack the dense VoteNet targets to (B, M, ...) and keep the ragged GT boxes packed (emits batch_box).
-  collate_fn:
-    _target_: functools.partial
-    _args_:
-      - _target_: hydra.utils.get_method
-        path: torch_pointcloud.utils.data.collate
-    stack_keys: [center_label, heading_class_label, heading_residual_label, size_class_label, size_residual_label, sem_cls_label, box_label_mask, vote_label, vote_label_mask]
-    cat_keys: [box]
+  stack_keys: [center_label, heading_class_label, heading_residual_label, size_class_label, size_residual_label, sem_cls_label, box_label_mask, vote_label, vote_label_mask]
+  cat_keys: [box]
 
   train_dataset:
     transform:
