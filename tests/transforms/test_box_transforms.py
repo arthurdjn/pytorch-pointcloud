@@ -143,7 +143,7 @@ def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
     mean = torch.ones(10, 3) * 0.5
     box = _box(heading=0.6, cls=2.0)
     data = {"box": box.clone()}
-    out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_size_arr=mean, max_num_obj=64)(data)
+    out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
     assert out["center_label"].shape == (64, 3)
     assert out["heading_class_label"].shape == (64,)
     assert out["heading_residual_label"].shape == (64,)
@@ -155,7 +155,7 @@ def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
     assert out["size_class_label"][0].item() == 2
     assert out["sem_cls_label"][0].item() == 2
     assert torch.allclose(out["center_label"][0], box[0, 0:3])
-    recovered = F.class2size(out["size_class_label"][:1], out["size_residual_label"][:1], mean)
+    recovered = F.class_to_size(out["size_class_label"][:1], out["size_residual_label"][:1], mean)
     assert torch.allclose(recovered[0], box[0, 3:6] * 2, atol=1e-5)
 
 
@@ -163,7 +163,7 @@ def test_encode_votenet_targets_truncates_to_max_num_obj() -> None:
     mean = torch.ones(10, 3) * 0.5
     boxes = _box(heading=0.0, cls=1.0).repeat(5, 1)
     data = {"box": boxes}
-    out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_size_arr=mean, max_num_obj=3)(data)
+    out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=3)(data)
     assert out["center_label"].shape == (3, 3)
     assert out["box_label_mask"].sum().item() == 3
 
@@ -179,7 +179,7 @@ def test_vote_then_encode_keeps_boxes_and_writes_all_labels() -> None:
     )
     data = {"pos": pos.clone(), "box": boxes.clone(), "class": boxes[:, 7].long()}
     data = T.GenerateVoteLabels(pos_key="pos", box_key="box")(data)
-    out = T.EncodeVoteNetTargets(box_key="box", num_heading_bin=12, mean_size_arr=mean, max_num_obj=64)(data)
+    out = T.EncodeVoteNetTargets(box_key="box", num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
 
     assert torch.equal(out["box"], boxes)
     assert out["vote_label"].shape == (2048, 9)
@@ -210,9 +210,55 @@ def test_vote_then_encode_keeps_boxes_and_writes_all_labels() -> None:
     assert out["size_class_label"][:2].tolist() == [3, 1]
 
 
-def test_angle2class_roundtrip() -> None:
+def test_angle_to_class_roundtrip() -> None:
     angles = torch.tensor([0.0, 0.6, 2.5, math.pi])
-    cls, residual = F.angle2class(angles, 12)
-    angle_per_class = 2 * math.pi / 12
-    recovered = (cls.to(angles.dtype) * angle_per_class + residual) % (2 * math.pi)
+    cls, residual = F.angle_to_class(angles, 12)
+    recovered = F.class_to_angle(cls, residual, 12) % (2 * math.pi)
     assert torch.allclose(recovered, angles % (2 * math.pi), atol=1e-5)
+
+
+def test_class_to_angle_matches_bin_center_plus_residual() -> None:
+    heading_class = torch.tensor([0, 3, 11])
+    heading_residual = torch.tensor([0.05, -0.1, 0.2])
+    angle = F.class_to_angle(heading_class, heading_residual, 12)
+    expected = heading_class.to(heading_residual.dtype) * (2 * math.pi / 12) + heading_residual
+    assert torch.allclose(angle, expected)
+
+
+def test_class_to_angle_single_bin_decodes_zero() -> None:
+    heading_class = torch.zeros(4, dtype=torch.long)
+    heading_residual = torch.randn(4)
+    assert torch.equal(F.class_to_angle(heading_class, heading_residual, 1), torch.zeros(4))
+
+
+def test_class_to_size_adds_residual_to_template() -> None:
+    mean_sizes = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    size_class = torch.tensor([0, 1, 0])
+    size_residual = torch.tensor([[0.1, -0.2, 0.3], [0.0, 0.5, -0.5], [-0.4, 0.0, 0.1]])
+    size = F.class_to_size(size_class, size_residual, mean_sizes)
+    assert torch.allclose(size, mean_sizes[size_class] + size_residual)
+
+
+def test_instance_to_box_extents_class_and_drop() -> None:
+    # inst 0 (class 2): corners (0,0,0)-(2,1,1); inst 1 (class 5): a y-slab; inst 2: ignore class -> dropped.
+    pos = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],
+            [2.0, 1.0, 1.0],
+            [5.0, 5.0, 5.0],
+            [5.0, 6.0, 5.0],
+            [9.0, 9.0, 9.0],
+        ]
+    )
+    data = {"pos": pos, "instance": torch.tensor([0, 0, 1, 1, 2]), "segment": torch.tensor([2, 2, 5, 5, -1])}
+    out = T.InstanceToBox()(data)
+    box = out["box"]
+    assert box.shape == (2, 8)
+    assert torch.allclose(box[0], torch.tensor([1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 0.0, 2.0]))
+    assert torch.allclose(box[1], torch.tensor([5.0, 5.5, 5.0, 0.0, 0.5, 0.0, 0.0, 5.0]))
+
+
+def test_instance_to_box_all_ignored_is_empty() -> None:
+    data = {"pos": torch.rand(4, 3), "instance": torch.tensor([0, 0, 1, 1]), "segment": torch.tensor([-1, -1, -1, -1])}
+    out = T.InstanceToBox()(data)
+    assert out["box"].shape == (0, 8)

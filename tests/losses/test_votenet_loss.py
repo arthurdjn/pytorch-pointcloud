@@ -15,9 +15,10 @@ def _fake_inputs(
     num_seed: int = 16,
     num_heading_bin: int = 12,
     num_size_cluster: int = 10,
-    num_class: int = 10,
+    num_classes: int = 10,
 ) -> Tuple[Dict[str, Tensor], Dict[str, Any]]:
     torch.manual_seed(0)
+    batch_seed = torch.arange(batch_size).repeat_interleave(num_seed)
     output: Dict[str, Tensor] = {
         "objectness_scores": torch.randn(batch_size, num_proposal, 2),
         "center": torch.randn(batch_size, num_proposal, 3),
@@ -25,11 +26,13 @@ def _fake_inputs(
         "heading_residuals_normalized": torch.randn(batch_size, num_proposal, num_heading_bin),
         "size_scores": torch.randn(batch_size, num_proposal, num_size_cluster),
         "size_residuals_normalized": torch.randn(batch_size, num_proposal, num_size_cluster, 3),
-        "sem_cls_scores": torch.randn(batch_size, num_proposal, num_class),
-        "aggregated_vote_pos": torch.randn(batch_size, num_proposal, 3),
-        "seed_pos": torch.randn(batch_size, num_seed, 3),
-        "vote_pos": torch.randn(batch_size, num_seed, 3),
-        "seed_inds": torch.randint(0, num_point, (batch_size, num_seed)),
+        "sem_cls_scores": torch.randn(batch_size, num_proposal, num_classes),
+        "pos_vote_aggr": torch.randn(batch_size, num_proposal, 3),
+        "pos_seed": torch.randn(batch_size * num_seed, 3),
+        "pos_vote": torch.randn(batch_size * num_seed, 3),
+        "seed_indices": torch.randint(0, num_point, (batch_size * num_seed,)) + batch_seed * num_point,
+        "batch_seed": batch_seed,
+        "batch_vote": batch_seed,
     }
     box_label_mask = torch.zeros(batch_size, max_obj)
     box_label_mask[:, :2] = 1.0
@@ -39,10 +42,11 @@ def _fake_inputs(
         "heading_residual_label": torch.randn(batch_size, max_obj),
         "size_class_label": torch.randint(0, num_size_cluster, (batch_size, max_obj)),
         "size_residual_label": torch.randn(batch_size, max_obj, 3),
-        "sem_cls_label": torch.randint(0, num_class, (batch_size, max_obj)),
+        "sem_cls_label": torch.randint(0, num_classes, (batch_size, max_obj)),
         "box_label_mask": box_label_mask,
         "vote_label": torch.randn(batch_size, num_point, 9),
         "vote_label_mask": (torch.rand(batch_size, num_point) > 0.5).long(),
+        "batch": torch.arange(batch_size).repeat_interleave(num_point),
     }
     return output, batch
 
@@ -53,7 +57,7 @@ def _mean_size(num_size_cluster: int = 10) -> Tensor:
 
 
 def test_votenet_loss_returns_scalar_dict() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_class=10, mean_size_arr=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _fake_inputs()
     out = loss_fn(output, batch)
     for key in ("loss", "vote_loss", "objectness_loss", "box_loss", "sem_cls_loss", "obj_acc"):
@@ -63,7 +67,7 @@ def test_votenet_loss_returns_scalar_dict() -> None:
 
 
 def test_votenet_loss_backward() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_class=10, mean_size_arr=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _fake_inputs()
     for value in output.values():
         if value.is_floating_point():
@@ -74,13 +78,13 @@ def test_votenet_loss_backward() -> None:
 
 
 def test_votenet_loss_scannet_single_heading_bin() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=1, num_size_cluster=18, num_class=18, mean_size_arr=_mean_size(18))
-    output, batch = _fake_inputs(num_heading_bin=1, num_size_cluster=18, num_class=18)
+    loss_fn = VoteNetLoss(num_heading_bin=1, num_size_cluster=18, num_classes=18, mean_sizes=_mean_size(18))
+    output, batch = _fake_inputs(num_heading_bin=1, num_size_cluster=18, num_classes=18)
     assert torch.isfinite(loss_fn(output, batch)["loss"])
 
 
 def test_votenet_loss_no_positive_targets_is_finite() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_class=10, mean_size_arr=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _fake_inputs()
     batch["box_label_mask"] = torch.zeros_like(batch["box_label_mask"])
     batch["vote_label_mask"] = torch.zeros_like(batch["vote_label_mask"])
@@ -88,5 +92,5 @@ def test_votenet_loss_no_positive_targets_is_finite() -> None:
 
 
 def test_votenet_loss_bad_mean_size_shape() -> None:
-    with pytest.raises(ValueError, match="mean_size_arr"):
-        VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_class=10, mean_size_arr=torch.rand(5, 3))
+    with pytest.raises(ValueError, match="mean_sizes"):
+        VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=torch.rand(5, 3))

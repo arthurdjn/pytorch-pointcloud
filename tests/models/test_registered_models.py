@@ -359,6 +359,38 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, models_di
     )
 
 
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize("model_name", DETECTION_MODELS)
+def test_detection_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered detection models is correct.
+    This test will only verify that the state-dict structure of the model matches the expected structure,
+    but will not verify that the content of the weights are correct.
+
+    This test is useful to catch accidental architecture changes in the models (e.g. renaming a parameter or module),
+    and is faster than a full forward pass + weight loading.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_detection_architecture --force-regen
+    ```
+    """
+    _skip_if_model_deps_missing(model_name)
+    models_dir = models_dir_factory("*.json")
+
+    model = create_model(model_name, task="detection")
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="detection",
+        models_dir=models_dir,
+        force_regen=force_regen,
+    )
+
+
 def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, torch.Tensor]:
     """Synthetic sparse-voxel inputs for spconv / superpoint models.
 

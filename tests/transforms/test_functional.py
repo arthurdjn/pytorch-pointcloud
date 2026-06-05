@@ -63,10 +63,10 @@ def test_random_sample_return_indices() -> None:
     assert torch.equal(sampled, tensor[indices])
 
 
-def test_random_sample_oversample_without_replace_raises() -> None:
+def test_random_sample_oversample_without_replace_upsamples() -> None:
     tensor = torch.tensor([[1.0], [2.0]])
-    with pytest.raises(ValueError, match="without replacement"):
-        F.random_sample(tensor, num_samples=10)
+    result = F.random_sample(tensor, num_samples=10)
+    assert result.shape == (10, 1)
 
 
 def test_random_sample_oversample_with_replace_ok() -> None:

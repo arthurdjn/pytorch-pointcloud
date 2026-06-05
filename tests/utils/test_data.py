@@ -129,15 +129,15 @@ def _detection_sample(num_points: int, num_boxes: int) -> dict[str, torch.Tensor
 
 
 def test_collate_cat_keys_emits_scene_index() -> None:
-    """`cat_keys` keep ragged per-scene tensors packed but add a `<key>_batch` scene index."""
+    """`cat_keys` keep ragged per-scene tensors packed but add a `batch_<key>` scene index."""
     samples = [_detection_sample(5, 2), _detection_sample(7, 3)]
     out = collate(samples, cat_keys=(DataKeys.BOX,))
     assert out[DataKeys.POS].shape == (12, 3)
     assert out[DataKeys.BATCH].shape == (12,)
     assert out[DataKeys.BOX].shape == (5, 8)
-    box_batch = out[f"{DataKeys.BOX}_batch"]
-    assert box_batch.shape == (5,)
-    assert box_batch.tolist() == [0, 0, 1, 1, 1]
+    batch_box = out[f"batch_{DataKeys.BOX}"]
+    assert batch_box.shape == (5,)
+    assert batch_box.tolist() == [0, 0, 1, 1, 1]
 
 
 def test_collate_cat_keys_handles_empty_scene() -> None:
@@ -145,7 +145,7 @@ def test_collate_cat_keys_handles_empty_scene() -> None:
     samples = [_detection_sample(4, 0), _detection_sample(6, 2)]
     out = collate(samples, cat_keys=(DataKeys.BOX,))
     assert out[DataKeys.BOX].shape == (2, 8)
-    assert out[f"{DataKeys.BOX}_batch"].tolist() == [1, 1]
+    assert out[f"batch_{DataKeys.BOX}"].tolist() == [1, 1]
 
 
 def test_collate_without_cat_keys_omits_scene_index() -> None:

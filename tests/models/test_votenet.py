@@ -5,8 +5,9 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.layers.pointnet2_blocks import SAModule
+from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.votenet import VoteNetDetection, VotingModule
+from torch_pointcloud.models.votenet import VoteNetDetectionModel, VotingModule
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -24,7 +25,7 @@ def _votenet_kwargs(**overrides: Any) -> Dict[str, Any]:
         num_classes=18,
         num_heading_bin=1,
         num_size_cluster=18,
-        mean_size_arr=[[1.0, 1.0, 1.0]] * 18,
+        mean_sizes=[[1.0, 1.0, 1.0]] * 18,
         num_proposal=16,
         vote_factor=1,
         sampling="vote_fps",
@@ -61,7 +62,7 @@ def _assert_proposal_shapes(
     assert out["size_scores"].shape == (batch_size, num_proposal, ns)
     assert out["size_residuals"].shape == (batch_size, num_proposal, ns, 3)
     assert out["sem_cls_scores"].shape == (batch_size, num_proposal, nc)
-    assert out["aggregated_vote_pos"].shape == (batch_size, num_proposal, 3)
+    assert out["pos_vote_aggr"].shape == (batch_size, num_proposal, 3)
 
 
 def test_votenet_scannet_forward_shapes() -> None:
@@ -71,8 +72,8 @@ def test_votenet_scannet_forward_shapes() -> None:
         out = model(data["x"], data["pos"], data["batch"])
     _assert_proposal_shapes(out, batch_size=2, num_proposal=256, nh=1, ns=18, nc=18)
     # Seeds are the 1024 SA2 points per scene; votes are 1:1 with seeds.
-    assert out["seed_pos"].shape == (2 * 1024, 3)
-    assert out["vote_pos"].shape == (2 * 1024, 3)
+    assert out["pos_seed"].shape == (2 * 1024, 3)
+    assert out["pos_vote"].shape == (2 * 1024, 3)
     assert torch.isfinite(out["center"]).all()
 
 
@@ -102,7 +103,7 @@ def test_votenet_eval_is_deterministic() -> None:
 
 def test_votenet_reset_classifier() -> None:
     model = create_model("votenet-fair-base.scannet", task="detection")
-    assert isinstance(model, VoteNetDetection)
+    assert isinstance(model, VoteNetDetectionModel)
     model.reset_classifier(num_classes=5)
     assert model.num_classes == 5
     assert model.proposal.mlp.lins[-1].out_features == 2 + 3 + 1 * 2 + 18 * 4 + 5
@@ -115,21 +116,21 @@ def test_votenet_reset_classifier() -> None:
 
 def test_votenet_seed_fps_requires_unit_vote_factor() -> None:
     with pytest.raises(ValueError, match="vote_factor"):
-        VoteNetDetection(**_votenet_kwargs(sampling="seed_fps", vote_factor=2))
+        VoteNetDetectionModel(**_votenet_kwargs(sampling="seed_fps", vote_factor=2))
 
 
-def test_votenet_bad_mean_size_arr_shape() -> None:
-    with pytest.raises(ValueError, match="mean_size_arr"):
-        VoteNetDetection(**_votenet_kwargs(num_size_cluster=3, mean_size_arr=[[1.0, 1.0, 1.0]]))
+def test_votenet_bad_mean_sizes_shape() -> None:
+    with pytest.raises(ValueError, match="mean_sizes"):
+        VoteNetDetectionModel(**_votenet_kwargs(num_size_cluster=3, mean_sizes=[[1.0, 1.0, 1.0]]))
 
 
-def test_votenet_mean_size_arr_not_persisted() -> None:
-    # The reference rebuilds mean_size_arr on the fly, so it must stay out of the checkpoint.
+def test_votenet_mean_sizes_not_persisted() -> None:
+    # The reference rebuilds mean_sizes on the fly, so it must stay out of the checkpoint.
     model = create_model("votenet-fair-base.scannet", task="detection")
-    assert isinstance(model, VoteNetDetection)
-    assert "mean_size_arr" not in model.state_dict()
+    assert isinstance(model, VoteNetDetectionModel)
+    assert "mean_sizes" not in model.state_dict()
     # ...but it still moves with the module and drives size decoding.
-    assert model.mean_size_arr.shape == (18, 3)
+    assert model.mean_sizes.shape == (18, 3)
 
 
 def test_sa_module_num_points_and_precomputed_idx() -> None:
@@ -159,14 +160,14 @@ def test_sa_module_requires_exactly_one_sampling_spec() -> None:
 
 def test_votenet_voting_module_residual() -> None:
     vgen = VotingModule(vote_factor=1, seed_feature_dim=8).eval()
-    seed_pos = torch.rand(10, 3)
-    seed_x = torch.rand(10, 8)
-    seed_batch = torch.zeros(10, dtype=torch.long)
+    pos_seed = torch.rand(10, 3)
+    x_seed = torch.rand(10, 8)
+    batch_seed = torch.zeros(10, dtype=torch.long)
     with torch.no_grad():
-        vote_pos, vote_x, vote_batch = vgen(seed_pos, seed_x, seed_batch)
-    assert vote_pos.shape == (10, 3)
-    assert vote_x.shape == (10, 8)
-    assert torch.equal(vote_batch, seed_batch)
+        pos_vote, x_vote, batch_vote = vgen(x_seed, pos_seed, batch_seed)
+    assert pos_vote.shape == (10, 3)
+    assert x_vote.shape == (10, 8)
+    assert torch.equal(batch_vote, batch_seed)
 
 
 def test_votenet_registered_variants() -> None:
@@ -177,8 +178,42 @@ def test_votenet_registered_variants() -> None:
 
 def test_votenet_create_model_no_pretrained() -> None:
     model = create_model("votenet-fair-base.sunrgbd", task="detection")
-    assert isinstance(model, VoteNetDetection)
+    assert isinstance(model, VoteNetDetectionModel)
     assert model.num_classes == 10
     assert model.num_heading_bin == 12
     assert model.num_size_cluster == 10
     assert model.sampling == "seed_fps"
+
+
+def test_votenet_output_feeds_loss_directly() -> None:
+    """The model's raw packed output feeds `VoteNetLoss` with no glue: the loss self-densifies."""
+    torch.manual_seed(0)
+    model = VoteNetDetectionModel(**_votenet_kwargs()).to(DEVICE).eval()
+    data = _make_inputs(in_channels=model.in_channels)
+    with torch.no_grad():
+        output = model(data["x"], data["pos"], data["batch"])
+
+    loss_fn = VoteNetLoss(
+        num_heading_bin=model.num_heading_bin,
+        num_size_cluster=model.num_size_cluster,
+        num_classes=int(model.num_classes),
+        mean_sizes=model.mean_sizes,
+    ).to(DEVICE)
+    batch_size, num_point, max_obj = 2, 3000, 4
+    box_label_mask = torch.zeros(batch_size, max_obj, device=DEVICE)
+    box_label_mask[:, :2] = 1.0
+    gt: Dict[str, Tensor] = {
+        "center_label": torch.randn(batch_size, max_obj, 3, device=DEVICE),
+        "heading_class_label": torch.zeros(batch_size, max_obj, dtype=torch.long, device=DEVICE),
+        "heading_residual_label": torch.randn(batch_size, max_obj, device=DEVICE),
+        "size_class_label": torch.randint(0, model.num_size_cluster, (batch_size, max_obj), device=DEVICE),
+        "size_residual_label": torch.randn(batch_size, max_obj, 3, device=DEVICE),
+        "sem_cls_label": torch.randint(0, int(model.num_classes), (batch_size, max_obj), device=DEVICE),
+        "box_label_mask": box_label_mask,
+        "vote_label": torch.randn(batch_size, num_point, 9, device=DEVICE),
+        "vote_label_mask": (torch.rand(batch_size, num_point, device=DEVICE) > 0.5).long(),
+        "batch": data["batch"],
+    }
+    result = loss_fn(output, gt)
+    assert result["loss"].ndim == 0
+    assert torch.isfinite(result["loss"])

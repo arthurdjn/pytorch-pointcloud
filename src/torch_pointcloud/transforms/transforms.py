@@ -69,6 +69,7 @@ __all__ = [
     "EstimateNormals",
     "FarthestPointSample",
     "GenerateVoteLabels",
+    "InstanceToBox",
     "KeepItems",
     "Normalize",
     "OneHot",
@@ -3039,6 +3040,68 @@ class RandomScaleBoxes(DictTransform):
         return d
 
 
+class InstanceToBox(DictTransform):
+    r"""Axis-aligned bounding boxes from per-point instance ids (e.g. ScanNet detection targets).
+
+    Each distinct instance id in `instance_key` becomes one axis-aligned box covering its `pos_key` points:
+    the center and half extents, heading $0$, and a class read from `semantic_key` (the instance's most
+    common value). Instances whose class equals `ignore_index` are dropped, so mapping the stuff /
+    non-target semantics to `ignore_index` with a `Relabel` upstream filters the boxes down to the detection
+    classes. The boxes are written to `dst_box_key` as $(K, 8)$ tensors
+    $[c_x, c_y, c_z, h_x, h_y, h_z, 0, \text{class}]$, the half-extent convention shared with the dataset
+    `box` key.
+
+    Args:
+        instance_key: Key of the $(N,)$ per-point instance ids.
+        semantic_key: Key of the $(N,)$ per-point class labels the box class is read from.
+        pos_key: Key of the $(N, 3)$ coordinates.
+        dst_box_key: Key to write the $(K, 8)$ boxes to.
+        ignore_index: Class value whose instances are dropped (e.g. unlabeled / stuff).
+        allow_missing_keys: If `True`, return the data unchanged when an input key is missing instead of raising.
+    """
+
+    def __init__(
+        self,
+        instance_key: str = "instance",
+        semantic_key: str = "segment",
+        pos_key: str = "pos",
+        dst_box_key: str = "box",
+        ignore_index: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__([instance_key, semantic_key, pos_key], allow_missing_keys)
+        self.instance_key = instance_key
+        self.semantic_key = semantic_key
+        self.pos_key = pos_key
+        self.dst_box_key = dst_box_key
+        self.ignore_index = ignore_index
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in (self.instance_key, self.semantic_key, self.pos_key):
+            if key not in d:
+                if self.allow_missing_keys:
+                    return d
+                raise KeyError(f"Key {key!r} was missing in the data and `allow_missing_keys==False`.")
+
+        d[self.dst_box_key] = self._instance_boxes(d[self.pos_key], d[self.instance_key], d[self.semantic_key])
+        return d
+
+    def _instance_boxes(self, pos: Tensor, instance: Tensor, segment: Tensor) -> Tensor:
+        boxes: list[Tensor] = []
+        for inst in torch.unique(instance):
+            mask = instance == inst
+            cls = segment[mask].mode().values
+            if int(cls) == self.ignore_index:
+                continue
+            lo, hi = pos[mask].amin(dim=0), pos[mask].amax(dim=0)
+            boxes.append(torch.cat([(lo + hi) / 2, (hi - lo) / 2, pos.new_zeros(1), cls.to(pos).reshape(1)]))
+
+        if not boxes:
+            return pos.new_zeros((0, 8))
+        return torch.stack(boxes)
+
+
 class GenerateVoteLabels(DictTransform):
     r"""Generate per-point vote offsets and a vote mask from oriented GT boxes.
 
@@ -3083,13 +3146,16 @@ class GenerateVoteLabels(DictTransform):
         if self.pos_key not in d or self.box_key not in d:
             if self.allow_missing_keys:
                 return d
+
             missing = self.pos_key if self.pos_key not in d else self.box_key
             raise KeyError(f"Key {missing!r} was missing in the data and `allow_missing_keys==False`.")
+
         pos = d[self.pos_key]
         boxes = d[self.box_key]
         n = pos.shape[0]
         offset = torch.zeros(n, 3, device=pos.device, dtype=pos.dtype)
         mask = torch.zeros(n, device=pos.device, dtype=torch.long)
+
         for k in range(boxes.shape[0]):
             box = boxes[k]
             if self.oriented:
@@ -3098,6 +3164,7 @@ class GenerateVoteLabels(DictTransform):
                 inside = ((pos - box[0:3]).abs() <= box[3:6]).all(dim=1)
             offset[inside] = box[0:3] - pos[inside]
             mask[inside] = 1
+
         d[self.vote_key] = offset.repeat(1, self.gt_vote_factor)
         d[self.mask_key] = mask
         return d
@@ -3107,12 +3174,12 @@ class EncodeVoteNetTargets(DictTransform):
     r"""Encode oriented GT boxes into the padded label tensors the VoteNet loss consumes.
 
     Each $(K, 8)$ box is converted to fixed-size $(M, \ldots)$ targets where $M$ is `max_num_obj`. Headings are
-    binned with `angle2class`. The size class is the semantic class and the size residual is computed against
-    `mean_size_arr` (full edge lengths), so SUN RGB-D half-extents are doubled to full edge lengths first.
+    binned with `angle_to_class`. The size class is the semantic class and the size residual is computed against
+    `mean_sizes` (full edge lengths), so SUN RGB-D half-extents are doubled to full edge lengths first.
 
     See Also:
-        `torch_pointcloud.transforms.functional.angle2class`,
-        `torch_pointcloud.transforms.functional.class2size`
+        `torch_pointcloud.transforms.functional.angle_to_class`,
+        `torch_pointcloud.transforms.functional.class_to_size`
 
     Args:
         box_key: Key of the $(K, 8)$ box tensor.
@@ -3124,12 +3191,12 @@ class EncodeVoteNetTargets(DictTransform):
         sem_cls_key: Key to write the $(M,)$ semantic class labels to.
         box_mask_key: Key to write the $(M,)$ box mask to.
         num_heading_bin: Number of heading bins.
-        mean_size_arr: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
+        mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
         max_num_obj: Padded number of objects $M$.
         allow_missing_keys: If `True`, return the data unchanged when `box_key` is missing instead of raising.
 
     Raises:
-        ValueError: If `mean_size_arr` is not provided.
+        ValueError: If `mean_sizes` is not provided.
     """
 
     def __init__(
@@ -3143,13 +3210,14 @@ class EncodeVoteNetTargets(DictTransform):
         sem_cls_key: str = "sem_cls_label",
         box_mask_key: str = "box_label_mask",
         num_heading_bin: int = 12,
-        mean_size_arr: Optional[Union[Tensor, Sequence[Sequence[float]]]] = None,
+        mean_sizes: Optional[Union[Tensor, Sequence[Sequence[float]]]] = None,
         max_num_obj: int = 64,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(box_key, allow_missing_keys)
-        if mean_size_arr is None:
-            raise ValueError("mean_size_arr must be provided with full edge lengths of shape (C, 3).")
+        if mean_sizes is None:
+            raise ValueError("mean_sizes must be provided with full edge lengths of shape (C, 3).")
+
         self.box_key = box_key
         self.center_key = center_key
         self.heading_class_key = heading_class_key
@@ -3159,7 +3227,7 @@ class EncodeVoteNetTargets(DictTransform):
         self.sem_cls_key = sem_cls_key
         self.box_mask_key = box_mask_key
         self.num_heading_bin = num_heading_bin
-        self.mean_size_arr = torch.as_tensor(mean_size_arr, dtype=torch.float32)
+        self.mean_sizes = torch.as_tensor(mean_sizes, dtype=torch.float32)
         self.max_num_obj = max_num_obj
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -3168,12 +3236,13 @@ class EncodeVoteNetTargets(DictTransform):
             if self.allow_missing_keys:
                 return d
             raise KeyError(f"Key {self.box_key!r} was missing in the data and `allow_missing_keys==False`.")
+
         boxes = d[self.box_key]
         device = boxes.device
         dtype = boxes.dtype
         m = self.max_num_obj
         k = min(boxes.shape[0], m)
-        mean_size_arr = self.mean_size_arr.to(device=device, dtype=dtype)
+        mean_sizes = self.mean_sizes.to(device=device, dtype=dtype)
 
         center = torch.zeros(m, 3, device=device, dtype=dtype)
         heading_class = torch.zeros(m, device=device, dtype=torch.long)
@@ -3187,11 +3256,11 @@ class EncodeVoteNetTargets(DictTransform):
             valid = boxes[:k]
             sem = valid[:, 7].long()
             center[:k] = valid[:, 0:3]
-            cls, residual = F.angle2class(valid[:, 6], self.num_heading_bin)
+            cls, residual = F.angle_to_class(valid[:, 6], self.num_heading_bin)
             heading_class[:k] = cls
             heading_residual[:k] = residual
             size_class[:k] = sem
-            size_residual[:k] = valid[:, 3:6] * 2 - mean_size_arr[sem]
+            size_residual[:k] = valid[:, 3:6] * 2 - mean_sizes[sem]
             sem_cls[:k] = sem
             box_mask[:k] = 1
 

@@ -4,6 +4,7 @@
 defaults:
   - override /data: shapenetpart
   - override /model: dgcnn
+  - override /callbacks: segmentation
 
 trainer:
   max_epochs: 100

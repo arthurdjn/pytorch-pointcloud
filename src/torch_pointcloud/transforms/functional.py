@@ -1446,7 +1446,7 @@ def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:
     return (local.abs() <= half).all(dim=1)
 
 
-def angle2class(angle: Tensor, num_heading_bin: int) -> Tuple[Tensor, Tensor]:
+def angle_to_class(angle: Tensor, num_heading_bin: int) -> Tuple[Tensor, Tensor]:
     r"""Convert continuous heading angles to discrete bin classes and residuals.
 
     The range $[0, 2\pi)$ is split into `num_heading_bin` equal bins centered at
@@ -1469,15 +1469,33 @@ def angle2class(angle: Tensor, num_heading_bin: int) -> Tuple[Tensor, Tensor]:
     return cls, residual
 
 
-def class2size(size_class: Tensor, size_residual: Tensor, mean_size_arr: Tensor) -> Tensor:
-    r"""Invert `size2class`: recover full box edge lengths from class and residual.
+def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_bin: int) -> Tensor:
+    r"""Invert `angle_to_class`: recover continuous heading angles from bin classes and residuals.
+
+    A single bin (`num_heading_bin == 1`, axis-aligned boxes) always decodes to a heading of $0$.
+
+    Args:
+        heading_class: Bin class indices (long) of shape $(K,)$.
+        heading_residual: Per-angle residuals of shape $(K,)$.
+        num_heading_bin: Number of heading bins $N$.
+
+    Returns:
+        The recovered heading angles of shape $(K,)$.
+    """
+    if num_heading_bin == 1:
+        return torch.zeros_like(heading_residual)
+    return heading_class.to(heading_residual.dtype) * (2 * math.pi / num_heading_bin) + heading_residual
+
+
+def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor) -> Tensor:
+    r"""Recover full box edge lengths from a size class index and residual (inverse of the size encoding).
 
     Args:
         size_class: Size class indices (long) of shape $(K,)$.
         size_residual: Per-axis residuals of shape $(K, 3)$.
-        mean_size_arr: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
+        mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
 
     Returns:
         The recovered full edge lengths of shape $(K, 3)$.
     """
-    return mean_size_arr.to(size_residual)[size_class.long()] + size_residual
+    return mean_sizes.to(size_residual)[size_class.long()] + size_residual

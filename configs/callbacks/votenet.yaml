@@ -1,10 +1,18 @@
-# Default callbacks, monitoring detection mAP, plus VoteNet's BatchNorm-momentum decay.
+# Default callbacks, plus per-epoch detection mAP and VoteNet's BatchNorm-momentum decay.
 defaults:
   - default
 
 model_checkpoint:
   monitor: "val/mAP@0.25"
   mode: max
+
+mean_ap:
+  _target_: torch_pointcloud.lightning.MetricCallback
+  name: mAP
+  stages: [val]
+  metric:
+    _target_: torch_pointcloud.lightning.MeanAveragePrecision3D
+    iou_thresholds: [0.25, 0.5]
 
 bn_momentum_scheduler:
   _target_: torch_pointcloud.lightning.BNMomentumScheduler

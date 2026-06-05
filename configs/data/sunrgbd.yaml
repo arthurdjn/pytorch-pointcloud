@@ -3,8 +3,6 @@
 _target_: torch_pointcloud.lightning.PointCloudDataModule
 batch_size: 8
 num_workers: 4
-# Detection collation (stack dense targets, index ragged boxes) is declared on the SunRGBD dataset
-# via its `stack_keys` / `index_keys` attributes, which PointCloudDataLoader reads automatically.
 
 train_dataset:
   _target_: torch_pointcloud.datasets.SunRGBD

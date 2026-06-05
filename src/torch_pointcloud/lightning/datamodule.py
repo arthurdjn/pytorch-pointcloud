@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Iterable, Optional, Sequence, Union
 
 import lightning.pytorch as L
 from torch.utils.data import DataLoader, Dataset, Sampler
@@ -13,17 +13,18 @@ class PointCloudDataModule(L.LightningDataModule):
     wrap the training dataset with `torch_pointcloud.datasets.RepeatDataset(dataset, loop=k)`
     before passing it in.
 
-    Loaders are built with `torch_pointcloud.utils.data.PointCloudDataLoader`, which defaults the
-    collate to the packed-batch `torch_pointcloud.utils.data.collate`. Collation specs are never read
-    off the dataset (transforms rewrite keys downstream); to customize collation, pass a `collate_fn`,
-    e.g. `functools.partial(collate, cat_keys=("box",))` for a detection dataset. `shuffle` is forced
-    to `True` for train and `False` for val/test.
+    Loaders are built with `torch_pointcloud.utils.data.PointCloudDataLoader`, which collates to the
+    packed-batch `torch_pointcloud.utils.data.collate`. Collation specs are never read off the dataset
+    (transforms rewrite keys downstream); pass `stack_keys` / `cat_keys` to control how per-scene ground
+    truth is batched (e.g. `cat_keys=("box",)` for a detection dataset). `shuffle` is forced to `True`
+    for train and `False` for val/test.
 
     Args:
         train_dataset: Dataset for the training loop.
         val_dataset: Dataset for the validation loop.
         test_dataset: Dataset for the test loop.
-        collate_fn: Optional override for the batch collate. Defaults to the packed-batch `collate`.
+        stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
+        cat_keys: Packed keys that additionally emit a `batch_<key>` per-element scene index.
         batch_size: Number of point clouds per batch.
         num_workers: Number of worker processes for data loading.
         pin_memory: Pin tensors in pinned (page-locked) memory before transfer.
@@ -41,7 +42,8 @@ class PointCloudDataModule(L.LightningDataModule):
         val_dataset: Optional[Dataset] = None,
         test_dataset: Optional[Dataset] = None,
         *,
-        collate_fn: Optional[Callable[[List[Dict[str, Any]]], Dict[str, Any]]] = None,
+        stack_keys: Optional[Sequence[str]] = None,
+        cat_keys: Optional[Sequence[str]] = None,
         batch_size: int = 1,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -56,7 +58,8 @@ class PointCloudDataModule(L.LightningDataModule):
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
 
-        self.collate_fn = collate_fn
+        self.stack_keys = stack_keys
+        self.cat_keys = cat_keys
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -81,7 +84,10 @@ class PointCloudDataModule(L.LightningDataModule):
         # `sampler` and `shuffle` are mutually exclusive in torch.utils.data.DataLoader.
         effective_shuffle = False if sampler is not None or batch_sampler is not None else shuffle
 
-        kwargs = dict(
+        return PointCloudDataLoader(
+            dataset,
+            stack_keys=self.stack_keys,
+            cat_keys=self.cat_keys,
             batch_size=self.batch_size,
             shuffle=effective_shuffle,
             sampler=sampler,
@@ -94,10 +100,6 @@ class PointCloudDataModule(L.LightningDataModule):
             persistent_workers=self.persistent_workers,
             pin_memory_device=self.pin_memory_device,
         )
-        if self.collate_fn is not None:
-            kwargs["collate_fn"] = self.collate_fn
-
-        return PointCloudDataLoader(dataset, **kwargs)
 
     def train_dataloader(self) -> DataLoader:
         return self.configure_dataloader(self.train_dataset, shuffle=True, drop_last=self.drop_last)
