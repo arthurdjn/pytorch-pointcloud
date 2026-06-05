@@ -68,6 +68,24 @@ def test_optional_import_fails() -> None:
         fake_module.some_function()
 
 
+def test_optional_import_proxy_is_subclassable() -> None:
+    """A missing optional dependency resolves to a real class, so `class X(Dep): ...` imports cleanly
+    while the proxy and any subclass still raise `ImportError` when instantiated."""
+    proxy, is_available = optional_import("nonexistent_module")
+    assert is_available is False
+    assert isinstance(proxy, type)
+
+    class Subclass(proxy):
+        pass
+
+    with pytest.raises(ImportError):
+        proxy()
+    with pytest.raises(ImportError):
+        Subclass()
+
+    assert "nonexistent_module" in repr(proxy)
+
+
 def test_optional_import_name() -> None:
     path_module, is_available = optional_import("os", name="path")
     assert is_available is True

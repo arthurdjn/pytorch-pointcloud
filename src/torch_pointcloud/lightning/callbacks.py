@@ -1,13 +1,22 @@
-from typing import Any, Callable, Dict, Optional, Sequence, Union
+from __future__ import annotations
 
-import lightning.pytorch as L
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+
 from torch import nn
-from torchmetrics import Metric
 
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
+from torch_pointcloud.utils.imports import optional_import
+
+if TYPE_CHECKING:
+    import lightning.pytorch as L
+    from lightning.pytorch import Callback
+    from torchmetrics import Metric
+
+Callback, _ = optional_import("lightning.pytorch", "Callback")
+Metric, _ = optional_import("torchmetrics", "Metric")
 
 
-class BNMomentumScheduler(L.Callback):
+class BNMomentumScheduler(Callback):
     r"""Exponentially decay BatchNorm momentum over training epochs.
 
     Reference implementation: :github:
@@ -55,7 +64,7 @@ class BNMomentumScheduler(L.Callback):
                 module.momentum = momentum
 
 
-class MetricCallback(L.Callback):
+class MetricCallback(Callback):
     r"""Accumulate and log a torchmetrics metric over a validation/test epoch.
 
     Model- and task-agnostic: the LightningModule's `validation_step` / `test_step` returns a

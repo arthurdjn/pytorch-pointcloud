@@ -1,12 +1,19 @@
-from typing import Iterable, Optional, Sequence, Union
+from __future__ import annotations
 
-import lightning.pytorch as L
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+
 from torch.utils.data import DataLoader, Dataset, Sampler
 
 from torch_pointcloud.utils.data import PointCloudDataLoader
+from torch_pointcloud.utils.imports import optional_import
+
+if TYPE_CHECKING:
+    from lightning.pytorch import LightningDataModule
+
+LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule")
 
 
-class PointCloudDataModule(L.LightningDataModule):
+class PointCloudDataModule(LightningDataModule):
     """LightningDataModule wrapping point cloud datasets with the packed-batch collate.
 
     Each dataset is passed through as-is. To lengthen an epoch (Pointcept's `loop`),

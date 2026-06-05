@@ -1,6 +1,7 @@
-from typing import Any, Callable, Dict, Optional, Sequence
+from __future__ import annotations
 
-import lightning.pytorch as L
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
+
 import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
@@ -8,8 +9,14 @@ from torch.optim import Optimizer
 from torch_pointcloud.lightning.metrics import boxes_from_packed
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.optim import generate_param_groups
 from torch_pointcloud.utils.types import Boxes3D
+
+if TYPE_CHECKING:
+    from lightning.pytorch import LightningModule
+
+LightningModule, _ = optional_import("lightning.pytorch", "LightningModule")
 
 
 def _resolve_input(batch: Dict[str, Any], key: str) -> Any:
@@ -19,7 +26,7 @@ def _resolve_input(batch: Dict[str, Any], key: str) -> Any:
     return getattr(value, attr) if attr else value
 
 
-class LiTModel(L.LightningModule):
+class LiTModel(LightningModule):
     """Shared base for the task-specific Lightning wrappers."""
 
     def __init__(
@@ -176,7 +183,7 @@ class LitSegmentationModel(LiTModel):
         return batch
 
 
-class LitDetectionModel(L.LightningModule):
+class LitDetectionModel(LightningModule):
     r"""LightningModule wrapping a VoteNet-style 3D object detection model.
 
     The model returns a dense per-proposal prediction dict and the multi-task `VoteNetLoss`

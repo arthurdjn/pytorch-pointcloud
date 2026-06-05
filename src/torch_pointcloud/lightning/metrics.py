@@ -1,11 +1,18 @@
-from typing import Any, Dict, List, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence
 
 import torch
 from torch import Tensor
-from torchmetrics import Metric
 
+from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
+
+if TYPE_CHECKING:
+    from torchmetrics import Metric
+
+Metric, _ = optional_import("torchmetrics", "Metric")
 
 
 def boxes_from_packed(box: Tensor, batch: Tensor) -> Boxes3D:

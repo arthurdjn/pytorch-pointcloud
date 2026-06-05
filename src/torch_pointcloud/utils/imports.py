@@ -136,7 +136,17 @@ def optional_import(
         msg += f" Check official documentation to install it: {url}."
 
     # Create a proxy that will raise an import error when used
-    class ModuleNotFoundProxy:
+    class _Meta(type):
+        def __getattr__(cls, name: str) -> Any:
+            raise ImportError(msg)
+
+        def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+            raise ImportError(msg)
+
+        def __repr__(cls) -> str:
+            return msg
+
+    class ModuleNotFoundProxy(metaclass=_Meta):
         def __getattr__(self, name: str) -> Any:
             raise ImportError(msg)
 
@@ -146,7 +156,7 @@ def optional_import(
         def __repr__(self) -> str:
             return msg
 
-    return ModuleNotFoundProxy(), False
+    return ModuleNotFoundProxy, False
 
 
 _FLASH_ATTN_GITHUB_URL = "https://github.com/Dao-AILab/flash-attention"
