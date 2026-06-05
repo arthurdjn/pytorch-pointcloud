@@ -2,7 +2,6 @@ from functools import partial
 from typing import Any, Dict
 from unittest.mock import Mock
 
-import lightning.pytorch as L
 import pytest
 import torch
 from torch import Tensor, nn
@@ -20,6 +19,8 @@ from torch_pointcloud.models import ClassificationModel, DetectionModel, Segment
 from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
 
 pytestmark = pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed")
+
+import lightning.pytorch as L  # noqa: E402
 
 
 class DummyClassificationModel(ClassificationModel):
