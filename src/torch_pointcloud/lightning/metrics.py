@@ -11,8 +11,8 @@ from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 if TYPE_CHECKING:
     from torchmetrics import Metric
-
-Metric, _ = optional_import("torchmetrics", "Metric")
+else:
+    Metric, _ = optional_import("torchmetrics", "Metric")
 
 
 def boxes_from_packed(box: Tensor, batch: Tensor) -> Boxes3D:

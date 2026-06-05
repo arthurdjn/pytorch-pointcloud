@@ -15,8 +15,8 @@ from torch_pointcloud.utils.types import Boxes3D
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
-
-LightningModule, _ = optional_import("lightning.pytorch", "LightningModule")
+else:
+    LightningModule, _ = optional_import("lightning.pytorch", "LightningModule")
 
 
 def _resolve_input(batch: Dict[str, Any], key: str) -> Any:

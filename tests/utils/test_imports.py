@@ -86,6 +86,15 @@ def test_optional_import_proxy_is_subclassable() -> None:
     assert "nonexistent_module" in repr(proxy)
 
 
+def test_optional_import_missing_submodule_does_not_crash() -> None:
+    """A missing submodule of an installed package returns the proxy instead of raising at import time:
+    the base `os` imports fine but `os.<missing>` does not, so the import must be gated on the full path."""
+    proxy, is_available = optional_import("os.nonexistent_submodule")
+    assert is_available is False
+    with pytest.raises(ImportError):
+        proxy()
+
+
 def test_optional_import_name() -> None:
     path_module, is_available = optional_import("os", name="path")
     assert is_available is True

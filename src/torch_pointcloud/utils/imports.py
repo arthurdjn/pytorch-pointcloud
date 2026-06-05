@@ -24,7 +24,7 @@ def package_available(package_name: str) -> bool:
     """
     try:
         return find_spec(package_name) is not None
-    except ModuleNotFoundError:
+    except (ModuleNotFoundError, ValueError):
         return False
 
 
@@ -118,16 +118,12 @@ def optional_import(
     # Extra message in case the module is not installed
     msg = ""
 
-    if not module_available(module_path):
-        msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
-
     if check_requirement(f"{package_name}{requirement}"):
-        module = import_module(module_path)
-        if not name:
-            return module, True
-
         try:
-            return getattr(module, name), True
+            module = import_module(module_path)
+            return (getattr(module, name) if name else module), True
+        except ImportError:
+            msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
         except AttributeError:
             msg = f"Optional module '{module_path}' is available but could not import '{name}' from '{module_path}'."
 

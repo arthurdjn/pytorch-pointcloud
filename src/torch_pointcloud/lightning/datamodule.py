@@ -9,8 +9,8 @@ from torch_pointcloud.utils.imports import optional_import
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningDataModule
-
-LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule")
+else:
+    LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule")
 
 
 class PointCloudDataModule(LightningDataModule):
@@ -115,4 +115,8 @@ class PointCloudDataModule(LightningDataModule):
         return self.configure_dataloader(self.val_dataset, shuffle=False, drop_last=False)
 
     def test_dataloader(self) -> DataLoader:
-        return self.configure_dataloader(self.test_dataset, shuffle=False, drop_last=False)
+        # Fall back to the validation set when no dedicated test set is given: for these benchmarks the
+        # held-out split is the validation set, so `Trainer.test` (e.g. a pretrained-weight benchmark)
+        # evaluates on it without the experiment having to duplicate the dataset as `test_dataset`.
+        dataset = self.test_dataset if self.test_dataset is not None else self.val_dataset
+        return self.configure_dataloader(dataset, shuffle=False, drop_last=False)

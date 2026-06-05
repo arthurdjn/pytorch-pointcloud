@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     import lightning.pytorch as L
     from lightning.pytorch import Callback
     from torchmetrics import Metric
-
-Callback, _ = optional_import("lightning.pytorch", "Callback")
-Metric, _ = optional_import("torchmetrics", "Metric")
+else:
+    Callback, _ = optional_import("lightning.pytorch", "Callback")
+    Metric, _ = optional_import("torchmetrics", "Metric")
 
 
 class BNMomentumScheduler(Callback):
