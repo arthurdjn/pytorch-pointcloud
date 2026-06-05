@@ -26,4 +26,4 @@ from .sontata import SonataSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation
-from .votenet import VoteNetBackbone, VoteNetDetection, VoteNetProposalModule, VotingModule
+from .votenet import VoteNetBackbone, VoteNetDetectionModel, VoteNetProposalModule, VotingModule
