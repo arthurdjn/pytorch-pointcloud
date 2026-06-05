@@ -51,7 +51,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Add lightning for python ${{ matrix.python-version }}
-        if: matrix.python-version != '3.13'
         run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra lightning" >> $GITHUB_ENV
 
       - name: Add ocnn dependency for python ${{ matrix.python-version }}
