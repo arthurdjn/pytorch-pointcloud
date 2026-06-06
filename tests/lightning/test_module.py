@@ -98,6 +98,7 @@ class DummySegmentationDataset(Dataset):
 def _make_seg_module(*, scheduler: Any = None, param_groups: Any = None) -> LitSegmentationModel:
     return LitSegmentationModel(
         name="dummy.segmentation",
+        target_key="segment",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
         scheduler=scheduler,
         scheduler_interval="step",

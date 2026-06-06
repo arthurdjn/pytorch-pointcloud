@@ -11,9 +11,18 @@ trainer:
   max_epochs: 100
 
 model:
-  input_keys: [x, pos, batch]
-  ignore_index: -1
   name: pointnext-sm.s3dis-area5
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
 
 data:
   train_dataset:

@@ -1,5 +1,5 @@
 # Default callbacks plus per-epoch segmentation metrics, logged on validation/test.
-# Each metric reads its class count from the model and `ignore_index` from the module,
+# Each metric reads its class count from the model and `ignore_index` from the module criterion,
 # so neither is duplicated here. Opt in with `override /callbacks: segmentation`.
 defaults:
   - default

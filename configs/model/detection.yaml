@@ -1,0 +1,8 @@
+# Detection LightningModule API. Required args are `???` and are filled by each experiment
+# (`name`, `input_keys`, `optimizer`, `criterion`); the `criterion` is a `_partial_` (e.g. `VoteNetLoss`)
+# that `LitDetectionModel` calls with the model's `mean_sizes`. Other optional args use the defaults.
+_target_: torch_pointcloud.lightning.LitDetectionModel
+name: ???
+input_keys: ???
+optimizer: ???
+criterion: ???

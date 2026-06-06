@@ -89,7 +89,7 @@ def trainer() -> L.Trainer:
 def _cls_module(num_classes: int = 3) -> LitClassificationModel:
     return LitClassificationModel(
         name="dummy.classification",
-        model_kwargs={"num_classes": num_classes},
+        num_classes=num_classes,
         optimizer=partial(torch.optim.AdamW, lr=0.01),
     )
 
@@ -97,7 +97,8 @@ def _cls_module(num_classes: int = 3) -> LitClassificationModel:
 def _seg_module(num_classes: int = 5) -> LitSegmentationModel:
     return LitSegmentationModel(
         name="dummy.segmentation",
-        model_kwargs={"num_classes": num_classes},
+        num_classes=num_classes,
+        criterion=nn.CrossEntropyLoss(ignore_index=-1),
         optimizer=partial(torch.optim.AdamW, lr=0.01),
     )
 
@@ -105,7 +106,7 @@ def _seg_module(num_classes: int = 5) -> LitSegmentationModel:
 def _det_module() -> LitDetectionModel:
     return LitDetectionModel(
         name="dummy.detection",
-        model_kwargs={"num_classes": 1},
+        num_classes=1,
         optimizer=partial(torch.optim.Adam, lr=1e-3),
         criterion=Mock(),
     )

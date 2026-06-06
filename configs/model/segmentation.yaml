@@ -1,15 +1,9 @@
-# Generic segmentation LightningModule built through `create_model`. The experiment sets
-# `model.name` and overrides `input_keys` for the model's coordinate convention (e.g.
-# [x, pos_grid, batch] for sparse-voxel models, [x, pos, pos_grid, batch] for utonia).
-# The optimizer is only used for training (a benchmark sets `train: false`).
+# Segmentation LightningModule API. Required args are `???` and are filled by each experiment
+# (`name`, `input_keys`, `optimizer`, `criterion`); `target_key` defaults to `segment` (override per
+# experiment, e.g. kpfcnn renames to `label`); other optional args use the LightningModule defaults.
 _target_: torch_pointcloud.lightning.LitSegmentationModel
 name: ???
-pretrained: false
-input_keys: [x, pos, batch]
-ignore_index: -1
-
-optimizer:
-  _target_: torch.optim.AdamW
-  _partial_: true
-  lr: 0.006
-  weight_decay: 0.05
+input_keys: ???
+optimizer: ???
+criterion: ???
+target_key: segment

@@ -110,9 +110,8 @@ class MetricCallback(Callback):
             return
         model = pl_module.model
         assert isinstance(model, (ClassificationModel, SegmentationModel, DetectionModel))
-        self.metric = self._factory(
-            num_classes=model.num_classes, ignore_index=getattr(pl_module, "ignore_index", None)
-        )
+        ignore_index = getattr(getattr(pl_module, "criterion", None), "ignore_index", None)
+        self.metric = self._factory(num_classes=model.num_classes, ignore_index=ignore_index)
 
     def _reset(self, pl_module: "L.LightningModule") -> None:
         assert self.metric is not None

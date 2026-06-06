@@ -12,10 +12,18 @@ trainer:
   precision: "32-true" # KPConv scatter ops fail under 16-mixed AMP
 
 model:
+  name: kpfcnn-base-deform.s3dis
+  pretrained: false
   input_keys: [x, pos, batch]
   target_key: label
-  ignore_index: -1
-  name: kpfcnn-base-deform.s3dis
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
 
 data:
   train_dataset:

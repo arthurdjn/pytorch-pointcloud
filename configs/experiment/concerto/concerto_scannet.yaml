@@ -14,8 +14,18 @@ trainer:
   precision: "32-true" # spconv/torchsparse fp16 tuner fails under 16-mixed
 
 model:
-  input_keys: [x, pos, batch]
   name: concerto-large-lp.scannet20
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
 
 data:
   train_dataset:

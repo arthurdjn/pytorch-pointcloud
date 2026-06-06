@@ -12,6 +12,19 @@ trainer:
 
 model:
   name: pointmlp-elite.modelnet40
+  pretrained: false
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: ${trainer.max_epochs}
 
 data:
   train_dataset:

@@ -1,19 +1,8 @@
-# Generic classification LightningModule. The experiment sets `model.name`; when the model
-# consumes features (e.g. normals) or its own coordinates as `x`, the experiment overrides
-# `input_keys` (e.g. [normal, pos, batch] or [pos, pos, batch]). To benchmark pretrained weights
-# instead of training, run with `train=false model.pretrained=true`.
+# Classification LightningModule API. Required args are `???` and are filled by each experiment
+# (`name`, `input_keys`, `optimizer`, `criterion`); optional args use the LightningModule defaults
+# (`pretrained=false`, `scheduler=None`, `target_key="label"`).
 _target_: torch_pointcloud.lightning.LitClassificationModel
 name: ???
-pretrained: false
-input_keys: [x, pos, batch]
-
-optimizer:
-  _target_: torch.optim.AdamW
-  _partial_: true
-  lr: 0.001
-  weight_decay: 0.05
-
-scheduler:
-  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
-  _partial_: true
-  T_max: ${trainer.max_epochs}
+input_keys: ???
+optimizer: ???
+criterion: ???

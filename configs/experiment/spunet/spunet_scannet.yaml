@@ -4,7 +4,7 @@
 # Benchmark pretrained: uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.pretrained=true
 defaults:
   - override /data: scannet
-  - override /model: spunet
+  - override /model: segmentation
   - override /callbacks: segmentation
 
 trainer:
@@ -12,7 +12,11 @@ trainer:
   precision: "32-true" # spconv's fp16 conv tuner fails under 16-mixed
 
 model:
-  ignore_index: -1
+  name: spunet-v1m1.scannet20
+  input_keys: [x, pos, batch]
+  target_key: segment
+  scheduler_interval: step
+  mix_prob: 0.8 # Mix3D: probability of merging scene pairs per training batch
   criterion:
     _target_: torch_pointcloud.losses.SumLoss
     losses:
@@ -21,6 +25,20 @@ model:
       - _target_: torch_pointcloud.losses.LovaszLoss
         ignore_index: -1
         loss_weight: 1.0
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.006
+    total_steps: 80000 # ScanNet train (1201 scenes) at batch_size 12 over 800 epochs
+    pct_start: 0.05
+    anneal_strategy: cos
+    div_factor: 10.0
+    final_div_factor: 10000.0
 
 data:
   train_dataset:
