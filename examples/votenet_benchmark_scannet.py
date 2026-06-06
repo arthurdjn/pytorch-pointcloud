@@ -31,6 +31,7 @@ from tqdm import tqdm
 from torch_pointcloud.models import VoteNetDetectionModel, create_model
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 # NYU40 ids of the 18 ScanNet detection classes (order = class index), from model_util_scannet.py.
 NYU40_IDS = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])
@@ -43,7 +44,8 @@ def main() -> None:
     seed_everything(args.seed)
 
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
-    model = model.to(args.device).eval()
+    assert isinstance(model, VoteNetDetectionModel)
+    model.to(args.device).eval()
     transform = info["transforms"]
 
     data_root = Path(args.data_root)
@@ -71,9 +73,10 @@ def evaluate(
     device: str,
     *,
     iou_thresholds: List[float],
-) -> None:
-    metrics = {}
-    all_preds, all_targets = [], []
+) -> Dict[str, float]:
+    metrics: Dict[str, float] = {}
+    all_preds: List[Detection3D] = []
+    all_targets: List[Boxes3D] = []
     pbar = tqdm(scans, desc="ScanNet val")
     for scan in pbar:
         bbox = np.load(data_root / f"{scan}_bbox.npy")
@@ -88,7 +91,7 @@ def evaluate(
         pred = model.decode(model(x_s, pos_s, batch), pos_s, batch)
         target = encode_scannet_target(bbox)
 
-        metrics = mean_average_precision3d(pred, target, iou_thresholds=iou_thresholds)
+        metrics = mean_average_precision3d([pred], [target], iou_thresholds=iou_thresholds)
         pbar.set_postfix({name: f"{value * 100:.2f}" for name, value in metrics.items()})
 
         all_preds.append(pred)
@@ -97,7 +100,7 @@ def evaluate(
     return mean_average_precision3d(all_preds, all_targets, iou_thresholds=iou_thresholds)
 
 
-def encode_scannet_target(bbox: np.ndarray) -> Dict[str, torch.Tensor]:
+def encode_scannet_target(bbox: np.ndarray) -> Boxes3D:
     """ScanNet GT `(K, 7)` = [center, full size, nyu40] -> `{boxes (K, 7), labels (K,)}` (axis-aligned)."""
     nyu40id2class = {int(nyu): i for i, nyu in enumerate(NYU40_IDS)}
     labels = torch.tensor([nyu40id2class[int(x)] for x in bbox[:, 6]], dtype=torch.long)

@@ -75,7 +75,7 @@ def test_optional_import_proxy_is_subclassable() -> None:
     assert is_available is False
     assert isinstance(proxy, type)
 
-    class Subclass(proxy):
+    class Subclass(proxy):  # type: ignore[valid-type, misc]
         pass
 
     with pytest.raises(ImportError):

@@ -18,7 +18,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict, List
 
 import torch
-from torch.utils.data import Subset
+from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
@@ -27,6 +27,7 @@ from torch_pointcloud.models import VoteNetDetectionModel, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -42,7 +43,7 @@ def main() -> None:
     assert isinstance(model, VoteNetDetectionModel)
     model.to(args.device).eval()
 
-    dataset = SunRGBD(root=args.root, split="val", transform=info["transforms"], download=args.download)
+    dataset: Dataset = SunRGBD(root=args.root, split="val", transform=info["transforms"], download=args.download)
     if args.limit is not None:
         dataset = Subset(dataset, range(args.limit))
 
@@ -53,7 +54,7 @@ def main() -> None:
         num_workers=args.num_workers,
         cat_keys=[DataKeys.BOX],
     )
-    print(f"Test set: {len(dataset)} scenes")
+    print(f"Test set: {len(dataset)} scenes")  # type: ignore[arg-type]
     metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.iou_thresholds)
 
     print("\nResults:")
@@ -69,8 +70,8 @@ def evaluate(
     *,
     iou_thresholds: List[float],
 ) -> Dict[str, float]:
-    all_preds: List[Dict[str, torch.Tensor]] = []
-    all_targets: List[Dict[str, torch.Tensor]] = []
+    all_preds: List[Detection3D] = []
+    all_targets: List[Boxes3D] = []
     metrics: Dict[str, float] = {}
 
     pbdar = tqdm(dataloader, desc="SUN RGB-D val")
@@ -79,13 +80,12 @@ def evaluate(
         pos = data[DataKeys.POS].to(device)
         box = data[DataKeys.BOX].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        preds = model(x, pos, batch)
-        preds = model.decode(preds, pos, batch)
+        preds = model.decode(model(x, pos, batch), pos, batch)
         all_preds.append(preds)
 
         # The dataset stores half extents; the metric expects full edge lengths.
         full = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
-        all_targets.append({"boxes": full, "labels": box[:, 7].long(), "batch": batch})
+        all_targets.append(Boxes3D(boxes=full, labels=box[:, 7].long(), batch=batch))
 
         metrics = mean_average_precision3d(all_preds, all_targets, iou_thresholds=iou_thresholds)
         pbdar.set_postfix({name: f"{value * 100:.2f}" for name, value in metrics.items()})

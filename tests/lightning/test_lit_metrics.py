@@ -3,6 +3,7 @@ import torch
 
 from torch_pointcloud.lightning.metrics import MeanAveragePrecision3D, boxes_from_packed
 from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 pytestmark = pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed")
 
@@ -20,13 +21,13 @@ def test_boxes_from_packed_doubles_half_extents() -> None:
 def test_mean_average_precision3d_perfect_match_scores_one() -> None:
     """A prediction identical to the ground truth yields `mAP@t = 1.0` at every threshold."""
     metric = MeanAveragePrecision3D(iou_thresholds=(0.25, 0.5))
-    preds = {
+    preds: Detection3D = {
         "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "scores": torch.tensor([0.9]),
         "labels": torch.tensor([0]),
         "batch": torch.tensor([0]),
     }
-    target = {
+    target: Boxes3D = {
         "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "labels": torch.tensor([0]),
         "batch": torch.tensor([0]),
@@ -40,8 +41,13 @@ def test_mean_average_precision3d_perfect_match_scores_one() -> None:
 def test_mean_average_precision3d_reset_clears_state() -> None:
     """`reset` empties the accumulated per-batch lists."""
     metric = MeanAveragePrecision3D()
-    pred = {"boxes": torch.empty(0, 7), "scores": torch.empty(0), "labels": torch.empty(0), "batch": torch.empty(0)}
-    target = {"boxes": torch.empty(0, 7), "labels": torch.empty(0), "batch": torch.empty(0)}
+    pred: Detection3D = {
+        "boxes": torch.empty(0, 7),
+        "scores": torch.empty(0),
+        "labels": torch.empty(0),
+        "batch": torch.empty(0),
+    }
+    target: Boxes3D = {"boxes": torch.empty(0, 7), "labels": torch.empty(0), "batch": torch.empty(0)}
     metric.update(pred, target)
     assert len(metric.preds) == 1
     metric.reset()

@@ -8,7 +8,7 @@ import os
 from argparse import ArgumentParser, Namespace
 from functools import partial
 
-import lightning as L
+import lightning.pytorch as L
 import torch
 
 import torch_pointcloud.transforms as T
@@ -16,7 +16,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.lightning import LitDetectionModel
 from torch_pointcloud.losses import VoteNetLoss
-from torch_pointcloud.models import create_model
+from torch_pointcloud.models import VoteNetDetectionModel, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 
 CPU_COUNT = os.cpu_count()
@@ -39,6 +39,7 @@ def main() -> None:
     L.seed_everything(args.seed)
 
     model = create_model("votenet-fair-base.sunrgbd", task="detection")
+    assert isinstance(model, VoteNetDetectionModel)
     dataset = SunRGBD(
         root=args.root,
         split="train",
