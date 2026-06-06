@@ -1,5 +1,5 @@
 from ._base import ClassificationModel, DetectionModel, SegmentationModel
-from ._registry import create_model, get_model_transforms, list_models, register_model
+from ._registry import create_model, list_models, register_model
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
