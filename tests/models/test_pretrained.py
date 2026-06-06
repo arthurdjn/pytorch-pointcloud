@@ -41,6 +41,7 @@ from torch_pointcloud.utils.imports import (
     _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _SPCONV_AVAILABLE,
+    _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
@@ -288,4 +289,44 @@ def test_pretrained_oneformer3d(
     if "sem_preds" in out:
         parts += list(out["sem_preds"])
     reduced = torch.cat([p.reshape(-1) for p in parts])
+    _check_output(reduced, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["votenet-fair-base.scannet", "votenet-fair-base.sunrgbd"])
+def test_pretrained_votenet(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """VoteNet returns a dict of dense proposal tensors, so it needs its own snapshot test.
+
+    There is no in-repo SUN RGB-D / ScanNet *detection* fixture, so a fixed synthetic cloud with
+    deterministic FPS is used; this still pins the pretrained weights + decode against regressions.
+    The snapshot is the concatenation of the proposal `center`, `objectness_scores` and `sem_cls_scores`.
+    """
+    if not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
+        pytest.skip("torch-cluster / torch-scatter is not installed")
+
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the synthetic input *after* `create_model`: building a pretrained model random-inits its
+    # parameters (consuming RNG) before loading weights, so seeding earlier makes the input depend on it.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 3000, 2
+    pos = (torch.rand(n_per_scene * batch_size, 3) * 4.0).to(DEVICE)
+    x = torch.rand(n_per_scene * batch_size, model.in_channels).to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    with torch.no_grad():
+        out = model(x, pos, batch)
+
+    reduced = torch.cat(
+        [out["center"].reshape(-1), out["objectness_scores"].reshape(-1), out["sem_cls_scores"].reshape(-1)]
+    )
     _check_output(reduced, model_name, force_regen, models_dir)

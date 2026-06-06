@@ -50,7 +50,6 @@ def test_select_matcher_consumes_submodule_parameters() -> None:
 
 
 def test_scalar_match_type_and_lr_broadcast() -> None:
-    """MONAI parity: scalar `match_types` / `lr_values` broadcast to all matchers."""
     module = nn.ModuleDict({"block0": nn.Linear(2, 2), "block1": nn.Linear(2, 2), "head": nn.Linear(2, 2)})
     groups = generate_param_groups(
         module,

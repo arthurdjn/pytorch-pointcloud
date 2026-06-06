@@ -18,11 +18,24 @@ from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
 
 class SAModule(nn.Module):
+    r"""Single-resolution set-abstraction block (PointNet++ SSG/MSG).
+
+    Args:
+        ratio: Fractional farthest-point-sampling rate. Mutually exclusive with `num_points`.
+        num_points: Absolute number of centroids to sample (e.g. VoteNet's fixed $2048, 1024, \ldots$).
+            Exactly one of `ratio` / `num_points` must be given.
+        pos_first: Concatenate the relative position *before* the grouped features
+            (`cat([rel_pos, x])`) instead of after. VoteNet and the reference PointNet++ kernels use
+            this order; keeping it a flag lets weights convert as a pure rename without a column swap.
+    """
+
     def __init__(
         self,
         in_channels: int,
         channels: Sequence[Union[int, Sequence[int]]],
-        ratio: float,
+        *,
+        ratio: Optional[float] = None,
+        num_points: Optional[int] = None,
         radii: Union[float, Sequence[float]],
         num_neighbors: Union[int, Sequence[int]],
         spatial_dim: int = 3,
@@ -34,15 +47,21 @@ class SAModule(nn.Module):
         bias: bool = False,
         use_pos: bool = True,
         normalize_pos: bool = True,
+        pos_first: bool = False,
         pool: PoolLike = "max",
         sort_neighbors: bool = False,
     ) -> None:
         super().__init__()
+        if (ratio is None) == (num_points is None):
+            raise ValueError("`SAModule` needs exactly one of `ratio` or `num_points`.")
+
         self.in_channels = in_channels
         self.channels = ensure_list(channels, recursive=True)
         self.ratio = ratio
+        self.num_points = num_points
         self.use_pos = use_pos
         self.normalize_pos = normalize_pos
+        self.pos_first = pos_first
         self.sort_neighbors = sort_neighbors
 
         # Wrap parameters in list of lists to be compatible with Multi-Scale Grouping (MSG) mode
@@ -79,9 +98,12 @@ class SAModule(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
+        idx: OptTensor = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # In eval mode pin the FPS start to make predictions reproducible across runs.
-        idx = fps(pos, batch, ratio=self.ratio, random_start=self.training)
+        if idx is None:
+            idx = fps(pos, batch, ratio=self.ratio, num_nodes=self.num_points, random_start=self.training)
+
         new_pos = pos[idx]
         new_batch = batch[idx]
         msg_out = []
@@ -94,7 +116,7 @@ class SAModule(nn.Module):
 
             x_j = x[col]
             if self.use_pos:
-                x_j = torch.cat([x_j, rel_pos], dim=1)
+                x_j = torch.cat([rel_pos, x_j], dim=1) if self.pos_first else torch.cat([x_j, rel_pos], dim=1)
 
             x_j = mlp(x_j)
             x_j = self.pool(x_j, row)

@@ -36,6 +36,7 @@ class DataKeys(StrEnum):
     BATCH = "batch"
     INVERSE = "inverse"
     BOX = "box"
+    BATCH_BOX = "batch_box"
     CLASS = "class"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
@@ -85,8 +86,8 @@ def _leading_size(value: Any) -> int:
 
 def collate(
     data_list: List[Dict[str, Any]],
-    batch_from: str = "pos",
-    batch_key: str = "batch",
+    batch_from: str = DataKeys.POS,
+    batch_key: str = DataKeys.BATCH,
     stack_keys: Optional[KeyCollection] = None,
     cat_keys: Optional[KeyCollection] = None,
 ) -> Dict[str, Any]:
@@ -99,8 +100,8 @@ def collate(
     - `stack_keys`: stack to a new leading batch dim ($(M, \cdot) \to (B, M, \cdot)$, $(N, \cdot) \to (B, N, \cdot)$)
       rather than concatenating. Used for fixed-size per-scene ground truth (the VoteNet loss consumes
       dense $(B, M, \cdot)$ targets, which a plain cat would flatten).
-    - `cat_keys`: keep these packed (cat) but additionally emit a `<key>_batch` scene index mirroring
-      `batch_key`. Used for ragged per-scene ground truth such as `box` $(K, 8)$ -> `box_batch` $(K,)$.
+    - `cat_keys`: keep these packed (cat) but additionally emit a `batch_<key>` scene index mirroring
+      `batch_key`. Used for ragged per-scene ground truth such as `box` $(K, 8)$ -> `batch_box` $(K,)$.
 
     Only keys present in every sample are stacked or indexed; others fall back to the default collation.
 
@@ -109,7 +110,7 @@ def collate(
         batch_from: Key whose leading dimension defines the per-point batch index.
         batch_key: Output key for the per-point batch index.
         stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
-        cat_keys: Packed keys that additionally emit a `<key>_batch` per-element scene index.
+        cat_keys: Packed keys that additionally emit a `batch_<key>` per-element scene index.
 
     Returns:
         A single batched dict.
@@ -125,7 +126,7 @@ def collate(
         values = [d[k] for d in data_list]
         out[k] = torch.stack(values, dim=0) if k in stacked else _collate_value(values)
 
-    for src, dst in ((batch_from, batch_key), *((k, f"{k}_batch") for k in cat_keys)):
+    for src, dst in ((batch_from, batch_key), *((k, f"batch_{k}") for k in cat_keys)):
         if all(src in d for d in data_list):
             lengths = [_leading_size(d[src]) for d in data_list]
             out[dst] = torch.cat([torch.full((n,), i, dtype=torch.long) for i, n in enumerate(lengths)])
@@ -149,7 +150,7 @@ class PointCloudDataLoader(DataLoader):
         batch_from: Key whose leading dimension defines the per-point batch index.
         batch_key: Output key for the per-point batch index.
         stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
-        cat_keys: Packed keys that additionally emit a `<key>_batch` per-element scene index.
+        cat_keys: Packed keys that additionally emit a `batch_<key>` per-element scene index.
         **kwargs: Forwarded to `torch.utils.data.DataLoader` (`batch_size`, `shuffle`, `collate_fn`, ...).
     """
 
@@ -157,8 +158,8 @@ class PointCloudDataLoader(DataLoader):
         self,
         dataset: Dataset,
         *,
-        batch_from: str = "pos",
-        batch_key: str = "batch",
+        batch_from: str = DataKeys.POS,
+        batch_key: str = DataKeys.BATCH,
         stack_keys: Optional[Sequence[str]] = None,
         cat_keys: Optional[Sequence[str]] = None,
         **kwargs: Any,

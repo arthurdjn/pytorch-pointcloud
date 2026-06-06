@@ -33,6 +33,21 @@ OptTensor = Union[Tensor, None]
 PairTensor = Tuple2d[Tensor]
 PairOptTensor = Tuple2d[OptTensor]
 
+
+class Boxes3D(TypedDict):
+    """Packed 3D boxes with class and scene indices (e.g. detection ground truth, PyG batch layout)."""
+
+    boxes: Tensor  # (N, 7) as (cx, cy, cz, dx, dy, dz, heading)
+    labels: Tensor  # (N,)
+    batch: Tensor  # (N,) per-box scene index
+
+
+class Detection3D(Boxes3D):
+    """Packed 3D detections: `Boxes3D` plus a per-box confidence score (a model's `decode` output)."""
+
+    scores: Tensor  # (N,)
+
+
 # Flow and aggregation types for message passing
 FlowType = Literal["source_to_target", "target_to_source"]
 AggrType = Literal["add", "mean", "max"]

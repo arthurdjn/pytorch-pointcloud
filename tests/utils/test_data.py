@@ -120,6 +120,61 @@ def test_collate_uses_first_sample_keys() -> None:
     assert set(out.keys()) == {"pos", "color", "batch"}
 
 
+def _detection_sample(num_points: int, num_boxes: int) -> dict[str, torch.Tensor]:
+    return {
+        DataKeys.POS: torch.randn(num_points, 3),
+        DataKeys.BOX: torch.randn(num_boxes, 8),
+        DataKeys.CLASS: torch.randint(0, 10, (num_boxes,)),
+    }
+
+
+def test_collate_cat_keys_emits_scene_index() -> None:
+    """`cat_keys` keep ragged per-scene tensors packed but add a `batch_<key>` scene index."""
+    samples = [_detection_sample(5, 2), _detection_sample(7, 3)]
+    out = collate(samples, cat_keys=(DataKeys.BOX,))
+    assert out[DataKeys.POS].shape == (12, 3)
+    assert out[DataKeys.BATCH].shape == (12,)
+    assert out[DataKeys.BOX].shape == (5, 8)
+    batch_box = out[f"batch_{DataKeys.BOX}"]
+    assert batch_box.shape == (5,)
+    assert batch_box.tolist() == [0, 0, 1, 1, 1]
+
+
+def test_collate_cat_keys_handles_empty_scene() -> None:
+    """A scene with no rows contributes nothing to the packed tensor or its scene index."""
+    samples = [_detection_sample(4, 0), _detection_sample(6, 2)]
+    out = collate(samples, cat_keys=(DataKeys.BOX,))
+    assert out[DataKeys.BOX].shape == (2, 8)
+    assert out[f"batch_{DataKeys.BOX}"].tolist() == [1, 1]
+
+
+def test_collate_without_cat_keys_omits_scene_index() -> None:
+    """Without `cat_keys` the packed tensor is still concatenated but no scene index is emitted."""
+    samples = [_detection_sample(5, 2), _detection_sample(7, 3)]
+    out = collate(samples)
+    assert out[DataKeys.BOX].shape == (5, 8)
+    assert f"{DataKeys.BOX}_batch" not in out
+
+
+def test_collate_stack_keys_adds_leading_batch_dim() -> None:
+    """`stack_keys` stack dense per-scene tensors to a new leading batch dim instead of concatenating."""
+
+    def scene(num_points: int) -> dict[str, torch.Tensor]:
+        return {
+            DataKeys.POS: torch.randn(num_points, 3),
+            "center_label": torch.randn(64, 3),
+            "box_label_mask": torch.zeros(64),
+            "vote_label": torch.randn(num_points, 9),
+        }
+
+    out = collate([scene(20), scene(20)], stack_keys=("center_label", "box_label_mask", "vote_label"))
+    assert out[DataKeys.POS].shape == (40, 3)
+    assert out[DataKeys.BATCH].shape == (40,)
+    assert out["center_label"].shape == (2, 64, 3)
+    assert out["box_label_mask"].shape == (2, 64)
+    assert out["vote_label"].shape == (2, 20, 9)
+
+
 @pytest.mark.parametrize(
     "member,expected",
     [

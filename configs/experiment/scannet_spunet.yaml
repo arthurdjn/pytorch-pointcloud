@@ -4,6 +4,7 @@
 defaults:
   - override /data: scannet
   - override /model: spunet
+  - override /callbacks: segmentation
 
 trainer:
   max_epochs: 800

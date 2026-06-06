@@ -8,7 +8,6 @@ mix_prob: 0.8 # Mix3D: probability of merging scene pairs per training batch
 
 param_groups:
   # PTv3 transformer blocks at 0.1x base LR (Pointcept param_dicts).
-  # MONAI-style: matchers + match_types + lr_values, in parallel lists.
   # Filter matchers take a parameter `name` and return bool, so fnmatch drops in.
   layer_matches:
     - _target_: fnmatch.fnmatchcase
@@ -39,9 +38,9 @@ model:
   attn_drop: 0.0
   proj_drop: 0.0
   drop_path: 0.3
-  attention: default
+  attn_kind: default
   use_flash_attn: true
-  upcast_attention: false
+  upcast_attn: false
   upcast_softmax: false
 
 criterion:

@@ -1,0 +1,13 @@
+# Default callbacks plus a per-epoch accuracy metric, logged on validation/test.
+# The metric reads its class count from the model, so it is not duplicated here.
+# Opt in with `override /callbacks: classification`.
+defaults:
+  - default
+
+val_accuracy:
+  _target_: torch_pointcloud.lightning.MetricCallback
+  name: accuracy
+  metric:
+    _target_: torchmetrics.Accuracy
+    _partial_: true
+    task: multiclass

@@ -110,10 +110,11 @@ def test_random_sample_preserves_correspondence() -> None:
     assert data["pos"] is pos
 
 
-def test_random_sample_replace_false_rejects_oversample() -> None:
-    data = {"pos": torch.randn(3, 2)}
-    with pytest.raises(ValueError, match="without replacement"):
-        T.RandomSample(keys=["pos"], num_samples=10)(data)
+def test_random_sample_replace_false_upsamples_oversample() -> None:
+    data = {"pos": torch.randn(10, 3), "color": torch.randn(10, 3)}
+    result = T.RandomSample(keys=["pos", "color"], num_samples=20)(data)
+    assert result["pos"].shape[0] == 20
+    assert result["color"].shape[0] == 20
 
 
 def test_random_sample_replace_true_allows_oversample() -> None:
