@@ -1,0 +1,20 @@
+# ModelNet40 (normal-resampled) classification datamodule. The train transform (augmentation) lives in
+# the experiment; the validation transform is the model's registered eval transform, which the
+# datamodule pulls onto any dataset whose `transform` is null.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 32
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.ModelNetNormalResampled
+  root: ${paths.data_dir}
+  variant: "40"
+  train: true
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.ModelNetNormalResampled
+  root: ${paths.data_dir}
+  variant: "40"
+  train: false
+  transform: null

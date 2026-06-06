@@ -1,9 +1,10 @@
 # @package _global_
 # Point Transformer V3 semantic segmentation on ScanNet20 (Pointcept reproduction).
-# Run: uv run --no-sync python train.py experiment=scannet_ptv3
+# Run: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet
+# Benchmark pretrained: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet train=false model.pretrained=true
 defaults:
   - override /data: scannet
-  - override /model: ptv3
+  - override /model: segmentation
   - override /callbacks: segmentation
 
 trainer:
@@ -12,7 +13,19 @@ trainer:
   accumulate_grad_batches: 12 # batch_size 1 x 12 = Pointcept's effective batch 12
 
 model:
-  ignore_index: -1
+  name: ptv3-base.scannet20
+  num_classes: 20
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
 
 data:
   batch_size: 1 # PTv3 on full ScanNet scenes (~50-80k points) is memory-heavy

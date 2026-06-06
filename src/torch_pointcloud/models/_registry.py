@@ -191,8 +191,11 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
     # the fn key is dropped and is not returned with the model info in case `return_info` is True
     model_fn = model_info.pop("fn")  # type: ignore[misc]
 
-    kwargs = {**model_info["hparams"], **kwargs}
-    model = model_fn(**kwargs)
+    # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
+    # caller (e.g. a LightningModule) can log exactly what built the model.
+    hparams = {**model_info["hparams"], **kwargs}
+    model_info["hparams"] = hparams
+    model = model_fn(**hparams)
     if not pretrained:
         if return_info:
             return model, model_info

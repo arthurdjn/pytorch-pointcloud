@@ -1,0 +1,8 @@
+# @package callbacks.val_map
+# Per-epoch 3D detection mean average precision, logged on validation/test.
+_target_: torch_pointcloud.lightning.MetricCallback
+name: mAP
+stages: [val, test]
+metric:
+  _target_: torch_pointcloud.lightning.MeanAveragePrecision3D
+  iou_thresholds: [0.25, 0.5]

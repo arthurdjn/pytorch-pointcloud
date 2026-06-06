@@ -1,0 +1,9 @@
+# Segmentation LightningModule API. Required args are `???` and are filled by each experiment
+# (`name`, `input_keys`, `optimizer`, `criterion`); `target_key` defaults to `segment` (override per
+# experiment, e.g. kpfcnn renames to `label`); other optional args use the LightningModule defaults.
+_target_: torch_pointcloud.lightning.LitSegmentationModel
+name: ???
+input_keys: ???
+optimizer: ???
+criterion: ???
+target_key: segment

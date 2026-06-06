@@ -1,13 +1,32 @@
 # @package _global_
 # DGCNN part segmentation on ShapeNetPart.
-# Run: uv run --no-sync python train.py experiment=shapenetpart_dgcnn
+# Run: uv run --no-sync python train.py experiment=dgcnn/dgcnn_shapenetpart
+# Benchmark pretrained: uv run --no-sync python train.py experiment=dgcnn/dgcnn_shapenetpart train=false model.pretrained=true
 defaults:
   - override /data: shapenetpart
-  - override /model: dgcnn
+  - override /model: segmentation
   - override /callbacks: segmentation
 
 trainer:
   max_epochs: 100
+
+model:
+  name: dgcnn-antao.shapenetpart
+  pretrained: false
+  num_classes: 50
+  input_keys: [x, pos, batch, category]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: 100
 
 data:
   train_dataset:

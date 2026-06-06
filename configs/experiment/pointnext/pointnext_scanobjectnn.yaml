@@ -1,0 +1,37 @@
+# @package _global_
+# pointnext-sm.scanobjectnn classification on ScanObjectNN. Reference: see examples/*_benchmark_scanobjectnn.py.
+# Run: uv run --no-sync python train.py experiment=pointnext/pointnext_scanobjectnn
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnext/pointnext_scanobjectnn train=false model.pretrained=true
+defaults:
+  - override /data: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 250
+
+model:
+  name: pointnext-sm.scanobjectnn
+  num_classes: 15
+  pretrained: false
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: ${trainer.max_epochs}
+
+data:
+  train_dataset:
+    background: true
+    variant: augmentedrot_scale75
+    transform: null
+  val_dataset:
+    background: true
+    variant: augmentedrot_scale75
