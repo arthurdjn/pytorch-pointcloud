@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Iterator
+from typing import Dict, Iterator
 
 import pytest
 
+from torch_pointcloud.models import list_models
+from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.imports import _HYDRA_AVAILABLE
 
 # Hydra is an optional dev dependency, so gate the whole module on it being
@@ -10,7 +12,10 @@ from torch_pointcloud.utils.imports import _HYDRA_AVAILABLE
 pytestmark = pytest.mark.skipif(not _HYDRA_AVAILABLE, reason="hydra-core is not installed")
 
 CONFIGS_DIR = Path(__file__).resolve().parents[2] / "configs"
-EXPERIMENTS = sorted(p.stem for p in (CONFIGS_DIR / "experiment").glob("*.yaml"))
+_EXPERIMENT_DIR = CONFIGS_DIR / "experiment"
+# Experiments live in per-model subdirectories (`dgcnn/dgcnn_shapenetpart`, ...), so recurse and
+# keep the group-relative path that `experiment=` expects, not just the file stem.
+EXPERIMENTS = sorted(p.relative_to(_EXPERIMENT_DIR).with_suffix("").as_posix() for p in _EXPERIMENT_DIR.rglob("*.yaml"))
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +62,35 @@ def test_experiment_composes(experiment: str) -> None:
         assert cfg.trainer._target_ == "lightning.Trainer"
         assert "_target_" in cfg.model
         assert "_target_" in cfg.data
+
+
+# The LightningModule `_target_` implies the registry task it builds its model under.
+_TARGET_TO_TASK: Dict[str, Task] = {
+    "torch_pointcloud.lightning.LitClassificationModel": "classification",
+    "torch_pointcloud.lightning.LitSegmentationModel": "segmentation",
+    "torch_pointcloud.lightning.LitDetectionModel": "detection",
+}
+
+
+@pytest.mark.parametrize("experiment", EXPERIMENTS)
+def test_experiment_model_name_registered(experiment: str) -> None:
+    """The composed `model.name` is a real registry entry for the LightningModule's task. This catches a
+    renamed or typo'd model in any experiment without instantiating it, so it covers GPU-only configs too."""
+    from hydra import compose, initialize_config_dir
+    from hydra.core.hydra_config import HydraConfig
+
+    with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
+        cfg = compose(
+            config_name="train",
+            overrides=[f"experiment={experiment}"],
+            return_hydra_config=True,
+        )
+        HydraConfig.instance().set_config(cfg)
+        name = cfg.model.name
+        task = _TARGET_TO_TASK[cfg.model._target_]
+        assert name in list_models(task=task), (
+            f"experiment {experiment!r}: model {name!r} not registered for task {task!r}"
+        )
 
 
 @pytest.mark.parametrize("experiment", EXPERIMENTS)

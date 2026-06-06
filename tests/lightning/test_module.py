@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict
+from typing import Any, Dict, Iterator, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -15,7 +15,8 @@ from torch_pointcloud.lightning import (
     LitSegmentationModel,
     PointCloudDataModule,
 )
-from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
+from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 
 pytest.importorskip("lightning.pytorch")
 
@@ -51,6 +52,35 @@ class DummyDetectionModel(DetectionModel):
         return {"objectness_scores": self.fc(x)}
 
 
+def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
+    return DummyClassificationModel(**kwargs)
+
+
+def _dummy_segmentation(**kwargs: Any) -> DummySegmentationModel:
+    return DummySegmentationModel(**kwargs)
+
+
+def _dummy_detection(**kwargs: Any) -> DummyDetectionModel:
+    return DummyDetectionModel(**kwargs)
+
+
+@pytest.fixture(autouse=True)
+def _register_dummies() -> Iterator[None]:
+    """The LightningModules build their model via `create_model(name, ...)`, so the test doubles are
+    registered here (and removed afterwards, to keep the global registry clean for other tests)."""
+    register_model("dummy.classification", task="classification")(_dummy_classification)
+    register_model("dummy.segmentation", task="segmentation")(_dummy_segmentation)
+    register_model("dummy.detection", task="detection")(_dummy_detection)
+    yield
+    dummies: Tuple[Tuple[Task, str], ...] = (
+        ("classification", "dummy.classification"),
+        ("segmentation", "dummy.segmentation"),
+        ("detection", "dummy.detection"),
+    )
+    for task, name in dummies:
+        _REGISTERED_MODELS[task].pop(name, None)
+
+
 class DummySegmentationDataset(Dataset):
     def __init__(self, n: int = 4) -> None:
         self._n = n
@@ -68,7 +98,8 @@ class DummySegmentationDataset(Dataset):
 
 def _make_seg_module(*, scheduler: Any = None, param_groups: Any = None) -> LitSegmentationModel:
     return LitSegmentationModel(
-        model=DummySegmentationModel(),
+        name="dummy.segmentation",
+        target_key="segment",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
         scheduler=scheduler,
         scheduler_interval="step",
@@ -78,14 +109,14 @@ def _make_seg_module(*, scheduler: Any = None, param_groups: Any = None) -> LitS
 
 def _make_cls_module() -> LitClassificationModel:
     return LitClassificationModel(
-        model=DummyClassificationModel(),
+        name="dummy.classification",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
     )
 
 
 def _make_det_module(*, scheduler: Any = None, param_groups: Any = None) -> LitDetectionModel:
     return LitDetectionModel(
-        model=DummyDetectionModel(),
+        name="dummy.detection",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
         criterion=Mock(),
         scheduler=scheduler,
@@ -177,7 +208,7 @@ def test_fit_smoke_with_explicit_scheduler() -> None:
 def test_mix3d_halves_batch_index_during_training(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mix3D with `mix_prob=1.0` always merges adjacent scene pairs."""
     lit = LitSegmentationModel(
-        model=DummySegmentationModel(),
+        name="dummy.segmentation",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
         mix_prob=1.0,
     )
@@ -192,12 +223,11 @@ def test_mix3d_halves_batch_index_during_training(monkeypatch: pytest.MonkeyPatc
 
 
 def test_detection_criterion_built_with_model_mean_sizes() -> None:
-    """`__init__` injects the model's `mean_sizes` buffer into the criterion factory."""
-    model = DummyDetectionModel()
+    """`__init__` injects the built model's `mean_sizes` buffer into the criterion factory."""
     criterion = Mock()
-    LitDetectionModel(model=model, optimizer=partial(torch.optim.AdamW, lr=0.01), criterion=criterion)
+    lit = LitDetectionModel(name="dummy.detection", optimizer=partial(torch.optim.AdamW, lr=0.01), criterion=criterion)
     criterion.assert_called_once()
-    assert criterion.call_args.kwargs["mean_sizes"] is model.get_buffer("mean_sizes")
+    assert criterion.call_args.kwargs["mean_sizes"] is lit.model.get_buffer("mean_sizes")
 
 
 def test_detection_forward_delegates_to_model(monkeypatch: pytest.MonkeyPatch) -> None:

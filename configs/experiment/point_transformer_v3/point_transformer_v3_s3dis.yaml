@@ -1,0 +1,34 @@
+# @package _global_
+# Training experiment for `ptv3-base.s3dis-area5`. Uses the model's registered transform as a runnable baseline
+# input pipeline (matches the architecture's expected features); add dataset augmentation for a
+# full from-scratch run. The benchmark counterpart is point_transformer_v3_segmentation_s3dis_benchmark.
+# Run: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_s3dis
+# Benchmark pretrained: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_s3dis train=false model.pretrained=true
+defaults:
+  - override /data: s3dis
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  precision: "32-true" # spconv/torchsparse fp16 tuner fails under 16-mixed
+
+model:
+  name: ptv3-base.s3dis-area5
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos_grid, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+data:
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

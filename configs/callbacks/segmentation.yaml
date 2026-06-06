@@ -1,22 +1,10 @@
-# Default callbacks plus per-epoch segmentation metrics, logged on validation/test.
-# Each metric reads its class count from the model and `ignore_index` from the module,
-# so neither is duplicated here. Opt in with `override /callbacks: segmentation`.
+# Default callbacks plus per-epoch mIoU and accuracy. Opt in with `override /callbacks: segmentation`.
 defaults:
   - default
+  - val_miou
+  - val_accuracy
+  - _self_
 
-val_miou:
-  _target_: torch_pointcloud.lightning.MetricCallback
-  name: mIoU
-  metric:
-    _target_: torchmetrics.JaccardIndex
-    _partial_: true
-    task: multiclass
-
+# mIoU is the headline metric; keep per-point accuracy off the progress bar.
 val_accuracy:
-  _target_: torch_pointcloud.lightning.MetricCallback
-  name: accuracy
   prog_bar: false
-  metric:
-    _target_: torchmetrics.Accuracy
-    _partial_: true
-    task: multiclass

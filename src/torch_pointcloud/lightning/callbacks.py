@@ -1,8 +1,7 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from torch import nn
 
-from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
 from torch_pointcloud.utils.imports import optional_import
 
 if TYPE_CHECKING:
@@ -70,15 +69,15 @@ class MetricCallback(Callback):
     torchmetrics `Metric` with it each batch, logging the epoch value as `{stage}/{name}`. List one per
     metric in `configs/callbacks/*.yaml` to plug accuracy, mIoU, mAP, ... onto any model.
 
-    `metric` is either a ready `Metric` or a factory (a Hydra `_partial_`) completed at fit time by calling
-    it as `metric(num_classes=..., ignore_index=...)` with the model's `num_classes` and the module's
-    `ignore_index`, so the class count is never duplicated in config.
+    `metric` is a ready torchmetrics `Metric` built entirely by Hydra: the experiment's metric config
+    interpolates `num_classes` from `${model.num_classes}` and `ignore_index` from the criterion, so the
+    callback holds it as-is and stays model-agnostic.
 
     A metric whose `compute` returns a dict (e.g. `MeanAveragePrecision3D` returning `mAP@0.25` / `mAP@0.5`)
     is logged one entry per key as `{stage}/{key}`; a scalar metric is logged as `{stage}/{name}`.
 
     Args:
-        metric: A torchmetrics `Metric`, or a callable `metric(num_classes=..., ignore_index=...) -> Metric`.
+        metric: A torchmetrics `Metric`, e.g. `JaccardIndex(task="multiclass", num_classes=..., ignore_index=...)`.
         name: Metric name; logged as `{stage}/{name}` (ignored for dict-valued metrics, whose keys name themselves).
         stages: Stages to score; each listed stage's `*_step` must return `preds_key` / `target_key`.
         preds_key: Key in the step output holding predictions (logits, probabilities, labels, or detections).
@@ -88,7 +87,7 @@ class MetricCallback(Callback):
 
     def __init__(
         self,
-        metric: Union[Metric, Callable[..., Metric]],
+        metric: Metric,
         name: str,
         *,
         stages: Sequence[str] = ("val", "test"),
@@ -102,17 +101,7 @@ class MetricCallback(Callback):
         self.preds_key = preds_key
         self.target_key = target_key
         self.prog_bar = prog_bar
-        self.metric: Optional[Metric] = metric if isinstance(metric, Metric) else None
-        self._factory: Optional[Callable[..., Metric]] = None if isinstance(metric, Metric) else metric
-
-    def setup(self, trainer: "L.Trainer", pl_module: "L.LightningModule", stage: str) -> None:
-        if self.metric is not None or self._factory is None:
-            return
-        model = pl_module.model
-        assert isinstance(model, (ClassificationModel, SegmentationModel, DetectionModel))
-        self.metric = self._factory(
-            num_classes=model.num_classes, ignore_index=getattr(pl_module, "ignore_index", None)
-        )
+        self.metric: Optional[Metric] = metric
 
     def _reset(self, pl_module: "L.LightningModule") -> None:
         assert self.metric is not None

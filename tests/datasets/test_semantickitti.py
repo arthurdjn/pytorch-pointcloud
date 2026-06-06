@@ -68,6 +68,17 @@ def test_semantickitti_dataset_raw_files_exist(datasets_dir_factory: Callable[..
     assert len(dataset) > 0
 
 
+def test_semantickitti_dataset_partial_sequences(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A partial download is accepted: `split='train'` expects seqs 00-10 but the fixture ships only
+    seq 00, so the dataset loads that one sequence instead of raising `Dataset not found`."""
+    datasets_dir = datasets_dir_factory("SemanticKITTI/raw/sequences/00/**/*")
+
+    dataset = SemanticKITTI(root=datasets_dir, split="train")
+    assert dataset.raw_files_exist()
+    assert len(dataset) > 0
+    assert {seq for seq, *_ in dataset.scans} == {"00"}
+
+
 def test_semantickitti_dataset_processed_dir_aliases_raw(datasets_dir_factory: Callable[..., Path]) -> None:
     """`SemanticKITTI` consumes raw `.bin` directly; `processed_dir` should alias `raw_dir`."""
     datasets_dir = datasets_dir_factory("SemanticKITTI/raw/**/*")

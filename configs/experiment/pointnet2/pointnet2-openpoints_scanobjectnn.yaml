@@ -1,0 +1,31 @@
+# @package _global_
+# PointNet++ (OpenPoints) classification on scanobjectnn.
+# Benchmark: uv run --no-sync python train.py experiment=pointnet2/pointnet2-openpoints_scanobjectnn train=false model.pretrained=true
+defaults:
+  - override /data: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 250
+
+model:
+  name: pointnet2-openpoints.scanobjectnn
+  num_classes: 15
+  pretrained: false
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: ${trainer.max_epochs}
+
+data:
+  train_dataset:
+    transform: null

@@ -1,0 +1,33 @@
+# @package _global_
+# Training experiment for `spvcnn-119gmacs.semantickitti` (registered transform as a runnable baseline pipeline).
+# Run: uv run --no-sync python train.py experiment=spvcnn/spvcnn-119gmacs_semantickitti
+# Benchmark pretrained: uv run --no-sync python train.py experiment=spvcnn/spvcnn-119gmacs_semantickitti train=false model.pretrained=true
+defaults:
+  - override /data: semantickitti
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  precision: "32-true"
+
+model:
+  name: spvcnn-119gmacs.semantickitti
+  num_classes: 19
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+data:
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

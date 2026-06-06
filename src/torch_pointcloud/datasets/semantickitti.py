@@ -305,11 +305,12 @@ class SemanticKITTI(PointCloudDataset):
         if not sequences_dir.is_dir():
             return False
 
-        for seq in self.sequences:
-            velodyne_dir = sequences_dir / seq / "velodyne"
-            if not velodyne_dir.is_dir() or not any(velodyne_dir.glob("*.bin")):
-                return False
-        return True
+        # Accept a partial download: the raw data exists as long as at least one of the requested
+        # sequences has velodyne scans. `load()` enumerates whichever sequences are actually present.
+        return any(
+            (sequences_dir / seq / "velodyne").is_dir() and any((sequences_dir / seq / "velodyne").glob("*.bin"))
+            for seq in self.sequences
+        )
 
     @override
     def processed_files_exist(self) -> bool:

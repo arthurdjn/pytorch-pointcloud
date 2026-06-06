@@ -1,0 +1,33 @@
+# @package _global_
+# Training experiment for `kpfcnn-base-sm-deform.s3dis` (registered transform as a runnable baseline pipeline).
+# Run: uv run --no-sync python train.py experiment=kpfcnn/kpfcnn-base-sm-deform_s3dis
+# Benchmark pretrained: uv run --no-sync python train.py experiment=kpfcnn/kpfcnn-base-sm-deform_s3dis train=false model.pretrained=true
+defaults:
+  - override /data: s3dis
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  precision: "32-true" # KPConv scatter ops fail under 16-mixed AMP
+
+model:
+  name: kpfcnn-base-sm-deform.s3dis
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: label
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+data:
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

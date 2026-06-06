@@ -1,0 +1,8 @@
+# Classification LightningModule API. Required args are `???` and are filled by each experiment
+# (`name`, `input_keys`, `optimizer`, `criterion`); optional args use the LightningModule defaults
+# (`pretrained=false`, `scheduler=None`, `target_key="label"`).
+_target_: torch_pointcloud.lightning.LitClassificationModel
+name: ???
+input_keys: ???
+optimizer: ???
+criterion: ???

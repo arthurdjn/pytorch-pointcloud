@@ -1,0 +1,19 @@
+# ModelNet40 (mesh-sampled) classification datamodule using the `ModelNet40` class consumed by octree
+# models (e.g. OctFormer). The normal-resampled point sets live in `modelnet40_normal_resampled`. The
+# validation transform is the model's registered eval transform, pulled by the datamodule onto any
+# dataset whose `transform` is null.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 32
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.ModelNet40
+  root: ${paths.data_dir}
+  train: true
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.ModelNet40
+  root: ${paths.data_dir}
+  train: false
+  transform: null
