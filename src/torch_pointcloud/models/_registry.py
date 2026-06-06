@@ -230,3 +230,31 @@ def list_models(name: str = "*", *, task: Task) -> List[str]:
 
     model_names = list(_REGISTERED_MODELS[task].keys())
     return sorted(fnmatch.filter(model_names, name))
+
+
+def get_model_transforms(name: str, task: Task) -> Optional[Callable]:
+    r"""Return the evaluation transforms registered for a model, without building it.
+
+    Looks up the registry entry by `name` and `task` and returns its registered transform
+    callable. Unlike `create_model(..., return_info=True)`, this builds neither the model nor
+    its weights, so it is cheap enough to call at config-compose time (e.g. as a Hydra `_target_`
+    for a benchmark dataset's `transform`). The returned transform is the exact evaluation
+    pipeline the `examples/*_benchmark_*.py` scripts feed to the dataset.
+
+    Args:
+        name: Registered model name (e.g. `pointnet2-yanx27-ssg.modelnet40`).
+        task: Registry task the model is registered under.
+
+    Returns:
+        The registered transform callable, or `None` if the model registered no transforms.
+    """
+    if task not in _REGISTERED_MODELS.keys():
+        expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
+        raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
+
+    model_info = _REGISTERED_MODELS[task].get(name)
+    if model_info is None:
+        available_models = ", ".join(f"{m!r}" for m in _REGISTERED_MODELS[task].keys())
+        raise ValueError(f"Model {name!r} not found in {task!r} registry. Available models: {available_models}.")
+
+    return model_info["transforms"]

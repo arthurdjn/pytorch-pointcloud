@@ -1,0 +1,21 @@
+# S3DIS semantic segmentation datamodule using the preprocessed HDF5 blocks
+# (`indoor3d_sem_seg_hdf5_data`, 4096-point blocks with room-normalised `norm_pos`).
+# Models trained on that format (e.g. the MIT PVCNN) need `norm_pos`, which the raw-room
+# `S3DIS` class does not emit. Area-5 test split: train on Areas 1-4 + 6, validate on Area 5.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 4
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.S3DISHdf5
+  root: ${paths.data_dir}
+  areas: [Area_1, Area_2, Area_3, Area_4, Area_6]
+  download: false
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.S3DISHdf5
+  root: ${paths.data_dir}
+  areas: [Area_5]
+  download: false
+  transform: null

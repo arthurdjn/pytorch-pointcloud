@@ -5,7 +5,7 @@
 # Run: uv run --no-sync python train.py experiment=pvcnn/pvcnn_s3dis
 # Benchmark pretrained: uv run --no-sync python train.py experiment=pvcnn/pvcnn_s3dis train=false model.model.pretrained=true
 defaults:
-  - override /data: s3dis
+  - override /data: s3dis_hdf5
   - override /model: segmentation
   - override /callbacks: segmentation
 

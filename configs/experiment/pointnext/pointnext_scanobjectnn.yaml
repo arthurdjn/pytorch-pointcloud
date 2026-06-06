@@ -18,6 +18,11 @@ data:
   train_dataset:
     background: true
     variant: augmentedrot_scale75
+    # The model builds `x = cat(pos, height)`; without this the raw cloud has no height channel.
+    transform:
+      _target_: torch_pointcloud.models.get_model_transforms
+      name: ${model.model.name}
+      task: ${model.model.task}
   val_dataset:
     background: true
     variant: augmentedrot_scale75
