@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_pointcloud.losses import VoteNetLoss
 
 
-def _fake_inputs(
+def _create_data(
     batch_size: int = 2,
     num_proposal: int = 8,
     max_obj: int = 4,
@@ -58,7 +58,7 @@ def _mean_size(num_size_cluster: int = 10) -> Tensor:
 
 def test_votenet_loss_returns_scalar_dict() -> None:
     loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
-    output, batch = _fake_inputs()
+    output, batch = _create_data()
     out = loss_fn(output, batch)
     for key in ("loss", "vote_loss", "objectness_loss", "box_loss", "sem_cls_loss", "obj_acc"):
         assert key in out, key
@@ -68,7 +68,7 @@ def test_votenet_loss_returns_scalar_dict() -> None:
 
 def test_votenet_loss_backward() -> None:
     loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
-    output, batch = _fake_inputs()
+    output, batch = _create_data()
     for value in output.values():
         if value.is_floating_point():
             value.requires_grad_(True)
@@ -79,13 +79,13 @@ def test_votenet_loss_backward() -> None:
 
 def test_votenet_loss_scannet_single_heading_bin() -> None:
     loss_fn = VoteNetLoss(num_heading_bin=1, num_size_cluster=18, num_classes=18, mean_sizes=_mean_size(18))
-    output, batch = _fake_inputs(num_heading_bin=1, num_size_cluster=18, num_classes=18)
+    output, batch = _create_data(num_heading_bin=1, num_size_cluster=18, num_classes=18)
     assert torch.isfinite(loss_fn(output, batch)["loss"])
 
 
 def test_votenet_loss_no_positive_targets_is_finite() -> None:
     loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
-    output, batch = _fake_inputs()
+    output, batch = _create_data()
     batch["box_label_mask"] = torch.zeros_like(batch["box_label_mask"])
     batch["vote_label_mask"] = torch.zeros_like(batch["vote_label_mask"])
     assert torch.isfinite(loss_fn(output, batch)["loss"])

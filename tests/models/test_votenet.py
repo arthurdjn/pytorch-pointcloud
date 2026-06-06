@@ -18,8 +18,7 @@ pytestmark = [
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def _votenet_kwargs(**overrides: Any) -> Dict[str, Any]:
-    """A complete small-architecture VoteNet config (no defaults live on the class itself)."""
+def _create_votenet(**overrides: Any) -> VoteNetDetectionModel:
     kwargs: Dict[str, Any] = dict(
         in_channels=1,
         num_classes=18,
@@ -39,7 +38,7 @@ def _votenet_kwargs(**overrides: Any) -> Dict[str, Any]:
         vote_aggr_num_neighbors=16,
     )
     kwargs.update(overrides)
-    return kwargs
+    return VoteNetDetectionModel(**kwargs)
 
 
 def _make_inputs(n_per_scene: int = 3000, batch_size: int = 2, in_channels: int = 1) -> Dict[str, Tensor]:
@@ -116,12 +115,12 @@ def test_votenet_reset_classifier() -> None:
 
 def test_votenet_seed_fps_requires_unit_vote_factor() -> None:
     with pytest.raises(ValueError, match="vote_factor"):
-        VoteNetDetectionModel(**_votenet_kwargs(sampling="seed_fps", vote_factor=2))
+        _create_votenet(sampling="seed_fps", vote_factor=2)
 
 
 def test_votenet_bad_mean_sizes_shape() -> None:
     with pytest.raises(ValueError, match="mean_sizes"):
-        VoteNetDetectionModel(**_votenet_kwargs(num_size_cluster=3, mean_sizes=[[1.0, 1.0, 1.0]]))
+        _create_votenet(num_size_cluster=3, mean_sizes=[[1.0, 1.0, 1.0]])
 
 
 def test_votenet_mean_sizes_not_persisted() -> None:
@@ -188,7 +187,7 @@ def test_votenet_create_model_no_pretrained() -> None:
 def test_votenet_output_feeds_loss_directly() -> None:
     """The model's raw packed output feeds `VoteNetLoss` with no glue: the loss self-densifies."""
     torch.manual_seed(0)
-    model = VoteNetDetectionModel(**_votenet_kwargs()).to(DEVICE).eval()
+    model = _create_votenet().to(DEVICE).eval()
     data = _make_inputs(in_channels=model.in_channels)
     with torch.no_grad():
         output = model(data["x"], data["pos"], data["batch"])
