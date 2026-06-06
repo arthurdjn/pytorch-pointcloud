@@ -1373,55 +1373,42 @@ def scale_boxes(boxes: Tensor, scale: Union[float, Tensor]) -> Tensor:
     return boxes
 
 
-def flip_votes(votes: Tensor, axis: int) -> Tensor:
-    r"""Flip per-point vote offsets along a spatial axis.
+def flip_vectors(x: Tensor, axis: int) -> Tensor:
+    r"""Flip a packed field of 3D vectors along a spatial axis.
 
-    Vote offsets are vectors $(\text{center} - \text{point})$, so a coordinate flip negates the matching
-    component of every tiled offset triple.
+    Negates component `axis` of every contiguous triple of the last dimension, so it handles both a plain
+    $(N, 3)$ field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. VoteNet
+    vote offsets $(\text{center} - \text{point})$) alike.
 
     Args:
-        votes: Vote offset tensor of shape $(N, 3 G)$ holding $G$ tiled $(\Delta x, \Delta y, \Delta z)$ offsets.
-        axis: Axis index within each offset triple to negate.
+        x: Vector field of shape $(N, 3)$ or $(N, 3 G)$.
+        axis: Axis index within each triple to negate.
 
     Returns:
-        The flipped vote tensor of shape $(N, 3 G)$.
+        The flipped tensor with the same shape as `x`.
     """
-    votes = votes.clone()
-    votes[:, axis::3] = -votes[:, axis::3]
-    return votes
+    x = x.clone()
+    x[..., axis::3] = -x[..., axis::3]
+    return x
 
 
-def rotate_votes(votes: Tensor, rotation: Tensor) -> Tensor:
-    r"""Rotate per-point vote offsets by a rotation matrix.
+def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
+    r"""Rotate a packed field of 3D vectors by a rotation matrix.
 
-    Vote offsets are vectors $(\text{center} - \text{point})$, so each tiled triple rotates as a vector by
-    `rotation`.
+    Each contiguous triple of the last dimension rotates as a vector, so it handles both a plain $(N, 3)$
+    field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. VoteNet vote
+    offsets) alike.
 
     Args:
-        votes: Vote offset tensor of shape $(N, 3 G)$ holding $G$ tiled $(\Delta x, \Delta y, \Delta z)$ offsets.
+        x: Vector field of shape $(N, 3)$ or $(N, 3 G)$.
         rotation: A $3 \times 3$ rotation matrix.
 
     Returns:
-        The rotated vote tensor of shape $(N, 3 G)$.
+        The rotated tensor with the same shape as `x`.
     """
-    n = votes.shape[0]
-    triples = votes.reshape(n, -1, 3)
-    triples = triples @ rotation.to(votes).transpose(-1, -2)
-    return triples.reshape(n, -1)
-
-
-def scale_votes(votes: Tensor, scale: Union[float, Tensor]) -> Tensor:
-    r"""Scale per-point vote offsets by an isotropic factor.
-
-    Args:
-        votes: Vote offset tensor of shape $(N, 3 G)$ holding $G$ tiled $(\Delta x, \Delta y, \Delta z)$ offsets.
-        scale: Isotropic scalar factor.
-
-    Returns:
-        The scaled vote tensor of shape $(N, 3 G)$.
-    """
-    factor = scale.to(votes) if isinstance(scale, Tensor) else scale
-    return votes * factor
+    triples = x.reshape(*x.shape[:-1], -1, 3)
+    triples = triples @ rotation.to(x).transpose(-1, -2)
+    return triples.reshape(x.shape)
 
 
 def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:

@@ -82,15 +82,12 @@ __all__ = [
     "RandomDropout",
     "RandomElasticDistortion",
     "RandomFlip",
-    "RandomFlipBoxes",
     "RandomJitter",
     "RandomRotate",
-    "RandomRotateBoxes",
     "RandomRotateChoice",
     "RandomSample",
     "RandomSampleFaceVertices",
     "RandomScale",
-    "RandomScaleBoxes",
     "RandomShift",
     "Reduce",
     "ReduceOp",
@@ -2032,22 +2029,27 @@ class KeepItems(DictTransform):
 
 
 class RandomRotate(DictTransform):
-    """Rotate one or more keys by a uniformly random angle around an axis.
+    """Rotate one or more keys (and optionally oriented boxes) by a uniformly random angle around an axis.
 
-    Sampling is done once per call: all listed keys get the same rotation
-    matrix. Pair `keys=("pos", "normal")` to keep positions and normals
-    consistent.
+    Sampling is done once per call: every listed key and the optional box get the same rotation. Each key is a
+    `(..., 3)` field or a packed `(N, 3 G)` field of tiled 3D offsets (e.g. VoteNet votes). Pair
+    `keys=("pos", "normal")` to keep positions and normals consistent, or pass `box_key` to also rotate a
+    `(K, 8)` oriented-box tensor (centers rotated, heading decremented). Box headings are yaw about the up
+    axis, so `box_key` requires `axis=2`.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_rotate`,
+        `torch_pointcloud.transforms.functional.rotate_vectors`,
+        `torch_pointcloud.transforms.functional.rotate_boxes`,
         `torch_pointcloud.transforms.functional.rotation_matrix`
 
     Args:
-        keys: Keys to rotate. Each must have shape `(..., 3)`.
+        keys: Keys to rotate. Each must be a `(..., 3)` or `(N, 3 G)` vector field.
         angle_range: Min and max rotation angle, in **degrees**.
         axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
         p: Probability of applying the transform.
+        box_key: Optional key of a `(K, 8)` oriented-box tensor to rotate jointly (requires `axis=2`).
         dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
+        dst_box_key: Where to store the rotated boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -2058,15 +2060,21 @@ class RandomRotate(DictTransform):
         angle_range: Tuple[float, float] = (-180.0, 180.0),
         axis: int = 2,
         p: float = 1.0,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
+        if box_key is not None and axis != 2:
+            raise ValueError(f"box_key rotation is only defined about the up axis (axis=2), got axis={axis}.")
         super().__init__(keys, allow_missing_keys)
         self.angle_range = angle_range
         self.axis = axis
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -2074,29 +2082,36 @@ class RandomRotate(DictTransform):
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         lo, hi = self.angle_range
-        angle_deg = torch.empty(1).uniform_(lo, hi, generator=self.generator).item()
+        angle = math.radians(torch.empty(1).uniform_(lo, hi, generator=self.generator).item())
+        rotation = F.rotation_matrix(angle, self.axis)
+        box_key = self.box_key
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            data[self.dst_box_key] = F.rotate_boxes(data[box_key], rotation, angle)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            x = data[key]
-            R = F.rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
-            data[dst_key] = F.rotate(x, R)
+            data[dst_key] = F.rotate_vectors(data[key], rotation)
         return data
 
 
 class RandomScale(DictTransform):
-    """Scale one or more keys by a uniformly random factor.
+    """Scale one or more keys (and optionally oriented boxes) by a uniformly random factor.
 
-    Sampling is done once per call: all listed keys are scaled by the same
-    factor (or per-axis factor vector when `anisotropic=True`).
+    Sampling is done once per call: every listed key and the optional box are scaled by the same factor (or
+    per-axis factor vector when `anisotropic=True`). Pass `box_key` to also scale a `(K, 8)` oriented-box
+    tensor (centers and sizes). An oriented box has no per-axis scale, so `box_key` is incompatible with
+    `anisotropic=True`.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_scale`
+        `torch_pointcloud.transforms.functional.scale_boxes`
 
     Args:
         keys: Keys to scale.
         scale_range: Min and max scaling factor.
-        anisotropic: If `True`, sample a separate scale per axis of the last dim.
+        anisotropic: If `True`, sample a separate scale per axis of the last dim (incompatible with `box_key`).
         p: Probability of applying the transform.
+        box_key: Optional key of a `(K, 8)` oriented-box tensor to scale jointly.
         dst_keys: Where to store the scaled tensors.
+        dst_box_key: Where to store the scaled boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -2107,15 +2122,21 @@ class RandomScale(DictTransform):
         scale_range: Tuple[float, float] = (0.8, 1.25),
         anisotropic: bool = False,
         p: float = 1.0,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
+        if anisotropic and box_key is not None:
+            raise ValueError("box_key cannot be scaled anisotropically (an oriented box has no per-axis scale).")
         super().__init__(keys, allow_missing_keys)
         self.scale_range = scale_range
         self.anisotropic = anisotropic
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -2123,14 +2144,18 @@ class RandomScale(DictTransform):
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         lo, hi = self.scale_range
+        box_key = self.box_key
+        has_box = box_key is not None and box_key in data
         first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None:
+        if first_key is None and not has_box:
             return data
-        d = data[first_key].shape[-1]
-        if self.anisotropic:
-            scale = torch.empty(d).uniform_(lo, hi, generator=self.generator)
+        if self.anisotropic and first_key is not None:
+            scale = torch.empty(data[first_key].shape[-1]).uniform_(lo, hi, generator=self.generator)
         else:
             scale = torch.empty(1).uniform_(lo, hi, generator=self.generator)
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            data[self.dst_box_key] = F.scale_boxes(data[box_key], scale.to(data[box_key]))
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             data[dst_key] = x * scale.to(x.dtype).to(x.device)
@@ -2138,19 +2163,23 @@ class RandomScale(DictTransform):
 
 
 class RandomFlip(DictTransform):
-    """Flip listed axes independently with probability `p` each.
+    """Flip listed axes (and optionally oriented boxes) with probability `p` each.
 
-    Sampling is done once per call: all listed keys are flipped on the same
-    axes.
+    Sampling is done once per call: every listed key and the optional box are flipped on the same axes. Each
+    key is a `(..., 3)` field or a packed `(N, 3 G)` field of tiled 3D offsets (e.g. VoteNet votes). Pass
+    `box_key` to also flip a `(K, 8)` oriented-box tensor (centers negated, heading remapped).
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_flip`
+        `torch_pointcloud.transforms.functional.flip_vectors`,
+        `torch_pointcloud.transforms.functional.flip_boxes`
 
     Args:
-        keys: Keys to flip.
-        axes: Axis indices (into the last dim) to consider for flipping.
+        keys: Keys to flip. Each must be a `(..., 3)` or `(N, 3 G)` vector field.
+        axes: Axis indices (into each 3D triple) to consider for flipping.
         p: Per-axis flip probability.
+        box_key: Optional key of a `(K, 8)` oriented-box tensor to flip jointly.
         dst_keys: Where to store the flipped tensors.
+        dst_box_key: Where to store the flipped boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -2160,29 +2189,40 @@ class RandomFlip(DictTransform):
         keys: KeyCollection,
         axes: Sequence[int] = (0, 1),
         p: float = 0.5,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.axes = tuple(axes)
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None:
+        box_key = self.box_key
+        has_box = box_key is not None and box_key in data
+        if next(iter(self.iter_keys(data)), None) is None and not has_box:
             return data
-        d = data[first_key].shape[-1]
-        flips = torch.zeros(d)
-        for ax in self.axes:
-            flips[ax] = 1.0 if torch.rand(1, generator=self.generator).item() < self.p else 0.0
-        sign = torch.where(flips > 0, -torch.ones(d), torch.ones(d))
+        flipped = [axis for axis in self.axes if torch.rand(1, generator=self.generator).item() < self.p]
+        if not flipped:
+            return data
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            box = data[box_key]
+            for axis in flipped:
+                box = F.flip_boxes(box, axis)
+            data[self.dst_box_key] = box
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            data[dst_key] = x * sign.to(x.dtype).to(x.device)
+            for axis in flipped:
+                x = F.flip_vectors(x, axis)
+            data[dst_key] = x
         return data
 
 
@@ -2870,174 +2910,6 @@ class RandomElasticDistortion(DictTransform):
                 data[key], self.granularity, self.magnitude, generator=self.generator
             )
         return data
-
-
-class RandomFlipBoxes(DictTransform):
-    r"""Randomly flip points, oriented boxes, and per-point votes about spatial axes.
-
-    The same flip is applied jointly to coordinates, $(K, 8)$ boxes, and optional $(N, 3 G)$ vote offsets so
-    that box centers, headings, and votes stay consistent with the points. A flip along `axis` $0$ (the $yz$
-    plane) is the VoteNet SUN RGB-D default.
-
-    See Also:
-        `torch_pointcloud.transforms.functional.flip_boxes`,
-        `torch_pointcloud.transforms.functional.flip_votes`
-
-    Args:
-        pos_key: Key of the $(N, 3)$ coordinate tensor.
-        box_key: Key of the $(K, 8)$ box tensor.
-        vote_key: Optional key of the $(N, 3 G)$ vote offset tensor.
-        axes: Axes along which to independently flip with probability `p`.
-        p: Per-axis flip probability.
-        generator: Optional `torch.Generator` for reproducibility.
-        allow_missing_keys: If `True`, silently skip absent keys.
-    """
-
-    def __init__(
-        self,
-        pos_key: str = "pos",
-        box_key: str = "box",
-        vote_key: Optional[str] = None,
-        axes: Sequence[int] = (0,),
-        p: float = 0.5,
-        generator: Optional[torch.Generator] = None,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        keys = [pos_key, box_key] if vote_key is None else [pos_key, box_key, vote_key]
-        super().__init__(keys, allow_missing_keys)
-        self.pos_key = pos_key
-        self.box_key = box_key
-        self.vote_key = vote_key
-        self.axes = tuple(axes)
-        self.p = p
-        self.generator = generator
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        for axis in self.axes:
-            if torch.rand(1, generator=self.generator).item() < self.p:
-                if self.pos_key in d:
-                    d[self.pos_key] = F.random_flip(d[self.pos_key], (axis,), p=1.0)
-                if self.box_key in d:
-                    d[self.box_key] = F.flip_boxes(d[self.box_key], axis)
-                if self.vote_key is not None and self.vote_key in d:
-                    d[self.vote_key] = F.flip_votes(d[self.vote_key], axis)
-        return d
-
-
-class RandomRotateBoxes(DictTransform):
-    r"""Randomly rotate points, oriented boxes, and per-point votes about a single axis.
-
-    A shared angle is sampled uniformly from `angle_range` (degrees) and applied jointly to coordinates,
-    $(K, 8)$ boxes, and optional $(N, 3 G)$ vote offsets. VoteNet SUN RGB-D rotates by $\pm 30$ degrees about
-    the up axis ($z$).
-
-    See Also:
-        `torch_pointcloud.transforms.functional.rotate_boxes`,
-        `torch_pointcloud.transforms.functional.rotate_votes`
-
-    Args:
-        pos_key: Key of the $(N, 3)$ coordinate tensor.
-        box_key: Key of the $(K, 8)$ box tensor.
-        vote_key: Optional key of the $(N, 3 G)$ vote offset tensor.
-        angle_range: Rotation range $(\text{low}, \text{high})$ in **degrees**.
-        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
-        p: Probability of applying the transform.
-        generator: Optional `torch.Generator` for reproducibility.
-        allow_missing_keys: If `True`, silently skip absent keys.
-    """
-
-    def __init__(
-        self,
-        pos_key: str = "pos",
-        box_key: str = "box",
-        vote_key: Optional[str] = None,
-        angle_range: Tuple[float, float] = (-30.0, 30.0),
-        axis: int = 2,
-        p: float = 1.0,
-        generator: Optional[torch.Generator] = None,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        keys = [pos_key, box_key] if vote_key is None else [pos_key, box_key, vote_key]
-        super().__init__(keys, allow_missing_keys)
-        self.pos_key = pos_key
-        self.box_key = box_key
-        self.vote_key = vote_key
-        self.angle_range = angle_range
-        self.axis = axis
-        self.p = p
-        self.generator = generator
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        if torch.rand(1, generator=self.generator).item() >= self.p:
-            return d
-        lo, hi = self.angle_range
-        angle_deg = torch.empty(1).uniform_(lo, hi, generator=self.generator).item()
-        angle = math.radians(angle_deg)
-        reference = d[self.keys[0]]
-        rotation = F.rotation_matrix(angle, self.axis, device=reference.device)
-        if self.pos_key in d:
-            d[self.pos_key] = F.rotate(d[self.pos_key], rotation)
-        if self.box_key in d:
-            d[self.box_key] = F.rotate_boxes(d[self.box_key], rotation, angle)
-        if self.vote_key is not None and self.vote_key in d:
-            d[self.vote_key] = F.rotate_votes(d[self.vote_key], rotation)
-        return d
-
-
-class RandomScaleBoxes(DictTransform):
-    r"""Randomly scale points, oriented boxes, and per-point votes by a shared isotropic factor.
-
-    A single factor is sampled uniformly from `scale_range` and applied jointly to coordinates, box centers
-    and sizes, and optional $(N, 3 G)$ vote offsets. VoteNet SUN RGB-D scales by $0.85$ to $1.15$.
-
-    See Also:
-        `torch_pointcloud.transforms.functional.scale_boxes`,
-        `torch_pointcloud.transforms.functional.scale_votes`
-
-    Args:
-        pos_key: Key of the $(N, 3)$ coordinate tensor.
-        box_key: Key of the $(K, 8)$ box tensor.
-        vote_key: Optional key of the $(N, 3 G)$ vote offset tensor.
-        scale_range: Range $(\text{low}, \text{high})$ sampled uniformly for the scale factor.
-        p: Probability of applying the transform.
-        generator: Optional `torch.Generator` for reproducibility.
-        allow_missing_keys: If `True`, silently skip absent keys.
-    """
-
-    def __init__(
-        self,
-        pos_key: str = "pos",
-        box_key: str = "box",
-        vote_key: Optional[str] = None,
-        scale_range: Tuple[float, float] = (0.85, 1.15),
-        p: float = 1.0,
-        generator: Optional[torch.Generator] = None,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        keys = [pos_key, box_key] if vote_key is None else [pos_key, box_key, vote_key]
-        super().__init__(keys, allow_missing_keys)
-        self.pos_key = pos_key
-        self.box_key = box_key
-        self.vote_key = vote_key
-        self.scale_range = scale_range
-        self.p = p
-        self.generator = generator
-
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        if torch.rand(1, generator=self.generator).item() >= self.p:
-            return d
-        lo, hi = self.scale_range
-        factor = torch.empty(1).uniform_(lo, hi, generator=self.generator).item()
-        if self.pos_key in d:
-            d[self.pos_key] = F.random_scale(d[self.pos_key], (factor, factor))
-        if self.box_key in d:
-            d[self.box_key] = F.scale_boxes(d[self.box_key], factor)
-        if self.vote_key is not None and self.vote_key in d:
-            d[self.vote_key] = F.scale_votes(d[self.vote_key], factor)
-        return d
 
 
 class InstanceToBox(DictTransform):

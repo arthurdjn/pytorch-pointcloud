@@ -48,9 +48,9 @@ def main() -> None:
                 T.AxisMinOffset(keys="pos", axis=2, quantile=0.0099, dst_keys="height"),
                 T.RandomSample(keys=["pos", "height"], num_samples=20000),
                 T.GenerateVoteLabels(pos_key="pos", box_key=DataKeys.BOX),
-                T.RandomFlipBoxes(pos_key="pos", box_key=DataKeys.BOX, vote_key="vote_label"),
-                T.RandomRotateBoxes(pos_key="pos", box_key=DataKeys.BOX, vote_key="vote_label"),
-                T.RandomScaleBoxes(pos_key="pos", box_key=DataKeys.BOX, vote_key="vote_label"),
+                T.RandomFlip(keys=("pos", "vote_label"), box_key=DataKeys.BOX, axes=(0,)),
+                T.RandomRotate(keys=("pos", "vote_label"), box_key=DataKeys.BOX, angle_range=(-30.0, 30.0)),
+                T.RandomScale(keys=("pos", "vote_label"), box_key=DataKeys.BOX, scale_range=(0.85, 1.15)),
                 T.EncodeVoteNetTargets(
                     box_key=DataKeys.BOX,
                     num_heading_bin=model.num_heading_bin,

@@ -61,7 +61,7 @@ def test_random_flip_boxes_preserves_membership() -> None:
     box = _box(heading=0.2, cls=2.0)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
-    out = T.RandomFlipBoxes(axes=(0,), p=1.0, generator=gen)(data)
+    out = T.RandomFlip(keys="pos", box_key="box", axes=(0,), p=1.0, generator=gen)(data)
     assert F.points_in_oriented_box(out["pos"], out["box"][0]).item()
 
 
@@ -70,7 +70,7 @@ def test_random_rotate_boxes_preserves_membership() -> None:
     box = _box(heading=0.2, cls=2.0)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
-    out = T.RandomRotateBoxes(angle_range=(25.0, 25.0), p=1.0, generator=gen)(data)
+    out = T.RandomRotate(keys="pos", box_key="box", angle_range=(25.0, 25.0), p=1.0, generator=gen)(data)
     assert F.points_in_oriented_box(out["pos"], out["box"][0]).item()
 
 
@@ -79,7 +79,7 @@ def test_random_scale_boxes_preserves_membership() -> None:
     box = _box(heading=0.2, cls=2.0)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
-    out = T.RandomScaleBoxes(scale_range=(1.3, 1.3), p=1.0, generator=gen)(data)
+    out = T.RandomScale(keys="pos", box_key="box", scale_range=(1.3, 1.3), p=1.0, generator=gen)(data)
     assert F.points_in_oriented_box(out["pos"], out["box"][0]).item()
 
 
@@ -87,7 +87,7 @@ def test_random_rotate_boxes_p_zero_is_noop() -> None:
     box = _box(heading=0.2)
     pos = torch.tensor([[1.0, 0.5, 0.3]])
     data = {"pos": pos.clone(), "box": box.clone()}
-    out = T.RandomRotateBoxes(p=0.0)(data)
+    out = T.RandomRotate(keys="pos", box_key="box", p=0.0)(data)
     assert torch.allclose(out["box"], box)
     assert torch.allclose(out["pos"], pos)
 
@@ -98,7 +98,9 @@ def test_random_rotate_boxes_votes_stay_consistent() -> None:
     pos = torch.tensor([[1.0, 0.5, 0.3]])
     vote = (box[:, 0:3] - pos).repeat(1, 3)
     data = {"pos": pos.clone(), "box": box.clone(), "vote_label": vote.clone()}
-    out = T.RandomRotateBoxes(angle_range=(40.0, 40.0), p=1.0, vote_key="vote_label", generator=gen)(data)
+    out = T.RandomRotate(keys=("pos", "vote_label"), box_key="box", angle_range=(40.0, 40.0), p=1.0, generator=gen)(
+        data
+    )
     expected = out["box"][:, 0:3] - out["pos"]
     assert torch.allclose(out["vote_label"][:, 0:3], expected, atol=1e-5)
     assert torch.allclose(out["vote_label"][:, 3:6], expected, atol=1e-5)
@@ -110,7 +112,7 @@ def test_random_scale_boxes_votes_stay_consistent() -> None:
     pos = torch.tensor([[1.0, 0.5, 0.3]])
     vote = (box[:, 0:3] - pos).repeat(1, 3)
     data = {"pos": pos.clone(), "box": box.clone(), "vote_label": vote.clone()}
-    out = T.RandomScaleBoxes(scale_range=(1.3, 1.3), p=1.0, vote_key="vote_label", generator=gen)(data)
+    out = T.RandomScale(keys=("pos", "vote_label"), box_key="box", scale_range=(1.3, 1.3), p=1.0, generator=gen)(data)
     expected = out["box"][:, 0:3] - out["pos"]
     assert torch.allclose(out["vote_label"][:, 0:3], expected, atol=1e-5)
 
