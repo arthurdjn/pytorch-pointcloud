@@ -57,39 +57,39 @@ def _shapenetpart_sample(n: int = 2048) -> Dict[str, Tensor]:
 
 EXPERIMENTS = [
     pytest.param(
-        "scannet_spunet",
+        "spunet/spunet_scannet",
         _scannet_sample,
         marks=[_REQUIRES_SPCONV, _REQUIRES_CUDA],
-        id="scannet_spunet",
+        id="spunet/spunet_scannet",
     ),
     pytest.param(
-        "scannet_ptv3",
+        "point_transformer_v3/point_transformer_v3_scannet",
         _scannet_sample,
         marks=[_REQUIRES_SPCONV, _REQUIRES_CUDA],
-        id="scannet_ptv3",
+        id="point_transformer_v3/point_transformer_v3_scannet",
     ),
     pytest.param(
-        "scannet_ptv3_v2",
+        "point_transformer_v3/point_transformer_v3-v2_scannet",
         _scannet_sample,
         marks=[_REQUIRES_SPCONV, _REQUIRES_CUDA],
-        id="scannet_ptv3_v2",
+        id="point_transformer_v3/point_transformer_v3-v2_scannet",
     ),
     pytest.param(
-        "scannet_ptv3_v3",
+        "point_transformer_v3/point_transformer_v3-v3_scannet",
         _scannet_sample,
         marks=[_REQUIRES_SPCONV, _REQUIRES_CUDA],
-        id="scannet_ptv3_v3",
+        id="point_transformer_v3/point_transformer_v3-v3_scannet",
     ),
     pytest.param(
-        "shapenetpart_dgcnn",
+        "dgcnn/dgcnn_shapenetpart",
         _shapenetpart_sample,
         marks=[_REQUIRES_TORCH_CLUSTER, _REQUIRES_TORCH_SCATTER],
-        id="shapenetpart_dgcnn",
+        id="dgcnn/dgcnn_shapenetpart",
     ),
 ]
 
 
-class _StubDataset(Dataset):
+class DummyDataset(Dataset):
     """Yields a fixed number of fake packed-batch samples."""
 
     def __init__(self, n: int, sample_fn: SampleFn) -> None:
@@ -162,8 +162,8 @@ def test_experiment_fit_two_epochs(experiment: str, sample_fn: SampleFn, tmp_pat
     model = instantiate(cfg.model)
     trainer: L.Trainer = instantiate(cfg.trainer, callbacks=[], logger=False)
     dm = PointCloudDataModule(
-        train_dataset=_StubDataset(n=4, sample_fn=sample_fn),
-        val_dataset=_StubDataset(n=2, sample_fn=sample_fn),
+        train_dataset=DummyDataset(n=4, sample_fn=sample_fn),
+        val_dataset=DummyDataset(n=2, sample_fn=sample_fn),
         batch_size=2,
         num_workers=0,
         drop_last=False,
