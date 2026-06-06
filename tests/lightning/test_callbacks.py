@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Dict
+from typing import Any, Dict, Iterator
 from unittest.mock import Mock
 
 import pytest
@@ -13,7 +13,8 @@ from torch_pointcloud.lightning import (
     MeanAveragePrecision3D,
     MetricCallback,
 )
-from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
+from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
+from torch_pointcloud.models._registry import _REGISTERED_MODELS
 
 pytest.importorskip("lightning.pytorch")
 
@@ -52,6 +53,34 @@ class DummyDetectionModel(DetectionModel):
         return out
 
 
+def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
+    return DummyClassificationModel(**kwargs)
+
+
+def _dummy_segmentation(**kwargs: Any) -> DummySegmentationModel:
+    return DummySegmentationModel(**kwargs)
+
+
+def _dummy_detection(**kwargs: Any) -> DummyDetectionModel:
+    return DummyDetectionModel(**kwargs)
+
+
+@pytest.fixture(autouse=True)
+def _register_dummies() -> Iterator[None]:
+    """The LightningModules build their model via `create_model(name, ...)`, so the test doubles are
+    registered here (and removed afterwards, to keep the global registry clean for other tests)."""
+    register_model("dummy.classification", task="classification")(_dummy_classification)
+    register_model("dummy.segmentation", task="segmentation")(_dummy_segmentation)
+    register_model("dummy.detection", task="detection")(_dummy_detection)
+    yield
+    for task, name in (
+        ("classification", "dummy.classification"),
+        ("segmentation", "dummy.segmentation"),
+        ("detection", "dummy.detection"),
+    ):
+        _REGISTERED_MODELS[task].pop(name, None)
+
+
 @pytest.fixture
 def trainer() -> L.Trainer:
     return L.Trainer(logger=False, enable_checkpointing=False, enable_progress_bar=False, accelerator="cpu", devices=1)
@@ -59,21 +88,24 @@ def trainer() -> L.Trainer:
 
 def _cls_module(num_classes: int = 3) -> LitClassificationModel:
     return LitClassificationModel(
-        model=DummyClassificationModel(num_classes=num_classes),
+        name="dummy.classification",
+        model_kwargs={"num_classes": num_classes},
         optimizer=partial(torch.optim.AdamW, lr=0.01),
     )
 
 
 def _seg_module(num_classes: int = 5) -> LitSegmentationModel:
     return LitSegmentationModel(
-        model=DummySegmentationModel(num_classes=num_classes),
+        name="dummy.segmentation",
+        model_kwargs={"num_classes": num_classes},
         optimizer=partial(torch.optim.AdamW, lr=0.01),
     )
 
 
 def _det_module() -> LitDetectionModel:
     return LitDetectionModel(
-        model=DummyDetectionModel(num_classes=1),
+        name="dummy.detection",
+        model_kwargs={"num_classes": 1},
         optimizer=partial(torch.optim.Adam, lr=1e-3),
         criterion=Mock(),
     )

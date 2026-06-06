@@ -3,7 +3,7 @@
 # input pipeline (matches the architecture's expected features); add dataset augmentation for a
 # full from-scratch run. The benchmark counterpart is sonata_segmentation_scannet_benchmark.
 # Run: uv run --no-sync python train.py experiment=sonata/sonata_scannet
-# Benchmark pretrained: uv run --no-sync python train.py experiment=sonata/sonata_scannet train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=sonata/sonata_scannet train=false model.pretrained=true
 defaults:
   - override /data: scannet
   - override /model: segmentation
@@ -15,17 +15,10 @@ trainer:
 
 model:
   input_keys: [x, pos_grid, batch]
-  model:
-    name: sonata-lp.scannet20
+  name: sonata-lp.scannet20
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: sonata-lp.scannet20
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: sonata-lp.scannet20
-      task: segmentation
+    transform: null

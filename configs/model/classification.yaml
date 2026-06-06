@@ -1,15 +1,11 @@
 # Generic classification LightningModule. The experiment sets `model.name`; when the model
 # consumes features (e.g. normals) or its own coordinates as `x`, the experiment overrides
 # `input_keys` (e.g. [normal, pos, batch] or [pos, pos, batch]). To benchmark pretrained weights
-# instead of training, run with `train=false model.model.pretrained=true`.
+# instead of training, run with `train=false model.pretrained=true`.
 _target_: torch_pointcloud.lightning.LitClassificationModel
+name: ???
+pretrained: false
 input_keys: [x, pos, batch]
-
-model:
-  _target_: torch_pointcloud.create_model
-  name: ???
-  task: classification
-  pretrained: false
 
 optimizer:
   _target_: torch.optim.AdamW

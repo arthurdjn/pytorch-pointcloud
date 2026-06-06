@@ -1,7 +1,7 @@
 # @package _global_
 # SpUNet v1m1 semantic segmentation on ScanNet20 (Pointcept reproduction).
 # Run: uv run --no-sync python train.py experiment=spunet/spunet_scannet
-# Benchmark pretrained: uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.pretrained=true
 defaults:
   - override /data: scannet
   - override /model: spunet

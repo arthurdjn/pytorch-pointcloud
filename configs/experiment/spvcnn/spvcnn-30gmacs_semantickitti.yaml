@@ -1,7 +1,7 @@
 # @package _global_
 # Training experiment for `spvcnn-30gmacs.semantickitti` (registered transform as a runnable baseline pipeline).
 # Run: uv run --no-sync python train.py experiment=spvcnn/spvcnn-30gmacs_semantickitti
-# Benchmark pretrained: uv run --no-sync python train.py experiment=spvcnn/spvcnn-30gmacs_semantickitti train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=spvcnn/spvcnn-30gmacs_semantickitti train=false model.pretrained=true
 defaults:
   - override /data: semantickitti
   - override /model: segmentation
@@ -14,17 +14,10 @@ trainer:
 model:
   input_keys: [x, pos, batch]
   ignore_index: 255
-  model:
-    name: spvcnn-30gmacs.semantickitti
+  name: spvcnn-30gmacs.semantickitti
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: spvcnn-30gmacs.semantickitti
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: spvcnn-30gmacs.semantickitti
-      task: segmentation
+    transform: null

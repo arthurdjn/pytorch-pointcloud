@@ -3,14 +3,10 @@
 # [x, pos_grid, batch] for sparse-voxel models, [x, pos, pos_grid, batch] for utonia).
 # The optimizer is only used for training (a benchmark sets `train: false`).
 _target_: torch_pointcloud.lightning.LitSegmentationModel
+name: ???
+pretrained: false
 input_keys: [x, pos, batch]
 ignore_index: -1
-
-model:
-  _target_: torch_pointcloud.create_model
-  name: ???
-  task: segmentation
-  pretrained: false
 
 optimizer:
   _target_: torch.optim.AdamW

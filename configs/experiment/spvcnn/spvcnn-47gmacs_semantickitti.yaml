@@ -3,7 +3,7 @@
 # input pipeline (matches the architecture's expected features); add dataset augmentation for a
 # full from-scratch run. The benchmark counterpart is spvcnn_segmentation_semantickitti_benchmark.
 # Run: uv run --no-sync python train.py experiment=spvcnn/spvcnn_semantickitti
-# Benchmark pretrained: uv run --no-sync python train.py experiment=spvcnn/spvcnn-47gmacs_semantickitti train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=spvcnn/spvcnn-47gmacs_semantickitti train=false model.pretrained=true
 defaults:
   - override /data: semantickitti
   - override /model: segmentation
@@ -16,17 +16,10 @@ trainer:
 model:
   input_keys: [x, pos, batch]
   ignore_index: 255
-  model:
-    name: spvcnn-47gmacs.semantickitti
+  name: spvcnn-47gmacs.semantickitti
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: spvcnn-47gmacs.semantickitti
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: spvcnn-47gmacs.semantickitti
-      task: segmentation
+    transform: null

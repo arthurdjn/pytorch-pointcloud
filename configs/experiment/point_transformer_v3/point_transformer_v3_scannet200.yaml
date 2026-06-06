@@ -3,7 +3,7 @@
 # input pipeline (matches the architecture's expected features); add dataset augmentation for a
 # full from-scratch run. The benchmark counterpart is point_transformer_v3_segmentation_scannet200_benchmark.
 # Run: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet200
-# Benchmark pretrained: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet200 train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet200 train=false model.pretrained=true
 defaults:
   - override /data: scannet200
   - override /model: segmentation
@@ -15,17 +15,10 @@ trainer:
 
 model:
   input_keys: [x, pos_grid, batch]
-  model:
-    name: ptv3-base.scannet200
+  name: ptv3-base.scannet200
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: ptv3-base.scannet200
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: ptv3-base.scannet200
-      task: segmentation
+    transform: null

@@ -9,7 +9,7 @@ Usage:
     # train
     uv run --no-sync python train.py experiment=spunet/spunet_scannet
     # benchmark pretrained weights (no training): evaluate on the held-out set
-    uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.model.pretrained=true
+    uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.pretrained=true
     uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet \
         ckpt_path=logs/train/runs/foo/checkpoints/last.ckpt
 """

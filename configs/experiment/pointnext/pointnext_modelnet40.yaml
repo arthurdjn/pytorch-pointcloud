@@ -1,9 +1,9 @@
 # @package _global_
 # pointnext-sm-c64.modelnet40 classification on ModelNet40 (normal-resampled). Reference: see examples/pointnext_benchmark_modelnet.py.
 # Run: uv run --no-sync python train.py experiment=pointnext/pointnext_modelnet40
-# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnext/pointnext_modelnet40 train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnext/pointnext_modelnet40 train=false model.pretrained=true
 defaults:
-  - override /data: modelnet40
+  - override /data: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
@@ -12,8 +12,7 @@ trainer:
 
 model:
   input_keys: [pos, pos, batch]
-  model:
-    name: pointnext-sm-c64.modelnet40
+  name: pointnext-sm-c64.modelnet40
 
 data:
   train_dataset:

@@ -4,15 +4,11 @@
 # via OmegaConf's `${eval:...}` resolver (registered in train.py), e.g.:
 #   train.py model.scheduler.total_steps='${eval:"800 * 1201 // 12"}'
 _target_: torch_pointcloud.lightning.LitSegmentationModel
+name: spunet-v1m1.scannet20
+pretrained: false
 scheduler_interval: step
 ignore_index: -1 # Relabel remaps raw labels 1-20 to 0-19 and unannotated to -1
 mix_prob: 0.8 # Mix3D: probability of merging scene pairs per training batch
-
-model:
-  _target_: torch_pointcloud.create_model
-  name: spunet-v1m1.scannet20
-  task: segmentation
-  pretrained: false
 
 optimizer:
   _target_: torch.optim.AdamW

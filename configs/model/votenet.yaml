@@ -2,13 +2,9 @@
 # The criterion is a `_partial_` VoteNetLoss: the model's `mean_sizes` buffer is injected
 # in `LitDetectionModel.__init__`, so it is not duplicated here.
 _target_: torch_pointcloud.lightning.LitDetectionModel
+name: votenet-fair-base.sunrgbd
+pretrained: false
 scheduler_interval: epoch
-
-model:
-  _target_: torch_pointcloud.create_model
-  name: votenet-fair-base.sunrgbd
-  task: detection
-  pretrained: false
 
 criterion:
   _target_: torch_pointcloud.losses.VoteNetLoss

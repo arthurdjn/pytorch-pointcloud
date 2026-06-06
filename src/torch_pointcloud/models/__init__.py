@@ -1,5 +1,5 @@
 from ._base import ClassificationModel, DetectionModel, SegmentationModel
-from ._registry import create_model, list_models, register_model
+from ._registry import create_model, get_model_transforms, list_models, register_model
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
@@ -23,6 +23,7 @@ from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
 from .sontata import SonataSegmentation
+from .spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation

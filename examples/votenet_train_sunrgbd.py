@@ -71,7 +71,7 @@ def main() -> None:
     )
 
     lit_model = LitDetectionModel(
-        model,
+        name="votenet-fair-base.sunrgbd",
         optimizer=partial(torch.optim.Adam, lr=args.lr),
         criterion=partial(
             VoteNetLoss,

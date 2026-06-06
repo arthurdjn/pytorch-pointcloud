@@ -18,7 +18,4 @@ val_dataset:
   background: true
   variant: augmentedrot_scale75
   train: false
-  transform:
-    _target_: torch_pointcloud.models.get_model_transforms
-    name: ${model.model.name}
-    task: ${model.model.task}
+  transform: null

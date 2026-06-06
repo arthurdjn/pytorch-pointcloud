@@ -1,7 +1,7 @@
 # @package _global_
 # Training experiment for `kpfcnn-base-deform.s3dis` (registered transform as a runnable baseline pipeline).
 # Run: uv run --no-sync python train.py experiment=kpfcnn/kpfcnn-base-deform_s3dis
-# Benchmark pretrained: uv run --no-sync python train.py experiment=kpfcnn/kpfcnn-base-deform_s3dis train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=kpfcnn/kpfcnn-base-deform_s3dis train=false model.pretrained=true
 defaults:
   - override /data: s3dis
   - override /model: segmentation
@@ -15,17 +15,10 @@ model:
   input_keys: [x, pos, batch]
   target_key: label
   ignore_index: -1
-  model:
-    name: kpfcnn-base-deform.s3dis
+  name: kpfcnn-base-deform.s3dis
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: kpfcnn-base-deform.s3dis
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: kpfcnn-base-deform.s3dis
-      task: segmentation
+    transform: null

@@ -3,7 +3,7 @@
 # input pipeline (matches the architecture's expected features); add dataset augmentation for a
 # full from-scratch run. The benchmark counterpart is pvcnn_segmentation_s3dis_benchmark.
 # Run: uv run --no-sync python train.py experiment=pvcnn/pvcnn_s3dis
-# Benchmark pretrained: uv run --no-sync python train.py experiment=pvcnn/pvcnn_s3dis train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pvcnn/pvcnn_s3dis train=false model.pretrained=true
 defaults:
   - override /data: s3dis_hdf5
   - override /model: segmentation
@@ -15,17 +15,10 @@ trainer:
 
 model:
   input_keys: [x, pos, batch]
-  model:
-    name: pvcnn-mit-han-lab.s3dis-area5
+  name: pvcnn-mit-han-lab.s3dis-area5
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: pvcnn-mit-han-lab.s3dis-area5
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: pvcnn-mit-han-lab.s3dis-area5
-      task: segmentation
+    transform: null

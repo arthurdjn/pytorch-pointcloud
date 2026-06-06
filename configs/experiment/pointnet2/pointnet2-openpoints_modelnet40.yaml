@@ -1,8 +1,8 @@
 # @package _global_
 # PointNet++ (OpenPoints) classification on modelnet40.
-# Benchmark: uv run --no-sync python train.py experiment=pointnet2/pointnet2-openpoints_modelnet40 train=false model.model.pretrained=true
+# Benchmark: uv run --no-sync python train.py experiment=pointnet2/pointnet2-openpoints_modelnet40 train=false model.pretrained=true
 defaults:
-  - override /data: modelnet40
+  - override /data: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
@@ -10,5 +10,4 @@ trainer:
   max_epochs: 250
 
 model:
-  model:
-    name: pointnet2-openpoints.modelnet40
+  name: pointnet2-openpoints.modelnet40

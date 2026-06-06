@@ -1,9 +1,9 @@
 # @package _global_
 # pointnet2-yanx27-msg.modelnet40 classification on ModelNet40 (normal-resampled). Reference: 92.67% OA / 90.60% mAcc.
 # Run: uv run --no-sync python train.py experiment=pointnet2/pointnet2-msg_modelnet40
-# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnet2/pointnet2-msg_modelnet40 train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnet2/pointnet2-msg_modelnet40 train=false model.pretrained=true
 defaults:
-  - override /data: modelnet40
+  - override /data: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
@@ -12,8 +12,7 @@ trainer:
 
 model:
   input_keys: [normal, pos, batch]
-  model:
-    name: pointnet2-yanx27-msg.modelnet40
+  name: pointnet2-yanx27-msg.modelnet40
 
 data:
   train_dataset:

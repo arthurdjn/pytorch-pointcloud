@@ -74,6 +74,21 @@ class PointCloudDataModule(LightningDataModule):
         self.persistent_workers = persistent_workers
         self.pin_memory_device = pin_memory_device
 
+    def setup(self, stage: str) -> None:
+        """Apply the model's registered evaluation transform to any dataset that has none.
+
+        The LightningModule (built from the registry) carries its `eval_transform`; an experiment leaves
+        a dataset's `transform` as `None` to use it, or sets one explicitly for custom augmentation.
+        """
+        trainer = getattr(self, "trainer", None)
+        lit_model = getattr(trainer, "lightning_module", None)
+        eval_transform = getattr(lit_model, "eval_transform", None)
+        if eval_transform is None:
+            return
+        for dataset in (self.train_dataset, self.val_dataset, self.test_dataset):
+            if dataset is not None and getattr(dataset, "transform", None) is None:
+                dataset.transform = eval_transform  # type: ignore[attr-defined]
+
     def configure_dataloader(
         self,
         dataset: Optional[Dataset],

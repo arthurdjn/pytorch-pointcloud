@@ -63,10 +63,18 @@ def test_experiment_composes(experiment: str) -> None:
         assert "_target_" in cfg.data
 
 
+# The LightningModule `_target_` implies the registry task it builds its model under.
+_TARGET_TO_TASK = {
+    "torch_pointcloud.lightning.LitClassificationModel": "classification",
+    "torch_pointcloud.lightning.LitSegmentationModel": "segmentation",
+    "torch_pointcloud.lightning.LitDetectionModel": "detection",
+}
+
+
 @pytest.mark.parametrize("experiment", EXPERIMENTS)
 def test_experiment_model_name_registered(experiment: str) -> None:
-    """The composed `model.model.name` is a real registry entry for its task. This catches a renamed or
-    typo'd model in any experiment without instantiating it, so it covers GPU-only configs too."""
+    """The composed `model.name` is a real registry entry for the LightningModule's task. This catches a
+    renamed or typo'd model in any experiment without instantiating it, so it covers GPU-only configs too."""
     from hydra import compose, initialize_config_dir
     from hydra.core.hydra_config import HydraConfig
 
@@ -77,8 +85,8 @@ def test_experiment_model_name_registered(experiment: str) -> None:
             return_hydra_config=True,
         )
         HydraConfig.instance().set_config(cfg)
-        name = cfg.model.model.name
-        task = cfg.model.model.task
+        name = cfg.model.name
+        task = _TARGET_TO_TASK[cfg.model._target_]
         assert name in list_models(task=task), (
             f"experiment {experiment!r}: model {name!r} not registered for task {task!r}"
         )

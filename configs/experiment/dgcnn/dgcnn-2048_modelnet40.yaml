@@ -1,9 +1,9 @@
 # @package _global_
 # dgcnn-antao.modelnet40.2048 classification on ModelNet40 (normal-resampled). Reference: see examples/dgcnn_benchmark_modelnet.py.
 # Run: uv run --no-sync python train.py experiment=dgcnn/dgcnn-2048_modelnet40
-# Benchmark pretrained: uv run --no-sync python train.py experiment=dgcnn/dgcnn-2048_modelnet40 train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=dgcnn/dgcnn-2048_modelnet40 train=false model.pretrained=true
 defaults:
-  - override /data: modelnet40
+  - override /data: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
@@ -11,8 +11,7 @@ trainer:
   max_epochs: 200
 
 model:
-  model:
-    name: dgcnn-antao.modelnet40.2048
+  name: dgcnn-antao.modelnet40.2048
 
 data:
   train_dataset:

@@ -1,7 +1,7 @@
 # @package _global_
 # pointmlp-elite.scanobjectnn classification on ScanObjectNN. Reference: see examples/*_benchmark_scanobjectnn.py.
 # Run: uv run --no-sync python train.py experiment=pointmlp/pointmlp-elite_scanobjectnn
-# Benchmark pretrained: uv run --no-sync python train.py experiment=pointmlp/pointmlp-elite_scanobjectnn train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pointmlp/pointmlp-elite_scanobjectnn train=false model.pretrained=true
 defaults:
   - override /data: scanobjectnn
   - override /model: classification
@@ -11,8 +11,7 @@ trainer:
   max_epochs: 250
 
 model:
-  model:
-    name: pointmlp-elite.scanobjectnn
+  name: pointmlp-elite.scanobjectnn
 
 data:
   train_dataset:

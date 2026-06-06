@@ -1,7 +1,7 @@
 # @package _global_
 # Training experiment for `pointnext-xl.s3dis-area5` (registered transform as a runnable baseline pipeline).
 # Run: uv run --no-sync python train.py experiment=pointnext/pointnext-xl_s3dis-area5
-# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnext/pointnext-xl_s3dis-area5 train=false model.model.pretrained=true
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnext/pointnext-xl_s3dis-area5 train=false model.pretrained=true
 defaults:
   - override /data: s3dis
   - override /model: segmentation
@@ -13,17 +13,10 @@ trainer:
 model:
   input_keys: [x, pos, batch]
   ignore_index: -1
-  model:
-    name: pointnext-xl.s3dis-area5
+  name: pointnext-xl.s3dis-area5
 
 data:
   train_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: pointnext-xl.s3dis-area5
-      task: segmentation
+    transform: null
   val_dataset:
-    transform:
-      _target_: torch_pointcloud.models.get_model_transforms
-      name: pointnext-xl.s3dis-area5
-      task: segmentation
+    transform: null
