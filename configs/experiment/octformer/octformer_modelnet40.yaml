@@ -1,0 +1,33 @@
+# @package _global_
+# OctFormer classification on ModelNet40 (mesh, octree input).
+# Benchmark: uv run --no-sync python train.py experiment=octformer/octformer_modelnet40 train=false model.model.pretrained=true
+defaults:
+  - override /data: modelnet40
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 200
+
+model:
+  input_keys: [x, octree, octree.depth, pos, batch]
+  model:
+    name: octformer-base.modelnet40
+
+data:
+  train_dataset:
+    _target_: torch_pointcloud.datasets.ModelNet40
+    root: ${paths.data_dir}
+    train: true
+    transform:
+      _target_: torch_pointcloud.models.get_model_transforms
+      name: octformer-base.modelnet40
+      task: classification
+  val_dataset:
+    _target_: torch_pointcloud.datasets.ModelNet40
+    root: ${paths.data_dir}
+    train: false
+    transform:
+      _target_: torch_pointcloud.models.get_model_transforms
+      name: octformer-base.modelnet40
+      task: classification

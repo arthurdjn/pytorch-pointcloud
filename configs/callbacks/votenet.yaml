@@ -9,7 +9,7 @@ model_checkpoint:
 mean_ap:
   _target_: torch_pointcloud.lightning.MetricCallback
   name: mAP
-  stages: [val]
+  stages: [val, test]
   metric:
     _target_: torch_pointcloud.lightning.MeanAveragePrecision3D
     iou_thresholds: [0.25, 0.5]

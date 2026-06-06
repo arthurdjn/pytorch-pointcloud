@@ -1,0 +1,35 @@
+# @package _global_
+# pointnet2-yanx27-ssg.modelnet40 classification on ModelNet40 (normal-resampled). Reference: 92.30% OA / 88.23% mAcc.
+# Run: uv run --no-sync python train.py experiment=pointnet2/pointnet2_modelnet40
+# Benchmark pretrained: uv run --no-sync python train.py experiment=pointnet2/pointnet2_modelnet40 train=false model.model.pretrained=true
+defaults:
+  - override /data: modelnet40
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 200
+
+model:
+  model:
+    name: pointnet2-yanx27-ssg.modelnet40
+
+data:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.FarthestPointSample
+          pos_key: pos
+          keys: pos
+          num_samples: 1024
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+          method: centroid
+        - _target_: torch_pointcloud.transforms.RandomScale
+          keys: pos
+          scale_range: [0.8, 1.25]
+        - _target_: torch_pointcloud.transforms.RandomJitter
+          keys: pos
+          sigma: 0.01
+          clip: 0.05

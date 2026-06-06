@@ -1,0 +1,29 @@
+# @package _global_
+# OctFormer semantic segmentation on scannet200. Octree input (BuildOctree transform + octree-merging collate).
+# Benchmark pretrained: uv run --no-sync python train.py experiment=octformer/octformer_scannet200 train=false model.model.pretrained=true
+defaults:
+  - override /data: scannet200
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  input_keys: [x, octree, octree.depth, pos, batch]
+  ignore_index: 0 # OctFormer uses one extra class with unannotated = 0
+  model:
+    name: octformer-base.scannet200
+
+data:
+  batch_size: 1
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.models.get_model_transforms
+      name: octformer-base.scannet200
+      task: segmentation
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.models.get_model_transforms
+      name: octformer-base.scannet200
+      task: segmentation

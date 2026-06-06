@@ -1,0 +1,24 @@
+# ScanObjectNN classification datamodule (PB_T50_RS: background + augmentedrot_scale75).
+# Variants that differ (no background, no rotation) override these args in the experiment.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 32
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.ScanObjectNN
+  root: ${paths.data_dir}
+  background: true
+  variant: augmentedrot_scale75
+  train: true
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.ScanObjectNN
+  root: ${paths.data_dir}
+  background: true
+  variant: augmentedrot_scale75
+  train: false
+  transform:
+    _target_: torch_pointcloud.models.get_model_transforms
+    name: ${model.model.name}
+    task: ${model.model.task}

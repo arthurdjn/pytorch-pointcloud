@@ -1,21 +1,28 @@
 # @package _global_
-# Point Transformer V3 semantic segmentation on ScanNet20 (Pointcept reproduction).
-# Run: uv run --no-sync python train.py experiment=scannet_ptv3
+# SpUNet v1m1 semantic segmentation on ScanNet20 (Pointcept reproduction).
+# Run: uv run --no-sync python train.py experiment=spunet/spunet_scannet
+# Benchmark pretrained: uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.model.pretrained=true
 defaults:
   - override /data: scannet
-  - override /model: ptv3
+  - override /model: spunet
   - override /callbacks: segmentation
 
 trainer:
   max_epochs: 800
-  precision: "32-true" # PTv3's cpe_conv uses spconv, whose fp16 implicit-gemm tuner fails
-  accumulate_grad_batches: 12 # batch_size 1 x 12 = Pointcept's effective batch 12
+  precision: "32-true" # spconv's fp16 conv tuner fails under 16-mixed
 
 model:
   ignore_index: -1
+  criterion:
+    _target_: torch_pointcloud.losses.SumLoss
+    losses:
+      - _target_: torch.nn.CrossEntropyLoss
+        ignore_index: -1
+      - _target_: torch_pointcloud.losses.LovaszLoss
+        ignore_index: -1
+        loss_weight: 1.0
 
 data:
-  batch_size: 1 # PTv3 on full ScanNet scenes (~50-80k points) is memory-heavy
   train_dataset:
     transform:
       _target_: torch_pointcloud.transforms.Compose
@@ -86,7 +93,29 @@ data:
         # Relabel raw ScanNet labels: 1-20 -> 0-19, unannotated -> -1
         - _target_: torch_pointcloud.transforms.Relabel
           keys: segment
-          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          labels:
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+            ]
           default: -1
         # GridSample(grid_size=0.02, hash=fnv)
         - _target_: torch_pointcloud.transforms.Voxelize
@@ -96,18 +125,20 @@ data:
           method: fnv
           keys: [color, normal, segment]
           reduce: first
-        # SphereCrop(point_max=102400, mode=random): cap voxels on large scenes
+        # SphereCrop(point_max=100000, mode=random): cap voxels on large scenes
         - _target_: torch_pointcloud.transforms.SphereCrop
           pos_key: pos
           keys: [color, normal, segment]
           radius: 1000000.0
-          max_nodes: 102400
+          max_nodes: 100000
           center: random_point
-        # NormalizeColor (PTv3 config omits ShufflePoint)
+        # NormalizeColor
         - _target_: torch_pointcloud.transforms.Normalize
           keys: color
           mean: [0.0, 0.0, 0.0]
           std: [255.0, 255.0, 255.0]
+        - _target_: torch_pointcloud.transforms.ShufflePoint
+          keys: [pos, color, normal, segment]
         # Collect(feat_keys=(color, normal)): build the 6-channel input feature `x`
         - _target_: torch_pointcloud.transforms.Cat
           keys: [color, normal]
@@ -129,7 +160,29 @@ data:
         # Relabel raw ScanNet labels: 1-20 -> 0-19, unannotated -> -1
         - _target_: torch_pointcloud.transforms.Relabel
           keys: segment
-          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          labels:
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+            ]
           default: -1
         - _target_: torch_pointcloud.transforms.Voxelize
           pos_key: pos

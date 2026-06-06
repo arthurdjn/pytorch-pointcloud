@@ -1,6 +1,7 @@
 # @package _global_
 # VoteNet 3D object detection on SUN RGB-D.
-# Run: uv run --no-sync python train.py experiment=sunrgbd_votenet
+# Run: uv run --no-sync python train.py experiment=votenet/votenet_sunrgbd
+# Benchmark pretrained: uv run --no-sync python train.py experiment=votenet/votenet_sunrgbd train=false model.model.pretrained=true
 defaults:
   - override /data: sunrgbd
   - override /model: votenet
@@ -32,18 +33,18 @@ data:
         - _target_: torch_pointcloud.transforms.GenerateVoteLabels
           pos_key: pos
           box_key: box
-        - _target_: torch_pointcloud.transforms.RandomFlipBoxes
-          pos_key: pos
+        - _target_: torch_pointcloud.transforms.RandomFlip
+          keys: [pos, vote_label]
           box_key: box
-          vote_key: vote_label
-        - _target_: torch_pointcloud.transforms.RandomRotateBoxes
-          pos_key: pos
+          axes: [0]
+        - _target_: torch_pointcloud.transforms.RandomRotate
+          keys: [pos, vote_label]
           box_key: box
-          vote_key: vote_label
-        - _target_: torch_pointcloud.transforms.RandomScaleBoxes
-          pos_key: pos
+          angle_range: [-30.0, 30.0]
+        - _target_: torch_pointcloud.transforms.RandomScale
+          keys: [pos, vote_label]
           box_key: box
-          vote_key: vote_label
+          scale_range: [0.85, 1.15]
         # Encode the augmented boxes into the padded VoteNet target tensors (full edge length means).
         - _target_: torch_pointcloud.transforms.EncodeVoteNetTargets
           box_key: box

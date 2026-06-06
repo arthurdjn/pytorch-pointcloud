@@ -2,8 +2,8 @@
 
 Usage:
     uv run --no-sync python test.py \
-        experiment=scannet_ptv3 \
-        ckpt_path=logs/train/runs/scannet_ptv3_2026-05-23_15-30-00/checkpoints/last.ckpt
+        experiment=point_transformer_v3/point_transformer_v3_scannet \
+        ckpt_path=logs/train/runs/point_transformer_v3_segmentation_scannet_2026-05-23_15-30-00/checkpoints/last.ckpt
 """
 
 from typing import Any, List

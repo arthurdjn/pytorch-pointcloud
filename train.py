@@ -2,13 +2,15 @@
 
 Composes a LightningModule, datamodule, callbacks, loggers, and `Trainer` from
 the `configs/` tree, runs `Trainer.fit`, and (when `test=true`) `Trainer.test`
-on the best checkpoint. Repo-only dev tooling, not part of the installed
-`torch_pointcloud` package.
+(falling back to the validation set when no test set is defined). Repo-only dev
+tooling, not part of the installed `torch_pointcloud` package.
 
 Usage:
-    uv run --no-sync python train.py experiment=scannet_spunet
-    uv run --no-sync python train.py experiment=scannet_ptv3 logger=many
-    uv run --no-sync python train.py experiment=scannet_ptv3 \
+    # train
+    uv run --no-sync python train.py experiment=spunet/spunet_scannet
+    # benchmark pretrained weights (no training): evaluate on the held-out set
+    uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.model.pretrained=true
+    uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet \
         ckpt_path=logs/train/runs/foo/checkpoints/last.ckpt
 """
 
@@ -16,7 +18,7 @@ import hydra
 import lightning as L
 from dotenv import load_dotenv
 from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 from torch_pointcloud.utils.hydra import instantiate_list
 from torch_pointcloud.utils.random import seed_everything
@@ -34,6 +36,10 @@ OmegaConf.register_new_resolver("eval", eval, replace=True)
 def main(cfg: DictConfig) -> None:
     """Build the training objects from `cfg`, fit, and optionally test."""
     seed_everything(cfg.seed)
+    # Benchmark mode (`train=false`): drop the training split so only the held-out (val) set is built.
+    if not cfg.get("train", True):
+        with open_dict(cfg):
+            cfg.data.train_dataset = None
     model: L.LightningModule = instantiate(cfg.model)
     datamodule: L.LightningDataModule = instantiate(cfg.data)
     callbacks = instantiate_list(cfg.get("callbacks"))

@@ -12,6 +12,7 @@ model:
   _target_: torch_pointcloud.create_model
   name: spunet-v1m1.scannet20
   task: segmentation
+  pretrained: false
 
 optimizer:
   _target_: torch.optim.AdamW

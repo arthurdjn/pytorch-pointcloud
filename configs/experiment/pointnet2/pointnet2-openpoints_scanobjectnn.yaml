@@ -1,0 +1,14 @@
+# @package _global_
+# PointNet++ (OpenPoints) classification on scanobjectnn.
+# Benchmark: uv run --no-sync python train.py experiment=pointnet2/pointnet2-openpoints_scanobjectnn train=false model.model.pretrained=true
+defaults:
+  - override /data: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 250
+
+model:
+  model:
+    name: pointnet2-openpoints.scanobjectnn

@@ -1,0 +1,23 @@
+# ModelNet40 (normal-resampled) classification datamodule. The train transform (augmentation) lives in
+# the experiment; the validation/eval transform is the model's registered transform, so evaluating
+# (and benchmarking with `train=false model.model.pretrained=true`) uses the canonical pipeline.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 32
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.ModelNetNormalResampled
+  root: ${paths.data_dir}
+  variant: "40"
+  train: true
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.ModelNetNormalResampled
+  root: ${paths.data_dir}
+  variant: "40"
+  train: false
+  transform:
+    _target_: torch_pointcloud.models.get_model_transforms
+    name: ${model.model.name}
+    task: ${model.model.task}

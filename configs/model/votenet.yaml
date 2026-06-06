@@ -8,6 +8,7 @@ model:
   _target_: torch_pointcloud.create_model
   name: votenet-fair-base.sunrgbd
   task: detection
+  pretrained: false
 
 criterion:
   _target_: torch_pointcloud.losses.VoteNetLoss
