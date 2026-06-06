@@ -11,10 +11,11 @@ inside the dict are not cloned unless the transform's documentation says so.
 
 import math
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence, Tuple, get_args
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence, Tuple, Union, get_args
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -64,8 +65,11 @@ __all__ = [
     "Divide",
     "DivideKey",
     "DivisiblePad",
+    "EncodeVoteNetTargets",
     "EstimateNormals",
     "FarthestPointSample",
+    "GenerateVoteLabels",
+    "InstanceToBox",
     "KeepItems",
     "Normalize",
     "OneHot",
@@ -324,13 +328,14 @@ class RandomSample(DictTransform):
         keys: The keys to sample from.
         num_samples: The number of values to sample.
         replace: If `True`, sample with replacement (duplicates allowed). If `False`
-            (default), raise `ValueError` when `num_samples > N`.
+            (default), sample without replacement when the first sampled key has at least
+            `num_samples` points; when `num_samples` exceeds that count the draw falls back
+            to replacement so the output always has `num_samples` rows.
         generator: The generator for the random number generator.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Raises:
-        ValueError: If `replace=False` and `num_samples > N` for the first sampled key,
-            or if the first sampled tensor is empty and `num_samples > 0`.
+        ValueError: If the first sampled tensor is empty and `num_samples > 0`.
     """
 
     def __init__(
@@ -2024,22 +2029,27 @@ class KeepItems(DictTransform):
 
 
 class RandomRotate(DictTransform):
-    """Rotate one or more keys by a uniformly random angle around an axis.
+    """Rotate one or more keys (and optionally oriented boxes) by a uniformly random angle around an axis.
 
-    Sampling is done once per call: all listed keys get the same rotation
-    matrix. Pair `keys=("pos", "normal")` to keep positions and normals
-    consistent.
+    Sampling is done once per call: every listed key and the optional box get the same rotation. Each key is a
+    `(..., 3)` field or a packed `(N, 3 G)` field of tiled 3D offsets (e.g. VoteNet votes). Pair
+    `keys=("pos", "normal")` to keep positions and normals consistent, or pass `box_key` to also rotate a
+    `(K, 8)` oriented-box tensor (centers rotated, heading decremented). Box headings are yaw about the up
+    axis, so `box_key` requires `axis=2`.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_rotate`,
+        `torch_pointcloud.transforms.functional.rotate_vectors`,
+        `torch_pointcloud.transforms.functional.rotate_boxes`,
         `torch_pointcloud.transforms.functional.rotation_matrix`
 
     Args:
-        keys: Keys to rotate. Each must have shape `(..., 3)`.
+        keys: Keys to rotate. Each must be a `(..., 3)` or `(N, 3 G)` vector field.
         angle_range: Min and max rotation angle, in **degrees**.
         axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
         p: Probability of applying the transform.
+        box_key: Optional key of a `(K, 8)` oriented-box tensor to rotate jointly (requires `axis=2`).
         dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
+        dst_box_key: Where to store the rotated boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -2050,15 +2060,21 @@ class RandomRotate(DictTransform):
         angle_range: Tuple[float, float] = (-180.0, 180.0),
         axis: int = 2,
         p: float = 1.0,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
+        if box_key is not None and axis != 2:
+            raise ValueError(f"box_key rotation is only defined about the up axis (axis=2), got axis={axis}.")
         super().__init__(keys, allow_missing_keys)
         self.angle_range = angle_range
         self.axis = axis
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -2066,29 +2082,36 @@ class RandomRotate(DictTransform):
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         lo, hi = self.angle_range
-        angle_deg = torch.empty(1).uniform_(lo, hi, generator=self.generator).item()
+        angle = math.radians(torch.empty(1).uniform_(lo, hi, generator=self.generator).item())
+        rotation = F.rotation_matrix(angle, self.axis)
+        box_key = self.box_key
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            data[self.dst_box_key] = F.rotate_boxes(data[box_key], rotation, angle)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            x = data[key]
-            R = F.rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
-            data[dst_key] = F.rotate(x, R)
+            data[dst_key] = F.rotate_vectors(data[key], rotation)
         return data
 
 
 class RandomScale(DictTransform):
-    """Scale one or more keys by a uniformly random factor.
+    """Scale one or more keys (and optionally oriented boxes) by a uniformly random factor.
 
-    Sampling is done once per call: all listed keys are scaled by the same
-    factor (or per-axis factor vector when `anisotropic=True`).
+    Sampling is done once per call: every listed key and the optional box are scaled by the same factor (or
+    per-axis factor vector when `anisotropic=True`). Pass `box_key` to also scale a `(K, 8)` oriented-box
+    tensor (centers and sizes). An oriented box has no per-axis scale, so `box_key` is incompatible with
+    `anisotropic=True`.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_scale`
+        `torch_pointcloud.transforms.functional.scale_boxes`
 
     Args:
         keys: Keys to scale.
         scale_range: Min and max scaling factor.
-        anisotropic: If `True`, sample a separate scale per axis of the last dim.
+        anisotropic: If `True`, sample a separate scale per axis of the last dim (incompatible with `box_key`).
         p: Probability of applying the transform.
+        box_key: Optional key of a `(K, 8)` oriented-box tensor to scale jointly.
         dst_keys: Where to store the scaled tensors.
+        dst_box_key: Where to store the scaled boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -2099,15 +2122,21 @@ class RandomScale(DictTransform):
         scale_range: Tuple[float, float] = (0.8, 1.25),
         anisotropic: bool = False,
         p: float = 1.0,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
+        if anisotropic and box_key is not None:
+            raise ValueError("box_key cannot be scaled anisotropically (an oriented box has no per-axis scale).")
         super().__init__(keys, allow_missing_keys)
         self.scale_range = scale_range
         self.anisotropic = anisotropic
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -2115,14 +2144,18 @@ class RandomScale(DictTransform):
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         lo, hi = self.scale_range
+        box_key = self.box_key
+        has_box = box_key is not None and box_key in data
         first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None:
+        if first_key is None and not has_box:
             return data
-        d = data[first_key].shape[-1]
-        if self.anisotropic:
-            scale = torch.empty(d).uniform_(lo, hi, generator=self.generator)
+        if self.anisotropic and first_key is not None:
+            scale = torch.empty(data[first_key].shape[-1]).uniform_(lo, hi, generator=self.generator)
         else:
             scale = torch.empty(1).uniform_(lo, hi, generator=self.generator)
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            data[self.dst_box_key] = F.scale_boxes(data[box_key], scale.to(data[box_key]))
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             data[dst_key] = x * scale.to(x.dtype).to(x.device)
@@ -2130,19 +2163,23 @@ class RandomScale(DictTransform):
 
 
 class RandomFlip(DictTransform):
-    """Flip listed axes independently with probability `p` each.
+    """Flip listed axes (and optionally oriented boxes) with probability `p` each.
 
-    Sampling is done once per call: all listed keys are flipped on the same
-    axes.
+    Sampling is done once per call: every listed key and the optional box are flipped on the same axes. Each
+    key is a `(..., 3)` field or a packed `(N, 3 G)` field of tiled 3D offsets (e.g. VoteNet votes). Pass
+    `box_key` to also flip a `(K, 8)` oriented-box tensor (centers negated, heading remapped).
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_flip`
+        `torch_pointcloud.transforms.functional.flip_vectors`,
+        `torch_pointcloud.transforms.functional.flip_boxes`
 
     Args:
-        keys: Keys to flip.
-        axes: Axis indices (into the last dim) to consider for flipping.
+        keys: Keys to flip. Each must be a `(..., 3)` or `(N, 3 G)` vector field.
+        axes: Axis indices (into each 3D triple) to consider for flipping.
         p: Per-axis flip probability.
+        box_key: Optional key of a `(K, 8)` oriented-box tensor to flip jointly.
         dst_keys: Where to store the flipped tensors.
+        dst_box_key: Where to store the flipped boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -2152,29 +2189,40 @@ class RandomFlip(DictTransform):
         keys: KeyCollection,
         axes: Sequence[int] = (0, 1),
         p: float = 0.5,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.axes = tuple(axes)
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None:
+        box_key = self.box_key
+        has_box = box_key is not None and box_key in data
+        if next(iter(self.iter_keys(data)), None) is None and not has_box:
             return data
-        d = data[first_key].shape[-1]
-        flips = torch.zeros(d)
-        for ax in self.axes:
-            flips[ax] = 1.0 if torch.rand(1, generator=self.generator).item() < self.p else 0.0
-        sign = torch.where(flips > 0, -torch.ones(d), torch.ones(d))
+        flipped = [axis for axis in self.axes if torch.rand(1, generator=self.generator).item() < self.p]
+        if not flipped:
+            return data
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            box = data[box_key]
+            for axis in flipped:
+                box = F.flip_boxes(box, axis)
+            data[self.dst_box_key] = box
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            data[dst_key] = x * sign.to(x.dtype).to(x.device)
+            for axis in flipped:
+                x = F.flip_vectors(x, axis)
+            data[dst_key] = x
         return data
 
 
@@ -2862,3 +2910,237 @@ class RandomElasticDistortion(DictTransform):
                 data[key], self.granularity, self.magnitude, generator=self.generator
             )
         return data
+
+
+class InstanceToBox(DictTransform):
+    r"""Axis-aligned bounding boxes from per-point instance ids (e.g. ScanNet detection targets).
+
+    Each distinct instance id in `instance_key` becomes one axis-aligned box covering its `pos_key` points:
+    the center and half extents, heading $0$, and a class read from `semantic_key` (the instance's most
+    common value). Instances whose class equals `ignore_index` are dropped, so mapping the stuff /
+    non-target semantics to `ignore_index` with a `Relabel` upstream filters the boxes down to the detection
+    classes. The boxes are written to `dst_box_key` as $(K, 8)$ tensors
+    $[c_x, c_y, c_z, h_x, h_y, h_z, 0, \text{class}]$, the half-extent convention shared with the dataset
+    `box` key.
+
+    Args:
+        instance_key: Key of the $(N,)$ per-point instance ids.
+        semantic_key: Key of the $(N,)$ per-point class labels the box class is read from.
+        pos_key: Key of the $(N, 3)$ coordinates.
+        dst_box_key: Key to write the $(K, 8)$ boxes to.
+        ignore_index: Class value whose instances are dropped (e.g. unlabeled / stuff).
+        allow_missing_keys: If `True`, return the data unchanged when an input key is missing instead of raising.
+    """
+
+    def __init__(
+        self,
+        instance_key: str = "instance",
+        semantic_key: str = "segment",
+        pos_key: str = "pos",
+        dst_box_key: str = "box",
+        ignore_index: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__([instance_key, semantic_key, pos_key], allow_missing_keys)
+        self.instance_key = instance_key
+        self.semantic_key = semantic_key
+        self.pos_key = pos_key
+        self.dst_box_key = dst_box_key
+        self.ignore_index = ignore_index
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in (self.instance_key, self.semantic_key, self.pos_key):
+            if key not in d:
+                if self.allow_missing_keys:
+                    return d
+                raise KeyError(f"Key {key!r} was missing in the data and `allow_missing_keys==False`.")
+
+        d[self.dst_box_key] = self._instance_boxes(d[self.pos_key], d[self.instance_key], d[self.semantic_key])
+        return d
+
+    def _instance_boxes(self, pos: Tensor, instance: Tensor, segment: Tensor) -> Tensor:
+        boxes: list[Tensor] = []
+        for inst in torch.unique(instance):
+            mask = instance == inst
+            cls = segment[mask].mode().values
+            if int(cls) == self.ignore_index:
+                continue
+            lo, hi = pos[mask].amin(dim=0), pos[mask].amax(dim=0)
+            boxes.append(torch.cat([(lo + hi) / 2, (hi - lo) / 2, pos.new_zeros(1), cls.to(pos).reshape(1)]))
+
+        if not boxes:
+            return pos.new_zeros((0, 8))
+        return torch.stack(boxes)
+
+
+class GenerateVoteLabels(DictTransform):
+    r"""Generate per-point vote offsets and a vote mask from oriented GT boxes.
+
+    For every point inside any GT box the offset to that box center is written, tiled `gt_vote_factor` times
+    to match the VoteNet ScanNet and SUN RGB-D layout. Points inside no box receive a zero offset and a zero
+    mask. When `oriented` is `True` containment is yaw-aware, otherwise an axis-aligned test is used.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.points_in_oriented_box`
+
+    Args:
+        pos_key: Key of the $(N, 3)$ coordinate tensor.
+        box_key: Key of the $(K, 8)$ box tensor.
+        vote_key: Key to write the $(N, 3 G)$ vote offsets to.
+        mask_key: Key to write the $(N,)$ vote mask to.
+        oriented: If `True`, use yaw-aware containment, otherwise an axis-aligned test.
+        gt_vote_factor: Number $G$ of tiled offset copies per point.
+        allow_missing_keys: If `True`, return the data unchanged when `pos_key` or `box_key` is missing
+            instead of raising.
+    """
+
+    def __init__(
+        self,
+        pos_key: str = "pos",
+        box_key: str = "box",
+        vote_key: str = "vote_label",
+        mask_key: str = "vote_label_mask",
+        oriented: bool = True,
+        gt_vote_factor: int = 3,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__([pos_key, box_key], allow_missing_keys)
+        self.pos_key = pos_key
+        self.box_key = box_key
+        self.vote_key = vote_key
+        self.mask_key = mask_key
+        self.oriented = oriented
+        self.gt_vote_factor = gt_vote_factor
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if self.pos_key not in d or self.box_key not in d:
+            if self.allow_missing_keys:
+                return d
+
+            missing = self.pos_key if self.pos_key not in d else self.box_key
+            raise KeyError(f"Key {missing!r} was missing in the data and `allow_missing_keys==False`.")
+
+        pos = d[self.pos_key]
+        boxes = d[self.box_key]
+        n = pos.shape[0]
+        offset = torch.zeros(n, 3, device=pos.device, dtype=pos.dtype)
+        mask = torch.zeros(n, device=pos.device, dtype=torch.long)
+
+        for k in range(boxes.shape[0]):
+            box = boxes[k]
+            if self.oriented:
+                inside = F.points_in_oriented_box(pos, box)
+            else:
+                inside = ((pos - box[0:3]).abs() <= box[3:6]).all(dim=1)
+            offset[inside] = box[0:3] - pos[inside]
+            mask[inside] = 1
+
+        d[self.vote_key] = offset.repeat(1, self.gt_vote_factor)
+        d[self.mask_key] = mask
+        return d
+
+
+class EncodeVoteNetTargets(DictTransform):
+    r"""Encode oriented GT boxes into the padded label tensors the VoteNet loss consumes.
+
+    Each $(K, 8)$ box is converted to fixed-size $(M, \ldots)$ targets where $M$ is `max_num_obj`. Headings are
+    binned with `angle_to_class`. The size class is the semantic class and the size residual is computed against
+    `mean_sizes` (full edge lengths), so SUN RGB-D half-extents are doubled to full edge lengths first.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.angle_to_class`,
+        `torch_pointcloud.transforms.functional.class_to_size`
+
+    Args:
+        box_key: Key of the $(K, 8)$ box tensor.
+        center_key: Key to write the $(M, 3)$ center labels to.
+        heading_class_key: Key to write the $(M,)$ heading class labels to.
+        heading_residual_key: Key to write the $(M,)$ heading residual labels to.
+        size_class_key: Key to write the $(M,)$ size class labels to.
+        size_residual_key: Key to write the $(M, 3)$ size residual labels to.
+        sem_cls_key: Key to write the $(M,)$ semantic class labels to.
+        box_mask_key: Key to write the $(M,)$ box mask to.
+        num_heading_bin: Number of heading bins.
+        mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
+        max_num_obj: Padded number of objects $M$.
+        allow_missing_keys: If `True`, return the data unchanged when `box_key` is missing instead of raising.
+
+    Raises:
+        ValueError: If `mean_sizes` is not provided.
+    """
+
+    def __init__(
+        self,
+        box_key: str = "box",
+        center_key: str = "center_label",
+        heading_class_key: str = "heading_class_label",
+        heading_residual_key: str = "heading_residual_label",
+        size_class_key: str = "size_class_label",
+        size_residual_key: str = "size_residual_label",
+        sem_cls_key: str = "sem_cls_label",
+        box_mask_key: str = "box_label_mask",
+        num_heading_bin: int = 12,
+        mean_sizes: Optional[Union[Tensor, Sequence[Sequence[float]]]] = None,
+        max_num_obj: int = 64,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(box_key, allow_missing_keys)
+        if mean_sizes is None:
+            raise ValueError("mean_sizes must be provided with full edge lengths of shape (C, 3).")
+
+        self.box_key = box_key
+        self.center_key = center_key
+        self.heading_class_key = heading_class_key
+        self.heading_residual_key = heading_residual_key
+        self.size_class_key = size_class_key
+        self.size_residual_key = size_residual_key
+        self.sem_cls_key = sem_cls_key
+        self.box_mask_key = box_mask_key
+        self.num_heading_bin = num_heading_bin
+        self.mean_sizes = torch.as_tensor(mean_sizes, dtype=torch.float32)
+        self.max_num_obj = max_num_obj
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if self.box_key not in d:
+            if self.allow_missing_keys:
+                return d
+            raise KeyError(f"Key {self.box_key!r} was missing in the data and `allow_missing_keys==False`.")
+
+        boxes = d[self.box_key]
+        device = boxes.device
+        dtype = boxes.dtype
+        m = self.max_num_obj
+        k = min(boxes.shape[0], m)
+        mean_sizes = self.mean_sizes.to(device=device, dtype=dtype)
+
+        center = torch.zeros(m, 3, device=device, dtype=dtype)
+        heading_class = torch.zeros(m, device=device, dtype=torch.long)
+        heading_residual = torch.zeros(m, device=device, dtype=dtype)
+        size_class = torch.zeros(m, device=device, dtype=torch.long)
+        size_residual = torch.zeros(m, 3, device=device, dtype=dtype)
+        sem_cls = torch.zeros(m, device=device, dtype=torch.long)
+        box_mask = torch.zeros(m, device=device, dtype=dtype)
+
+        if k > 0:
+            valid = boxes[:k]
+            sem = valid[:, 7].long()
+            center[:k] = valid[:, 0:3]
+            cls, residual = F.angle_to_class(valid[:, 6], self.num_heading_bin)
+            heading_class[:k] = cls
+            heading_residual[:k] = residual
+            size_class[:k] = sem
+            size_residual[:k] = valid[:, 3:6] * 2 - mean_sizes[sem]
+            sem_cls[:k] = sem
+            box_mask[:k] = 1
+
+        d[self.center_key] = center
+        d[self.heading_class_key] = heading_class
+        d[self.heading_residual_key] = heading_residual
+        d[self.size_class_key] = size_class
+        d[self.size_residual_key] = size_residual
+        d[self.sem_cls_key] = sem_cls
+        d[self.box_mask_key] = box_mask
+        return d

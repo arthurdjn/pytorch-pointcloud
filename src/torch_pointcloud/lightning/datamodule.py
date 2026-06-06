@@ -1,27 +1,35 @@
-from typing import Iterable, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
-import lightning.pytorch as L
 from torch.utils.data import DataLoader, Dataset, Sampler
 
-from torch_pointcloud.utils.data import collate
+from torch_pointcloud.utils.data import PointCloudDataLoader
+from torch_pointcloud.utils.imports import optional_import
+
+if TYPE_CHECKING:
+    from lightning.pytorch import LightningDataModule
+else:
+    LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule")
 
 
-class PointCloudDataModule(L.LightningDataModule):
+class PointCloudDataModule(LightningDataModule):
     """LightningDataModule wrapping point cloud datasets with the packed-batch collate.
 
     Each dataset is passed through as-is. To lengthen an epoch (Pointcept's `loop`),
     wrap the training dataset with `torch_pointcloud.datasets.RepeatDataset(dataset, loop=k)`
     before passing it in.
 
-    The DataLoader kwargs that make sense for point-cloud training are exposed as
-    constructor arguments and forwarded to each loader. `shuffle` is forced to
-    `True` for train and `False` for val/test, and `collate_fn` is locked to the
-    packed-batch `torch_pointcloud.utils.data.collate`.
+    Loaders are built with `torch_pointcloud.utils.data.PointCloudDataLoader`, which collates to the
+    packed-batch `torch_pointcloud.utils.data.collate`. Collation specs are never read off the dataset
+    (transforms rewrite keys downstream); pass `stack_keys` / `cat_keys` to control how per-scene ground
+    truth is batched (e.g. `cat_keys=("box",)` for a detection dataset). `shuffle` is forced to `True`
+    for train and `False` for val/test.
 
     Args:
         train_dataset: Dataset for the training loop.
         val_dataset: Dataset for the validation loop.
         test_dataset: Dataset for the test loop.
+        stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
+        cat_keys: Packed keys that additionally emit a `batch_<key>` per-element scene index.
         batch_size: Number of point clouds per batch.
         num_workers: Number of worker processes for data loading.
         pin_memory: Pin tensors in pinned (page-locked) memory before transfer.
@@ -39,6 +47,8 @@ class PointCloudDataModule(L.LightningDataModule):
         val_dataset: Optional[Dataset] = None,
         test_dataset: Optional[Dataset] = None,
         *,
+        stack_keys: Optional[Sequence[str]] = None,
+        cat_keys: Optional[Sequence[str]] = None,
         batch_size: int = 1,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -53,6 +63,8 @@ class PointCloudDataModule(L.LightningDataModule):
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
 
+        self.stack_keys = stack_keys
+        self.cat_keys = cat_keys
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -77,14 +89,15 @@ class PointCloudDataModule(L.LightningDataModule):
         # `sampler` and `shuffle` are mutually exclusive in torch.utils.data.DataLoader.
         effective_shuffle = False if sampler is not None or batch_sampler is not None else shuffle
 
-        return DataLoader(
+        return PointCloudDataLoader(
             dataset,
+            stack_keys=self.stack_keys,
+            cat_keys=self.cat_keys,
             batch_size=self.batch_size,
             shuffle=effective_shuffle,
             sampler=sampler,
             batch_sampler=batch_sampler,
             num_workers=self.num_workers,
-            collate_fn=collate,
             pin_memory=self.pin_memory,
             drop_last=drop_last,
             timeout=self.timeout,
@@ -100,4 +113,8 @@ class PointCloudDataModule(L.LightningDataModule):
         return self.configure_dataloader(self.val_dataset, shuffle=False, drop_last=False)
 
     def test_dataloader(self) -> DataLoader:
-        return self.configure_dataloader(self.test_dataset, shuffle=False, drop_last=False)
+        # Fall back to the validation set when no dedicated test set is given: for these benchmarks the
+        # held-out split is the validation set, so `Trainer.test` (e.g. a pretrained-weight benchmark)
+        # evaluates on it without the experiment having to duplicate the dataset as `test_dataset`.
+        dataset = self.test_dataset if self.test_dataset is not None else self.val_dataset
+        return self.configure_dataloader(dataset, shuffle=False, drop_last=False)
