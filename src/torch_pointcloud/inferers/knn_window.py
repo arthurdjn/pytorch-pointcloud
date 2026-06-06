@@ -46,8 +46,7 @@ def _gaussian_window_weights(distances: Tensor, sigma_scale: float, eps: float =
     r"""Per-window gaussian weights with radius $\sigma = \text{sigma\_scale} \cdot \max_i d_i$.
 
     Vectorised over a batched edge tensor of shape $(M, K)$ so that each row uses its
-    own per-window radius (matches MONAI's per-window scaling). The falloff itself is
-    delegated to `gaussian_weights`.
+    own per-window radius. The falloff itself is delegated to `gaussian_weights`.
     """
     sigma = distances.amax(dim=-1, keepdim=True) * float(sigma_scale)
     return gaussian_weights(distances, sigma, eps)
