@@ -11,6 +11,7 @@ trainer:
 
 model:
   name: octformer-base.modelnet40
+  num_classes: 40
   pretrained: false
   input_keys: [x, octree, octree.depth]
   criterion:

@@ -15,6 +15,7 @@ trainer:
 
 model:
   name: concerto-large-lp.scannet20
+  num_classes: 20
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment

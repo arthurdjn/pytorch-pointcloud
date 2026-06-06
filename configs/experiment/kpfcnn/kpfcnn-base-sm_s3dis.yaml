@@ -13,6 +13,7 @@ trainer:
 
 model:
   name: kpfcnn-base-sm.s3dis
+  num_classes: 13
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: label

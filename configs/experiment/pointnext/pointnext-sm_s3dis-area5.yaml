@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: pointnext-sm.s3dis-area5
+  num_classes: 13
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment

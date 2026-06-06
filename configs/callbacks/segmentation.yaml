@@ -1,6 +1,7 @@
 # Default callbacks plus per-epoch segmentation metrics, logged on validation/test.
-# Each metric reads its class count from the model and `ignore_index` from the module criterion,
-# so neither is duplicated here. Opt in with `override /callbacks: segmentation`.
+# `num_classes` is interpolated from the experiment's `model.num_classes` and `ignore_index` from its
+# `model.criterion` (null when the criterion has none, e.g. a SumLoss). Opt in with
+# `override /callbacks: segmentation`.
 defaults:
   - default
 
@@ -9,8 +10,9 @@ val_miou:
   name: mIoU
   metric:
     _target_: torchmetrics.JaccardIndex
-    _partial_: true
     task: multiclass
+    num_classes: ${model.num_classes}
+    ignore_index: ${oc.select:model.criterion.ignore_index,null}
 
 val_accuracy:
   _target_: torch_pointcloud.lightning.MetricCallback
@@ -18,5 +20,6 @@ val_accuracy:
   prog_bar: false
   metric:
     _target_: torchmetrics.Accuracy
-    _partial_: true
     task: multiclass
+    num_classes: ${model.num_classes}
+    ignore_index: ${oc.select:model.criterion.ignore_index,null}

@@ -8,19 +8,13 @@ from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.misc import deep_getattr
 from torch_pointcloud.utils.optim import generate_param_groups
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
 else:
     LightningModule, _ = optional_import("lightning.pytorch", "LightningModule")
-
-
-def _resolve_input(batch: Dict[str, Any], key: str) -> Any:
-    """Resolve a batch entry, supporting dotted attribute access (e.g. `octree.depth`)."""
-    name, _, attr = key.partition(".")
-    value = batch.get(name)
-    return getattr(value, attr) if attr else value
 
 
 class LiTModel(LightningModule):
@@ -68,7 +62,7 @@ class LiTModel(LightningModule):
         )
 
     def forward(self, batch: Dict[str, Any]) -> Tensor:
-        inputs = (_resolve_input(batch, key) for key in self.hparams["input_keys"])
+        inputs = (deep_getattr(batch, key) for key in self.hparams["input_keys"])
         return self.model(*inputs)
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:

@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: point-mamba-base.modelnet40
+  num_classes: 40
   pretrained: false
   input_keys: [x, pos, batch]
   criterion:

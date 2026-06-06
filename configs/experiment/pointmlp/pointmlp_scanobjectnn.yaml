@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: pointmlp-base.scanobjectnn
+  num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]
   criterion:

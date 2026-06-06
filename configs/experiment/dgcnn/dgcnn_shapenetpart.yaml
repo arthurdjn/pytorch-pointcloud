@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: dgcnn-antao.shapenetpart
+  num_classes: 50
   input_keys: [x, pos, batch, category]
   target_key: segment
   criterion:

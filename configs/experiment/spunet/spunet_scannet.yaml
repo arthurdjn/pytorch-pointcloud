@@ -13,6 +13,7 @@ trainer:
 
 model:
   name: spunet-v1m1.scannet20
+  num_classes: 20
   input_keys: [x, pos, batch]
   target_key: segment
   scheduler_interval: step
@@ -39,6 +40,15 @@ model:
     anneal_strategy: cos
     div_factor: 10.0
     final_div_factor: 10000.0
+
+# SumLoss exposes no top-level `ignore_index`, so set it on the metrics explicitly (scannet unannotated = -1).
+callbacks:
+  val_miou:
+    metric:
+      ignore_index: -1
+  val_accuracy:
+    metric:
+      ignore_index: -1
 
 data:
   train_dataset:

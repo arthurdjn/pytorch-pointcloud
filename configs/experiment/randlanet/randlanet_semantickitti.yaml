@@ -14,6 +14,7 @@ trainer:
 
 model:
   name: randlanet-tsunghanwu.semantickitti
+  num_classes: 19
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment

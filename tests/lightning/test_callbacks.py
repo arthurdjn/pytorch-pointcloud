@@ -9,7 +9,6 @@ from torch import Tensor, nn
 from torch_pointcloud.lightning import (
     LitClassificationModel,
     LitDetectionModel,
-    LitSegmentationModel,
     MeanAveragePrecision3D,
     MetricCallback,
 )
@@ -94,15 +93,6 @@ def _cls_module(num_classes: int = 3) -> LitClassificationModel:
     )
 
 
-def _seg_module(num_classes: int = 5) -> LitSegmentationModel:
-    return LitSegmentationModel(
-        name="dummy.segmentation",
-        num_classes=num_classes,
-        criterion=nn.CrossEntropyLoss(ignore_index=-1),
-        optimizer=partial(torch.optim.AdamW, lr=0.01),
-    )
-
-
 def _det_module() -> LitDetectionModel:
     return LitDetectionModel(
         name="dummy.detection",
@@ -112,13 +102,12 @@ def _det_module() -> LitDetectionModel:
     )
 
 
-def test_metric_callback_builds_metric_from_model(trainer: L.Trainer) -> None:
-    """A factory metric is completed at setup with the model's `num_classes` and the module's `ignore_index`."""
-    module = _seg_module(num_classes=5)
-    callback = MetricCallback(metric=partial(JaccardIndex, task="multiclass"), name="mIoU")
-    callback.setup(trainer, module, "fit")
+def test_metric_callback_holds_ready_metric() -> None:
+    """The callback holds the provided metric as-is (Hydra builds it; there is no factory/setup step)."""
+    metric = JaccardIndex(task="multiclass", num_classes=5, ignore_index=-1)
+    callback = MetricCallback(metric=metric, name="mIoU")
+    assert callback.metric is metric
     assert isinstance(callback.metric, MulticlassJaccardIndex)
-    assert callback.metric.num_classes == 5
     assert callback.metric.ignore_index == -1
 
 

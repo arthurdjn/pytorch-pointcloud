@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: pointconv-density-base.modelnet40
+  num_classes: 40
   pretrained: false
   input_keys: [normal, pos, batch]
   criterion:

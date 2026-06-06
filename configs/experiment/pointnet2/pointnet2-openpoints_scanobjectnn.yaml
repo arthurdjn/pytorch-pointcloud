@@ -11,6 +11,7 @@ trainer:
 
 model:
   name: pointnet2-openpoints.scanobjectnn
+  num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]
   criterion:

@@ -1,6 +1,6 @@
 # Default callbacks plus a per-epoch accuracy metric, logged on validation/test.
-# The metric reads its class count from the model, so it is not duplicated here.
-# Opt in with `override /callbacks: classification`.
+# `num_classes` is interpolated from the experiment's `model.num_classes`. Opt in with
+# `override /callbacks: classification`.
 defaults:
   - default
 
@@ -9,5 +9,5 @@ val_accuracy:
   name: accuracy
   metric:
     _target_: torchmetrics.Accuracy
-    _partial_: true
     task: multiclass
+    num_classes: ${model.num_classes}

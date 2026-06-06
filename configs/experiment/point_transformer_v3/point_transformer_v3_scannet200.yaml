@@ -15,6 +15,7 @@ trainer:
 
 model:
   name: ptv3-base.scannet200
+  num_classes: 200
   pretrained: false
   input_keys: [x, pos_grid, batch]
   target_key: segment

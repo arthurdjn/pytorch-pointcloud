@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: point-mamba-base.scanobjectnn-augmentedrot-scale75
+  num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]
   criterion:

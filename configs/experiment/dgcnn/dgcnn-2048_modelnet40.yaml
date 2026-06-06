@@ -12,6 +12,7 @@ trainer:
 
 model:
   name: dgcnn-antao.modelnet40.2048
+  num_classes: 40
   pretrained: false
   input_keys: [x, pos, batch]
   criterion:
