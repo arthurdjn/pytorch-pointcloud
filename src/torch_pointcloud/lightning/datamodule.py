@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from torch.utils.data import DataLoader, Dataset, Sampler
