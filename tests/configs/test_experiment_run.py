@@ -22,6 +22,7 @@ from torch_pointcloud.utils.imports import (
 pytestmark = [
     pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed"),
     pytest.mark.skipif(not _HYDRA_AVAILABLE, reason="hydra-core is not installed"),
+    pytest.mark.experiment,
 ]
 
 CONFIGS_DIR = Path(__file__).resolve().parents[2] / "configs"

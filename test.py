@@ -6,33 +6,26 @@ Usage:
         ckpt_path=logs/train/runs/point_transformer_v3_segmentation_scannet_2026-05-23_15-30-00/checkpoints/last.ckpt
 """
 
-from typing import Any, List
-
 import hydra
 import lightning as L
 from dotenv import load_dotenv
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 
+from torch_pointcloud.utils.hydra import instantiate_list
 from torch_pointcloud.utils.random import seed_everything
 
 load_dotenv()
-
-
-def _instantiate_group(cfg: Any) -> List[Any]:
-    """Instantiate every entry of a config group into a list."""
-    if not cfg:
-        return []
-    return [instantiate(node) for node in cfg.values()]
 
 
 @hydra.main(config_path="configs", config_name="test", version_base=None)
 def main(cfg: DictConfig) -> None:
     """Build trainer + datamodule from `cfg`, then run `Trainer.test` from `ckpt_path`."""
     seed_everything(cfg.seed)
+
     model: L.LightningModule = instantiate(cfg.model)
     datamodule: L.LightningDataModule = instantiate(cfg.data)
-    loggers = _instantiate_group(cfg.get("logger"))
+    loggers = instantiate_list(cfg.get("logger"))
     trainer: L.Trainer = instantiate(cfg.trainer, logger=loggers)
 
     cfg_dict = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=False)

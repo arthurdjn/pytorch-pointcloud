@@ -36,10 +36,12 @@ OmegaConf.register_new_resolver("eval", eval, replace=True)
 def main(cfg: DictConfig) -> None:
     """Build the training objects from `cfg`, fit, and optionally test."""
     seed_everything(cfg.seed)
+
     # Benchmark mode (`train=false`): drop the training split so only the held-out (val) set is built.
     if not cfg.get("train", True):
         with open_dict(cfg):
             cfg.data.train_dataset = None
+
     model: L.LightningModule = instantiate(cfg.model)
     datamodule: L.LightningDataModule = instantiate(cfg.data)
     callbacks = instantiate_list(cfg.get("callbacks"))
@@ -56,7 +58,6 @@ def main(cfg: DictConfig) -> None:
         trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
 
     if cfg.get("test", False):
-        # After fit, test the best checkpoint Lightning tracked; otherwise use the user's ckpt_path.
         ckpt_path = "best" if cfg.get("train", True) and trainer.checkpoint_callback else cfg.get("ckpt_path")
         trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
