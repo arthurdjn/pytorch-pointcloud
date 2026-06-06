@@ -1,0 +1,7 @@
+# @package callbacks.bn_momentum_scheduler
+# Exponentially decays BatchNorm momentum over epochs (VoteNet's schedule).
+_target_: torch_pointcloud.lightning.BNMomentumScheduler
+bn_momentum_init: 0.5
+bn_decay_rate: 0.5
+bn_decay_step: 20
+bn_momentum_clip: 0.001

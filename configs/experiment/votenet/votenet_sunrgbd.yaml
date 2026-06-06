@@ -1,14 +1,36 @@
 # @package _global_
 # VoteNet 3D object detection on SUN RGB-D.
-# Run: uv run --no-sync python train.py experiment=sunrgbd_votenet
+# Run: uv run --no-sync python train.py experiment=votenet/votenet_sunrgbd
+# Benchmark pretrained: uv run --no-sync python train.py experiment=votenet/votenet_sunrgbd train=false model.pretrained=true
 defaults:
   - override /data: sunrgbd
-  - override /model: votenet
+  - override /model: detection
   - override /callbacks: votenet
 
 trainer:
   max_epochs: 180
   precision: "32-true" # VoteNet's set-abstraction grouping trains in fp32 (matches the reference)
+
+model:
+  name: votenet-fair-base.sunrgbd
+  pretrained: false
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch_pointcloud.losses.VoteNetLoss
+    _partial_: true
+    num_heading_bin: 12
+    num_size_cluster: 10
+    num_classes: 10
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.0
+  scheduler:
+    _target_: torch.optim.lr_scheduler.MultiStepLR
+    _partial_: true
+    milestones: [80, 120, 160]
+    gamma: 0.1
 
 data:
   # Stack the dense VoteNet targets to (B, M, ...) and keep the ragged GT boxes packed (emits batch_box).
@@ -32,18 +54,18 @@ data:
         - _target_: torch_pointcloud.transforms.GenerateVoteLabels
           pos_key: pos
           box_key: box
-        - _target_: torch_pointcloud.transforms.RandomFlipBoxes
-          pos_key: pos
+        - _target_: torch_pointcloud.transforms.RandomFlip
+          keys: [pos, vote_label]
           box_key: box
-          vote_key: vote_label
-        - _target_: torch_pointcloud.transforms.RandomRotateBoxes
-          pos_key: pos
+          axes: [0]
+        - _target_: torch_pointcloud.transforms.RandomRotate
+          keys: [pos, vote_label]
           box_key: box
-          vote_key: vote_label
-        - _target_: torch_pointcloud.transforms.RandomScaleBoxes
-          pos_key: pos
+          angle_range: [-30.0, 30.0]
+        - _target_: torch_pointcloud.transforms.RandomScale
+          keys: [pos, vote_label]
           box_key: box
-          vote_key: vote_label
+          scale_range: [0.85, 1.15]
         # Encode the augmented boxes into the padded VoteNet target tensors (full edge length means).
         - _target_: torch_pointcloud.transforms.EncodeVoteNetTargets
           box_key: box

@@ -4,12 +4,12 @@ import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
 
-from torch_pointcloud.lightning.metrics import boxes_from_packed
-from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel
+from torch_pointcloud.models import create_model
+from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.misc import deep_getattr
 from torch_pointcloud.utils.optim import generate_param_groups
-from torch_pointcloud.utils.types import Boxes3D
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
@@ -17,45 +17,60 @@ else:
     LightningModule, _ = optional_import("lightning.pytorch", "LightningModule")
 
 
-def _resolve_input(batch: Dict[str, Any], key: str) -> Any:
-    """Resolve a batch entry, supporting dotted attribute access (e.g. `octree.depth`)."""
-    name, _, attr = key.partition(".")
-    value = batch.get(name)
-    return getattr(value, attr) if attr else value
-
-
 class LiTModel(LightningModule):
-    """Shared base for the task-specific Lightning wrappers."""
+    """Shared base for the task-specific Lightning wrappers.
+
+    The task-specific subclasses build their model through `create_model`; this base only holds the
+    built model (and its registered evaluation transform) and implements the shared train/val/test
+    loop. `input_keys`, `target_key` and `scheduler_interval` are read from `self.hparams`, which the
+    subclass populates via `save_hyperparameters`.
+    """
 
     def __init__(
         self,
-        model: nn.Module,
+        name: str,
+        task: Task,
         *,
         optimizer: Callable[..., Optimizer],
         scheduler: Optional[Callable[..., Any]] = None,
         criterion: Optional[nn.Module] = None,
         input_keys: Sequence[str] = ("x", "pos", "batch"),
-        target_key: str = "segment",
+        target_key: str = "label",
         scheduler_interval: str = "epoch",
         param_groups: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__()
+        model, info = create_model(name, task=task, return_info=True, **kwargs)
+
         self.model = model
+        self.transform = info["transforms"]
         self.criterion = criterion if criterion is not None else nn.CrossEntropyLoss()
         self._optimizer = optimizer
         self._scheduler = scheduler
         self._param_groups = param_groups
-        self.save_hyperparameters("input_keys", "target_key", "scheduler_interval")
+
+        self.save_hyperparameters(
+            {
+                "name": name,
+                "input_keys": list(input_keys),
+                "target_key": target_key,
+                "scheduler_interval": scheduler_interval,
+                **info["hparams"],
+                **kwargs,
+            }
+        )
 
     def forward(self, batch: Dict[str, Any]) -> Tensor:
-        inputs = (_resolve_input(batch, key) for key in self.hparams["input_keys"])
+        inputs = (deep_getattr(batch, key) for key in self.hparams["input_keys"])
         return self.model(*inputs)
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:
         logits = self.forward(batch)
         target = batch[self.hparams["target_key"]].long()
+
         loss = self.criterion(logits, target)
-        batch_size = int(batch["batch"][-1]) + 1
+        batch_size = int(batch[DataKeys.BATCH][-1]) + 1
         self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=batch_size)
         return {"preds": logits, "target": target, "loss": loss}
 
@@ -75,202 +90,104 @@ class LiTModel(LightningModule):
         optimizer = self._optimizer(params)
         if self._scheduler is None:
             return optimizer
+
         scheduler = {"scheduler": self._scheduler(optimizer), "interval": self.hparams["scheduler_interval"]}
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
 
 class LitClassificationModel(LiTModel):
-    """LightningModule wrapping a point cloud classification model.
+    """LightningModule for a point cloud classification model, built from the registry.
 
     Args:
-        model: A classification model, typically built via `create_model`.
-        optimizer: A callable that takes parameters and returns an optimizer
-            (a `_partial_` config target).
-        scheduler: An optional callable that takes an optimizer and returns a
-            learning-rate scheduler.
+        name: Registered classification model name (e.g. `pointnet2-yanx27-ssg.modelnet40`); built via
+            `create_model(name, task="classification")`.
+        optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
+        scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.
-        input_keys: Batch-dict keys passed positionally to the model's forward.
-            A dotted key (e.g. `octree.depth`) resolves an attribute.
+        input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
+            (e.g. `octree.depth`) resolves an attribute.
         target_key: Batch-dict key for the per-cloud label.
         scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
         param_groups: Optional dict of kwargs forwarded to
-            `torch_pointcloud.utils.optim.generate_param_groups` (`layer_matches`,
-            `match_types`, `lr_values`, `include_others`).
+            `torch_pointcloud.utils.optim.generate_param_groups`.
+        **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
-    def __init__(
-        self,
-        model: ClassificationModel,
-        *,
-        optimizer: Callable[..., Optimizer],
-        scheduler: Optional[Callable[..., Any]] = None,
-        criterion: Optional[nn.Module] = None,
-        input_keys: Sequence[str] = ("x", "pos", "batch"),
-        target_key: str = "label",
-        scheduler_interval: str = "epoch",
-        param_groups: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__(
-            model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            criterion=criterion,
-            input_keys=input_keys,
-            target_key=target_key,
-            scheduler_interval=scheduler_interval,
-            param_groups=param_groups,
-        )
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        super().__init__(name, task="classification", **kwargs)
 
 
 class LitSegmentationModel(LiTModel):
-    """LightningModule wrapping a point cloud semantic segmentation model.
+    """LightningModule for a point cloud semantic segmentation model, built from the registry.
 
     Args:
-        model: A segmentation model, typically built via `create_model`.
-        optimizer: A callable that takes parameters and returns an optimizer
-            (a `_partial_` config target).
-        scheduler: An optional callable that takes an optimizer and returns a
-            learning-rate scheduler.
-        criterion: The loss module; defaults to `CrossEntropyLoss` with the
-            given `ignore_index`.
-        ignore_index: Label index excluded from the loss and the mIoU metric.
-        input_keys: Batch-dict keys passed positionally to the model's forward.
-            A dotted key (e.g. `octree.depth`) resolves an attribute.
-        target_key: Batch-dict key for the per-point segmentation labels.
-        scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
-        param_groups: Optional dict of kwargs forwarded to
-            `torch_pointcloud.utils.optim.generate_param_groups` (`layer_matches`,
-            `match_types`, `lr_values`, `include_others`).
+        name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
         mix_prob: Probability of applying Mix3D (merging scene pairs) on each training batch.
+        **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
-    def __init__(
-        self,
-        model: SegmentationModel,
-        *,
-        optimizer: Callable[..., Optimizer],
-        scheduler: Optional[Callable[..., Any]] = None,
-        criterion: Optional[nn.Module] = None,
-        ignore_index: int = -1,
-        input_keys: Sequence[str] = ("x", "pos", "batch"),
-        target_key: str = "segment",
-        scheduler_interval: str = "epoch",
-        param_groups: Optional[Dict[str, Any]] = None,
-        mix_prob: float = 0.0,
-    ) -> None:
-        if criterion is None:
-            criterion = nn.CrossEntropyLoss(ignore_index=ignore_index)
-
-        super().__init__(
-            model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            criterion=criterion,
-            input_keys=input_keys,
-            target_key=target_key,
-            scheduler_interval=scheduler_interval,
-            param_groups=param_groups,
-        )
-        self.ignore_index = ignore_index
+    def __init__(self, name: str, mix_prob: float = 0.0, **kwargs: Any) -> None:
+        super().__init__(name, task="segmentation", **kwargs)
         self.mix_prob = mix_prob
 
     def on_after_batch_transfer(self, batch: Dict[str, Any], dataloader_idx: int) -> Dict[str, Any]:
         """Mix3D: on training batches, merge adjacent scene pairs by halving the packed `batch` index."""
         if self.mix_prob > 0 and self.trainer.training and torch.rand(1).item() < self.mix_prob:
             batch["batch"] = batch["batch"] // 2
+
         return batch
 
 
-class LitDetectionModel(LightningModule):
-    r"""LightningModule wrapping a VoteNet-style 3D object detection model.
+class LitDetectionModel(LiTModel):
+    r"""LightningModule for a VoteNet-style 3D object detection model, built from the registry.
 
-    The model returns a dense per-proposal prediction dict and the multi-task `VoteNetLoss`
-    consumes it together with the dense padded ground-truth in the batch. The validation step returns
-    the forward output so `DetectionMeanAPCallback` can decode it and log mean average precision; attach
-    that callback to report `val/mAP@{t}`.
+    Detection breaks the shared classification/segmentation loop in three places, so this subclass
+    overrides them and reuses the base for everything else (model construction, `forward`, optimizer
+    wiring, `training_step`):
+
+    - the loss is a factory completed at build time with the model's `mean_sizes` buffer (a tensor that
+      is shared with the model rather than duplicated in config);
+    - `step` feeds the whole forward output and the batch to the loss, which returns a dict of named
+      components (each logged), and reports the total `loss`;
+    - the eval steps `decode` the forward output into packed detections and pair them with the
+      ground-truth boxes for a `MetricCallback` (e.g. `MeanAveragePrecision3D`).
+
+    A model is swappable as long as it returns a prediction dict from `forward`, exposes a `mean_sizes`
+    buffer and a `decode(output, pos, batch)` method, and is paired with a `criterion(output, batch)`.
 
     Args:
-        model: A detection model, typically built via `create_model` (must expose `num_classes`
-            and a `mean_sizes` buffer).
-        optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` config target).
-        criterion: A callable that takes `mean_sizes=...` and returns the loss module (a `_partial_`
-            `VoteNetLoss` target). The model's `mean_sizes` is injected here so it is not duplicated in config.
-        scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
-        input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
-            (e.g. `octree.depth`) resolves an attribute.
-        scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
-        param_groups: Optional dict of kwargs forwarded to
-            `torch_pointcloud.utils.optim.generate_param_groups` (`layer_matches`, `match_types`,
-            `lr_values`, `include_others`).
-        target_transform: Maps the batch's packed `(box, batch_box)` to a `Boxes3D` for the metric;
-            defaults to `boxes_from_packed` (the $(K, 8)$ half-extent layout).
-        decode_kwargs: Extra keyword arguments forwarded to `model.decode` (e.g. `score_threshold`, `nms_iou`).
+        name: Registered detection model name; built via `create_model(name, task="detection")`.
+        criterion: A loss factory completed with the model's `mean_sizes` (e.g. a `VoteNetLoss` `_partial_`);
+            its `forward(output, batch)` returns a dict whose `loss` entry is the total to optimize.
+        **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`).
     """
 
-    def __init__(
-        self,
-        model: DetectionModel,
-        *,
-        optimizer: Callable[..., Optimizer],
-        criterion: Callable[..., nn.Module],
-        scheduler: Optional[Callable[..., Any]] = None,
-        input_keys: Sequence[str] = ("x", "pos", "batch"),
-        scheduler_interval: str = "epoch",
-        param_groups: Optional[Dict[str, Any]] = None,
-        target_transform: Optional[Callable[[Tensor, Tensor], Boxes3D]] = None,
-        decode_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.model = model
-        loss = criterion(mean_sizes=model.get_buffer("mean_sizes"))
-
-        self.criterion = loss
-        self._optimizer = optimizer
-        self._scheduler = scheduler
-        self._param_groups = param_groups
-        self.target_transform = target_transform if target_transform is not None else boxes_from_packed
-        self.decode_kwargs = decode_kwargs or {}
-        self.save_hyperparameters("input_keys", "scheduler_interval")
-
-    def forward(self, batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        inputs = (_resolve_input(batch, key) for key in self.hparams["input_keys"])
-        return self.model(*inputs)
+    def __init__(self, name: str, *, criterion: Callable[..., nn.Module], **kwargs: Any) -> None:
+        super().__init__(name, task="detection", **kwargs)
+        # The base registered a placeholder loss; drop it so the factory result (completed from the model's
+        # `mean_sizes` buffer) can take its place, including a non-Module test double.
+        del self.criterion
+        self.criterion = criterion(mean_sizes=self.model.get_buffer("mean_sizes"))
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
         output = self.forward(batch)
-        loss = self.criterion(output, batch)
-
+        losses = self.criterion(output, batch)
         batch_size = int(batch[DataKeys.BATCH][-1]) + 1
-        if isinstance(loss, dict):
-            for name, value in loss.items():
-                self.log(f"{stage}/{name}", value, prog_bar=name in ("loss", "obj_acc"), batch_size=batch_size)
-            return {"output": output, "loss": loss["loss"]}
-
-        self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=batch_size)
-        return {"output": output, "loss": loss}
-
-    def training_step(self, batch: Dict[str, Any], batch_idx: int) -> Tensor:
-        loss = self.step(batch, "train")["loss"]
-        assert isinstance(loss, Tensor)
-        return loss
+        for key, value in losses.items():
+            self.log(f"{stage}/{key}", value, prog_bar=True, batch_size=batch_size)
+        return {"output": output, "loss": losses["loss"]}
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
-        return self._decode_step(batch, "val")
+        return self._eval_step(batch, "val")
 
     def test_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
-        return self._decode_step(batch, "test")
+        return self._eval_step(batch, "test")
 
-    def _decode_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+    def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
         output = self.step(batch, stage)["output"]
-        preds = self.model.decode(output, batch[DataKeys.POS], batch[DataKeys.BATCH], **self.decode_kwargs)
-        target = self.target_transform(batch[DataKeys.BOX], batch[DataKeys.BATCH_BOX])
+        preds = self.model.decode(output, batch[DataKeys.POS], batch[DataKeys.BATCH])
+        # GT boxes store half-extents; the metric wants full edge lengths (matches the benchmark examples).
+        box = batch[DataKeys.BOX]
+        boxes = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
+        target = {"boxes": boxes, "labels": box[:, 7].long(), "batch": batch[DataKeys.BATCH_BOX]}
         return {"preds": preds, "target": target}
-
-    def configure_optimizers(self) -> Any:
-        params = generate_param_groups(self, **self._param_groups) if self._param_groups else self.parameters()
-        optimizer = self._optimizer(params)
-        if self._scheduler is None:
-            return optimizer
-
-        scheduler = {"scheduler": self._scheduler(optimizer), "interval": self.hparams["scheduler_interval"]}
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}

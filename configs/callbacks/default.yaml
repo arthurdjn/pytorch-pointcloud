@@ -1,13 +1,6 @@
-model_checkpoint:
-  _target_: lightning.pytorch.callbacks.ModelCheckpoint
-  dirpath: ${paths.output_dir}/checkpoints
-  filename: "epoch_{epoch:03d}"
-  monitor: val/loss
-  mode: min
-  save_last: true
-  save_top_k: 1
-  auto_insert_metric_name: false
-
-lr_monitor:
-  _target_: lightning.pytorch.callbacks.LearningRateMonitor
-  logging_interval: step
+# The always-on callbacks: checkpointing and LR logging. Task groups (classification, segmentation,
+# votenet) and extras (swa) compose these atomic callback files through their own defaults lists.
+defaults:
+  - model_checkpoint
+  - lr_monitor
+  - _self_

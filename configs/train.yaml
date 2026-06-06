@@ -1,7 +1,7 @@
 # Main training config for the Hydra entrypoint `train.py`.
 # Select an experiment to compose a full run:
-#   uv run --no-sync python train.py experiment=scannet_spunet
-#   uv run --no-sync python train.py experiment=scannet_spunet logger=csv
+#   uv run --no-sync python train.py experiment=spunet/spunet_scannet
+#   uv run --no-sync python train.py experiment=spunet/spunet_scannet logger=csv
 defaults:
   - _self_
   - paths: default
@@ -16,7 +16,7 @@ defaults:
 task_name: train
 tags: [dev]
 # Friendly run tag. Experiment configs override this; CLI override wins:
-#   train.py experiment=scannet_ptv3 run_name=ablation_no_mix3d
+#   train.py experiment=point_transformer_v3/point_transformer_v3_scannet run_name=ablation_no_mix3d
 run_name: default
 # Single timestamp captured at compose time and reused everywhere so the
 # filesystem layout and the cross-backend `run_id` agree to the second.
