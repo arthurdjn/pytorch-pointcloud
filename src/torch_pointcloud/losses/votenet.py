@@ -1,27 +1,4 @@
-r"""VoteNet detection loss: deep Hough voting target assignment and multi-task objective.
-
-Reference: :arxiv: [Qi et al., 2019](https://arxiv.org/abs/1904.09664).
-Reference implementation: :github:
-[facebookresearch/votenet](https://github.com/facebookresearch/votenet) (`models/loss_helper.py`).
-
-A faithful port of the VoteNet training objective to this repo's tensor layout. The detection
-head emits dense per-proposal tensors $(B, K, \cdot)$ and the dataset supplies dense padded
-ground truth $(B, M, \cdot)$ (with $M$ the per-scene object cap) plus per-point vote labels
-$(B, N, \cdot)$. The model's packed seed and vote tensors are reshaped to dense $(B, S, \cdot)$
-internally (`_densify`, using the per-point `batch` index), so the model output feeds the loss
-directly; `seed_indices` (each seed's index into the original $N$ points) is localized per scene so the
-per-point vote labels can be gathered onto seeds.
-
-The total objective mirrors the reference exactly:
-
-$$
-\mathcal{L} = 10 \cdot \left( \mathcal{L}_\text{vote} + 0.5\,\mathcal{L}_\text{obj}
-    + \mathcal{L}_\text{box} + 0.1\,\mathcal{L}_\text{sem} \right)
-$$
-
-with $\mathcal{L}_\text{box} = \mathcal{L}_\text{center} + 0.1\,\mathcal{L}_\text{h-cls}
-+ \mathcal{L}_\text{h-res} + 0.1\,\mathcal{L}_\text{s-cls} + \mathcal{L}_\text{s-res}$.
-"""
+r"""VoteNet detection loss: deep Hough voting target assignment and multi-task objective."""
 
 import math
 from typing import Any, Dict, List, Tuple, Union
