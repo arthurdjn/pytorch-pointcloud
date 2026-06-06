@@ -13,6 +13,7 @@ trainer:
 
 model:
   name: votenet-fair-base.sunrgbd
+  pretrained: false
   input_keys: [x, pos, batch]
   criterion:
     _target_: torch_pointcloud.losses.VoteNetLoss

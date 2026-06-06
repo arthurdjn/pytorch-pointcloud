@@ -13,6 +13,7 @@ trainer:
 
 model:
   name: spunet-v1m1.scannet20
+  pretrained: false
   num_classes: 20
   input_keys: [x, pos, batch]
   target_key: segment
