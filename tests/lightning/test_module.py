@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -16,7 +16,7 @@ from torch_pointcloud.lightning import (
     PointCloudDataModule,
 )
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 
 pytest.importorskip("lightning.pytorch")
 
@@ -72,11 +72,12 @@ def _register_dummies() -> Iterator[None]:
     register_model("dummy.segmentation", task="segmentation")(_dummy_segmentation)
     register_model("dummy.detection", task="detection")(_dummy_detection)
     yield
-    for task, name in (
+    dummies: Tuple[Tuple[Task, str], ...] = (
         ("classification", "dummy.classification"),
         ("segmentation", "dummy.segmentation"),
         ("detection", "dummy.detection"),
-    ):
+    )
+    for task, name in dummies:
         _REGISTERED_MODELS[task].pop(name, None)
 
 

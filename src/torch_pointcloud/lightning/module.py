@@ -141,16 +141,53 @@ class LitSegmentationModel(LiTModel):
 class LitDetectionModel(LiTModel):
     r"""LightningModule for a VoteNet-style 3D object detection model, built from the registry.
 
-    The model returns a dense per-proposal prediction dict and the multi-task `VoteNetLoss` consumes it
-    together with the dense padded ground-truth in the batch. The validation step returns the forward
-    output so `DetectionMeanAPCallback` can decode it and log mean average precision; attach that
-    callback to report `val/mAP@{t}`.
+    Detection breaks the shared classification/segmentation loop in three places, so this subclass
+    overrides them and reuses the base for everything else (model construction, `forward`, optimizer
+    wiring, `training_step`):
+
+    - the loss is a factory completed at build time with the model's `mean_sizes` buffer (a tensor that
+      is shared with the model rather than duplicated in config);
+    - `step` feeds the whole forward output and the batch to the loss, which returns a dict of named
+      components (each logged), and reports the total `loss`;
+    - the eval steps `decode` the forward output into packed detections and pair them with the
+      ground-truth boxes for a `MetricCallback` (e.g. `MeanAveragePrecision3D`).
+
+    A model is swappable as long as it returns a prediction dict from `forward`, exposes a `mean_sizes`
+    buffer and a `decode(output, pos, batch)` method, and is paired with a `criterion(output, batch)`.
 
     Args:
-        name: Registered detection model name; built via `create_model(name, task="detection")` (must
-            expose `num_classes` and a `mean_sizes` buffer).
-        **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+        name: Registered detection model name; built via `create_model(name, task="detection")`.
+        criterion: A loss factory completed with the model's `mean_sizes` (e.g. a `VoteNetLoss` `_partial_`);
+            its `forward(output, batch)` returns a dict whose `loss` entry is the total to optimize.
+        **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`).
     """
 
-    def __init__(self, name: str, **kwargs: Any) -> None:
+    def __init__(self, name: str, *, criterion: Callable[..., nn.Module], **kwargs: Any) -> None:
         super().__init__(name, task="detection", **kwargs)
+        # The base registered a placeholder loss; drop it so the factory result (completed from the model's
+        # `mean_sizes` buffer) can take its place, including a non-Module test double.
+        del self.criterion
+        self.criterion = criterion(mean_sizes=self.model.get_buffer("mean_sizes"))
+
+    def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+        output = self.forward(batch)
+        losses = self.criterion(output, batch)
+        batch_size = int(batch[DataKeys.BATCH][-1]) + 1
+        for key, value in losses.items():
+            self.log(f"{stage}/{key}", value, prog_bar=True, batch_size=batch_size)
+        return {"output": output, "loss": losses["loss"]}
+
+    def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
+        return self._eval_step(batch, "val")
+
+    def test_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
+        return self._eval_step(batch, "test")
+
+    def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+        output = self.step(batch, stage)["output"]
+        preds = self.model.decode(output, batch[DataKeys.POS], batch[DataKeys.BATCH])
+        # GT boxes store half-extents; the metric wants full edge lengths (matches the benchmark examples).
+        box = batch[DataKeys.BOX]
+        boxes = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
+        target = {"boxes": boxes, "labels": box[:, 7].long(), "batch": batch[DataKeys.BATCH_BOX]}
+        return {"preds": preds, "target": target}

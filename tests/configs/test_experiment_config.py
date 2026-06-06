@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Iterator
+from typing import Dict, Iterator
 
 import pytest
 
 from torch_pointcloud.models import list_models
+from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.imports import _HYDRA_AVAILABLE
 
 # Hydra is an optional dev dependency, so gate the whole module on it being
@@ -64,7 +65,7 @@ def test_experiment_composes(experiment: str) -> None:
 
 
 # The LightningModule `_target_` implies the registry task it builds its model under.
-_TARGET_TO_TASK = {
+_TARGET_TO_TASK: Dict[str, Task] = {
     "torch_pointcloud.lightning.LitClassificationModel": "classification",
     "torch_pointcloud.lightning.LitSegmentationModel": "segmentation",
     "torch_pointcloud.lightning.LitDetectionModel": "detection",
