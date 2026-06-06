@@ -1,0 +1,10 @@
+# @package callbacks.val_accuracy
+# Per-epoch accuracy, logged on validation/test. `num_classes` is interpolated from the experiment's
+# `model.num_classes` and `ignore_index` from its `model.criterion` (null when the criterion has none).
+_target_: torch_pointcloud.lightning.MetricCallback
+name: accuracy
+metric:
+  _target_: torchmetrics.Accuracy
+  task: multiclass
+  num_classes: ${model.num_classes}
+  ignore_index: ${oc.select:model.criterion.ignore_index,null}

@@ -1,13 +1,5 @@
-# Default callbacks plus a per-epoch accuracy metric, logged on validation/test.
-# `num_classes` is interpolated from the experiment's `model.num_classes`. Opt in with
-# `override /callbacks: classification`.
+# Default callbacks plus a per-epoch accuracy metric. Opt in with `override /callbacks: classification`.
 defaults:
   - default
-
-val_accuracy:
-  _target_: torch_pointcloud.lightning.MetricCallback
-  name: accuracy
-  metric:
-    _target_: torchmetrics.Accuracy
-    task: multiclass
-    num_classes: ${model.num_classes}
+  - val_accuracy
+  - _self_
