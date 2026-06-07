@@ -1,10 +1,18 @@
-from typing import Literal, Tuple, overload
+import functools
+from typing import TYPE_CHECKING, Literal, Sequence, Tuple, overload
 
 import torch
 from torch import IntTensor, Tensor
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
+
+from torch_pointcloud.utils.imports import optional_import
+
+if TYPE_CHECKING:
+    from spconv.pytorch.utils import PointToVoxel
+else:
+    PointToVoxel, _ = optional_import("spconv.pytorch.utils", "PointToVoxel")
 
 
 def dense_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int, reduce: str = "mean") -> Tensor:
@@ -150,3 +158,72 @@ def sparse_voxelize(
     if return_inverse:
         return x_voxel, pos_voxel, batch_voxel, cluster
     return x_voxel, pos_voxel, batch_voxel
+
+
+@functools.lru_cache(maxsize=None)
+def _point_to_voxel_generator(
+    voxel_size: Tuple[float, ...],
+    point_cloud_range: Tuple[float, ...],
+    num_point_features: int,
+    max_num_points: int,
+    max_num_voxels: int,
+    device: str,
+) -> "PointToVoxel":
+    """Build (and cache) a `spconv` hard-voxel generator for a given config and device."""
+    return PointToVoxel(
+        vsize_xyz=list(voxel_size),
+        coors_range_xyz=list(point_cloud_range),
+        num_point_features=num_point_features,
+        max_num_voxels=max_num_voxels,
+        max_num_points_per_voxel=max_num_points,
+        device=torch.device(device),
+    )
+
+
+def hard_voxelize(
+    points: Tensor,
+    batch: Tensor,
+    voxel_size: Sequence[float],
+    point_cloud_range: Sequence[float],
+    max_num_points: int,
+    max_num_voxels: int,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Hard voxelization of a packed batch of point clouds (`spconv` voxel generator).
+
+    Reproduces the `transform_points_to_voxels` step of voxel detectors (PointPillars, SECOND):
+    each scene is voxelized independently (at most `max_num_points` points per voxel and
+    `max_num_voxels` voxels per scene), then the per-scene voxels are concatenated with a leading
+    batch index. Points outside `point_cloud_range` are dropped by the generator.
+
+    Args:
+        points: Packed point features $(N, C)$ with the first three columns the $xyz$ coordinates.
+        batch: Per-point batch index $(N,)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        max_num_points: Maximum number of points kept per voxel.
+        max_num_voxels: Maximum number of voxels kept per scene.
+
+    Returns:
+        A tuple `(voxels, coords, num_points)` where `voxels` is $(V, \text{max\_num\_points}, C)$,
+        `coords` is $(V, 4)$ with columns $(\text{batch}, z, y, x)$ and `num_points` is $(V,)$.
+    """
+    batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
+    generator = _point_to_voxel_generator(
+        tuple(voxel_size),
+        tuple(point_cloud_range),
+        int(points.shape[1]),
+        max_num_points,
+        max_num_voxels,
+        str(points.device),
+    )
+
+    voxels_list, coords_list, num_points_list = [], [], []
+    for b in range(batch_size):
+        scene = points[batch == b].contiguous()
+        voxels, coords, num_points = generator(scene)
+        batch_col = torch.full((coords.shape[0], 1), b, dtype=coords.dtype, device=coords.device)
+        voxels_list.append(voxels)
+        coords_list.append(torch.cat([batch_col, coords], dim=1))
+        num_points_list.append(num_points)
+
+    return torch.cat(voxels_list, dim=0), torch.cat(coords_list, dim=0), torch.cat(num_points_list, dim=0)

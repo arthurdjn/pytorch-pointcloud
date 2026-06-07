@@ -40,6 +40,7 @@ class Boxes3D(TypedDict):
     boxes: Tensor  # (N, 7) as (cx, cy, cz, dx, dy, dz, heading)
     labels: Tensor  # (N,)
     batch: Tensor  # (N,) per-box scene index
+    ignore_mask: NotRequired[Tensor]  # (N,) bool; True boxes are ignore regions (suppress FP, excluded from GT)
 
 
 class Detection3D(Boxes3D):

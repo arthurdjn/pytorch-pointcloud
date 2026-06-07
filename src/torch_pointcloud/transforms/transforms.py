@@ -92,6 +92,7 @@ __all__ = [
     "Reduce",
     "ReduceOp",
     "Relabel",
+    "RelabelBoxes",
     "RemoveNearOrigin",
     "RenameItems",
     "Rescale",
@@ -1385,6 +1386,110 @@ class Relabel(DictTransform):
             data[key] = F.relabel(tensor, self.labels, default=self.default)
 
         return data
+
+
+class RelabelBoxes(DictTransform):
+    r"""Map raw box labels to a detection class set and flag don't-care boxes for the AP metric.
+
+    A detection dataset (e.g. `KITTI`) returns the **raw** annotated boxes: every labelled class plus
+    per-box attributes such as occlusion / truncation. This transform turns those into the inputs the
+    3D AP metric expects, the way `Relabel` turns raw segmentation ids into a benchmark label set:
+
+    - boxes whose raw label is a key of `mapping` are kept as ground truth, relabelled to `mapping[raw]`;
+    - boxes whose raw label is in `ignore_labels` (neighbouring classes, e.g. KITTI `Van` for `Car`) are
+      kept as **ignore regions** (label set to `default`, `ignore_mask = True`): they suppress false
+      positives but are not scored;
+    - a kept foreground box that falls outside any range in `ignore_fields` (e.g. KITTI's moderate rule:
+      occlusion $\le 1$, truncation $\le 0.3$, 2D height $\ge 25$ px) is downgraded to an ignore region;
+    - every other box is dropped.
+
+    All keys in `keys` (the box tensor and every per-box attribute, including those named in
+    `ignore_fields`) are filtered together by the keep mask so they stay row-aligned. The output adds the
+    boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`.
+
+    Args:
+        keys: Per-box tensors to filter together (e.g. `DataKeys.BOX`, `DataKeys.LABEL`,
+            `DataKeys.TRUNCATION`, `DataKeys.OCCLUSION`). Must include `label_key` and every key
+            referenced by `ignore_fields`.
+        mapping: Raw-label to detection-label dict; raw labels absent from it (and from `ignore_labels`)
+            are dropped.
+        label_key: Key holding the raw integer labels (must be one of `keys`).
+        ignore_labels: Raw labels kept as ignore regions rather than scored ground truth.
+        ignore_fields: Per-attribute inclusive ranges `{key: (low, high)}` (use `None` for an open side);
+            a foreground box outside any range becomes an ignore region.
+        ignore_mask_key: Output key for the written boolean ignore mask.
+        default: Label assigned to ignore-region boxes (their label is unused by the metric).
+        allow_missing_keys: If `True`, skip missing keys instead of raising.
+
+    Example:
+        ```python
+        import torch_pointcloud.transforms as T
+        from torch_pointcloud.utils.data import DataKeys
+
+        # KITTI: raw 8-class boxes -> 3 detection classes, Van / Person_sitting as ignore,
+        # moderate difficulty (occlusion <= 1, truncation <= 0.3, height >= 25 px) as ignore.
+        T.RelabelBoxes(
+            keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
+            mapping={0: 0, 3: 1, 5: 2},
+            ignore_labels=(1, 4),
+            ignore_fields={
+                DataKeys.OCCLUSION: (None, 1),
+                DataKeys.TRUNCATION: (None, 0.3),
+                DataKeys.BBOX_HEIGHT: (25, None),
+            },
+        )
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        mapping: Dict[int, int],
+        *,
+        label_key: str = DataKeys.LABEL,
+        ignore_labels: Sequence[int] = (),
+        ignore_fields: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
+        ignore_mask_key: str = "ignore_mask",
+        default: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mapping = {int(k): int(v) for k, v in mapping.items()}
+        self.label_key = label_key
+        self.ignore_labels = tuple(int(v) for v in ignore_labels)
+        self.ignore_fields = dict(ignore_fields or {})
+        self.ignore_mask_key = ignore_mask_key
+        self.default = default
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        labels = d[self.label_key].long()
+        foreground = torch.isin(labels, torch.tensor(sorted(self.mapping), device=labels.device))
+        is_ignore = (
+            torch.isin(labels, torch.tensor(self.ignore_labels, device=labels.device))
+            if self.ignore_labels
+            else torch.zeros_like(labels, dtype=torch.bool)
+        )
+
+        hard = torch.zeros_like(labels, dtype=torch.bool)
+        for field_key, (low, high) in self.ignore_fields.items():
+            value = d[field_key]
+            in_range = torch.ones_like(labels, dtype=torch.bool)
+            if low is not None:
+                in_range &= value >= low
+            if high is not None:
+                in_range &= value <= high
+            hard |= ~in_range
+
+        keep = foreground | is_ignore
+        ignore = is_ignore | (foreground & hard)
+        new_labels = F.relabel(labels, self.mapping, default=self.default)
+
+        for key in self.iter_keys(d):
+            d[key] = d[key][keep]
+        d[self.label_key] = new_labels[keep]
+        d[self.ignore_mask_key] = ignore[keep]
+        return d
 
 
 class RenameItems(DictTransform):

@@ -133,6 +133,10 @@ SEGMENTATION_MODELS = [
     "spvcnn-119gmacs.semantickitti",
 ]
 DETECTION_MODELS = [
+    "pointpillars-openpcdet-multihead.nuscenes",
+    "pointpillars-openpcdet.kitti",
+    "second-openpcdet-multihead.nuscenes",
+    "second-openpcdet.kitti",
     "votenet-fair-base.scannet",
     "votenet-fair-base.sunrgbd",
 ]

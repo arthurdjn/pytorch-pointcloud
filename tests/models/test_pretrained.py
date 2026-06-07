@@ -330,3 +330,60 @@ def test_pretrained_votenet(
         [out["center"].reshape(-1), out["objectness_scores"].reshape(-1), out["sem_cls_scores"].reshape(-1)]
     )
     _check_output(reduced, model_name, force_regen, models_dir)
+
+
+ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...]]] = [
+    ("pointpillars-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0)),
+    ("second-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0)),
+    ("pointpillars-openpcdet-multihead.nuscenes", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)),
+    ("second-openpcdet-multihead.nuscenes", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)),
+]
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name,pc_range", ANCHOR_DETECTION_MODELS)
+def test_pretrained_anchor_detection(
+    model_name: str,
+    pc_range: Tuple[float, ...],
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PointPillars / SECOND emit a dict of dense anchor predictions, so they need their own snapshot test.
+
+    There is no in-repo KITTI / nuScenes *detection* fixture small enough for a forward, so a fixed
+    synthetic cloud inside the model's point-cloud range is used; this still pins the pretrained weights
+    against regressions. TF32 is disabled so the spconv forward is deterministic to ~1e-5 across processes
+    (TF32 rounding otherwise flips a borderline box's direction bin). The snapshot is the raw RPN
+    `cls_preds` + `box_preds`, not the decoded `batch_box_preds`: the decode reconstructs heading via
+    `atan2`, whose ±pi branch cut flips a box near that heading by 2*pi under even fp32-level noise, which
+    a value snapshot cannot track; the raw sincos box residuals are continuous and stable.
+    """
+    if not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 8000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n_per_scene * batch_size, model.in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    with torch.no_grad():
+        out = model(x, pos, batch)
+
+    parts: List[Tensor] = []
+    for key in ("cls_preds", "box_preds"):
+        value = out[key]
+        parts += [t.reshape(-1) for t in value] if isinstance(value, (list, tuple)) else [value.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
