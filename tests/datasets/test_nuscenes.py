@@ -45,20 +45,20 @@ def test_nuscenes_dataset_shapes(datasets_dir_factory: Callable[..., Path]) -> N
     assert len(dataset) == 2
 
     sample = dataset[0]
-    num_points = sample["pos"].shape[0]
+    num_points = sample[DataKeys.POS].shape[0]
     assert num_points > 0
-    assert sample["pos"].shape == (num_points, 3)
-    assert sample["intensity"].shape == (num_points, 1)
-    assert sample["timestamp"].shape == (num_points, 1)
+    assert sample[DataKeys.POS].shape == (num_points, 3)
+    assert sample[DataKeys.INTENSITY].shape == (num_points, 1)
+    assert sample[DataKeys.TIMESTAMP].shape == (num_points, 1)
 
 
 def test_nuscenes_dataset_dtypes(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that returned tensors have the expected dtypes"""
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
     sample = NuScenesMini(root=datasets_dir)[0]
-    assert sample["pos"].dtype == torch.float32
-    assert sample["intensity"].dtype == torch.float32
-    assert sample["timestamp"].dtype == torch.float32
+    assert sample[DataKeys.POS].dtype == torch.float32
+    assert sample[DataKeys.INTENSITY].dtype == torch.float32
+    assert sample[DataKeys.TIMESTAMP].dtype == torch.float32
     assert sample[DataKeys.BOX].dtype == torch.float32
     assert sample[DataKeys.LABEL].dtype == torch.int64
 
@@ -79,10 +79,10 @@ def test_nuscenes_dataset_sweep_aggregation(datasets_dir_factory: Callable[..., 
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
     aggregated = NuScenesMini(root=datasets_dir)[0]
     keyframe_only = NuScenesMini(root=datasets_dir, max_sweeps=1)[0]
-    assert aggregated["pos"].shape[0] > keyframe_only["pos"].shape[0]
-    assert torch.equal(keyframe_only["timestamp"], torch.zeros_like(keyframe_only["timestamp"]))
-    assert (aggregated["timestamp"] == 0).any()
-    assert aggregated["timestamp"].max() > 0
+    assert aggregated[DataKeys.POS].shape[0] > keyframe_only[DataKeys.POS].shape[0]
+    assert torch.equal(keyframe_only[DataKeys.TIMESTAMP], torch.zeros_like(keyframe_only[DataKeys.TIMESTAMP]))
+    assert (aggregated[DataKeys.TIMESTAMP] == 0).any()
+    assert aggregated[DataKeys.TIMESTAMP].max() > 0
 
 
 def test_nuscenes_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> None:
