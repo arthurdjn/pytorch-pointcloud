@@ -845,6 +845,11 @@ def oneformer3d_base_scannet20(**hparams: Any) -> OneFormer3DSegmentation:
     ),
 )
 def oneformer3d_base_scannet200(**hparams: Any) -> OneFormer3DSegmentation:
+    # NOTE: no pretrained weights. Upstream ScanNet200 uses a MinkowskiEngine backbone
+    # (initialized from Mask3D), which this repo does not depend on, so the released
+    # checkpoint cannot be converted into this SpConv `SPFormerUNet` backbone. This entry
+    # builds the SpConv architecture scaled to 200 classes for training from scratch;
+    # `pretrained=True` will fail until weights exist at the `hf://` path above.
     return OneFormer3DSegmentation(**hparams)
 
 
