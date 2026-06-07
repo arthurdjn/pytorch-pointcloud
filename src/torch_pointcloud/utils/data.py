@@ -38,6 +38,12 @@ class DataKeys(StrEnum):
     BOX = "box"
     BATCH_BOX = "batch_box"
     CLASS = "class"
+    TRUNCATION = "truncation"
+    OCCLUSION = "occlusion"
+    BBOX_HEIGHT = "bbox_height"
+    FRAME = "frame"
+    TIMESTAMP = "timestamp"
+    TOKEN = "token"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
     POINTS = "points"

@@ -1,0 +1,65 @@
+[
+  {
+    "token": "39a7bd2c92de40bf96ba0f866585b43b",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 40,
+    "first_annotation_token": "b3edad80621c43bd9ba4ee61aab952c0",
+    "last_annotation_token": "268f6edf16c643c3b81ae6c699f60fca"
+  },
+  {
+    "token": "4bb69c834e4f47e2a915cb1abaac7ac1",
+    "category_token": "6021b5187b924d64be64a702e5570edf",
+    "nbr_annotations": 13,
+    "first_annotation_token": "1f4daa5c48eb4c0b9e1b4f52c211ca31",
+    "last_annotation_token": "fa1cbc7717044f61832a801c7d58a6bb"
+  },
+  {
+    "token": "5dc4683340cb4a7d91731c2116845055",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 39,
+    "first_annotation_token": "a1a9886812f54dc184da004455af4bd5",
+    "last_annotation_token": "0b241818cbc840b1ac5952cbdc42d219"
+  },
+  {
+    "token": "69385845cb9747b7afe095177cc405b5",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 40,
+    "first_annotation_token": "c85c7112c6964ac88d3331a4292142fb",
+    "last_annotation_token": "45ac2c11fc064ae5b250d8107be1e299"
+  },
+  {
+    "token": "7fd4411922dc48bfb610fa548c9313a6",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 39,
+    "first_annotation_token": "0e4acb7ad8104c52ba4fb18858e4fd93",
+    "last_annotation_token": "3ec5211b832e4e3abcb85681104103d3"
+  },
+  {
+    "token": "88e4abb15ade4097a1689225c13399ec",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 40,
+    "first_annotation_token": "6126d9b343ef4529b580832b87b5f5d3",
+    "last_annotation_token": "d35db45a75d64dbbaa2e43e583d77667"
+  },
+  {
+    "token": "9f4e6a840a9a411badd8c1175d6df465",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 4,
+    "first_annotation_token": "83fbf4fb1f114daaa5b892f5480069e8",
+    "last_annotation_token": "b4957cbdaab54fae8d82c2359b240f7b"
+  },
+  {
+    "token": "c9af498aab9d435aaf038f2aed95bd51",
+    "category_token": "fedb11688db84088883945752e480c2c",
+    "nbr_annotations": 11,
+    "first_annotation_token": "801fa0fb839d4187ba11f32ecbf60764",
+    "last_annotation_token": "f3a52d693d3c4d799aa668eaee3c726f"
+  },
+  {
+    "token": "d0c7ec4b0ad749acae439f2d6bee330f",
+    "category_token": "fd69059b62a3469fbaef25340c0eab7f",
+    "nbr_annotations": 19,
+    "first_annotation_token": "a8d5e6baa78042628bec61bbff766cd2",
+    "last_annotation_token": "6eadf6e7bc41454dbf37822be3d60f6a"
+  }
+]
