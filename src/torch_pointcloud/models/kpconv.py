@@ -264,7 +264,9 @@ class KPConv(nn.Module):
             weights_k = weights[:, k].unsqueeze(1)  # [E, 1]
             weighted_x = weights_k * source_x  # [E, in_channels]
             transformed_x = torch.matmul(weighted_x, self.weight[k].to(x.dtype))
-            scatter(transformed_x, row, dim=0, out=output, reduce="sum")
+            # Autocast makes the matmul low precision, but scatter's out= buffer requires a matching
+            # dtype, so cast back to output (fp32 under AMP) and accumulate the reduction there.
+            scatter(transformed_x.to(output.dtype), row, dim=0, out=output, reduce="sum")
 
         return output
 

@@ -9,7 +9,6 @@ defaults:
 
 trainer:
   max_epochs: 100
-  precision: "32-true" # KPConv scatter ops fail under 16-mixed AMP
 
 model:
   name: kpfcnn-base-sm-deform.s3dis
