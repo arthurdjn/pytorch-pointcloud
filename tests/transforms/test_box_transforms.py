@@ -1,10 +1,12 @@
 import math
+from typing import Any, Dict
 
 import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.utils.data import DataKeys
 
 
 def _box(heading: float = 0.0, cls: float = 1.0) -> Tensor:
@@ -264,3 +266,39 @@ def test_instance_to_box_all_ignored_is_empty() -> None:
     data = {"pos": torch.rand(4, 3), "instance": torch.tensor([0, 0, 1, 1]), "segment": torch.tensor([-1, -1, -1, -1])}
     out = T.InstanceToBox()(data)
     assert out["box"].shape == (0, 8)
+
+
+def test_relabel_boxes_maps_drops_and_ignores() -> None:
+    # raw 0 -> det 0, raw 3 -> det 1 (foreground); raw 1 is an ignore class; raw 7 is dropped.
+    data: Dict[str, Any] = {
+        DataKeys.BOX: torch.tensor(
+            [[0.0, 0, 0, 1, 1, 1, 0], [1, 0, 0, 1, 1, 1, 0], [2, 0, 0, 1, 1, 1, 0], [3, 0, 0, 1, 1, 1, 0]]
+        ),
+        DataKeys.LABEL: torch.tensor([0, 1, 3, 7]),
+        DataKeys.OCCLUSION: torch.tensor([0, 1, 2, 3]),
+    }
+    out = T.RelabelBoxes(
+        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.OCCLUSION), mapping={0: 0, 3: 1}, ignore_labels=(1,)
+    )(data)
+    assert out[DataKeys.LABEL].tolist() == [0, -1, 1]
+    assert out["ignore_mask"].tolist() == [False, True, False]
+    # Every box key is filtered by the same keep mask: the dropped raw-7 row is gone everywhere.
+    assert out[DataKeys.BOX].shape == (3, 7)
+    assert out[DataKeys.OCCLUSION].tolist() == [0, 1, 2]
+    assert torch.equal(out[DataKeys.BOX][:, 0], torch.tensor([0.0, 1.0, 2.0]))
+
+
+def test_relabel_boxes_difficulty_to_ignore() -> None:
+    # Both boxes are foreground class 0, but the second fails the occlusion <= 1 rule -> ignore region.
+    data: Dict[str, Any] = {
+        DataKeys.BOX: torch.zeros(2, 7),
+        DataKeys.LABEL: torch.tensor([0, 0]),
+        DataKeys.OCCLUSION: torch.tensor([0, 2]),
+    }
+    out = T.RelabelBoxes(
+        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.OCCLUSION),
+        mapping={0: 0},
+        ignore_fields={DataKeys.OCCLUSION: (None, 1)},
+    )(data)
+    assert out[DataKeys.LABEL].tolist() == [0, 0]
+    assert out["ignore_mask"].tolist() == [False, True]

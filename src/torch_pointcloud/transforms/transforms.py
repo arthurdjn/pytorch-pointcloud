@@ -23,6 +23,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
+from torch_pointcloud.utils.voxelization import hard_voxelize
 
 from . import functional as F
 from .functional import RescaleMethod, ShiftMethod
@@ -69,6 +70,7 @@ __all__ = [
     "EstimateNormals",
     "FarthestPointSample",
     "GenerateVoteLabels",
+    "HardVoxelize",
     "InstanceToBox",
     "KeepItems",
     "Normalize",
@@ -92,6 +94,7 @@ __all__ = [
     "Reduce",
     "ReduceOp",
     "Relabel",
+    "RelabelBoxes",
     "RemoveNearOrigin",
     "RenameItems",
     "Rescale",
@@ -1285,6 +1288,103 @@ class BuildOctree(DictTransform):
         return data
 
 
+class HardVoxelize(DictTransform):
+    r"""Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.
+
+    Moves the `transform_points_to_voxels` step of voxel detectors (PointPillars, SECOND) out of the
+    model and into the data pipeline, mirroring how `BuildOctree` produces an octree for OctFormer.
+    The model then receives already-voxelized input and focuses on the network math.
+
+    Reads `pos_key` (and optionally `feat_key`), runs
+    [`hard_voxelize`][torch_pointcloud.utils.voxelization.hard_voxelize] on the single sample (the
+    batch index is all zeros), and adds three keys while keeping `pos` / `x`:
+
+    - `voxel_key`: the per-voxel point stack.
+    - `pos_voxel_key`: integer voxel grid indices $(z, y, x)$ (the single-sample batch column is dropped;
+      the per-voxel scene index is synthesized at collation).
+    - `num_points_key`: the per-voxel point counts.
+
+    Args:
+        pos_key: Key holding the point positions $(N, 3)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        max_num_points: Maximum number of points kept per voxel.
+        max_num_voxels: Maximum number of voxels kept per scene.
+        feat_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
+        voxel_key: Output key for the per-voxel point stack.
+        pos_voxel_key: Output key for the integer voxel grid indices.
+        num_points_key: Output key for the per-voxel point counts.
+        allow_missing_keys: Unused (`pos_key` is always required); kept for interface parity.
+
+    Shape:
+        - `voxel_key`: $(V, \text{max\_num\_points}, 3 + C)$.
+        - `pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
+        - `num_points_key`: $(V,)$.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+        from torch_pointcloud.utils.data import DataKeys
+
+        data = {DataKeys.POS: torch.rand(1000, 3) * 50.0, DataKeys.X: torch.rand(1000, 1)}
+        transform = T.HardVoxelize(
+            pos_key=DataKeys.POS,
+            feat_key=DataKeys.X,
+            voxel_size=(0.16, 0.16, 4.0),
+            point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+            max_num_points=32,
+            max_num_voxels=40000,
+        )
+        data = transform(data)
+        print(data[DataKeys.VOXEL].shape, data[DataKeys.POS_VOXEL].shape, data[DataKeys.VOXEL_NUM_POINTS].shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
+        max_num_points: int,
+        max_num_voxels: int,
+        feat_key: Optional[str] = None,
+        voxel_key: str = DataKeys.VOXEL,
+        pos_voxel_key: str = DataKeys.POS_VOXEL,
+        num_points_key: str = DataKeys.VOXEL_NUM_POINTS,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys=pos_key, allow_missing_keys=allow_missing_keys)
+        self.pos_key = pos_key
+        self.voxel_size = voxel_size
+        self.point_cloud_range = point_cloud_range
+        self.max_num_points = max_num_points
+        self.max_num_voxels = max_num_voxels
+        self.feat_key = feat_key
+        self.voxel_key = voxel_key
+        self.pos_voxel_key = pos_voxel_key
+        self.num_points_key = num_points_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        pos = d[self.pos_key]
+        feat = d.get(self.feat_key) if self.feat_key is not None else None
+        points = pos if feat is None else torch.cat([pos, feat], dim=1)
+        batch = pos.new_zeros(points.shape[0], dtype=torch.long)
+        voxels, voxel_indices, num_points = hard_voxelize(
+            points,
+            batch,
+            self.voxel_size,
+            self.point_cloud_range,
+            self.max_num_points,
+            self.max_num_voxels,
+        )
+        d[self.voxel_key] = voxels
+        d[self.pos_voxel_key] = voxel_indices[:, 1:]
+        d[self.num_points_key] = num_points
+        return d
+
+
 class OctreeFeatures(DictTransform):
     """Extract per-node features from an octree via `octree.get_input_feature`.
 
@@ -1385,6 +1485,110 @@ class Relabel(DictTransform):
             data[key] = F.relabel(tensor, self.labels, default=self.default)
 
         return data
+
+
+class RelabelBoxes(DictTransform):
+    r"""Map raw box labels to a detection class set and flag don't-care boxes for the AP metric.
+
+    A detection dataset (e.g. `KITTI`) returns the **raw** annotated boxes: every labelled class plus
+    per-box attributes such as occlusion / truncation. This transform turns those into the inputs the
+    3D AP metric expects, the way `Relabel` turns raw segmentation ids into a benchmark label set:
+
+    - boxes whose raw label is a key of `mapping` are kept as ground truth, relabelled to `mapping[raw]`;
+    - boxes whose raw label is in `ignore_labels` (neighbouring classes, e.g. KITTI `Van` for `Car`) are
+      kept as **ignore regions** (label set to `default`, `ignore_mask = True`): they suppress false
+      positives but are not scored;
+    - a kept foreground box that falls outside any range in `ignore_fields` (e.g. KITTI's moderate rule:
+      occlusion $\le 1$, truncation $\le 0.3$, 2D height $\ge 25$ px) is downgraded to an ignore region;
+    - every other box is dropped.
+
+    All keys in `keys` (the box tensor and every per-box attribute, including those named in
+    `ignore_fields`) are filtered together by the keep mask so they stay row-aligned. The output adds the
+    boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`.
+
+    Args:
+        keys: Per-box tensors to filter together (e.g. `DataKeys.BOX`, `DataKeys.LABEL`,
+            `DataKeys.TRUNCATION`, `DataKeys.OCCLUSION`). Must include `label_key` and every key
+            referenced by `ignore_fields`.
+        mapping: Raw-label to detection-label dict; raw labels absent from it (and from `ignore_labels`)
+            are dropped.
+        label_key: Key holding the raw integer labels (must be one of `keys`).
+        ignore_labels: Raw labels kept as ignore regions rather than scored ground truth.
+        ignore_fields: Per-attribute inclusive ranges `{key: (low, high)}` (use `None` for an open side);
+            a foreground box outside any range becomes an ignore region.
+        ignore_mask_key: Output key for the written boolean ignore mask.
+        default: Label assigned to ignore-region boxes (their label is unused by the metric).
+        allow_missing_keys: If `True`, skip missing keys instead of raising.
+
+    Example:
+        ```python
+        import torch_pointcloud.transforms as T
+        from torch_pointcloud.utils.data import DataKeys
+
+        # KITTI: raw 8-class boxes -> 3 detection classes, Van / Person_sitting as ignore,
+        # moderate difficulty (occlusion <= 1, truncation <= 0.3, height >= 25 px) as ignore.
+        T.RelabelBoxes(
+            keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
+            mapping={0: 0, 3: 1, 5: 2},
+            ignore_labels=(1, 4),
+            ignore_fields={
+                DataKeys.OCCLUSION: (None, 1),
+                DataKeys.TRUNCATION: (None, 0.3),
+                DataKeys.BBOX_HEIGHT: (25, None),
+            },
+        )
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        mapping: Dict[int, int],
+        *,
+        label_key: str = DataKeys.LABEL,
+        ignore_labels: Sequence[int] = (),
+        ignore_fields: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
+        ignore_mask_key: str = "ignore_mask",
+        default: int = -1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mapping = {int(k): int(v) for k, v in mapping.items()}
+        self.label_key = label_key
+        self.ignore_labels = tuple(int(v) for v in ignore_labels)
+        self.ignore_fields = dict(ignore_fields or {})
+        self.ignore_mask_key = ignore_mask_key
+        self.default = default
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        labels = d[self.label_key].long()
+        foreground = torch.isin(labels, torch.tensor(sorted(self.mapping), device=labels.device))
+        is_ignore = (
+            torch.isin(labels, torch.tensor(self.ignore_labels, device=labels.device))
+            if self.ignore_labels
+            else torch.zeros_like(labels, dtype=torch.bool)
+        )
+
+        hard = torch.zeros_like(labels, dtype=torch.bool)
+        for field_key, (low, high) in self.ignore_fields.items():
+            value = d[field_key]
+            in_range = torch.ones_like(labels, dtype=torch.bool)
+            if low is not None:
+                in_range &= value >= low
+            if high is not None:
+                in_range &= value <= high
+            hard |= ~in_range
+
+        keep = foreground | is_ignore
+        ignore = is_ignore | (foreground & hard)
+        new_labels = F.relabel(labels, self.mapping, default=self.default)
+
+        for key in self.iter_keys(d):
+            d[key] = d[key][keep]
+        d[self.label_key] = new_labels[keep]
+        d[self.ignore_mask_key] = ignore[keep]
+        return d
 
 
 class RenameItems(DictTransform):
