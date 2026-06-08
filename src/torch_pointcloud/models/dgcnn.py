@@ -804,8 +804,8 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
             # so we relabel the segmentation labels from [0, 20] -> [0, 19] and set "unknown" objects to 255.
             T.Relabel(keys=DataKeys.SEGMENT, labels=list(range(1, 21)), default=255),
             T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Reduce(keys=DataKeys.POS, op="max", dim=0, keepdim=True, dst_keys="scene_max"),
-            T.Reduce(keys=DataKeys.POS, op="mean", dim=0, keepdim=True, dst_keys="block_center"),
+            # scene_max (whole-scene extent) and block_center (block window center) are attached per block by
+            # tile_scannet_scene; recomputing them here would normalize by the block instead of the scene.
             T.CopyItems(keys=DataKeys.POS, names="norm_pos"),
             T.DivideKey(keys="norm_pos", div_keys="scene_max"),
             T.SubtractKey(keys=DataKeys.POS, sub_keys="block_center"),

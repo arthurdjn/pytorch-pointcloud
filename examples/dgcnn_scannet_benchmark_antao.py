@@ -111,8 +111,8 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    print("Loading model 'dgcnn-antao.scannet'!")
-    model = create_model("dgcnn-antao.scannet", task="segmentation", pretrained=True)
+    print("Loading model 'dgcnn-antao.scannet20'!")
+    model = create_model("dgcnn-antao.scannet20", task="segmentation", pretrained=True)
 
     label_map = gen_label_map()
     scans_dir = os.path.join(args.root, "raw", "v2", "scans")
