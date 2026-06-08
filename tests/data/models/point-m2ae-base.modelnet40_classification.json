@@ -1,0 +1,817 @@
+{
+  "num_params": 12822346,
+  "state_dict": {
+    "h_encoder.token_embed.0.first_mlp.lins.0.weight": [
+      128,
+      3
+    ],
+    "h_encoder.token_embed.0.first_mlp.lins.0.bias": [
+      128
+    ],
+    "h_encoder.token_embed.0.first_mlp.lins.1.weight": [
+      256,
+      128
+    ],
+    "h_encoder.token_embed.0.first_mlp.lins.1.bias": [
+      256
+    ],
+    "h_encoder.token_embed.0.first_mlp.norms.0.module.weight": [
+      128
+    ],
+    "h_encoder.token_embed.0.first_mlp.norms.0.module.bias": [
+      128
+    ],
+    "h_encoder.token_embed.0.first_mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "h_encoder.token_embed.0.first_mlp.norms.0.module.running_var": [
+      128
+    ],
+    "h_encoder.token_embed.0.first_mlp.norms.0.module.num_batches_tracked": [],
+    "h_encoder.token_embed.0.second_mlp.lins.0.weight": [
+      512,
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.lins.0.bias": [
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.lins.1.weight": [
+      96,
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.token_embed.0.second_mlp.norms.0.module.weight": [
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.norms.0.module.bias": [
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.norms.0.module.running_mean": [
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.norms.0.module.running_var": [
+      512
+    ],
+    "h_encoder.token_embed.0.second_mlp.norms.0.module.num_batches_tracked": [],
+    "h_encoder.token_embed.1.first_mlp.lins.0.weight": [
+      96,
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.lins.0.bias": [
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.lins.1.weight": [
+      96,
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.norms.0.module.weight": [
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.norms.0.module.bias": [
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.norms.0.module.running_mean": [
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.norms.0.module.running_var": [
+      96
+    ],
+    "h_encoder.token_embed.1.first_mlp.norms.0.module.num_batches_tracked": [],
+    "h_encoder.token_embed.1.second_mlp.lins.0.weight": [
+      192,
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.lins.0.bias": [
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.lins.1.weight": [
+      192,
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.norms.0.module.weight": [
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.norms.0.module.bias": [
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.norms.0.module.running_mean": [
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.norms.0.module.running_var": [
+      192
+    ],
+    "h_encoder.token_embed.1.second_mlp.norms.0.module.num_batches_tracked": [],
+    "h_encoder.token_embed.2.first_mlp.lins.0.weight": [
+      192,
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.lins.0.bias": [
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.lins.1.weight": [
+      192,
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.norms.0.module.weight": [
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.norms.0.module.bias": [
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.norms.0.module.running_mean": [
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.norms.0.module.running_var": [
+      192
+    ],
+    "h_encoder.token_embed.2.first_mlp.norms.0.module.num_batches_tracked": [],
+    "h_encoder.token_embed.2.second_mlp.lins.0.weight": [
+      384,
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.lins.0.bias": [
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.lins.1.weight": [
+      384,
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.lins.1.bias": [
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.norms.0.module.weight": [
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.norms.0.module.bias": [
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.norms.0.module.running_mean": [
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.norms.0.module.running_var": [
+      384
+    ],
+    "h_encoder.token_embed.2.second_mlp.norms.0.module.num_batches_tracked": [],
+    "h_encoder.encoder_pos_embeds.0.lins.0.weight": [
+      96,
+      3
+    ],
+    "h_encoder.encoder_pos_embeds.0.lins.0.bias": [
+      96
+    ],
+    "h_encoder.encoder_pos_embeds.0.lins.1.weight": [
+      96,
+      96
+    ],
+    "h_encoder.encoder_pos_embeds.0.lins.1.bias": [
+      96
+    ],
+    "h_encoder.encoder_pos_embeds.1.lins.0.weight": [
+      192,
+      3
+    ],
+    "h_encoder.encoder_pos_embeds.1.lins.0.bias": [
+      192
+    ],
+    "h_encoder.encoder_pos_embeds.1.lins.1.weight": [
+      192,
+      192
+    ],
+    "h_encoder.encoder_pos_embeds.1.lins.1.bias": [
+      192
+    ],
+    "h_encoder.encoder_pos_embeds.2.lins.0.weight": [
+      384,
+      3
+    ],
+    "h_encoder.encoder_pos_embeds.2.lins.0.bias": [
+      384
+    ],
+    "h_encoder.encoder_pos_embeds.2.lins.1.weight": [
+      384,
+      384
+    ],
+    "h_encoder.encoder_pos_embeds.2.lins.1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.norm1.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.norm1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.attn.qkv.weight": [
+      288,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.attn.proj.weight": [
+      96,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.attn.proj.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.norm2.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.norm2.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.mlp.lins.0.weight": [
+      384,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.mlp.lins.0.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.mlp.lins.1.weight": [
+      96,
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.0.mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.norm1.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.norm1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.attn.qkv.weight": [
+      288,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.attn.proj.weight": [
+      96,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.attn.proj.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.norm2.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.norm2.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.mlp.lins.0.weight": [
+      384,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.mlp.lins.0.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.mlp.lins.1.weight": [
+      96,
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.1.mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.norm1.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.norm1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.attn.qkv.weight": [
+      288,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.attn.proj.weight": [
+      96,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.attn.proj.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.norm2.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.norm2.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.mlp.lins.0.weight": [
+      384,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.mlp.lins.0.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.mlp.lins.1.weight": [
+      96,
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.2.mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.norm1.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.norm1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.attn.qkv.weight": [
+      288,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.attn.proj.weight": [
+      96,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.attn.proj.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.norm2.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.norm2.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.mlp.lins.0.weight": [
+      384,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.mlp.lins.0.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.mlp.lins.1.weight": [
+      96,
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.3.mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.norm1.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.norm1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.attn.qkv.weight": [
+      288,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.attn.proj.weight": [
+      96,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.attn.proj.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.norm2.weight": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.norm2.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.mlp.lins.0.weight": [
+      384,
+      96
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.mlp.lins.0.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.mlp.lins.1.weight": [
+      96,
+      384
+    ],
+    "h_encoder.encoder_blocks.0.blocks.4.mlp.lins.1.bias": [
+      96
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.norm1.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.norm1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.attn.qkv.weight": [
+      576,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.attn.proj.weight": [
+      192,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.attn.proj.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.norm2.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.norm2.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.mlp.lins.0.weight": [
+      768,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.mlp.lins.0.bias": [
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.mlp.lins.1.weight": [
+      192,
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.0.mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.norm1.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.norm1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.attn.qkv.weight": [
+      576,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.attn.proj.weight": [
+      192,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.attn.proj.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.norm2.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.norm2.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.mlp.lins.0.weight": [
+      768,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.mlp.lins.0.bias": [
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.mlp.lins.1.weight": [
+      192,
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.1.mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.norm1.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.norm1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.attn.qkv.weight": [
+      576,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.attn.proj.weight": [
+      192,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.attn.proj.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.norm2.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.norm2.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.mlp.lins.0.weight": [
+      768,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.mlp.lins.0.bias": [
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.mlp.lins.1.weight": [
+      192,
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.2.mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.norm1.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.norm1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.attn.qkv.weight": [
+      576,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.attn.proj.weight": [
+      192,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.attn.proj.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.norm2.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.norm2.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.mlp.lins.0.weight": [
+      768,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.mlp.lins.0.bias": [
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.mlp.lins.1.weight": [
+      192,
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.3.mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.norm1.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.norm1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.attn.qkv.weight": [
+      576,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.attn.proj.weight": [
+      192,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.attn.proj.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.norm2.weight": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.norm2.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.mlp.lins.0.weight": [
+      768,
+      192
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.mlp.lins.0.bias": [
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.mlp.lins.1.weight": [
+      192,
+      768
+    ],
+    "h_encoder.encoder_blocks.1.blocks.4.mlp.lins.1.bias": [
+      192
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.norm1.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.norm1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.attn.proj.weight": [
+      384,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.attn.proj.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.norm2.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.norm2.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.mlp.lins.0.bias": [
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.0.mlp.lins.1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.norm1.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.norm1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.attn.proj.weight": [
+      384,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.attn.proj.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.norm2.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.norm2.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.mlp.lins.0.bias": [
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.1.mlp.lins.1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.norm1.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.norm1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.attn.proj.weight": [
+      384,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.attn.proj.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.norm2.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.norm2.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.mlp.lins.0.bias": [
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.2.mlp.lins.1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.norm1.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.norm1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.attn.proj.weight": [
+      384,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.attn.proj.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.norm2.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.norm2.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.mlp.lins.0.bias": [
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.3.mlp.lins.1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.norm1.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.norm1.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.attn.proj.weight": [
+      384,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.attn.proj.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.norm2.weight": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.norm2.bias": [
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.mlp.lins.0.bias": [
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "h_encoder.encoder_blocks.2.blocks.4.mlp.lins.1.bias": [
+      384
+    ],
+    "norm.weight": [
+      384
+    ],
+    "norm.bias": [
+      384
+    ],
+    "cls_head_finetune.lins.0.weight": [
+      256,
+      384
+    ],
+    "cls_head_finetune.lins.0.bias": [
+      256
+    ],
+    "cls_head_finetune.lins.1.weight": [
+      256,
+      256
+    ],
+    "cls_head_finetune.lins.1.bias": [
+      256
+    ],
+    "cls_head_finetune.lins.2.weight": [
+      10,
+      256
+    ],
+    "cls_head_finetune.lins.2.bias": [
+      10
+    ],
+    "cls_head_finetune.norms.0.module.weight": [
+      256
+    ],
+    "cls_head_finetune.norms.0.module.bias": [
+      256
+    ],
+    "cls_head_finetune.norms.0.module.running_mean": [
+      256
+    ],
+    "cls_head_finetune.norms.0.module.running_var": [
+      256
+    ],
+    "cls_head_finetune.norms.0.module.num_batches_tracked": [],
+    "cls_head_finetune.norms.1.module.weight": [
+      256
+    ],
+    "cls_head_finetune.norms.1.module.bias": [
+      256
+    ],
+    "cls_head_finetune.norms.1.module.running_mean": [
+      256
+    ],
+    "cls_head_finetune.norms.1.module.running_var": [
+      256
+    ],
+    "cls_head_finetune.norms.1.module.num_batches_tracked": []
+  }
+}
