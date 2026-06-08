@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.metrics import (
+    average_precision3d,
     compute_intersection_union,
     compute_iou,
     compute_mean_iou,
@@ -12,6 +13,7 @@ from torch_pointcloud.utils.metrics import (
     overall_accuracy,
     per_class_accuracy,
 )
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 
 @pytest.fixture
@@ -217,3 +219,42 @@ def test_per_class_accuracy_ignore_index_zeros_class() -> None:
     assert acc[2].item() == 0.0
     assert acc[0].item() == pytest.approx(1.0)
     assert acc[1].item() == pytest.approx(1.0)
+
+
+def test_average_precision3d_per_class_iou() -> None:
+    """A prediction at 3D IoU 0.6 with the GT passes class IoU 0.5 but fails 0.7."""
+    gt: Boxes3D = {
+        "boxes": torch.tensor([[0.0, 0, 0, 4, 2, 1.5, 0]]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    # shifted 1.0 along x -> axis-aligned IoU = 9 / 15 = 0.6
+    pred: Detection3D = {
+        "boxes": torch.tensor([[1.0, 0, 0, 4, 2, 1.5, 0]]),
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    assert average_precision3d([pred], [gt], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(1.0)
+    assert average_precision3d([pred], [gt], iou_per_class={0: 0.7})["AP/0"] == pytest.approx(0.0)
+
+
+def test_average_precision3d_ignore_mask() -> None:
+    """A high-score prediction overlapping an ignore region is dropped, not a false positive."""
+    boxes = torch.tensor([[0.0, 0, 0, 4, 2, 1.5, 0], [50, 0, 0, 4, 2, 1.5, 0]])
+    labels, batch = torch.tensor([0, -1]), torch.tensor([0, 0])
+    pred: Detection3D = {
+        "boxes": torch.tensor([[50.0, 0, 0, 4, 2, 1.5, 0], [0, 0, 0, 4, 2, 1.5, 0]]),
+        "scores": torch.tensor([0.9, 0.5]),
+        "labels": torch.tensor([0, 0]),
+        "batch": torch.tensor([0, 0]),
+    }
+    no_ignore: Boxes3D = {"boxes": boxes, "labels": labels, "batch": batch}
+    with_ignore: Boxes3D = {
+        "boxes": boxes,
+        "labels": labels,
+        "batch": batch,
+        "ignore_mask": torch.tensor([False, True]),
+    }
+    assert average_precision3d([pred], [no_ignore], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(0.5)
+    assert average_precision3d([pred], [with_ignore], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(1.0)

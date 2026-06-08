@@ -35,17 +35,33 @@ PairOptTensor = Tuple2d[OptTensor]
 
 
 class Boxes3D(TypedDict):
-    """Packed 3D boxes with class and scene indices (e.g. detection ground truth, PyG batch layout)."""
+    """Packed 3D boxes with class and scene indices (e.g. detection ground truth, PyG batch layout).
 
-    boxes: Tensor  # (N, 7) as (cx, cy, cz, dx, dy, dz, heading)
-    labels: Tensor  # (N,)
-    batch: Tensor  # (N,) per-box scene index
+    Args:
+        boxes: Boxes $(N, 7)$ of $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$.
+        labels: Per-box class, shape $(N,)$.
+        batch: Per-box scene index, shape $(N,)$.
+        ignore_mask: Per-box ignore mask, shape $(N,)$.
+    """
+
+    boxes: Tensor
+    labels: Tensor
+    batch: Tensor
+    ignore_mask: NotRequired[Tensor]
 
 
 class Detection3D(Boxes3D):
-    """Packed 3D detections: `Boxes3D` plus a per-box confidence score (a model's `decode` output)."""
+    """Packed 3D detections: `Boxes3D` plus a per-box confidence score (a model's `decode` output).
 
-    scores: Tensor  # (N,)
+    Args:
+        boxes: Boxes $(N, 7)$ of $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$.
+        labels: Per-box class, shape $(N,)$.
+        batch: Per-box scene index, shape $(N,)$.
+        ignore_mask: Per-box ignore mask, shape $(N,)$.
+        scores: Per-box confidence score, shape $(N,)$.
+    """
+
+    scores: Tensor
 
 
 # Flow and aggregation types for message passing

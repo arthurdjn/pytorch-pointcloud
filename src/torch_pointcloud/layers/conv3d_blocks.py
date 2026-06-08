@@ -54,14 +54,10 @@ class Conv3dBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.conv(x)
-        if self.act_first:
-            if self.act is not None:
-                x = self.act(x)
-            if self.norm is not None:
-                x = self.norm(x)
-        else:
-            if self.norm is not None:
-                x = self.norm(x)
-            if self.act is not None:
-                x = self.act(x)
+        if self.act_first and self.act is not None:
+            x = self.act(x)
+        if self.norm is not None:
+            x = self.norm(x)
+        if not self.act_first and self.act is not None:
+            x = self.act(x)
         return x
