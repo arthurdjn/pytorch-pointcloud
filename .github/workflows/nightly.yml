@@ -1,0 +1,54 @@
+name: Nightly
+
+# Runs the slow experiment-fit tests (`@pytest.mark.experiment`, opted in with `--run-experiment`)
+# that are skipped on every push. Scheduled nightly with a long timeout, plus manual dispatch.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+  # TEMPORARY: validate the workflow on a branch (schedule/workflow_dispatch only fire from the
+  # default branch). Remove this `push` trigger before merging.
+  push:
+
+jobs:
+  experiments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Add lightning for python ${{ matrix.python-version }}
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra lightning" >> $GITHUB_ENV
+
+      - name: Add ocnn dependency for python ${{ matrix.python-version }}
+        # NOTE: ocnn depends on torchvision, which is not fully compatible with python 3.13 yet
+        if: matrix.python-version != '3.13'
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra ocnn" >> $GITHUB_ENV
+
+      - name: Install torch-geometric dependencies
+        # NOTE: `pyg-lib` has no wheels for python 3.13 yet
+        if: matrix.python-version != '3.13'
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra pyg-lib" >> $GITHUB_ENV
+
+      - name: Install spconv dependency
+        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra spconv" >> $GITHUB_ENV
+
+      - name: Install all dependencies (torch==2.6.0)
+        run: |
+          echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }}"
+          uv add torch==2.6.0
+          uv sync ${{ env.UV_SYNC_ARGS }} --frozen
+
+      - name: Run experiment tests with python ${{ matrix.python-version }}
+        run: uv run --frozen pytest --run-experiment
