@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Union, overload
 
 import torch
 import torch.nn.functional as F
@@ -401,3 +401,88 @@ def radius(
         empty = torch.empty(0, dtype=torch.long, device=device)
         return empty, empty
     return torch.cat(rows_out), torch.cat(cols_out)
+
+
+@overload
+def group(
+    pos: Tensor,
+    batch: Tensor,
+    num_group: int,
+    group_size: int,
+    random_start: bool = ...,
+    *,
+    return_indices: Literal[False] = ...,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def group(
+    pos: Tensor,
+    batch: Tensor,
+    num_group: int,
+    group_size: int,
+    random_start: bool = ...,
+    *,
+    return_indices: Literal[True],
+) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+
+def group(
+    pos: Tensor,
+    batch: Tensor,
+    num_group: int,
+    group_size: int,
+    random_start: bool = False,
+    *,
+    return_indices: bool = False,
+) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
+    r"""Partition a packed point cloud into local groups with FPS centers and a $k$-NN neighborhood.
+
+    Farthest point sampling selects `num_group` centers per sample, then $k$-NN gathers the
+    `group_size` nearest neighbors of each center, and each neighborhood is recentered on its center.
+    Because `num_group` is fixed per sample, the packed result densifies to a regular $(B, G, k, 3)$
+    batch without padding.
+
+    Args:
+        pos: Packed point coordinates of shape $(N, 3)$.
+        batch: Per-point batch index of shape $(N,)$.
+        num_group: Number of groups (FPS centers) $G$ per sample.
+        group_size: Number of neighbors $k$ per group.
+        random_start: Whether to start farthest point sampling from a random point.
+        return_indices: If `True`, also return the flat neighbor index into the packed input.
+
+    Returns:
+        `(neighborhood, center)`, or `(neighborhood, center, idx)` when `return_indices` is `True`.
+        `neighborhood` has shape $(B, G, k, 3)$ recentered on each center, `center` has shape
+        $(B, G, 3)$, and `idx` has shape $(B \cdot G \cdot k,)$ indexing the packed input.
+
+    Shape:
+        - Input: $(N, 3)$ and $(N,)$.
+        - Output: $(B, G, k, 3)$ and $(B, G, 3)$ (plus $(B \cdot G \cdot k,)$ when `return_indices`).
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.utils.cluster import group
+
+        pos = torch.randn(2048, 3)
+        batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
+        neighborhood, center = group(pos, batch, num_group=64, group_size=32)
+        print(neighborhood.shape, center.shape)
+        ```
+    """
+    batch_size = int(batch.max().item()) + 1
+
+    idx_center = fps(pos, batch, num_nodes=num_group, random_start=random_start)
+    center = pos[idx_center]
+    batch_center = batch[idx_center]
+
+    _, col = knn(pos, center, group_size, batch_x=batch, batch_y=batch_center)
+
+    neighborhood = pos[col].view(batch_size, num_group, group_size, 3)
+    center = center.view(batch_size, num_group, 3)
+    neighborhood = neighborhood - center.unsqueeze(2)
+
+    if return_indices:
+        return neighborhood, center, col.view(batch_size * num_group, group_size).reshape(-1)
+    return neighborhood, center
