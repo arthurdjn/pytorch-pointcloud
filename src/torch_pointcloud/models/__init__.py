@@ -4,6 +4,7 @@ from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
+from .oneformer3d import OneFormer3DQueryDecoder, OneFormer3DSegmentation
 from .point_mamba import PointMambaClassification, PointMambaMAE
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
 from .point_transformer_v2 import PointTransformerV2Classification, PointTransformerV2Segmentation
@@ -19,9 +20,11 @@ from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtSegmentation
+from .pointpillars import PointPillars, PointPillarsMultiHead
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
+from .second import SECOND, SECONDMultiHead, SparseBasicBlock, VoxelBackbone8x, VoxelResBackbone8x
 from .sontata import SonataSegmentation
 from .spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
 from .spunet import SparseUNetSegmentation

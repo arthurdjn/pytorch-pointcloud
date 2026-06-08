@@ -7,6 +7,18 @@ from ._modules import (
 )
 from .act import create_act
 from .affine import Affine, affine
+from .anchors import (
+    AnchorHeadMulti,
+    AnchorHeadMultiOutput,
+    AnchorHeadOutput,
+    AnchorHeadSingle,
+    MultiGroupSingleHead,
+    ResidualCoder,
+    generate_anchors,
+    limit_period,
+)
+from .bev_backbone import BaseBEVBackbone
+from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
     DropoutLike,
@@ -68,6 +80,7 @@ from .serialized_attention import (
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import SubMConv3dBlock
 from .tnet import DynamicTNet, TNet
+from .transformer import Attention, TransformerBlock
 from .view import View
 from .xconv import XConv
 

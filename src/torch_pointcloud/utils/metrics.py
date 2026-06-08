@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -233,8 +233,13 @@ def _average_precision3d(
     scene_gts: List[Tuple[np.ndarray, np.ndarray]],
     label: int,
     iou_threshold: float,
+    scene_ignore: Optional[List[np.ndarray]] = None,
 ) -> float:
-    """Greedy VOC AP for one class: rank predictions by score, match each to an unused GT box by IoU."""
+    """Greedy VOC AP for one class: rank predictions by score, match each to an unused GT box by IoU.
+
+    A prediction that matches no GT but overlaps an ignore region (``scene_ignore``) above the
+    threshold is dropped (counted as neither a true nor a false positive).
+    """
     gt_corners = [corners[labels == label] for corners, labels in scene_gts]
     matched = [np.zeros(len(c), dtype=bool) for c in gt_corners]
     npos = sum(len(c) for c in gt_corners)
@@ -252,16 +257,21 @@ def _average_precision3d(
     fp = np.zeros(len(entries))
     for d, (_, scene, corner) in enumerate(entries):
         gts = gt_corners[scene]
-        if len(gts) == 0:
-            fp[d] = 1.0
-            continue
-        iou = box3d_overlap(torch.from_numpy(corner)[None], torch.from_numpy(gts))[1][0].numpy()
-        jmax = int(iou.argmax())
-        if iou[jmax] > iou_threshold and not matched[scene][jmax]:
-            tp[d] = 1.0
-            matched[scene][jmax] = True
-        else:
-            fp[d] = 1.0
+        if len(gts) > 0:
+            iou = box3d_overlap(torch.from_numpy(corner)[None], torch.from_numpy(gts))[1][0].numpy()
+            jmax = int(iou.argmax())
+            if iou[jmax] > iou_threshold and not matched[scene][jmax]:
+                tp[d] = 1.0
+                matched[scene][jmax] = True
+                continue
+
+        ignore = scene_ignore[scene] if scene_ignore is not None else None
+        if ignore is not None and len(ignore) > 0:
+            iou_ignore = box3d_overlap(torch.from_numpy(corner)[None], torch.from_numpy(ignore))[1][0].numpy()
+            if iou_ignore.max() > iou_threshold:
+                continue
+
+        fp[d] = 1.0
 
     tp_cum, fp_cum = np.cumsum(tp), np.cumsum(fp)
     recall = tp_cum / max(npos, 1)
@@ -269,26 +279,13 @@ def _average_precision3d(
     return _voc_ap(recall, precision)
 
 
-def mean_average_precision3d(
-    preds: Sequence[Detection3D],
-    targets: Sequence[Boxes3D],
-    *,
-    iou_thresholds: Sequence[float] = (0.25, 0.5),
-) -> Dict[str, float]:
-    r"""3D detection mean average precision over one or more IoU thresholds.
+def _split_scenes(
+    preds: Sequence[Detection3D], targets: Sequence[Boxes3D]
+) -> Tuple[List[Tuple[np.ndarray, np.ndarray, np.ndarray]], List[Tuple[np.ndarray, np.ndarray]], List[np.ndarray]]:
+    """Flatten packed preds/targets into per-scene `(corners, scores, labels)`, `(corners, labels)` and ignore corners.
 
-    Dataset- and model-agnostic: predictions and targets are packed dicts of parameterized boxes (see
-    `box_corners`) carrying a per-box scene index, so any detector emitting `(boxes, scores, labels, batch)`
-    is scored the same way. AP per class is the VOC all-points integral; `mAP@t` averages it over the classes present in the targets.
-
-    Args:
-        preds: Packed predictions (one `decode` output per batch), each
-            `{"boxes": (N, 7), "scores": (N,), "labels": (N,), "batch": (N,)}`.
-        targets: Packed ground truth aligned to `preds` batch-for-batch, each `{"boxes", "labels", "batch"}`.
-        iou_thresholds: IoU thresholds at which `mAP@t` is reported.
-
-    Returns:
-        A dict `{"mAP@0.25": ..., "mAP@0.5": ...}` keyed by threshold.
+    Target boxes flagged via the optional `ignore_mask` are split out as per-scene ignore regions
+    (excluded from the ground truth, used only to suppress false positives).
     """
 
     def to_corners(boxes: Tensor) -> np.ndarray:
@@ -299,19 +296,87 @@ def mean_average_precision3d(
 
     scene_preds: List[Tuple[np.ndarray, np.ndarray, np.ndarray]] = []
     scene_gts: List[Tuple[np.ndarray, np.ndarray]] = []
+    scene_ignore: List[np.ndarray] = []
     for pred, target in zip(preds, targets):
         pred_corners, pred_batch = to_corners(pred["boxes"]), pred["batch"].detach().cpu().numpy()
         pred_scores, pred_labels = pred["scores"].detach().cpu().numpy(), pred["labels"].detach().cpu().numpy()
         gt_corners, gt_batch = to_corners(target["boxes"]), target["batch"].detach().cpu().numpy()
         gt_labels = target["labels"].detach().cpu().numpy()
+        mask = target.get("ignore_mask")
+        ignore_mask = (
+            mask.detach().cpu().numpy().astype(bool) if mask is not None else np.zeros(len(gt_labels), dtype=bool)
+        )
         for s in range(max(num_scenes(pred["batch"]), num_scenes(target["batch"]))):
-            p, g = pred_batch == s, gt_batch == s
+            p = pred_batch == s
+            g = (gt_batch == s) & ~ignore_mask
+            ig = (gt_batch == s) & ignore_mask
             scene_preds.append((pred_corners[p], pred_scores[p], pred_labels[p]))
             scene_gts.append((gt_corners[g], gt_labels[g]))
+            scene_ignore.append(gt_corners[ig])
+    return scene_preds, scene_gts, scene_ignore
 
+
+def mean_average_precision3d(
+    preds: Sequence[Detection3D],
+    targets: Sequence[Boxes3D],
+    *,
+    iou_thresholds: Sequence[float] = (0.25, 0.5),
+) -> Dict[str, float]:
+    r"""3D detection mean average precision over one or more IoU thresholds (same IoU for every class).
+
+    Dataset- and model-agnostic: predictions and targets are packed dicts of parameterized boxes (see
+    `box_corners`) carrying a per-box scene index, so any detector emitting `(boxes, scores, labels, batch)`
+    is scored the same way. AP per class is the VOC all-points integral; `mAP@t` averages it over the
+    classes present in the targets. Targets may carry an `ignore_mask` (see `Boxes3D`); predictions that
+    only overlap ignore regions are not penalized. Use `average_precision3d` for per-class IoU thresholds.
+
+    Args:
+        preds: Packed predictions (one `decode` output per batch), each
+            `{"boxes": (N, 7), "scores": (N,), "labels": (N,), "batch": (N,)}`.
+        targets: Packed ground truth aligned to `preds` batch-for-batch, each `{"boxes", "labels", "batch"}`.
+        iou_thresholds: IoU thresholds at which `mAP@t` is reported.
+
+    Returns:
+        A dict `{"mAP@0.25": ..., "mAP@0.5": ...}` keyed by threshold.
+    """
+    scene_preds, scene_gts, scene_ignore = _split_scenes(preds, targets)
     classes = sorted({int(c) for _, labels in scene_gts for c in labels.tolist()})
     out: Dict[str, float] = {}
     for threshold in iou_thresholds:
-        aps = [_average_precision3d(scene_preds, scene_gts, c, threshold) for c in classes]
+        aps = [_average_precision3d(scene_preds, scene_gts, c, threshold, scene_ignore) for c in classes]
         out[f"mAP@{threshold:g}"] = float(np.mean(aps)) if aps else 0.0
+    return out
+
+
+def average_precision3d(
+    preds: Sequence[Detection3D],
+    targets: Sequence[Boxes3D],
+    *,
+    iou_per_class: Mapping[int, float],
+    class_names: Optional[Sequence[str]] = None,
+) -> Dict[str, float]:
+    r"""Per-class 3D AP, each class scored at its own IoU threshold (e.g. KITTI Car@0.7, Ped/Cyc@0.5).
+
+    Like `mean_average_precision3d` but reports one AP per class at a class-specific IoU, the convention
+    of the KITTI / nuScenes detection metrics. Targets may carry an `ignore_mask` (see `Boxes3D`):
+    predictions overlapping an ignore region are not counted as false positives.
+
+    Args:
+        preds: Packed predictions aligned to `targets` batch-for-batch.
+        targets: Packed ground truth, each `{"boxes", "labels", "batch"}` with an optional `ignore_mask`.
+        iou_per_class: IoU threshold per class index, e.g. `{0: 0.7, 1: 0.5, 2: 0.5}`.
+        class_names: Optional names for the output keys (indexed by class); falls back to the index.
+
+    Returns:
+        A dict `{"AP/<class>": ap, ..., "mAP": mean}` (the mean is over `iou_per_class`).
+    """
+    scene_preds, scene_gts, scene_ignore = _split_scenes(preds, targets)
+    out: Dict[str, float] = {}
+    aps: List[float] = []
+    for label, iou in iou_per_class.items():
+        ap = _average_precision3d(scene_preds, scene_gts, int(label), float(iou), scene_ignore)
+        name = class_names[label] if class_names is not None else str(label)
+        out[f"AP/{name}"] = ap
+        aps.append(ap)
+    out["mAP"] = float(np.mean(aps)) if aps else 0.0
     return out
