@@ -20,7 +20,7 @@ from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtSegmentation
-from .pointpillars import PFNLayer, PillarFeatureNet, PointPillars, PointPillarScatter, PointPillarsMultiHead
+from .pointpillars import PointPillars, PointPillarsMultiHead
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
