@@ -382,6 +382,7 @@ class RandLANetEncoder(nn.Module):
     ) -> Any:
         intermediates: List[RandLANetIntermediate] = []
         for i, block in enumerate(self.blocks):
+            assert isinstance(block, DilatedResidualBlock)  # For type checking
             x, pos, batch = block(x, pos, batch)
             if return_intermediates and i == 0:
                 # Block 0's pre-decimation output is the only full-resolution skip;
