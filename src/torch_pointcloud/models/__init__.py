@@ -5,6 +5,9 @@ from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .oneformer3d import OneFormer3DQueryDecoder, OneFormer3DSegmentation
+from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTMaskedTransformer
+from .point_m2ae import PointM2AEClassification, PointM2AEMaskedAutoEncoder, PointM2AESegmentation
+from .point_mae import PointMAEClassification, PointMAEMaskedAutoEncoder, PointMAESegmentation
 from .point_mamba import PointMambaClassification, PointMambaMAE
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
 from .point_transformer_v2 import PointTransformerV2Classification, PointTransformerV2Segmentation
