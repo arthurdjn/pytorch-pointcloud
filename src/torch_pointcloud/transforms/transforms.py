@@ -23,6 +23,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
+from torch_pointcloud.utils.voxelization import hard_voxelize
 
 from . import functional as F
 from .functional import RescaleMethod, ShiftMethod
@@ -69,6 +70,7 @@ __all__ = [
     "EstimateNormals",
     "FarthestPointSample",
     "GenerateVoteLabels",
+    "HardVoxelize",
     "InstanceToBox",
     "KeepItems",
     "Normalize",
@@ -1284,6 +1286,103 @@ class BuildOctree(DictTransform):
             data[self.points_key] = points
 
         return data
+
+
+class HardVoxelize(DictTransform):
+    r"""Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.
+
+    Moves the `transform_points_to_voxels` step of voxel detectors (PointPillars, SECOND) out of the
+    model and into the data pipeline, mirroring how `BuildOctree` produces an octree for OctFormer.
+    The model then receives already-voxelized input and focuses on the network math.
+
+    Reads `pos_key` (and optionally `feat_key`), runs
+    [`hard_voxelize`][torch_pointcloud.utils.voxelization.hard_voxelize] on the single sample (the
+    batch index is all zeros), and adds three keys while keeping `pos` / `x`:
+
+    - `voxel_key`: the per-voxel point stack.
+    - `pos_voxel_key`: integer voxel grid indices $(z, y, x)$ (the single-sample batch column is dropped;
+      the per-voxel scene index is synthesized at collation).
+    - `num_points_key`: the per-voxel point counts.
+
+    Args:
+        pos_key: Key holding the point positions $(N, 3)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        max_num_points: Maximum number of points kept per voxel.
+        max_num_voxels: Maximum number of voxels kept per scene.
+        feat_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
+        voxel_key: Output key for the per-voxel point stack.
+        pos_voxel_key: Output key for the integer voxel grid indices.
+        num_points_key: Output key for the per-voxel point counts.
+        allow_missing_keys: Unused (`pos_key` is always required); kept for interface parity.
+
+    Shape:
+        - `voxel_key`: $(V, \text{max\_num\_points}, 3 + C)$.
+        - `pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
+        - `num_points_key`: $(V,)$.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+        from torch_pointcloud.utils.data import DataKeys
+
+        data = {DataKeys.POS: torch.rand(1000, 3) * 50.0, DataKeys.X: torch.rand(1000, 1)}
+        transform = T.HardVoxelize(
+            pos_key=DataKeys.POS,
+            feat_key=DataKeys.X,
+            voxel_size=(0.16, 0.16, 4.0),
+            point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+            max_num_points=32,
+            max_num_voxels=40000,
+        )
+        data = transform(data)
+        print(data[DataKeys.VOXEL].shape, data[DataKeys.POS_VOXEL].shape, data[DataKeys.VOXEL_NUM_POINTS].shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
+        max_num_points: int,
+        max_num_voxels: int,
+        feat_key: Optional[str] = None,
+        voxel_key: str = DataKeys.VOXEL,
+        pos_voxel_key: str = DataKeys.POS_VOXEL,
+        num_points_key: str = DataKeys.VOXEL_NUM_POINTS,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys=pos_key, allow_missing_keys=allow_missing_keys)
+        self.pos_key = pos_key
+        self.voxel_size = voxel_size
+        self.point_cloud_range = point_cloud_range
+        self.max_num_points = max_num_points
+        self.max_num_voxels = max_num_voxels
+        self.feat_key = feat_key
+        self.voxel_key = voxel_key
+        self.pos_voxel_key = pos_voxel_key
+        self.num_points_key = num_points_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        pos = d[self.pos_key]
+        feat = d.get(self.feat_key) if self.feat_key is not None else None
+        points = pos if feat is None else torch.cat([pos, feat], dim=1)
+        batch = pos.new_zeros(points.shape[0], dtype=torch.long)
+        voxels, voxel_indices, num_points = hard_voxelize(
+            points,
+            batch,
+            self.voxel_size,
+            self.point_cloud_range,
+            self.max_num_points,
+            self.max_num_voxels,
+        )
+        d[self.voxel_key] = voxels
+        d[self.pos_voxel_key] = voxel_indices[:, 1:]
+        d[self.num_points_key] = num_points
+        return d
 
 
 class OctreeFeatures(DictTransform):

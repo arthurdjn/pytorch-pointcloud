@@ -59,7 +59,14 @@ class BaseBEVBackbone(nn.Module):
         for idx in range(num_levels):
             cur_layers: List[nn.Module] = [
                 nn.ZeroPad2d(1),
-                Conv2dBlock(c_in_list[idx], num_filters[idx], 3, stride=layer_strides[idx], padding=0, **block_kwargs),
+                Conv2dBlock(
+                    c_in_list[idx],
+                    num_filters[idx],
+                    3,
+                    stride=layer_strides[idx],
+                    padding=0,
+                    **block_kwargs,
+                ),
             ]
             for _ in range(layer_nums[idx]):
                 cur_layers.append(Conv2dBlock(num_filters[idx], num_filters[idx], 3, padding=1, **block_kwargs))

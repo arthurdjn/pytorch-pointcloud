@@ -11,8 +11,6 @@ A packed-format port of the OpenPCDet anchor head:
 - [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]: the multi-group
   separate-head variant (sincos + velocity box code) used by the nuScenes detectors.
 
-Only the inference path (anchor generation + box decoding) is ported; target assignment and
-losses are out of scope (these models are shipped for pretrained inference, not training).
 """
 
 import math
@@ -30,11 +28,11 @@ from torch_pointcloud.utils.types import Detection3D
 class AnchorHeadOutput(TypedDict):
     r"""Raw and decoded predictions of [`AnchorHeadSingle`][torch_pointcloud.layers.anchors.AnchorHeadSingle]."""
 
-    cls_preds: Tensor
-    box_preds: Tensor
-    dir_cls_preds: Tensor
-    batch_cls_preds: Tensor
-    batch_box_preds: Tensor
+    cls: Tensor
+    box: Tensor
+    dir_cls: Tensor
+    batch_cls: Tensor
+    batch_box: Tensor
 
 
 def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> Tensor:
@@ -218,14 +216,18 @@ class AnchorHeadSingle(nn.Module):
 
         batch_size = spatial_features_2d.shape[0]
         batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
-            batch_size, cls_preds, box_preds, dir_cls_preds
+            batch_size,
+            cls_preds,
+            box_preds,
+            dir_cls_preds,
         )
+
         return {
-            "cls_preds": cls_preds,
-            "box_preds": box_preds,
-            "dir_cls_preds": dir_cls_preds,
-            "batch_cls_preds": batch_cls_preds,
-            "batch_box_preds": batch_box_preds,
+            "cls": cls_preds,
+            "box": box_preds,
+            "dir_cls": dir_cls_preds,
+            "batch_cls": batch_cls_preds,
+            "batch_box": batch_box_preds,
         }
 
     def generate_predicted_boxes(
@@ -257,8 +259,8 @@ class AnchorHeadSingle(nn.Module):
         Returns:
             Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
         """
-        scores_per_class = out["batch_cls_preds"].sigmoid()
-        boxes = out["batch_box_preds"]
+        scores_per_class = out["batch_cls"].sigmoid()
+        boxes = out["batch_box"]
         out_boxes, out_scores, out_labels, out_batch = [], [], [], []
         for b in range(boxes.shape[0]):
             scores, labels = scores_per_class[b].max(dim=-1)
@@ -269,6 +271,7 @@ class AnchorHeadSingle(nn.Module):
             out_scores.append(scene_scores[idx])
             out_labels.append(scene_labels[idx])
             out_batch.append(torch.full((idx.numel(),), b, dtype=torch.long, device=boxes.device))
+
         return {
             "boxes": torch.cat(out_boxes),
             "scores": torch.cat(out_scores),
@@ -280,9 +283,9 @@ class AnchorHeadSingle(nn.Module):
 class AnchorHeadMultiOutput(TypedDict):
     r"""Predictions of [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]."""
 
-    cls_preds: List[Tensor]
-    box_preds: List[Tensor]
-    batch_box_preds: Tensor
+    cls: List[Tensor]
+    box: List[Tensor]
+    batch_box: Tensor
     multihead_label_mapping: List[Tensor]
 
 
@@ -301,19 +304,19 @@ def _separate_branch(
     layers: List[nn.Module] = []
     c_in = in_channels
     for _ in range(num_middle_conv):
-        layers.append(
-            Conv2dBlock(
-                c_in,
-                num_middle_filter,
-                3,
-                padding=1,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-            )
+        block = Conv2dBlock(
+            c_in,
+            num_middle_filter,
+            3,
+            padding=1,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
         )
+        layers.append(block)
         c_in = num_middle_filter
+
     layers.append(nn.Conv2d(c_in, out_channels, 3, stride=1, padding=1, bias=True))
     return nn.Sequential(*layers)
 
@@ -382,12 +385,16 @@ class MultiGroupSingleHead(nn.Module):
             name, channels = reg_config.split(":")
             key = f"conv_{name}"
             self.conv_box[key] = _separate_branch(
-                input_channels, num_anchors_per_location * int(channels), **branch_kwargs
+                input_channels,
+                num_anchors_per_location * int(channels),
+                **branch_kwargs,
             )
             self.conv_box_names.append(key)
             code_size_cnt += int(channels)
+
         if code_size_cnt != code_size:
             raise ValueError(f"Regression branches sum to {code_size_cnt} channels, expected code_size {code_size}.")
+
         self.conv_cls = _separate_branch(input_channels, num_anchors_per_location * num_classes, **branch_kwargs)
 
     def forward(self, spatial_features_2d: Tensor) -> Tuple[Tensor, Tensor]:
@@ -493,21 +500,20 @@ class AnchorHeadMulti(nn.Module):
             # OpenPCDet's per-group SeparateHead uses default BatchNorm hyperparameters (eps 1e-5),
             # unlike the trunk / shared conv (eps 1e-3); `norm_kwargs` is left at the default so a
             # converted checkpoint stays bit-exact.
-            self.rpn_heads.append(
-                MultiGroupSingleHead(
-                    shared_conv_num_filter,
-                    len(group),
-                    num_anchors,
-                    self.box_coder.code_size,
-                    reg_list,
-                    label_indices,
-                    num_middle_conv=num_middle_conv,
-                    num_middle_filter=num_middle_filter,
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                )
+            head = MultiGroupSingleHead(
+                shared_conv_num_filter,
+                len(group),
+                num_anchors,
+                self.box_coder.code_size,
+                reg_list,
+                label_indices,
+                num_middle_conv=num_middle_conv,
+                num_middle_filter=num_middle_filter,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
             )
+            self.rpn_heads.append(head)
 
     def forward(self, spatial_features_2d: Tensor) -> AnchorHeadMultiOutput:
         shared = self.shared_conv(spatial_features_2d)
@@ -526,9 +532,9 @@ class AnchorHeadMulti(nn.Module):
         batch_anchors = self.anchors.unsqueeze(0).expand(batch_size, -1, -1)
         batch_box_preds = self.box_coder.decode_torch(box_preds_cat, batch_anchors)
         return {
-            "cls_preds": cls_list,
-            "box_preds": box_list,
-            "batch_box_preds": batch_box_preds,
+            "cls": cls_list,
+            "box": box_list,
+            "batch_box": batch_box_preds,
             "multihead_label_mapping": label_mapping,
         }
 
@@ -539,14 +545,15 @@ class AnchorHeadMulti(nn.Module):
         Each head's class scores carry their global label mapping; boxes use the 7-DoF pose (velocity
         columns are dropped). Returns `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`.
         """
-        boxes_all = out["batch_box_preds"]
+        boxes_all = out["batch_box"]
         out_boxes, out_scores, out_labels, out_batch = [], [], [], []
         for b in range(boxes_all.shape[0]):
             scene_scores, scene_labels = [], []
-            for head_idx, cls_preds in enumerate(out["cls_preds"]):
+            for head_idx, cls_preds in enumerate(out["cls"]):
                 head_scores, head_classes = cls_preds[b].sigmoid().max(dim=-1)
                 scene_scores.append(head_scores)
                 scene_labels.append(out["multihead_label_mapping"][head_idx][head_classes] - 1)
+
             scores = torch.cat(scene_scores)
             labels = torch.cat(scene_labels)
             boxes = boxes_all[b][:, :7]
@@ -557,6 +564,7 @@ class AnchorHeadMulti(nn.Module):
             out_scores.append(scores[idx])
             out_labels.append(labels[idx])
             out_batch.append(torch.full((idx.numel(),), b, dtype=torch.long, device=boxes_all.device))
+
         return {
             "boxes": torch.cat(out_boxes),
             "scores": torch.cat(out_scores),

@@ -14,13 +14,10 @@ from torch_pointcloud.layers.anchors import (
 )
 from torch_pointcloud.layers.bev_backbone import BaseBEVBackbone
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import Detection3D, OptTensor
-from torch_pointcloud.utils.voxelization import hard_voxelize
+from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
 from ._registry import register_model
-
-_OPENPCDET_NORM_KWARGS: Dict[str, Any] = {"eps": 1e-3, "momentum": 0.01}
 
 
 class PFNLayer(nn.Module):
@@ -51,9 +48,10 @@ class PFNLayer(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        self.last_vfe = last_layer
         if not last_layer:
             out_channels = out_channels // 2
+
+        self.last_vfe = last_layer
         self.mlp = MLP(
             [in_channels, out_channels],
             act=act,
@@ -72,6 +70,7 @@ class PFNLayer(nn.Module):
         x_max = torch.max(x, dim=1, keepdim=True)[0]
         if self.last_vfe:
             return x_max
+
         x_repeat = x_max.repeat(1, inputs.shape[1], 1)
         return torch.cat([x, x_repeat], dim=2)
 
@@ -109,8 +108,10 @@ class PillarFeatureNet(nn.Module):
         # +6: per-point cluster-mean offset (xyz) and pillar-center offset (xyz)
         num_point_features = in_channels + 6
         num_filters = [num_point_features, *feat_channels]
-        self.pfn_layers = nn.ModuleList(
-            PFNLayer(
+
+        self.pfn_layers = nn.ModuleList()
+        for i in range(len(num_filters) - 1):
+            layer = PFNLayer(
                 num_filters[i],
                 num_filters[i + 1],
                 last_layer=(i >= len(num_filters) - 2),
@@ -119,28 +120,27 @@ class PillarFeatureNet(nn.Module):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
             )
-            for i in range(len(num_filters) - 1)
-        )
-        self.out_channels = feat_channels[-1]
+            self.pfn_layers.append(layer)
 
+        self.out_channels = feat_channels[-1]
         self.voxel_x, self.voxel_y, self.voxel_z = voxel_size
         self.x_offset = self.voxel_x / 2 + point_cloud_range[0]
         self.y_offset = self.voxel_y / 2 + point_cloud_range[1]
         self.z_offset = self.voxel_z / 2 + point_cloud_range[2]
 
-    def forward(self, voxels: Tensor, num_points: Tensor, coords: Tensor) -> Tensor:
+    def forward(self, voxels: Tensor, num_points: Tensor, voxel_indices: Tensor) -> Tensor:
         points_mean = voxels[:, :, :3].sum(dim=1, keepdim=True) / num_points.type_as(voxels).view(-1, 1, 1)
         f_cluster = voxels[:, :, :3] - points_mean
 
         f_center = torch.zeros_like(voxels[:, :, :3])
         f_center[:, :, 0] = voxels[:, :, 0] - (
-            coords[:, 3].to(voxels.dtype).unsqueeze(1) * self.voxel_x + self.x_offset
+            voxel_indices[:, 3].to(voxels.dtype).unsqueeze(1) * self.voxel_x + self.x_offset
         )
         f_center[:, :, 1] = voxels[:, :, 1] - (
-            coords[:, 2].to(voxels.dtype).unsqueeze(1) * self.voxel_y + self.y_offset
+            voxel_indices[:, 2].to(voxels.dtype).unsqueeze(1) * self.voxel_y + self.y_offset
         )
         f_center[:, :, 2] = voxels[:, :, 2] - (
-            coords[:, 1].to(voxels.dtype).unsqueeze(1) * self.voxel_z + self.z_offset
+            voxel_indices[:, 1].to(voxels.dtype).unsqueeze(1) * self.voxel_z + self.z_offset
         )
 
         features = torch.cat([voxels, f_cluster, f_center], dim=-1)
@@ -154,27 +154,49 @@ class PillarFeatureNet(nn.Module):
         return features.squeeze(1)
 
 
-class PointPillarScatter(nn.Module):
-    r"""Scatter pillar features back to a dense BEV pseudo-image (`PointPillarScatter`).
+def scatter_to_bev(
+    pillar_features: Tensor, voxel_indices: Tensor, batch_size: int, grid_size: Tuple[int, int, int]
+) -> Tensor:
+    r"""Scatter pillar features back to a dense BEV pseudo-image.
+
+    Stateless scatter of per-pillar features onto a dense bird's-eye-view canvas indexed by each
+    pillar's $(y, x)$ voxel grid index. The channel count is taken from `pillar_features`.
 
     Args:
-        num_bev_features: Channels per pillar (the BEV pseudo-image channel count).
+        pillar_features: Per-pillar features of shape $(P, C)$.
+        voxel_indices: Per-pillar voxel indices of shape $(P, 4)$ with columns $(\text{batch}, z, y, x)$ and $z = 0$.
+        batch_size: Number of samples $B$ in the batch.
         grid_size: Voxel grid size $(n_x, n_y, n_z)$ with $n_z = 1$.
+
+    Returns:
+        Dense BEV pseudo-image of shape $(B, C, n_y, n_x)$.
+
+    Shape:
+        - Input: $(P, C)$ and $(P, 4)$.
+        - Output: $(B, C, n_y, n_x)$.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models.pointpillars import scatter_to_bev
+
+        pillar_features = torch.randn(120, 64)
+        voxel_indices = torch.zeros(120, 4, dtype=torch.long)
+        voxel_indices[:, 2] = torch.randint(0, 496, (120,))
+        voxel_indices[:, 3] = torch.randint(0, 432, (120,))
+        bev = scatter_to_bev(pillar_features, voxel_indices, batch_size=1, grid_size=(432, 496, 1))
+        print(bev.shape)
+        ```
     """
-
-    def __init__(self, num_bev_features: int, grid_size: Tuple[int, int, int]) -> None:
-        super().__init__()
-        self.num_bev_features = num_bev_features
-        self.nx, self.ny, self.nz = grid_size
-        assert self.nz == 1, "PointPillarScatter expects a single height bin."
-
-    def forward(self, pillar_features: Tensor, coords: Tensor, batch_size: int) -> Tensor:
-        # coords columns: (batch, z, y, x), z == 0.
-        flat = coords[:, 0].long() * (self.ny * self.nx) + coords[:, 2].long() * self.nx + coords[:, 3].long()
-        canvas = pillar_features.new_zeros(batch_size * self.ny * self.nx, self.num_bev_features)
-        canvas[flat] = pillar_features
-        canvas = canvas.view(batch_size, self.ny, self.nx, self.num_bev_features)
-        return canvas.permute(0, 3, 1, 2).contiguous()
+    nx, ny, nz = grid_size
+    assert nz == 1, "scatter_to_bev expects a single height bin."
+    num_bev_features = pillar_features.size(-1)
+    # voxel_indices columns: (batch, z, y, x), z == 0.
+    flat = voxel_indices[:, 0].long() * (ny * nx) + voxel_indices[:, 2].long() * nx + voxel_indices[:, 3].long()
+    canvas = pillar_features.new_zeros(batch_size * ny * nx, num_bev_features)
+    canvas[flat] = pillar_features
+    canvas = canvas.view(batch_size, ny, nx, num_bev_features)
+    return canvas.permute(0, 3, 1, 2).contiguous()
 
 
 class PointPillars(DetectionModel):
@@ -192,8 +214,6 @@ class PointPillars(DetectionModel):
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the head.
-        max_num_points: Maximum points kept per pillar.
-        max_num_voxels: Maximum pillars kept per scene.
         feat_channels: Output channels of the pillar feature net.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
@@ -206,7 +226,7 @@ class PointPillars(DetectionModel):
         act: Activation type or callable for the pillar feature net and 2D backbone.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable for the pillar feature net and 2D backbone.
-        norm_kwargs: Extra normalization arguments (defaults to the OpenPCDet BatchNorm settings).
+        norm_kwargs: Extra normalization arguments.
     """
 
     def __init__(
@@ -220,8 +240,6 @@ class PointPillars(DetectionModel):
         anchor_bottom_heights: Sequence[float],
         feature_map_stride: int,
         anchor_rotations: Sequence[float] = (0.0, 1.57),
-        max_num_points: int = 32,
-        max_num_voxels: int = 40000,
         feat_channels: Sequence[int] = (64,),
         layer_nums: Sequence[int] = (3, 5, 5),
         layer_strides: Sequence[int] = (2, 2, 2),
@@ -237,19 +255,14 @@ class PointPillars(DetectionModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        if norm_kwargs is None:
-            norm_kwargs = dict(_OPENPCDET_NORM_KWARGS)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
-        self.max_num_points = max_num_points
-        self.max_num_voxels = max_num_voxels
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
 
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
         self.vfe = PillarFeatureNet(in_channels, feat_channels, voxel_size, point_cloud_range, **block_kwargs)
-        self.scatter = PointPillarScatter(feat_channels[-1], self.grid_size)
         self.backbone = BaseBEVBackbone(
             feat_channels[-1],
             layer_nums,
@@ -273,47 +286,21 @@ class PointPillars(DetectionModel):
             dir_limit_offset=dir_limit_offset,
         )
 
-    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        points = pos if x is None else torch.cat([pos, x], dim=1)
-        voxels, coords, num_points = hard_voxelize(
-            points, batch, self.voxel_size, self.point_cloud_range, self.max_num_points, self.max_num_voxels
-        )
+    def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
+        voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
         batch_size = int(batch.max().item()) + 1
-        pillar_features = self.vfe(voxels, num_points, coords)
-        bev = self.scatter(pillar_features, coords, batch_size)
+        pillar_features = self.vfe(voxels, voxel_num_points, voxel_indices)
+        bev = scatter_to_bev(pillar_features, voxel_indices, batch_size, self.grid_size)
         return self.backbone(bev)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> AnchorHeadOutput:
-        spatial_features_2d = self.forward_features(x, pos, batch)
+    def forward(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> AnchorHeadOutput:
+        spatial_features_2d = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         return self.head(spatial_features_2d)
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadOutput, *, score_threshold: float = 0.1, nms_iou: float = 0.01) -> Detection3D:
         r"""Decode a forward output into packed detections (see `AnchorHeadSingle.decode`)."""
         return self.head.decode(out, score_threshold=score_threshold, nms_iou=nms_iou)
-
-
-@register_model(
-    "pointpillars-openpcdet.kitti",
-    task="detection",
-    weights="hf://torch-pointcloud/pointpillars/pointpillars-openpcdet.kitti.pt",
-    # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
-    transforms=T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
-    hparams=dict(
-        in_channels=4,
-        num_classes=3,
-        voxel_size=(0.16, 0.16, 4.0),
-        point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
-        # Car, Pedestrian, Cyclist.
-        anchor_sizes=[[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]],
-        anchor_bottom_heights=[-1.78, -0.6, -0.6],
-        feature_map_stride=2,
-        max_num_points=32,
-        max_num_voxels=40000,
-    ),
-)
-def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillars:
-    return PointPillars(**hparams)
 
 
 class PointPillarsMultiHead(DetectionModel):
@@ -335,8 +322,6 @@ class PointPillarsMultiHead(DetectionModel):
         head_class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`).
         anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the head.
-        max_num_points: Maximum points kept per pillar.
-        max_num_voxels: Maximum pillars kept per scene.
         feat_channels: Pillar feature-net output channels.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
@@ -347,7 +332,7 @@ class PointPillarsMultiHead(DetectionModel):
         act: Activation type or callable for the pillar feature net, 2D backbone and head.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable for the pillar feature net, 2D backbone and head.
-        norm_kwargs: Extra normalization arguments (defaults to the OpenPCDet BatchNorm settings).
+        norm_kwargs: Extra normalization arguments.
     """
 
     def __init__(
@@ -362,8 +347,6 @@ class PointPillarsMultiHead(DetectionModel):
         head_class_groups: Sequence[Sequence[int]],
         feature_map_stride: int,
         anchor_rotations: Sequence[float] = (0.0, 1.57),
-        max_num_points: int = 20,
-        max_num_voxels: int = 30000,
         feat_channels: Sequence[int] = (64,),
         layer_nums: Sequence[int] = (3, 5, 5),
         layer_strides: Sequence[int] = (2, 2, 2),
@@ -377,19 +360,14 @@ class PointPillarsMultiHead(DetectionModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        if norm_kwargs is None:
-            norm_kwargs = dict(_OPENPCDET_NORM_KWARGS)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
-        self.max_num_points = max_num_points
-        self.max_num_voxels = max_num_voxels
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
 
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
         self.vfe = PillarFeatureNet(in_channels, feat_channels, voxel_size, point_cloud_range, **block_kwargs)
-        self.scatter = PointPillarScatter(feat_channels[-1], self.grid_size)
         self.backbone = BaseBEVBackbone(
             feat_channels[-1],
             layer_nums,
@@ -413,18 +391,17 @@ class PointPillarsMultiHead(DetectionModel):
             **block_kwargs,
         )
 
-    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        points = pos if x is None else torch.cat([pos, x], dim=1)
-        voxels, coords, num_points = hard_voxelize(
-            points, batch, self.voxel_size, self.point_cloud_range, self.max_num_points, self.max_num_voxels
-        )
+    def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
+        voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
         batch_size = int(batch.max().item()) + 1
-        pillar_features = self.vfe(voxels, num_points, coords)
-        bev = self.scatter(pillar_features, coords, batch_size)
+        pillar_features = self.vfe(voxels, voxel_num_points, voxel_indices)
+        bev = scatter_to_bev(pillar_features, voxel_indices, batch_size, self.grid_size)
         return self.backbone(bev)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> AnchorHeadMultiOutput:
-        spatial_features_2d = self.forward_features(x, pos, batch)
+    def forward(
+        self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor
+    ) -> AnchorHeadMultiOutput:
+        spatial_features_2d = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         return self.head(spatial_features_2d)
 
     @torch.no_grad()
@@ -434,10 +411,56 @@ class PointPillarsMultiHead(DetectionModel):
 
 
 @register_model(
+    "pointpillars-openpcdet.kitti",
+    task="detection",
+    weights="hf://torch-pointcloud/pointpillars/pointpillars-openpcdet.kitti.pt",
+    # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
+    transforms=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feat_key=DataKeys.X,
+                voxel_size=(0.16, 0.16, 4.0),
+                point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+                max_num_points=32,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=3,
+        voxel_size=(0.16, 0.16, 4.0),
+        point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+        # Car, Pedestrian, Cyclist.
+        anchor_sizes=[[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]],
+        anchor_bottom_heights=[-1.78, -0.6, -0.6],
+        feature_map_stride=2,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillars:
+    return PointPillars(**hparams)
+
+
+@register_model(
     "pointpillars-openpcdet-multihead.nuscenes",
     task="detection",
     weights="hf://torch-pointcloud/pointpillars/pointpillars-openpcdet-multihead.nuscenes.pt",
-    transforms=T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
+    transforms=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feat_key=DataKeys.X,
+                voxel_size=(0.2, 0.2, 8.0),
+                point_cloud_range=(-51.2, -51.2, -5.0, 51.2, 51.2, 3.0),
+                max_num_points=20,
+                max_num_voxels=30000,
+            ),
+        ]
+    ),
     hparams=dict(
         in_channels=5,
         num_classes=10,
@@ -460,8 +483,7 @@ class PointPillarsMultiHead(DetectionModel):
         anchor_bottom_heights=[-0.95, -0.6, -0.225, -0.085, 0.115, -1.33, -1.085, -1.18, -0.935, -1.285],
         head_class_groups=[[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]],
         feature_map_stride=4,
-        max_num_points=20,
-        max_num_voxels=30000,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
 def pointpillars_openpcdet_multihead_nuscenes(**hparams: Any) -> PointPillarsMultiHead:

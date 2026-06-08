@@ -80,6 +80,7 @@ from .serialized_attention import (
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import SubMConv3dBlock
 from .tnet import DynamicTNet, TNet
+from .transformer import Attention, TransformerBlock
 from .view import View
 from .xconv import XConv
 

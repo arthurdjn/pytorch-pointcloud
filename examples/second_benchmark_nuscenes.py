@@ -54,7 +54,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        cat_keys=[DataKeys.BOX],
+        cat_keys=[DataKeys.BOX, DataKeys.POS_VOXEL],
     )
 
     print(f"Benchmarking {args.model!r} on nuScenes ({len(dataset)} keyframes)!")
@@ -71,7 +71,12 @@ def evaluate(
     preds: List[Detection3D] = []
     targets: List[Boxes3D] = []
     for data in tqdm(loader, desc="nuScenes"):
-        out = model(data["x"].to(device), data["pos"].to(device), data["batch"].to(device))
+        out = model(
+            data[DataKeys.VOXEL].to(device),
+            data[DataKeys.POS_VOXEL].to(device),
+            data[DataKeys.VOXEL_NUM_POINTS].to(device),
+            data[f"batch_{DataKeys.POS_VOXEL}"].to(device),
+        )
         pred = model.decode(out)
         preds.append(
             {
