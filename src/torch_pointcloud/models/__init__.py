@@ -19,6 +19,7 @@ from .point_transformer_v3 import (
 )
 from .pointcnn import PointCNNClassification, PointCNNSegmentation
 from .pointconv import PointConvDensityClassification
+from .pointgpt import PointGPTClassification, PointGPTGenerativePretraining
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
