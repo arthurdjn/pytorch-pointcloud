@@ -1,0 +1,893 @@
+{
+  "num_params": 4038819,
+  "state_dict": {
+    "backbone_3d.sa_modules.0.mlps.0.lins.0.weight": [
+      16,
+      4
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.lins.1.weight": [
+      16,
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.lins.2.weight": [
+      32,
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.0.module.weight": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.0.module.bias": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.0.module.running_mean": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.0.module.running_var": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.0.mlps.0.norms.1.module.weight": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.1.module.bias": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.1.module.running_mean": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.1.module.running_var": [
+      16
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.0.mlps.0.norms.2.module.weight": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.2.module.bias": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.2.module.running_mean": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.2.module.running_var": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.0.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.0.mlps.1.lins.0.weight": [
+      32,
+      4
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.lins.1.weight": [
+      32,
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.lins.2.weight": [
+      64,
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.0.module.weight": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.0.module.bias": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.0.module.running_mean": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.0.module.running_var": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.0.mlps.1.norms.1.module.weight": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.1.module.bias": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.1.module.running_mean": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.1.module.running_var": [
+      32
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.0.mlps.1.norms.2.module.weight": [
+      64
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.2.module.bias": [
+      64
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.2.module.running_mean": [
+      64
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.2.module.running_var": [
+      64
+    ],
+    "backbone_3d.sa_modules.0.mlps.1.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.1.mlps.0.lins.0.weight": [
+      64,
+      99
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.lins.1.weight": [
+      64,
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.lins.2.weight": [
+      128,
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.0.module.weight": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.0.module.bias": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.0.module.running_mean": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.0.module.running_var": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.1.mlps.0.norms.1.module.weight": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.1.module.bias": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.1.module.running_mean": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.1.module.running_var": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.1.mlps.0.norms.2.module.weight": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.2.module.bias": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.2.module.running_mean": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.2.module.running_var": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.0.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.1.mlps.1.lins.0.weight": [
+      64,
+      99
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.lins.1.weight": [
+      96,
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.lins.2.weight": [
+      128,
+      96
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.0.module.weight": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.0.module.bias": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.0.module.running_mean": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.0.module.running_var": [
+      64
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.1.mlps.1.norms.1.module.weight": [
+      96
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.1.module.bias": [
+      96
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.1.module.running_mean": [
+      96
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.1.module.running_var": [
+      96
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.1.mlps.1.norms.2.module.weight": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.2.module.bias": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.2.module.running_mean": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.2.module.running_var": [
+      128
+    ],
+    "backbone_3d.sa_modules.1.mlps.1.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.2.mlps.0.lins.0.weight": [
+      128,
+      259
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.lins.1.weight": [
+      196,
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.lins.2.weight": [
+      256,
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.2.mlps.0.norms.1.module.weight": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.1.module.bias": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.1.module.running_mean": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.1.module.running_var": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.2.mlps.0.norms.2.module.weight": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.2.module.bias": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.2.module.running_mean": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.2.module.running_var": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.0.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.2.mlps.1.lins.0.weight": [
+      128,
+      259
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.lins.1.weight": [
+      196,
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.lins.2.weight": [
+      256,
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.2.mlps.1.norms.1.module.weight": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.1.module.bias": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.1.module.running_mean": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.1.module.running_var": [
+      196
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.2.mlps.1.norms.2.module.weight": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.2.module.bias": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.2.module.running_mean": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.2.module.running_var": [
+      256
+    ],
+    "backbone_3d.sa_modules.2.mlps.1.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.3.mlps.0.lins.0.weight": [
+      256,
+      515
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.lins.1.weight": [
+      256,
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.lins.2.weight": [
+      512,
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.0.module.weight": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.0.module.bias": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.0.module.running_mean": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.0.module.running_var": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.3.mlps.0.norms.1.module.weight": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.1.module.bias": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.1.module.running_mean": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.1.module.running_var": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.3.mlps.0.norms.2.module.weight": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.2.module.bias": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.2.module.running_mean": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.2.module.running_var": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.0.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.3.mlps.1.lins.0.weight": [
+      256,
+      515
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.lins.1.weight": [
+      384,
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.lins.2.weight": [
+      512,
+      384
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.0.module.weight": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.0.module.bias": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.0.module.running_mean": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.0.module.running_var": [
+      256
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.3.mlps.1.norms.1.module.weight": [
+      384
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.1.module.bias": [
+      384
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.1.module.running_mean": [
+      384
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.1.module.running_var": [
+      384
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.sa_modules.3.mlps.1.norms.2.module.weight": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.2.module.bias": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.2.module.running_mean": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.2.module.running_var": [
+      512
+    ],
+    "backbone_3d.sa_modules.3.mlps.1.norms.2.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.0.mlp.lins.0.weight": [
+      128,
+      257
+    ],
+    "backbone_3d.fp_modules.0.mlp.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.0.mlp.norms.1.module.weight": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.1.module.bias": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.1.module.running_mean": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.1.module.running_var": [
+      128
+    ],
+    "backbone_3d.fp_modules.0.mlp.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.1.mlp.lins.0.weight": [
+      256,
+      608
+    ],
+    "backbone_3d.fp_modules.1.mlp.lins.1.weight": [
+      256,
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.0.module.weight": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.0.module.bias": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.1.mlp.norms.1.module.weight": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.1.module.bias": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.1.module.running_mean": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.1.module.running_var": [
+      256
+    ],
+    "backbone_3d.fp_modules.1.mlp.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.2.mlp.lins.0.weight": [
+      512,
+      768
+    ],
+    "backbone_3d.fp_modules.2.mlp.lins.1.weight": [
+      512,
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.0.module.weight": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.0.module.bias": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.0.module.running_mean": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.0.module.running_var": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.2.mlp.norms.1.module.weight": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.1.module.bias": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.1.module.running_mean": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.1.module.running_var": [
+      512
+    ],
+    "backbone_3d.fp_modules.2.mlp.norms.1.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.3.mlp.lins.0.weight": [
+      512,
+      1536
+    ],
+    "backbone_3d.fp_modules.3.mlp.lins.1.weight": [
+      512,
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.0.module.weight": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.0.module.bias": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.0.module.running_mean": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.0.module.running_var": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.fp_modules.3.mlp.norms.1.module.weight": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.1.module.bias": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.1.module.running_mean": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.1.module.running_var": [
+      512
+    ],
+    "backbone_3d.fp_modules.3.mlp.norms.1.module.num_batches_tracked": [],
+    "point_head.cls_layers.lins.0.weight": [
+      256,
+      128
+    ],
+    "point_head.cls_layers.lins.1.weight": [
+      256,
+      256
+    ],
+    "point_head.cls_layers.lins.2.weight": [
+      3,
+      256
+    ],
+    "point_head.cls_layers.lins.2.bias": [
+      3
+    ],
+    "point_head.cls_layers.norms.0.module.weight": [
+      256
+    ],
+    "point_head.cls_layers.norms.0.module.bias": [
+      256
+    ],
+    "point_head.cls_layers.norms.0.module.running_mean": [
+      256
+    ],
+    "point_head.cls_layers.norms.0.module.running_var": [
+      256
+    ],
+    "point_head.cls_layers.norms.0.module.num_batches_tracked": [],
+    "point_head.cls_layers.norms.1.module.weight": [
+      256
+    ],
+    "point_head.cls_layers.norms.1.module.bias": [
+      256
+    ],
+    "point_head.cls_layers.norms.1.module.running_mean": [
+      256
+    ],
+    "point_head.cls_layers.norms.1.module.running_var": [
+      256
+    ],
+    "point_head.cls_layers.norms.1.module.num_batches_tracked": [],
+    "point_head.box_layers.lins.0.weight": [
+      256,
+      128
+    ],
+    "point_head.box_layers.lins.1.weight": [
+      256,
+      256
+    ],
+    "point_head.box_layers.lins.2.weight": [
+      8,
+      256
+    ],
+    "point_head.box_layers.lins.2.bias": [
+      8
+    ],
+    "point_head.box_layers.norms.0.module.weight": [
+      256
+    ],
+    "point_head.box_layers.norms.0.module.bias": [
+      256
+    ],
+    "point_head.box_layers.norms.0.module.running_mean": [
+      256
+    ],
+    "point_head.box_layers.norms.0.module.running_var": [
+      256
+    ],
+    "point_head.box_layers.norms.0.module.num_batches_tracked": [],
+    "point_head.box_layers.norms.1.module.weight": [
+      256
+    ],
+    "point_head.box_layers.norms.1.module.bias": [
+      256
+    ],
+    "point_head.box_layers.norms.1.module.running_mean": [
+      256
+    ],
+    "point_head.box_layers.norms.1.module.running_var": [
+      256
+    ],
+    "point_head.box_layers.norms.1.module.num_batches_tracked": [],
+    "roi_head.xyz_up_layer.0.weight": [
+      128,
+      5,
+      1,
+      1
+    ],
+    "roi_head.xyz_up_layer.0.bias": [
+      128
+    ],
+    "roi_head.xyz_up_layer.2.weight": [
+      128,
+      128,
+      1,
+      1
+    ],
+    "roi_head.xyz_up_layer.2.bias": [
+      128
+    ],
+    "roi_head.merge_down_layer.0.weight": [
+      128,
+      256,
+      1,
+      1
+    ],
+    "roi_head.merge_down_layer.0.bias": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.lins.0.weight": [
+      128,
+      131
+    ],
+    "roi_head.sa_modules.0.mlps.0.lins.1.weight": [
+      128,
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.lins.2.weight": [
+      128,
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.0.module.weight": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.0.module.bias": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.0.module.running_mean": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.0.module.running_var": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.0.module.num_batches_tracked": [],
+    "roi_head.sa_modules.0.mlps.0.norms.1.module.weight": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.1.module.bias": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.1.module.running_mean": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.1.module.running_var": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.1.module.num_batches_tracked": [],
+    "roi_head.sa_modules.0.mlps.0.norms.2.module.weight": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.2.module.bias": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.2.module.running_mean": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.2.module.running_var": [
+      128
+    ],
+    "roi_head.sa_modules.0.mlps.0.norms.2.module.num_batches_tracked": [],
+    "roi_head.sa_modules.1.mlps.0.lins.0.weight": [
+      128,
+      131
+    ],
+    "roi_head.sa_modules.1.mlps.0.lins.1.weight": [
+      128,
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.lins.2.weight": [
+      256,
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.0.module.weight": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.0.module.bias": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.0.module.running_mean": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.0.module.running_var": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.0.module.num_batches_tracked": [],
+    "roi_head.sa_modules.1.mlps.0.norms.1.module.weight": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.1.module.bias": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.1.module.running_mean": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.1.module.running_var": [
+      128
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.1.module.num_batches_tracked": [],
+    "roi_head.sa_modules.1.mlps.0.norms.2.module.weight": [
+      256
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.2.module.bias": [
+      256
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.2.module.running_mean": [
+      256
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.2.module.running_var": [
+      256
+    ],
+    "roi_head.sa_modules.1.mlps.0.norms.2.module.num_batches_tracked": [],
+    "roi_head.sa_modules.2.mlp.lins.0.weight": [
+      256,
+      259
+    ],
+    "roi_head.sa_modules.2.mlp.lins.1.weight": [
+      256,
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.lins.2.weight": [
+      512,
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.0.module.weight": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.0.module.bias": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.0.module.num_batches_tracked": [],
+    "roi_head.sa_modules.2.mlp.norms.1.module.weight": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.1.module.bias": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.1.module.running_mean": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.1.module.running_var": [
+      256
+    ],
+    "roi_head.sa_modules.2.mlp.norms.1.module.num_batches_tracked": [],
+    "roi_head.sa_modules.2.mlp.norms.2.module.weight": [
+      512
+    ],
+    "roi_head.sa_modules.2.mlp.norms.2.module.bias": [
+      512
+    ],
+    "roi_head.sa_modules.2.mlp.norms.2.module.running_mean": [
+      512
+    ],
+    "roi_head.sa_modules.2.mlp.norms.2.module.running_var": [
+      512
+    ],
+    "roi_head.sa_modules.2.mlp.norms.2.module.num_batches_tracked": [],
+    "roi_head.cls_layers.lins.0.weight": [
+      256,
+      512
+    ],
+    "roi_head.cls_layers.lins.1.weight": [
+      256,
+      256
+    ],
+    "roi_head.cls_layers.lins.2.weight": [
+      1,
+      256
+    ],
+    "roi_head.cls_layers.lins.2.bias": [
+      1
+    ],
+    "roi_head.cls_layers.norms.0.module.weight": [
+      256
+    ],
+    "roi_head.cls_layers.norms.0.module.bias": [
+      256
+    ],
+    "roi_head.cls_layers.norms.0.module.running_mean": [
+      256
+    ],
+    "roi_head.cls_layers.norms.0.module.running_var": [
+      256
+    ],
+    "roi_head.cls_layers.norms.0.module.num_batches_tracked": [],
+    "roi_head.cls_layers.norms.1.module.weight": [
+      256
+    ],
+    "roi_head.cls_layers.norms.1.module.bias": [
+      256
+    ],
+    "roi_head.cls_layers.norms.1.module.running_mean": [
+      256
+    ],
+    "roi_head.cls_layers.norms.1.module.running_var": [
+      256
+    ],
+    "roi_head.cls_layers.norms.1.module.num_batches_tracked": [],
+    "roi_head.reg_layers.lins.0.weight": [
+      256,
+      512
+    ],
+    "roi_head.reg_layers.lins.1.weight": [
+      256,
+      256
+    ],
+    "roi_head.reg_layers.lins.2.weight": [
+      7,
+      256
+    ],
+    "roi_head.reg_layers.lins.2.bias": [
+      7
+    ],
+    "roi_head.reg_layers.norms.0.module.weight": [
+      256
+    ],
+    "roi_head.reg_layers.norms.0.module.bias": [
+      256
+    ],
+    "roi_head.reg_layers.norms.0.module.running_mean": [
+      256
+    ],
+    "roi_head.reg_layers.norms.0.module.running_var": [
+      256
+    ],
+    "roi_head.reg_layers.norms.0.module.num_batches_tracked": [],
+    "roi_head.reg_layers.norms.1.module.weight": [
+      256
+    ],
+    "roi_head.reg_layers.norms.1.module.bias": [
+      256
+    ],
+    "roi_head.reg_layers.norms.1.module.running_mean": [
+      256
+    ],
+    "roi_head.reg_layers.norms.1.module.running_var": [
+      256
+    ],
+    "roi_head.reg_layers.norms.1.module.num_batches_tracked": []
+  }
+}

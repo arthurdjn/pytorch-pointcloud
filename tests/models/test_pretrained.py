@@ -140,6 +140,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("point-bert-base.modelnet40-4k", "classification", "modelnet_resampled"),
     ("point-bert-base.modelnet40-8k", "classification", "modelnet_resampled"),
     ("point-m2ae-base.modelnet40", "classification", "modelnet_resampled"),
+    *[(f"pointgpt-cguangyan-{s}.modelnet40", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
+    *[(f"pointgpt-cguangyan-{s}.modelnet40-8k", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
     # S3DIS based models
     ("kpfcnn-base.s3dis", "segmentation", "s3dis_hdf5"),
     ("kpfcnn-base-sm.s3dis", "segmentation", "s3dis_hdf5"),
@@ -177,6 +179,11 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("point-bert-base.scanobjectnn-hardest", "classification", "scanobjectnn"),
     ("point-m2ae-base.scanobjectnn-hardest", "classification", "scanobjectnn"),
     ("point-m2ae-base.scanobjectnn-objbg", "classification", "scanobjectnn"),
+    *[
+        (f"pointgpt-cguangyan-{s}.scanobjectnn-{v}", "classification", "scanobjectnn")
+        for s in ("s", "b", "l")
+        for v in ("hardest", "objbg", "objonly")
+    ],
     # ScanNet20 based models
     ("sonata-lp.scannet20", "segmentation", "scannet20"),
     ("concerto-large-lp.scannet20", "segmentation", "scannet20"),
@@ -207,6 +214,8 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("torchsparse is not installed")
     if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
+    if model_name.startswith("pointgpt") and not _TORCH_CLUSTER_AVAILABLE:
+        pytest.skip("torch-cluster is not installed")
     if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 

@@ -1,0 +1,1298 @@
+{
+  "num_params": 360358762,
+  "state_dict": {
+    "cls_token": [
+      1,
+      1,
+      1024
+    ],
+    "cls_pos": [
+      1,
+      1,
+      1024
+    ],
+    "sos_pos": [
+      1,
+      1,
+      1024
+    ],
+    "encoder.local_mlp.lins.0.weight": [
+      256,
+      6
+    ],
+    "encoder.local_mlp.lins.0.bias": [
+      256
+    ],
+    "encoder.local_mlp.lins.1.weight": [
+      512,
+      256
+    ],
+    "encoder.local_mlp.lins.1.bias": [
+      512
+    ],
+    "encoder.local_mlp.lins.2.weight": [
+      1024,
+      512
+    ],
+    "encoder.local_mlp.lins.2.bias": [
+      1024
+    ],
+    "encoder.local_mlp.norms.0.module.weight": [
+      256
+    ],
+    "encoder.local_mlp.norms.0.module.bias": [
+      256
+    ],
+    "encoder.local_mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "encoder.local_mlp.norms.0.module.running_var": [
+      256
+    ],
+    "encoder.local_mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.local_mlp.norms.1.module.weight": [
+      512
+    ],
+    "encoder.local_mlp.norms.1.module.bias": [
+      512
+    ],
+    "encoder.local_mlp.norms.1.module.running_mean": [
+      512
+    ],
+    "encoder.local_mlp.norms.1.module.running_var": [
+      512
+    ],
+    "encoder.local_mlp.norms.1.module.num_batches_tracked": [],
+    "encoder.global_mlp.lins.0.weight": [
+      2048,
+      2048
+    ],
+    "encoder.global_mlp.lins.0.bias": [
+      2048
+    ],
+    "encoder.global_mlp.lins.1.weight": [
+      1024,
+      2048
+    ],
+    "encoder.global_mlp.lins.1.bias": [
+      1024
+    ],
+    "encoder.global_mlp.norms.0.module.weight": [
+      2048
+    ],
+    "encoder.global_mlp.norms.0.module.bias": [
+      2048
+    ],
+    "encoder.global_mlp.norms.0.module.running_mean": [
+      2048
+    ],
+    "encoder.global_mlp.norms.0.module.running_var": [
+      2048
+    ],
+    "encoder.global_mlp.norms.0.module.num_batches_tracked": [],
+    "blocks.sos": [
+      1024
+    ],
+    "blocks.layers.0.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.0.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.0.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.0.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.0.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.0.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.0.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.0.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.0.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.0.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.0.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.0.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.1.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.1.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.1.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.1.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.1.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.1.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.1.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.1.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.1.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.1.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.1.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.1.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.2.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.2.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.2.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.2.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.2.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.2.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.2.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.2.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.2.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.2.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.2.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.2.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.3.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.3.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.3.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.3.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.3.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.3.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.3.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.3.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.3.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.3.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.3.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.3.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.4.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.4.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.4.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.4.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.4.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.4.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.4.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.4.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.4.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.4.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.4.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.4.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.5.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.5.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.5.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.5.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.5.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.5.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.5.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.5.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.5.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.5.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.5.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.5.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.6.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.6.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.6.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.6.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.6.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.6.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.6.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.6.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.6.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.6.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.6.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.6.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.7.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.7.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.7.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.7.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.7.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.7.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.7.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.7.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.7.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.7.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.7.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.7.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.8.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.8.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.8.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.8.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.8.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.8.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.8.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.8.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.8.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.8.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.8.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.8.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.9.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.9.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.9.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.9.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.9.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.9.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.9.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.9.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.9.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.9.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.9.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.9.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.10.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.10.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.10.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.10.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.10.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.10.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.10.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.10.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.10.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.10.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.10.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.10.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.11.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.11.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.11.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.11.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.11.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.11.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.11.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.11.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.11.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.11.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.11.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.11.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.12.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.12.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.12.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.12.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.12.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.12.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.12.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.12.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.12.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.12.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.12.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.12.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.13.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.13.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.13.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.13.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.13.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.13.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.13.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.13.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.13.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.13.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.13.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.13.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.14.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.14.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.14.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.14.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.14.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.14.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.14.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.14.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.14.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.14.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.14.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.14.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.15.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.15.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.15.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.15.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.15.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.15.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.15.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.15.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.15.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.15.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.15.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.15.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.16.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.16.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.16.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.16.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.16.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.16.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.16.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.16.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.16.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.16.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.16.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.16.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.17.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.17.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.17.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.17.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.17.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.17.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.17.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.17.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.17.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.17.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.17.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.17.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.18.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.18.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.18.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.18.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.18.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.18.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.18.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.18.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.18.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.18.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.18.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.18.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.19.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.19.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.19.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.19.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.19.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.19.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.19.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.19.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.19.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.19.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.19.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.19.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.20.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.20.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.20.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.20.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.20.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.20.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.20.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.20.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.20.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.20.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.20.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.20.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.21.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.21.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.21.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.21.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.21.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.21.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.21.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.21.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.21.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.21.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.21.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.21.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.22.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.22.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.22.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.22.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.22.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.22.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.22.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.22.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.22.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.22.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.22.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.22.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.layers.23.ln_1.weight": [
+      1024
+    ],
+    "blocks.layers.23.ln_1.bias": [
+      1024
+    ],
+    "blocks.layers.23.ln_2.weight": [
+      1024
+    ],
+    "blocks.layers.23.ln_2.bias": [
+      1024
+    ],
+    "blocks.layers.23.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "blocks.layers.23.attn.in_proj_bias": [
+      3072
+    ],
+    "blocks.layers.23.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "blocks.layers.23.attn.out_proj.bias": [
+      1024
+    ],
+    "blocks.layers.23.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "blocks.layers.23.mlp.lins.0.bias": [
+      4096
+    ],
+    "blocks.layers.23.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "blocks.layers.23.mlp.lins.1.bias": [
+      1024
+    ],
+    "blocks.ln_f.weight": [
+      1024
+    ],
+    "blocks.ln_f.bias": [
+      1024
+    ],
+    "generator_blocks.sos": [
+      1024
+    ],
+    "generator_blocks.layers.0.ln_1.weight": [
+      1024
+    ],
+    "generator_blocks.layers.0.ln_1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.0.ln_2.weight": [
+      1024
+    ],
+    "generator_blocks.layers.0.ln_2.bias": [
+      1024
+    ],
+    "generator_blocks.layers.0.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "generator_blocks.layers.0.attn.in_proj_bias": [
+      3072
+    ],
+    "generator_blocks.layers.0.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "generator_blocks.layers.0.attn.out_proj.bias": [
+      1024
+    ],
+    "generator_blocks.layers.0.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "generator_blocks.layers.0.mlp.lins.0.bias": [
+      4096
+    ],
+    "generator_blocks.layers.0.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "generator_blocks.layers.0.mlp.lins.1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.1.ln_1.weight": [
+      1024
+    ],
+    "generator_blocks.layers.1.ln_1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.1.ln_2.weight": [
+      1024
+    ],
+    "generator_blocks.layers.1.ln_2.bias": [
+      1024
+    ],
+    "generator_blocks.layers.1.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "generator_blocks.layers.1.attn.in_proj_bias": [
+      3072
+    ],
+    "generator_blocks.layers.1.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "generator_blocks.layers.1.attn.out_proj.bias": [
+      1024
+    ],
+    "generator_blocks.layers.1.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "generator_blocks.layers.1.mlp.lins.0.bias": [
+      4096
+    ],
+    "generator_blocks.layers.1.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "generator_blocks.layers.1.mlp.lins.1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.2.ln_1.weight": [
+      1024
+    ],
+    "generator_blocks.layers.2.ln_1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.2.ln_2.weight": [
+      1024
+    ],
+    "generator_blocks.layers.2.ln_2.bias": [
+      1024
+    ],
+    "generator_blocks.layers.2.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "generator_blocks.layers.2.attn.in_proj_bias": [
+      3072
+    ],
+    "generator_blocks.layers.2.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "generator_blocks.layers.2.attn.out_proj.bias": [
+      1024
+    ],
+    "generator_blocks.layers.2.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "generator_blocks.layers.2.mlp.lins.0.bias": [
+      4096
+    ],
+    "generator_blocks.layers.2.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "generator_blocks.layers.2.mlp.lins.1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.3.ln_1.weight": [
+      1024
+    ],
+    "generator_blocks.layers.3.ln_1.bias": [
+      1024
+    ],
+    "generator_blocks.layers.3.ln_2.weight": [
+      1024
+    ],
+    "generator_blocks.layers.3.ln_2.bias": [
+      1024
+    ],
+    "generator_blocks.layers.3.attn.in_proj_weight": [
+      3072,
+      1024
+    ],
+    "generator_blocks.layers.3.attn.in_proj_bias": [
+      3072
+    ],
+    "generator_blocks.layers.3.attn.out_proj.weight": [
+      1024,
+      1024
+    ],
+    "generator_blocks.layers.3.attn.out_proj.bias": [
+      1024
+    ],
+    "generator_blocks.layers.3.mlp.lins.0.weight": [
+      4096,
+      1024
+    ],
+    "generator_blocks.layers.3.mlp.lins.0.bias": [
+      4096
+    ],
+    "generator_blocks.layers.3.mlp.lins.1.weight": [
+      1024,
+      4096
+    ],
+    "generator_blocks.layers.3.mlp.lins.1.bias": [
+      1024
+    ],
+    "generator_blocks.ln_f.weight": [
+      1024
+    ],
+    "generator_blocks.ln_f.bias": [
+      1024
+    ],
+    "generator_blocks.increase_dim.lins.0.weight": [
+      96,
+      1024
+    ],
+    "generator_blocks.increase_dim.lins.0.bias": [
+      96
+    ],
+    "norm.weight": [
+      1024
+    ],
+    "norm.bias": [
+      1024
+    ],
+    "cls_norm.weight": [
+      1024
+    ],
+    "cls_norm.bias": [
+      1024
+    ],
+    "head.lins.0.weight": [
+      256,
+      2048
+    ],
+    "head.lins.0.bias": [
+      256
+    ],
+    "head.lins.1.weight": [
+      256,
+      256
+    ],
+    "head.lins.1.bias": [
+      256
+    ],
+    "head.lins.2.weight": [
+      10,
+      256
+    ],
+    "head.lins.2.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      256
+    ],
+    "head.norms.0.module.bias": [
+      256
+    ],
+    "head.norms.0.module.running_mean": [
+      256
+    ],
+    "head.norms.0.module.running_var": [
+      256
+    ],
+    "head.norms.0.module.num_batches_tracked": [],
+    "head.norms.1.module.weight": [
+      256
+    ],
+    "head.norms.1.module.bias": [
+      256
+    ],
+    "head.norms.1.module.running_mean": [
+      256
+    ],
+    "head.norms.1.module.running_var": [
+      256
+    ],
+    "head.norms.1.module.num_batches_tracked": []
+  }
+}
