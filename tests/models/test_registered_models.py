@@ -88,6 +88,9 @@ BASE_MODELS = [
     "point-m2ae-base.pretrain",
     "point-mae-base.pretrain",
     "point-mamba-base.pretrain",
+    "pointgpt-cguangyan-s.pretrain",
+    "pointgpt-cguangyan-b.pretrain",
+    "pointgpt-cguangyan-l.pretrain",
     "sonata-base",
     "utonia",
 ]
