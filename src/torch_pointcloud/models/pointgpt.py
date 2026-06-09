@@ -6,6 +6,7 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import AdaptivePoolLike, create_adaptive_pool
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.types import OptTensor
 
@@ -413,7 +414,7 @@ class PointGPTClassification(ClassificationModel):
     tokenized with a mini-PointNet, ordered by a greedy nearest-neighbor ("simplified Morton")
     traversal of the centers, and consumed by a causally-masked GPT extractor that prepends a
     start-of-sequence and a class token. The global feature concatenates the class-token output with
-    the max-pooled patch outputs, so the head input dimension is $2 \cdot \text{embed\_dim}$.
+    the pooled patch outputs (`global_pool`, max-pool by default), so the head input dimension is $2 \cdot \text{embed\_dim}$.
 
     Args:
         in_channels: The number of input channels (PointGPT uses coordinates only, so $0$).
@@ -430,6 +431,7 @@ class PointGPTClassification(ClassificationModel):
         act: The activation of the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
         head_act: The activation of the classification head.
+        global_pool: The pooling over the patch tokens for the global feature ("max" or "mean").
         spatial_dim: The spatial dimension of the input point cloud.
 
     Shape:
@@ -466,6 +468,7 @@ class PointGPTClassification(ClassificationModel):
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         head_act: Union[str, Callable, None] = "relu",
+        global_pool: AdaptivePoolLike = "max",
         spatial_dim: int = 3,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -479,6 +482,7 @@ class PointGPTClassification(ClassificationModel):
         self.act = act
         self.act_kwargs = act_kwargs
         self.head_act = head_act
+        self.global_pool = create_adaptive_pool(global_pool)
         self.spatial_dim = spatial_dim
 
         self.encoder = PointGPTEncoder(
@@ -521,8 +525,9 @@ class PointGPTClassification(ClassificationModel):
         nn.init.trunc_normal_(self.cls_token, std=0.02)
         nn.init.trunc_normal_(self.cls_pos, std=0.02)
 
-    def reset_classifier(self, num_classes: int, global_pool: Any = None, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: AdaptivePoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
+        self.global_pool = create_adaptive_pool(global_pool)
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -569,7 +574,8 @@ class PointGPTClassification(ClassificationModel):
         return self.cls_norm(encoded)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-        global_feat = torch.cat([x[:, 1], x[:, 2:].max(dim=1)[0]], dim=-1)
+        pooled = self.global_pool(x[:, 2:].transpose(1, 2)).squeeze(-1)
+        global_feat = torch.cat([x[:, 1], pooled], dim=-1)
         return global_feat if pre_logits else self.head(global_feat)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
