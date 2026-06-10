@@ -4,6 +4,7 @@ from .concerto import ConcertoSegmentation
 from .detr3d import DETR3D
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
+from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .oneformer3d import OneFormer3DQueryDecoder, OneFormer3DSegmentation
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTMaskedTransformer
@@ -36,3 +37,4 @@ from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation
 from .votenet import VoteNetBackbone, VoteNetDetectionModel, VoteNetProposalModule, VotingModule
+from .voxel_mamba import VoxelMambaDetection
