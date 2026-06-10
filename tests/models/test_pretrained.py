@@ -375,6 +375,52 @@ def test_pretrained_votenet(
     _check_output(reduced, model_name, force_regen, models_dir)
 
 
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["3detr-fair.scannet", "3detr-fair.sunrgbd", "3detr-fair-m.scannet"])
+def test_pretrained_detr3d(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """3DETR returns a dict of per-query predictions, so it needs its own snapshot test.
+
+    There is no in-repo ScanNet / SUN RGB-D *detection* fixture, so a fixed synthetic cloud with
+    deterministic query FPS is used; this still pins the pretrained weights against regressions. The
+    snapshot is the logits-level `sem_cls_logits` + `center_unnormalized` + `size_unnormalized` +
+    `angle_logits`, not the decoded `angle_continuous`: the decode argmaxes the angle bins and wraps the
+    result through a ±pi branch cut, which flips under fp32 noise; the raw logits are continuous and stable.
+    """
+    if not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
+        pytest.skip("torch-cluster / torch-scatter is not installed")
+
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 3000, 2
+    pos = (torch.rand(n_per_scene * batch_size, 3) * 4.0).to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    with torch.no_grad():
+        out = model(None, pos, batch)
+
+    reduced = torch.cat(
+        [
+            out["sem_cls_logits"].reshape(-1),
+            out["center_unnormalized"].reshape(-1),
+            out["size_unnormalized"].reshape(-1),
+            out["angle_logits"].reshape(-1),
+        ]
+    )
+    _check_output(reduced, model_name, force_regen, models_dir)
+
+
 ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
     ("pointpillars-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
     ("second-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),
