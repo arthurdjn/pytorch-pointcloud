@@ -433,6 +433,38 @@ def test_detection_architecture(model_name: str, force_regen: bool, models_dir_f
     )
 
 
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize("model_name", BASE_MODELS)
+def test_base_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered base models is correct.
+
+    Base models (SSL encoders and pretraining heads) carry no task wrapper and, when they ship without
+    pretrained weights, have no pretrained-weight regression test, so this random-weight state-dict snapshot
+    is their only guard against accidental architecture changes (renamed parameters, changed shapes) caused
+    by refactors to shared layers, transforms or utilities.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_base_architecture --force-regen
+    ```
+    """
+    _skip_if_model_deps_missing(model_name)
+    models_dir = models_dir_factory("*.json")
+
+    model = create_model(model_name, task="base")
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="base",
+        models_dir=models_dir,
+        force_regen=force_regen,
+    )
+
+
 def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, torch.Tensor]:
     """Synthetic sparse-voxel inputs for spconv / superpoint models.
 

@@ -24,7 +24,7 @@ def test_point_mae_classification_basic() -> None:
     model = PointMAEClassification(
         in_channels=0,
         num_classes=10,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=64,
@@ -47,7 +47,7 @@ def test_point_mae_segmentation_basic() -> None:
         in_channels=0,
         num_classes=50,
         num_categories=16,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=128,
@@ -69,7 +69,7 @@ def test_point_mae_segmentation_basic() -> None:
 def test_point_mae_masked_autoencoder_basic() -> None:
     model = PointMAEMaskedAutoEncoder(
         in_channels=0,
-        embedding_dim=384,
+        embed_dim=384,
         encoder_depth=12,
         decoder_depth=4,
         num_heads=6,
@@ -89,3 +89,59 @@ def test_point_mae_masked_autoencoder_basic() -> None:
     assert pred.ndim == target.ndim == 3
     assert pred.shape == target.shape
     assert pred.shape[1:] == (model.group_size, 3)
+
+
+def test_point_mae_classification_accepts_features() -> None:
+    in_channels = 3
+    model = PointMAEClassification(
+        in_channels=in_channels,
+        num_classes=10,
+        embed_dim=384,
+        depth=2,
+        num_heads=6,
+        num_group=64,
+        group_size=32,
+        act="gelu",
+        spatial_dim=3,
+    )
+    model.cuda()
+    model.eval()
+    assert model.encoder.local_mlp.channel_list[0] == 3 + in_channels
+    pos = torch.randn(2048, 3).cuda()
+    batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long().cuda()
+    x_a = torch.randn(2048, in_channels).cuda()
+    x_b = torch.randn(2048, in_channels).cuda()
+
+    out_a = model(x_a, pos, batch)
+    out_b = model(x_b, pos, batch)
+    assert out_a.shape == (2, 10)
+    assert not torch.allclose(out_a, out_b)
+
+
+def test_point_mae_segmentation_accepts_features() -> None:
+    in_channels = 3
+    model = PointMAESegmentation(
+        in_channels=in_channels,
+        num_classes=50,
+        num_categories=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        num_group=128,
+        group_size=32,
+        act="gelu",
+        spatial_dim=3,
+    )
+    model.cuda()
+    model.eval()
+    assert model.encoder.local_mlp.channel_list[0] == 3 + in_channels
+    pos = torch.randn(4096, 3).cuda()
+    batch = torch.cat([torch.zeros(2048), torch.ones(2048)]).long().cuda()
+    category = torch.nn.functional.one_hot(torch.tensor([3, 7]), 16).float().cuda()
+    x_a = torch.randn(4096, in_channels).cuda()
+    x_b = torch.randn(4096, in_channels).cuda()
+
+    out_a = model(x_a, pos, batch, category)
+    out_b = model(x_b, pos, batch, category)
+    assert out_a.shape == (4096, 50)
+    assert not torch.allclose(out_a, out_b)
