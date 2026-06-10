@@ -55,7 +55,7 @@ def test_voxel_mamba_registered_variant() -> None:
     assert "voxel-mamba-gwenzhang.waymo" in list_models("voxel-mamba*", task="detection")
 
 
-@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+@pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")
 def test_voxel_mamba_create_model_hparams() -> None:
     model = create_model("voxel-mamba-gwenzhang.waymo", task="detection")
     assert isinstance(model, VoxelMambaDetection)
@@ -108,7 +108,7 @@ def test_voxel_mamba_decode() -> None:
     assert torch.isfinite(det["boxes"]).all()
 
 
-@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+@pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")
 def test_voxel_mamba_registered_without_pretrained_weights() -> None:
     """Voxel Mamba has no public trained weights, so `pretrained=True` warns and returns the model unloaded."""
     with pytest.warns(UserWarning, match="No pretrained weights"):
