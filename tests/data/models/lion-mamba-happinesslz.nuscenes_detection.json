@@ -1,40 +1,40 @@
 {
   "num_params": 16124127,
   "state_dict": {
-    "vfe.pfn_layers.0.linear.weight": [
+    "vfe.pfn_layers.0.mlp.lins.0.weight": [
       64,
       11
     ],
-    "vfe.pfn_layers.0.norm.weight": [
+    "vfe.pfn_layers.0.mlp.norms.0.module.weight": [
       64
     ],
-    "vfe.pfn_layers.0.norm.bias": [
+    "vfe.pfn_layers.0.mlp.norms.0.module.bias": [
       64
     ],
-    "vfe.pfn_layers.0.norm.running_mean": [
+    "vfe.pfn_layers.0.mlp.norms.0.module.running_mean": [
       64
     ],
-    "vfe.pfn_layers.0.norm.running_var": [
+    "vfe.pfn_layers.0.mlp.norms.0.module.running_var": [
       64
     ],
-    "vfe.pfn_layers.0.norm.num_batches_tracked": [],
-    "vfe.pfn_layers.1.linear.weight": [
+    "vfe.pfn_layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "vfe.pfn_layers.1.mlp.lins.0.weight": [
       128,
       128
     ],
-    "vfe.pfn_layers.1.norm.weight": [
+    "vfe.pfn_layers.1.mlp.norms.0.module.weight": [
       128
     ],
-    "vfe.pfn_layers.1.norm.bias": [
+    "vfe.pfn_layers.1.mlp.norms.0.module.bias": [
       128
     ],
-    "vfe.pfn_layers.1.norm.running_mean": [
+    "vfe.pfn_layers.1.mlp.norms.0.module.running_mean": [
       128
     ],
-    "vfe.pfn_layers.1.norm.running_var": [
+    "vfe.pfn_layers.1.mlp.norms.0.module.running_var": [
       128
     ],
-    "vfe.pfn_layers.1.norm.num_batches_tracked": [],
+    "vfe.pfn_layers.1.mlp.norms.0.module.num_batches_tracked": [],
     "backbone_3d.linear_1.encoder.0.blocks.0.mamba.A_log": [
       256,
       16
