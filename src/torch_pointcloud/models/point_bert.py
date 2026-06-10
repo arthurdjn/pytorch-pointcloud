@@ -44,17 +44,22 @@ class PointTokenizer(nn.Module):
     MLP with a global max-pool concatenation in between. A $1 \times 1$ convolution over $(B, C, M)$
     is equivalent to a linear layer over $(B, M, C)$, so the shared MLPs are expressed with PyG
     `MLP` over the flattened points. The module is permutation-invariant over the points within a
-    group.
+    group. The widths are configurable: `local_mlp` maps `in_channels` $\to \text{local\_channels}$,
+    the per-patch max-pool is concatenated to give $2 \cdot \text{local\_channels}[-1]$, and
+    `global_mlp` maps that to $d_\text{out}$ through `global_channels`.
 
     Args:
         out_channels: The token embedding dimension $d_\text{out}$.
+        in_channels: The number of channels of each input point ($3$ for coordinates only, plus any concatenated features).
+        local_channels: Hidden widths of the per-point MLP (input `in_channels` is prepended).
+        global_channels: Hidden widths of the per-patch MLP (input $2 \cdot \text{local\_channels}[-1]$ and output $d_\text{out}$ are added).
         act: The activation used in the shared MLPs.
         act_kwargs: Keyword arguments for the activation.
         norm: The normalization used in the shared MLPs.
         norm_kwargs: Keyword arguments for the normalization.
 
     Shape:
-        - Input: $(B, G, M, 3)$ where $G$ is the number of groups and $M$ the group size.
+        - Input: $(B, G, M, C)$ where $G$ is the number of groups, $M$ the group size, and $C$ the number of input channels.
         - Output: $(B, G, d_\text{out})$.
 
     Example:
@@ -72,6 +77,9 @@ class PointTokenizer(nn.Module):
     def __init__(
         self,
         out_channels: int,
+        in_channels: int = 3,
+        local_channels: Sequence[int] = (128, 256),
+        global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -79,17 +87,19 @@ class PointTokenizer(nn.Module):
     ):
         super().__init__()
         self.out_channels = out_channels
+        self.mid_channels = local_channels[-1]
         factory_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.first_conv = MLP([3, 128, 256], plain_last=True, **factory_kwargs)
-        self.second_conv = MLP([512, 512, out_channels], plain_last=True, **factory_kwargs)
+        self.local_mlp = MLP([in_channels, *local_channels], plain_last=True, **factory_kwargs)
+        self.global_mlp = MLP(
+            [2 * self.mid_channels, *global_channels, out_channels], plain_last=True, **factory_kwargs
+        )
 
     def forward(self, neighborhood: Tensor) -> Tensor:
-        B, G, M, _ = neighborhood.shape
-        points = neighborhood.reshape(B * G, M, 3)
-        feat = self.first_conv(points.reshape(B * G * M, 3)).reshape(B * G, M, 256)
+        B, G, M, C = neighborhood.shape
+        feat = self.local_mlp(neighborhood.reshape(B * G * M, C)).reshape(B * G, M, self.mid_channels)
         feat_global = feat.max(dim=1, keepdim=True)[0]
         feat = torch.cat([feat_global.expand(-1, M, -1), feat], dim=2)
-        feat = self.second_conv(feat.reshape(B * G * M, 512)).reshape(B * G, M, self.out_channels)
+        feat = self.global_mlp(feat.reshape(B * G * M, 2 * self.mid_channels)).reshape(B * G, M, self.out_channels)
         feat_global = feat.max(dim=1, keepdim=False)[0]
         return feat_global.reshape(B, G, self.out_channels)
 
@@ -104,16 +114,22 @@ class PointBERTEncoder(nn.Module):
     The backbone groups the cloud into patches (FPS + KNN), embeds each patch into a token with a
     mini-PointNet (`PointTokenizer`), bridges to the transformer dimension with a linear layer,
     prepends a class token, adds a learned positional embedding of the patch centers, and applies a
-    standard pre-norm transformer encoder.
+    standard pre-norm transformer encoder. Optional per-point features `x` are gathered per patch and
+    concatenated to the centered coordinates before the tokenizer.
 
     Args:
-        embedding_dim: The transformer dimension $d$.
+        embed_dim: The transformer dimension $d$.
         depth: The number of transformer blocks.
         num_heads: The number of attention heads.
         num_group: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The token-embedding dimension before the linear bridge.
+        in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
+        token_local_channels: Hidden widths of the tokenizer's per-point MLP.
+        token_global_channels: Hidden widths of the tokenizer's per-patch MLP.
+        pos_embed_channels: Hidden widths of the positional-embedding MLP.
         drop_path_rate: The stochastic depth rate (identity at eval).
+        spatial_dim: The number of spatial dimensions of the coordinates.
         act: The activation used in the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
         norm: The normalization used in the transformer blocks.
@@ -124,7 +140,7 @@ class PointBERTEncoder(nn.Module):
         token_norm_kwargs: Keyword arguments for the token-encoder normalization.
 
     Shape:
-        - Input: $(N, 3)$ and $(N,)$.
+        - Input: $(N, C)$ or `None`, $(N, 3)$ and $(N,)$.
         - Output: $(B, G + 1, d)$ (token 0 is the class token).
 
     Example:
@@ -132,23 +148,28 @@ class PointBERTEncoder(nn.Module):
         import torch
         from torch_pointcloud.models.point_bert import PointBERTEncoder
 
-        encoder = PointBERTEncoder(embedding_dim=384, depth=12, num_heads=6)
+        encoder = PointBERTEncoder(embed_dim=384, depth=12, num_heads=6)
         pos = torch.randn(2048, 3)
         batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
-        out = encoder(pos, batch)
+        out = encoder(None, pos, batch)
         print(out.shape)
         ```
     """
 
     def __init__(
         self,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
         num_group: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
+        in_channels: int = 0,
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         drop_path_rate: float = 0.1,
+        spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = nn.LayerNorm,
@@ -159,7 +180,7 @@ class PointBERTEncoder(nn.Module):
         token_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
         self.num_group = num_group
@@ -168,21 +189,24 @@ class PointBERTEncoder(nn.Module):
 
         self.encoder = PointTokenizer(
             out_channels=encoder_dims,
+            in_channels=spatial_dim + in_channels,
+            local_channels=token_local_channels,
+            global_channels=token_global_channels,
             act=token_act,
             act_kwargs=token_act_kwargs,
             norm=token_norm,
             norm_kwargs=token_norm_kwargs,
         )
-        self.reduce_dim = nn.Linear(encoder_dims, embedding_dim)
+        self.reduce_dim = nn.Linear(encoder_dims, embed_dim)
 
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
-        self.cls_pos = nn.Parameter(torch.zeros(1, 1, embedding_dim))
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
-        self.pos_embed = MLP([3, 128, embedding_dim], act="gelu", norm=None, plain_last=True)
+        self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    embedding_dim,
+                    embed_dim,
                     num_heads=num_heads,
                     act=act,
                     act_kwargs=act_kwargs,
@@ -192,18 +216,26 @@ class PointBERTEncoder(nn.Module):
                 for _ in range(depth)
             ]
         )
-        self.norm = nn.LayerNorm(embedding_dim)
+        self.norm = nn.LayerNorm(embed_dim)
 
     @overload
     def forward(
-        self, pos: Tensor, batch: Tensor, return_intermediates: Literal[True]
+        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[True]
     ) -> Tuple[Tensor, Tensor, List[Tensor]]: ...
 
     @overload
-    def forward(self, pos: Tensor, batch: Tensor, return_intermediates: Literal[False] = False) -> Tensor: ...
+    def forward(
+        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[False] = False
+    ) -> Tensor: ...
 
-    def forward(self, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+        if x is None:
+            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        else:
+            neighborhood, center, neighbor_idx = group(
+                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+            )
+            neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
 
         tokens = self.encoder(neighborhood)
         tokens = self.reduce_dim(tokens)
@@ -239,15 +271,19 @@ class PointBERTClassification(ClassificationModel):
     class token with the max-pooled patch tokens, so the head input dimension is $2d$.
 
     Args:
-        in_channels: The number of input channels (Point-BERT uses coordinates only, so $0$).
+        in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
         num_classes: The number of output classes.
-        embedding_dim: The transformer dimension $d$.
+        embed_dim: The transformer dimension $d$.
         depth: The number of transformer blocks.
         num_heads: The number of attention heads.
         num_group: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The token-embedding dimension before the linear bridge.
+        token_local_channels: Hidden widths of the tokenizer's per-point MLP.
+        token_global_channels: Hidden widths of the tokenizer's per-patch MLP.
+        pos_embed_channels: Hidden widths of the positional-embedding MLP.
         drop_path_rate: The stochastic depth rate (identity at eval).
+        spatial_dim: The number of spatial dimensions of the coordinates.
         act: The activation used in the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
         norm: The normalization used in the transformer blocks.
@@ -278,13 +314,17 @@ class PointBERTClassification(ClassificationModel):
         in_channels: int,
         num_classes: int,
         *,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
         num_group: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         drop_path_rate: float = 0.1,
+        spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = nn.LayerNorm,
@@ -294,13 +334,17 @@ class PointBERTClassification(ClassificationModel):
         head_channels: Optional[Union[int, Sequence[int]]] = 256,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
         self.num_group = num_group
         self.group_size = group_size
         self.encoder_dims = encoder_dims
+        self.token_local_channels = token_local_channels
+        self.token_global_channels = token_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.drop_path_rate = drop_path_rate
+        self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
@@ -314,13 +358,18 @@ class PointBERTClassification(ClassificationModel):
 
     def configure_encoder(self) -> PointBERTEncoder:
         return PointBERTEncoder(
-            embedding_dim=self.embedding_dim,
+            embed_dim=self.embed_dim,
             depth=self.depth,
             num_heads=self.num_heads,
             num_group=self.num_group,
             group_size=self.group_size,
             encoder_dims=self.encoder_dims,
+            in_channels=self.in_channels,
+            token_local_channels=self.token_local_channels,
+            token_global_channels=self.token_global_channels,
+            pos_embed_channels=self.pos_embed_channels,
             drop_path_rate=self.drop_path_rate,
+            spatial_dim=self.spatial_dim,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -330,7 +379,7 @@ class PointBERTClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         head_channels = ensure_list(self.head_channels, none_as_empty=True)
         return MLP(
-            [self.embedding_dim * 2, *head_channels, self.num_classes],
+            [self.embed_dim * 2, *head_channels, self.num_classes],
             act=self.head_act,
             norm=None,
             dropout=self.dropout,
@@ -359,7 +408,7 @@ class PointBERTClassification(ClassificationModel):
     ) -> Tensor: ...
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
-        return self.encoder(pos, batch, return_intermediates=return_intermediates)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         global_feat = torch.cat([x[:, 0], x[:, 1:].max(dim=1)[0]], dim=-1)
@@ -383,17 +432,21 @@ class PointBERTMaskedTransformer(BaseModel):
     objective is omitted; this module is the reusable encoder that downstream finetuning loads.
 
     Args:
-        in_channels: The number of input channels ($0$, coordinates only).
-        embedding_dim: The transformer dimension $d$.
+        in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
+        embed_dim: The transformer dimension $d$.
         depth: The number of transformer blocks.
         num_heads: The number of attention heads.
         num_group: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The token-embedding dimension before the linear bridge.
+        token_local_channels: Hidden widths of the tokenizer's per-point MLP.
+        token_global_channels: Hidden widths of the tokenizer's per-patch MLP.
+        pos_embed_channels: Hidden widths of the positional-embedding MLP.
         num_tokens: The dVAE vocabulary size predicted by `lm_head`.
         cls_dim: The contrastive head output dimension.
         mask_ratio: Lower / upper bounds of the block-masking ratio.
         drop_path_rate: The stochastic depth rate (identity at eval).
+        spatial_dim: The number of spatial dimensions of the coordinates.
         act: The activation used in the transformer MLPs and the contrastive head.
         act_kwargs: Keyword arguments for the activation.
         norm: The normalization used in the transformer blocks.
@@ -424,16 +477,20 @@ class PointBERTMaskedTransformer(BaseModel):
         self,
         in_channels: int,
         *,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
         num_group: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         num_tokens: int = 8192,
         cls_dim: int = 512,
         mask_ratio: Tuple[float, float] = (0.25, 0.45),
         drop_path_rate: float = 0.1,
+        spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = nn.LayerNorm,
@@ -444,7 +501,7 @@ class PointBERTMaskedTransformer(BaseModel):
         token_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(in_channels=in_channels)
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
         self.num_group = num_group
@@ -457,22 +514,25 @@ class PointBERTMaskedTransformer(BaseModel):
 
         self.encoder = PointTokenizer(
             out_channels=encoder_dims,
+            in_channels=spatial_dim + in_channels,
+            local_channels=token_local_channels,
+            global_channels=token_global_channels,
             act=token_act,
             act_kwargs=token_act_kwargs,
             norm=token_norm,
             norm_kwargs=token_norm_kwargs,
         )
-        self.reduce_dim = nn.Linear(encoder_dims, embedding_dim)
+        self.reduce_dim = nn.Linear(encoder_dims, embed_dim)
 
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
-        self.cls_pos = nn.Parameter(torch.zeros(1, 1, embedding_dim))
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
-        self.pos_embed = MLP([3, 128, embedding_dim], act="gelu", norm=None, plain_last=True)
+        self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    embedding_dim,
+                    embed_dim,
                     num_heads=num_heads,
                     act=act,
                     act_kwargs=act_kwargs,
@@ -482,14 +542,18 @@ class PointBERTMaskedTransformer(BaseModel):
                 for _ in range(depth)
             ]
         )
-        self.norm = nn.LayerNorm(embedding_dim)
-        self.lm_head = nn.Linear(embedding_dim, num_tokens)
-        self.cls_head = MLP(
-            [embedding_dim, cls_dim, cls_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
-        )
+        self.norm = nn.LayerNorm(embed_dim)
+        self.lm_head = nn.Linear(embed_dim, num_tokens)
+        self.cls_head = MLP([embed_dim, cls_dim, cls_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        if x is None:
+            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        else:
+            neighborhood, center, neighbor_idx = group(
+                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+            )
+            neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
 
         tokens = self.encoder(neighborhood)
         tokens = self.reduce_dim(tokens)
@@ -726,6 +790,8 @@ class PointBERTDiscreteVAE(BaseModel):
         num_group: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The mini-PointNet token-embedding dimension.
+        token_local_channels: Hidden widths of the tokenizer's per-point MLP.
+        token_global_channels: Hidden widths of the tokenizer's per-patch MLP.
         num_tokens: The codebook vocabulary size.
         tokens_dims: The codebook embedding dimension.
         decoder_dims: The dimension fed to the folding decoder.
@@ -758,6 +824,8 @@ class PointBERTDiscreteVAE(BaseModel):
         num_group: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
         num_tokens: int = 8192,
         tokens_dims: int = 256,
         decoder_dims: int = 256,
@@ -775,7 +843,13 @@ class PointBERTDiscreteVAE(BaseModel):
         self.decoder_dims = decoder_dims
 
         self.encoder = PointTokenizer(
-            out_channels=encoder_dims, act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs
+            out_channels=encoder_dims,
+            local_channels=token_local_channels,
+            global_channels=token_global_channels,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
         )
         self.dgcnn_1 = TokenDGCNN(in_channels=encoder_dims, out_channels=num_tokens)
         self.codebook = nn.Parameter(torch.zeros(num_tokens, tokens_dims))
@@ -829,13 +903,17 @@ def _scanobjectnn_transforms() -> Callable:
 
 _CLS_HPARAMS = dict(
     in_channels=0,
-    embedding_dim=384,
+    embed_dim=384,
     depth=12,
     num_heads=6,
     num_group=64,
     group_size=32,
     encoder_dims=256,
+    token_local_channels=(128, 256),
+    token_global_channels=(512,),
+    pos_embed_channels=(128,),
     drop_path_rate=0.1,
+    spatial_dim=3,
     act="gelu",
     act_kwargs=None,
     head_act="relu",
@@ -916,16 +994,20 @@ def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassificati
     weights="hf://torch-pointcloud/point-bert/point-bert-base.pretrain.pth",
     hparams=dict(
         in_channels=0,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=64,
         group_size=32,
         encoder_dims=256,
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
+        pos_embed_channels=(128,),
         num_tokens=8192,
         cls_dim=512,
         mask_ratio=(0.25, 0.45),
         drop_path_rate=0.1,
+        spatial_dim=3,
         act="gelu",
         act_kwargs=None,
     ),
@@ -943,6 +1025,8 @@ def point_bert_base_pretrain(**kwargs: Any) -> PointBERTMaskedTransformer:
         num_group=64,
         group_size=32,
         encoder_dims=256,
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
         num_tokens=8192,
         tokens_dims=256,
         decoder_dims=256,
