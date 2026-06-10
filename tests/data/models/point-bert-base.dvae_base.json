@@ -5,60 +5,60 @@
       8192,
       256
     ],
-    "encoder.first_conv.lins.0.weight": [
+    "encoder.local_mlp.lins.0.weight": [
       128,
       3
     ],
-    "encoder.first_conv.lins.0.bias": [
+    "encoder.local_mlp.lins.0.bias": [
       128
     ],
-    "encoder.first_conv.lins.1.weight": [
+    "encoder.local_mlp.lins.1.weight": [
       256,
       128
     ],
-    "encoder.first_conv.lins.1.bias": [
+    "encoder.local_mlp.lins.1.bias": [
       256
     ],
-    "encoder.first_conv.norms.0.module.weight": [
+    "encoder.local_mlp.norms.0.module.weight": [
       128
     ],
-    "encoder.first_conv.norms.0.module.bias": [
+    "encoder.local_mlp.norms.0.module.bias": [
       128
     ],
-    "encoder.first_conv.norms.0.module.running_mean": [
+    "encoder.local_mlp.norms.0.module.running_mean": [
       128
     ],
-    "encoder.first_conv.norms.0.module.running_var": [
+    "encoder.local_mlp.norms.0.module.running_var": [
       128
     ],
-    "encoder.first_conv.norms.0.module.num_batches_tracked": [],
-    "encoder.second_conv.lins.0.weight": [
+    "encoder.local_mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.global_mlp.lins.0.weight": [
       512,
       512
     ],
-    "encoder.second_conv.lins.0.bias": [
+    "encoder.global_mlp.lins.0.bias": [
       512
     ],
-    "encoder.second_conv.lins.1.weight": [
+    "encoder.global_mlp.lins.1.weight": [
       256,
       512
     ],
-    "encoder.second_conv.lins.1.bias": [
+    "encoder.global_mlp.lins.1.bias": [
       256
     ],
-    "encoder.second_conv.norms.0.module.weight": [
+    "encoder.global_mlp.norms.0.module.weight": [
       512
     ],
-    "encoder.second_conv.norms.0.module.bias": [
+    "encoder.global_mlp.norms.0.module.bias": [
       512
     ],
-    "encoder.second_conv.norms.0.module.running_mean": [
+    "encoder.global_mlp.norms.0.module.running_mean": [
       512
     ],
-    "encoder.second_conv.norms.0.module.running_var": [
+    "encoder.global_mlp.norms.0.module.running_var": [
       512
     ],
-    "encoder.second_conv.norms.0.module.num_batches_tracked": [],
+    "encoder.global_mlp.norms.0.module.num_batches_tracked": [],
     "dgcnn_1.input_trans.lins.0.weight": [
       128,
       256
