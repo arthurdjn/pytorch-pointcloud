@@ -1,0 +1,956 @@
+{
+  "num_params": 7305691,
+  "state_dict": {
+    "pre_encoder.sa.mlps.0.lins.0.weight": [
+      64,
+      3
+    ],
+    "pre_encoder.sa.mlps.0.lins.1.weight": [
+      128,
+      64
+    ],
+    "pre_encoder.sa.mlps.0.lins.2.weight": [
+      256,
+      128
+    ],
+    "pre_encoder.sa.mlps.0.norms.0.module.weight": [
+      64
+    ],
+    "pre_encoder.sa.mlps.0.norms.0.module.bias": [
+      64
+    ],
+    "pre_encoder.sa.mlps.0.norms.0.module.running_mean": [
+      64
+    ],
+    "pre_encoder.sa.mlps.0.norms.0.module.running_var": [
+      64
+    ],
+    "pre_encoder.sa.mlps.0.norms.0.module.num_batches_tracked": [],
+    "pre_encoder.sa.mlps.0.norms.1.module.weight": [
+      128
+    ],
+    "pre_encoder.sa.mlps.0.norms.1.module.bias": [
+      128
+    ],
+    "pre_encoder.sa.mlps.0.norms.1.module.running_mean": [
+      128
+    ],
+    "pre_encoder.sa.mlps.0.norms.1.module.running_var": [
+      128
+    ],
+    "pre_encoder.sa.mlps.0.norms.1.module.num_batches_tracked": [],
+    "pre_encoder.sa.mlps.0.norms.2.module.weight": [
+      256
+    ],
+    "pre_encoder.sa.mlps.0.norms.2.module.bias": [
+      256
+    ],
+    "pre_encoder.sa.mlps.0.norms.2.module.running_mean": [
+      256
+    ],
+    "pre_encoder.sa.mlps.0.norms.2.module.running_var": [
+      256
+    ],
+    "pre_encoder.sa.mlps.0.norms.2.module.num_batches_tracked": [],
+    "encoder.layers.0.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "encoder.layers.0.self_attn.in_proj_bias": [
+      768
+    ],
+    "encoder.layers.0.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "encoder.layers.0.self_attn.out_proj.bias": [
+      256
+    ],
+    "encoder.layers.0.linear1.weight": [
+      128,
+      256
+    ],
+    "encoder.layers.0.linear1.bias": [
+      128
+    ],
+    "encoder.layers.0.linear2.weight": [
+      256,
+      128
+    ],
+    "encoder.layers.0.linear2.bias": [
+      256
+    ],
+    "encoder.layers.0.norm1.weight": [
+      256
+    ],
+    "encoder.layers.0.norm1.bias": [
+      256
+    ],
+    "encoder.layers.0.norm2.weight": [
+      256
+    ],
+    "encoder.layers.0.norm2.bias": [
+      256
+    ],
+    "encoder.layers.1.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "encoder.layers.1.self_attn.in_proj_bias": [
+      768
+    ],
+    "encoder.layers.1.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "encoder.layers.1.self_attn.out_proj.bias": [
+      256
+    ],
+    "encoder.layers.1.linear1.weight": [
+      128,
+      256
+    ],
+    "encoder.layers.1.linear1.bias": [
+      128
+    ],
+    "encoder.layers.1.linear2.weight": [
+      256,
+      128
+    ],
+    "encoder.layers.1.linear2.bias": [
+      256
+    ],
+    "encoder.layers.1.norm1.weight": [
+      256
+    ],
+    "encoder.layers.1.norm1.bias": [
+      256
+    ],
+    "encoder.layers.1.norm2.weight": [
+      256
+    ],
+    "encoder.layers.1.norm2.bias": [
+      256
+    ],
+    "encoder.layers.2.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "encoder.layers.2.self_attn.in_proj_bias": [
+      768
+    ],
+    "encoder.layers.2.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "encoder.layers.2.self_attn.out_proj.bias": [
+      256
+    ],
+    "encoder.layers.2.linear1.weight": [
+      128,
+      256
+    ],
+    "encoder.layers.2.linear1.bias": [
+      128
+    ],
+    "encoder.layers.2.linear2.weight": [
+      256,
+      128
+    ],
+    "encoder.layers.2.linear2.bias": [
+      256
+    ],
+    "encoder.layers.2.norm1.weight": [
+      256
+    ],
+    "encoder.layers.2.norm1.bias": [
+      256
+    ],
+    "encoder.layers.2.norm2.weight": [
+      256
+    ],
+    "encoder.layers.2.norm2.bias": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "encoder_to_decoder_projection.layers.1.module.weight": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.1.module.bias": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.1.module.running_mean": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.1.module.running_var": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.1.module.num_batches_tracked": [],
+    "encoder_to_decoder_projection.layers.3.weight": [
+      256,
+      256,
+      1
+    ],
+    "encoder_to_decoder_projection.layers.4.module.weight": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.4.module.bias": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.4.module.running_mean": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.4.module.running_var": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.4.module.num_batches_tracked": [],
+    "encoder_to_decoder_projection.layers.6.weight": [
+      256,
+      256,
+      1
+    ],
+    "encoder_to_decoder_projection.layers.7.module.weight": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.7.module.bias": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.7.module.running_mean": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.7.module.running_var": [
+      256
+    ],
+    "encoder_to_decoder_projection.layers.7.module.num_batches_tracked": [],
+    "pos_embedding.gauss_b": [
+      3,
+      128
+    ],
+    "query_projection.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "query_projection.layers.0.bias": [
+      256
+    ],
+    "query_projection.layers.2.weight": [
+      256,
+      256,
+      1
+    ],
+    "query_projection.layers.2.bias": [
+      256
+    ],
+    "decoder.layers.0.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.0.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.0.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.0.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.0.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.0.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.0.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.0.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.0.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.0.linear1.bias": [
+      256
+    ],
+    "decoder.layers.0.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.0.linear2.bias": [
+      256
+    ],
+    "decoder.layers.0.norm1.weight": [
+      256
+    ],
+    "decoder.layers.0.norm1.bias": [
+      256
+    ],
+    "decoder.layers.0.norm2.weight": [
+      256
+    ],
+    "decoder.layers.0.norm2.bias": [
+      256
+    ],
+    "decoder.layers.0.norm3.weight": [
+      256
+    ],
+    "decoder.layers.0.norm3.bias": [
+      256
+    ],
+    "decoder.layers.1.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.1.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.1.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.1.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.1.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.1.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.1.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.1.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.1.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.1.linear1.bias": [
+      256
+    ],
+    "decoder.layers.1.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.1.linear2.bias": [
+      256
+    ],
+    "decoder.layers.1.norm1.weight": [
+      256
+    ],
+    "decoder.layers.1.norm1.bias": [
+      256
+    ],
+    "decoder.layers.1.norm2.weight": [
+      256
+    ],
+    "decoder.layers.1.norm2.bias": [
+      256
+    ],
+    "decoder.layers.1.norm3.weight": [
+      256
+    ],
+    "decoder.layers.1.norm3.bias": [
+      256
+    ],
+    "decoder.layers.2.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.2.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.2.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.2.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.2.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.2.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.2.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.2.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.2.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.2.linear1.bias": [
+      256
+    ],
+    "decoder.layers.2.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.2.linear2.bias": [
+      256
+    ],
+    "decoder.layers.2.norm1.weight": [
+      256
+    ],
+    "decoder.layers.2.norm1.bias": [
+      256
+    ],
+    "decoder.layers.2.norm2.weight": [
+      256
+    ],
+    "decoder.layers.2.norm2.bias": [
+      256
+    ],
+    "decoder.layers.2.norm3.weight": [
+      256
+    ],
+    "decoder.layers.2.norm3.bias": [
+      256
+    ],
+    "decoder.layers.3.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.3.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.3.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.3.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.3.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.3.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.3.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.3.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.3.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.3.linear1.bias": [
+      256
+    ],
+    "decoder.layers.3.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.3.linear2.bias": [
+      256
+    ],
+    "decoder.layers.3.norm1.weight": [
+      256
+    ],
+    "decoder.layers.3.norm1.bias": [
+      256
+    ],
+    "decoder.layers.3.norm2.weight": [
+      256
+    ],
+    "decoder.layers.3.norm2.bias": [
+      256
+    ],
+    "decoder.layers.3.norm3.weight": [
+      256
+    ],
+    "decoder.layers.3.norm3.bias": [
+      256
+    ],
+    "decoder.layers.4.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.4.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.4.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.4.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.4.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.4.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.4.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.4.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.4.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.4.linear1.bias": [
+      256
+    ],
+    "decoder.layers.4.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.4.linear2.bias": [
+      256
+    ],
+    "decoder.layers.4.norm1.weight": [
+      256
+    ],
+    "decoder.layers.4.norm1.bias": [
+      256
+    ],
+    "decoder.layers.4.norm2.weight": [
+      256
+    ],
+    "decoder.layers.4.norm2.bias": [
+      256
+    ],
+    "decoder.layers.4.norm3.weight": [
+      256
+    ],
+    "decoder.layers.4.norm3.bias": [
+      256
+    ],
+    "decoder.layers.5.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.5.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.5.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.5.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.5.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.5.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.5.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.5.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.5.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.5.linear1.bias": [
+      256
+    ],
+    "decoder.layers.5.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.5.linear2.bias": [
+      256
+    ],
+    "decoder.layers.5.norm1.weight": [
+      256
+    ],
+    "decoder.layers.5.norm1.bias": [
+      256
+    ],
+    "decoder.layers.5.norm2.weight": [
+      256
+    ],
+    "decoder.layers.5.norm2.bias": [
+      256
+    ],
+    "decoder.layers.5.norm3.weight": [
+      256
+    ],
+    "decoder.layers.5.norm3.bias": [
+      256
+    ],
+    "decoder.layers.6.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.6.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.6.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.6.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.6.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.6.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.6.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.6.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.6.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.6.linear1.bias": [
+      256
+    ],
+    "decoder.layers.6.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.6.linear2.bias": [
+      256
+    ],
+    "decoder.layers.6.norm1.weight": [
+      256
+    ],
+    "decoder.layers.6.norm1.bias": [
+      256
+    ],
+    "decoder.layers.6.norm2.weight": [
+      256
+    ],
+    "decoder.layers.6.norm2.bias": [
+      256
+    ],
+    "decoder.layers.6.norm3.weight": [
+      256
+    ],
+    "decoder.layers.6.norm3.bias": [
+      256
+    ],
+    "decoder.layers.7.self_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.7.self_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.7.self_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.7.self_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.7.multihead_attn.in_proj_weight": [
+      768,
+      256
+    ],
+    "decoder.layers.7.multihead_attn.in_proj_bias": [
+      768
+    ],
+    "decoder.layers.7.multihead_attn.out_proj.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.7.multihead_attn.out_proj.bias": [
+      256
+    ],
+    "decoder.layers.7.linear1.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.7.linear1.bias": [
+      256
+    ],
+    "decoder.layers.7.linear2.weight": [
+      256,
+      256
+    ],
+    "decoder.layers.7.linear2.bias": [
+      256
+    ],
+    "decoder.layers.7.norm1.weight": [
+      256
+    ],
+    "decoder.layers.7.norm1.bias": [
+      256
+    ],
+    "decoder.layers.7.norm2.weight": [
+      256
+    ],
+    "decoder.layers.7.norm2.bias": [
+      256
+    ],
+    "decoder.layers.7.norm3.weight": [
+      256
+    ],
+    "decoder.layers.7.norm3.bias": [
+      256
+    ],
+    "decoder.norm.weight": [
+      256
+    ],
+    "decoder.norm.bias": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.sem_cls_head.layers.1.module.weight": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.1.module.bias": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.1.module.running_mean": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.1.module.running_var": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.1.module.num_batches_tracked": [],
+    "mlp_heads.sem_cls_head.layers.4.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.sem_cls_head.layers.5.module.weight": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.5.module.bias": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.5.module.running_mean": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.5.module.running_var": [
+      256
+    ],
+    "mlp_heads.sem_cls_head.layers.5.module.num_batches_tracked": [],
+    "mlp_heads.sem_cls_head.layers.8.weight": [
+      19,
+      256,
+      1
+    ],
+    "mlp_heads.sem_cls_head.layers.8.bias": [
+      19
+    ],
+    "mlp_heads.center_head.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.center_head.layers.1.module.weight": [
+      256
+    ],
+    "mlp_heads.center_head.layers.1.module.bias": [
+      256
+    ],
+    "mlp_heads.center_head.layers.1.module.running_mean": [
+      256
+    ],
+    "mlp_heads.center_head.layers.1.module.running_var": [
+      256
+    ],
+    "mlp_heads.center_head.layers.1.module.num_batches_tracked": [],
+    "mlp_heads.center_head.layers.4.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.center_head.layers.5.module.weight": [
+      256
+    ],
+    "mlp_heads.center_head.layers.5.module.bias": [
+      256
+    ],
+    "mlp_heads.center_head.layers.5.module.running_mean": [
+      256
+    ],
+    "mlp_heads.center_head.layers.5.module.running_var": [
+      256
+    ],
+    "mlp_heads.center_head.layers.5.module.num_batches_tracked": [],
+    "mlp_heads.center_head.layers.8.weight": [
+      3,
+      256,
+      1
+    ],
+    "mlp_heads.center_head.layers.8.bias": [
+      3
+    ],
+    "mlp_heads.size_head.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.size_head.layers.1.module.weight": [
+      256
+    ],
+    "mlp_heads.size_head.layers.1.module.bias": [
+      256
+    ],
+    "mlp_heads.size_head.layers.1.module.running_mean": [
+      256
+    ],
+    "mlp_heads.size_head.layers.1.module.running_var": [
+      256
+    ],
+    "mlp_heads.size_head.layers.1.module.num_batches_tracked": [],
+    "mlp_heads.size_head.layers.4.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.size_head.layers.5.module.weight": [
+      256
+    ],
+    "mlp_heads.size_head.layers.5.module.bias": [
+      256
+    ],
+    "mlp_heads.size_head.layers.5.module.running_mean": [
+      256
+    ],
+    "mlp_heads.size_head.layers.5.module.running_var": [
+      256
+    ],
+    "mlp_heads.size_head.layers.5.module.num_batches_tracked": [],
+    "mlp_heads.size_head.layers.8.weight": [
+      3,
+      256,
+      1
+    ],
+    "mlp_heads.size_head.layers.8.bias": [
+      3
+    ],
+    "mlp_heads.angle_cls_head.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.angle_cls_head.layers.1.module.weight": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.1.module.bias": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.1.module.running_mean": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.1.module.running_var": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.1.module.num_batches_tracked": [],
+    "mlp_heads.angle_cls_head.layers.4.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.angle_cls_head.layers.5.module.weight": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.5.module.bias": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.5.module.running_mean": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.5.module.running_var": [
+      256
+    ],
+    "mlp_heads.angle_cls_head.layers.5.module.num_batches_tracked": [],
+    "mlp_heads.angle_cls_head.layers.8.weight": [
+      1,
+      256,
+      1
+    ],
+    "mlp_heads.angle_cls_head.layers.8.bias": [
+      1
+    ],
+    "mlp_heads.angle_residual_head.layers.0.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.angle_residual_head.layers.1.module.weight": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.1.module.bias": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.1.module.running_mean": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.1.module.running_var": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.1.module.num_batches_tracked": [],
+    "mlp_heads.angle_residual_head.layers.4.weight": [
+      256,
+      256,
+      1
+    ],
+    "mlp_heads.angle_residual_head.layers.5.module.weight": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.5.module.bias": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.5.module.running_mean": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.5.module.running_var": [
+      256
+    ],
+    "mlp_heads.angle_residual_head.layers.5.module.num_batches_tracked": [],
+    "mlp_heads.angle_residual_head.layers.8.weight": [
+      1,
+      256,
+      1
+    ],
+    "mlp_heads.angle_residual_head.layers.8.bias": [
+      1
+    ]
+  }
+}

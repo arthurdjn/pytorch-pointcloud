@@ -1,0 +1,964 @@
+r"""3DETR: an end-to-end transformer detector for 3D point clouds.
+
+Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
+Reference implementation: :github: [facebookresearch/3detr](https://github.com/facebookresearch/3detr).
+"""
+
+import math
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
+
+import torch
+import torch.nn as nn
+from torch import Tensor
+
+import torch_pointcloud.transforms as T
+import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.layers import create_act, create_norm
+from torch_pointcloud.layers.pointnet2_blocks import SAModule
+from torch_pointcloud.utils.box3d import nms3d
+from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.types import Detection3D, OptTensor
+
+from ._base import DetectionModel
+from ._registry import register_model
+
+
+def _to_dense(x: Tensor, batch: Tensor, num_points: int) -> Tensor:
+    r"""Reshape a packed per-scene tensor with equal counts into a dense $(B, P, C)$ batch.
+
+    3DETR operates on fixed-size point sets (every scene is sampled to the same count), so the packed
+    boundary tensor densifies without padding.
+
+    Args:
+        x: Packed features, shape $(B \cdot P, C)$.
+        batch: Per-row scene index, shape $(B \cdot P,)$.
+        num_points: Points per scene $P$.
+
+    Returns:
+        Dense features, shape $(B, P, C)$.
+    """
+    batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
+    return x.view(batch_size, num_points, x.size(-1))
+
+
+class DETR3DOutput(TypedDict):
+    r"""Decoded 3DETR predictions for a batch of $B$ scenes with $Q$ queries each (last decoder layer)."""
+
+    sem_cls_logits: Tensor
+    center_unnormalized: Tensor
+    size_unnormalized: Tensor
+    angle_logits: Tensor
+    angle_residual: Tensor
+    angle_continuous: Tensor
+    objectness_prob: Tensor
+    sem_cls_prob: Tensor
+
+
+class PointnetSAModuleVotes(nn.Module):
+    r"""Set-abstraction tokenizer mirroring 3DETR's `PointnetSAModuleVotes` (single-scale, max pool).
+
+    Wraps [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule] with the reference settings:
+    farthest-point-sampled centroids, a ball query that normalizes the relative position by the radius and
+    concatenates it before the grouped features (`pos_first`), and a shared MLP whose first width already
+    accounts for the $3$ position channels. Returns the sampling index so the encoder can trace tokens back
+    to the input.
+
+    Args:
+        in_channels: Input feature channels per point (excluding xyz).
+        channels: Shared-MLP widths after the input layer, e.g. `[64, 128, 256]`.
+        num_points: Number of farthest-point-sampled centroids.
+        radius: Ball-query radius.
+        num_neighbors: Ball-query neighbor cap.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable.
+        norm_kwargs: Extra normalization arguments.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        channels: List[int],
+        *,
+        num_points: int,
+        radius: float,
+        num_neighbors: int,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.num_points = num_points
+        self.out_channels = channels[-1]
+        self.sa = SAModule(
+            in_channels=in_channels,
+            channels=list(channels),
+            num_points=num_points,
+            radii=radius,
+            num_neighbors=num_neighbors,
+            use_pos=True,
+            normalize_pos=True,
+            pos_first=True,
+            sort_neighbors=True,
+            pool="max",
+            bias=False,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+        )
+
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        idx: OptTensor = None,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        if idx is None:
+            idx = fps(pos, batch, num_nodes=self.num_points, random_start=self.training)
+        if x is None:
+            x = pos.new_zeros((pos.size(0), 0))
+        x_out, pos_out, batch_out = self.sa(x, pos, batch, idx)
+        return x_out, pos_out, batch_out, idx
+
+
+class TransformerEncoderLayer(nn.Module):
+    r"""Pre-norm transformer encoder layer with positional embeddings added to the attention query/key.
+
+    Mirrors the reference 3DETR encoder layer (`normalize_before=True`): self-attention over the tokens
+    plus a feed-forward block, each wrapped in a residual with the layer norm applied to the input.
+
+    Args:
+        d_model: Token embedding dimension.
+        nhead: Number of attention heads.
+        dim_feedforward: Hidden width of the feed-forward block.
+        dropout: Dropout probability.
+        act: Activation type or callable for the feed-forward block.
+        act_kwargs: Extra activation arguments.
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int,
+        dropout: float,
+        *,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.nhead = nhead
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.activation = create_act(act, **(act_kwargs or {})) or nn.ReLU()
+
+    def forward(self, src: Tensor, src_mask: OptTensor = None, pos: OptTensor = None) -> Tensor:
+        src2 = self.norm1(src)
+        q = k = src2 if pos is None else src2 + pos
+        src2 = self.self_attn(q, k, value=src2, attn_mask=src_mask)[0]
+        src = src + self.dropout1(src2)
+        src2 = self.norm2(src)
+        src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
+        src = src + self.dropout2(src2)
+        return src
+
+
+class TransformerDecoderLayer(nn.Module):
+    r"""Pre-norm transformer decoder layer with self-attention, cross-attention and a feed-forward block.
+
+    Mirrors the reference 3DETR decoder layer (`normalize_before=True`). Query positions are added to the
+    self-attention query/key and to the cross-attention query; encoder positions are added to the
+    cross-attention key.
+
+    Args:
+        d_model: Token embedding dimension.
+        nhead: Number of attention heads.
+        dim_feedforward: Hidden width of the feed-forward block.
+        dropout: Dropout probability.
+        act: Activation type or callable for the feed-forward block.
+        act_kwargs: Extra activation arguments.
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int,
+        dropout: float,
+        *,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.norm3 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
+        self.activation = create_act(act, **(act_kwargs or {})) or nn.ReLU()
+
+    def forward(
+        self,
+        tgt: Tensor,
+        memory: Tensor,
+        pos: Tensor,
+        query_pos: Tensor,
+    ) -> Tensor:
+        tgt2 = self.norm1(tgt)
+        q = k = tgt2 + query_pos
+        tgt2 = self.self_attn(q, k, value=tgt2)[0]
+        tgt = tgt + self.dropout1(tgt2)
+        tgt2 = self.norm2(tgt)
+        tgt2 = self.multihead_attn(
+            query=tgt2 + query_pos,
+            key=memory + pos,
+            value=memory,
+        )[0]
+        tgt = tgt + self.dropout2(tgt2)
+        tgt2 = self.norm3(tgt)
+        tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt2))))
+        tgt = tgt + self.dropout3(tgt2)
+        return tgt
+
+
+class TransformerEncoder(nn.Module):
+    r"""Stack of `num_layers` identical pre-norm encoder layers (no final norm), per 3DETR's `vanilla`.
+
+    Args:
+        d_model: Token embedding dimension.
+        nhead: Number of attention heads.
+        dim_feedforward: Hidden width of the feed-forward block.
+        num_layers: Number of stacked encoder layers.
+        dropout: Dropout probability.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int,
+        num_layers: int,
+        dropout: float,
+        *,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.layers = nn.ModuleList(
+            TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, act=act, act_kwargs=act_kwargs)
+            for _ in range(num_layers)
+        )
+
+    def forward(self, src: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor]:
+        output = src
+        for layer in self.layers:
+            output = layer(output)
+        return pos, output
+
+
+class MaskedTransformerEncoder(nn.Module):
+    r"""3DETR-m encoder: pre-norm layers with radius self-attention masks and one interim downsampling.
+
+    The first layer attends within `masking_radius[0]`, then a set-abstraction layer halves the token
+    count, and the remaining layers attend within the later radii. Mirrors the reference
+    `MaskedTransformerEncoder`.
+
+    Args:
+        d_model: Token embedding dimension.
+        nhead: Number of attention heads.
+        dim_feedforward: Hidden width of the feed-forward block.
+        num_layers: Number of stacked encoder layers (must equal `len(masking_radius)`).
+        dropout: Dropout probability.
+        masking_radius: Per-layer attention radius (a value $\le 0$ disables masking for that layer).
+        interim_downsampling: Set-abstraction layer applied after the first encoder layer.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int,
+        num_layers: int,
+        dropout: float,
+        *,
+        masking_radius: List[float],
+        interim_downsampling: PointnetSAModuleVotes,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        if len(masking_radius) != num_layers:
+            raise ValueError(f"`masking_radius` must have {num_layers} entries, got {len(masking_radius)}.")
+        self.layers = nn.ModuleList(
+            TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, act=act, act_kwargs=act_kwargs)
+            for _ in range(num_layers)
+        )
+        self.masking_radius = masking_radius
+        self.interim_downsampling = interim_downsampling
+
+    @staticmethod
+    def compute_mask(pos: Tensor, radius: float) -> Tensor:
+        with torch.no_grad():
+            dist = torch.cdist(pos, pos, p=2)
+            mask = dist >= radius
+        return mask
+
+    def forward(self, src: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor]:
+        output = src
+        batch_size = pos.size(0)
+        for idx, layer in enumerate(self.layers):
+            assert isinstance(layer, TransformerEncoderLayer)
+            mask: OptTensor = None
+            if self.masking_radius[idx] > 0:
+                bool_mask = self.compute_mask(pos, self.masking_radius[idx])
+                nhead = layer.nhead
+                n = bool_mask.size(1)
+                mask = bool_mask.unsqueeze(1).repeat(1, nhead, 1, 1).view(batch_size * nhead, n, n)
+            output = layer(output, src_mask=mask)
+
+            if idx == 0:
+                tokens = output.size(0)
+                packed = output.permute(1, 0, 2).reshape(batch_size * tokens, -1)
+                pos_packed = pos.reshape(batch_size * tokens, 3)
+                token_batch = torch.arange(batch_size, device=pos.device).repeat_interleave(tokens)
+                x_ds, pos_ds, _, _ = self.interim_downsampling(packed, pos_packed, token_batch)
+                new_tokens = self.interim_downsampling.num_points
+                output = x_ds.view(batch_size, new_tokens, -1).permute(1, 0, 2)
+                pos = pos_ds.view(batch_size, new_tokens, 3)
+        return pos, output
+
+
+class TransformerDecoder(nn.Module):
+    r"""Stack of `num_layers` pre-norm decoder layers with a shared final norm applied to every output.
+
+    Mirrors the reference 3DETR decoder with `return_intermediate=True`: each layer's output is normed and
+    collected so the box heads can be applied per layer (only the last is kept at eval).
+
+    Args:
+        d_model: Token embedding dimension.
+        nhead: Number of attention heads.
+        dim_feedforward: Hidden width of the feed-forward block.
+        num_layers: Number of stacked decoder layers.
+        dropout: Dropout probability.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int,
+        num_layers: int,
+        dropout: float,
+        *,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.layers = nn.ModuleList(
+            TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout, act=act, act_kwargs=act_kwargs)
+            for _ in range(num_layers)
+        )
+        self.norm = nn.LayerNorm(d_model)
+
+    def forward(
+        self,
+        tgt: Tensor,
+        memory: Tensor,
+        pos: Tensor,
+        query_pos: Tensor,
+    ) -> Tensor:
+        output = tgt
+        intermediate = []
+        for layer in self.layers:
+            output = layer(output, memory, pos=pos, query_pos=query_pos)
+            intermediate.append(self.norm(output))
+        return torch.stack(intermediate)
+
+
+class PositionEmbeddingFourier(nn.Module):
+    r"""Fixed Fourier-feature positional embedding (Tancik et al.) over normalized coordinates.
+
+    Mirrors 3DETR's `PositionEmbeddingCoordsSine(pos_type="fourier")`: coordinates are min-max normalized
+    to $[0, 1]$ against the per-scene point-cloud range, scaled by $2\pi$, projected by a fixed Gaussian
+    matrix and mapped through sine/cosine.
+
+    Args:
+        d_pos: Output embedding dimension (must be even).
+        d_in: Input coordinate dimension.
+    """
+
+    gauss_b: Tensor
+
+    def __init__(self, d_pos: int, d_in: int = 3) -> None:
+        super().__init__()
+        if d_pos % 2 != 0:
+            raise ValueError(f"`d_pos` must be even, got {d_pos}.")
+        self.d_pos = d_pos
+        self.register_buffer("gauss_b", torch.empty(d_in, d_pos // 2).normal_())
+
+    @torch.no_grad()
+    def forward(self, pos: Tensor, input_range: Tuple[Tensor, Tensor]) -> Tensor:
+        bsize, npoints, d_in = pos.shape
+        d_out = self.d_pos // 2
+        lo, hi = input_range
+        diff = (hi - lo).unsqueeze(1)
+        coord = (pos - lo.unsqueeze(1)) / diff
+        coord = coord * (2 * math.pi)
+        proj = torch.mm(coord.reshape(-1, d_in), self.gauss_b[:, :d_out]).view(bsize, npoints, d_out)
+        embed = torch.cat([proj.sin(), proj.cos()], dim=2).permute(0, 2, 1)
+        return embed
+
+
+class GenericConvMLP(nn.Module):
+    r"""$1\times1$-conv MLP over $(B, C, N)$ tokens, mirroring 3DETR's `GenericMLP` (head / projection block).
+
+    Each hidden layer is a `Conv1d` optionally followed by batch norm, activation and dropout; the output
+    layer is a bare `Conv1d` (optionally with norm and activation). The reference uses this both for the
+    encoder-to-decoder projection (norm + activation on the output) and for every box head (dropout, no
+    output norm).
+
+    Args:
+        in_channels: Input channel count.
+        hidden_channels: Hidden layer widths.
+        out_channels: Output channel count.
+        norm: Hidden-layer normalization type or callable (applied to each hidden layer).
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+        dropout: Dropout probability after each hidden layer (0 disables).
+        hidden_bias: Whether hidden convolutions carry a bias.
+        out_bias: Whether the output convolution carries a bias.
+        out_use_norm: Whether to apply the hidden norm to the output as well.
+        out_use_act: Whether to apply the activation to the output as well.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        hidden_channels: List[int],
+        out_channels: int,
+        *,
+        norm: Union[str, Callable[..., nn.Module], None] = None,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        dropout: float = 0.0,
+        hidden_bias: bool = False,
+        out_bias: bool = True,
+        out_use_norm: bool = False,
+        out_use_act: bool = False,
+    ) -> None:
+        super().__init__()
+        layers: List[nn.Module] = []
+        prev = in_channels
+        for width in hidden_channels:
+            layers.append(nn.Conv1d(prev, width, 1, bias=hidden_bias))
+            hidden_norm = create_norm(norm, width, dim=1)
+            if hidden_norm is not None:
+                layers.append(hidden_norm)
+            layers.append(create_act(act, **(act_kwargs or {})) or nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(p=dropout))
+            prev = width
+        layers.append(nn.Conv1d(prev, out_channels, 1, bias=out_bias))
+        if out_use_norm:
+            out_norm = create_norm(norm, out_channels, dim=1)
+            if out_norm is not None:
+                layers.append(out_norm)
+        if out_use_act:
+            layers.append(create_act(act, **(act_kwargs or {})) or nn.ReLU())
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.layers(x)
+
+
+class DETR3D(DetectionModel):
+    r"""3DETR end-to-end transformer 3D object detector (packed point format).
+
+    Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
+    Reference implementation: :github: [facebookresearch/3detr](https://github.com/facebookresearch/3detr).
+
+    A set-abstraction tokenizer downsamples the cloud to a fixed set of point tokens, a transformer encoder
+    (vanilla, or masked with one interim downsampling for 3DETR-m) refines them, a fixed number of object
+    queries are farthest-point-sampled from the encoder tokens, and a transformer decoder attends them
+    against the encoder memory. Five MLP heads decode each query into a class, center, size and heading.
+    Box centers and sizes are predicted in a per-scene min-max normalized frame and unnormalized against the
+    point-cloud extent.
+
+    Args:
+        in_channels: Input feature channels per point excluding xyz ($0$ for xyz-only, $3$ for RGB).
+        num_classes: Number of semantic classes (the class head adds one background slot).
+        num_angle_bin: Heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for oriented SUN RGB-D).
+        num_queries: Number of object queries (decoded boxes) per scene.
+        preenc_npoints: Token count after the set-abstraction tokenizer.
+        encoder_type: `"vanilla"` (encoder keeps `preenc_npoints` tokens) or `"masked"` (3DETR-m: radius
+            attention masks plus one interim downsampling to `preenc_npoints // 2`).
+        encoder_embed_dim: Encoder token dimension.
+        encoder_num_heads: Encoder attention heads.
+        encoder_feedforward_channels: Encoder feed-forward width.
+        encoder_depth: Encoder layers.
+        encoder_dropout: Encoder dropout.
+        decoder_embed_dim: Decoder token dimension.
+        decoder_num_heads: Decoder attention heads.
+        decoder_feedforward_channels: Decoder feed-forward width.
+        decoder_depth: Decoder layers.
+        decoder_dropout: Decoder dropout.
+        mlp_dropout: Dropout inside each box head.
+        preenc_radius: Tokenizer ball-query radius.
+        preenc_nsample: Tokenizer ball-query neighbor cap.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable for the convolutional blocks (tokenizer, projection, heads).
+        norm_kwargs: Extra normalization arguments.
+    """
+
+    num_angle_bin: int
+    num_queries: int
+    preenc_npoints: int
+    encoder_embed_dim: int
+    decoder_embed_dim: int
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        num_angle_bin: int,
+        num_queries: int,
+        preenc_npoints: int = 2048,
+        encoder_type: str = "vanilla",
+        encoder_embed_dim: int = 256,
+        encoder_num_heads: int = 4,
+        encoder_feedforward_channels: int = 128,
+        encoder_depth: int = 3,
+        encoder_dropout: float = 0.1,
+        decoder_embed_dim: int = 256,
+        decoder_num_heads: int = 4,
+        decoder_feedforward_channels: int = 256,
+        decoder_depth: int = 8,
+        decoder_dropout: float = 0.1,
+        mlp_dropout: float = 0.3,
+        preenc_radius: float = 0.2,
+        preenc_nsample: int = 64,
+        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if encoder_type not in ("vanilla", "masked"):
+            raise ValueError(f"Unknown `encoder_type` {encoder_type!r}, expected 'vanilla' or 'masked'.")
+
+        self.num_angle_bin = num_angle_bin
+        self.num_queries = num_queries
+        self.preenc_npoints = preenc_npoints
+        self.encoder_type = encoder_type
+        self.encoder_embed_dim = encoder_embed_dim
+        self.decoder_embed_dim = decoder_embed_dim
+        self.mlp_dropout = mlp_dropout
+
+        self.pre_encoder = PointnetSAModuleVotes(
+            in_channels,
+            [64, 128, encoder_embed_dim],
+            num_points=preenc_npoints,
+            radius=preenc_radius,
+            num_neighbors=preenc_nsample,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+        )
+
+        if encoder_type == "masked":
+            interim = PointnetSAModuleVotes(
+                encoder_embed_dim,
+                [256, 256, encoder_embed_dim],
+                num_points=preenc_npoints // 2,
+                radius=0.4,
+                num_neighbors=32,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            )
+            self.encoder: nn.Module = MaskedTransformerEncoder(
+                encoder_embed_dim,
+                encoder_num_heads,
+                encoder_feedforward_channels,
+                num_layers=3,
+                dropout=encoder_dropout,
+                masking_radius=[0.16, 0.64, 1.44],
+                interim_downsampling=interim,
+                act=act,
+                act_kwargs=act_kwargs,
+            )
+            proj_hidden = [encoder_embed_dim]
+        else:
+            self.encoder = TransformerEncoder(
+                encoder_embed_dim,
+                encoder_num_heads,
+                encoder_feedforward_channels,
+                num_layers=encoder_depth,
+                dropout=encoder_dropout,
+                act=act,
+                act_kwargs=act_kwargs,
+            )
+            proj_hidden = [encoder_embed_dim, encoder_embed_dim]
+
+        self.encoder_to_decoder_projection = GenericConvMLP(
+            encoder_embed_dim,
+            proj_hidden,
+            decoder_embed_dim,
+            norm=norm,
+            act=act,
+            act_kwargs=act_kwargs,
+            hidden_bias=False,
+            out_bias=False,
+            out_use_norm=True,
+            out_use_act=True,
+        )
+
+        self.pos_embedding = PositionEmbeddingFourier(d_pos=decoder_embed_dim, d_in=3)
+        self.query_projection = GenericConvMLP(
+            decoder_embed_dim,
+            [decoder_embed_dim],
+            decoder_embed_dim,
+            norm=None,
+            act=act,
+            act_kwargs=act_kwargs,
+            hidden_bias=True,
+            out_bias=True,
+            out_use_act=True,
+        )
+
+        self.decoder = TransformerDecoder(
+            decoder_embed_dim,
+            decoder_num_heads,
+            decoder_feedforward_channels,
+            num_layers=decoder_depth,
+            dropout=decoder_dropout,
+            act=act,
+            act_kwargs=act_kwargs,
+        )
+
+        self.mlp_heads = nn.ModuleDict()
+        self._build_heads(act=act, act_kwargs=act_kwargs, norm=norm)
+
+    def _build_heads(
+        self,
+        *,
+        act: Union[str, Callable[..., nn.Module], None],
+        act_kwargs: Optional[Dict[str, Any]],
+        norm: Union[str, Callable[..., nn.Module], None],
+    ) -> None:
+        def head(out_channels: int) -> GenericConvMLP:
+            return GenericConvMLP(
+                self.decoder_embed_dim,
+                [self.decoder_embed_dim, self.decoder_embed_dim],
+                out_channels,
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                dropout=self.mlp_dropout,
+                hidden_bias=False,
+                out_bias=True,
+            )
+
+        self.mlp_heads["sem_cls_head"] = head(self.num_classes + 1)
+        self.mlp_heads["center_head"] = head(3)
+        self.mlp_heads["size_head"] = head(3)
+        self.mlp_heads["angle_cls_head"] = head(self.num_angle_bin)
+        self.mlp_heads["angle_residual_head"] = head(self.num_angle_bin)
+
+    def reset_classifier(self, num_classes: int) -> None:
+        self.num_classes = num_classes
+        head = self.mlp_heads["sem_cls_head"]
+        assert isinstance(head, GenericConvMLP)
+        last = head.layers[-1]
+        assert isinstance(last, nn.Conv1d)
+        head.layers[-1] = nn.Conv1d(self.decoder_embed_dim, num_classes + 1, 1).to(last.weight.device)
+
+    def _point_cloud_dims(self, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+        batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
+        dense = _to_dense(pos, batch, pos.size(0) // batch_size)
+        return dense.amin(dim=1), dense.amax(dim=1)
+
+    def run_encoder(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        idx: OptTensor = None,
+    ) -> Tuple[Tensor, Tensor]:
+        x_tok, pos_tok, batch_tok, _ = self.pre_encoder(x, pos, batch, idx)
+        num_tok = self.preenc_npoints
+        enc_xyz = _to_dense(pos_tok, batch_tok, num_tok)
+        enc_features = _to_dense(x_tok, batch_tok, num_tok).permute(1, 0, 2)
+        enc_xyz, enc_features = self.encoder(enc_features, enc_xyz)
+        return enc_xyz, enc_features
+
+    def get_query_embeddings(
+        self,
+        enc_xyz: Tensor,
+        point_cloud_dims: Tuple[Tensor, Tensor],
+        query_idx: OptTensor = None,
+    ) -> Tuple[Tensor, Tensor]:
+        batch_size, num_enc = enc_xyz.shape[:2]
+        if query_idx is None:
+            flat = enc_xyz.reshape(batch_size * num_enc, 3)
+            token_batch = torch.arange(batch_size, device=enc_xyz.device).repeat_interleave(num_enc)
+            sampled = fps(flat, token_batch, num_nodes=self.num_queries, random_start=self.training)
+            query_idx = (
+                sampled - torch.arange(batch_size, device=enc_xyz.device).repeat_interleave(self.num_queries) * num_enc
+            ).view(batch_size, self.num_queries)
+        query_xyz = torch.gather(enc_xyz, 1, query_idx.unsqueeze(-1).expand(-1, -1, 3))
+        pos_embed = self.pos_embedding(query_xyz, point_cloud_dims)
+        query_embed = self.query_projection(pos_embed)
+        return query_xyz, query_embed
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        idx: OptTensor = None,
+    ) -> Tuple[Tensor, Tensor]:
+        enc_xyz, enc_features = self.run_encoder(x, pos, batch, idx)
+        enc_features = self.encoder_to_decoder_projection(enc_features.permute(1, 2, 0)).permute(2, 0, 1)
+        return enc_xyz, enc_features
+
+    def forward_head(
+        self,
+        enc_xyz: Tensor,
+        enc_features: Tensor,
+        point_cloud_dims: Tuple[Tensor, Tensor],
+        query_idx: OptTensor = None,
+    ) -> DETR3DOutput:
+        query_xyz, query_embed = self.get_query_embeddings(enc_xyz, point_cloud_dims, query_idx)
+        enc_pos = self.pos_embedding(enc_xyz, point_cloud_dims).permute(2, 0, 1)
+        query_embed = query_embed.permute(2, 0, 1)
+        tgt = torch.zeros_like(query_embed)
+        box_features = self.decoder(tgt, enc_features, pos=enc_pos, query_pos=query_embed)
+        return self._decode_heads(query_xyz, point_cloud_dims, box_features)
+
+    def _decode_heads(
+        self,
+        query_xyz: Tensor,
+        point_cloud_dims: Tuple[Tensor, Tensor],
+        box_features: Tensor,
+    ) -> DETR3DOutput:
+        num_layers, num_queries, batch_size = box_features.shape[:3]
+        feats = box_features.permute(0, 2, 3, 1).reshape(num_layers * batch_size, self.decoder_embed_dim, num_queries)
+
+        cls_logits = self.mlp_heads["sem_cls_head"](feats).transpose(1, 2)
+        center_offset = self.mlp_heads["center_head"](feats).sigmoid().transpose(1, 2) - 0.5
+        size_normalized = self.mlp_heads["size_head"](feats).sigmoid().transpose(1, 2)
+        angle_logits = self.mlp_heads["angle_cls_head"](feats).transpose(1, 2)
+        angle_residual_normalized = self.mlp_heads["angle_residual_head"](feats).transpose(1, 2)
+
+        cls_logits = cls_logits.reshape(num_layers, batch_size, num_queries, -1)[-1]
+        center_offset = center_offset.reshape(num_layers, batch_size, num_queries, -1)[-1]
+        size_normalized = size_normalized.reshape(num_layers, batch_size, num_queries, -1)[-1]
+        angle_logits = angle_logits.reshape(num_layers, batch_size, num_queries, -1)[-1]
+        angle_residual_normalized = angle_residual_normalized.reshape(num_layers, batch_size, num_queries, -1)[-1]
+        angle_residual = angle_residual_normalized * (math.pi / angle_residual_normalized.shape[-1])
+
+        lo, hi = point_cloud_dims
+        scene_scale = (hi - lo).clamp(min=1e-1)
+        center_unnormalized = query_xyz + center_offset
+        size_unnormalized = size_normalized * scene_scale.unsqueeze(1)
+        angle_continuous = self._angle_from_logits(angle_logits, angle_residual)
+
+        cls_prob = cls_logits.softmax(dim=-1)
+        objectness_prob = 1 - cls_prob[..., -1]
+
+        return {
+            "sem_cls_logits": cls_logits,
+            "center_unnormalized": center_unnormalized,
+            "size_unnormalized": size_unnormalized,
+            "angle_logits": angle_logits,
+            "angle_residual": angle_residual,
+            "angle_continuous": angle_continuous,
+            "objectness_prob": objectness_prob,
+            "sem_cls_prob": cls_prob[..., :-1],
+        }
+
+    def _angle_from_logits(self, angle_logits: Tensor, angle_residual: Tensor) -> Tensor:
+        if self.num_angle_bin == 1:
+            return (angle_logits * 0 + angle_residual * 0).squeeze(-1).clamp(min=0)
+        angle_per_cls = 2 * math.pi / self.num_angle_bin
+        pred_cls = angle_logits.argmax(dim=-1).detach()
+        angle = angle_per_cls * pred_cls + angle_residual.gather(2, pred_cls.unsqueeze(-1)).squeeze(-1)
+        angle[angle > math.pi] = angle[angle > math.pi] - 2 * math.pi
+        return angle
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> DETR3DOutput:
+        point_cloud_dims = self._point_cloud_dims(pos, batch)
+        enc_xyz, enc_features = self.forward_features(x, pos, batch)
+        return self.forward_head(enc_xyz, enc_features, point_cloud_dims)
+
+    @torch.no_grad()
+    def decode(
+        self,
+        out: DETR3DOutput,
+        pos: Tensor,
+        batch: Tensor,
+        *,
+        score_threshold: float = 0.05,
+        nms_iou: float = 0.25,
+        min_points: int = 5,
+        per_class: bool = True,
+    ) -> Detection3D:
+        r"""Decode a forward output into packed detections (no forward pass).
+
+        Mirrors 3DETR's `APCalculator` test protocol (`exact_eval=True`): oriented boxes are built per
+        query, near-empty boxes are dropped, same-class axis-aligned 3D NMS keeps one box per object scored
+        by objectness, and each survivor with objectness above `score_threshold` is then emitted once per
+        class scored by $\text{sem\_cls\_prob} \cdot \text{objectness}$ (the indoor per-class-proposal AP
+        convention). The heading is `angle_continuous` directly, matching the dataset / metric
+        $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ convention. Feeds `mean_average_precision3d`.
+
+        Args:
+            out: A `DETR3DOutput` from `forward`.
+            pos: Point coordinates, shape $(N, 3)$ (used only for empty-box removal).
+            batch: Per-point batch index, shape $(N,)$.
+            score_threshold: Minimum objectness to keep a query before per-class expansion.
+            nms_iou: Axis-aligned IoU threshold for same-class NMS.
+            min_points: Drop boxes containing fewer than this many points (0 disables the filter).
+            per_class: If `True`, emit one detection per class per surviving box (indoor AP convention);
+                otherwise emit only the top-scoring class per box.
+
+        Returns:
+            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+        """
+        batch_size, num_queries = out["center_unnormalized"].shape[:2]
+        center = out["center_unnormalized"]
+        size = out["size_unnormalized"]
+        heading = out["angle_continuous"]
+        boxes = torch.cat([center, size, heading.unsqueeze(-1)], dim=-1)
+
+        objectness = out["objectness_prob"]
+        class_probs = out["sem_cls_prob"]
+        num_classes = class_probs.shape[-1]
+
+        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
+        for b in range(batch_size):
+            scene_boxes = boxes[b]
+            sem_cls = class_probs[b].argmax(dim=-1)
+
+            keep = torch.ones(num_queries, dtype=torch.bool, device=boxes.device)
+            if min_points > 0:
+                scene_pos = pos[batch == b]
+                for k in range(num_queries):
+                    half_box = torch.cat([scene_boxes[k, :3], scene_boxes[k, 3:6] / 2, scene_boxes[k, 6:7]])
+                    if int(F.points_in_oriented_box(scene_pos, half_box).sum()) < min_points:
+                        keep[k] = False
+
+            candidates = keep.nonzero(as_tuple=False).squeeze(-1)
+            picked = nms3d(scene_boxes[candidates], objectness[b, candidates], sem_cls[candidates], nms_iou)
+            survivors = candidates[picked]
+            survivors = survivors[objectness[b, survivors] > score_threshold]
+
+            if per_class:
+                out_boxes.append(scene_boxes[survivors].repeat_interleave(num_classes, dim=0))
+                out_scores.append((class_probs[b, survivors] * objectness[b, survivors, None]).reshape(-1))
+                out_labels.append(torch.arange(num_classes, device=boxes.device).repeat(survivors.numel()))
+                out_batch.append(survivors.new_full((survivors.numel() * num_classes,), b))
+            else:
+                out_boxes.append(scene_boxes[survivors])
+                out_scores.append(objectness[b, survivors] * class_probs[b, survivors].max(dim=-1).values)
+                out_labels.append(sem_cls[survivors])
+                out_batch.append(survivors.new_full((survivors.numel(),), b))
+
+        return {
+            "boxes": torch.cat(out_boxes),
+            "scores": torch.cat(out_scores),
+            "labels": torch.cat(out_labels),
+            "batch": torch.cat(out_batch).long(),
+        }
+
+
+_SCANNET_TRANSFORM = T.Compose(
+    [
+        T.RandomSample(
+            keys=[DataKeys.POS, DataKeys.SEGMENT, DataKeys.INSTANCE],
+            num_samples=40000,
+            allow_missing_keys=True,
+        ),
+    ]
+)
+
+_SUNRGBD_TRANSFORM = T.Compose([T.RandomSample(keys=[DataKeys.POS], num_samples=20000)])
+
+
+@register_model(
+    "3detr-fair-m.scannet",
+    task="detection",
+    weights="hf://torch-pointcloud/3detr/3detr-fair-m.scannet.pt",
+    transforms=_SCANNET_TRANSFORM,
+    hparams=dict(
+        in_channels=0,
+        num_classes=18,
+        num_angle_bin=1,
+        num_queries=256,
+        encoder_type="masked",
+        encoder_dropout=0.3,
+    ),
+)
+def detr3d_m_scannet(**hparams: Any) -> DETR3D:
+    return DETR3D(**hparams)
+
+
+@register_model(
+    "3detr-fair.scannet",
+    task="detection",
+    weights="hf://torch-pointcloud/3detr/3detr-fair.scannet.pt",
+    transforms=_SCANNET_TRANSFORM,
+    hparams=dict(
+        in_channels=0,
+        num_classes=18,
+        num_angle_bin=1,
+        num_queries=256,
+        encoder_type="vanilla",
+    ),
+)
+def detr3d_scannet(**hparams: Any) -> DETR3D:
+    return DETR3D(**hparams)
+
+
+@register_model(
+    "3detr-fair.sunrgbd",
+    task="detection",
+    weights="hf://torch-pointcloud/3detr/3detr-fair.sunrgbd.pt",
+    transforms=_SUNRGBD_TRANSFORM,
+    hparams=dict(
+        in_channels=0,
+        num_classes=10,
+        num_angle_bin=12,
+        num_queries=128,
+        encoder_type="vanilla",
+    ),
+)
+def detr3d_sunrgbd(**hparams: Any) -> DETR3D:
+    return DETR3D(**hparams)
