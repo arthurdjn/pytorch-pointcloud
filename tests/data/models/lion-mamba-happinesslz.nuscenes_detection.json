@@ -1,0 +1,3543 @@
+{
+  "num_params": 16124127,
+  "state_dict": {
+    "vfe.pfn_layers.0.linear.weight": [
+      64,
+      11
+    ],
+    "vfe.pfn_layers.0.norm.weight": [
+      64
+    ],
+    "vfe.pfn_layers.0.norm.bias": [
+      64
+    ],
+    "vfe.pfn_layers.0.norm.running_mean": [
+      64
+    ],
+    "vfe.pfn_layers.0.norm.running_var": [
+      64
+    ],
+    "vfe.pfn_layers.0.norm.num_batches_tracked": [],
+    "vfe.pfn_layers.1.linear.weight": [
+      128,
+      128
+    ],
+    "vfe.pfn_layers.1.norm.weight": [
+      128
+    ],
+    "vfe.pfn_layers.1.norm.bias": [
+      128
+    ],
+    "vfe.pfn_layers.1.norm.running_mean": [
+      128
+    ],
+    "vfe.pfn_layers.1.norm.running_var": [
+      128
+    ],
+    "vfe.pfn_layers.1.norm.num_batches_tracked": [],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.encoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.0.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.0.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.0.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.1.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.1.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.1.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.downsample_list.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_1.pos_emb_list.1.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_1.pos_emb_list.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder_norm.0.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder_norm.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder_norm.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_1.decoder_norm.1.bias": [
+      128
+    ],
+    "backbone_3d.dow1.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.dow1.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.dow1.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.dow1.norm.weight": [
+      128
+    ],
+    "backbone_3d.dow1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.encoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.0.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.0.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.0.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.1.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.1.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.1.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.downsample_list.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_2.pos_emb_list.1.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_2.pos_emb_list.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder_norm.0.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder_norm.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder_norm.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_2.decoder_norm.1.bias": [
+      128
+    ],
+    "backbone_3d.dow2.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.dow2.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.dow2.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.dow2.norm.weight": [
+      128
+    ],
+    "backbone_3d.dow2.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.encoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.0.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.0.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.0.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.1.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.1.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.1.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.downsample_list.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_3.pos_emb_list.1.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_3.pos_emb_list.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder_norm.0.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder_norm.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder_norm.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_3.decoder_norm.1.bias": [
+      128
+    ],
+    "backbone_3d.dow3.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.dow3.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.dow3.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.dow3.norm.weight": [
+      128
+    ],
+    "backbone_3d.dow3.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.encoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.0.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.0.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.0.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.1.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.1.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.1.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.downsample_list.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.0.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_4.pos_emb_list.1.lins.0.weight": [
+      128,
+      3
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.lins.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.lins.1.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.norms.0.module.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.norms.0.module.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.norms.0.module.running_var": [
+      128
+    ],
+    "backbone_3d.linear_4.pos_emb_list.1.norms.0.module.num_batches_tracked": [],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.0.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder.1.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder_norm.0.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder_norm.0.bias": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder_norm.1.weight": [
+      128
+    ],
+    "backbone_3d.linear_4.decoder_norm.1.bias": [
+      128
+    ],
+    "backbone_3d.dow4.sub_conv.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.dow4.sub_conv.1.weight": [
+      128
+    ],
+    "backbone_3d.dow4.sub_conv.1.bias": [
+      128
+    ],
+    "backbone_3d.dow4.norm.weight": [
+      128
+    ],
+    "backbone_3d.dow4.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_out.blocks.0.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_out.blocks.0.norm.bias": [
+      128
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.A_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.D": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.A_b_log": [
+      256,
+      16
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.D_b": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.in_proj.weight": [
+      512,
+      128
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.conv1d.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.conv1d.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.x_proj.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.dt_proj.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.dt_proj.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.conv1d_b.weight": [
+      256,
+      1,
+      4
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.conv1d_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.x_proj_b.weight": [
+      40,
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.dt_proj_b.weight": [
+      256,
+      8
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.dt_proj_b.bias": [
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.mamba.out_proj.weight": [
+      128,
+      256
+    ],
+    "backbone_3d.linear_out.blocks.1.norm.weight": [
+      128
+    ],
+    "backbone_3d.linear_out.blocks.1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.0.conv1.conv.weight": [
+      128,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.0.0.conv1.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.0.conv1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.0.conv1.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.0.conv1.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.0.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.0.0.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.0.conv2.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.0.conv2.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.0.conv2.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.0.conv2.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.0.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.0.0.downsample.conv.weight": [
+      128,
+      256,
+      1,
+      1
+    ],
+    "backbone.blocks.0.0.downsample.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.0.downsample.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.0.downsample.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.0.downsample.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.0.downsample.norm.num_batches_tracked": [],
+    "backbone.blocks.0.1.conv1.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.1.conv1.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.1.conv1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.1.conv1.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.1.conv1.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.1.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.0.1.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.1.conv2.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.1.conv2.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.1.conv2.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.1.conv2.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.1.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.1.0.conv1.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.0.conv1.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.0.conv1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.0.conv1.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.0.conv1.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.0.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.1.0.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.0.conv2.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.0.conv2.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.0.conv2.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.0.conv2.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.0.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.1.0.downsample.conv.weight": [
+      128,
+      128,
+      1,
+      1
+    ],
+    "backbone.blocks.1.0.downsample.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.0.downsample.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.0.downsample.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.0.downsample.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.0.downsample.norm.num_batches_tracked": [],
+    "backbone.blocks.1.1.conv1.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.1.conv1.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.1.conv1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.1.conv1.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.1.conv1.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.1.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.1.1.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.1.conv2.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.1.conv2.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.1.conv2.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.1.conv2.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.1.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.1.2.conv1.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.2.conv1.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.2.conv1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.2.conv1.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.2.conv1.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.2.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.1.2.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.2.conv2.norm.weight": [
+      128
+    ],
+    "backbone.blocks.1.2.conv2.norm.bias": [
+      128
+    ],
+    "backbone.blocks.1.2.conv2.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.1.2.conv2.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.1.2.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.2.0.conv1.conv.weight": [
+      256,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.2.0.conv1.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.0.conv1.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.0.conv1.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.0.conv1.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.0.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.2.0.conv2.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.2.0.conv2.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.0.conv2.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.0.conv2.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.0.conv2.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.0.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.2.0.downsample.conv.weight": [
+      256,
+      128,
+      1,
+      1
+    ],
+    "backbone.blocks.2.0.downsample.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.0.downsample.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.0.downsample.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.0.downsample.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.0.downsample.norm.num_batches_tracked": [],
+    "backbone.blocks.2.1.conv1.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.2.1.conv1.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.1.conv1.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.1.conv1.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.1.conv1.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.1.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.2.1.conv2.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.2.1.conv2.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.1.conv2.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.1.conv2.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.1.conv2.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.1.conv2.norm.num_batches_tracked": [],
+    "backbone.blocks.2.2.conv1.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.2.2.conv1.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.2.conv1.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.2.conv1.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.2.conv1.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.2.conv1.norm.num_batches_tracked": [],
+    "backbone.blocks.2.2.conv2.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.2.2.conv2.norm.weight": [
+      256
+    ],
+    "backbone.blocks.2.2.conv2.norm.bias": [
+      256
+    ],
+    "backbone.blocks.2.2.conv2.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.2.2.conv2.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.2.2.conv2.norm.num_batches_tracked": [],
+    "backbone.deblocks.0.conv.weight": [
+      128,
+      128,
+      2,
+      2
+    ],
+    "backbone.deblocks.0.norm.weight": [
+      128
+    ],
+    "backbone.deblocks.0.norm.bias": [
+      128
+    ],
+    "backbone.deblocks.0.norm.running_mean": [
+      128
+    ],
+    "backbone.deblocks.0.norm.running_var": [
+      128
+    ],
+    "backbone.deblocks.0.norm.num_batches_tracked": [],
+    "backbone.deblocks.1.conv.weight": [
+      128,
+      128,
+      1,
+      1
+    ],
+    "backbone.deblocks.1.norm.weight": [
+      128
+    ],
+    "backbone.deblocks.1.norm.bias": [
+      128
+    ],
+    "backbone.deblocks.1.norm.running_mean": [
+      128
+    ],
+    "backbone.deblocks.1.norm.running_var": [
+      128
+    ],
+    "backbone.deblocks.1.norm.num_batches_tracked": [],
+    "backbone.deblocks.2.conv.weight": [
+      256,
+      128,
+      2,
+      2
+    ],
+    "backbone.deblocks.2.norm.weight": [
+      128
+    ],
+    "backbone.deblocks.2.norm.bias": [
+      128
+    ],
+    "backbone.deblocks.2.norm.running_mean": [
+      128
+    ],
+    "backbone.deblocks.2.norm.running_var": [
+      128
+    ],
+    "backbone.deblocks.2.norm.num_batches_tracked": [],
+    "head.shared_conv.weight": [
+      128,
+      384,
+      3,
+      3
+    ],
+    "head.shared_conv.bias": [
+      128
+    ],
+    "head.heatmap_head.0.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "head.heatmap_head.0.conv.bias": [
+      128
+    ],
+    "head.heatmap_head.0.bn.weight": [
+      128
+    ],
+    "head.heatmap_head.0.bn.bias": [
+      128
+    ],
+    "head.heatmap_head.0.bn.running_mean": [
+      128
+    ],
+    "head.heatmap_head.0.bn.running_var": [
+      128
+    ],
+    "head.heatmap_head.0.bn.num_batches_tracked": [],
+    "head.heatmap_head.1.weight": [
+      10,
+      128,
+      3,
+      3
+    ],
+    "head.heatmap_head.1.bias": [
+      10
+    ],
+    "head.class_encoding.weight": [
+      128,
+      10
+    ],
+    "head.class_encoding.bias": [
+      128
+    ],
+    "head.decoder.self_attn.in_proj_weight": [
+      384,
+      128
+    ],
+    "head.decoder.self_attn.in_proj_bias": [
+      384
+    ],
+    "head.decoder.self_attn.out_proj.weight": [
+      128,
+      128
+    ],
+    "head.decoder.self_attn.out_proj.bias": [
+      128
+    ],
+    "head.decoder.multihead_attn.in_proj_weight": [
+      384,
+      128
+    ],
+    "head.decoder.multihead_attn.in_proj_bias": [
+      384
+    ],
+    "head.decoder.multihead_attn.out_proj.weight": [
+      128,
+      128
+    ],
+    "head.decoder.multihead_attn.out_proj.bias": [
+      128
+    ],
+    "head.decoder.linear1.weight": [
+      256,
+      128
+    ],
+    "head.decoder.linear1.bias": [
+      256
+    ],
+    "head.decoder.linear2.weight": [
+      128,
+      256
+    ],
+    "head.decoder.linear2.bias": [
+      128
+    ],
+    "head.decoder.norm1.weight": [
+      128
+    ],
+    "head.decoder.norm1.bias": [
+      128
+    ],
+    "head.decoder.norm2.weight": [
+      128
+    ],
+    "head.decoder.norm2.bias": [
+      128
+    ],
+    "head.decoder.norm3.weight": [
+      128
+    ],
+    "head.decoder.norm3.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.lins.0.weight": [
+      128,
+      2
+    ],
+    "head.decoder.self_posembed.lins.0.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.lins.1.weight": [
+      128,
+      128
+    ],
+    "head.decoder.self_posembed.lins.1.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.weight": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.running_mean": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.running_var": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.num_batches_tracked": [],
+    "head.decoder.cross_posembed.lins.0.weight": [
+      128,
+      2
+    ],
+    "head.decoder.cross_posembed.lins.0.bias": [
+      128
+    ],
+    "head.decoder.cross_posembed.lins.1.weight": [
+      128,
+      128
+    ],
+    "head.decoder.cross_posembed.lins.1.bias": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.weight": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.bias": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.running_mean": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.running_var": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.center.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.center.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.center.lins.1.weight": [
+      2,
+      64
+    ],
+    "head.prediction_head.center.lins.1.bias": [
+      2
+    ],
+    "head.prediction_head.center.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.height.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.height.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.height.lins.1.weight": [
+      1,
+      64
+    ],
+    "head.prediction_head.height.lins.1.bias": [
+      1
+    ],
+    "head.prediction_head.height.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.dim.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.dim.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.dim.lins.1.weight": [
+      3,
+      64
+    ],
+    "head.prediction_head.dim.lins.1.bias": [
+      3
+    ],
+    "head.prediction_head.dim.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.rot.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.rot.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.rot.lins.1.weight": [
+      2,
+      64
+    ],
+    "head.prediction_head.rot.lins.1.bias": [
+      2
+    ],
+    "head.prediction_head.rot.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.vel.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.vel.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.vel.lins.1.weight": [
+      2,
+      64
+    ],
+    "head.prediction_head.vel.lins.1.bias": [
+      2
+    ],
+    "head.prediction_head.vel.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.iou.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.iou.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.iou.lins.1.weight": [
+      1,
+      64
+    ],
+    "head.prediction_head.iou.lins.1.bias": [
+      1
+    ],
+    "head.prediction_head.iou.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.iou.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.iou.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.iou.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.iou.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.heatmap.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.heatmap.lins.0.bias": [
+      64
+    ],
+    "head.prediction_head.heatmap.lins.1.weight": [
+      10,
+      64
+    ],
+    "head.prediction_head.heatmap.lins.1.bias": [
+      10
+    ],
+    "head.prediction_head.heatmap.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.num_batches_tracked": []
+  }
+}

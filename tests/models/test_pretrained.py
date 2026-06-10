@@ -421,6 +421,51 @@ def test_pretrained_detr3d(
     _check_output(reduced, model_name, force_regen, models_dir)
 
 
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["lion-mamba-happinesslz.nuscenes"])
+def test_pretrained_lion(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LION returns a TransFusion-head dict, so it needs its own snapshot test.
+
+    There is no in-repo nuScenes *detection* fixture, so a fixed synthetic cloud inside the model's
+    point-cloud range is used (LION voxelizes internally); this still pins the pretrained weights against
+    regressions. The snapshot is the order-invariant `dense_heatmap` (the pre-query BEV class heatmap), not
+    the per-query outputs: those are gathered at the top-k heatmap positions, and a ~4e-4 heatmap
+    perturbation flips an argsort tie, reordering the queries; the dense heatmap has no such tie sensitivity.
+    """
+    if not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
+        pytest.skip("mamba-ssm / spconv is not installed")
+    if not torch.cuda.is_available():
+        pytest.skip("lion requires CUDA, none available")
+
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    pc_range = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 8000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n_per_scene * batch_size, model.in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    with torch.no_grad():
+        out = model(x, pos, batch)
+
+    _check_output(out["dense_heatmap"].reshape(-1), model_name, force_regen, models_dir)
+
+
 ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
     ("pointpillars-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
     ("second-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),

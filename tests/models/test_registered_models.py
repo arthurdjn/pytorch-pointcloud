@@ -174,6 +174,7 @@ DETECTION_MODELS = [
     "3detr-fair-m.scannet",
     "3detr-fair.scannet",
     "3detr-fair.sunrgbd",
+    "lion-mamba-happinesslz.nuscenes",
     "pointpillars-openpcdet-multihead.nuscenes",
     "pointpillars-openpcdet.kitti",
     "second-openpcdet-multihead.nuscenes",
@@ -198,6 +199,8 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("torch_scatter is not installed")
     if model_name.startswith("3detr") and not _TORCH_CLUSTER_AVAILABLE:
         pytest.skip("torch_cluster is not installed")
+    if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
+        pytest.skip("mamba_ssm or spconv is not installed")
 
 
 # Models whose `forward` cannot run on the synthetic `data_factory` input — they expect
