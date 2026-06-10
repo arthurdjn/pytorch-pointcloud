@@ -1,0 +1,703 @@
+{
+  "num_params": 29006432,
+  "state_dict": {
+    "mask_token": [
+      1,
+      1,
+      384
+    ],
+    "MAE_encoder.encoder.local_mlp.lins.0.weight": [
+      128,
+      3
+    ],
+    "MAE_encoder.encoder.local_mlp.lins.0.bias": [
+      128
+    ],
+    "MAE_encoder.encoder.local_mlp.lins.1.weight": [
+      256,
+      128
+    ],
+    "MAE_encoder.encoder.local_mlp.lins.1.bias": [
+      256
+    ],
+    "MAE_encoder.encoder.local_mlp.norms.0.module.weight": [
+      128
+    ],
+    "MAE_encoder.encoder.local_mlp.norms.0.module.bias": [
+      128
+    ],
+    "MAE_encoder.encoder.local_mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "MAE_encoder.encoder.local_mlp.norms.0.module.running_var": [
+      128
+    ],
+    "MAE_encoder.encoder.local_mlp.norms.0.module.num_batches_tracked": [],
+    "MAE_encoder.encoder.global_mlp.lins.0.weight": [
+      512,
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.lins.0.bias": [
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.lins.1.weight": [
+      384,
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.encoder.global_mlp.norms.0.module.weight": [
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.norms.0.module.bias": [
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.norms.0.module.running_mean": [
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.norms.0.module.running_var": [
+      512
+    ],
+    "MAE_encoder.encoder.global_mlp.norms.0.module.num_batches_tracked": [],
+    "MAE_encoder.pos_embed.lins.0.weight": [
+      128,
+      3
+    ],
+    "MAE_encoder.pos_embed.lins.0.bias": [
+      128
+    ],
+    "MAE_encoder.pos_embed.lins.1.weight": [
+      384,
+      128
+    ],
+    "MAE_encoder.pos_embed.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.0.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.0.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.0.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.1.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.1.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.1.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.2.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.2.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.2.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.3.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.3.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.3.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.4.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.4.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.4.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.5.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.5.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.5.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.6.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.6.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.6.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.7.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.7.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.7.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.8.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.8.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.8.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.9.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.9.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.9.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.10.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.10.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.10.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.norm1.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.norm1.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.attn.proj.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.norm2.weight": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.norm2.bias": [
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_encoder.blocks.blocks.11.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.11.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_encoder.blocks.blocks.11.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_encoder.norm.weight": [
+      384
+    ],
+    "MAE_encoder.norm.bias": [
+      384
+    ],
+    "decoder_pos_embed.lins.0.weight": [
+      128,
+      3
+    ],
+    "decoder_pos_embed.lins.0.bias": [
+      128
+    ],
+    "decoder_pos_embed.lins.1.weight": [
+      384,
+      128
+    ],
+    "decoder_pos_embed.lins.1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.0.norm1.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.0.norm1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.0.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_decoder.blocks.0.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_decoder.blocks.0.attn.proj.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.0.norm2.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.0.norm2.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.0.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_decoder.blocks.0.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_decoder.blocks.0.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_decoder.blocks.0.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.1.norm1.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.1.norm1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.1.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_decoder.blocks.1.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_decoder.blocks.1.attn.proj.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.1.norm2.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.1.norm2.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.1.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_decoder.blocks.1.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_decoder.blocks.1.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_decoder.blocks.1.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.2.norm1.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.2.norm1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.2.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_decoder.blocks.2.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_decoder.blocks.2.attn.proj.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.2.norm2.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.2.norm2.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.2.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_decoder.blocks.2.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_decoder.blocks.2.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_decoder.blocks.2.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.3.norm1.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.3.norm1.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.3.attn.qkv.weight": [
+      1152,
+      384
+    ],
+    "MAE_decoder.blocks.3.attn.proj.weight": [
+      384,
+      384
+    ],
+    "MAE_decoder.blocks.3.attn.proj.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.3.norm2.weight": [
+      384
+    ],
+    "MAE_decoder.blocks.3.norm2.bias": [
+      384
+    ],
+    "MAE_decoder.blocks.3.mlp.lins.0.weight": [
+      1536,
+      384
+    ],
+    "MAE_decoder.blocks.3.mlp.lins.0.bias": [
+      1536
+    ],
+    "MAE_decoder.blocks.3.mlp.lins.1.weight": [
+      384,
+      1536
+    ],
+    "MAE_decoder.blocks.3.mlp.lins.1.bias": [
+      384
+    ],
+    "MAE_decoder.norm.weight": [
+      384
+    ],
+    "MAE_decoder.norm.bias": [
+      384
+    ],
+    "increase_dim.lins.0.weight": [
+      96,
+      384
+    ],
+    "increase_dim.lins.0.bias": [
+      96
+    ]
+  }
+}

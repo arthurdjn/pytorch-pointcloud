@@ -31,31 +31,40 @@ class PointMAEEncoder(nn.Module):
     Encodes each centered local group of points into a single token via a two-stage shared MLP with an
     intermediate max-pool and global-feature concatenation. A shared $1 \times 1$ convolution over
     $(B, C, M)$ is equivalent to a `MLP` over the last (feature) dim, so the stages are plain `MLP`
-    with configurable activation and normalization.
+    with configurable activation and normalization. The widths are configurable: `local_mlp` maps
+    `in_channels` $\to \text{local\_channels}$, the per-group max-pool is concatenated to give
+    $2 \cdot \text{local\_channels}[-1]$, and `global_mlp` maps that to `embed_dim` through `global_channels`.
 
     Args:
-        embedding_dim: Output channels of the token.
+        embed_dim: Output channels of the token.
+        in_channels: Number of input channels per point ($3$ for coordinates only, plus any concatenated features).
+        local_channels: Hidden widths of the per-point MLP (input `in_channels` is prepended).
+        global_channels: Hidden widths of the per-group MLP (input $2 \cdot \text{local\_channels}[-1]$ and output `embed_dim` are added).
         act: Activation function of the MLPs.
         act_kwargs: Extra arguments for the activation.
         norm: Normalization of the MLPs.
         norm_kwargs: Extra arguments for the normalization.
 
     Shape:
-        - Input: $(B, G, M, 3)$ where $B$ is the batch size, $G$ is the number of groups,
-            and $M$ is the group size.
-        - Output: $(B, G, C)$ where $C$ is `embedding_dim`.
+        - Input: $(B, G, M, C)$ where $B$ is the batch size, $G$ is the number of groups, $M$ is the
+            group size, and $C$ is `in_channels`.
+        - Output: $(B, G, D)$ where $D$ is `embed_dim`.
     """
 
     def __init__(
         self,
-        embedding_dim: int,
+        embed_dim: int,
+        in_channels: int = 3,
+        local_channels: Sequence[int] = (128, 256),
+        global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
+        self.mid_channels = local_channels[-1]
         factory_kwargs: Dict[str, Any] = dict(
             act=act,
             act_kwargs=act_kwargs,
@@ -63,18 +72,20 @@ class PointMAEEncoder(nn.Module):
             norm_kwargs=norm_kwargs,
             plain_last=True,
         )
-        self.first_mlp = MLP([3, 128, 256], **factory_kwargs)
-        self.second_mlp = MLP([512, 512, embedding_dim], **factory_kwargs)
+        self.local_mlp = MLP([in_channels, *local_channels], **factory_kwargs)
+        self.global_mlp = MLP([2 * self.mid_channels, *global_channels, embed_dim], **factory_kwargs)
 
     def forward(self, neighborhood: Tensor) -> Tensor:
-        B, G, M, _ = neighborhood.shape
-        points = neighborhood.reshape(B * G * M, 3)
-        feature = self.first_mlp(points).reshape(B * G, M, 256)
+        B, G, M, C = neighborhood.shape
+        points = neighborhood.reshape(B * G * M, C)
+        feature = self.local_mlp(points).reshape(B * G, M, self.mid_channels)
         feature_global = feature.max(dim=1, keepdim=True)[0]
-        feature = torch.cat([feature_global.expand(-1, M, -1), feature], dim=-1).reshape(B * G * M, 512)
-        feature = self.second_mlp(feature).reshape(B * G, M, self.embedding_dim)
+        feature = torch.cat([feature_global.expand(-1, M, -1), feature], dim=-1).reshape(
+            B * G * M, 2 * self.mid_channels
+        )
+        feature = self.global_mlp(feature).reshape(B * G, M, self.embed_dim)
         feature_global = feature.max(dim=1)[0]
-        return feature_global.reshape(B, G, self.embedding_dim)
+        return feature_global.reshape(B, G, self.embed_dim)
 
 
 class TransformerEncoder(nn.Module):
@@ -87,7 +98,7 @@ class TransformerEncoder(nn.Module):
     block indices (used by the segmentation decoder).
 
     Args:
-        embedding_dim: Token channels.
+        embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
         mlp_ratio: Hidden-channel expansion ratio of the MLP.
@@ -101,13 +112,13 @@ class TransformerEncoder(nn.Module):
         norm_kwargs: Extra arguments for the normalization.
 
     Shape:
-        - Input: $(B, N, C)$ where $B$ is the batch size, $N$ is the sequence length, and $C$ is `embedding_dim`.
+        - Input: $(B, N, C)$ where $B$ is the batch size, $N$ is the sequence length, and $C$ is `embed_dim`.
         - Output: $(B, N, C)$.
     """
 
     def __init__(
         self,
-        embedding_dim: int = 768,
+        embed_dim: int = 768,
         depth: int = 4,
         num_heads: int = 12,
         mlp_ratio: float = 4.0,
@@ -124,7 +135,7 @@ class TransformerEncoder(nn.Module):
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    dim=embedding_dim,
+                    dim=embed_dim,
                     num_heads=num_heads,
                     mlp_ratio=mlp_ratio,
                     qkv_bias=qkv_bias,
@@ -166,7 +177,7 @@ class TransformerDecoder(nn.Module):
     hidden states of the last `return_token_num` tokens are returned (the masked tokens).
 
     Args:
-        embedding_dim: Token channels.
+        embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
         mlp_ratio: Hidden-channel expansion ratio of the MLP.
@@ -180,13 +191,13 @@ class TransformerDecoder(nn.Module):
         norm_kwargs: Extra arguments for the normalization.
 
     Shape:
-        - Input: $(B, N, C)$ where $B$ is the batch size, $N$ is the sequence length, and $C$ is `embedding_dim`.
+        - Input: $(B, N, C)$ where $B$ is the batch size, $N$ is the sequence length, and $C$ is `embed_dim`.
         - Output: $(B, R, C)$ where $R$ is `return_token_num`.
     """
 
     def __init__(
         self,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 4,
         num_heads: int = 6,
         mlp_ratio: float = 4.0,
@@ -203,7 +214,7 @@ class TransformerDecoder(nn.Module):
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    dim=embedding_dim,
+                    dim=embed_dim,
                     num_heads=num_heads,
                     mlp_ratio=mlp_ratio,
                     qkv_bias=qkv_bias,
@@ -218,7 +229,7 @@ class TransformerDecoder(nn.Module):
                 for i in range(depth)
             ]
         )
-        self.norm = nn.LayerNorm(embedding_dim)
+        self.norm = nn.LayerNorm(embed_dim)
         self.head = nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, return_token_num: int) -> Tensor:
@@ -238,11 +249,14 @@ class MaskTransformer(nn.Module):
     encoder of the Point-MAE pretraining model.
 
     Args:
-        embedding_dim: Token channels.
+        embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
         mask_ratio: Fraction of tokens to mask.
         drop_path_rate: Stochastic-depth drop-path rate.
+        encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
+        encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
+        pos_embed_channels: Hidden widths of the positional-embedding MLP.
         spatial_dim: Spatial dimension of the input point cloud.
         act: Activation function of the transformer MLPs and the positional embedding.
         act_kwargs: Extra arguments for the activation.
@@ -256,11 +270,14 @@ class MaskTransformer(nn.Module):
 
     def __init__(
         self,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
         mask_ratio: float = 0.6,
         drop_path_rate: float = 0.1,
+        encoder_local_channels: Sequence[int] = (128, 256),
+        encoder_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -269,15 +286,19 @@ class MaskTransformer(nn.Module):
     ) -> None:
         super().__init__()
         self.mask_ratio = mask_ratio
-        self.embedding_dim = embedding_dim
-        self.encoder = PointMAEEncoder(embedding_dim=embedding_dim)
+        self.embed_dim = embed_dim
+        self.encoder = PointMAEEncoder(
+            embed_dim=embed_dim,
+            local_channels=encoder_local_channels,
+            global_channels=encoder_global_channels,
+        )
         self.pos_embed = MLP(
-            [spatial_dim, 128, embedding_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
+            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
         self.blocks = TransformerEncoder(
-            embedding_dim=embedding_dim,
+            embed_dim=embed_dim,
             depth=depth,
             drop_path_rate=dpr,
             num_heads=num_heads,
@@ -286,7 +307,7 @@ class MaskTransformer(nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.norm = nn.LayerNorm(embedding_dim)
+        self.norm = nn.LayerNorm(embed_dim)
 
     def mask_center_rand(self, center: Tensor) -> Tensor:
         B, G, _ = center.shape
@@ -325,13 +346,16 @@ class PointMAEClassification(ClassificationModel):
     token and the max-pooled patch tokens.
 
     Args:
-        in_channels: Number of input channels (unused beyond coordinates; kept for the registry contract).
+        in_channels: Number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
         num_classes: Number of output classes.
-        embedding_dim: Token channels.
+        embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
         num_group: Number of groups (FPS centers) per sample.
         group_size: Number of neighbors per group.
+        encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
+        encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
+        pos_embed_channels: Hidden widths of the positional-embedding MLP.
         drop_path_rate: Stochastic-depth drop-path rate.
         dropout: Dropout rate in the classification head.
         act: Activation function.
@@ -350,11 +374,14 @@ class PointMAEClassification(ClassificationModel):
         in_channels: int,
         num_classes: int,
         *,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
         num_group: int = 64,
         group_size: int = 32,
+        encoder_local_channels: Sequence[int] = (128, 256),
+        encoder_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         drop_path_rate: float = 0.1,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "gelu",
@@ -364,7 +391,7 @@ class PointMAEClassification(ClassificationModel):
         spatial_dim: int = 3,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
         self.num_group = num_group
@@ -377,16 +404,21 @@ class PointMAEClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.spatial_dim = spatial_dim
 
-        self.encoder = PointMAEEncoder(embedding_dim=embedding_dim)
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
-        self.cls_pos = nn.Parameter(torch.randn(1, 1, embedding_dim))
+        self.encoder = PointMAEEncoder(
+            embed_dim=embed_dim,
+            in_channels=spatial_dim + in_channels,
+            local_channels=encoder_local_channels,
+            global_channels=encoder_global_channels,
+        )
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.cls_pos = nn.Parameter(torch.randn(1, 1, embed_dim))
         self.pos_embed = MLP(
-            [spatial_dim, 128, embedding_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
+            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
         self.blocks = TransformerEncoder(
-            embedding_dim=embedding_dim,
+            embed_dim=embed_dim,
             depth=depth,
             drop_path_rate=dpr,
             num_heads=num_heads,
@@ -395,13 +427,13 @@ class PointMAEClassification(ClassificationModel):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.norm_f = nn.LayerNorm(embedding_dim)
+        self.norm_f = nn.LayerNorm(embed_dim)
         self.head = self.configure_head()
         self.reset_parameters()
 
     def configure_head(self) -> nn.Module:
         return MLP(
-            [self.embedding_dim * 2, 256, 256, self.num_classes],
+            [self.embed_dim * 2, 256, 256, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=[self.dropout, self.dropout, 0.0],
@@ -418,7 +450,13 @@ class PointMAEClassification(ClassificationModel):
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        if x is None:
+            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        else:
+            neighborhood, center, neighbor_idx = group(
+                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+            )
+            neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
         group_input_tokens = self.encoder(neighborhood)
 
         cls_tokens = self.cls_token.expand(group_input_tokens.size(0), -1, -1)
@@ -452,14 +490,17 @@ class PointMAESegmentation(SegmentationModel):
     category-conditioned global branch is fused before the per-point classifier.
 
     Args:
-        in_channels: Number of input channels (unused beyond coordinates; kept for the registry contract).
+        in_channels: Number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
         num_classes: Number of output part classes (across all categories).
         num_categories: Number of object categories for the category one-hot branch.
-        embedding_dim: Token channels.
+        embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
         num_group: Number of groups (FPS centers) per sample.
         group_size: Number of neighbors per group.
+        encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
+        encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
+        pos_embed_channels: Hidden widths of the positional-embedding MLP.
         drop_path_rate: Stochastic-depth drop-path rate.
         dropout: Dropout rate in the per-point head.
         act: Activation function.
@@ -481,11 +522,14 @@ class PointMAESegmentation(SegmentationModel):
         num_classes: int,
         *,
         num_categories: int = 16,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
         num_group: int = 128,
         group_size: int = 32,
+        encoder_local_channels: Sequence[int] = (128, 256),
+        encoder_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         drop_path_rate: float = 0.1,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "gelu",
@@ -496,7 +540,7 @@ class PointMAESegmentation(SegmentationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.num_categories = num_categories
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
         self.num_group = num_group
@@ -509,14 +553,19 @@ class PointMAESegmentation(SegmentationModel):
         self.norm_kwargs = norm_kwargs
         self.spatial_dim = spatial_dim
 
-        self.encoder = PointMAEEncoder(embedding_dim=embedding_dim)
+        self.encoder = PointMAEEncoder(
+            embed_dim=embed_dim,
+            in_channels=spatial_dim + in_channels,
+            local_channels=encoder_local_channels,
+            global_channels=encoder_global_channels,
+        )
         self.pos_embed = MLP(
-            [spatial_dim, 128, embedding_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
+            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
         self.blocks = TransformerEncoder(
-            embedding_dim=embedding_dim,
+            embed_dim=embed_dim,
             depth=depth,
             drop_path_rate=dpr,
             num_heads=num_heads,
@@ -525,7 +574,7 @@ class PointMAESegmentation(SegmentationModel):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.norm_f = nn.LayerNorm(embedding_dim)
+        self.norm_f = nn.LayerNorm(embed_dim)
 
         self.label_conv = MLP(
             [num_categories, 64],
@@ -536,8 +585,8 @@ class PointMAESegmentation(SegmentationModel):
             plain_last=False,
         )
         self.propagation_0 = FPModule(
-            in_channels=3 * embedding_dim + spatial_dim,
-            channels=[embedding_dim * 4, 1024],
+            in_channels=3 * embed_dim + spatial_dim,
+            channels=[embed_dim * 4, 1024],
             k=3,
             act="relu",
             norm="batch_norm",
@@ -562,7 +611,13 @@ class PointMAESegmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        if x is None:
+            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        else:
+            neighborhood, center, neighbor_idx = group(
+                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+            )
+            neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
         group_input_tokens = self.encoder(neighborhood)
         pos_embed = self.pos_embed(center)
 
@@ -619,13 +674,16 @@ class PointMAEMaskedAutoEncoder(BaseModel):
 
     Args:
         in_channels: Number of input channels (unused beyond coordinates; kept for the registry contract).
-        embedding_dim: Token channels.
+        embed_dim: Token channels.
         encoder_depth: Number of encoder transformer blocks.
         decoder_depth: Number of decoder transformer blocks.
         num_heads: Number of encoder attention heads.
         decoder_num_heads: Number of decoder attention heads.
         num_group: Number of groups (FPS centers) per sample.
         group_size: Number of neighbors per group.
+        encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
+        encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
+        pos_embed_channels: Hidden widths of the encoder and decoder positional-embedding MLPs.
         mask_ratio: Fraction of tokens to mask.
         drop_path_rate: Stochastic-depth drop-path rate.
         act: Activation function.
@@ -643,13 +701,16 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         self,
         in_channels: int,
         *,
-        embedding_dim: int = 384,
+        embed_dim: int = 384,
         encoder_depth: int = 12,
         decoder_depth: int = 4,
         num_heads: int = 6,
         decoder_num_heads: int = 6,
         num_group: int = 64,
         group_size: int = 32,
+        encoder_local_channels: Sequence[int] = (128, 256),
+        encoder_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         mask_ratio: float = 0.6,
         drop_path_rate: float = 0.1,
         act: Union[str, Callable, None] = "gelu",
@@ -659,7 +720,7 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         spatial_dim: int = 3,
     ) -> None:
         super().__init__(in_channels=in_channels)
-        self.embedding_dim = embedding_dim
+        self.embed_dim = embed_dim
         self.encoder_depth = encoder_depth
         self.decoder_depth = decoder_depth
         self.num_heads = num_heads
@@ -675,25 +736,28 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         self.spatial_dim = spatial_dim
 
         self.MAE_encoder = MaskTransformer(
-            embedding_dim=embedding_dim,
+            embed_dim=embed_dim,
             depth=encoder_depth,
             num_heads=num_heads,
             mask_ratio=mask_ratio,
             drop_path_rate=drop_path_rate,
+            encoder_local_channels=encoder_local_channels,
+            encoder_global_channels=encoder_global_channels,
+            pos_embed_channels=pos_embed_channels,
             spatial_dim=spatial_dim,
             act=act,
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.decoder_pos_embed = MLP(
-            [spatial_dim, 128, embedding_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
+            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, decoder_depth)]
         self.MAE_decoder = TransformerDecoder(
-            embedding_dim=embedding_dim,
+            embed_dim=embed_dim,
             depth=decoder_depth,
             drop_path_rate=dpr,
             num_heads=decoder_num_heads,
@@ -702,7 +766,7 @@ class PointMAEMaskedAutoEncoder(BaseModel):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.increase_dim = MLP([embedding_dim, 3 * group_size], act=None, norm=None, bias=True, plain_last=True)
+        self.increase_dim = MLP([embed_dim, 3 * group_size], act=None, norm=None, bias=True, plain_last=True)
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -746,11 +810,14 @@ _MODELNET_TRANSFORM = T.Compose(
     hparams=dict(
         in_channels=0,
         num_classes=40,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=64,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         drop_path_rate=0.1,
         dropout=0.5,
         act="gelu",
@@ -774,11 +841,14 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     hparams=dict(
         in_channels=0,
         num_classes=40,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=512,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         drop_path_rate=0.1,
         dropout=0.5,
         act="gelu",
@@ -797,11 +867,14 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
     hparams=dict(
         in_channels=0,
         num_classes=15,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=128,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         drop_path_rate=0.1,
         dropout=0.5,
         act="gelu",
@@ -820,11 +893,14 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
     hparams=dict(
         in_channels=0,
         num_classes=15,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=128,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         drop_path_rate=0.1,
         dropout=0.5,
         act="gelu",
@@ -843,11 +919,14 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
     hparams=dict(
         in_channels=0,
         num_classes=15,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=128,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         drop_path_rate=0.1,
         dropout=0.5,
         act="gelu",
@@ -873,11 +952,14 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
         in_channels=0,
         num_classes=50,
         num_categories=16,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
         num_heads=6,
         num_group=128,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         drop_path_rate=0.1,
         dropout=0.5,
         act="gelu",
@@ -894,13 +976,16 @@ def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAESegmentation:
     weights="hf://torch-pointcloud/point-mae/point-mae-base.pretrain.pth",
     hparams=dict(
         in_channels=0,
-        embedding_dim=384,
+        embed_dim=384,
         encoder_depth=12,
         decoder_depth=4,
         num_heads=6,
         decoder_num_heads=6,
         num_group=64,
         group_size=32,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        pos_embed_channels=(128,),
         mask_ratio=0.6,
         drop_path_rate=0.1,
         act="gelu",

@@ -76,6 +76,31 @@ def test_pointgpt_morton_sort_is_permutation() -> None:
     assert (order[:, 0] == 0).all()
 
 
+def test_pointgpt_generative_pretraining_accepts_features() -> None:
+    in_channels = 3
+    model = PointGPTGenerativePretraining(
+        in_channels=in_channels,
+        embed_dim=384,
+        depth=2,
+        decoder_depth=1,
+        num_heads=6,
+        num_group=64,
+        group_size=32,
+        act="gelu",
+    ).cuda()
+    model.eval()
+    assert model.encoder.local_mlp.channel_list[0] == 3 + in_channels
+    pos, batch = _packed_batch()
+    x_a = torch.randn(pos.size(0), in_channels).cuda()
+    x_b = torch.randn(pos.size(0), in_channels).cuda()
+
+    pred_a, target_a = model(x_a, pos, batch)
+    pred_b, _ = model(x_b, pos, batch)
+    assert pred_a.shape == target_a.shape
+    assert pred_a.shape == pred_b.shape
+    assert not torch.allclose(pred_a, pred_b)
+
+
 def test_pointgpt_classification_accepts_features() -> None:
     in_channels = 3
     model = PointGPTClassification(

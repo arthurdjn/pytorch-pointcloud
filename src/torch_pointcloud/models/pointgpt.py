@@ -726,7 +726,7 @@ class PointGPTGenerativePretraining(BaseModel):
 
         encoded = self.blocks(tokens, pos_absolute, attn_mask, shift=True)
         pred = self.generator_blocks(encoded, pos_relative, attn_mask)
-        target = neighborhood.reshape(B * G, self.group_size, 3)
+        target = neighborhood[..., : self.spatial_dim].reshape(B * G, self.group_size, self.spatial_dim)
         return pred, target
 
 

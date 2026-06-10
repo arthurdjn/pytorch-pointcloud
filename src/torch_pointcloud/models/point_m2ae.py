@@ -23,16 +23,19 @@ scatter, _ = optional_import("torch_scatter", "scatter")
 class TokenEmbed(nn.Module):
     r"""Two-stage PointNet token embedding for a group of points.
 
-    The first MLP lifts the per-point input to a local feature, a max over the group yields a global
-    feature that is concatenated back, and the second MLP produces the token, max-pooled over the group.
-    The first stage uses a wider $128 \to 256$ projection when the input is raw 3D coordinates, mirroring
-    the reference implementation. A shared $1 \times 1$ convolution over $(B, C, k)$ groups is equivalent
-    to a `MLP` over the flattened feature dim, so both stages are plain `MLP` with a configurable
-    activation and normalization.
+    The local MLP lifts the per-point input to a local feature, a max over the group yields a global
+    feature that is concatenated back, and the global MLP produces the token, max-pooled over the group.
+    A shared $1 \times 1$ convolution over $(B, C, k)$ groups is equivalent to a `MLP` over the flattened
+    feature dim, so both stages are plain `MLP` with a configurable activation and normalization. The
+    widths are configurable: `local_mlp` maps `in_channels` $\to \text{local\_channels}$, the per-group
+    max-pool is concatenated to give $2 \cdot \text{local\_channels}[-1]$, and `global_mlp` maps that to
+    `out_channels` through `global_channels`.
 
     Args:
-        in_channels: The number of input channels (3 for raw coordinates).
+        in_channels: The number of input channels ($3$ for raw coordinates, plus any concatenated features).
         out_channels: The number of output channels.
+        local_channels: Hidden widths of the per-point MLP (input `in_channels` is prepended).
+        global_channels: Hidden widths of the per-group MLP (input $2 \cdot \text{local\_channels}[-1]$ and output `out_channels` are added).
         act: The activation function used between the linear layers.
         act_kwargs: Extra keyword arguments for the activation.
         norm: The normalization function used between the linear layers.
@@ -55,6 +58,8 @@ class TokenEmbed(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
+        local_channels: Sequence[int] = (128, 256),
+        global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -63,6 +68,7 @@ class TokenEmbed(nn.Module):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.mid_channels = local_channels[-1]
         factory_kwargs: Dict[str, Any] = dict(
             act=act,
             act_kwargs=act_kwargs,
@@ -70,22 +76,16 @@ class TokenEmbed(nn.Module):
             norm_kwargs=norm_kwargs,
             plain_last=True,
         )
-        if in_channels == 3:
-            self.first_hidden = 256
-            self.first_mlp = MLP([in_channels, 128, 256], **factory_kwargs)
-            self.second_mlp = MLP([512, 512, out_channels], **factory_kwargs)
-        else:
-            self.first_hidden = in_channels
-            self.first_mlp = MLP([in_channels, in_channels, in_channels], **factory_kwargs)
-            self.second_mlp = MLP([in_channels * 2, out_channels, out_channels], **factory_kwargs)
+        self.local_mlp = MLP([in_channels, *local_channels], **factory_kwargs)
+        self.global_mlp = MLP([2 * self.mid_channels, *global_channels, out_channels], **factory_kwargs)
 
     def forward(self, point_groups: Tensor) -> Tensor:
         bs, g, n, c = point_groups.shape
         points = point_groups.reshape(bs * g * n, c)
-        feature = self.first_mlp(points).reshape(bs * g, n, self.first_hidden)
+        feature = self.local_mlp(points).reshape(bs * g, n, self.mid_channels)
         feature_global = feature.max(dim=1, keepdim=True)[0]
         feature = torch.cat([feature_global.expand(-1, n, -1), feature], dim=-1).reshape(bs * g * n, -1)
-        feature = self.second_mlp(feature).reshape(bs * g, n, self.out_channels)
+        feature = self.global_mlp(feature).reshape(bs * g, n, self.out_channels)
         feature_global = feature.max(dim=1)[0]
         return feature_global.reshape(bs, g, self.out_channels)
 
@@ -99,7 +99,7 @@ class EncoderBlock(nn.Module):
         num_heads: The number of attention heads.
         mlp_ratio: The feed-forward expansion ratio.
         qkv_bias: Whether to add a bias to the query / key / value projection.
-        drop_rate: The dropout rate for the MLP and attention output projections.
+        dropout: The dropout rate for the MLP and attention output projections.
         attn_drop_rate: The attention dropout rate.
         drop_path_rate: The stochastic depth rate, either a scalar or a per-block list.
         act: The activation function used in the feed-forward MLP.
@@ -117,7 +117,7 @@ class EncoderBlock(nn.Module):
         num_heads: int,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = False,
-        drop_rate: float = 0.0,
+        dropout: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: Union[float, List[float]] = 0.0,
         act: Union[str, Callable, None] = "gelu",
@@ -131,7 +131,7 @@ class EncoderBlock(nn.Module):
                     num_heads=num_heads,
                     mlp_ratio=mlp_ratio,
                     qkv_bias=qkv_bias,
-                    dropout=drop_rate,
+                    dropout=dropout,
                     attn_dropout=attn_drop_rate,
                     drop_path=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
                     act=act,
@@ -156,7 +156,7 @@ class DecoderBlock(nn.Module):
         num_heads: The number of attention heads.
         mlp_ratio: The feed-forward expansion ratio.
         qkv_bias: Whether to add a bias to the query / key / value projection.
-        drop_rate: The dropout rate for the MLP and attention output projections.
+        dropout: The dropout rate for the MLP and attention output projections.
         attn_drop_rate: The attention dropout rate.
         drop_path_rate: The stochastic depth rate, either a scalar or a per-block list.
         act: The activation function used in the feed-forward MLP.
@@ -174,7 +174,7 @@ class DecoderBlock(nn.Module):
         num_heads: int,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = False,
-        drop_rate: float = 0.0,
+        dropout: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: Union[float, List[float]] = 0.1,
         act: Union[str, Callable, None] = "gelu",
@@ -188,7 +188,7 @@ class DecoderBlock(nn.Module):
                     num_heads=num_heads,
                     mlp_ratio=mlp_ratio,
                     qkv_bias=qkv_bias,
-                    dropout=drop_rate,
+                    dropout=dropout,
                     attn_dropout=attn_drop_rate,
                     drop_path=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
                     act=act,
@@ -371,6 +371,9 @@ class HierarchicalEncoder(nn.Module):
         num_heads: The number of attention heads.
         drop_path_rate: The maximum stochastic depth rate (linearly scaled across blocks).
         with_norms: Whether to apply a per-stage output LayerNorm (disabled for the ModelNet40 / ScanObjectNN finetune heads).
+        in_channels: The number of per-point feature channels concatenated to the coordinates at the first stage ($0$ for coordinates only).
+        token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP (later stages derive their widths from `encoder_dims`).
+        token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         act: The activation function used in the token embedders and transformer blocks.
         act_kwargs: Extra keyword arguments for the activation.
         norm: The normalization function used in the token embedders.
@@ -385,6 +388,9 @@ class HierarchicalEncoder(nn.Module):
         num_heads: int,
         drop_path_rate: float = 0.1,
         with_norms: bool = True,
+        in_channels: int = 0,
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -399,11 +405,20 @@ class HierarchicalEncoder(nn.Module):
         self.token_embed = nn.ModuleList()
         self.encoder_pos_embeds = nn.ModuleList()
         for i in range(len(self.encoder_dims)):
-            in_channels = 3 if i == 0 else self.encoder_dims[i - 1]
+            if i == 0:
+                stage_channels = 3 + in_channels
+                local_channels = token_local_channels
+                global_channels = token_global_channels
+            else:
+                stage_channels = self.encoder_dims[i - 1]
+                local_channels = (stage_channels, stage_channels)
+                global_channels = (self.encoder_dims[i],)
             self.token_embed.append(
                 TokenEmbed(
-                    in_channels=in_channels,
+                    in_channels=stage_channels,
                     out_channels=self.encoder_dims[i],
+                    local_channels=local_channels,
+                    global_channels=global_channels,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
@@ -533,12 +548,14 @@ class PointM2AEClassification(ClassificationModel):
     concatenates the mean over all tokens with the max over the tokens after the first one.
 
     Args:
-        in_channels: The number of input channels (unused; coordinates drive the grouping).
+        in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
         num_classes: The number of output classes.
         group_sizes: The neighborhood size per stage.
         num_groups: The number of centers per stage.
         encoder_depths: The number of transformer blocks per stage.
         encoder_dims: The channel width per stage.
+        token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP.
+        token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         local_radius: The local-attention radius per stage.
         num_heads: The number of attention heads.
         drop_path_rate: The maximum stochastic depth rate.
@@ -561,6 +578,8 @@ class PointM2AEClassification(ClassificationModel):
         num_groups: Sequence[int] = (512, 256, 64),
         encoder_depths: Sequence[int] = (5, 5, 5),
         encoder_dims: Sequence[int] = (96, 192, 384),
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
         local_radius: Sequence[float] = (0.32, 0.64, 1.28),
         num_heads: int = 6,
         drop_path_rate: float = 0.1,
@@ -582,6 +601,9 @@ class PointM2AEClassification(ClassificationModel):
             num_heads=num_heads,
             drop_path_rate=drop_path_rate,
             with_norms=False,
+            in_channels=in_channels,
+            token_local_channels=token_local_channels,
+            token_global_channels=token_global_channels,
         )
 
         self.norm = nn.LayerNorm(self.feat_dim)
@@ -602,6 +624,9 @@ class PointM2AEClassification(ClassificationModel):
             self.group_sizes,
             random_start=self.training,
         )
+        if x is not None:
+            extra = x[idxs[0]].reshape(*neighborhoods[0].shape[:3], -1)
+            neighborhoods[0] = torch.cat([neighborhoods[0], extra], dim=-1)
         x_vis = self.h_encoder(neighborhoods, centers, idxs)
         return self.norm(x_vis)
 
@@ -628,13 +653,15 @@ class PointM2AESegmentation(SegmentationModel):
     a global feature and the one-hot object label, and decoded into per-point logits.
 
     Args:
-        in_channels: The number of input channels (unused; coordinates drive the grouping).
+        in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
         num_classes: The number of part-segmentation classes.
         num_categories: The number of object categories (for the one-hot label embedding).
         group_sizes: The neighborhood size per stage.
         num_groups: The number of centers per stage.
         encoder_depths: The number of transformer blocks per stage.
         encoder_dims: The channel width per stage.
+        token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP.
+        token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         local_radius: The local-attention radius per stage.
         num_heads: The number of attention heads.
 
@@ -655,6 +682,8 @@ class PointM2AESegmentation(SegmentationModel):
         num_groups: Sequence[int] = (512, 256, 64),
         encoder_depths: Sequence[int] = (5, 5, 5),
         encoder_dims: Sequence[int] = (96, 192, 384),
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
         local_radius: Sequence[float] = (0.32, 0.64, 1.28),
         num_heads: int = 6,
     ):
@@ -663,7 +692,7 @@ class PointM2AESegmentation(SegmentationModel):
         self.num_groups = list(num_groups)
         self.encoder_dims = list(encoder_dims)
         self.num_categories = num_categories
-        self.trans_dim = encoder_dims[-1]
+        self.embed_dim = encoder_dims[-1]
 
         self.h_encoder = HierarchicalEncoder(
             encoder_depths=encoder_depths,
@@ -671,6 +700,9 @@ class PointM2AESegmentation(SegmentationModel):
             local_radius=local_radius,
             num_heads=num_heads,
             with_norms=True,
+            in_channels=in_channels,
+            token_local_channels=token_local_channels,
+            token_global_channels=token_global_channels,
         )
 
         self.label_conv = MLP(
@@ -686,7 +718,7 @@ class PointM2AESegmentation(SegmentationModel):
             [
                 FPModule(
                     in_channels=encoder_dims[i] + 3,
-                    channels=[self.trans_dim * 4, 1024],
+                    channels=[self.embed_dim * 4, 1024],
                     k=3,
                     act="relu",
                     norm="batch_norm",
@@ -715,6 +747,9 @@ class PointM2AESegmentation(SegmentationModel):
             self.group_sizes,
             random_start=self.training,
         )
+        if x is not None:
+            extra = x[idxs[0]].reshape(*neighborhoods[0].shape[:3], -1)
+            neighborhoods[0] = torch.cat([neighborhoods[0], extra], dim=-1)
         x_vis_list = self.h_encoder(neighborhoods, centers, idxs, return_stages=True)
         return x_vis_list, centers
 
@@ -770,6 +805,8 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         mask_ratio: The fraction of coarsest-stage tokens to mask.
         encoder_depths: The number of encoder blocks per stage.
         encoder_dims: The encoder channel width per stage.
+        token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP.
+        token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         local_radius: The local-attention radius per stage (disabled during pre-training).
         decoder_depths: The number of decoder blocks per stage.
         decoder_dims: The decoder channel width per stage.
@@ -792,6 +829,8 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         mask_ratio: float = 0.8,
         encoder_depths: Sequence[int] = (5, 5, 5),
         encoder_dims: Sequence[int] = (96, 192, 384),
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
         local_radius: Sequence[float] = (0.32, 0.64, 1.28),
         decoder_depths: Sequence[int] = (1, 1),
         decoder_dims: Sequence[int] = (384, 192),
@@ -814,6 +853,8 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
             num_heads=num_heads,
             mask_ratio=mask_ratio,
             drop_path_rate=drop_path_rate,
+            token_local_channels=token_local_channels,
+            token_global_channels=token_global_channels,
         )
 
         self.mask_token = nn.Parameter(torch.zeros(1, self.decoder_dims[0]))
@@ -917,6 +958,8 @@ class HierarchicalEncoderMAE(nn.Module):
         num_heads: The number of attention heads.
         mask_ratio: The fraction of coarsest-stage tokens to mask.
         drop_path_rate: The maximum stochastic depth rate.
+        token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP (later stages derive their widths from `encoder_dims`).
+        token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         act: The activation function used in the token embedders and transformer blocks.
         act_kwargs: Extra keyword arguments for the activation.
         norm: The normalization function used in the token embedders.
@@ -931,6 +974,8 @@ class HierarchicalEncoderMAE(nn.Module):
         num_heads: int,
         mask_ratio: float,
         drop_path_rate: float = 0.1,
+        token_local_channels: Sequence[int] = (128, 256),
+        token_global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -945,11 +990,20 @@ class HierarchicalEncoderMAE(nn.Module):
         self.token_embed = nn.ModuleList()
         self.encoder_pos_embeds = nn.ModuleList()
         for i in range(len(self.encoder_dims)):
-            in_channels = 3 if i == 0 else self.encoder_dims[i - 1]
+            if i == 0:
+                stage_channels = 3
+                local_channels = token_local_channels
+                global_channels = token_global_channels
+            else:
+                stage_channels = self.encoder_dims[i - 1]
+                local_channels = (stage_channels, stage_channels)
+                global_channels = (self.encoder_dims[i],)
             self.token_embed.append(
                 TokenEmbed(
-                    in_channels=in_channels,
+                    in_channels=stage_channels,
                     out_channels=self.encoder_dims[i],
+                    local_channels=local_channels,
+                    global_channels=global_channels,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
@@ -1078,6 +1132,8 @@ class HierarchicalEncoderMAE(nn.Module):
         num_groups=(512, 256, 64),
         encoder_depths=(5, 5, 5),
         encoder_dims=(96, 192, 384),
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
         drop_path_rate=0.1,
@@ -1102,6 +1158,8 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
         num_groups=(512, 256, 64),
         encoder_depths=(5, 5, 5),
         encoder_dims=(96, 192, 384),
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
         drop_path_rate=0.1,
@@ -1126,6 +1184,8 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
         num_groups=(512, 256, 64),
         encoder_depths=(5, 5, 5),
         encoder_dims=(96, 192, 384),
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
         drop_path_rate=0.1,
@@ -1156,6 +1216,8 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
         num_groups=(512, 256, 64),
         encoder_depths=(5, 5, 5),
         encoder_dims=(96, 192, 384),
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
     ),
@@ -1175,6 +1237,8 @@ def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AESegmentation:
         mask_ratio=0.8,
         encoder_depths=(5, 5, 5),
         encoder_dims=(96, 192, 384),
+        token_local_channels=(128, 256),
+        token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         decoder_depths=(1, 1),
         decoder_dims=(384, 192),
