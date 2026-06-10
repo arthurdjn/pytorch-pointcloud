@@ -1,9 +1,9 @@
 {
-  "num_params": 12290826,
+  "num_params": 16068704,
   "state_dict": {
     "encoder.patch_embed.local_mlp.lins.0.weight": [
       128,
-      9
+      3
     ],
     "encoder.patch_embed.local_mlp.lins.0.bias": [
       128
@@ -567,52 +567,197 @@
     "encoder.norm_f.bias": [
       384
     ],
-    "head.lins.0.weight": [
-      256,
+    "decoder.mask_token": [
+      1,
+      1,
       384
     ],
-    "head.lins.0.bias": [
-      256
+    "decoder.pos_embed.lins.0.weight": [
+      128,
+      3
     ],
-    "head.lins.1.weight": [
-      256,
-      256
+    "decoder.pos_embed.lins.0.bias": [
+      128
     ],
-    "head.lins.1.bias": [
-      256
+    "decoder.pos_embed.lins.1.weight": [
+      384,
+      128
     ],
-    "head.lins.2.weight": [
-      10,
-      256
+    "decoder.pos_embed.lins.1.bias": [
+      384
     ],
-    "head.lins.2.bias": [
-      10
+    "decoder.blocks.0.norm.weight": [
+      384
     ],
-    "head.norms.0.module.weight": [
-      256
+    "decoder.blocks.0.norm.bias": [
+      384
     ],
-    "head.norms.0.module.bias": [
-      256
+    "decoder.blocks.0.mamba.A_log": [
+      768,
+      16
     ],
-    "head.norms.0.module.running_mean": [
-      256
+    "decoder.blocks.0.mamba.D": [
+      768
     ],
-    "head.norms.0.module.running_var": [
-      256
+    "decoder.blocks.0.mamba.in_proj.weight": [
+      1536,
+      384
     ],
-    "head.norms.0.module.num_batches_tracked": [],
-    "head.norms.1.module.weight": [
-      256
+    "decoder.blocks.0.mamba.conv1d.weight": [
+      768,
+      1,
+      4
     ],
-    "head.norms.1.module.bias": [
-      256
+    "decoder.blocks.0.mamba.conv1d.bias": [
+      768
     ],
-    "head.norms.1.module.running_mean": [
-      256
+    "decoder.blocks.0.mamba.x_proj.weight": [
+      56,
+      768
     ],
-    "head.norms.1.module.running_var": [
-      256
+    "decoder.blocks.0.mamba.dt_proj.weight": [
+      768,
+      24
     ],
-    "head.norms.1.module.num_batches_tracked": []
+    "decoder.blocks.0.mamba.dt_proj.bias": [
+      768
+    ],
+    "decoder.blocks.0.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "decoder.blocks.1.norm.weight": [
+      384
+    ],
+    "decoder.blocks.1.norm.bias": [
+      384
+    ],
+    "decoder.blocks.1.mamba.A_log": [
+      768,
+      16
+    ],
+    "decoder.blocks.1.mamba.D": [
+      768
+    ],
+    "decoder.blocks.1.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "decoder.blocks.1.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "decoder.blocks.1.mamba.conv1d.bias": [
+      768
+    ],
+    "decoder.blocks.1.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "decoder.blocks.1.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "decoder.blocks.1.mamba.dt_proj.bias": [
+      768
+    ],
+    "decoder.blocks.1.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "decoder.blocks.2.norm.weight": [
+      384
+    ],
+    "decoder.blocks.2.norm.bias": [
+      384
+    ],
+    "decoder.blocks.2.mamba.A_log": [
+      768,
+      16
+    ],
+    "decoder.blocks.2.mamba.D": [
+      768
+    ],
+    "decoder.blocks.2.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "decoder.blocks.2.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "decoder.blocks.2.mamba.conv1d.bias": [
+      768
+    ],
+    "decoder.blocks.2.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "decoder.blocks.2.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "decoder.blocks.2.mamba.dt_proj.bias": [
+      768
+    ],
+    "decoder.blocks.2.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "decoder.blocks.3.norm.weight": [
+      384
+    ],
+    "decoder.blocks.3.norm.bias": [
+      384
+    ],
+    "decoder.blocks.3.mamba.A_log": [
+      768,
+      16
+    ],
+    "decoder.blocks.3.mamba.D": [
+      768
+    ],
+    "decoder.blocks.3.mamba.in_proj.weight": [
+      1536,
+      384
+    ],
+    "decoder.blocks.3.mamba.conv1d.weight": [
+      768,
+      1,
+      4
+    ],
+    "decoder.blocks.3.mamba.conv1d.bias": [
+      768
+    ],
+    "decoder.blocks.3.mamba.x_proj.weight": [
+      56,
+      768
+    ],
+    "decoder.blocks.3.mamba.dt_proj.weight": [
+      768,
+      24
+    ],
+    "decoder.blocks.3.mamba.dt_proj.bias": [
+      768
+    ],
+    "decoder.blocks.3.mamba.out_proj.weight": [
+      384,
+      768
+    ],
+    "decoder.norm_f.weight": [
+      384
+    ],
+    "decoder.norm_f.bias": [
+      384
+    ],
+    "head.weight": [
+      96,
+      384
+    ],
+    "head.bias": [
+      96
+    ]
   }
 }

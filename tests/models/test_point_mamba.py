@@ -77,6 +77,30 @@ def test_point_mamba_classification_basic() -> None:
     assert out.shape == (2, 10)
 
 
+def test_point_mamba_classification_accepts_features() -> None:
+    in_channels = 3
+    model = PointMambaClassification(
+        in_channels=in_channels,
+        num_classes=10,
+        embedding_dim=192,
+        depth=2,
+        num_patches=64,
+        group_size=32,
+    )
+    model.cuda()
+    model.eval()
+    assert model.encoder.patch_embed.local_mlp.channel_list[0] == 2 * in_channels + 3
+    pos = torch.randn(2048, 3).cuda()
+    batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long().cuda()
+    x_a = torch.randn(2048, in_channels).cuda()
+    x_b = torch.randn(2048, in_channels).cuda()
+
+    out_a = model(x_a, pos, batch)
+    out_b = model(x_b, pos, batch)
+    assert out_a.shape == (2, 10)
+    assert not torch.allclose(out_a, out_b)
+
+
 def test_point_mamba_mae_basic() -> None:
     """Test the basic functionality of the PointMambaMAE model,
     following similar architecture as the original PointMamba model."""
@@ -98,5 +122,28 @@ def test_point_mamba_mae_basic() -> None:
     batch = torch.cat([torch.zeros(40), torch.ones(60)]).long().cuda()
     pred, target = model(None, pos, batch)
 
+    assert pred.ndim == target.ndim == 3
+    assert pred.shape == target.shape
+
+
+def test_point_mamba_mae_accepts_features() -> None:
+    in_channels = 3
+    model = PointMambaMAE(
+        in_channels=in_channels,
+        embedding_dim=192,
+        encoder_depth=2,
+        decoder_depth=1,
+        num_patches=64,
+        group_size=32,
+        mask_ratio=0.6,
+    )
+    model.cuda()
+    model.eval()
+    assert model.encoder.patch_embed.local_mlp.channel_list[0] == 2 * in_channels + 3
+    pos = torch.randn(2048, 3).cuda()
+    batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long().cuda()
+    x = torch.randn(2048, in_channels).cuda()
+
+    pred, target = model(x, pos, batch)
     assert pred.ndim == target.ndim == 3
     assert pred.shape == target.shape
