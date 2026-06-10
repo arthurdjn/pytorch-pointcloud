@@ -124,6 +124,8 @@ class PointPatchEmbedding(nn.Module):
             out_channels: The number of output channels.
             num_patches: The number of patches to sample.
             group_size: The number of neighbors to consider for each patch.
+            local_channels: Hidden widths of the per-point MLP (the derived input width is prepended).
+            global_channels: Hidden widths of the per-patch MLP.
             act: The activation function to use.
             act_kwargs: The keyword arguments to pass to the activation function.
             act_first: Whether to apply the activation function before the normalization.
@@ -145,6 +147,8 @@ class PointPatchEmbedding(nn.Module):
         num_patches: int,
         group_size: int,
         spatial_dim: int = 3,
+        local_channels: Sequence[int] = (128, 256),
+        global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -172,8 +176,8 @@ class PointPatchEmbedding(nn.Module):
         # Otherwise, we concatenate the input features of the centroids (local features),
         # neighbors (global features) and relative positions.
         in_channels = spatial_dim if in_channels == 0 else 2 * in_channels + spatial_dim
-        self.mlp1 = MLP([in_channels, 128, 256], **factory_kwargs)
-        self.mlp2 = MLP([512, 512, out_channels], **factory_kwargs)
+        self.local_mlp = MLP([in_channels, *local_channels], **factory_kwargs)
+        self.global_mlp = MLP([2 * local_channels[-1], *global_channels, out_channels], **factory_kwargs)
         self.reduce = reduce
 
     @overload
@@ -207,11 +211,11 @@ class PointPatchEmbedding(nn.Module):
         x_neighbor = x[col] if x is not None else torch.empty(0, device=pos.device)
 
         x = torch.cat([x_centroid[row], x_neighbor, pos_rel], dim=-1) if x is not None else pos_rel
-        x_local = self.mlp1(x)
+        x_local = self.local_mlp(x)
         x_max = scatter(x_local, row, dim=0, dim_size=num_centroids, reduce=self.reduce)
 
         x_cat = torch.cat([x_max[row], x_local], dim=1)
-        x_final = self.mlp2(x_cat)
+        x_final = self.global_mlp(x_cat)
 
         x_patch = scatter(x_final, row, dim=0, dim_size=num_centroids, reduce=self.reduce)
 
@@ -239,6 +243,9 @@ class PointMambaEncoder(nn.Module):
             drop_path_rate: The dropout rate to use.
             use_cls_token: Whether to use a class token.
             spatial_dim: The dimension of the spatial features.
+            patch_local_channels: Hidden widths of the patch embedder's per-point MLP.
+            patch_global_channels: Hidden widths of the patch embedder's per-patch MLP.
+            pos_embed_channels: Hidden widths of the positional-embedding MLP.
             act: The activation function to use.
             act_kwargs: The keyword arguments to pass to the activation function.
             act_first: Whether to apply the activation function before the normalization.
@@ -248,7 +255,7 @@ class PointMambaEncoder(nn.Module):
 
         Shapes:
             - Input: $(N, C_{\text{in}})$ where $N$ is the number of nodes and $C_{\text{in}}$ is the number of input channels.
-            - Output: $(B, P, C_{\text{out}})$ where $B$ is the number of batches, $P$ is the number of patches, 
+            - Output: $(B, P, C_{\text{out}})$ where $B$ is the number of batches, $P$ is the number of patches,
                 and $C_{\text{out}}$ is the number of output channels.
         """
     )
@@ -263,6 +270,9 @@ class PointMambaEncoder(nn.Module):
         drop_path_rate: float = 0.0,
         use_cls_token: bool = False,
         spatial_dim: int = 3,
+        patch_local_channels: Sequence[int] = (128, 256),
+        patch_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -288,9 +298,11 @@ class PointMambaEncoder(nn.Module):
             num_patches=num_patches,
             group_size=group_size,
             spatial_dim=spatial_dim,
+            local_channels=patch_local_channels,
+            global_channels=patch_global_channels,
             **factory_kwargs,
         )
-        self.pos_embed = MLP([spatial_dim, 128, self.embedding_dim], act="gelu", norm=None, bias=bias)
+        self.pos_embed = MLP([spatial_dim, *pos_embed_channels, self.embedding_dim], act="gelu", norm=None, bias=bias)
         self.order_h = Affine(self.embedding_dim)
         self.order_th = Affine(self.embedding_dim)
 
@@ -398,6 +410,9 @@ class PointMambaEncoderMAE(nn.Module):
         mask_ratio: float,
         drop_path_rate: float = 0.0,
         spatial_dim: int = 3,
+        patch_local_channels: Sequence[int] = (128, 256),
+        patch_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -423,11 +438,13 @@ class PointMambaEncoderMAE(nn.Module):
             num_patches=num_patches,
             group_size=group_size,
             spatial_dim=spatial_dim,
+            local_channels=patch_local_channels,
+            global_channels=patch_global_channels,
             **factory_kwargs,
         )
 
         # Encoder-specific positional embedding
-        self.pos_embed = MLP([spatial_dim, 128, self.embedding_dim], act="gelu", norm=None, bias=bias)
+        self.pos_embed = MLP([spatial_dim, *pos_embed_channels, self.embedding_dim], act="gelu", norm=None, bias=bias)
 
         # Order scale indicators
         self.order_h = Affine(self.embedding_dim)
@@ -498,11 +515,12 @@ class PointMambaDecoderMAE(nn.Module):
         depth: int,
         drop_path_rate: float,
         spatial_dim: int = 3,
+        pos_embed_channels: Sequence[int] = (128,),
         bias: Union[bool, List[bool]] = True,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        self.pos_embed = MLP([spatial_dim, 128, embedding_dim], act="gelu", norm=None, bias=bias)
+        self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embedding_dim], act="gelu", norm=None, bias=bias)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
@@ -552,6 +570,9 @@ class PointMambaClassification(ClassificationModel):
             drop_path_rate: The dropout rate to use.
             use_cls_token: Whether to use a class token.
             spatial_dim: The dimension of the spatial features.
+            patch_local_channels: Hidden widths of the patch embedder's per-point MLP.
+            patch_global_channels: Hidden widths of the patch embedder's per-patch MLP.
+            pos_embed_channels: Hidden widths of the positional-embedding MLP.
             act: The activation function to use.
             act_kwargs: The keyword arguments to pass to the activation function.
             act_first: Whether to apply the activation function before the normalization.
@@ -580,6 +601,9 @@ class PointMambaClassification(ClassificationModel):
         drop_path_rate: float = 0.1,
         use_cls_token: bool = False,
         spatial_dim: int = 3,
+        patch_local_channels: Sequence[int] = (128, 256),
+        patch_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -598,6 +622,9 @@ class PointMambaClassification(ClassificationModel):
         self.drop_path_rate = drop_path_rate
         self.use_cls_token = use_cls_token
         self.spatial_dim = spatial_dim
+        self.patch_local_channels = patch_local_channels
+        self.patch_global_channels = patch_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
@@ -622,6 +649,9 @@ class PointMambaClassification(ClassificationModel):
             drop_path_rate=self.drop_path_rate,
             use_cls_token=self.use_cls_token,
             spatial_dim=self.spatial_dim,
+            patch_local_channels=self.patch_local_channels,
+            patch_global_channels=self.patch_global_channels,
+            pos_embed_channels=self.pos_embed_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -719,6 +749,9 @@ class PointMambaMAE(BaseModel):
         mask_ratio: float = 0.6,
         drop_path_rate: float = 0.1,
         spatial_dim: int = 3,
+        patch_local_channels: Sequence[int] = (128, 256),
+        patch_global_channels: Sequence[int] = (512,),
+        pos_embed_channels: Sequence[int] = (128,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -735,6 +768,9 @@ class PointMambaMAE(BaseModel):
         self.mask_ratio = mask_ratio
         self.drop_path_rate = drop_path_rate
         self.spatial_dim = spatial_dim
+        self.patch_local_channels = patch_local_channels
+        self.patch_global_channels = patch_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
@@ -760,6 +796,9 @@ class PointMambaMAE(BaseModel):
             mask_ratio=self.mask_ratio,
             drop_path_rate=self.drop_path_rate,
             spatial_dim=self.spatial_dim,
+            patch_local_channels=self.patch_local_channels,
+            patch_global_channels=self.patch_global_channels,
+            pos_embed_channels=self.pos_embed_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -774,6 +813,7 @@ class PointMambaMAE(BaseModel):
             depth=self.decoder_depth,
             drop_path_rate=self.drop_path_rate,
             spatial_dim=self.spatial_dim,
+            pos_embed_channels=self.pos_embed_channels,
             bias=self.bias,
         )
 
@@ -826,6 +866,9 @@ class PointMambaMAE(BaseModel):
         drop_path_rate=0.1,
         use_cls_token=False,
         spatial_dim=3,
+        patch_local_channels=(128, 256),
+        patch_global_channels=(512,),
+        pos_embed_channels=(128,),
         act="relu",
         act_kwargs=None,
         act_first=False,
@@ -861,6 +904,9 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
         drop_path_rate=0.5,
         use_cls_token=False,
         spatial_dim=3,
+        patch_local_channels=(128, 256),
+        patch_global_channels=(512,),
+        pos_embed_channels=(128,),
         act="relu",
         act_kwargs=None,
         act_first=False,
@@ -896,6 +942,9 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
         drop_path_rate=0.5,
         use_cls_token=False,
         spatial_dim=3,
+        patch_local_channels=(128, 256),
+        patch_global_channels=(512,),
+        pos_embed_channels=(128,),
         act="relu",
         act_kwargs=None,
         act_first=False,
@@ -931,6 +980,9 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
         drop_path_rate=0.5,
         use_cls_token=False,
         spatial_dim=3,
+        patch_local_channels=(128, 256),
+        patch_global_channels=(512,),
+        pos_embed_channels=(128,),
         act="relu",
         act_kwargs=None,
         act_first=False,
@@ -960,6 +1012,9 @@ def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> Poi
         mask_ratio=0.6,
         drop_path_rate=0.1,
         spatial_dim=3,
+        patch_local_channels=(128, 256),
+        patch_global_channels=(512,),
+        pos_embed_channels=(128,),
         act="relu",
         act_kwargs=None,
         act_first=False,
