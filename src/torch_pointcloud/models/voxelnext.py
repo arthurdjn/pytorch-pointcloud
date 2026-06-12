@@ -315,7 +315,11 @@ class VoxelNeXtHead(nn.Module):
         }
 
     def _decode_group(
-        self, out: VoxelNeXtHeadOutput, group_idx: int, batch_size: int, top_k: int
+        self,
+        out: VoxelNeXtHeadOutput,
+        group_idx: int,
+        batch_size: int,
+        top_k: int,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         voxel_indices = out["voxel_indices"]
         batch_idx = voxel_indices[:, 0]
@@ -341,6 +345,7 @@ class VoxelNeXtHead(nn.Module):
             scene_hm = hm[mask]
             if scene_hm.numel() == 0:
                 continue
+
             k = min(top_k, scene_hm.shape[0])
             flat_scores, flat_inds = scene_hm.reshape(-1).topk(k)
             voxel_inds = flat_inds // scene_hm.shape[1]
@@ -401,6 +406,7 @@ class VoxelNeXtHead(nn.Module):
             mask = batch == b
             if not bool(mask.any()):
                 continue
+
             keep_idx = nms3d(boxes[mask][:, :7], scores[mask], labels[mask], nms_iou)
             out_boxes.append(boxes[mask][keep_idx, :7])
             out_scores.append(scores[mask][keep_idx])
@@ -414,6 +420,7 @@ class VoxelNeXtHead(nn.Module):
                 "labels": labels.new_zeros(0),
                 "batch": batch.new_zeros(0),
             }
+
         return {
             "boxes": torch.cat(out_boxes),
             "scores": torch.cat(out_scores),
@@ -519,24 +526,40 @@ class VoxelNeXtDetection(DetectionModel):
         voxel_features = voxels.sum(dim=1) / normalizer
 
         sparse_tensor = spconv.SparseConvTensor(
-            features=voxel_features, indices=voxel_indices.int(), spatial_shape=self.sparse_shape, batch_size=batch_size
+            features=voxel_features,
+            indices=voxel_indices.int(),
+            spatial_shape=self.sparse_shape,
+            batch_size=batch_size,
         )
         return self.backbone_3d(sparse_tensor)
 
     def forward(
-        self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
     ) -> VoxelNeXtHeadOutput:
         encoded = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         return self.head(encoded)
 
     @torch.no_grad()
     def decode(
-        self, out: VoxelNeXtHeadOutput, *, score_threshold: float = 0.1, nms_iou: float = 0.2, top_k: int = 500
+        self,
+        out: VoxelNeXtHeadOutput,
+        *,
+        score_threshold: float = 0.1,
+        nms_iou: float = 0.2,
+        top_k: int = 500,
     ) -> Detection3D:
         r"""Decode a forward output into packed detections (see `VoxelNeXtHead.decode`)."""
         batch_size = int(out["voxel_indices"][:, 0].max().item()) + 1 if out["voxel_indices"].numel() else 0
         return self.head.decode(
-            out, batch_size=batch_size, score_threshold=score_threshold, nms_iou=nms_iou, top_k=top_k
+            out,
+            batch_size=batch_size,
+            score_threshold=score_threshold,
+            nms_iou=nms_iou,
+            top_k=top_k,
         )
 
 
