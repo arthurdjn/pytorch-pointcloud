@@ -165,6 +165,8 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area6",
     "randlanet-tsunghanwu.semantickitti",
     "sonata-lp.scannet20",
+    "sphereformer-dvlab.nuscenes",
+    "sphereformer-dvlab.semantickitti",
     "spunet-v1m1.scannet20",
     "spvcnn-30gmacs.semantickitti",
     "spvcnn-47gmacs.semantickitti",
@@ -199,12 +201,16 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("oneformer3d") and not _TORCH_SCATTER_AVAILABLE:
         pytest.skip("torch_scatter is not installed")
+    if model_name.startswith("voxel-mamba") and not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith(("3detr", "pointrcnn")) and not _TORCH_CLUSTER_AVAILABLE:
         pytest.skip("torch_cluster is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
+    if model_name.startswith("sphereformer") and not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
 
 
 # Models whose `forward` cannot run on the synthetic `data_factory` input — they expect
@@ -225,6 +231,10 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     _skip_if_model_deps_missing(model_name)
     if model_name.startswith(("point-mamba", "spvcnn", "spunet", "oneformer3d")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
+    if model_name.startswith("sphereformer"):
+        if not torch.cuda.is_available():
+            pytest.skip(f"{model_name} requires CUDA, none available")
+        pytest.importorskip("sptr")
     if model_name.startswith("ptv3") and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
