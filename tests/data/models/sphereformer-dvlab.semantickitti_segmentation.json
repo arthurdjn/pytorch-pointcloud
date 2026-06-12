@@ -1,0 +1,1320 @@
+{
+  "num_params": 32310554,
+  "state_dict": {
+    "input_conv.0.weight": [
+      32,
+      3,
+      3,
+      3,
+      3
+    ],
+    "unet.blocks.block0.conv_branch.0.module.weight": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.0.module.bias": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.0.module.running_mean": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.0.module.running_var": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.blocks.block0.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.blocks.block0.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.blocks.block0.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.blocks.block1.conv_branch.0.module.weight": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.0.module.bias": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.0.module.running_mean": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.0.module.running_var": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.blocks.block1.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.blocks.block1.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.blocks.block1.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.transformer_block.norm1.weight": [
+      32
+    ],
+    "unet.transformer_block.norm1.bias": [
+      32
+    ],
+    "unet.transformer_block.attn.relative_pos_query_table": [
+      47,
+      3,
+      1,
+      16
+    ],
+    "unet.transformer_block.attn.relative_pos_key_table": [
+      47,
+      3,
+      1,
+      16
+    ],
+    "unet.transformer_block.attn.relative_pos_value_table": [
+      47,
+      3,
+      1,
+      16
+    ],
+    "unet.transformer_block.attn.relative_pos_query_table_sphere": [
+      48,
+      3,
+      1,
+      16
+    ],
+    "unet.transformer_block.attn.relative_pos_key_table_sphere": [
+      48,
+      3,
+      1,
+      16
+    ],
+    "unet.transformer_block.attn.relative_pos_value_table_sphere": [
+      48,
+      3,
+      1,
+      16
+    ],
+    "unet.transformer_block.attn.qkv.weight": [
+      96,
+      32
+    ],
+    "unet.transformer_block.attn.qkv.bias": [
+      96
+    ],
+    "unet.transformer_block.attn.proj.weight": [
+      32,
+      32
+    ],
+    "unet.transformer_block.attn.proj.bias": [
+      32
+    ],
+    "unet.transformer_block.norm2.weight": [
+      32
+    ],
+    "unet.transformer_block.norm2.bias": [
+      32
+    ],
+    "unet.transformer_block.mlp.0.weight": [
+      128,
+      32
+    ],
+    "unet.transformer_block.mlp.0.bias": [
+      128
+    ],
+    "unet.transformer_block.mlp.2.weight": [
+      32,
+      128
+    ],
+    "unet.transformer_block.mlp.2.bias": [
+      32
+    ],
+    "unet.conv.0.module.weight": [
+      32
+    ],
+    "unet.conv.0.module.bias": [
+      32
+    ],
+    "unet.conv.0.module.running_mean": [
+      32
+    ],
+    "unet.conv.0.module.running_var": [
+      32
+    ],
+    "unet.conv.0.module.num_batches_tracked": [],
+    "unet.conv.2.weight": [
+      64,
+      2,
+      2,
+      2,
+      32
+    ],
+    "unet.unet.blocks.block0.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.blocks.block0.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.blocks.block0.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.blocks.block1.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.blocks.block1.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.unet.transformer_block.norm1.weight": [
+      64
+    ],
+    "unet.unet.transformer_block.norm1.bias": [
+      64
+    ],
+    "unet.unet.transformer_block.attn.relative_pos_query_table": [
+      47,
+      3,
+      2,
+      16
+    ],
+    "unet.unet.transformer_block.attn.relative_pos_key_table": [
+      47,
+      3,
+      2,
+      16
+    ],
+    "unet.unet.transformer_block.attn.relative_pos_value_table": [
+      47,
+      3,
+      2,
+      16
+    ],
+    "unet.unet.transformer_block.attn.relative_pos_query_table_sphere": [
+      48,
+      3,
+      2,
+      16
+    ],
+    "unet.unet.transformer_block.attn.relative_pos_key_table_sphere": [
+      48,
+      3,
+      2,
+      16
+    ],
+    "unet.unet.transformer_block.attn.relative_pos_value_table_sphere": [
+      48,
+      3,
+      2,
+      16
+    ],
+    "unet.unet.transformer_block.attn.qkv.weight": [
+      192,
+      64
+    ],
+    "unet.unet.transformer_block.attn.qkv.bias": [
+      192
+    ],
+    "unet.unet.transformer_block.attn.proj.weight": [
+      64,
+      64
+    ],
+    "unet.unet.transformer_block.attn.proj.bias": [
+      64
+    ],
+    "unet.unet.transformer_block.norm2.weight": [
+      64
+    ],
+    "unet.unet.transformer_block.norm2.bias": [
+      64
+    ],
+    "unet.unet.transformer_block.mlp.0.weight": [
+      256,
+      64
+    ],
+    "unet.unet.transformer_block.mlp.0.bias": [
+      256
+    ],
+    "unet.unet.transformer_block.mlp.2.weight": [
+      64,
+      256
+    ],
+    "unet.unet.transformer_block.mlp.2.bias": [
+      64
+    ],
+    "unet.unet.conv.0.module.weight": [
+      64
+    ],
+    "unet.unet.conv.0.module.bias": [
+      64
+    ],
+    "unet.unet.conv.0.module.running_mean": [
+      64
+    ],
+    "unet.unet.conv.0.module.running_var": [
+      64
+    ],
+    "unet.unet.conv.0.module.num_batches_tracked": [],
+    "unet.unet.conv.2.weight": [
+      128,
+      2,
+      2,
+      2,
+      64
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks.block0.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks.block0.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks.block1.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks.block1.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.unet.transformer_block.norm1.weight": [
+      128
+    ],
+    "unet.unet.unet.transformer_block.norm1.bias": [
+      128
+    ],
+    "unet.unet.unet.transformer_block.attn.relative_pos_query_table": [
+      47,
+      3,
+      4,
+      16
+    ],
+    "unet.unet.unet.transformer_block.attn.relative_pos_key_table": [
+      47,
+      3,
+      4,
+      16
+    ],
+    "unet.unet.unet.transformer_block.attn.relative_pos_value_table": [
+      47,
+      3,
+      4,
+      16
+    ],
+    "unet.unet.unet.transformer_block.attn.relative_pos_query_table_sphere": [
+      48,
+      3,
+      4,
+      16
+    ],
+    "unet.unet.unet.transformer_block.attn.relative_pos_key_table_sphere": [
+      48,
+      3,
+      4,
+      16
+    ],
+    "unet.unet.unet.transformer_block.attn.relative_pos_value_table_sphere": [
+      48,
+      3,
+      4,
+      16
+    ],
+    "unet.unet.unet.transformer_block.attn.qkv.weight": [
+      384,
+      128
+    ],
+    "unet.unet.unet.transformer_block.attn.qkv.bias": [
+      384
+    ],
+    "unet.unet.unet.transformer_block.attn.proj.weight": [
+      128,
+      128
+    ],
+    "unet.unet.unet.transformer_block.attn.proj.bias": [
+      128
+    ],
+    "unet.unet.unet.transformer_block.norm2.weight": [
+      128
+    ],
+    "unet.unet.unet.transformer_block.norm2.bias": [
+      128
+    ],
+    "unet.unet.unet.transformer_block.mlp.0.weight": [
+      512,
+      128
+    ],
+    "unet.unet.unet.transformer_block.mlp.0.bias": [
+      512
+    ],
+    "unet.unet.unet.transformer_block.mlp.2.weight": [
+      128,
+      512
+    ],
+    "unet.unet.unet.transformer_block.mlp.2.bias": [
+      128
+    ],
+    "unet.unet.unet.conv.0.module.weight": [
+      128
+    ],
+    "unet.unet.unet.conv.0.module.bias": [
+      128
+    ],
+    "unet.unet.unet.conv.0.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.conv.0.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.conv.0.module.num_batches_tracked": [],
+    "unet.unet.unet.conv.2.weight": [
+      256,
+      2,
+      2,
+      2,
+      128
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.2.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.3.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.3.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.3.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.3.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks.block0.conv_branch.5.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.2.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.3.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.3.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.3.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.3.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks.block1.conv_branch.5.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.norm1.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.norm1.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.relative_pos_query_table": [
+      47,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.relative_pos_key_table": [
+      47,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.relative_pos_value_table": [
+      47,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.relative_pos_query_table_sphere": [
+      48,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.relative_pos_key_table_sphere": [
+      48,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.relative_pos_value_table_sphere": [
+      48,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.qkv.weight": [
+      768,
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.qkv.bias": [
+      768
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.proj.weight": [
+      256,
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.attn.proj.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.norm2.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.norm2.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.mlp.0.weight": [
+      1024,
+      256
+    ],
+    "unet.unet.unet.unet.transformer_block.mlp.0.bias": [
+      1024
+    ],
+    "unet.unet.unet.unet.transformer_block.mlp.2.weight": [
+      256,
+      1024
+    ],
+    "unet.unet.unet.unet.transformer_block.mlp.2.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.conv.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.conv.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.conv.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.conv.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.conv.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.conv.2.weight": [
+      256,
+      2,
+      2,
+      2,
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.2.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.3.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.3.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.3.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.3.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.unet.blocks.block0.conv_branch.5.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.2.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.3.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.3.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.3.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.3.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.unet.blocks.block1.conv_branch.5.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.norm1.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.norm1.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.relative_pos_query_table": [
+      47,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.relative_pos_key_table": [
+      47,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.relative_pos_value_table": [
+      47,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.relative_pos_query_table_sphere": [
+      48,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.relative_pos_key_table_sphere": [
+      48,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.relative_pos_value_table_sphere": [
+      48,
+      3,
+      8,
+      16
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.qkv.weight": [
+      768,
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.qkv.bias": [
+      768
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.proj.weight": [
+      256,
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.attn.proj.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.norm2.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.norm2.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.mlp.0.weight": [
+      1024,
+      256
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.mlp.0.bias": [
+      1024
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.mlp.2.weight": [
+      256,
+      1024
+    ],
+    "unet.unet.unet.unet.unet.transformer_block.mlp.2.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.deconv.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.deconv.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.deconv.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.deconv.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.deconv.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.deconv.2.weight": [
+      256,
+      2,
+      2,
+      2,
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.i_branch.0.weight": [
+      256,
+      1,
+      1,
+      1,
+      512
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.0.module.weight": [
+      512
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.0.module.bias": [
+      512
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.0.module.running_mean": [
+      512
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.0.module.running_var": [
+      512
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.2.weight": [
+      256,
+      3,
+      3,
+      3,
+      512
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.3.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.3.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.3.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.3.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks_tail.block0.conv_branch.5.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.2.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.3.module.weight": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.3.module.bias": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.3.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.3.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.unet.blocks_tail.block1.conv_branch.5.weight": [
+      256,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.deconv.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.deconv.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.deconv.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.deconv.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.deconv.0.module.num_batches_tracked": [],
+    "unet.unet.unet.deconv.2.weight": [
+      128,
+      2,
+      2,
+      2,
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.i_branch.0.weight": [
+      128,
+      1,
+      1,
+      1,
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.0.module.weight": [
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.0.module.bias": [
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.0.module.running_mean": [
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.0.module.running_var": [
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      256
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks_tail.block0.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.3.module.weight": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.3.module.bias": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.3.module.running_mean": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.3.module.running_var": [
+      128
+    ],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.unet.blocks_tail.block1.conv_branch.5.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.deconv.0.module.weight": [
+      128
+    ],
+    "unet.unet.deconv.0.module.bias": [
+      128
+    ],
+    "unet.unet.deconv.0.module.running_mean": [
+      128
+    ],
+    "unet.unet.deconv.0.module.running_var": [
+      128
+    ],
+    "unet.unet.deconv.0.module.num_batches_tracked": [],
+    "unet.unet.deconv.2.weight": [
+      64,
+      2,
+      2,
+      2,
+      128
+    ],
+    "unet.unet.blocks_tail.block0.i_branch.0.weight": [
+      64,
+      1,
+      1,
+      1,
+      128
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.0.module.weight": [
+      128
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.0.module.bias": [
+      128
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.0.module.running_mean": [
+      128
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.0.module.running_var": [
+      128
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.blocks_tail.block0.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      128
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks_tail.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.blocks_tail.block0.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.unet.blocks_tail.block1.conv_branch.2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.3.module.weight": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.3.module.bias": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.3.module.running_mean": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.3.module.running_var": [
+      64
+    ],
+    "unet.unet.blocks_tail.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.unet.blocks_tail.block1.conv_branch.5.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.deconv.0.module.weight": [
+      64
+    ],
+    "unet.deconv.0.module.bias": [
+      64
+    ],
+    "unet.deconv.0.module.running_mean": [
+      64
+    ],
+    "unet.deconv.0.module.running_var": [
+      64
+    ],
+    "unet.deconv.0.module.num_batches_tracked": [],
+    "unet.deconv.2.weight": [
+      32,
+      2,
+      2,
+      2,
+      64
+    ],
+    "unet.blocks_tail.block0.i_branch.0.weight": [
+      32,
+      1,
+      1,
+      1,
+      64
+    ],
+    "unet.blocks_tail.block0.conv_branch.0.module.weight": [
+      64
+    ],
+    "unet.blocks_tail.block0.conv_branch.0.module.bias": [
+      64
+    ],
+    "unet.blocks_tail.block0.conv_branch.0.module.running_mean": [
+      64
+    ],
+    "unet.blocks_tail.block0.conv_branch.0.module.running_var": [
+      64
+    ],
+    "unet.blocks_tail.block0.conv_branch.0.module.num_batches_tracked": [],
+    "unet.blocks_tail.block0.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      64
+    ],
+    "unet.blocks_tail.block0.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.blocks_tail.block0.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.blocks_tail.block0.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.blocks_tail.block0.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.blocks_tail.block0.conv_branch.3.module.num_batches_tracked": [],
+    "unet.blocks_tail.block0.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.0.module.weight": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.0.module.bias": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.0.module.running_mean": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.0.module.running_var": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.0.module.num_batches_tracked": [],
+    "unet.blocks_tail.block1.conv_branch.2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.3.module.weight": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.3.module.bias": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.3.module.running_mean": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.3.module.running_var": [
+      32
+    ],
+    "unet.blocks_tail.block1.conv_branch.3.module.num_batches_tracked": [],
+    "unet.blocks_tail.block1.conv_branch.5.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "output_layer.0.module.weight": [
+      32
+    ],
+    "output_layer.0.module.bias": [
+      32
+    ],
+    "output_layer.0.module.running_mean": [
+      32
+    ],
+    "output_layer.0.module.running_var": [
+      32
+    ],
+    "output_layer.0.module.num_batches_tracked": [],
+    "head.weight": [
+      10,
+      32
+    ],
+    "head.bias": [
+      10
+    ]
+  }
+}
