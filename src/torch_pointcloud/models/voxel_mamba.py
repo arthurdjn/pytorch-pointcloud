@@ -576,6 +576,10 @@ class VoxelMambaBackbone(nn.Module):
         residual_in_fp32: Keep the Mamba residual stream in fp32.
     """
 
+    _template_rank9: Tensor
+    _template_rank8: Tensor
+    _template_rank7: Tensor
+
     def __init__(
         self,
         d_model: int,
@@ -600,15 +604,11 @@ class VoxelMambaBackbone(nn.Module):
         self.sparse_shape = [int(grid_size[2]) + 1, int(grid_size[1]), int(grid_size[0])]
         conv_kwargs: Dict[str, Any] = dict(norm="batch_norm", norm_kwargs=dict(eps=1e-3, momentum=0.01))
 
-        self.curve_template: Dict[str, Tensor] = {}
         self.hilbert_spatial_size: Dict[str, Tuple[int, int, int]] = {}
         for rank, z_max in ((9, 41), (8, 17), (7, 9)):
-            template = build_hilbert_template(rank, z_max)
-            key = f"curve_template_rank{rank}"
-            self.curve_template[key] = template
-            self.register_buffer(f"_template_rank{rank}", template, persistent=False)
+            self.register_buffer(f"_template_rank{rank}", build_hilbert_template(rank, z_max), persistent=False)
             side = 1 << rank
-            self.hilbert_spatial_size[key] = (1, side, side)
+            self.hilbert_spatial_size[f"curve_template_rank{rank}"] = (1, side, side)
 
         blocks: List[nn.Module] = []
         for i, count in enumerate(num_stage):
@@ -656,9 +656,11 @@ class VoxelMambaBackbone(nn.Module):
         self.out_channels = d_model
 
     def forward(self, voxel_features: Tensor, voxel_indices: Tensor, batch_size: int) -> Tuple[Tensor, Tensor]:
-        for key in self.curve_template:
-            self.curve_template[key] = self.curve_template[key].to(voxel_indices.device)
-
+        curve_template = {
+            "curve_template_rank9": self._template_rank9,
+            "curve_template_rank8": self._template_rank8,
+            "curve_template_rank7": self._template_rank7,
+        }
         spatial_shape = self.sparse_shape
         for i, block in enumerate(self.block_list):
             voxel_features, voxel_indices = block(
@@ -666,7 +668,7 @@ class VoxelMambaBackbone(nn.Module):
                 voxel_indices,
                 batch_size,
                 spatial_shape,
-                self.curve_template,
+                curve_template,
                 self.hilbert_spatial_size,
                 self.pos_embed,
                 i,
@@ -719,7 +721,14 @@ class BasicBlock2d(nn.Module):
         self.act = create_act(act, **(act_kwargs or {}))
         self.downsample = (
             Conv2dBlock(
-                in_channels, out_channels, 1, stride=stride, padding=0, act=None, norm=norm, norm_kwargs=norm_kwargs
+                in_channels,
+                out_channels,
+                1,
+                stride=stride,
+                padding=0,
+                act=None,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
             )
             if downsample
             else None
@@ -775,7 +784,11 @@ class BaseBEVResBackbone(nn.Module):
         for idx in range(num_levels):
             cur: List[nn.Module] = [
                 BasicBlock2d(
-                    c_in_list[idx], num_filters[idx], stride=layer_strides[idx], downsample=True, **block_kwargs
+                    c_in_list[idx],
+                    num_filters[idx],
+                    stride=layer_strides[idx],
+                    downsample=True,
+                    **block_kwargs,
                 )
             ]
             for _ in range(layer_nums[idx]):
@@ -1050,12 +1063,27 @@ class VoxelMambaDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(
-        self, out: Dict[str, Tensor], *, score_threshold: float = 0.1, nms_iou: float = 0.7, k: int = 500
+        self,
+        out: Dict[str, Tensor],
+        *,
+        score_threshold: float = 0.1,
+        nms_iou: float = 0.7,
+        k: int = 500,
+        iou_rectifier: Sequence[float] = (0.68, 0.71, 0.65),
     ) -> Detection3D:
         r"""Decode center-head predictions into packed detections.
 
         Peaks of the (sigmoid) heatmap give candidate centers; box attributes are gathered at those
-        peaks, mapped to world coordinates, thresholded by score, and reduced by per-class 3D NMS.
+        peaks, mapped to world coordinates, thresholded by score, rescored by the predicted IoU
+        ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference),
+        and reduced by per-class 3D NMS.
+
+        Args:
+            out: The dict returned by `forward`.
+            score_threshold: Minimum (pre-rectification) heatmap score to keep a box.
+            nms_iou: IoU threshold of the per-class 3D NMS.
+            k: Number of heatmap peaks gathered per scene.
+            iou_rectifier: Per-class IoU-rectification exponent (the reference Waymo values).
 
         Returns:
             Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
@@ -1069,6 +1097,7 @@ class VoxelMambaDetection(DetectionModel):
         dim = _transpose_gather(out["dim"], inds).exp()
         rot = _transpose_gather(out["rot"], inds)
         angle = torch.atan2(rot[..., 1], rot[..., 0])
+        iou = torch.clamp((_transpose_gather(out["iou"], inds) + 1) * 0.5, min=0, max=1.0).squeeze(-1)
 
         xs = (centers[..., 0:1] + center[..., 0:1]) * self.feature_map_stride * self.voxel_size[
             0
@@ -1082,6 +1111,8 @@ class VoxelMambaDetection(DetectionModel):
         for b in range(batch_size):
             keep = scores[b] > score_threshold
             scene_boxes, scene_scores, scene_labels = boxes[b][keep], scores[b][keep], classes[b][keep]
+            rectifier = scene_scores.new_tensor(iou_rectifier)[scene_labels.long()]
+            scene_scores = scene_scores.pow(1 - rectifier) * iou[b][keep].pow(rectifier)
             idx = nms3d(scene_boxes, scene_scores, scene_labels, nms_iou)
             out_boxes.append(scene_boxes[idx])
             out_scores.append(scene_scores[idx])
