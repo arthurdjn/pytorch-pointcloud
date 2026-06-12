@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.pointnet2 import PointNet2Classification, PointNet2Segmentation
+from torch_pointcloud.models.pointnet2 import PointNet2Classification, PointNet2Encoder, PointNet2Segmentation
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -118,3 +118,29 @@ def test_pointnet2_segmentation_forward_features_decoder_head(
     assert x.shape[0] == data["pos"].shape[0]
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_pointnet2_encoder_num_points_and_pos_first(data: Dict[str, Tensor]) -> None:
+    encoder = PointNet2Encoder(
+        in_channels=6,
+        sa_channels=[[32, 64], [64, 128]],
+        num_points=[128, 32],
+        radii=[0.2, 0.4],
+        num_neighbors=[16, 16],
+        normalize_pos=False,
+        pos_first=True,
+    )
+    x, pos, batch = encoder(data["x"], data["pos"], data["batch"])
+    # `num_points` samples a fixed number of centroids per scene, regardless of the scene sizes
+    assert x.shape == (2 * 32, 128)
+    assert pos.shape == (2 * 32, 3)
+    assert batch.shape == (2 * 32,)
+
+
+def test_pointnet2_encoder_needs_ratios_or_num_points() -> None:
+    with pytest.raises(ValueError, match="exactly one"):
+        PointNet2Encoder(in_channels=6, sa_channels=[[32, 64]], radii=[0.2], num_neighbors=[16])
+    with pytest.raises(ValueError, match="exactly one"):
+        PointNet2Encoder(
+            in_channels=6, sa_channels=[[32, 64]], ratios=[0.5], num_points=[128], radii=[0.2], num_neighbors=[16]
+        )

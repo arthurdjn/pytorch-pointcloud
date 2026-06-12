@@ -10,12 +10,11 @@ from torch_pointcloud.config import DATA_DIR, MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.pointrcnn import (
     PointHeadBox,
-    PointNet2MSGEncoder,
     PointRCNNDetection,
-    PointResidualCoder,
-    ResidualCoder,
+    decode_point_residuals,
     rotate_points_along_z,
 )
+from torch_pointcloud.utils.box3d import decode_box_residuals
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -38,7 +37,7 @@ def _make_pointrcnn(**overrides: Any) -> PointRCNNDetection:
         sa_npoints=[512, 128],
         sa_radii=[[0.1, 0.5], [0.5, 1.0]],
         sa_num_neighbors=[[16, 32], [16, 32]],
-        fp_channels=[[128, 128], [256, 256]],
+        fp_channels=[[256, 256], [128, 128]],
         point_cls_channels=[128],
         point_reg_channels=[128],
         roi_sa_channels=[[64, 64, 128], [128, 128, 256]],
@@ -114,43 +113,32 @@ def test_pointrcnn_eval_is_deterministic() -> None:
 
 
 def test_pointrcnn_backbone_outputs_per_point_features() -> None:
-    encoder = (
-        PointNet2MSGEncoder(
-            1,
-            sa_channels=[[[16, 16, 32], [32, 32, 64]], [[64, 64, 128], [64, 96, 128]]],
-            sa_npoints=[256, 64],
-            sa_radii=[[0.1, 0.5], [0.5, 1.0]],
-            sa_num_neighbors=[[16, 32], [16, 32]],
-            fp_channels=[[128, 128], [256, 256]],
-        )
-        .to(DEVICE)
-        .eval()
-    )
-    assert encoder.out_channels == 128
+    model = _make_pointrcnn().to(DEVICE).eval()
     data = _make_inputs(n_per_scene=2048)
     with torch.no_grad():
-        x, pos, batch = encoder(data["x"], data["pos"], data["batch"])
+        x, pos, batch = model.forward_features(data["x"], data["pos"], data["batch"])
     # feature propagation returns one feature per input point
     assert x.shape == (data["pos"].shape[0], 128)
     assert pos.shape == data["pos"].shape
     assert torch.equal(batch, data["batch"])
 
 
-def test_point_residual_coder_roundtrip_shape() -> None:
-    coder = PointResidualCoder()
+def test_decode_point_residuals_shape() -> None:
     mean = torch.tensor(KITTI_MEAN_SIZES)
     enc = torch.randn(50, 8)
     pos = torch.randn(50, 3)
     cls = torch.randint(1, 4, (50,))
-    boxes = coder.decode(enc, pos, cls, mean)
+    boxes = decode_point_residuals(enc, pos, cls, mean)
     assert boxes.shape == (50, 7)
 
 
-def test_residual_coder_zero_residual_recovers_anchor() -> None:
-    coder = ResidualCoder()
-    anchors = torch.cat([torch.randn(20, 3), torch.rand(20, 3) + 0.5, torch.randn(20, 1)], dim=1)
-    decoded = coder.decode(torch.zeros(20, 7), anchors)
+def test_decode_box_residuals_zero_residual_recovers_anchor() -> None:
+    # heading within (-pi, pi) so the sincos branch's atan2 wrap-around stays a no-op
+    anchors = torch.cat([torch.randn(20, 3), torch.rand(20, 3) + 0.5, torch.rand(20, 1) * 6 - 3], dim=1)
+    decoded = decode_box_residuals(torch.zeros(20, 7), anchors)
     assert torch.allclose(decoded, anchors, atol=1e-6)
+    decoded_sincos = decode_box_residuals(torch.zeros(20, 8), anchors, angle_by_sincos=True)
+    assert torch.allclose(decoded_sincos, anchors, atol=1e-6)
 
 
 def test_rotate_points_along_z_round_trip() -> None:
@@ -203,10 +191,10 @@ def test_pointrcnn_create_model_hparams() -> None:
     assert isinstance(model, PointRCNNDetection)
     assert model.in_channels == 4
     assert model.num_classes == 3
-    assert model.backbone_3d.out_channels == 128
+    assert model.encoder.out_channels == 1024
     assert model.nms_post_maxsize == 100
-    assert len(model.backbone_3d.sa_modules) == 4
-    assert len(model.backbone_3d.fp_modules) == 4
+    assert len(model.encoder.sa_blocks) == 4
+    assert len(model.decoder.fp_blocks) == 4
     assert len(model.roi_head.sa_modules) == 3
 
 

@@ -6,14 +6,14 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule
-from torch_pointcloud.layers.pools import create_pool
-from torch_pointcloud.utils.box3d import nms3d
+from torch_pointcloud.layers.pointnet2_blocks import GlobalSAModule, SAModule
+from torch_pointcloud.utils.box3d import decode_box_residuals, nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
 from ._registry import register_model
+from .pointnet2 import PointNet2Decoder, PointNet2Encoder
 
 
 def rotate_points_along_z(points: Tensor, angle: Tensor) -> Tensor:
@@ -40,228 +40,42 @@ def rotate_points_along_z(points: Tensor, angle: Tensor) -> Tensor:
     return torch.cat((pos, points[:, :, 3:]), dim=-1)
 
 
-def _fc_layers(
-    channels: Sequence[int],
-    act: Union[str, Callable[..., nn.Module], None],
-    act_kwargs: Optional[Dict[str, Any]],
-    norm: Union[str, Callable[..., nn.Module], None],
-    norm_kwargs: Optional[Dict[str, Any]],
-) -> MLP:
-    r"""Build a PointRCNN fully-connected head: bias-free normalized hidden layers, biased plain output.
-
-    Mirrors the reference `make_fc_layers` where every hidden `Linear` is followed by batch norm + ReLU (so
-    it carries no bias) and only the final plain `Linear` keeps a bias.
-
-    Args:
-        channels: Full channel list including input and output sizes.
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-
-    Returns:
-        The configured `MLP`.
-    """
-    bias = [False] * (len(channels) - 2) + [True]
-    return MLP(
-        list(channels),
-        act=act,
-        act_kwargs=act_kwargs,
-        norm=norm,
-        norm_kwargs=norm_kwargs,
-        bias=bias,
-        plain_last=True,
-    )
-
-
-class PointNet2MSGEncoder(nn.Module):
-    r"""Multi-scale-grouping PointNet++ encoder for PointRCNN's stage-1 backbone.
-
-    Reuses [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule] /
-    [`FPModule`][torch_pointcloud.layers.pointnet2_blocks.FPModule] in packed format. Every set-abstraction
-    block samples a fixed number of centroids by farthest-point sampling and groups neighbors at multiple
-    radii (`pos_first=True`, no radius normalization, matching OpenPCDet's `QueryAndGroup`). The feature
-    propagation blocks interpolate back to the input resolution with inverse-distance $k = 3$ kNN weighting,
-    so the output carries one feature vector per input point.
-
-    Args:
-        in_channels: Input feature channels per point excluding xyz (e.g. $1$ for lidar intensity).
-        sa_channels: Per-SA-block, per-scale MLP channel lists, e.g. `[[[16, 16, 32], [32, 32, 64]], ...]`.
-        sa_npoints: Per-SA-block farthest-point-sample counts.
-        sa_radii: Per-SA-block, per-scale ball-query radii.
-        sa_num_neighbors: Per-SA-block, per-scale neighbor caps.
-        fp_channels: Per-FP-block MLP channel lists, ordered from the finest skip level to the coarsest.
-        act: Activation for every block.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization for every block.
-        norm_kwargs: Extra normalization arguments.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        *,
-        sa_channels: Sequence[Sequence[Sequence[int]]],
-        sa_npoints: Sequence[int],
-        sa_radii: Sequence[Sequence[float]],
-        sa_num_neighbors: Sequence[Sequence[int]],
-        fp_channels: Sequence[Sequence[int]],
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.sa_npoints = list(sa_npoints)
-
-        skip_channels: List[int] = [in_channels]
-        channel_in = in_channels
-        self.sa_modules = nn.ModuleList()
-        for channels, npoint, radii, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
-            scale_channels = [list(scale) for scale in channels]
-            self.sa_modules.append(
-                SAModule(
-                    in_channels=channel_in,
-                    channels=scale_channels,
-                    num_points=npoint,
-                    radii=list(radii),
-                    num_neighbors=list(num_neighbors),
-                    use_pos=True,
-                    normalize_pos=False,
-                    pos_first=True,
-                    pool="max",
-                    bias=False,
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
-                )
-            )
-            channel_out = sum(scale[-1] for scale in scale_channels)
-            skip_channels.append(channel_out)
-            channel_in = channel_out
-
-        # `fp_modules[k]` recovers SA level `k` (level 0 = the input), matching the reference's index order;
-        # they are applied coarsest-to-finest, so `fp_modules[k]` consumes `fp_modules[k + 1]`'s output.
-        self.fp_modules = nn.ModuleList()
-        num_fp = len(fp_channels)
-        for k, fp_block in enumerate(fp_channels):
-            pre_channel = fp_channels[k + 1][-1] if k + 1 < num_fp else channel_in
-            self.fp_modules.append(
-                FPModule(
-                    in_channels=pre_channel + skip_channels[k],
-                    channels=list(fp_block),
-                    k=3,
-                    weighting="inverse",
-                    eps=1e-8,
-                    bias=False,
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
-                )
-            )
-
-        self.out_channels = fp_channels[0][-1]
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        intermediates: List[Tuple[Tensor, Tensor, Tensor]] = [(x, pos, batch)]
-        for sa_module in self.sa_modules:
-            x, pos, batch = sa_module(x, pos, batch)
-            intermediates.append((x, pos, batch))
-
-        x, pos, batch = intermediates[-1]
-        for k in range(len(self.fp_modules) - 1, -1, -1):
-            x_skip, pos_skip, batch_skip = intermediates[k]
-            x, pos, batch = self.fp_modules[k](x, pos, batch, x_skip, pos_skip, batch_skip)
-
-        return x, pos, batch
-
-
-class PointResidualCoder:
-    r"""Per-point residual box coder (`PointResidualCoder`) with class mean-size anchors.
+def decode_point_residuals(encodings: Tensor, points: Tensor, classes: Tensor, mean_sizes: Tensor) -> Tensor:
+    r"""Decode per-point box residuals with class mean-size anchors (OpenPCDet's `PointResidualCoder`).
 
     Decodes a stage-1 prediction $(x_t, y_t, z_t, d_{x,t}, d_{y,t}, d_{z,t}, \cos, \sin)$ at a foreground
     point into an oriented box $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, using the predicted class mean size
     as the anchor for the size residuals.
-    """
-
-    code_size = 8
-
-    def decode(self, encodings: Tensor, points: Tensor, classes: Tensor, mean_sizes: Tensor) -> Tensor:
-        r"""Decode per-point residuals into oriented boxes.
-
-        Args:
-            encodings: Box residuals, shape $(N, 8)$.
-            points: Anchor point coordinates, shape $(N, 3)$.
-            classes: Predicted class index per point ($1 \ldots \text{num\_classes}$), shape $(N,)$.
-            mean_sizes: Per-class mean box size $(d_x, d_y, d_z)$, shape $(\text{num\_classes}, 3)$.
-
-        Returns:
-            Decoded boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(N, 7)$.
-
-        Shape:
-            - encodings: $(N, 8)$
-            - points: $(N, 3)$
-            - output: $(N, 7)$
-        """
-        xt, yt, zt, dxt, dyt, dzt, cost, sint = torch.split(encodings, 1, dim=-1)
-        xa, ya, za = torch.split(points, 1, dim=-1)
-
-        anchor = mean_sizes[classes - 1]
-        dxa, dya, dza = torch.split(anchor, 1, dim=-1)
-        diagonal = torch.sqrt(dxa**2 + dya**2)
-
-        xg = xt * diagonal + xa
-        yg = yt * diagonal + ya
-        zg = zt * dza + za
-        dxg = torch.exp(dxt) * dxa
-        dyg = torch.exp(dyt) * dya
-        dzg = torch.exp(dzt) * dza
-        rg = torch.atan2(sint, cost)
-        return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg], dim=-1)
-
-
-class ResidualCoder:
-    r"""Anchor residual box coder (`ResidualCoder`) for PointRCNN's stage-2 refinement.
-
-    Decodes a refinement residual against a canonical ROI anchor (centered at the origin with zero heading)
-    into a refined box in the ROI-local frame; the caller rotates and translates it back to the lidar frame.
 
     Args:
-        code_size: Number of box-code channels (7 for $x, y, z, d_x, d_y, d_z, \theta$).
+        encodings: Box residuals, shape $(N, 8)$.
+        points: Anchor point coordinates, shape $(N, 3)$.
+        classes: Predicted class index per point ($1 \ldots \text{num\_classes}$), shape $(N,)$.
+        mean_sizes: Per-class mean box size $(d_x, d_y, d_z)$, shape $(\text{num\_classes}, 3)$.
+
+    Returns:
+        Decoded boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(N, 7)$.
+
+    Shape:
+        - encodings: $(N, 8)$
+        - points: $(N, 3)$
+        - output: $(N, 7)$
     """
+    xt, yt, zt, dxt, dyt, dzt, cost, sint = torch.split(encodings, 1, dim=-1)
+    xa, ya, za = torch.split(points, 1, dim=-1)
 
-    def __init__(self, code_size: int = 7) -> None:
-        self.code_size = code_size
+    anchor = mean_sizes[classes - 1]
+    dxa, dya, dza = torch.split(anchor, 1, dim=-1)
+    diagonal = torch.sqrt(dxa**2 + dya**2)
 
-    def decode(self, encodings: Tensor, anchors: Tensor) -> Tensor:
-        r"""Decode refinement residuals against ROI anchors.
-
-        Args:
-            encodings: Box residuals, shape $(N, 7)$.
-            anchors: ROI anchors $(x, y, z, d_x, d_y, d_z, \theta)$, shape $(N, 7)$.
-
-        Returns:
-            Decoded boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(N, 7)$.
-
-        Shape:
-            - encodings: $(N, 7)$
-            - anchors: $(N, 7)$
-            - output: $(N, 7)$
-        """
-        xa, ya, za, dxa, dya, dza, ra = torch.split(anchors, 1, dim=-1)
-        xt, yt, zt, dxt, dyt, dzt, rt = torch.split(encodings, 1, dim=-1)
-
-        diagonal = torch.sqrt(dxa**2 + dya**2)
-        xg = xt * diagonal + xa
-        yg = yt * diagonal + ya
-        zg = zt * dza + za
-        dxg = torch.exp(dxt) * dxa
-        dyg = torch.exp(dyt) * dya
-        dzg = torch.exp(dzt) * dza
-        rg = rt + ra
-        return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg], dim=-1)
+    xg = xt * diagonal + xa
+    yg = yt * diagonal + ya
+    zg = zt * dza + za
+    dxg = torch.exp(dxt) * dxa
+    dyg = torch.exp(dyt) * dya
+    dzg = torch.exp(dzt) * dza
+    rg = torch.atan2(sint, cost)
+    return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg], dim=-1)
 
 
 class PointHeadBox(nn.Module):
@@ -269,7 +83,8 @@ class PointHeadBox(nn.Module):
 
     Two MLPs over the per-point backbone features predict a per-point class logit and an 8-D box residual.
     At inference every point becomes a proposal: the class score is the sigmoid of the max class logit and
-    the box is decoded by [`PointResidualCoder`][torch_pointcloud.models.pointrcnn.PointResidualCoder]
+    the box is decoded by
+    [`decode_point_residuals`][torch_pointcloud.models.pointrcnn.decode_point_residuals]
     against the point's predicted class mean size.
 
     Args:
@@ -301,11 +116,24 @@ class PointHeadBox(nn.Module):
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
-        self.box_coder = PointResidualCoder()
         self.register_buffer("mean_sizes", mean_sizes, persistent=False)
-        self.cls_layers = _fc_layers([in_channels, *cls_channels, num_classes], act, act_kwargs, norm, norm_kwargs)
-        self.box_layers = _fc_layers(
-            [in_channels, *reg_channels, self.box_coder.code_size], act, act_kwargs, norm, norm_kwargs
+        self.cls_layers = MLP(
+            [in_channels, *cls_channels, num_classes],
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=[False] * len(cls_channels) + [True],
+            plain_last=True,
+        )
+        self.box_layers = MLP(
+            [in_channels, *reg_channels, 8],
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=[False] * len(reg_channels) + [True],
+            plain_last=True,
         )
 
     def forward(self, x: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -328,55 +156,8 @@ class PointHeadBox(nn.Module):
         box_preds = self.box_layers(x)
         point_scores = torch.sigmoid(cls_preds.max(dim=-1).values)
         pred_classes = cls_preds.argmax(dim=-1) + 1
-        boxes = self.box_coder.decode(box_preds, pos, pred_classes, self.mean_sizes)
+        boxes = decode_point_residuals(box_preds, pos, pred_classes, self.mean_sizes)
         return point_scores, cls_preds, boxes
-
-
-class _GroupAllSAModule(nn.Module):
-    r"""Set-abstraction block that groups every point of each batch element (`GroupAll`).
-
-    The reference's final stage-2 SA layer (`npoint = -1`) concatenates the absolute (canonical) xyz with the
-    per-point features, runs a shared MLP, and global-max-pools to one feature per batch element. Unlike
-    [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule] the xyz is absolute (no centroid offset),
-    so this is kept as its own module; its `mlp` weights align one-for-one with the reference's `mlps.0`.
-
-    Args:
-        in_channels: Input feature channels per point (excluding xyz).
-        channels: MLP channel list.
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        channels: Sequence[int],
-        *,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.mlp = MLP(
-            [in_channels + 3, *channels],
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=False,
-            plain_last=False,
-        )
-        self.pool = create_pool("max")
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        x = self.mlp(torch.cat([pos, x], dim=1))
-        out = self.pool(x, batch)
-        new_pos = pos.new_zeros((out.size(0), 3))
-        new_batch = torch.arange(out.size(0), device=batch.device)
-        return out, new_pos, new_batch
 
 
 class PointRCNNRefinementHead(nn.Module):
@@ -428,7 +209,6 @@ class PointRCNNRefinementHead(nn.Module):
         self.num_sampled_points = num_sampled_points
         self.pool_extra_width = tuple(pool_extra_width)
         self.depth_normalizer = depth_normalizer
-        self.box_coder = ResidualCoder(code_size=7)
         self.num_prefix_channels = 3 + 2
 
         xyz_mlps = [self.num_prefix_channels, *xyz_up_channels]
@@ -448,9 +228,11 @@ class PointRCNNRefinementHead(nn.Module):
         self.sa_modules = nn.ModuleList()
         for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
             if npoint == -1:
-                module: nn.Module = _GroupAllSAModule(
+                module: nn.Module = GlobalSAModule(
                     channel_in,
                     list(channels),
+                    use_pos=True,
+                    pos_first=True,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
@@ -476,9 +258,23 @@ class PointRCNNRefinementHead(nn.Module):
             self.sa_modules.append(module)
             channel_in = channels[-1]
 
-        self.cls_layers = _fc_layers([channel_in, *cls_channels, 1], act, act_kwargs, norm, norm_kwargs)
-        self.reg_layers = _fc_layers(
-            [channel_in, *reg_channels, self.box_coder.code_size], act, act_kwargs, norm, norm_kwargs
+        self.cls_layers = MLP(
+            [channel_in, *cls_channels, 1],
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=[False] * len(cls_channels) + [True],
+            plain_last=True,
+        )
+        self.reg_layers = MLP(
+            [channel_in, *reg_channels, 7],
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=[False] * len(reg_channels) + [True],
+            plain_last=True,
         )
 
     def roipool(self, pos: Tensor, features: Tensor, rois: Tensor) -> Tuple[Tensor, Tensor]:
@@ -646,7 +442,7 @@ class PointRCNNRefinementHead(nn.Module):
         roi_xyz = rois[:, 0:3]
         local = rois.clone()
         local[:, 0:3] = 0
-        boxes = self.box_coder.decode(rcnn_reg.view(-1, 7), local)
+        boxes = decode_box_residuals(rcnn_reg.view(-1, 7), local)
         boxes = rotate_points_along_z(boxes.unsqueeze(1), roi_ry).squeeze(1)
         boxes[:, 0:3] = boxes[:, 0:3] + roi_xyz
         return boxes
@@ -658,8 +454,9 @@ class PointRCNNDetection(DetectionModel):
     Reference: :arxiv: [Shi et al., 2019](https://arxiv.org/abs/1812.04244).
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
-    Stage 1 runs a multi-scale PointNet++ encoder
-    ([`PointNet2MSGEncoder`][torch_pointcloud.models.pointrcnn.PointNet2MSGEncoder]) over the raw point
+    Stage 1 runs a multi-scale PointNet++ U-Net
+    ([`PointNet2Encoder`][torch_pointcloud.models.pointnet2.PointNet2Encoder] +
+    [`PointNet2Decoder`][torch_pointcloud.models.pointnet2.PointNet2Decoder]) over the raw point
     cloud, then a per-point head ([`PointHeadBox`][torch_pointcloud.models.pointrcnn.PointHeadBox]) predicts
     foreground scores and one box proposal per point. The top proposals (after class-agnostic NMS) become
     ROIs that stage 2 ([`PointRCNNRefinementHead`][torch_pointcloud.models.pointrcnn.PointRCNNRefinementHead])
@@ -673,7 +470,8 @@ class PointRCNNDetection(DetectionModel):
         sa_npoints: Stage-1 per-SA-block sample counts.
         sa_radii: Stage-1 per-SA-block, per-scale ball-query radii.
         sa_num_neighbors: Stage-1 per-SA-block, per-scale neighbor caps.
-        fp_channels: Stage-1 per-FP-block MLP channel lists.
+        fp_channels: Stage-1 per-FP-block MLP channel lists, ordered from the coarsest skip level to the
+            finest (`PointNet2Decoder` order).
         point_cls_channels: Stage-1 classification MLP hidden channels.
         point_reg_channels: Stage-1 box-regression MLP hidden channels.
         roi_sa_channels: Stage-2 per-SA-block MLP channel lists.
@@ -739,17 +537,29 @@ class PointRCNNDetection(DetectionModel):
         self.register_buffer("mean_sizes", mean, persistent=False)
 
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.backbone_3d = PointNet2MSGEncoder(
+        self.encoder = PointNet2Encoder(
             in_channels - 3,
-            sa_channels=sa_channels,
-            sa_npoints=sa_npoints,
-            sa_radii=sa_radii,
-            sa_num_neighbors=sa_num_neighbors,
-            fp_channels=fp_channels,
+            sa_channels,
+            num_points=sa_npoints,
+            radii=sa_radii,
+            num_neighbors=sa_num_neighbors,
+            use_pos=True,
+            normalize_pos=False,
+            pos_first=True,
             **block_kwargs,
         )
+        self.decoder = PointNet2Decoder(
+            in_channels=self.encoder.out_channels,
+            skip_channels=self.encoder.skip_channels[::-1],
+            fp_channels=fp_channels,
+            k=3,
+            weighting="inverse",
+            eps=1e-8,
+            **block_kwargs,
+        )
+        point_channels = fp_channels[-1][-1]
         self.point_head = PointHeadBox(
-            self.backbone_3d.out_channels,
+            point_channels,
             num_classes,
             cls_channels=point_cls_channels,
             reg_channels=point_reg_channels,
@@ -757,7 +567,7 @@ class PointRCNNDetection(DetectionModel):
             **block_kwargs,
         )
         self.roi_head = PointRCNNRefinementHead(
-            self.backbone_3d.out_channels,
+            point_channels,
             sa_channels=roi_sa_channels,
             sa_npoints=roi_sa_npoints,
             sa_radii=roi_sa_radii,
@@ -776,7 +586,9 @@ class PointRCNNDetection(DetectionModel):
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         assert x is not None, "PointRCNN requires input features (got x=None)."
-        return self.backbone_3d(x, pos, batch)
+        x, pos_down, batch_down, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
+        x, pos, batch = self.decoder(x, pos_down, batch_down, intermediates)
+        return x, pos, batch
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
         x_point, pos_point, batch_point = self.forward_features(x, pos, batch)
@@ -920,7 +732,7 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
         sa_npoints=[4096, 1024, 256, 64],
         sa_radii=[[0.1, 0.5], [0.5, 1.0], [1.0, 2.0], [2.0, 4.0]],
         sa_num_neighbors=[[16, 32], [16, 32], [16, 32], [16, 32]],
-        fp_channels=[[128, 128], [256, 256], [512, 512], [512, 512]],
+        fp_channels=[[512, 512], [512, 512], [256, 256], [128, 128]],
         roi_sa_channels=[[128, 128, 128], [128, 128, 256], [256, 256, 512]],
         roi_sa_npoints=[128, 32, -1],
         roi_sa_radii=[0.2, 0.4, 100.0],
