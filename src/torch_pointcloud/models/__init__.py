@@ -27,6 +27,7 @@ from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentat
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtSegmentation
 from .pointpillars import PointPillars, PointPillarsMultiHead
+from .pointrcnn import PointRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation

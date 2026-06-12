@@ -3,6 +3,7 @@ import torch
 from torch_geometric.nn import MLP, knn_graph
 
 from torch_pointcloud.layers.pointnet2_blocks import (
+    GlobalSAModule,
     PointNet2Conv,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
@@ -74,6 +75,18 @@ def test_pointnet2_global_sa_forward() -> None:
     assert out_x.shape == (2, 32)
     assert out_pos.shape == (2, 3)
     assert out_batch.shape == (2,)
+
+
+def test_global_sa_module_use_pos() -> None:
+    sa = GlobalSAModule(in_channels=8, channels=[16, 32], use_pos=True, pos_first=True)
+    x = torch.randn(64, 8)
+    pos = torch.randn(64, 3)
+    batch = torch.cat([torch.zeros(32), torch.ones(32)]).long()
+    out_x, out_pos, out_batch = sa(x, pos, batch)
+    assert sa.mlp.channel_list[0] == 8 + 3
+    assert out_x.shape == (2, 32)
+    assert out_pos.shape == (2, 3)
+    assert out_batch.tolist() == [0, 1]
 
 
 def test_pointnet2_feature_propagation_forward() -> None:
