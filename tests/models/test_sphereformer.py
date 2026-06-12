@@ -54,7 +54,7 @@ def model_seg() -> SphereFormerSegmentation:
         layers=(32, 64, 128),
         block_reps=1,
         head_dim=16,
-        spatial_padding=64,
+        min_spatial_shape=64,
     ).cuda()
 
 
