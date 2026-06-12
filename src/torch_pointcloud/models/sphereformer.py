@@ -43,7 +43,7 @@ _SparseModuleBase: Any = spconv.SparseModule if _IS_SPCONV_AVAILABLE else nn.Mod
 
 
 def cart2sphere(pos: Tensor) -> Tensor:
-    r"""Map Cartesian coordinates to spherical coordinates $(\theta, \phi, r)$ (degrees, degrees, metres).
+    r"""Map Cartesian coordinates to spherical coordinates $(\theta, \phi, r)$ (degrees, degrees, meters).
 
     The azimuth $\theta = \operatorname{atan2}(y, x)$ and polar angle $\phi = \operatorname{atan2}(\sqrt{x^2+y^2}, z)$
     are returned in degrees (with $\theta$ shifted to $[0, 360)$); $r = \sqrt{x^2+y^2+z^2}$ is the radius.
@@ -79,15 +79,14 @@ def exponential_split(
     relative_position_index: Tensor,
     radial_split_exponent: float = 0.0125,
 ) -> Tensor:
-    r"""Quantise the radial relative position $r_q - r_k$ into a signed, exponentially-growing bin index.
+    r"""Quantize the radial relative position $r_q - r_k$ into a signed, exponentially-growing bin index.
 
     Reproduces the reference radial split: bins are symmetric around $0$, double in width every two steps
     (`[0, a)`, `[a, 2a)`, `[2a, 4a)`, `[4a, 6a)`, `[6a, 10a)`, ... with $a$ the base bin width), and the sign
     of $r_q - r_k$ selects the positive or negative half. The returned index is offset by $24$ (the reference
-    `quant_size_scale`) so it
-    indexes the radial relative-position table without going negative. The signed bin index overwrites the
-    third (radial) column of `relative_position_index` in place, matching the `split_func` contract of the
-    `sptr` kernel.
+    `quant_size_scale`) so it indexes the radial relative-position table without going negative. The signed bin
+    index overwrites the third (radial) column of `relative_position_index` in place, matching the `split_func`
+    contract of the `sptr` kernel.
 
     Args:
         pos: Spherical coordinates whose third column is the radius $r$.
@@ -123,7 +122,7 @@ class WindowedRelPosAttention(_SparseModuleBase):
     Runs two attentions in parallel and concatenates their heads: the first half of the heads attend within
     cubic (Cartesian) windows, the second half within radial (spherical) windows. Within each window every
     point attends to all others; scores are $q \cdot k$ plus a learnable relative-position bias on both query
-    and key, softmax-normalised per query, and the value is augmented with its own relative-position bias before
+    and key, softmax-normalized per query, and the value is augmented with its own relative-position bias before
     the weighted sum. The windowed attention is computed by the `sptr` CUDA kernel
     (`sptr.sparse_self_attention` with `pe_type="contextual"`, `rel_query=rel_key=rel_value=True`), mirroring the
     reference `SparseMultiheadSASphereConcat`.
@@ -133,8 +132,8 @@ class WindowedRelPosAttention(_SparseModuleBase):
         num_heads: Number of attention heads (split evenly between cubic and spherical branches).
         window_size: Cubic window size, of shape $(3,)$.
         window_size_sphere: Spherical window size $(\theta, \phi, r)$, of shape $(3,)$.
-        quant_size: Cubic relative-position quantisation size, of shape $(3,)$.
-        quant_size_sphere: Spherical relative-position quantisation size, of shape $(3,)$.
+        quant_size: Cubic relative-position quantization size, of shape $(3,)$.
+        quant_size_sphere: Spherical relative-position quantization size, of shape $(3,)$.
         radial_split_exponent: Base bin width for the radial exponential split.
         qkv_bias: Whether the fused QKV projection uses a bias.
         qk_scale: Optional override for the $1/\sqrt{d}$ attention scale.
@@ -160,15 +159,10 @@ class WindowedRelPosAttention(_SparseModuleBase):
         self.scale = qk_scale or head_dim**-0.5
         self.radial_split_exponent = radial_split_exponent
 
-        self.register_buffer("window_size", window_size, persistent=False)
-        self.register_buffer("window_size_sphere", window_size_sphere, persistent=False)
-        self.register_buffer("quant_size", quant_size, persistent=False)
-        self.register_buffer("quant_size_sphere", quant_size_sphere, persistent=False)
-
-        self.window_size_np = window_size.detach().cpu().numpy().astype(np.float32)
-        self.window_size_sphere_np = window_size_sphere.detach().cpu().numpy().astype(np.float32)
-        self.quant_size_np = quant_size.detach().cpu().numpy().astype(np.float32)
-        self.quant_size_sphere_np = quant_size_sphere.detach().cpu().numpy().astype(np.float32)
+        self.window_size = window_size.detach().cpu().numpy().astype(np.float32)
+        self.window_size_sphere = window_size_sphere.detach().cpu().numpy().astype(np.float32)
+        self.quant_size = quant_size.detach().cpu().numpy().astype(np.float32)
+        self.quant_size_sphere = quant_size_sphere.detach().cpu().numpy().astype(np.float32)
 
         self.num_heads_cubic = num_heads // 2
         self.num_heads_sphere = num_heads - self.num_heads_cubic
@@ -221,7 +215,7 @@ class WindowedRelPosAttention(_SparseModuleBase):
         pos_sphere = cart2sphere(pos)
 
         index_0, index_0_offsets, n_max, index_1, index_1_offsets, sort_idx = sptr.get_indices_params(
-            pos, batch, self.window_size_np, False
+            pos, batch, self.window_size, False
         )
         out_cubic = sptr.sparse_self_attention(
             query[:, : self.num_heads_cubic].contiguous().float(),
@@ -234,13 +228,13 @@ class WindowedRelPosAttention(_SparseModuleBase):
             index_1.int(),
             index_1_offsets.int(),
             sort_idx,
-            self.window_size_np,
+            self.window_size,
             False,
             pe_type="contextual",
             rel_query=True,
             rel_key=True,
             rel_value=True,
-            quant_size=self.quant_size_np,
+            quant_size=self.quant_size,
             quant_grid_length=self.quant_grid_length,
             relative_pos_query_table=self.relative_pos_query_table.float(),
             relative_pos_key_table=self.relative_pos_key_table.float(),
@@ -254,7 +248,7 @@ class WindowedRelPosAttention(_SparseModuleBase):
             index_1_sphere,
             index_1_offsets_sphere,
             sort_idx_sphere,
-        ) = sptr.get_indices_params(pos_sphere, batch, self.window_size_sphere_np, False)
+        ) = sptr.get_indices_params(pos_sphere, batch, self.window_size_sphere, False)
         out_sphere = sptr.sparse_self_attention(
             query[:, self.num_heads_cubic :].contiguous().float(),
             key[:, self.num_heads_cubic :].contiguous().float(),
@@ -266,13 +260,13 @@ class WindowedRelPosAttention(_SparseModuleBase):
             index_1_sphere.int(),
             index_1_offsets_sphere.int(),
             sort_idx_sphere,
-            self.window_size_sphere_np,
+            self.window_size_sphere,
             False,
             pe_type="contextual",
             rel_query=True,
             rel_key=True,
             rel_value=True,
-            quant_size=self.quant_size_sphere_np,
+            quant_size=self.quant_size_sphere,
             quant_grid_length=self.quant_grid_length_sphere,
             relative_pos_query_table=self.relative_pos_query_table_sphere.float(),
             relative_pos_key_table=self.relative_pos_key_table_sphere.float(),
@@ -291,12 +285,12 @@ class SphereFormerBlock(nn.Module):
     optional stochastic-depth `drop_path` on each residual branch.
 
     Args:
-        dim: Token dimension.
+        embed_dim: Token dimension.
         num_heads: Number of attention heads.
         window_size: Cubic window size, of shape $(3,)$.
         window_size_sphere: Spherical window size, of shape $(3,)$.
-        quant_size: Cubic relative-position quantisation size, of shape $(3,)$.
-        quant_size_sphere: Spherical relative-position quantisation size, of shape $(3,)$.
+        quant_size: Cubic relative-position quantization size, of shape $(3,)$.
+        quant_size_sphere: Spherical relative-position quantization size, of shape $(3,)$.
         radial_split_exponent: Base bin width for the radial exponential split.
         mlp_ratio: Hidden-dim multiplier for the MLP.
         drop_path: Stochastic-depth rate.
@@ -305,7 +299,7 @@ class SphereFormerBlock(nn.Module):
 
     def __init__(
         self,
-        dim: int,
+        embed_dim: int,
         num_heads: int,
         window_size: Tensor,
         window_size_sphere: Tensor,
@@ -317,9 +311,9 @@ class SphereFormerBlock(nn.Module):
         qkv_bias: bool = True,
     ) -> None:
         super().__init__()
-        self.norm1 = nn.LayerNorm(dim)
+        self.norm1 = nn.LayerNorm(embed_dim)
         self.attn = WindowedRelPosAttention(
-            dim,
+            embed_dim,
             num_heads=num_heads,
             window_size=window_size,
             window_size_sphere=window_size_sphere,
@@ -329,12 +323,12 @@ class SphereFormerBlock(nn.Module):
             qkv_bias=qkv_bias,
         )
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        self.norm2 = nn.LayerNorm(dim)
-        mlp_channels = int(dim * mlp_ratio)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        mlp_channels = int(embed_dim * mlp_ratio)
         self.mlp = nn.Sequential(
-            nn.Linear(dim, mlp_channels),
+            nn.Linear(embed_dim, mlp_channels),
             nn.GELU(),
-            nn.Linear(mlp_channels, dim),
+            nn.Linear(mlp_channels, embed_dim),
         )
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -350,7 +344,7 @@ class ResidualBlock(_SparseModuleBase):
         in_channels: Input channel count.
         out_channels: Output channel count.
         indice_key: spconv indice key shared by the two submanifold convolutions.
-        norm: Normalisation layer name / callable.
+        norm: Normalization layer name / callable.
         norm_kwargs: Extra keyword arguments for the normalisation layer.
         act: Activation name / callable.
         act_kwargs: Extra keyword arguments for the activation.
@@ -410,15 +404,15 @@ class SphereFormerUBlock(nn.Module):
         block_reps: Number of residual blocks before (and after) the recursive branch.
         window_size: Cubic window size at this level, of shape $(3,)$.
         window_size_sphere: Spherical window size at this level, of shape $(3,)$.
-        quant_size: Cubic quantisation size at this level, of shape $(3,)$.
-        quant_size_sphere: Spherical quantisation size at this level, of shape $(3,)$.
+        quant_size: Cubic quantization size at this level, of shape $(3,)$.
+        quant_size_sphere: Spherical quantization size at this level, of shape $(3,)$.
         head_dim: Per-head dimension (sets `num_heads = planes[0] // head_dim`).
         window_size_scale: Pair `(cubic_scale, sphere_scale)` applied per deeper level.
         drop_path: Per-level stochastic-depth rates (indexed by level).
         radial_split_exponent: Base bin width for the radial exponential split.
         indice_key_id: spconv indice-key id for this level.
         sphere_layers: Levels (`indice_key_id`) that get a `SphereFormerBlock`.
-        norm: Normalisation layer name / callable.
+        norm: Normalization layer name / callable.
         norm_kwargs: Extra keyword arguments for the normalisation layer.
         act: Activation name / callable.
         act_kwargs: Extra keyword arguments for the activation.
@@ -593,14 +587,14 @@ class SphereFormerSegmentation(SegmentationModel):
         head_dim: Per-head dimension for the windowed attention.
         window_size: Base cubic window size (`voxel_size * patch_size * window`), of shape $(3,)$.
         window_size_sphere: Base spherical window size $(\theta, \phi, r)$, of shape $(3,)$.
-        quant_size: Base cubic quantisation size, of shape $(3,)$.
-        quant_size_sphere: Base spherical quantisation size, of shape $(3,)$.
+        quant_size: Base cubic quantization size, of shape $(3,)$.
+        quant_size_sphere: Base spherical quantization size, of shape $(3,)$.
         window_size_scale: Pair `(cubic_scale, sphere_scale)` applied per deeper level.
         sphere_layers: Levels (1-indexed) that receive a windowed-attention block.
         radial_split_exponent: Base bin width for the radial exponential split.
         drop_path_rate: Maximum stochastic-depth rate (linearly spread across levels).
-        spatial_padding: Padding added to the inferred sparse spatial shape.
-        norm: Normalisation layer name / callable.
+        min_spatial_shape: Per-axis lower bound on the inferred sparse spatial shape.
+        norm: Normalization layer name / callable.
         norm_kwargs: Extra keyword arguments for the normalisation layer.
         act: Activation name / callable.
         act_kwargs: Extra keyword arguments for the activation.
@@ -635,7 +629,7 @@ class SphereFormerSegmentation(SegmentationModel):
         sphere_layers: Sequence[int] = (1, 2, 3, 4, 5),
         radial_split_exponent: float = 0.0125,
         drop_path_rate: float = 0.0,
-        spatial_padding: int = 128,
+        min_spatial_shape: int = 128,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         act: Union[str, Callable, None] = "relu",
@@ -644,7 +638,7 @@ class SphereFormerSegmentation(SegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.base_channels = base_channels
         self.layers = tuple(layers)
-        self.spatial_padding = spatial_padding
+        self.min_spatial_shape = min_spatial_shape
         if norm_kwargs is None:
             norm_kwargs = {"eps": 1e-4, "momentum": 0.1}
 
@@ -704,7 +698,7 @@ class SphereFormerSegmentation(SegmentationModel):
         pos: Tensor,
     ) -> "SparseConvTensor":
         indices = torch.cat([batch.unsqueeze(-1), pos_grid], dim=1).int()
-        spatial_shape = np.clip((pos_grid.max(0).values + 1).cpu().numpy(), self.spatial_padding, None)
+        spatial_shape = np.clip((pos_grid.max(0).values + 1).cpu().numpy(), self.min_spatial_shape, None)
         batch_size = int(batch.max().item()) + 1
         sparse_x = SparseConvTensor(x, indices, spatial_shape.tolist(), batch_size)
         sparse_x = self.input_conv(sparse_x)
@@ -722,8 +716,13 @@ class SphereFormerSegmentation(SegmentationModel):
         return self.forward_head(sparse_x)
 
 
-def _sphereformer_semantickitti_transforms() -> Callable:
-    return T.Compose(
+@register_model(
+    "sphereformer-dvlab.semantickitti",
+    task="segmentation",
+    # The original pretrained weights are no longer downloadable (the authors' CUHK OneDrive links are dead,
+    # see dvlab-research/SphereFormer issue #78), so the architecture is registered without pretrained weights.
+    weights=None,
+    transforms=T.Compose(
         [
             T.Relabel(
                 keys=DataKeys.SEGMENT,
@@ -767,16 +766,7 @@ def _sphereformer_semantickitti_transforms() -> Callable:
                 dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
-    )
-
-
-@register_model(
-    "sphereformer-dvlab.semantickitti",
-    task="segmentation",
-    # The original pretrained weights are no longer downloadable (the authors' CUHK OneDrive links are dead,
-    # see dvlab-research/SphereFormer issue #78), so the architecture is registered without pretrained weights.
-    weights=None,
-    transforms=_sphereformer_semantickitti_transforms(),
+    ),
     hparams=dict(
         in_channels=4,
         num_classes=19,
@@ -802,7 +792,46 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
     "sphereformer-dvlab.nuscenes",
     task="segmentation",
     weights=None,
-    transforms=_sphereformer_semantickitti_transforms(),
+    transforms=T.Compose(
+        [
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels={
+                    9: 0,
+                    14: 1,
+                    15: 2,
+                    16: 2,
+                    17: 3,
+                    18: 4,
+                    21: 5,
+                    2: 6,
+                    3: 6,
+                    4: 6,
+                    6: 6,
+                    12: 7,
+                    22: 8,
+                    23: 9,
+                    24: 10,
+                    25: 11,
+                    26: 12,
+                    27: 13,
+                    28: 14,
+                    30: 15,
+                },
+                default=255,
+            ),
+            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.X],
+                reduce=["mean"],
+                size=0.1,
+                grid_pos_key=DataKeys.POS_GRID,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    ),
     hparams=dict(
         in_channels=4,
         num_classes=16,
