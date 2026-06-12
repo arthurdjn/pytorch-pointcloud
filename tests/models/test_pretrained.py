@@ -550,6 +550,57 @@ def test_seeded_voxel_mamba(
     _check_output(reduced, model_name, force_regen, models_dir)
 
 
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["voxelnext-openpcdet.nuscenes"])
+def test_pretrained_voxelnext(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """VoxelNeXt returns per-voxel sparse predictions, so it needs its own snapshot test.
+
+    There is no in-repo nuScenes *detection* fixture, so a fixed synthetic cloud inside the model's
+    point-cloud range is hard-voxelized exactly as the registered transform would. spconv emits its
+    sparse output rows in a nondeterministic ORDER (the per-voxel values are stable to ~3e-6 and the
+    voxel set is bitwise run-stable), so every head tensor is sorted by its flattened BEV voxel index
+    before snapshotting. The snapshot concatenates the sorted voxel indices with the per-group `hm`
+    and box-attribute maps.
+    """
+    if not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+    if not torch.cuda.is_available():
+        pytest.skip("voxelnext requires CUDA, none available")
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    pc_range = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 8000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n_per_scene * batch_size, model.in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    points = torch.cat([pos, x], dim=1)
+    voxels, voxel_indices, num_points = hard_voxelize(points, batch, (0.075, 0.075, 0.2), pc_range, 10, 160000)
+    with torch.no_grad():
+        out = model(voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
+
+    bev = out["voxel_indices"].long()
+    size = int(bev.max().item()) + 1
+    order = torch.argsort((bev[:, 0] * size + bev[:, 1]) * size + bev[:, 2])
+    parts = [bev[order].reshape(-1).float()]
+    for key in ("hm", "center", "center_z", "dim", "rot", "vel"):
+        parts += [t[order].reshape(-1) for t in out[key]]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
 ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
     ("pointpillars-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
     ("second-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),

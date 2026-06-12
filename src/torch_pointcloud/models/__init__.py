@@ -40,3 +40,4 @@ from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation
 from .votenet import VoteNetBackbone, VoteNetDetectionModel, VoteNetProposalModule, VotingModule
 from .voxel_mamba import VoxelMambaDetection
+from .voxelnext import VoxelNeXtDetection
