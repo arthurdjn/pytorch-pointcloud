@@ -13,7 +13,6 @@ from .anchors import (
     AnchorHeadOutput,
     AnchorHeadSingle,
     MultiGroupSingleHead,
-    ResidualCoder,
     generate_anchors,
     limit_period,
 )
