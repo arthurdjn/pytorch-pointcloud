@@ -15,6 +15,7 @@ from .anchors import (
     MultiGroupSingleHead,
     generate_anchors,
     limit_period,
+    separate_branch,
 )
 from .bev_backbone import BaseBEVBackbone
 from .conv2d_blocks import Conv2dBlock
