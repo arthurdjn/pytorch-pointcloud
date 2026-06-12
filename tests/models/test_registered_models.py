@@ -185,6 +185,7 @@ DETECTION_MODELS = [
     "votenet-fair-base.scannet",
     "votenet-fair-base.sunrgbd",
     "voxel-mamba-gwenzhang.waymo",
+    "voxelnext-openpcdet.nuscenes",
 ]
 
 
@@ -201,7 +202,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("oneformer3d") and not _TORCH_SCATTER_AVAILABLE:
         pytest.skip("torch_scatter is not installed")
-    if model_name.startswith("voxel-mamba") and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("voxelnext", "voxel-mamba")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
