@@ -10,6 +10,8 @@ A packed-format port of the OpenPCDet anchor head:
   head (per-anchor class logits, box residuals and a direction bin).
 - [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]: the multi-group
   separate-head variant (sincos + velocity box code) used by the nuScenes detectors.
+- [`separate_branch`][torch_pointcloud.layers.anchors.separate_branch]: the per-attribute
+  `SeparateHead` branch builder, also used by the Voxel Mamba center head.
 
 """
 
@@ -239,7 +241,7 @@ class AnchorHeadMultiOutput(TypedDict):
     multihead_label_mapping: List[Tensor]
 
 
-def _separate_branch(
+def separate_branch(
     in_channels: int,
     out_channels: int,
     num_middle_conv: int,
@@ -249,8 +251,37 @@ def _separate_branch(
     act_kwargs: Optional[Dict[str, Any]] = None,
     norm: Union[str, Callable, None] = "batch_norm",
     norm_kwargs: Optional[Dict[str, Any]] = None,
+    bias: bool = False,
 ) -> nn.Sequential:
-    """A `SeparateHead` branch: `num_middle_conv` of (3x3 conv, norm, act) then a 3x3 output conv."""
+    r"""Build a `SeparateHead`-style prediction branch: middle conv blocks, then a plain output conv.
+
+    The per-attribute branch shared by the OpenPCDet separate heads (the anchor multi-head and the
+    center head): `num_middle_conv` blocks of ($3\times3$ conv, norm, act) followed by a
+    $3\times3$ output conv.
+
+    Args:
+        in_channels: Input channels.
+        out_channels: Output channels of the final conv.
+        num_middle_conv: Number of middle conv blocks.
+        num_middle_filter: Channel width of the middle convs.
+        act: Activation of the middle conv blocks.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization of the middle conv blocks.
+        norm_kwargs: Extra normalization arguments.
+        bias: Whether the middle convs carry a bias (the output conv always does).
+
+    Returns:
+        The branch as an `nn.Sequential`.
+
+    Shape:
+        - Input: $(B, C_\text{in}, H, W)$
+        - Output: $(B, C_\text{out}, H, W)$
+
+    Example:
+        >>> branch = separate_branch(64, 2, num_middle_conv=1, num_middle_filter=64)
+        >>> branch(torch.rand(2, 64, 16, 16)).shape
+        torch.Size([2, 2, 16, 16])
+    """
     layers: List[nn.Module] = []
     c_in = in_channels
     for _ in range(num_middle_conv):
@@ -263,6 +294,7 @@ def _separate_branch(
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
+            bias=bias,
         )
         layers.append(block)
         c_in = num_middle_filter
@@ -334,7 +366,7 @@ class MultiGroupSingleHead(nn.Module):
         for reg_config in reg_list:
             name, channels = reg_config.split(":")
             key = f"conv_{name}"
-            self.conv_box[key] = _separate_branch(
+            self.conv_box[key] = separate_branch(
                 input_channels,
                 num_anchors_per_location * int(channels),
                 **branch_kwargs,
@@ -345,7 +377,7 @@ class MultiGroupSingleHead(nn.Module):
         if code_size_cnt != code_size:
             raise ValueError(f"Regression branches sum to {code_size_cnt} channels, expected code_size {code_size}.")
 
-        self.conv_cls = _separate_branch(input_channels, num_anchors_per_location * num_classes, **branch_kwargs)
+        self.conv_cls = separate_branch(input_channels, num_anchors_per_location * num_classes, **branch_kwargs)
 
     def forward(self, spatial_features_2d: Tensor) -> Tuple[Tensor, Tensor]:
         cls_preds = self.conv_cls(spatial_features_2d)

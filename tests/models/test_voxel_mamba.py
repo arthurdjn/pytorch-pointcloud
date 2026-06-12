@@ -43,7 +43,7 @@ def test_hilbert_serialize_round_trip() -> None:
         ],
         dim=1,
     )
-    forward, inverse = hilbert_serialize(template, coords, batch_size=1, hilbert_spatial_size=(1, 16, 16), shift=0)
+    forward, inverse = hilbert_serialize(template, coords, batch_size=1, rank=4, shift=0)
     assert torch.equal(forward[0][inverse[0]], torch.arange(n))
     # The forward order sorts voxels by ascending Hilbert position.
     flat = coords[:, 1] * 16 * 16 + coords[:, 2] * 16 + coords[:, 3]

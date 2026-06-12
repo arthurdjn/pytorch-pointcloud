@@ -8,6 +8,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.anchors import separate_branch
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.box3d import nms3d
@@ -78,7 +79,7 @@ def hilbert_serialize(
     template: Tensor,
     coords: Tensor,
     batch_size: int,
-    hilbert_spatial_size: Tuple[int, int, int],
+    rank: int,
     shift: int,
 ) -> Tuple[List[Tensor], List[Tensor]]:
     r"""Per-scene voxel orderings along the Hilbert curve (the reference's `get_hilbert_index_3d_mamba_lite`).
@@ -91,7 +92,7 @@ def hilbert_serialize(
         template: Flat Hilbert lookup table from `build_hilbert_template`, shape $(\cdot,)$.
         coords: Voxel coordinates $(N, 4)$ as $(\text{batch}, z, y, x)$.
         batch_size: Number of scenes $B$ in the batch.
-        hilbert_spatial_size: Curve grid $(z, y, x)$ used to flatten coordinates.
+        rank: Rank the template was built with; the curve grid side is $2^\text{rank}$.
         shift: Constant offset added to $z$, $y$ and $x$ before indexing the table.
 
     Returns:
@@ -100,11 +101,11 @@ def hilbert_serialize(
     Shape:
         - coords: $(N, 4)$
     """
-    _, size_y, size_x = hilbert_spatial_size
+    side = 1 << rank
     x = coords[:, 3] + shift
     y = coords[:, 2] + shift
     z = coords[:, 1] + shift
-    flat = (z * size_y * size_x + y * size_x + x).long()
+    flat = (z * side * side + y * side + x).long()
     hilbert_inds = template[flat].long()
 
     forward: List[Tensor] = []
@@ -196,11 +197,21 @@ class DynamicMeanVFE(nn.Module):
         )
         self.out_channels = num_filters[-1]
 
-        self.register_buffer("voxel_size", torch.tensor(voxel_size, dtype=torch.float32), persistent=False)
         self.register_buffer(
-            "point_cloud_range", torch.tensor(point_cloud_range, dtype=torch.float32), persistent=False
+            "voxel_size",
+            torch.tensor(voxel_size, dtype=torch.float32),
+            persistent=False,
         )
-        self.register_buffer("grid_size", torch.tensor(list(grid_size), dtype=torch.long), persistent=False)
+        self.register_buffer(
+            "point_cloud_range",
+            torch.tensor(point_cloud_range, dtype=torch.float32),
+            persistent=False,
+        )
+        self.register_buffer(
+            "grid_size",
+            torch.tensor(list(grid_size), dtype=torch.long),
+            persistent=False,
+        )
 
         self.scale_xyz = grid_size[0] * grid_size[1] * grid_size[2]
         self.scale_yz = grid_size[1] * grid_size[2]
@@ -398,7 +409,7 @@ class DSB(nn.Module):
         down_stride: Stride per scale (high, low).
         num_down: Residual-block count per scale (high, low).
         indice_key: Base indice key for this block.
-        downsample_lvl: Hilbert template key for the low-resolution scale.
+        downsample_rank: Hilbert template rank for the low-resolution scale.
         down_resolution: If `True`, fuse with an inverse conv; else with a subm conv.
         norm_epsilon: LayerNorm epsilon for the Mamba output norms.
         rms_norm: Use `RMSNorm` instead of `nn.LayerNorm` inside the Mamba blocks.
@@ -418,7 +429,7 @@ class DSB(nn.Module):
         down_stride: Sequence[int],
         num_down: Sequence[int],
         indice_key: str,
-        downsample_lvl: str,
+        downsample_rank: int,
         down_resolution: bool,
         norm_epsilon: float,
         rms_norm: bool,
@@ -456,7 +467,7 @@ class DSB(nn.Module):
         )
         self.decoder_norm = create_norm(norm, d_model, dim=1, **(norm_kwargs or {}))
 
-        self.downsample_lvl = downsample_lvl
+        self.downsample_rank = downsample_rank
         self.norm = nn.LayerNorm(d_model, eps=norm_epsilon)
         self.norm_back = nn.LayerNorm(d_model, eps=norm_epsilon)
 
@@ -466,8 +477,7 @@ class DSB(nn.Module):
         voxel_indices: Tensor,
         batch_size: int,
         spatial_shape: List[int],
-        curve_template: Dict[str, Tensor],
-        hilbert_spatial_size: Dict[str, Tuple[int, int, int]],
+        templates: Dict[int, Tensor],
         pos_embed: nn.Module,
         stage: int,
     ) -> Tuple[Tensor, Tensor]:
@@ -480,18 +490,12 @@ class DSB(nn.Module):
         x_high = self.encoder_high(x)
         x_low = self.encoder_low(x_high)
 
-        forward_high, inverse_high = hilbert_serialize(
-            curve_template["curve_template_rank9"],
-            x_high.indices,
-            batch_size,
-            hilbert_spatial_size["curve_template_rank9"],
-            shift=stage,
-        )
+        forward_high, inverse_high = hilbert_serialize(templates[9], x_high.indices, batch_size, rank=9, shift=stage)
         forward_low, inverse_low = hilbert_serialize(
-            curve_template[self.downsample_lvl],
+            templates[self.downsample_rank],
             x_low.indices,
             batch_size,
-            hilbert_spatial_size[self.downsample_lvl],
+            rank=self.downsample_rank,
             shift=stage,
         )
 
@@ -568,7 +572,7 @@ class VoxelMambaBackbone(nn.Module):
         down_stride: Per-stage strides for the two `conv_encoder` scales.
         down_kernel_size: Per-stage kernel sizes for the two `conv_encoder` scales.
         down_resolution: Per-stage flag selecting inverse-conv (vs subm) fusion.
-        downsample_lvl: Per-stage Hilbert template key for the low-resolution scale.
+        downsample_rank: Per-stage Hilbert template rank for the low-resolution scale.
         extra_down: Block index after which the final height-compression conv runs.
         norm_epsilon: LayerNorm epsilon for the Mamba output norms.
         rms_norm: Use `RMSNorm` inside the Mamba blocks.
@@ -586,7 +590,7 @@ class VoxelMambaBackbone(nn.Module):
         down_stride: Sequence[Sequence[int]] = ((1, 1), (1, 2), (1, 4)),
         down_kernel_size: Sequence[Sequence[int]] = ((3, 3), (3, 3), (3, 5)),
         down_resolution: Sequence[bool] = (False, True, True),
-        downsample_lvl: Sequence[str] = ("curve_template_rank9", "curve_template_rank8", "curve_template_rank7"),
+        downsample_rank: Sequence[int] = (9, 8, 7),
         extra_down: int = 5,
         norm_epsilon: float = 1e-5,
         rms_norm: bool = True,
@@ -600,15 +604,8 @@ class VoxelMambaBackbone(nn.Module):
         self.sparse_shape = [int(grid_size[2]) + 1, int(grid_size[1]), int(grid_size[0])]
         conv_kwargs: Dict[str, Any] = dict(norm="batch_norm", norm_kwargs=dict(eps=1e-3, momentum=0.01))
 
-        self.curve_template: Dict[str, Tensor] = {}
-        self.hilbert_spatial_size: Dict[str, Tuple[int, int, int]] = {}
         for rank, z_max in ((9, 41), (8, 17), (7, 9)):
-            template = build_hilbert_template(rank, z_max)
-            key = f"curve_template_rank{rank}"
-            self.curve_template[key] = template
-            self.register_buffer(f"_template_rank{rank}", template, persistent=False)
-            side = 1 << rank
-            self.hilbert_spatial_size[key] = (1, side, side)
+            self.register_buffer(f"_template_rank{rank}", build_hilbert_template(rank, z_max), persistent=False)
 
         blocks: List[nn.Module] = []
         for i, count in enumerate(num_stage):
@@ -620,7 +617,7 @@ class VoxelMambaBackbone(nn.Module):
                         down_stride=down_stride[i],
                         num_down=num_down[i],
                         indice_key=f"stem{i}_layer{ns}",
-                        downsample_lvl=downsample_lvl[i],
+                        downsample_rank=downsample_rank[i],
                         down_resolution=down_resolution[i],
                         norm_epsilon=norm_epsilon,
                         rms_norm=rms_norm,
@@ -656,9 +653,7 @@ class VoxelMambaBackbone(nn.Module):
         self.out_channels = d_model
 
     def forward(self, voxel_features: Tensor, voxel_indices: Tensor, batch_size: int) -> Tuple[Tensor, Tensor]:
-        for key in self.curve_template:
-            self.curve_template[key] = self.curve_template[key].to(voxel_indices.device)
-
+        templates = {rank: self.get_buffer(f"_template_rank{rank}") for rank in (9, 8, 7)}
         spatial_shape = self.sparse_shape
         for i, block in enumerate(self.block_list):
             voxel_features, voxel_indices = block(
@@ -666,8 +661,7 @@ class VoxelMambaBackbone(nn.Module):
                 voxel_indices,
                 batch_size,
                 spatial_shape,
-                self.curve_template,
-                self.hilbert_spatial_size,
+                templates,
                 self.pos_embed,
                 i,
             )
@@ -719,7 +713,14 @@ class BasicBlock2d(nn.Module):
         self.act = create_act(act, **(act_kwargs or {}))
         self.downsample = (
             Conv2dBlock(
-                in_channels, out_channels, 1, stride=stride, padding=0, act=None, norm=norm, norm_kwargs=norm_kwargs
+                in_channels,
+                out_channels,
+                1,
+                stride=stride,
+                padding=0,
+                act=None,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
             )
             if downsample
             else None
@@ -775,7 +776,11 @@ class BaseBEVResBackbone(nn.Module):
         for idx in range(num_levels):
             cur: List[nn.Module] = [
                 BasicBlock2d(
-                    c_in_list[idx], num_filters[idx], stride=layer_strides[idx], downsample=True, **block_kwargs
+                    c_in_list[idx],
+                    num_filters[idx],
+                    stride=layer_strides[idx],
+                    downsample=True,
+                    **block_kwargs,
                 )
             ]
             for _ in range(layer_nums[idx]):
@@ -810,11 +815,6 @@ class BaseBEVResBackbone(nn.Module):
             x = block(x)
             ups.append(deblock(x))
         return torch.cat(ups, dim=1) if len(ups) > 1 else ups[0]
-
-
-def _head_branch(in_channels: int, out_channels: int, num_layers: int, block_kwargs: Dict[str, Any]) -> nn.Sequential:
-    hidden = [Conv2dBlock(in_channels, in_channels, 3, padding=1, **block_kwargs) for _ in range(num_layers - 1)]
-    return nn.Sequential(*hidden, nn.Conv2d(in_channels, out_channels, 3, stride=1, padding=1, bias=True))
 
 
 class SeparateHead(nn.Module):
@@ -852,15 +852,21 @@ class SeparateHead(nn.Module):
         bias: bool = False,
     ) -> None:
         super().__init__()
-        block_kwargs: Dict[str, Any] = dict(
-            act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs, bias=bias
+        branch_kwargs: Dict[str, Any] = dict(
+            num_middle_conv=num_layers - 1,
+            num_middle_filter=in_channels,
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            bias=bias,
         )
-        self.center = _head_branch(in_channels, 2, num_layers, block_kwargs)
-        self.center_z = _head_branch(in_channels, 1, num_layers, block_kwargs)
-        self.dim = _head_branch(in_channels, 3, num_layers, block_kwargs)
-        self.rot = _head_branch(in_channels, 2, num_layers, block_kwargs)
-        self.iou = _head_branch(in_channels, 1, num_layers, block_kwargs)
-        self.heatmap = _head_branch(in_channels, num_classes, num_layers, block_kwargs)
+        self.center = separate_branch(in_channels, 2, **branch_kwargs)
+        self.center_z = separate_branch(in_channels, 1, **branch_kwargs)
+        self.dim = separate_branch(in_channels, 3, **branch_kwargs)
+        self.rot = separate_branch(in_channels, 2, **branch_kwargs)
+        self.iou = separate_branch(in_channels, 1, **branch_kwargs)
+        self.heatmap = separate_branch(in_channels, num_classes, **branch_kwargs)
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
         return {
@@ -928,26 +934,6 @@ class CenterHead(nn.Module):
 
     def forward(self, spatial_features_2d: Tensor) -> Dict[str, Tensor]:
         return self.prediction_head(self.shared_conv(spatial_features_2d))
-
-
-def _topk(scores: Tensor, k: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    b, c, h, w = scores.shape
-    topk_scores, topk_inds = torch.topk(scores.flatten(2, 3), k)
-    topk_inds = topk_inds % (h * w)
-    topk_ys = torch.div(topk_inds, w, rounding_mode="floor").float()
-    topk_xs = (topk_inds % w).int().float()
-    topk_score, topk_ind = torch.topk(topk_scores.view(b, -1), k)
-    topk_classes = torch.div(topk_ind, k, rounding_mode="floor")
-    topk_inds = _gather_feat(topk_inds.view(b, -1, 1), topk_ind).view(b, k)
-    topk_ys = _gather_feat(topk_ys.view(b, -1, 1), topk_ind).view(b, k)
-    topk_xs = _gather_feat(topk_xs.view(b, -1, 1), topk_ind).view(b, k)
-    return topk_score, topk_inds, topk_classes, torch.stack([topk_xs, topk_ys], dim=-1)
-
-
-def _gather_feat(feat: Tensor, ind: Tensor) -> Tensor:
-    dim = feat.size(2)
-    ind = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
-    return feat.gather(1, ind)
 
 
 class VoxelMambaDetection(DetectionModel):
@@ -1050,38 +1036,57 @@ class VoxelMambaDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(
-        self, out: Dict[str, Tensor], *, score_threshold: float = 0.1, nms_iou: float = 0.7, k: int = 500
+        self,
+        out: Dict[str, Tensor],
+        *,
+        score_threshold: float = 0.1,
+        nms_iou: float = 0.7,
+        k: int = 500,
+        iou_rectifier: Sequence[float] = (0.68, 0.71, 0.65),
     ) -> Detection3D:
         r"""Decode center-head predictions into packed detections.
 
         Peaks of the (sigmoid) heatmap give candidate centers; box attributes are gathered at those
-        peaks, mapped to world coordinates, thresholded by score, and reduced by per-class 3D NMS.
+        peaks, mapped to world coordinates, thresholded by score, rescored by the predicted IoU
+        ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference),
+        and reduced by per-class 3D NMS.
+
+        Args:
+            out: The dict returned by `forward`.
+            score_threshold: Minimum (pre-rectification) heatmap score to keep a box.
+            nms_iou: IoU threshold of the per-class 3D NMS.
+            k: Number of heatmap peaks gathered per scene.
+            iou_rectifier: Per-class IoU-rectification exponent (the reference Waymo values).
 
         Returns:
             Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
         """
         heatmap = out["heatmap"].sigmoid()
-        batch_size = heatmap.shape[0]
-        scores, inds, classes, centers = _topk(heatmap, k)
+        batch_size, _, h, w = heatmap.shape
+        # One global top-k over the flat heatmap equals the reference's per-class-then-global two-stage top-k.
+        scores, inds = torch.topk(heatmap.flatten(1), k)
+        classes = torch.div(inds, h * w, rounding_mode="floor")
+        inds = inds % (h * w)
+        xs = (inds % w).float()
+        ys = torch.div(inds, w, rounding_mode="floor").float()
 
         center = _transpose_gather(out["center"], inds)
         center_z = _transpose_gather(out["center_z"], inds)
         dim = _transpose_gather(out["dim"], inds).exp()
         rot = _transpose_gather(out["rot"], inds)
         angle = torch.atan2(rot[..., 1], rot[..., 0])
+        iou = torch.clamp((_transpose_gather(out["iou"], inds) + 1) * 0.5, min=0, max=1.0).squeeze(-1)
 
-        xs = (centers[..., 0:1] + center[..., 0:1]) * self.feature_map_stride * self.voxel_size[
-            0
-        ] + self.point_cloud_range[0]
-        ys = (centers[..., 1:2] + center[..., 1:2]) * self.feature_map_stride * self.voxel_size[
-            1
-        ] + self.point_cloud_range[1]
-        boxes = torch.cat([xs, ys, center_z, dim, angle.unsqueeze(-1)], dim=-1)
+        xs = (xs + center[..., 0]) * self.feature_map_stride * self.voxel_size[0] + self.point_cloud_range[0]
+        ys = (ys + center[..., 1]) * self.feature_map_stride * self.voxel_size[1] + self.point_cloud_range[1]
+        boxes = torch.cat([xs.unsqueeze(-1), ys.unsqueeze(-1), center_z, dim, angle.unsqueeze(-1)], dim=-1)
 
         out_boxes, out_scores, out_labels, out_batch = [], [], [], []
         for b in range(batch_size):
             keep = scores[b] > score_threshold
             scene_boxes, scene_scores, scene_labels = boxes[b][keep], scores[b][keep], classes[b][keep]
+            rectifier = scene_scores.new_tensor(iou_rectifier)[scene_labels.long()]
+            scene_scores = scene_scores.pow(1 - rectifier) * iou[b][keep].pow(rectifier)
             idx = nms3d(scene_boxes, scene_scores, scene_labels, nms_iou)
             out_boxes.append(scene_boxes[idx])
             out_scores.append(scene_scores[idx])
@@ -1097,8 +1102,9 @@ class VoxelMambaDetection(DetectionModel):
 
 
 def _transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
-    feat = feat.permute(0, 2, 3, 1).contiguous().view(feat.size(0), -1, feat.size(1))
-    return _gather_feat(feat, ind)
+    b, c = feat.shape[0], feat.shape[1]
+    feat = feat.permute(0, 2, 3, 1).reshape(b, -1, c)
+    return feat.gather(1, ind.unsqueeze(2).expand(-1, -1, c))
 
 
 @register_model(
