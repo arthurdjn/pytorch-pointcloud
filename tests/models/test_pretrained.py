@@ -422,6 +422,50 @@ def test_pretrained_detr3d(
 
 
 @pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["pointrcnn-openpcdet.kitti"])
+def test_pretrained_pointrcnn(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PointRCNN returns a dict of per-ROI stage-2 predictions, so it needs its own snapshot test.
+
+    There is no in-repo KITTI *detection* fixture, so a fixed synthetic cloud inside the model's
+    point-cloud range with deterministic FPS is used; this still pins the pretrained weights against
+    regressions. The snapshot is the stage-2 confidence logit `rcnn_cls` + the refined box center/size
+    `boxes[:, :6]`, not `boxes[:, 6]`: the stage-1 box coder reconstructs heading via `atan2`, whose ±pi
+    branch cut flips a box near that heading under fp32 noise; the center/size residuals are stable.
+    """
+    if not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
+        pytest.skip("torch-cluster / torch-scatter is not installed")
+
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    pc_range = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 16384, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n_per_scene * batch_size, model.in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    with torch.no_grad():
+        out = model(x, pos, batch)
+
+    reduced = torch.cat([out["rcnn_cls"].reshape(-1), out["boxes"][:, :6].reshape(-1)])
+    _check_output(reduced, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
 @pytest.mark.parametrize("model_name", ["lion-mamba-happinesslz.nuscenes"])
 def test_pretrained_lion(
     model_name: str,

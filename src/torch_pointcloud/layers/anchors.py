@@ -3,9 +3,9 @@ r"""Anchor-based dense detection heads for the voxel detectors (PointPillars, SE
 A packed-format port of the OpenPCDet anchor head:
 :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
-- [`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors] and
-  [`ResidualCoder`][torch_pointcloud.layers.anchors.ResidualCoder]: axis-aligned anchor generation
-  and the residual box decoder.
+- [`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors]: axis-aligned anchor
+  generation; residuals are decoded with
+  [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals].
 - [`AnchorHeadSingle`][torch_pointcloud.layers.anchors.AnchorHeadSingle]: the single-stage anchor
   head (per-anchor class logits, box residuals and a direction bin).
 - [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]: the multi-group
@@ -21,7 +21,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
-from torch_pointcloud.utils.box3d import nms3d
+from torch_pointcloud.utils.box3d import decode_box_residuals, nms3d
 from torch_pointcloud.utils.types import Detection3D
 
 
@@ -38,56 +38,6 @@ class AnchorHeadOutput(TypedDict):
 def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> Tensor:
     r"""Wrap an angle to $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$."""
     return val - torch.floor(val / period + offset) * period
-
-
-class ResidualCoder:
-    r"""Residual box coder (`ResidualCoder`): decodes box residuals against anchors.
-
-    Encodes $(x, y, z, dx, dy, dz, \theta, \ldots)$ as center offsets normalized by the anchor base
-    diagonal, log-size ratios and an angle term (a delta, or a $(\cos, \sin)$ pair when
-    `encode_angle_by_sincos`), plus any trailing coordinates (e.g. nuScenes velocity). Only decoding
-    is implemented (inference only).
-
-    Args:
-        code_size: Base box code size (7 for $(x, y, z, dx, dy, dz, \theta)$, 9 with velocity).
-        encode_angle_by_sincos: Encode the heading as $(\cos, \sin)$ (adds one to the code size).
-    """
-
-    def __init__(self, code_size: int = 7, encode_angle_by_sincos: bool = False) -> None:
-        self.code_size = code_size
-        self.encode_angle_by_sincos = encode_angle_by_sincos
-        if encode_angle_by_sincos:
-            self.code_size += 1
-
-    def decode_torch(self, box_encodings: Tensor, anchors: Tensor) -> Tensor:
-        r"""Decode predicted residuals into absolute boxes.
-
-        Args:
-            box_encodings: Predicted residuals $(\ldots, \text{code\_size})$.
-            anchors: Matching anchors $(\ldots, \geq 7)$.
-
-        Returns:
-            Decoded boxes $(\ldots, 7 + C)$ as $(x, y, z, dx, dy, dz, \theta, \ldots)$.
-        """
-        xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
-        if not self.encode_angle_by_sincos:
-            xt, yt, zt, dxt, dyt, dzt, rt, *cts = torch.split(box_encodings, 1, dim=-1)
-        else:
-            xt, yt, zt, dxt, dyt, dzt, cost, sint, *cts = torch.split(box_encodings, 1, dim=-1)
-
-        diagonal = torch.sqrt(dxa**2 + dya**2)
-        xg = xt * diagonal + xa
-        yg = yt * diagonal + ya
-        zg = zt * dza + za
-        dxg = torch.exp(dxt) * dxa
-        dyg = torch.exp(dyt) * dya
-        dzg = torch.exp(dzt) * dza
-        if self.encode_angle_by_sincos:
-            rg = torch.atan2(sint + torch.sin(ra), cost + torch.cos(ra))
-        else:
-            rg = rt + ra
-        cgs = [t + a for t, a in zip(cts, cas)]
-        return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
 
 
 def generate_anchors(
@@ -189,7 +139,7 @@ class AnchorHeadSingle(nn.Module):
         self.num_dir_bins = num_dir_bins
         self.dir_offset = dir_offset
         self.dir_limit_offset = dir_limit_offset
-        self.box_coder = ResidualCoder(code_size=7)
+        self.code_size = 7
 
         feature_map_size = (grid_size[0] // feature_map_stride, grid_size[1] // feature_map_stride)
         anchors_per_class = []
@@ -206,7 +156,7 @@ class AnchorHeadSingle(nn.Module):
         self.num_anchors_per_location = num_anchors_per_location
 
         self.conv_cls = nn.Conv2d(input_channels, num_anchors_per_location * num_classes, 1)
-        self.conv_box = nn.Conv2d(input_channels, num_anchors_per_location * self.box_coder.code_size, 1)
+        self.conv_box = nn.Conv2d(input_channels, num_anchors_per_location * self.code_size, 1)
         self.conv_dir_cls = nn.Conv2d(input_channels, num_anchors_per_location * num_dir_bins, 1)
 
     def forward(self, spatial_features_2d: Tensor) -> AnchorHeadOutput:
@@ -243,7 +193,7 @@ class AnchorHeadSingle(nn.Module):
         batch_anchors = self.anchors.view(1, num_anchors, 7).repeat(batch_size, 1, 1)
         batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float()
         batch_box_preds = box_preds.view(batch_size, num_anchors, -1)
-        batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
+        batch_box_preds = decode_box_residuals(batch_box_preds, batch_anchors)
 
         dir_preds = dir_cls_preds.view(batch_size, num_anchors, -1)
         dir_labels = torch.max(dir_preds, dim=-1)[1]
@@ -413,9 +363,10 @@ class AnchorHeadMulti(nn.Module):
     r"""Multi-group anchor head (`AnchorHeadMulti`, separate-multihead).
 
     A shared conv feeds several [`MultiGroupSingleHead`][torch_pointcloud.layers.anchors.MultiGroupSingleHead]s,
-    one per class group. Anchors (7-DoF, padded to the box-code size) are decoded with a
-    velocity-aware sincos [`ResidualCoder`][torch_pointcloud.layers.anchors.ResidualCoder]; per-head
-    class scores stay separate (with their global label mapping) for class-wise NMS downstream.
+    one per class group. Anchors (7-DoF, padded to the box-code size) are decoded with
+    [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals] (sincos heading,
+    velocity deltas); per-head class scores stay separate (with their global label mapping) for
+    class-wise NMS downstream.
 
     Args:
         input_channels: Channels of the BEV feature map fed to the head.
@@ -468,7 +419,8 @@ class AnchorHeadMulti(nn.Module):
         super().__init__()
         if len(anchor_sizes) != num_classes:
             raise ValueError(f"Expected {num_classes} anchor sizes (one per class), got {len(anchor_sizes)}.")
-        self.box_coder = ResidualCoder(code_size=code_size, encode_angle_by_sincos=encode_angle_by_sincos)
+        self.encode_angle_by_sincos = encode_angle_by_sincos
+        self.code_size = code_size + 1 if encode_angle_by_sincos else code_size
 
         feature_map_size = (grid_size[0] // feature_map_stride, grid_size[1] // feature_map_stride)
         per_class_anchors = []
@@ -476,9 +428,9 @@ class AnchorHeadMulti(nn.Module):
         for size, bottom in zip(anchor_sizes, anchor_bottom_heights):
             anchors = generate_anchors(point_cloud_range, feature_map_size, [size], anchor_rotations, [bottom])
             num_anchors_per_class.append(anchors.shape[3] * anchors.shape[4])
-            pad = anchors.new_zeros([*anchors.shape[:-1], self.box_coder.code_size - anchors.shape[-1]])
+            pad = anchors.new_zeros([*anchors.shape[:-1], self.code_size - anchors.shape[-1]])
             anchors = torch.cat([anchors, pad], dim=-1)
-            per_class_anchors.append(anchors.permute(3, 4, 0, 1, 2, 5).reshape(-1, self.box_coder.code_size))
+            per_class_anchors.append(anchors.permute(3, 4, 0, 1, 2, 5).reshape(-1, self.code_size))
 
         self.register_buffer("anchors", torch.cat(per_class_anchors, dim=0), persistent=False)
 
@@ -504,7 +456,7 @@ class AnchorHeadMulti(nn.Module):
                 shared_conv_num_filter,
                 len(group),
                 num_anchors,
-                self.box_coder.code_size,
+                self.code_size,
                 reg_list,
                 label_indices,
                 num_middle_conv=num_middle_conv,
@@ -530,7 +482,9 @@ class AnchorHeadMulti(nn.Module):
         batch_size = spatial_features_2d.shape[0]
         box_preds_cat = torch.cat(box_list, dim=1)
         batch_anchors = self.anchors.unsqueeze(0).expand(batch_size, -1, -1)
-        batch_box_preds = self.box_coder.decode_torch(box_preds_cat, batch_anchors)
+        batch_box_preds = decode_box_residuals(
+            box_preds_cat, batch_anchors, angle_by_sincos=self.encode_angle_by_sincos
+        )
         return {
             "cls": cls_list,
             "box": box_list,

@@ -32,6 +32,9 @@ class PointNet2Encoder(nn.Module):
             Each element defines the MLP channels for one SA block.
             For Multi-Scale Grouping (MSG), provide nested lists of channels.
         ratios: Sampling ratios for each SA block (between 0 and 1).
+            Mutually exclusive with `num_points`.
+        num_points: Absolute number of sampled centroids for each SA block (e.g. PointRCNN's fixed
+            $4096, 1024, \ldots$). Exactly one of `ratios` / `num_points` must be given.
         radii: Search radiuses for each SA block's neighborhood.
             For MSG, provide a list of radii per block.
         num_neighbors: Max number of neighbors for each SA block.
@@ -45,6 +48,8 @@ class PointNet2Encoder(nn.Module):
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
         use_pos: Whether to concatenate per-point relative positions to `x`.
+        pos_first: Concatenate the relative positions *before* the grouped features
+            (see [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule]).
         pool: Pooling operation for SA blocks.
     """
 
@@ -52,10 +57,11 @@ class PointNet2Encoder(nn.Module):
         self,
         in_channels: int,
         sa_channels: Sequence[Sequence[Union[int, Sequence[int]]]],
-        ratios: Sequence[float],
+        *,
+        ratios: Optional[Sequence[float]] = None,
+        num_points: Optional[Sequence[int]] = None,
         radii: Sequence[Union[float, Sequence[float]]],
         num_neighbors: Sequence[Union[int, Sequence[int]]],
-        *,
         stem_channels: Optional[int] = None,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
@@ -66,10 +72,13 @@ class PointNet2Encoder(nn.Module):
         bias: bool = False,
         use_pos: bool = True,
         normalize_pos: bool = True,
+        pos_first: bool = False,
         pool: PoolLike = "max",
         sort_neighbors: bool = False,
     ) -> None:
         super().__init__()
+        if (ratios is None) == (num_points is None):
+            raise ValueError("`PointNet2Encoder` needs exactly one of `ratios` or `num_points`.")
         sa_channels = ensure_msg_list(
             sa_channels,
             extra_msg="The parameter `sa_channels` must be a sequence compliant with the Multi-Scale Grouping (MSG) mode.",
@@ -82,7 +91,10 @@ class PointNet2Encoder(nn.Module):
 
         num_blocks = len(sa_channels)
         extra_msg = f"The parameter `{{param}}` must be a sequence matching the number of blocks {num_blocks}."
-        ratios = ensure_tuple_size(ratios, size=num_blocks, extra_msg=extra_msg.format(param="ratios"))
+        if ratios is not None:
+            ratios = ensure_tuple_size(ratios, size=num_blocks, extra_msg=extra_msg.format(param="ratios"))
+        if num_points is not None:
+            num_points = ensure_tuple_size(num_points, size=num_blocks, extra_msg=extra_msg.format(param="num_points"))
         radii = ensure_tuple_size(radii, size=num_blocks, extra_msg=extra_msg.format(param="radii"))
         num_neighbors = ensure_tuple_size(num_neighbors, size=num_blocks, extra_msg=extra_msg.format(param="k"))
 
@@ -93,7 +105,8 @@ class PointNet2Encoder(nn.Module):
             block = SAModule(
                 in_channels=ch,
                 channels=sa_channels[i],
-                ratio=ratios[i],
+                ratio=ratios[i] if ratios is not None else None,
+                num_points=num_points[i] if num_points is not None else None,
                 radii=radii[i],
                 num_neighbors=num_neighbors[i],
                 spatial_dim=spatial_dim,
@@ -105,6 +118,7 @@ class PointNet2Encoder(nn.Module):
                 bias=bias,
                 use_pos=use_pos,
                 normalize_pos=normalize_pos,
+                pos_first=pos_first,
                 pool=pool,
                 sort_neighbors=sort_neighbors,
             )

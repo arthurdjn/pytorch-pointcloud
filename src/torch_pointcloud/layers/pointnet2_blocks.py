@@ -126,6 +126,16 @@ class SAModule(nn.Module):
 
 
 class GlobalSAModule(nn.Module):
+    r"""Global set-abstraction block: a shared MLP followed by a pool over each batch element.
+
+    Args:
+        use_pos: Concatenate the absolute point positions to `x` before the MLP. Unlike
+            [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule] there is no sampled centroid
+            to offset against, so the coordinates enter unnormalized (the reference PointNet++
+            `GroupAll`).
+        pos_first: Concatenate the positions *before* the features (`cat([pos, x])`) instead of after.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -137,13 +147,17 @@ class GlobalSAModule(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
+        use_pos: bool = False,
+        pos_first: bool = False,
         pool: PoolLike = "max",
     ) -> None:
         super().__init__()
         self.spatial_dim = spatial_dim
+        self.use_pos = use_pos
+        self.pos_first = pos_first
         channels = list(ensure_tuple(channels))
         self.mlp = MLP(
-            [in_channels, *channels],
+            [in_channels + spatial_dim if use_pos else in_channels, *channels],
             act=act,
             act_kwargs=act_kwargs,
             act_first=act_first,
@@ -155,6 +169,9 @@ class GlobalSAModule(nn.Module):
         self.pool = create_pool(pool)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        if self.use_pos:
+            x = torch.cat([pos, x], dim=1) if self.pos_first else torch.cat([x, pos], dim=1)
+
         x = self.mlp(x)
         x = self.pool(x, batch)
         pos = pos.new_zeros((x.size(0), self.spatial_dim))

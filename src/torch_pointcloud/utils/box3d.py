@@ -41,6 +41,52 @@ def box_corners(boxes: Tensor) -> Tensor:
     return rotated + center[..., None, :]
 
 
+def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos: bool = False) -> Tensor:
+    r"""Decode predicted box residuals against anchors (OpenPCDet's `ResidualCoder`).
+
+    Residuals encode the center offset normalized by the anchor base diagonal, log-size ratios, and an
+    angle term: a plain delta by default, or a $(\cos, \sin)$ pair when `angle_by_sincos` (one extra
+    channel). Trailing channels (e.g. nuScenes velocity) decode as plain deltas.
+
+    Args:
+        encodings: Predicted residuals, shape $(\ldots, 7 + C)$, or $(\ldots, 8 + C)$ with `angle_by_sincos`.
+        anchors: Matching anchors $(x, y, z, d_x, d_y, d_z, \theta, \ldots)$, shape $(\ldots, 7 + C)$.
+        angle_by_sincos: Whether the heading residual is encoded as $(\cos, \sin)$.
+
+    Returns:
+        Decoded boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta, \ldots)$, shape $(\ldots, 7 + C)$.
+
+    Shape:
+        - encodings: $(\ldots, 7 + C)$ or $(\ldots, 8 + C)$
+        - anchors: $(\ldots, 7 + C)$
+        - output: $(\ldots, 7 + C)$
+
+    Example:
+        >>> anchors = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+        >>> decode_box_residuals(torch.zeros(1, 7), anchors)
+        tensor([[0.0000, 0.0000, 0.0000, 4.0000, 2.0000, 1.5000, 0.0000]])
+    """
+    xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
+    if not angle_by_sincos:
+        xt, yt, zt, dxt, dyt, dzt, rt, *cts = torch.split(encodings, 1, dim=-1)
+    else:
+        xt, yt, zt, dxt, dyt, dzt, cost, sint, *cts = torch.split(encodings, 1, dim=-1)
+
+    diagonal = torch.sqrt(dxa**2 + dya**2)
+    xg = xt * diagonal + xa
+    yg = yt * diagonal + ya
+    zg = zt * dza + za
+    dxg = torch.exp(dxt) * dxa
+    dyg = torch.exp(dyt) * dya
+    dzg = torch.exp(dzt) * dza
+    if angle_by_sincos:
+        rg = torch.atan2(sint + torch.sin(ra), cost + torch.cos(ra))
+    else:
+        rg = rt + ra
+    cgs = [t + a for t, a in zip(cts, cas)]
+    return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
+
+
 def _polygon_clip(subject: np.ndarray, clip: np.ndarray) -> np.ndarray:
     """Sutherland-Hodgman clip of `subject` (2D, CCW) by the convex polygon `clip`."""
 
