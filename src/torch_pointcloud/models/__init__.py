@@ -34,6 +34,7 @@ from .randlanet import RandLANetClassification, RandLANetSegmentation
 from .second import SECOND, SECONDMultiHead, SparseBasicBlock, VoxelBackbone8x, VoxelResBackbone8x
 from .sontata import SonataSegmentation
 from .spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
+from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation
