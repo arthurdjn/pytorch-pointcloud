@@ -11,6 +11,7 @@ from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
+    _FVDB_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
     _SPCONV_AVAILABLE,
@@ -93,6 +94,18 @@ BASE_MODELS = [
     "pointgpt-cguangyan-l.pretrain",
     "sonata-base",
     "utonia",
+    "xcube-vae-coarse-nvidia.shapenet-chair",
+    "xcube-vae-fine-nvidia.shapenet-chair",
+    "xcube-vae-coarse-nvidia.shapenet-car",
+    "xcube-vae-fine-nvidia.shapenet-car",
+    "xcube-vae-coarse-nvidia.shapenet-plane",
+    "xcube-vae-fine-nvidia.shapenet-plane",
+    "xcube-diffusion-coarse-nvidia.shapenet-chair",
+    "xcube-diffusion-fine-nvidia.shapenet-chair",
+    "xcube-diffusion-coarse-nvidia.shapenet-car",
+    "xcube-diffusion-fine-nvidia.shapenet-car",
+    "xcube-diffusion-coarse-nvidia.shapenet-plane",
+    "xcube-diffusion-fine-nvidia.shapenet-plane",
 ]
 SEGMENTATION_MODELS = [
     "concerto-large-lp.scannet20",
@@ -212,6 +225,8 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm or spconv is not installed")
     if model_name.startswith("sphereformer") and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
+    if model_name.startswith("xcube") and not _FVDB_AVAILABLE:
+        pytest.skip("fvdb is not installed")
 
 
 # Models whose `forward` cannot run on the synthetic `data_factory` input — they expect
