@@ -7,6 +7,7 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import (
     PoolLike,
+    TNet,
     create_cls_head,
     create_pool,
     create_seg_head,
@@ -17,97 +18,6 @@ if TYPE_CHECKING:
     from torch_scatter import scatter
 
 scatter, _ = optional_import("torch_scatter", "scatter")
-
-
-class TNet(nn.Module):
-    """Transformation Network (T-Net) module as described in the original PointNet paper
-    :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
-
-    T-Net predicts an affine transformation matrix that helps align input point clouds
-    or feature spaces to a canonical space. This network acts as a mini-PointNet that
-    takes points/features as input and outputs a transformation matrix.
-
-    There are two instance of T-Net in PointNet:
-    1. Input transform network: Operates on raw point coordinates (k=3)
-    2. Feature transform network: Operates on point features (k=64 typically)
-
-    Note:
-        The transformation matrix is initialized as an identity matrix and
-        adds a residual connection to help with optimization stability.
-
-    Args:
-        k: Dimension of input features to transform. Default: 3 for spatial transform.
-        mlp1_dims: Dimensions of the first MLP. Default: (64, 128, 1024).
-        mlp2_dims: Dimensions of the second MLP after pooling. Default: (512, 256).
-        act: Activation function to use. Default: "relu".
-        act_kwargs: Keyword arguments for the activation function.
-        norm: Normalization to use. Default: "batch_norm".
-        norm_kwargs: Keyword arguments for the normalization layers.
-        global_pool: Pooling method to use ("max" or "mean"). Default: "max".
-
-    """
-
-    def __init__(
-        self,
-        k: int = 3,
-        mlp1_dims: Sequence[int] = (64, 128, 1024),
-        mlp2_dims: Sequence[int] = (512, 256),
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        global_pool: str = "max",
-    ) -> None:
-        super().__init__()
-        self.k = k
-        self.global_pool = global_pool
-
-        mlp1_dims = list(mlp1_dims)
-        mlp2_dims = list(mlp2_dims)
-
-        self.mlp1 = MLP(
-            [k] + mlp1_dims,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            act_first=True,
-            plain_last=False,
-        )
-        self.mlp2 = MLP(
-            [mlp1_dims[-1]] + mlp2_dims,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            act_first=True,
-            plain_last=False,
-        )
-
-        self.transform = nn.Linear(mlp2_dims[-1], k * k)
-        nn.init.zeros_(self.transform.weight)
-        nn.init.zeros_(self.transform.bias)
-
-    def forward(self, x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
-        """Forward pass of the T-Net.
-
-        Args:
-            x: Input tensor of shape $(N, k, *)$ where $N$ is the batch size, $k$ is the dimension of the input features, and $*$ means any number of additional dimensions.
-            batch: Batch indices of shape $(N)$ where $N$ is the batch size.
-
-        Returns:
-            Transformation matrix of shape $(N, k, k)$ where $N$ is the batch size.
-        """
-
-        x = self.mlp1(x)
-        x = scatter(x, batch, dim=0, reduce=self.global_pool)
-        x = self.mlp2(x)
-
-        x = self.transform(x)
-        iden = torch.eye(self.k, dtype=x.dtype, device=x.device)
-        x = x.view(-1, self.k, self.k) + iden
-
-        return x[batch]
 
 
 class PointNetEncoder(nn.Module):
@@ -178,11 +88,12 @@ class PointNetEncoder(nn.Module):
         mlp2_dims = [mlp1_dims[-1]] + list(mlp2_dims)
 
         self.stnet = TNet(
+            local_channels=tnet_mlp1_dims,
+            global_channels=tnet_mlp2_dims,
             k=spatial_dim,
-            mlp1_dims=tnet_mlp1_dims,
-            mlp2_dims=tnet_mlp2_dims,
             act=tnet_act,
             act_kwargs=tnet_act_kwargs,
+            act_first=True,
             norm=tnet_norm,
             norm_kwargs=tnet_norm_kwargs,
         )
@@ -190,11 +101,12 @@ class PointNetEncoder(nn.Module):
         self.ftnet = None
         if use_features_transform:
             self.ftnet = TNet(
+                local_channels=tnet_mlp1_dims,
+                global_channels=tnet_mlp2_dims,
                 k=mlp1_dims[-1],
-                mlp1_dims=tnet_mlp1_dims,
-                mlp2_dims=tnet_mlp2_dims,
                 act=tnet_act,
                 act_kwargs=tnet_act_kwargs,
+                act_first=True,
                 norm=tnet_norm,
                 norm_kwargs=tnet_norm_kwargs,
             )
@@ -259,15 +171,13 @@ class PointNetEncoder(nn.Module):
                 - $\mathbf{x}$ is of shape $(N, C_2)$ where $C_2$ is the last dimension of the second MLP.
         """
 
-        xt = self.stnet(pos, batch)
-        xp = torch.bmm(pos.unsqueeze(1), xt).squeeze(1)
+        xp = self.stnet(pos, batch)
         x = xp if x is None else torch.cat([xp, x], dim=1)
 
         point_features = self.mlp1(x)
 
         if self.ftnet is not None:
-            xt = self.ftnet(point_features, batch)
-            point_features = torch.bmm(point_features.unsqueeze(1), xt).squeeze(1)
+            point_features = self.ftnet(point_features, batch)
 
         x = self.mlp2(point_features)
 

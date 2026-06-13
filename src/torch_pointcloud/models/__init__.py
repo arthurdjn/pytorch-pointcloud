@@ -38,7 +38,7 @@ from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation
-from .votenet import VoteNetBackbone, VoteNetDetectionModel, VoteNetProposalModule, VotingModule
+from .votenet import VoteNetBackbone, VoteNetDetection, VoteNetProposalModule, VotingModule
 from .voxel_mamba import VoxelMambaDetection
 from .voxelnext import VoxelNeXtDetection
 from .xcube import XCubeDiffusion, XCubeVAE

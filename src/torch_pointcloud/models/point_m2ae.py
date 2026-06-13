@@ -6,7 +6,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.resolver import activation_resolver
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import FPModule, TransformerBlock
+from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
@@ -18,76 +18,6 @@ if TYPE_CHECKING:
     from torch_scatter import scatter
 
 scatter, _ = optional_import("torch_scatter", "scatter")
-
-
-class TokenEmbed(nn.Module):
-    r"""Two-stage PointNet token embedding for a group of points.
-
-    The local MLP lifts the per-point input to a local feature, a max over the group yields a global
-    feature that is concatenated back, and the global MLP produces the token, max-pooled over the group.
-    A shared $1 \times 1$ convolution over $(B, C, k)$ groups is equivalent to a `MLP` over the flattened
-    feature dim, so both stages are plain `MLP` with a configurable activation and normalization. The
-    widths are configurable: `local_mlp` maps `in_channels` $\to \text{local\_channels}$, the per-group
-    max-pool is concatenated to give $2 \cdot \text{local\_channels}[-1]$, and `global_mlp` maps that to
-    `out_channels` through `global_channels`.
-
-    Args:
-        in_channels: The number of input channels ($3$ for raw coordinates, plus any concatenated features).
-        out_channels: The number of output channels.
-        local_channels: Hidden widths of the per-point MLP (input `in_channels` is prepended).
-        global_channels: Hidden widths of the per-group MLP (input $2 \cdot \text{local\_channels}[-1]$ and output `out_channels` are added).
-        act: The activation function used between the linear layers.
-        act_kwargs: Extra keyword arguments for the activation.
-        norm: The normalization function used between the linear layers.
-        norm_kwargs: Extra keyword arguments for the normalization.
-
-    Shape:
-        - Input: $(B, G, k, C_\text{in})$
-        - Output: $(B, G, C_\text{out})$
-
-    Example:
-        >>> import torch
-        >>> from torch_pointcloud.models.point_m2ae import TokenEmbed
-        >>> embed = TokenEmbed(3, 96)
-        >>> groups = torch.randn(2, 64, 16, 3)
-        >>> embed(groups).shape
-        torch.Size([2, 64, 96])
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        local_channels: Sequence[int] = (128, 256),
-        global_channels: Sequence[int] = (512,),
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.mid_channels = local_channels[-1]
-        factory_kwargs: Dict[str, Any] = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            plain_last=True,
-        )
-        self.local_mlp = MLP([in_channels, *local_channels], **factory_kwargs)
-        self.global_mlp = MLP([2 * self.mid_channels, *global_channels, out_channels], **factory_kwargs)
-
-    def forward(self, point_groups: Tensor) -> Tensor:
-        bs, g, n, c = point_groups.shape
-        points = point_groups.reshape(bs * g * n, c)
-        feature = self.local_mlp(points).reshape(bs * g, n, self.mid_channels)
-        feature_global = feature.max(dim=1, keepdim=True)[0]
-        feature = torch.cat([feature_global.expand(-1, n, -1), feature], dim=-1).reshape(bs * g * n, -1)
-        feature = self.global_mlp(feature).reshape(bs * g, n, self.out_channels)
-        feature_global = feature.max(dim=1)[0]
-        return feature_global.reshape(bs, g, self.out_channels)
 
 
 class EncoderBlock(nn.Module):
@@ -414,9 +344,9 @@ class HierarchicalEncoder(nn.Module):
                 local_channels = (stage_channels, stage_channels)
                 global_channels = (self.encoder_dims[i],)
             self.token_embed.append(
-                TokenEmbed(
+                PointPatchEmbed(
+                    embed_dim=self.encoder_dims[i],
                     in_channels=stage_channels,
-                    out_channels=self.encoder_dims[i],
                     local_channels=local_channels,
                     global_channels=global_channels,
                     act=act,
@@ -999,9 +929,9 @@ class HierarchicalEncoderMAE(nn.Module):
                 local_channels = (stage_channels, stage_channels)
                 global_channels = (self.encoder_dims[i],)
             self.token_embed.append(
-                TokenEmbed(
+                PointPatchEmbed(
+                    embed_dim=self.encoder_dims[i],
                     in_channels=stage_channels,
-                    out_channels=self.encoder_dims[i],
                     local_channels=local_channels,
                     global_channels=global_channels,
                     act=act,

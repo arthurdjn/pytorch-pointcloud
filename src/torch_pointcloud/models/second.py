@@ -13,6 +13,7 @@ from torch_pointcloud.layers.anchors import (
     AnchorHeadSingle,
 )
 from torch_pointcloud.layers.bev_backbone import BaseBEVBackbone
+from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -25,49 +26,6 @@ if TYPE_CHECKING:
     import spconv.pytorch as spconv
 
 spconv, _ = optional_import("spconv.pytorch")
-
-
-def _make_block(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: int,
-    *,
-    stride: int = 1,
-    padding: Union[int, Tuple[int, int, int]] = 0,
-    indice_key: str,
-    conv_type: str = "subm",
-    act: Union[str, Callable, None] = "relu",
-    act_kwargs: Optional[Dict[str, Any]] = None,
-    norm: Union[str, Callable, None] = "batch_norm",
-    norm_kwargs: Optional[Dict[str, Any]] = None,
-) -> nn.Module:
-    """Sparse conv + norm + activation block (`post_act_block`)."""
-    if conv_type == "subm":
-        conv = spconv.SubMConv3d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            bias=False,
-            indice_key=indice_key,
-        )
-    elif conv_type == "spconv":
-        conv = spconv.SparseConv3d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            padding=padding,
-            bias=False,
-            indice_key=indice_key,
-        )
-    else:
-        raise ValueError(f"Unknown conv_type {conv_type!r}. Expected 'subm' or 'spconv'.")
-
-    return spconv.SparseSequential(
-        conv,
-        create_norm(norm, out_channels, dim=1, **(norm_kwargs or {})),
-        create_act(act, **(act_kwargs or {})),
-    )
 
 
 class VoxelBackbone8x(nn.Module):
@@ -102,20 +60,20 @@ class VoxelBackbone8x(nn.Module):
             create_act(act, **(act_kwargs or {})),
         )
         self.conv1 = spconv.SparseSequential(
-            _make_block(16, 16, 3, indice_key="subm1", **block_kwargs),
+            SparseConvBlock(16, 16, 3, indice_key="subm1", **block_kwargs),
         )
         self.conv2 = spconv.SparseSequential(
-            _make_block(16, 32, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs),
-            _make_block(32, 32, 3, indice_key="subm2", **block_kwargs),
-            _make_block(32, 32, 3, indice_key="subm2", **block_kwargs),
+            SparseConvBlock(16, 32, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs),
+            SparseConvBlock(32, 32, 3, indice_key="subm2", **block_kwargs),
+            SparseConvBlock(32, 32, 3, indice_key="subm2", **block_kwargs),
         )
         self.conv3 = spconv.SparseSequential(
-            _make_block(32, 64, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs),
-            _make_block(64, 64, 3, indice_key="subm3", **block_kwargs),
-            _make_block(64, 64, 3, indice_key="subm3", **block_kwargs),
+            SparseConvBlock(32, 64, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs),
+            SparseConvBlock(64, 64, 3, indice_key="subm3", **block_kwargs),
+            SparseConvBlock(64, 64, 3, indice_key="subm3", **block_kwargs),
         )
         self.conv4 = spconv.SparseSequential(
-            _make_block(
+            SparseConvBlock(
                 64,
                 64,
                 3,
@@ -125,8 +83,8 @@ class VoxelBackbone8x(nn.Module):
                 conv_type="spconv",
                 **block_kwargs,
             ),
-            _make_block(64, 64, 3, indice_key="subm4", **block_kwargs),
-            _make_block(64, 64, 3, indice_key="subm4", **block_kwargs),
+            SparseConvBlock(64, 64, 3, indice_key="subm4", **block_kwargs),
+            SparseConvBlock(64, 64, 3, indice_key="subm4", **block_kwargs),
         )
         self.conv_out = spconv.SparseSequential(
             spconv.SparseConv3d(64, 128, (3, 1, 1), stride=(2, 1, 1), padding=0, bias=False, indice_key="spconv_down2"),
@@ -351,21 +309,25 @@ class VoxelResBackbone8x(nn.Module):
         )
         self.conv2 = nn.ModuleList(
             [
-                _make_block(16, 32, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    16, 32, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(32, "res2", **block_kwargs),
                 SparseBasicBlock(32, "res2", **block_kwargs),
             ]
         )
         self.conv3 = nn.ModuleList(
             [
-                _make_block(32, 64, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    32, 64, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(64, "res3", **block_kwargs),
                 SparseBasicBlock(64, "res3", **block_kwargs),
             ]
         )
         self.conv4 = nn.ModuleList(
             [
-                _make_block(
+                SparseConvBlock(
                     64, 128, 3, stride=2, padding=(0, 1, 1), indice_key="spconv4", conv_type="spconv", **block_kwargs
                 ),
                 SparseBasicBlock(128, "res4", **block_kwargs),

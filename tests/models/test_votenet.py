@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_pointcloud.layers.pointnet2_blocks import SAModule
 from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.votenet import VoteNetDetectionModel, VotingModule
+from torch_pointcloud.models.votenet import VoteNetDetection, VotingModule
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -18,7 +18,7 @@ pytestmark = [
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def _create_votenet(**overrides: Any) -> VoteNetDetectionModel:
+def _create_votenet(**overrides: Any) -> VoteNetDetection:
     kwargs: Dict[str, Any] = dict(
         in_channels=1,
         num_classes=18,
@@ -38,7 +38,7 @@ def _create_votenet(**overrides: Any) -> VoteNetDetectionModel:
         vote_aggr_num_neighbors=16,
     )
     kwargs.update(overrides)
-    return VoteNetDetectionModel(**kwargs)
+    return VoteNetDetection(**kwargs)
 
 
 def _make_inputs(n_per_scene: int = 3000, batch_size: int = 2, in_channels: int = 1) -> Dict[str, Tensor]:
@@ -102,7 +102,7 @@ def test_votenet_eval_is_deterministic() -> None:
 
 def test_votenet_reset_classifier() -> None:
     model = create_model("votenet-fair-base.scannet", task="detection")
-    assert isinstance(model, VoteNetDetectionModel)
+    assert isinstance(model, VoteNetDetection)
     model.reset_classifier(num_classes=5)
     assert model.num_classes == 5
     assert model.proposal.mlp.lins[-1].out_features == 2 + 3 + 1 * 2 + 18 * 4 + 5
@@ -126,7 +126,7 @@ def test_votenet_bad_mean_sizes_shape() -> None:
 def test_votenet_mean_sizes_not_persisted() -> None:
     # The reference rebuilds mean_sizes on the fly, so it must stay out of the checkpoint.
     model = create_model("votenet-fair-base.scannet", task="detection")
-    assert isinstance(model, VoteNetDetectionModel)
+    assert isinstance(model, VoteNetDetection)
     assert "mean_sizes" not in model.state_dict()
     # ...but it still moves with the module and drives size decoding.
     assert model.mean_sizes.shape == (18, 3)
@@ -177,7 +177,7 @@ def test_votenet_registered_variants() -> None:
 
 def test_votenet_create_model_no_pretrained() -> None:
     model = create_model("votenet-fair-base.sunrgbd", task="detection")
-    assert isinstance(model, VoteNetDetectionModel)
+    assert isinstance(model, VoteNetDetection)
     assert model.num_classes == 10
     assert model.num_heading_bin == 12
     assert model.num_size_cluster == 10
