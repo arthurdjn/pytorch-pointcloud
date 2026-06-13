@@ -24,7 +24,7 @@
     "encoder.blocks.0.conv.beta": [
       64
     ],
-    "encoder.blocks.0.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.0.conv.local_nn.0.stem.weight": [
       128,
       128
     ],
@@ -183,7 +183,7 @@
     "encoder.blocks.1.conv.beta": [
       128
     ],
-    "encoder.blocks.1.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.1.conv.local_nn.0.stem.weight": [
       256,
       256
     ],
@@ -342,7 +342,7 @@
     "encoder.blocks.2.conv.beta": [
       256
     ],
-    "encoder.blocks.2.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.2.conv.local_nn.0.stem.weight": [
       512,
       512
     ],
@@ -501,7 +501,7 @@
     "encoder.blocks.3.conv.beta": [
       512
     ],
-    "encoder.blocks.3.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.3.conv.local_nn.0.stem.weight": [
       1024,
       1024
     ],
@@ -654,7 +654,7 @@
       1024
     ],
     "encoder.blocks.3.pos_mlp.1.norm2.module.num_batches_tracked": [],
-    "decoder.blocks.0.mlp.0.lin.weight": [
+    "decoder.blocks.0.mlp.0.stem.weight": [
       512,
       1536
     ],
@@ -807,7 +807,7 @@
       512
     ],
     "decoder.blocks.0.mlp.4.norm2.module.num_batches_tracked": [],
-    "decoder.blocks.1.mlp.0.lin.weight": [
+    "decoder.blocks.1.mlp.0.stem.weight": [
       256,
       768
     ],
@@ -960,7 +960,7 @@
       256
     ],
     "decoder.blocks.1.mlp.4.norm2.module.num_batches_tracked": [],
-    "decoder.blocks.2.mlp.0.lin.weight": [
+    "decoder.blocks.2.mlp.0.stem.weight": [
       128,
       384
     ],
@@ -1113,7 +1113,7 @@
       128
     ],
     "decoder.blocks.2.mlp.4.norm2.module.num_batches_tracked": [],
-    "decoder.blocks.3.mlp.0.lin.weight": [
+    "decoder.blocks.3.mlp.0.stem.weight": [
       128,
       192
     ],

@@ -7,8 +7,10 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import SparseConvBlock, SparseModule
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.anchors import separate_branch
+from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.box3d import nms3d
@@ -25,14 +27,12 @@ if TYPE_CHECKING:
     from mamba_ssm.modules.block import Block
     from torch_scatter import scatter_max, scatter_mean
 
-spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch")
 Block, _ = optional_import("mamba_ssm.modules.block", "Block")
 Mamba, _ = optional_import("mamba_ssm", "Mamba")
 RMSNorm, _ = optional_import("mamba_ssm.ops.triton.layer_norm", "RMSNorm")
 scatter_max, _ = optional_import("torch_scatter", "scatter_max")
 scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
-
-_SparseModule: Any = spconv.SparseModule if _IS_SPCONV_AVAILABLE else nn.Module
 
 
 def build_hilbert_template(rank: int, z_max: int, device: Union[str, torch.device] = "cpu") -> Tensor:
@@ -253,56 +253,7 @@ class DynamicMeanVFE(nn.Module):
         return features, voxel_indices
 
 
-def _make_sparse_block(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: Union[int, Tuple[int, ...]],
-    *,
-    stride: Union[int, Tuple[int, ...]] = 1,
-    padding: Union[int, Tuple[int, ...]] = 0,
-    indice_key: str,
-    conv_type: str,
-    act: Union[str, Callable, None] = "relu",
-    act_kwargs: Optional[Dict[str, Any]] = None,
-    norm: Union[str, Callable, None] = "batch_norm",
-    norm_kwargs: Optional[Dict[str, Any]] = None,
-) -> "spconv.SparseSequential":
-    if conv_type == "subm":
-        conv = spconv.SubMConv3d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            bias=False,
-            indice_key=indice_key,
-        )
-    elif conv_type == "spconv":
-        conv = spconv.SparseConv3d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            padding=padding,
-            bias=False,
-            indice_key=indice_key,
-        )
-    elif conv_type == "inverseconv":
-        conv = spconv.SparseInverseConv3d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            bias=False,
-            indice_key=indice_key,
-        )
-    else:
-        raise ValueError(f"Unknown conv_type {conv_type!r}.")
-    return spconv.SparseSequential(
-        conv,
-        create_norm(norm, out_channels, dim=1, **(norm_kwargs or {})),
-        create_act(act, **(act_kwargs or {})),
-    )
-
-
-class SparseResidualBlock(_SparseModule):
+class SparseResidualBlock(SparseModule):
     r"""Submanifold residual block (the reference's `Sparse1ConvBlock`): one $3\times3\times3$ subm conv + skip.
 
     Args:
@@ -373,7 +324,7 @@ class DownSparse(nn.Module):
         blocks: List[nn.Module] = []
         if stride > 1:
             blocks.append(
-                _make_sparse_block(
+                SparseConvBlock(
                     channels,
                     channels,
                     kernel_size,
@@ -457,7 +408,7 @@ class DSB(nn.Module):
         self.encoder_low = DownSparse(
             d_model, down_kernel_size[1], down_stride[1], num_down[1], indice_key=f"{indice_key}_1", **conv_kwargs
         )
-        self.decoder = _make_sparse_block(
+        self.decoder = SparseConvBlock(
             d_model,
             d_model,
             down_kernel_size[1],
@@ -629,7 +580,7 @@ class VoxelMambaBackbone(nn.Module):
         self.block_list = nn.ModuleList(blocks)
 
         self.down_z_list = nn.ModuleList(
-            _make_sparse_block(
+            SparseConvBlock(
                 d_model,
                 d_model,
                 (3, 1, 1),
@@ -640,7 +591,7 @@ class VoxelMambaBackbone(nn.Module):
             )
             for i in range(len(num_stage))
         )
-        self.conv_out = _make_sparse_block(
+        self.conv_out = SparseConvBlock(
             d_model,
             d_model,
             (3, 1, 1),
@@ -677,144 +628,6 @@ class VoxelMambaBackbone(nn.Module):
                 xd = self.down_z_list[i // 2](xd)
                 voxel_features, voxel_indices, spatial_shape = xd.features, xd.indices, xd.spatial_shape
         return voxel_features, voxel_indices
-
-
-class BasicBlock2d(nn.Module):
-    r"""Residual 2D conv block (the reference's `BasicBlock`) of the BEV residual backbone.
-
-    Args:
-        in_channels: Input channels.
-        out_channels: Output channels.
-        stride: Stride of the first conv (and the optional projection shortcut).
-        downsample: Add a $1\times1$ projection shortcut to match channels / stride.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        *,
-        stride: int = 1,
-        downsample: bool = False,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        block_kwargs: Dict[str, Any] = dict(norm=norm, norm_kwargs=norm_kwargs, act=act, act_kwargs=act_kwargs)
-        self.conv1 = Conv2dBlock(in_channels, out_channels, 3, stride=stride, padding=1, **block_kwargs)
-        self.conv2 = Conv2dBlock(out_channels, out_channels, 3, padding=1, act=None, norm=norm, norm_kwargs=norm_kwargs)
-
-        self.act = create_act(act, **(act_kwargs or {}))
-        self.downsample = (
-            Conv2dBlock(
-                in_channels,
-                out_channels,
-                1,
-                stride=stride,
-                padding=0,
-                act=None,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-            )
-            if downsample
-            else None
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        identity = x if self.downsample is None else self.downsample(x)
-        out = self.conv2(self.conv1(x))
-        out = out + identity
-        return out if self.act is None else self.act(out)
-
-
-class BaseBEVResBackbone(nn.Module):
-    r"""Residual SSD-style 2D BEV backbone used by Voxel Mamba.
-
-    Like the anchor-detector BEV backbone but each level is a stack of residual
-    [`BasicBlock2d`][torch_pointcloud.models.voxel_mamba.BasicBlock2d]s; level outputs are upsampled
-    and concatenated.
-
-    Args:
-        input_channels: Channels of the input BEV feature map.
-        layer_nums: Residual blocks (beyond the strided one) per level.
-        layer_strides: Downsample stride of the leading block, per level.
-        num_filters: Channel width per level.
-        upsample_strides: Upsample factor per level.
-        num_upsample_filters: Channels of each upsampled level.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-    """
-
-    def __init__(
-        self,
-        input_channels: int,
-        layer_nums: Sequence[int],
-        layer_strides: Sequence[int],
-        num_filters: Sequence[int],
-        upsample_strides: Sequence[float],
-        num_upsample_filters: Sequence[int],
-        *,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        block_kwargs: Dict[str, Any] = dict(norm=norm, norm_kwargs=norm_kwargs, act=act, act_kwargs=act_kwargs)
-        num_levels = len(layer_nums)
-        c_in_list = [input_channels, *num_filters[:-1]]
-        self.blocks = nn.ModuleList()
-        self.deblocks = nn.ModuleList()
-        for idx in range(num_levels):
-            cur: List[nn.Module] = [
-                BasicBlock2d(
-                    c_in_list[idx],
-                    num_filters[idx],
-                    stride=layer_strides[idx],
-                    downsample=True,
-                    **block_kwargs,
-                )
-            ]
-            for _ in range(layer_nums[idx]):
-                cur.append(BasicBlock2d(num_filters[idx], num_filters[idx], **block_kwargs))
-            self.blocks.append(nn.Sequential(*cur))
-            stride = upsample_strides[idx]
-            if stride >= 1:
-                self.deblocks.append(
-                    Conv2dBlock(
-                        num_filters[idx],
-                        num_upsample_filters[idx],
-                        int(stride),
-                        stride=int(stride),
-                        padding=0,
-                        transposed=True,
-                        **block_kwargs,
-                    )
-                )
-            else:
-                down = int(round(1 / stride))
-                self.deblocks.append(
-                    Conv2dBlock(
-                        num_filters[idx], num_upsample_filters[idx], down, stride=down, padding=0, **block_kwargs
-                    )
-                )
-        self.num_bev_features = sum(num_upsample_filters)
-
-    def forward(self, spatial_features: Tensor) -> Tensor:
-        ups = []
-        x = spatial_features
-        for block, deblock in zip(self.blocks, self.deblocks):
-            x = block(x)
-            ups.append(deblock(x))
-        return torch.cat(ups, dim=1) if len(ups) > 1 else ups[0]
 
 
 class SeparateHead(nn.Module):

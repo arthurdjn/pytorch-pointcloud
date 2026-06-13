@@ -17,7 +17,7 @@ from .anchors import (
     limit_period,
     separate_branch,
 )
-from .bev_backbone import BaseBEVBackbone
+from .bev_backbone import BaseBEVBackbone, BaseBEVResBackbone, BasicBlock2d
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
@@ -36,7 +36,14 @@ from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import RPE, OctreeAttention, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .point_patch_embed import PointPatchEmbed
 from .pointconv import PointConv, PointConvDensity
+from .pointconv_sa import (
+    PointConvDensityGlobalSetAbstraction,
+    PointConvDensitySetAbstraction,
+    PointConvGlobalSetAbstraction,
+    PointConvSetAbstraction,
+)
 from .pointnet2_blocks import (
     FPModule,
     GlobalSAModule,
@@ -78,13 +85,8 @@ from .serialized_attention import (
     SerializedAttentionRPE,
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
-from .spconv_blocks import SubMConv3dBlock
+from .spconv_blocks import SparseConvBlock, SparseModule, SparseResidualBlock, SubMConv3dBlock
 from .tnet import DynamicTNet, TNet
 from .transformer import Attention, TransformerBlock
 from .view import View
 from .xconv import XConv
-
-# NOTE: `pointconv_sa` is intentionally not re-exported here because it imports
-# `LinearBlock` from `torch_pointcloud.models.pointmlp`, creating a layers->models
-# cycle. Use `from torch_pointcloud.layers.pointconv_sa import ...` until that
-# cycle is broken (planned for the next refactor pass).

@@ -17,6 +17,7 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import SparseModule, SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
@@ -32,14 +33,11 @@ if TYPE_CHECKING:
     from torch_scatter import scatter_mean
 
 
-spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch")
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
 ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo")
 scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
 sptr, _ = optional_import("sptr")
-
-
-_SparseModuleBase: Any = spconv.SparseModule if _IS_SPCONV_AVAILABLE else nn.Module
 
 
 def cart2sphere(pos: Tensor) -> Tensor:
@@ -116,7 +114,7 @@ def exponential_split(
     return relative_position_index
 
 
-class WindowedRelPosAttention(_SparseModuleBase):
+class WindowedRelPosAttention(SparseModule):
     r"""Block-diagonal windowed multi-head self-attention with contextual relative-position encoding.
 
     Runs two attentions in parallel and concatenates their heads: the first half of the heads attend within
@@ -337,55 +335,6 @@ class SphereFormerBlock(nn.Module):
         return x
 
 
-class ResidualBlock(_SparseModuleBase):
-    r"""Pre-activation sparse residual block (`norm-act-conv-norm-act-conv` + projection), as in the reference.
-
-    Args:
-        in_channels: Input channel count.
-        out_channels: Output channel count.
-        indice_key: spconv indice key shared by the two submanifold convolutions.
-        norm: Normalization layer name / callable.
-        norm_kwargs: Extra keyword arguments for the normalisation layer.
-        act: Activation name / callable.
-        act_kwargs: Extra keyword arguments for the activation.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        indice_key: Optional[str] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        norm_kwargs = norm_kwargs or {}
-        act_kwargs = act_kwargs or {}
-
-        if in_channels == out_channels:
-            self.i_branch: nn.Module = spconv.SparseSequential(nn.Identity())
-        else:
-            self.i_branch = spconv.SparseSequential(
-                spconv.SubMConv3d(in_channels, out_channels, kernel_size=1, bias=False)
-            )
-
-        self.conv_branch = spconv.SparseSequential(
-            create_norm(norm, in_channels, **norm_kwargs),
-            create_act(act, **act_kwargs),
-            spconv.SubMConv3d(in_channels, out_channels, kernel_size=3, padding=1, bias=False, indice_key=indice_key),
-            create_norm(norm, out_channels, **norm_kwargs),
-            create_act(act, **act_kwargs),
-            spconv.SubMConv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False, indice_key=indice_key),
-        )
-
-    def forward(self, x: "SparseConvTensor") -> "SparseConvTensor":
-        identity = SparseConvTensor(x.features, x.indices, x.spatial_shape, x.batch_size)
-        out = self.conv_branch(x)
-        return out.replace_feature(out.features + self.i_branch(identity).features)
-
-
 def _scale_window(window_size: Tensor, quant_size: Tensor, scale: float, scale_last: bool) -> Tuple[Tensor, Tensor]:
     factors = window_size.new_tensor([scale, scale, scale if scale_last else 1.0])
     return window_size * factors, quant_size * factors
@@ -445,7 +394,7 @@ class SphereFormerUBlock(nn.Module):
         blocks = OrderedDict(
             (
                 f"block{i}",
-                ResidualBlock(
+                SparseResidualBlock(
                     planes[0],
                     planes[0],
                     indice_key=f"subm{indice_key_id}",
@@ -528,7 +477,7 @@ class SphereFormerUBlock(nn.Module):
             blocks_tail = OrderedDict(
                 (
                     f"block{i}",
-                    ResidualBlock(
+                    SparseResidualBlock(
                         planes[0] * (2 - i),
                         planes[0],
                         indice_key=f"subm{indice_key_id}",

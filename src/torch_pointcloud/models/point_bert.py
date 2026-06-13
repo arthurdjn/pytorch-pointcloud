@@ -18,7 +18,7 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import Conv2dBlock, TransformerBlock, create_act, create_norm
+from torch_pointcloud.layers import Conv2dBlock, PointPatchEmbed, TransformerBlock, create_act, create_norm
 from torch_pointcloud.utils.cluster import group, knn
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.imports import optional_import
@@ -31,77 +31,6 @@ if TYPE_CHECKING:
     from torch_scatter import scatter
 
 scatter, _ = optional_import("torch_scatter", "scatter")
-
-
-class PointTokenizer(nn.Module):
-    r"""Mini-PointNet token embedding of Point-BERT.
-
-    Implements the dVAE token encoder of :arxiv: [Point-BERT: Pre-training 3D Point Cloud Transformers
-    with Masked Point Modeling](https://arxiv.org/abs/2111.14819), adapted from
-    :github: [lulutang0608/Point-BERT](https://github.com/lulutang0608/Point-BERT).
-
-    Each patch (a fixed-size group of points) is embedded into a single token via a two-stage shared
-    MLP with a global max-pool concatenation in between. A $1 \times 1$ convolution over $(B, C, M)$
-    is equivalent to a linear layer over $(B, M, C)$, so the shared MLPs are expressed with PyG
-    `MLP` over the flattened points. The module is permutation-invariant over the points within a
-    group. The widths are configurable: `local_mlp` maps `in_channels` $\to \text{local\_channels}$,
-    the per-patch max-pool is concatenated to give $2 \cdot \text{local\_channels}[-1]$, and
-    `global_mlp` maps that to $d_\text{out}$ through `global_channels`.
-
-    Args:
-        out_channels: The token embedding dimension $d_\text{out}$.
-        in_channels: The number of channels of each input point ($3$ for coordinates only, plus any concatenated features).
-        local_channels: Hidden widths of the per-point MLP (input `in_channels` is prepended).
-        global_channels: Hidden widths of the per-patch MLP (input $2 \cdot \text{local\_channels}[-1]$ and output $d_\text{out}$ are added).
-        act: The activation used in the shared MLPs.
-        act_kwargs: Keyword arguments for the activation.
-        norm: The normalization used in the shared MLPs.
-        norm_kwargs: Keyword arguments for the normalization.
-
-    Shape:
-        - Input: $(B, G, M, C)$ where $G$ is the number of groups, $M$ the group size, and $C$ the number of input channels.
-        - Output: $(B, G, d_\text{out})$.
-
-    Example:
-        ```python
-        import torch
-        from torch_pointcloud.models.point_bert import PointTokenizer
-
-        tokenizer = PointTokenizer(out_channels=256)
-        neighborhood = torch.randn(2, 64, 32, 3)
-        tokens = tokenizer(neighborhood)
-        print(tokens.shape)
-        ```
-    """
-
-    def __init__(
-        self,
-        out_channels: int,
-        in_channels: int = 3,
-        local_channels: Sequence[int] = (128, 256),
-        global_channels: Sequence[int] = (512,),
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__()
-        self.out_channels = out_channels
-        self.mid_channels = local_channels[-1]
-        factory_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.local_mlp = MLP([in_channels, *local_channels], plain_last=True, **factory_kwargs)
-        self.global_mlp = MLP(
-            [2 * self.mid_channels, *global_channels, out_channels], plain_last=True, **factory_kwargs
-        )
-
-    def forward(self, neighborhood: Tensor) -> Tensor:
-        B, G, M, C = neighborhood.shape
-        feat = self.local_mlp(neighborhood.reshape(B * G * M, C)).reshape(B * G, M, self.mid_channels)
-        feat_global = feat.max(dim=1, keepdim=True)[0]
-        feat = torch.cat([feat_global.expand(-1, M, -1), feat], dim=2)
-        feat = self.global_mlp(feat.reshape(B * G * M, 2 * self.mid_channels)).reshape(B * G, M, self.out_channels)
-        feat_global = feat.max(dim=1, keepdim=False)[0]
-        return feat_global.reshape(B, G, self.out_channels)
 
 
 class PointBERTEncoder(nn.Module):
@@ -187,8 +116,8 @@ class PointBERTEncoder(nn.Module):
         self.group_size = group_size
         self.encoder_dims = encoder_dims
 
-        self.encoder = PointTokenizer(
-            out_channels=encoder_dims,
+        self.encoder = PointPatchEmbed(
+            embed_dim=encoder_dims,
             in_channels=spatial_dim + in_channels,
             local_channels=token_local_channels,
             global_channels=token_global_channels,
@@ -512,8 +441,8 @@ class PointBERTMaskedTransformer(BaseModel):
         self.mask_ratio = mask_ratio
         self.drop_path_rate = drop_path_rate
 
-        self.encoder = PointTokenizer(
-            out_channels=encoder_dims,
+        self.encoder = PointPatchEmbed(
+            embed_dim=encoder_dims,
             in_channels=spatial_dim + in_channels,
             local_channels=token_local_channels,
             global_channels=token_global_channels,
@@ -842,8 +771,8 @@ class PointBERTDiscreteVAE(BaseModel):
         self.tokens_dims = tokens_dims
         self.decoder_dims = decoder_dims
 
-        self.encoder = PointTokenizer(
-            out_channels=encoder_dims,
+        self.encoder = PointPatchEmbed(
+            embed_dim=encoder_dims,
             local_channels=token_local_channels,
             global_channels=token_global_channels,
             act=act,

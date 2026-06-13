@@ -39,11 +39,6 @@ knn, _ = optional_import("torch_cluster", "knn")
 scatter, _ = optional_import("torch_scatter", "scatter")
 
 
-PAPER_TITLE = "PointMamba: A Simple State Space Model for Point Cloud Analysis"
-PAPER_URL = "https://arxiv.org/abs/2402.10739"
-PAPER_AUTHORS = "Dingkang Liang, Xin Zhou, Wei Xu, Xingkui Zhu, Zhikang Zou, Xiaoqing Ye, Xiao Tan, Xiang Bai"
-PAPER_CITATION = f"[{PAPER_TITLE}]({PAPER_URL}) by {PAPER_AUTHORS}"
-REPO_URL = "https://github.com/LMD0311/PointMamba"
 RADIUS = 0.03162277660168379  # sqrt(1e-3)
 
 
@@ -56,8 +51,8 @@ def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Te
 
 class PointMambaBlock(nn.Module):
     __doc__ = (
-        rf"""Implementation of the PointMamba block as described in the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {REPO_URL}.
+        r"""Implementation of the PointMamba block as described in the paper :arxiv: [PointMamba: A Simple State Space Model for Point Cloud Analysis](https://arxiv.org/abs/2402.10739).
+        This implementation is adapted from the official repository :github: [LMD0311/PointMamba](https://github.com/LMD0311/PointMamba).
         """
         r"""
         The `PointMambaBlock` is a residual block that consists of a normalization layer, 
@@ -109,9 +104,9 @@ class PointMambaBlock(nn.Module):
 
 class PointPatchEmbedding(nn.Module):
     __doc__ = (
-        rf"""
-        Defines the patch-level encoding based on the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {REPO_URL}.
+        r"""
+        Defines the patch-level encoding based on the paper :arxiv: [PointMamba: A Simple State Space Model for Point Cloud Analysis](https://arxiv.org/abs/2402.10739).
+        This implementation is adapted from the official repository :github: [LMD0311/PointMamba](https://github.com/LMD0311/PointMamba).
         """
         r"""
         This module encodes features and positions to a patch-level embedding, 
@@ -227,8 +222,8 @@ class PointPatchEmbedding(nn.Module):
 
 class PointMambaEncoder(nn.Module):
     __doc__ = (
-        rf"""Implementation of the PointMamba encoder as described in the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {REPO_URL}.
+        r"""Implementation of the PointMamba encoder as described in the paper :arxiv: [PointMamba: A Simple State Space Model for Point Cloud Analysis](https://arxiv.org/abs/2402.10739).
+        This implementation is adapted from the official repository :github: [LMD0311/PointMamba](https://github.com/LMD0311/PointMamba).
         """
         r"""
         This encoder consists of a patch-level embedding, 
@@ -554,8 +549,8 @@ class PointMambaDecoderMAE(nn.Module):
 
 class PointMambaClassification(ClassificationModel):
     __doc__ = (
-        rf"""Implementation of the PointMamba encoder as described in the paper :arxiv: {PAPER_CITATION}.
-        This implementation is adapted from the official repository :github: {REPO_URL}.
+        r"""Implementation of the PointMamba encoder as described in the paper :arxiv: [PointMamba: A Simple State Space Model for Point Cloud Analysis](https://arxiv.org/abs/2402.10739).
+        This implementation is adapted from the official repository :github: [LMD0311/PointMamba](https://github.com/LMD0311/PointMamba).
         """
         r"""
         This classification model consists of a PointMamba encoder and a MLP classification head.
