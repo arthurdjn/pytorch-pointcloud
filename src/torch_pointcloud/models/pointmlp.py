@@ -22,7 +22,7 @@ from torch_geometric.nn.inits import reset
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import FPS, PoolLike, create_pool
+from torch_pointcloud.layers import FPS, LinearBlock, PoolLike, create_pool
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
@@ -47,81 +47,6 @@ class PointMLPIntermediate(NamedTuple):
     x: Tensor
     pos: Tensor
     batch: Tensor
-
-
-class LinearBlock(nn.Module):
-    r"""A linear block consisting of a linear layer, normalization and activation.
-    Activation and normalization are optional and customizable.
-
-    The default flow is:
-
-    ```text
-    x -> Lin -> Norm -> Act -> y
-    ```
-
-    Note:
-        The activation can be applied before or after the normalization with the `act_first` parameter.
-        As a general practice, the activation is applied after the normalization by default.
-
-    Shape:
-        - Input: $(N, *, \text{in\_channels})$ where $*$ means any number of additional dimensions.
-        - Output: $(N, *, \text{out\_channels})$ where $*$ means any number of additional dimensions.
-
-    Args:
-        in_channels: The number of input channels.
-        out_channels: The number of output channels.
-        act: The activation function to use. If `None`, no activation is applied.
-        act_kwargs: Keyword arguments for the activation function.
-        act_first: Whether to apply the activation function before the normalization.
-        norm: The normalization function to use. If `None`, no normalization is applied.
-        norm_kwargs: Keyword arguments for the normalization function.
-        bias: Whether to use a bias for the linear layer.
-
-    Examples:
-        >>> import torch
-        >>> from torch_pointcloud.layers import LinearBlock
-        >>> block = LinearBlock(64, 128, act="relu", norm="batch_norm", bias=False)
-        >>> x = torch.randn(32, 64)
-        >>> y = block(x)
-        >>> print(y.shape)
-        torch.Size([32, 128])
-
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        act_first: bool = False,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = False,
-    ):
-        super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-
-        self.lin = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
-        self.act_first = act_first
-
-    def reset_parameters(self) -> None:
-        reset(self.lin)
-        reset(self.norm)
-        reset(self.act)
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.lin(x)
-        if self.act is not None and self.act_first:
-            x = self.act(x)
-        if self.norm is not None:
-            x = self.norm(x)
-        if self.act is not None and not self.act_first:
-            x = self.act(x)
-        return x
 
 
 class ResidualLinearBlock(nn.Module):

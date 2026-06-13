@@ -24,7 +24,7 @@
     "encoder.blocks.0.conv.beta": [
       32
     ],
-    "encoder.blocks.0.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.0.conv.local_nn.0.stem.weight": [
       64,
       64
     ],
@@ -115,7 +115,7 @@
     "encoder.blocks.1.conv.beta": [
       64
     ],
-    "encoder.blocks.1.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.1.conv.local_nn.0.stem.weight": [
       128,
       128
     ],
@@ -206,7 +206,7 @@
     "encoder.blocks.2.conv.beta": [
       128
     ],
-    "encoder.blocks.2.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.2.conv.local_nn.0.stem.weight": [
       256,
       256
     ],
@@ -365,7 +365,7 @@
     "encoder.blocks.3.conv.beta": [
       256
     ],
-    "encoder.blocks.3.conv.local_nn.0.lin.weight": [
+    "encoder.blocks.3.conv.local_nn.0.stem.weight": [
       256,
       512
     ],

@@ -181,11 +181,11 @@
       1
     ],
     "encoder.layers.0.conv.density_nn.norms.2.module.num_batches_tracked": [],
-    "encoder.layers.0.fc.lin.weight": [
+    "encoder.layers.0.fc.stem.weight": [
       128,
       2048
     ],
-    "encoder.layers.0.fc.lin.bias": [
+    "encoder.layers.0.fc.stem.bias": [
       128
     ],
     "encoder.layers.0.fc.norm.module.weight": [
@@ -381,11 +381,11 @@
       1
     ],
     "encoder.layers.1.conv.density_nn.norms.2.module.num_batches_tracked": [],
-    "encoder.layers.1.fc.lin.weight": [
+    "encoder.layers.1.fc.stem.weight": [
       256,
       4096
     ],
-    "encoder.layers.1.fc.lin.bias": [
+    "encoder.layers.1.fc.stem.bias": [
       256
     ],
     "encoder.layers.1.fc.norm.module.weight": [
@@ -581,11 +581,11 @@
       1
     ],
     "encoder.layers.2.conv.density_nn.norms.2.module.num_batches_tracked": [],
-    "encoder.layers.2.fc.lin.weight": [
+    "encoder.layers.2.fc.stem.weight": [
       1024,
       16384
     ],
-    "encoder.layers.2.fc.lin.bias": [
+    "encoder.layers.2.fc.stem.bias": [
       1024
     ],
     "encoder.layers.2.fc.norm.module.weight": [
