@@ -1,0 +1,333 @@
+{
+  "num_params": 3800665,
+  "state_dict": {
+    "encoder.mix.weight": [
+      32,
+      36
+    ],
+    "encoder.mix.bias": [
+      32
+    ],
+    "unet.pre_conv.weight": [
+      32,
+      32
+    ],
+    "unet.pre_conv.bias": [
+      32
+    ],
+    "unet.encoders.0.conv1.norm.weight": [
+      32
+    ],
+    "unet.encoders.0.conv1.norm.bias": [
+      32
+    ],
+    "unet.encoders.0.conv1.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.encoders.0.conv2.norm.weight": [
+      32
+    ],
+    "unet.encoders.0.conv2.norm.bias": [
+      32
+    ],
+    "unet.encoders.0.conv2.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.encoders.1.conv1.norm.weight": [
+      32
+    ],
+    "unet.encoders.1.conv1.norm.bias": [
+      32
+    ],
+    "unet.encoders.1.conv1.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.encoders.1.conv2.norm.weight": [
+      32
+    ],
+    "unet.encoders.1.conv2.norm.bias": [
+      32
+    ],
+    "unet.encoders.1.conv2.conv.weight": [
+      64,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.encoders.2.conv1.norm.weight": [
+      64
+    ],
+    "unet.encoders.2.conv1.norm.bias": [
+      64
+    ],
+    "unet.encoders.2.conv1.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "unet.encoders.2.conv2.norm.weight": [
+      64
+    ],
+    "unet.encoders.2.conv2.norm.bias": [
+      64
+    ],
+    "unet.encoders.2.conv2.conv.weight": [
+      128,
+      64,
+      3,
+      3,
+      3
+    ],
+    "unet.pre_bottleneck.0.conv1.norm.weight": [
+      128
+    ],
+    "unet.pre_bottleneck.0.conv1.norm.bias": [
+      128
+    ],
+    "unet.pre_bottleneck.0.conv1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.pre_bottleneck.0.conv2.norm.weight": [
+      128
+    ],
+    "unet.pre_bottleneck.0.conv2.norm.bias": [
+      128
+    ],
+    "unet.pre_bottleneck.0.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.pre_bottleneck.1.conv1.norm.weight": [
+      128
+    ],
+    "unet.pre_bottleneck.1.conv1.norm.bias": [
+      128
+    ],
+    "unet.pre_bottleneck.1.conv1.conv.weight": [
+      16,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.pre_bottleneck.1.conv2.norm.weight": [
+      16
+    ],
+    "unet.pre_bottleneck.1.conv2.norm.bias": [
+      16
+    ],
+    "unet.pre_bottleneck.1.conv2.conv.weight": [
+      16,
+      16,
+      3,
+      3,
+      3
+    ],
+    "unet.post_bottleneck.0.conv1.norm.weight": [
+      8
+    ],
+    "unet.post_bottleneck.0.conv1.norm.bias": [
+      8
+    ],
+    "unet.post_bottleneck.0.conv1.conv.weight": [
+      128,
+      8,
+      3,
+      3,
+      3
+    ],
+    "unet.post_bottleneck.0.conv2.norm.weight": [
+      128
+    ],
+    "unet.post_bottleneck.0.conv2.norm.bias": [
+      128
+    ],
+    "unet.post_bottleneck.0.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.post_bottleneck.1.conv1.norm.weight": [
+      128
+    ],
+    "unet.post_bottleneck.1.conv1.norm.bias": [
+      128
+    ],
+    "unet.post_bottleneck.1.conv1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.post_bottleneck.1.conv2.norm.weight": [
+      128
+    ],
+    "unet.post_bottleneck.1.conv2.norm.bias": [
+      128
+    ],
+    "unet.post_bottleneck.1.conv2.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.struct_heads.0.conv.norm.weight": [
+      128
+    ],
+    "unet.struct_heads.0.conv.norm.bias": [
+      128
+    ],
+    "unet.struct_heads.0.conv.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.struct_heads.0.out.weight": [
+      2,
+      128
+    ],
+    "unet.struct_heads.0.out.bias": [
+      2
+    ],
+    "unet.struct_heads.1.conv.norm.weight": [
+      64
+    ],
+    "unet.struct_heads.1.conv.norm.bias": [
+      64
+    ],
+    "unet.struct_heads.1.conv.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "unet.struct_heads.1.out.weight": [
+      2,
+      64
+    ],
+    "unet.struct_heads.1.out.bias": [
+      2
+    ],
+    "unet.struct_heads.2.conv.norm.weight": [
+      32
+    ],
+    "unet.struct_heads.2.conv.norm.bias": [
+      32
+    ],
+    "unet.struct_heads.2.conv.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.struct_heads.2.out.weight": [
+      2,
+      32
+    ],
+    "unet.struct_heads.2.out.bias": [
+      2
+    ],
+    "unet.decoders.0.conv1.norm.weight": [
+      128
+    ],
+    "unet.decoders.0.conv1.norm.bias": [
+      128
+    ],
+    "unet.decoders.0.conv1.conv.weight": [
+      64,
+      128,
+      3,
+      3,
+      3
+    ],
+    "unet.decoders.0.conv2.norm.weight": [
+      64
+    ],
+    "unet.decoders.0.conv2.norm.bias": [
+      64
+    ],
+    "unet.decoders.0.conv2.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "unet.decoders.1.conv1.norm.weight": [
+      64
+    ],
+    "unet.decoders.1.conv1.norm.bias": [
+      64
+    ],
+    "unet.decoders.1.conv1.conv.weight": [
+      32,
+      64,
+      3,
+      3,
+      3
+    ],
+    "unet.decoders.1.conv2.norm.weight": [
+      32
+    ],
+    "unet.decoders.1.conv2.norm.bias": [
+      32
+    ],
+    "unet.decoders.1.conv2.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.normal_head.conv.norm.weight": [
+      32
+    ],
+    "unet.normal_head.conv.norm.bias": [
+      32
+    ],
+    "unet.normal_head.conv.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "unet.normal_head.out.weight": [
+      3,
+      32
+    ],
+    "unet.normal_head.out.bias": [
+      3
+    ]
+  }
+}
