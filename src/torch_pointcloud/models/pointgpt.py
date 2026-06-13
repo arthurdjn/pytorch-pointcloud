@@ -6,7 +6,7 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import AdaptivePoolLike, create_adaptive_pool
+from torch_pointcloud.layers import AdaptivePoolLike, PointPatchEmbed, create_adaptive_pool
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.types import OptTensor
 
@@ -59,87 +59,6 @@ def morton_sort(center: Tensor) -> Tensor:
         order[:, i] = last
         visited[batch_idx, last] = True
     return order
-
-
-class PointGPTEncoder(nn.Module):
-    r"""Mini-PointNet patch token embedding of PointGPT.
-
-    Implements the patch-token embedding (`Encoder`) of :arxiv: [PointGPT: Auto-regressively
-    Generative Pre-training from Point Clouds](https://arxiv.org/abs/2305.11487), adapted from
-    :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT).
-
-    Each patch (a centered group of points) is embedded into a single token via a two-stage shared
-    MLP with a global max-pool concatenation in between (a $1 \times 1$ convolution over $(B, C, M)$ is
-    equivalent to a linear layer over $(B, M, C)$, so the shared convolutions are expressed with PyG
-    `MLP`). The widths are configurable: `local_mlp` maps `in_channels` $\to \text{local\_channels}$, the per-patch
-    max-pool is concatenated to give $2 \cdot \text{local\_channels}[-1]$, and `global_mlp` maps that to
-    $d_\text{out}$ through `global_channels`. The reference small variant is `local_channels=(128, 256)`,
-    `global_channels=(512,)`; the large variant is `local_channels=(256, 512, 1024)`, `global_channels=(2048,)`.
-
-    Args:
-        out_channels: The token embedding dimension $d_\text{out}$.
-        in_channels: The number of channels of each input point (the model passes `spatial_dim + in_channels`; $3$ for xyz coordinates only).
-        local_channels: Hidden widths of the per-point MLP (input `in_channels` is prepended).
-        global_channels: Hidden widths of the per-patch MLP (input $2 \cdot \text{local\_channels}[-1]$ and output $d_\text{out}$ are added).
-        act: The activation used in the shared MLPs.
-        act_kwargs: Keyword arguments for the activation.
-        norm: The normalization used in the shared MLPs.
-        norm_kwargs: Keyword arguments for the normalization.
-
-    Shape:
-        - Input: $(B, G, M, C)$ where $G$ is the number of groups, $M$ the group size, and $C$ the number of input channels.
-        - Output: $(B, G, d_\text{out})$.
-
-    Example:
-        ```python
-        import torch
-        from torch_pointcloud.models.pointgpt import PointGPTEncoder
-
-        encoder = PointGPTEncoder(out_channels=384)
-        neighborhood = torch.randn(2, 64, 32, 3)
-        tokens = encoder(neighborhood)
-        print(tokens.shape)
-        ```
-    """
-
-    def __init__(
-        self,
-        out_channels: int,
-        *,
-        in_channels: int = 3,
-        local_channels: Sequence[int] = (128, 256),
-        global_channels: Sequence[int] = (512,),
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        kwargs = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
-        self.out_channels = out_channels
-        self.mid_channels = local_channels[-1]
-        self.local_mlp = MLP([in_channels, *local_channels], plain_last=True, **kwargs)
-        self.global_mlp = MLP(
-            [2 * self.mid_channels, *global_channels, out_channels],
-            plain_last=True,
-            **kwargs,
-        )
-
-    def forward(self, neighborhood: Tensor) -> Tensor:
-        B, G, M, C = neighborhood.shape
-        points = neighborhood.reshape(B * G * M, C)
-        x = self.local_mlp(points).reshape(B * G, M, self.mid_channels)
-        x_global = x.max(dim=1, keepdim=True)[0]
-        x = torch.cat([x_global.expand(-1, M, -1), x], dim=2).reshape(B * G * M, 2 * self.mid_channels)
-        x = self.global_mlp(x).reshape(B * G, M, self.out_channels)
-        x_global = x.max(dim=1, keepdim=False)[0]
-        return x_global.reshape(B, G, self.out_channels)
 
 
 class PositionEmbeddingSine(nn.Module):
@@ -485,8 +404,8 @@ class PointGPTClassification(ClassificationModel):
         self.global_pool = create_adaptive_pool(global_pool)
         self.spatial_dim = spatial_dim
 
-        self.encoder = PointGPTEncoder(
-            out_channels=embed_dim,
+        self.encoder = PointPatchEmbed(
+            embed_dim=embed_dim,
             in_channels=spatial_dim + in_channels,
             local_channels=encoder_local_channels,
             global_channels=encoder_global_channels,
@@ -663,8 +582,8 @@ class PointGPTGenerativePretraining(BaseModel):
         self.spatial_dim = spatial_dim
         self.num_mask = int((num_group - keep_attend) * mask_ratio)
 
-        self.encoder = PointGPTEncoder(
-            out_channels=embed_dim,
+        self.encoder = PointPatchEmbed(
+            embed_dim=embed_dim,
             in_channels=spatial_dim + in_channels,
             local_channels=encoder_local_channels,
             global_channels=encoder_global_channels,

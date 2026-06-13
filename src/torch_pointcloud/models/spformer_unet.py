@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from torch_pointcloud.layers import SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
@@ -29,80 +30,8 @@ if TYPE_CHECKING:
     from spconv.pytorch import SparseConvTensor
 
 
-spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch")
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
-
-
-_SparseModuleBase: Any = spconv.SparseModule if _IS_SPCONV_AVAILABLE else nn.Module
-
-
-class SPFormerResidualBlock(_SparseModuleBase):
-    r"""Pre-norm residual block of the SPFormer SpConv U-Net.
-
-    Mirrors the `ResidualBlock` from :github:
-    [sunjiahao1999/SPFormer](https://github.com/sunjiahao1999/SPFormer) with
-    `normalize_before=True`. The convolutional branch applies
-    $\text{norm} \to \text{act} \to \text{conv} \to \text{norm} \to \text{act} \to \text{conv}$,
-    and the identity branch is either `nn.Identity` (when channels match) or a
-    1x1x1 `SubMConv3d` projection.
-
-    Args:
-        in_channels: Number of input channels.
-        out_channels: Number of output channels.
-        indice_key: SpConv index key for the submanifold convolutions.
-        act: Activation passed to `create_act`.
-        act_kwargs: Extra keyword arguments for the activation.
-        norm: Normalization passed to `create_norm`.
-        norm_kwargs: Extra keyword arguments for the normalization (e.g. `eps`, `momentum`).
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        *,
-        indice_key: Optional[str] = None,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-
-        if in_channels == out_channels:
-            self.i_branch: nn.Module = nn.Identity()
-        else:
-            self.i_branch = spconv.SubMConv3d(in_channels, out_channels, kernel_size=1, bias=False)
-
-        self.conv_branch = spconv.SparseSequential(
-            create_norm(norm, in_channels, **norm_kwargs) or nn.Identity(),
-            create_act(act, **act_kwargs) or nn.Identity(),
-            spconv.SubMConv3d(
-                in_channels,
-                out_channels,
-                kernel_size=3,
-                padding=1,
-                bias=False,
-                indice_key=indice_key,
-            ),
-            create_norm(norm, out_channels, **norm_kwargs) or nn.Identity(),
-            create_act(act, **act_kwargs) or nn.Identity(),
-            spconv.SubMConv3d(
-                out_channels,
-                out_channels,
-                kernel_size=3,
-                padding=1,
-                bias=False,
-                indice_key=indice_key,
-            ),
-        )
-
-    def forward(self, x: "SparseConvTensor") -> "SparseConvTensor":
-        identity = spconv.SparseConvTensor(x.features, x.indices, x.spatial_shape, x.batch_size)
-        out = self.conv_branch(x)
-        return out.replace_feature(out.features + self.i_branch(identity).features)
 
 
 def _make_residual_seq(
@@ -118,7 +47,7 @@ def _make_residual_seq(
 ) -> "spconv.SparseSequential":
     blocks = OrderedDict()
     for i in range(depth):
-        blocks[f"block{i}"] = SPFormerResidualBlock(
+        blocks[f"block{i}"] = SparseResidualBlock(
             in_channels if i == 0 else out_channels,
             out_channels,
             indice_key=indice_key,

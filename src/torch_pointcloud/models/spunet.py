@@ -19,6 +19,7 @@ from torch import Tensor
 from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import SparseModule
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
@@ -31,14 +32,11 @@ if TYPE_CHECKING:
     from spconv.pytorch import SparseConvTensor
 
 
-spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch")
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
 
 
-_SparseModuleBase: Any = spconv.SparseModule if _IS_SPCONV_AVAILABLE else nn.Module
-
-
-class SparseBasicBlock(_SparseModuleBase):
+class SparseBasicBlock(SparseModule):
     def __init__(
         self,
         in_channels: int,

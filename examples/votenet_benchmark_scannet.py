@@ -28,7 +28,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from torch_pointcloud.models import VoteNetDetectionModel, create_model
+from torch_pointcloud.models import VoteNetDetection, create_model
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
@@ -44,7 +44,7 @@ def main() -> None:
     seed_everything(args.seed)
 
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
-    assert isinstance(model, VoteNetDetectionModel)
+    assert isinstance(model, VoteNetDetection)
     model.to(args.device).eval()
     transform = info["transforms"]
 
@@ -66,7 +66,7 @@ def main() -> None:
 
 @torch.no_grad()
 def evaluate(
-    model: VoteNetDetectionModel,
+    model: VoteNetDetection,
     scans: List[str],
     data_root: Path,
     transform: Callable,

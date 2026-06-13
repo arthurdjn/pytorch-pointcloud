@@ -6,8 +6,13 @@ from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import FPS, PoolLike, create_pool
-from torch_pointcloud.layers.pointconv_sa import PointConvDensityGlobalSetAbstraction, PointConvDensitySetAbstraction
+from torch_pointcloud.layers import (
+    FPS,
+    PointConvDensityGlobalSetAbstraction,
+    PointConvDensitySetAbstraction,
+    PoolLike,
+    create_pool,
+)
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
 
@@ -158,7 +163,7 @@ class PointConvDensityClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
-        return self.encoder.layers[-1].fc.lin.out_features  # type: ignore[return-value,union-attr]
+        return self.encoder.layers[-1].fc.stem.out_features  # type: ignore[return-value,union-attr]
 
     def configure_encoder(self) -> PointConvDensityEncoder:
         return PointConvDensityEncoder(

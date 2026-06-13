@@ -336,7 +336,7 @@ class VoteNetProposalModule(nn.Module):
         }
 
 
-class VoteNetDetectionModel(DetectionModel):
+class VoteNetDetection(DetectionModel):
     r"""VoteNet 3D object detector (packed point format).
 
     Reference: :arxiv: [Qi et al., 2019](https://arxiv.org/abs/1904.09664).
@@ -637,8 +637,8 @@ _SUNRGBD_MEAN_SIZES = [
         sampling="vote_fps",
     ),
 )
-def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetectionModel:
-    return VoteNetDetectionModel(**hparams)
+def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
+    return VoteNetDetection(**hparams)
 
 
 @register_model(
@@ -671,5 +671,5 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetectionModel:
         sampling="seed_fps",
     ),
 )
-def votenet_fair_base_sunrgbd(**hparams: Any) -> VoteNetDetectionModel:
-    return VoteNetDetectionModel(**hparams)
+def votenet_fair_base_sunrgbd(**hparams: Any) -> VoteNetDetection:
+    return VoteNetDetection(**hparams)

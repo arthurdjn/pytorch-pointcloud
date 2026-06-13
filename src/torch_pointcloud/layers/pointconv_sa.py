@@ -6,11 +6,11 @@ from torch import Tensor
 from torch_geometric.nn import MLP, global_max_pool
 from torch_geometric.typing import OptTensor
 
-from torch_pointcloud.models.pointmlp import LinearBlock
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.neighbors import gaussian_kernel_density
 
+from .linear_blocks import LinearBlock
 from .pointconv import PointConv, PointConvDensity
 from .pools import PoolLike, create_pool
 

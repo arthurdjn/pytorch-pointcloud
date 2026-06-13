@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.box3d import nms3d
@@ -14,7 +15,7 @@ from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
 from ._registry import register_model
-from .second import SparseBasicBlock, _make_block
+from .second import SparseBasicBlock
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -91,35 +92,45 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
         )
         self.conv2 = nn.ModuleList(
             [
-                _make_block(c1, c2, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    c1, c2, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(c2, "res2", **block_kwargs),
                 SparseBasicBlock(c2, "res2", **block_kwargs),
             ]
         )
         self.conv3 = nn.ModuleList(
             [
-                _make_block(c2, c3, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    c2, c3, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(c3, "res3", **block_kwargs),
                 SparseBasicBlock(c3, "res3", **block_kwargs),
             ]
         )
         self.conv4 = nn.ModuleList(
             [
-                _make_block(c3, c4, 3, stride=2, padding=1, indice_key="spconv4", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    c3, c4, 3, stride=2, padding=1, indice_key="spconv4", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(c4, "res4", **block_kwargs),
                 SparseBasicBlock(c4, "res4", **block_kwargs),
             ]
         )
         self.conv5 = nn.ModuleList(
             [
-                _make_block(c4, c5, 3, stride=2, padding=1, indice_key="spconv5", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    c4, c5, 3, stride=2, padding=1, indice_key="spconv5", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(c5, "res5", **block_kwargs),
                 SparseBasicBlock(c5, "res5", **block_kwargs),
             ]
         )
         self.conv6 = nn.ModuleList(
             [
-                _make_block(c5, c5, 3, stride=2, padding=1, indice_key="spconv6", conv_type="spconv", **block_kwargs),
+                SparseConvBlock(
+                    c5, c5, 3, stride=2, padding=1, indice_key="spconv6", conv_type="spconv", **block_kwargs
+                ),
                 SparseBasicBlock(c5, "res6", **block_kwargs),
                 SparseBasicBlock(c5, "res6", **block_kwargs),
             ]
