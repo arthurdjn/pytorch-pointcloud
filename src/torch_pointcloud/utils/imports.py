@@ -156,6 +156,7 @@ def optional_import(
 
 
 _FLASH_ATTN_GITHUB_URL = "https://github.com/Dao-AILab/flash-attention"
+_FVDB_GITHUB_URL = "https://github.com/voxel-foundation/fvdb"
 _OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"
 _SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
 _TORCH_CLUSTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_cluster"
@@ -164,6 +165,7 @@ _TORCHSPARSE_GITHUB_URL = "https://github.com/mit-han-lab/torchsparse"
 
 _CUDA_AVAILABLE = torch.cuda.is_available()
 _FLASH_ATTN_AVAILABLE = module_available("flash_attn")
+_FVDB_AVAILABLE = module_available("fvdb")
 _OCNN_AVAILABLE = module_available("ocnn")
 _SPCONV_AVAILABLE = module_available("spconv.pytorch")
 _TORCH_CLUSTER_AVAILABLE = module_available("torch_cluster")
