@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.anchors import (
     AnchorHeadMulti,
@@ -13,7 +14,6 @@ from torch_pointcloud.layers.anchors import (
     AnchorHeadSingle,
 )
 from torch_pointcloud.layers.bev_backbone import BaseBEVBackbone
-from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import

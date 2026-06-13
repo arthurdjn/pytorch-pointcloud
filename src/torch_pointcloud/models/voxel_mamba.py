@@ -7,12 +7,12 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers import SparseConvBlock, SparseModule
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.anchors import separate_branch
 from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.layers import SparseConvBlock, SparseModule
 from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.hilbert import encode as hilbert_encode
