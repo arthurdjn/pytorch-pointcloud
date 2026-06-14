@@ -204,6 +204,8 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
     weights_path = model_info["weights"]
     if weights_path is None:
         warnings.warn(f"No pretrained weights available for model {name!r}.")
+        if return_info:
+            return model, model_info
         return model
 
     parsed = urlparse(weights_path)
