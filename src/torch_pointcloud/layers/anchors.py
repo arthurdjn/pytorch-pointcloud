@@ -23,7 +23,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
-from torch_pointcloud.utils.box3d import decode_box_residuals, nms3d
+from torch_pointcloud.utils.box3d import decode_box_residuals, limit_period, nms3d
 from torch_pointcloud.utils.types import Detection3D
 
 
@@ -35,11 +35,6 @@ class AnchorHeadOutput(TypedDict):
     dir_cls: Tensor
     batch_cls: Tensor
     batch_box: Tensor
-
-
-def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> Tensor:
-    r"""Wrap an angle to $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$."""
-    return val - torch.floor(val / period + offset) * period
 
 
 def generate_anchors(
