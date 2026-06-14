@@ -73,7 +73,7 @@ class ResidualLinearBlock(nn.Module):
 
     Examples:
         >>> import torch
-        >>> from torch_pointcloud.layers import ResidualLinearBlock
+        >>> from torch_pointcloud.models.pointmlp import ResidualLinearBlock
         >>> block = ResidualLinearBlock(64, expansion=2, act="relu", norm="batch_norm", bias=False)
         >>> x = torch.randn(32, 64)
         >>> y = block(x)
