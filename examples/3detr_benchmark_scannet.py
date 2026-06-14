@@ -26,7 +26,7 @@ import torch
 from tqdm import tqdm
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models.detr3d import DETR3D
+from torch_pointcloud.models.detr3d import DETR3DDetection
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
@@ -41,7 +41,7 @@ def main() -> None:
     seed_everything(args.seed)
 
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
-    assert isinstance(model, DETR3D)
+    assert isinstance(model, DETR3DDetection)
     model.to(args.device).eval()
     transform = info["transforms"]
 
@@ -63,7 +63,7 @@ def main() -> None:
 
 @torch.no_grad()
 def evaluate(
-    model: DETR3D,
+    model: DETR3DDetection,
     scans: List[str],
     data_root: Path,
     transform: Callable,

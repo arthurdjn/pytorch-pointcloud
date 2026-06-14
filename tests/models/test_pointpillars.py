@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.pointpillars import PointPillars, PointPillarsMultiHead
+from torch_pointcloud.models.pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 from torch_pointcloud.utils.voxelization import hard_voxelize
 
@@ -16,7 +16,10 @@ RANGE = (0.0, -39.68, -3.0, 69.12, 39.68, 1.0)
 
 
 def _voxelize(
-    model: PointPillars | PointPillarsMultiHead, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int
+    model: PointPillarsDetection | PointPillarsMultiHeadDetection,
+    data: Dict[str, Tensor],
+    max_num_points: int,
+    max_num_voxels: int,
 ) -> tuple:
     """Voxelize raw packed points the way the registered `HardVoxelize` transform + collate would."""
     points = torch.cat([data["pos"], data["x"]], dim=1)
@@ -47,7 +50,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
 
 def test_pointpillars_forward_shapes() -> None:
     model = create_model("pointpillars-openpcdet.kitti", task="detection").to(DEVICE).eval()
-    assert isinstance(model, PointPillars)
+    assert isinstance(model, PointPillarsDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 32, 40000)
     with torch.no_grad():
@@ -66,7 +69,7 @@ def test_pointpillars_forward_shapes() -> None:
 
 def test_pointpillars_eval_is_deterministic() -> None:
     model = create_model("pointpillars-openpcdet.kitti", task="detection").to(DEVICE).eval()
-    assert isinstance(model, PointPillars)
+    assert isinstance(model, PointPillarsDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 32, 40000)
     with torch.no_grad():
@@ -85,7 +88,7 @@ def test_pointpillars_registered_variant() -> None:
 
 def test_pointpillars_create_model_hparams() -> None:
     model = create_model("pointpillars-openpcdet.kitti", task="detection")
-    assert isinstance(model, PointPillars)
+    assert isinstance(model, PointPillarsDetection)
     assert model.in_channels == 4
     assert model.num_classes == 3
     assert model.grid_size == (432, 496, 1)
@@ -115,7 +118,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
 
 def test_pp_multihead_forward_shapes() -> None:
     model = create_model("pointpillars-openpcdet-multihead.nuscenes", task="detection").to(DEVICE).eval()
-    assert isinstance(model, PointPillarsMultiHead)
+    assert isinstance(model, PointPillarsMultiHeadDetection)
     data = _make_nuscenes_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 20, 30000)
     with torch.no_grad():
@@ -134,7 +137,7 @@ def test_pp_multihead_forward_shapes() -> None:
 
 def test_pp_multihead_create_model_hparams() -> None:
     model = create_model("pointpillars-openpcdet-multihead.nuscenes", task="detection")
-    assert isinstance(model, PointPillarsMultiHead)
+    assert isinstance(model, PointPillarsMultiHeadDetection)
     assert model.in_channels == 5
     assert model.num_classes == 10
     assert model.grid_size == (512, 512, 1)

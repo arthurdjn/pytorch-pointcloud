@@ -493,7 +493,7 @@ class GenericConvMLP(nn.Module):
         return self.layers(x)
 
 
-class DETR3D(DetectionModel):
+class DETR3DDetection(DetectionModel):
     r"""3DETR end-to-end transformer 3D object detector (packed point format).
 
     Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
@@ -926,8 +926,8 @@ _SUNRGBD_TRANSFORM = T.Compose([T.RandomSample(keys=[DataKeys.POS], num_samples=
         encoder_dropout=0.3,
     ),
 )
-def detr3d_m_scannet(**hparams: Any) -> DETR3D:
-    return DETR3D(**hparams)
+def detr3d_m_scannet(**hparams: Any) -> DETR3DDetection:
+    return DETR3DDetection(**hparams)
 
 
 @register_model(
@@ -943,8 +943,8 @@ def detr3d_m_scannet(**hparams: Any) -> DETR3D:
         encoder_type="vanilla",
     ),
 )
-def detr3d_scannet(**hparams: Any) -> DETR3D:
-    return DETR3D(**hparams)
+def detr3d_scannet(**hparams: Any) -> DETR3DDetection:
+    return DETR3DDetection(**hparams)
 
 
 @register_model(
@@ -960,5 +960,5 @@ def detr3d_scannet(**hparams: Any) -> DETR3D:
         encoder_type="vanilla",
     ),
 )
-def detr3d_sunrgbd(**hparams: Any) -> DETR3D:
-    return DETR3D(**hparams)
+def detr3d_sunrgbd(**hparams: Any) -> DETR3DDetection:
+    return DETR3DDetection(**hparams)
