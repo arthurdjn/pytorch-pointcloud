@@ -53,23 +53,17 @@ jobs:
       - name: Install package + extras (torch==2.6.0)
         run: uv sync --extra lightning --frozen
 
-      - name: Install torch
-        run: uv pip install --no-config torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Install torchvision
+      - name: Install torch deps (python < 3.13)
         if: matrix.python-version != '3.13'
-        run: uv pip install --no-config torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cpu
+        run: |
+          uv pip install --no-config --torch-backend=cpu \
+            torch==2.6.0 torchvision==0.21.0 'ocnn==2.2.8' torch-scatter torch-cluster spconv \
+            -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
 
-      - name: Install ocnn
-        if: matrix.python-version != '3.13'
-        run: uv pip install --no-deps 'ocnn==2.2.8'
-
-      - name: Install torch-scatter + torch-cluster
-        if: matrix.python-version != '3.13'
-        run: uv pip install torch-scatter torch-cluster -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
-
-      - name: Install spconv
-        run: uv pip install spconv
+      # python 3.13: torchvision / ocnn / pyg have no 3.13 wheels yet, so install only torch + spconv.
+      - name: Install torch deps (python == 3.13)
+        if: matrix.python-version == '3.13'
+        run: uv pip install --no-config --torch-backend=cpu torch==2.6.0 spconv
 
       - name: Test with python ${{ matrix.python-version }}
-        run: uv run --frozen pytest
+        run: uv run --no-sync pytest
