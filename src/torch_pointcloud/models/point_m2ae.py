@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 import torch
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_pointcloud.layers.act import create_act
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor

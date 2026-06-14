@@ -19,12 +19,12 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.nn.inits import reset
-from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import FPS, LinearBlock, PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys

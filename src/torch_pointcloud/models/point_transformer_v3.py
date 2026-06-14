@@ -4,14 +4,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
 from torch_pointcloud.layers.linear_blocks import LinearBlock
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.serialized_attention import (
     SerializedAttention,
     SerializedAttentionRoPE,

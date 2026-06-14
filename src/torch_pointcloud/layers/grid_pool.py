@@ -10,10 +10,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from .act import create_act
-from .norms import create_norm
 
 from torch_pointcloud.utils.imports import optional_import
+
+from .act import create_act
+from .norms import create_norm
 
 if TYPE_CHECKING:
     import torch_scatter

@@ -18,10 +18,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_pointcloud.layers.act import create_act
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.utils.cluster import knn, knn_graph
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size

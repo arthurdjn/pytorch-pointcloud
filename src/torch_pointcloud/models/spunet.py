@@ -16,11 +16,11 @@ from typing import (
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseModule
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor

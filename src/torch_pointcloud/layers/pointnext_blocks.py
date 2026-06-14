@@ -44,7 +44,6 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing, radius, radius_graph
 from torch_geometric.nn.inits import reset
-from .act import create_act
 from torch_geometric.typing import Adj, NoneType, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
@@ -52,6 +51,7 @@ from typing_extensions import Unpack
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
+from .act import create_act
 from .pointnet2_blocks import PointNet2SetAbstraction
 
 

@@ -18,9 +18,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_pointcloud.layers.act import create_act
 
 from torch_pointcloud.layers import FPS, PoolLike, XConv, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor

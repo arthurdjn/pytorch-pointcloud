@@ -18,12 +18,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys

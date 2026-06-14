@@ -2,10 +2,11 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn
 from torch import Tensor
-from .act import create_act
-from .norms import create_norm
 
 from torch_pointcloud.utils.types import OptTensor
+
+from .act import create_act
+from .norms import create_norm
 
 
 class LinearBlock(nn.Module):

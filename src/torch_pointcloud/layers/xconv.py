@@ -4,12 +4,13 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from .act import create_act
-from .norms import create_norm
 from torch_geometric.utils import add_self_loops, remove_self_loops
 
 from torch_pointcloud.layers.view import View
 from torch_pointcloud.utils.types import OptTensor, PairTensor
+
+from .act import create_act
+from .norms import create_norm
 
 
 class XConv(nn.Module):

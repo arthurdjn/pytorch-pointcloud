@@ -4,14 +4,14 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
 
 from torch_pointcloud.layers import (
     PoolLike,
     create_pool,
 )
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.ops import softmax, voxel_grid

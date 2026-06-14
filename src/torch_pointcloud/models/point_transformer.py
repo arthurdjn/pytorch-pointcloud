@@ -6,13 +6,13 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing, fps, knn, knn_graph, knn_interpolate
 from torch_geometric.nn.inits import reset
-from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
 from torch_geometric.typing import Adj, OptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops, scatter, softmax
 from typing_extensions import Unpack
 
 from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import MessagePassingParams
 

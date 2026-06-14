@@ -2,9 +2,10 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn
 from torch import Tensor
-from .act import create_act
 
 from torch_pointcloud.layers.norms import create_norm
+
+from .act import create_act
 
 
 class Conv3dBlock(nn.Module):

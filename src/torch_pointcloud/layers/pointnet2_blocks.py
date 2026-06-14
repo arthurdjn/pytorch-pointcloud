@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing
 from torch_geometric.nn.inits import reset
-from .act import create_act
 from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
@@ -15,6 +14,8 @@ from torch_pointcloud.utils.cluster import fps, radius
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size, is_iterable
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
+
+from .act import create_act
 
 
 class SAModule(nn.Module):
