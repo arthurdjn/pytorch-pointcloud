@@ -81,7 +81,9 @@ def check_requirement(requirement: str) -> bool:
             if not req.specifier.contains(Version(base_module.__version__)):
                 return False
         return True
-    except ImportError:
+    # A broken optional dependency (e.g. a CUDA / ABI mismatch in a source-built wheel) can raise more than
+    # ImportError at import time; treat any failure to load as "requirement not met" so callers get a proxy.
+    except Exception:
         return False
 
 
@@ -128,12 +130,14 @@ def optional_import(
             msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
         except AttributeError:
             msg = f"Optional module '{module_path}' is available but could not import '{name}' from '{module_path}'."
+        except Exception:
+            msg = f"Optional module '{module_path}' is installed but failed to load."
 
     msg = msg or f"Optional module '{module_path}' does not meet the requirement {package_name}{requirement}."
     if url:
         msg += f" Check official documentation to install it: {url}."
 
-    # Create a proxy that will raise an import error when used
+    # Create a proxy that raises an informative ImportError whenever the missing dependency is used.
     class _Meta(type):
         def __getattr__(cls, name: str) -> Any:
             raise ImportError(msg)
