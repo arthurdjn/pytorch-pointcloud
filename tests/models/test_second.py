@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.second import SECOND, SECONDMultiHead
+from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 from torch_pointcloud.utils.voxelization import hard_voxelize
 
@@ -17,7 +17,7 @@ RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
 
 
 def _voxelize(
-    model: SECOND | SECONDMultiHead, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int
+    model: SECONDDetection | SECONDMultiHeadDetection, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int
 ) -> tuple:
     """Voxelize raw packed points the way the registered `HardVoxelize` transform + collate would."""
     points = torch.cat([data["pos"], data["x"]], dim=1)
@@ -49,7 +49,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_forward_shapes() -> None:
     model = create_model("second-openpcdet.kitti", task="detection").to(DEVICE).eval()
-    assert isinstance(model, SECOND)
+    assert isinstance(model, SECONDDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
     with torch.no_grad():
@@ -69,7 +69,7 @@ def test_second_forward_shapes() -> None:
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_eval_is_deterministic() -> None:
     model = create_model("second-openpcdet.kitti", task="detection").to(DEVICE).eval()
-    assert isinstance(model, SECOND)
+    assert isinstance(model, SECONDDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
     with torch.no_grad():
@@ -85,7 +85,7 @@ def test_second_registered_variant() -> None:
 
 def test_second_create_model_hparams() -> None:
     model = create_model("second-openpcdet.kitti", task="detection")
-    assert isinstance(model, SECOND)
+    assert isinstance(model, SECONDDetection)
     assert model.in_channels == 4
     assert model.num_classes == 3
     assert model.grid_size == (1408, 1600, 40)
@@ -117,7 +117,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_multihead_forward_shapes() -> None:
     model = create_model("second-openpcdet-multihead.nuscenes", task="detection").to(DEVICE).eval()
-    assert isinstance(model, SECONDMultiHead)
+    assert isinstance(model, SECONDMultiHeadDetection)
     data = _make_nuscenes_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 60000)
     with torch.no_grad():
@@ -134,7 +134,7 @@ def test_second_multihead_forward_shapes() -> None:
 
 def test_second_multihead_create_model_hparams() -> None:
     model = create_model("second-openpcdet-multihead.nuscenes", task="detection")
-    assert isinstance(model, SECONDMultiHead)
+    assert isinstance(model, SECONDMultiHeadDetection)
     assert model.in_channels == 5
     assert model.num_classes == 10
     assert model.grid_size == (1024, 1024, 40)

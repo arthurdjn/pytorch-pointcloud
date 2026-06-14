@@ -199,7 +199,7 @@ def scatter_to_bev(
     return canvas.permute(0, 3, 1, 2).contiguous()
 
 
-class PointPillars(DetectionModel):
+class PointPillarsDetection(DetectionModel):
     r"""PointPillars 3D object detector (packed point format).
 
     Reference: :arxiv: [Lang et al., 2019](https://arxiv.org/abs/1812.05784).
@@ -303,7 +303,7 @@ class PointPillars(DetectionModel):
         return self.head.decode(out, score_threshold=score_threshold, nms_iou=nms_iou)
 
 
-class PointPillarsMultiHead(DetectionModel):
+class PointPillarsMultiHeadDetection(DetectionModel):
     r"""PointPillars with a multi-group anchor head (nuScenes 10-class, packed point format).
 
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
@@ -440,8 +440,8 @@ class PointPillarsMultiHead(DetectionModel):
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
-def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillars:
-    return PointPillars(**hparams)
+def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
+    return PointPillarsDetection(**hparams)
 
 
 @register_model(
@@ -486,5 +486,5 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillars:
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
-def pointpillars_openpcdet_multihead_nuscenes(**hparams: Any) -> PointPillarsMultiHead:
-    return PointPillarsMultiHead(**hparams)
+def pointpillars_openpcdet_multihead_nuscenes(**hparams: Any) -> PointPillarsMultiHeadDetection:
+    return PointPillarsMultiHeadDetection(**hparams)

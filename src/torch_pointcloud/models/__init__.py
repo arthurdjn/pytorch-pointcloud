@@ -1,7 +1,7 @@
 from ._base import ClassificationModel, DetectionModel, SegmentationModel
 from ._registry import create_model, list_models, register_model
 from .concerto import ConcertoSegmentation
-from .detr3d import DETR3D
+from .detr3d import DETR3DDetection
 from .dgcnn import DGCNNClassification, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
@@ -26,12 +26,12 @@ from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtSegmentation
-from .pointpillars import PointPillars, PointPillarsMultiHead
+from .pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
 from .pointrcnn import PointRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
-from .second import SECOND, SECONDMultiHead, SparseBasicBlock, VoxelBackbone8x, VoxelResBackbone8x
+from .second import SECONDDetection, SECONDMultiHeadDetection, SparseBasicBlock, VoxelBackbone8x, VoxelResBackbone8x
 from .sontata import SonataSegmentation
 from .spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
 from .sphereformer import SphereFormerSegmentation

@@ -102,7 +102,7 @@ class VoxelBackbone8x(nn.Module):
         return self.conv_out(x)
 
 
-class SECOND(DetectionModel):
+class SECONDDetection(DetectionModel):
     r"""SECOND 3D object detector (packed point format).
 
     Reference: :arxiv: [Yan et al., 2018](https://www.mdpi.com/1424-8220/18/10/3337).
@@ -351,7 +351,7 @@ class VoxelResBackbone8x(nn.Module):
         return self.conv_out(x)
 
 
-class SECONDMultiHead(DetectionModel):
+class SECONDMultiHeadDetection(DetectionModel):
     r"""SECOND with a multi-group anchor head (nuScenes 10-class, packed point format).
 
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
@@ -497,8 +497,8 @@ class SECONDMultiHead(DetectionModel):
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
-def second_openpcdet_kitti(**hparams: Any) -> SECOND:
-    return SECOND(**hparams)
+def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
+    return SECONDDetection(**hparams)
 
 
 @register_model(
@@ -544,5 +544,5 @@ def second_openpcdet_kitti(**hparams: Any) -> SECOND:
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
-def second_openpcdet_multihead_nuscenes(**hparams: Any) -> SECONDMultiHead:
-    return SECONDMultiHead(**hparams)
+def second_openpcdet_multihead_nuscenes(**hparams: Any) -> SECONDMultiHeadDetection:
+    return SECONDMultiHeadDetection(**hparams)
