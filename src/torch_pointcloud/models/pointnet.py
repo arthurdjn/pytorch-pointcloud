@@ -8,9 +8,7 @@ from torch_geometric.nn import MLP
 from torch_pointcloud.layers import (
     PoolLike,
     TNet,
-    create_cls_head,
     create_pool,
-    create_seg_head,
 )
 from torch_pointcloud.utils.imports import optional_import
 
@@ -277,7 +275,7 @@ class PointNetClassification(nn.Module):
         self.num_features = mlp2_dims[-1]
 
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.num_features, num_classes=num_classes)
+        self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.num_features, num_classes)
 
     def reset_classifier(
         self,
@@ -294,7 +292,7 @@ class PointNetClassification(nn.Module):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.num_features, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
     def forward_features(
         self,
@@ -442,14 +440,26 @@ class PointNetSegmentation(nn.Module):
         global_feat_dim = mlp2_dims[-1]
         self.num_features = point_feat_dim + global_feat_dim
 
-        self.head = create_seg_head(
-            [self.num_features] + list(seg_head_dims),
-            num_classes,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            dropout=dropout,
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.seg_head_dims = list(seg_head_dims)
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        dims = [self.num_features, *self.seg_head_dims]
+        return MLP(
+            [*dims[:-1], self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            dropout=self.dropout,
+            act_first=True,
+            plain_last=True,
         )
 
     def reset_classifier(
@@ -467,8 +477,9 @@ class PointNetSegmentation(nn.Module):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        dims = kwargs.get("dims", [])
-        self.head = create_seg_head([self.num_features] + list(dims), num_classes, **kwargs)
+        if "dims" in kwargs:
+            self.seg_head_dims = list(kwargs["dims"])
+        self.head = self.configure_head()
 
     def forward_features(
         self,

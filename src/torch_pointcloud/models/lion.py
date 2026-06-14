@@ -731,9 +731,9 @@ class TransformerDecoderLayer(nn.Module):
     r"""Single TransFusion decoder layer: self-attn + cross-attn + FFN (`TransformerDecoderLayer`).
 
     Args:
-        d_model: Model channels.
-        nhead: Number of attention heads.
-        dim_feedforward: FFN hidden width.
+        embed_dim: Model channels.
+        num_heads: Number of attention heads.
+        mlp_dim: FFN hidden width.
         dropout: Dropout probability.
         activation: FFN activation (`relu`/`gelu`).
         self_posembed: Position embedding applied to the flattened query positions (self-attention).
@@ -742,23 +742,23 @@ class TransformerDecoderLayer(nn.Module):
 
     def __init__(
         self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int,
+        embed_dim: int,
+        num_heads: int,
+        mlp_dim: int,
         dropout: float,
         activation: str,
         self_posembed: nn.Module,
         cross_posembed: nn.Module,
     ) -> None:
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
+        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
+        self.linear1 = nn.Linear(embed_dim, mlp_dim)
         self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.norm3 = nn.LayerNorm(d_model)
+        self.linear2 = nn.Linear(mlp_dim, embed_dim)
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.norm3 = nn.LayerNorm(embed_dim)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
         self.dropout3 = nn.Dropout(dropout)

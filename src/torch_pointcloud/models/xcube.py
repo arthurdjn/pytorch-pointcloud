@@ -113,7 +113,7 @@ class SparseGroupNorm(nn.GroupNorm):
         return out
 
 
-def create_sparse_norm(norm: Union[str, Callable[..., nn.Module]], channels: int, **norm_kwargs: Any) -> nn.Module:
+def create_sparse_norm(norm: Union[str, Callable], channels: int, **norm_kwargs: Any) -> nn.Module:
     r"""Resolve a normalization layer for jagged per-grid voxel features.
 
     Strings resolve to `SparseGroupNorm`; a callable is invoked as `norm(channels, **norm_kwargs)` and
@@ -151,9 +151,9 @@ class SparseConvBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -191,9 +191,9 @@ class SparseDoubleConv(nn.Module):
         in_channels: int,
         mid_channels: int,
         out_channels: int,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         pool_factor: Optional[int] = None,
     ) -> None:
@@ -238,9 +238,9 @@ class SparseHead(nn.Module):
         self,
         channels: int,
         out_channels: int,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -312,9 +312,9 @@ class XCubeStructureUNet(nn.Module):
         in_channels: int,
         channels: Sequence[int],
         latent_channels: int,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         neck_bound: Optional[Tuple[int, int, int]] = None,
         with_normal_head: bool = False,
@@ -503,9 +503,9 @@ class XCubeVAE(BaseModel):
         neck_bound: Optional[Tuple[int, int, int]] = None,
         use_normal: bool = True,
         use_hash_tree: bool = True,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         pos_encoding_freqs: int = 5,
         with_normal_head: bool = False,
@@ -671,9 +671,9 @@ class SparseResBlock(nn.Module):
         embed_dim: int,
         out_channels: Optional[int] = None,
         dropout: float = 0.0,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "silu",
+        act: Union[str, Callable, None] = "silu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         up: bool = False,
         down: bool = False,
@@ -753,7 +753,7 @@ class SparseAttentionBlock(nn.Module):
         self,
         channels: int,
         num_heads: int = 1,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -815,9 +815,9 @@ class XCubeSparseUNet(nn.Module):
         num_heads: int = 8,
         use_middle_attention: bool = False,
         dropout: float = 0.0,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "silu",
+        act: Union[str, Callable, None] = "silu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -967,9 +967,9 @@ class DenseResBlock(nn.Module):
         embed_dim: int,
         out_channels: Optional[int] = None,
         dropout: float = 0.0,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "silu",
+        act: Union[str, Callable, None] = "silu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         use_scale_shift_norm: bool = False,
         up: bool = False,
@@ -1040,7 +1040,7 @@ class DenseAttentionBlock(nn.Module):
         self,
         channels: int,
         num_heads: int = 1,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -1104,9 +1104,9 @@ class XCubeDenseUNet(nn.Module):
         num_heads: int = 8,
         use_scale_shift_norm: bool = True,
         dropout: float = 0.0,
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "silu",
+        act: Union[str, Callable, None] = "silu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -1279,9 +1279,9 @@ class XCubeDiffusion(BaseModel):
         beta_start: float = 0.0001,
         beta_end: float = 0.02,
         prediction_type: str = "v_prediction",
-        norm: Union[str, Callable[..., nn.Module]] = "group_norm",
+        norm: Union[str, Callable] = "group_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "silu",
+        act: Union[str, Callable, None] = "silu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(vae.in_channels)

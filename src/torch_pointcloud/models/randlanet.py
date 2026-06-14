@@ -18,10 +18,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import activation_resolver
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.utils.cluster import knn, knn_graph
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
@@ -276,7 +276,7 @@ class DilatedResidualBlock(nn.Module):
             bias=bias,
             plain_last=False,
         )
-        self.act = activation_resolver(act, **(act_kwargs or {}))
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         edge_index = knn_graph(pos, self.num_neighbors, batch=batch, loop=True)
@@ -569,12 +569,12 @@ class RandLANetClassification(ClassificationModel):
         self.embedding_dim = aggr_channels[-1] if aggr_channels else encoder_channels[-1]
         self.global_pool = create_pool(global_pool)
         self.dropout = dropout
-        self.head = create_cls_head(self.embedding_dim, num_classes)
+        self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.embedding_dim, num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(
@@ -648,7 +648,7 @@ class RandLANetSegmentation(SegmentationModel):
             (the upstream "decoder_0").
         dropout: Dropout rate inside the segmentation head MLP.
         act: Activation type for both the decoder FP MLPs and the segmentation head MLP
-            (string passed to PyG's `activation_resolver`, or a `Callable` / `nn.Module`).
+            (string passed to `create_act`, or a `Callable` / `nn.Module`).
         act_kwargs: Keyword arguments forwarded to the activation.
         act_first: If `True`, apply activation before normalization (PyG's MLP
             `act_first` semantics) — `Linear → Act → Norm → Dropout` instead of the

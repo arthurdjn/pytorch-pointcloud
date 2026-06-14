@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, optional_import
@@ -48,8 +47,8 @@ class SubMConv3dBlock(nn.Module):
             bias=bias,
             indice_key=stem_indice_key,
         )
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
-        self.act = activation_resolver(act, **act_kwargs) if act is not None else None
+        self.norm = create_norm(norm, out_channels, **norm_kwargs)
+        self.act = create_act(act, **act_kwargs)
 
     def forward(
         self,

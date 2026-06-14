@@ -9,11 +9,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
@@ -322,8 +323,8 @@ class KPConvBlock(nn.Module):
             modulated=modulated,
             bias=bias,
         )
-        self.norm = normalization_resolver(norm, out_channels, **(norm_kwargs or {})) if norm is not None else None
-        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
+        self.norm = create_norm(norm, out_channels, **(norm_kwargs or {})) or nn.Identity()
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
     def forward(self, x: Tensor, pos_query: Tensor, pos_support: Tensor, edge_index: Tensor) -> Tensor:
         x = self.conv(x, pos_query, pos_support, edge_index)
@@ -392,7 +393,7 @@ class KPResidualBlock(nn.Module):
         self.shortcut = (
             MLP([in_channels, out_channels], act=None, **mlp_kwargs) if in_channels != out_channels else nn.Identity()
         )
-        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
     def forward(self, x: Tensor, pos_query: Tensor, pos_support: Tensor, edge_index: Tensor) -> Tensor:
         shortcut = x
@@ -761,8 +762,8 @@ class KPFCNNClassification(ClassificationModel):
                 self._stem_radius = radii[0]
                 self._stem_max_neighbors = encoder_num_neighbors[0]
             else:
-                stem_act = activation_resolver(act, **(act_kwargs or {}))
-                stem_norm = normalization_resolver(norm, stem_channels, **(norm_kwargs or {}))
+                stem_act = create_act(act, **(act_kwargs or {})) or nn.Identity()
+                stem_norm = create_norm(norm, stem_channels, **(norm_kwargs or {})) or nn.Identity()
                 self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
             in_channels = stem_channels
 
@@ -793,7 +794,7 @@ class KPFCNNClassification(ClassificationModel):
         self.embedding_dim = encoder_channels[-1]
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -808,7 +809,7 @@ class KPFCNNClassification(ClassificationModel):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(
@@ -1009,8 +1010,8 @@ class KPFCNNSegmentation(SegmentationModel):
                 self._stem_radius = radii[0]
                 self._stem_max_neighbors = encoder_num_neighbors[0]
             else:
-                stem_act = activation_resolver(act, **(act_kwargs or {}))
-                stem_norm = normalization_resolver(norm, stem_channels, **(norm_kwargs or {}))
+                stem_act = create_act(act, **(act_kwargs or {})) or nn.Identity()
+                stem_norm = create_norm(norm, stem_channels, **(norm_kwargs or {})) or nn.Identity()
                 self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
             in_channels = stem_channels
 
@@ -1056,7 +1057,7 @@ class KPFCNNSegmentation(SegmentationModel):
         self.embedding_dim = fp_channels[-1][-1]
         self.dropout = dropout
         if head_channels:
-            head_act = activation_resolver(act, **(act_kwargs or {}))
+            head_act = create_act(act, **(act_kwargs or {})) or nn.Identity()
             layers: List[nn.Module] = []
             ch_in = self.embedding_dim
             for ch in head_channels:
@@ -1065,11 +1066,11 @@ class KPFCNNSegmentation(SegmentationModel):
             layers.append(nn.Linear(ch_in, num_classes))
             self.head: nn.Module = nn.Sequential(*layers)
         else:
-            self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+            self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(

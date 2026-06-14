@@ -18,9 +18,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import activation_resolver
 
 from torch_pointcloud.layers import FPS, PoolLike, XConv, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
@@ -68,7 +68,7 @@ class PointCNNEncoderBlock(nn.Module):
             bias=bias,
             add_self_loops=add_self_loops,
         )
-        self.act = activation_resolver(act, **(act_kwargs or {}))
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         if self.downsample is not None:

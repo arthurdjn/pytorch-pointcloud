@@ -84,9 +84,9 @@ class PointnetSAModuleVotes(nn.Module):
         num_points: int,
         radius: float,
         num_neighbors: int,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -132,9 +132,9 @@ class TransformerEncoderLayer(nn.Module):
     plus a feed-forward block, each wrapped in a residual with the layer norm applied to the input.
 
     Args:
-        d_model: Token embedding dimension.
-        nhead: Number of attention heads.
-        dim_feedforward: Hidden width of the feed-forward block.
+        embed_dim: Token embedding dimension.
+        num_heads: Number of attention heads.
+        mlp_dim: Hidden width of the feed-forward block.
         dropout: Dropout probability.
         act: Activation type or callable for the feed-forward block.
         act_kwargs: Extra activation arguments.
@@ -142,22 +142,22 @@ class TransformerEncoderLayer(nn.Module):
 
     def __init__(
         self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int,
+        embed_dim: int,
+        num_heads: int,
+        mlp_dim: int,
         dropout: float,
         *,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        self.nhead = nhead
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.num_heads = num_heads
+        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
+        self.linear1 = nn.Linear(embed_dim, mlp_dim)
         self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.linear2 = nn.Linear(mlp_dim, embed_dim)
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
         self.activation = create_act(act, **(act_kwargs or {})) or nn.ReLU()
@@ -181,9 +181,9 @@ class TransformerDecoderLayer(nn.Module):
     cross-attention key.
 
     Args:
-        d_model: Token embedding dimension.
-        nhead: Number of attention heads.
-        dim_feedforward: Hidden width of the feed-forward block.
+        embed_dim: Token embedding dimension.
+        num_heads: Number of attention heads.
+        mlp_dim: Hidden width of the feed-forward block.
         dropout: Dropout probability.
         act: Activation type or callable for the feed-forward block.
         act_kwargs: Extra activation arguments.
@@ -191,23 +191,23 @@ class TransformerDecoderLayer(nn.Module):
 
     def __init__(
         self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int,
+        embed_dim: int,
+        num_heads: int,
+        mlp_dim: int,
         dropout: float,
         *,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
+        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
+        self.linear1 = nn.Linear(embed_dim, mlp_dim)
         self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.norm3 = nn.LayerNorm(d_model)
+        self.linear2 = nn.Linear(mlp_dim, embed_dim)
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.norm3 = nn.LayerNorm(embed_dim)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
         self.dropout3 = nn.Dropout(dropout)
@@ -241,9 +241,9 @@ class TransformerEncoder(nn.Module):
     r"""Stack of `num_layers` identical pre-norm encoder layers (no final norm), per 3DETR's `vanilla`.
 
     Args:
-        d_model: Token embedding dimension.
-        nhead: Number of attention heads.
-        dim_feedforward: Hidden width of the feed-forward block.
+        embed_dim: Token embedding dimension.
+        num_heads: Number of attention heads.
+        mlp_dim: Hidden width of the feed-forward block.
         num_layers: Number of stacked encoder layers.
         dropout: Dropout probability.
         act: Activation type or callable.
@@ -252,18 +252,18 @@ class TransformerEncoder(nn.Module):
 
     def __init__(
         self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int,
+        embed_dim: int,
+        num_heads: int,
+        mlp_dim: int,
         num_layers: int,
         dropout: float,
         *,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.layers = nn.ModuleList(
-            TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, act=act, act_kwargs=act_kwargs)
+            TransformerEncoderLayer(embed_dim, num_heads, mlp_dim, dropout, act=act, act_kwargs=act_kwargs)
             for _ in range(num_layers)
         )
 
@@ -282,9 +282,9 @@ class MaskedTransformerEncoder(nn.Module):
     `MaskedTransformerEncoder`.
 
     Args:
-        d_model: Token embedding dimension.
-        nhead: Number of attention heads.
-        dim_feedforward: Hidden width of the feed-forward block.
+        embed_dim: Token embedding dimension.
+        num_heads: Number of attention heads.
+        mlp_dim: Hidden width of the feed-forward block.
         num_layers: Number of stacked encoder layers (must equal `len(masking_radius)`).
         dropout: Dropout probability.
         masking_radius: Per-layer attention radius (a value $\le 0$ disables masking for that layer).
@@ -295,22 +295,22 @@ class MaskedTransformerEncoder(nn.Module):
 
     def __init__(
         self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int,
+        embed_dim: int,
+        num_heads: int,
+        mlp_dim: int,
         num_layers: int,
         dropout: float,
         *,
         masking_radius: List[float],
         interim_downsampling: PointnetSAModuleVotes,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         if len(masking_radius) != num_layers:
             raise ValueError(f"`masking_radius` must have {num_layers} entries, got {len(masking_radius)}.")
         self.layers = nn.ModuleList(
-            TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, act=act, act_kwargs=act_kwargs)
+            TransformerEncoderLayer(embed_dim, num_heads, mlp_dim, dropout, act=act, act_kwargs=act_kwargs)
             for _ in range(num_layers)
         )
         self.masking_radius = masking_radius
@@ -331,9 +331,9 @@ class MaskedTransformerEncoder(nn.Module):
             mask: OptTensor = None
             if self.masking_radius[idx] > 0:
                 bool_mask = self.compute_mask(pos, self.masking_radius[idx])
-                nhead = layer.nhead
+                num_heads = layer.num_heads
                 n = bool_mask.size(1)
-                mask = bool_mask.unsqueeze(1).repeat(1, nhead, 1, 1).view(batch_size * nhead, n, n)
+                mask = bool_mask.unsqueeze(1).repeat(1, num_heads, 1, 1).view(batch_size * num_heads, n, n)
             output = layer(output, src_mask=mask)
 
             if idx == 0:
@@ -355,9 +355,9 @@ class TransformerDecoder(nn.Module):
     collected so the box heads can be applied per layer (only the last is kept at eval).
 
     Args:
-        d_model: Token embedding dimension.
-        nhead: Number of attention heads.
-        dim_feedforward: Hidden width of the feed-forward block.
+        embed_dim: Token embedding dimension.
+        num_heads: Number of attention heads.
+        mlp_dim: Hidden width of the feed-forward block.
         num_layers: Number of stacked decoder layers.
         dropout: Dropout probability.
         act: Activation type or callable.
@@ -366,21 +366,21 @@ class TransformerDecoder(nn.Module):
 
     def __init__(
         self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int,
+        embed_dim: int,
+        num_heads: int,
+        mlp_dim: int,
         num_layers: int,
         dropout: float,
         *,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.layers = nn.ModuleList(
-            TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout, act=act, act_kwargs=act_kwargs)
+            TransformerDecoderLayer(embed_dim, num_heads, mlp_dim, dropout, act=act, act_kwargs=act_kwargs)
             for _ in range(num_layers)
         )
-        self.norm = nn.LayerNorm(d_model)
+        self.norm = nn.LayerNorm(embed_dim)
 
     def forward(
         self,
@@ -459,8 +459,8 @@ class GenericConvMLP(nn.Module):
         hidden_channels: List[int],
         out_channels: int,
         *,
-        norm: Union[str, Callable[..., nn.Module], None] = None,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        norm: Union[str, Callable, None] = None,
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         dropout: float = 0.0,
         hidden_bias: bool = False,
@@ -561,9 +561,9 @@ class DETR3D(DetectionModel):
         mlp_dropout: float = 0.3,
         preenc_radius: float = 0.2,
         preenc_nsample: int = 64,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -668,9 +668,9 @@ class DETR3D(DetectionModel):
     def _build_heads(
         self,
         *,
-        act: Union[str, Callable[..., nn.Module], None],
+        act: Union[str, Callable, None],
         act_kwargs: Optional[Dict[str, Any]],
-        norm: Union[str, Callable[..., nn.Module], None],
+        norm: Union[str, Callable, None],
     ) -> None:
         def head(out_channels: int) -> GenericConvMLP:
             return GenericConvMLP(
