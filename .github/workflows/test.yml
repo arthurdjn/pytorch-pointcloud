@@ -50,22 +50,21 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Add lightning for python ${{ matrix.python-version }}
-        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra lightning" >> $GITHUB_ENV
-
       - name: Install package + extras (torch==2.6.0)
-        run: |
-          echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }}"
-          uv add torch==2.6.0
-          uv sync ${{ env.UV_SYNC_ARGS }} --frozen
+        run: uv sync --extra lightning --frozen
+
+      - name: Install torch
+        run: uv pip install --no-config torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install torchvision
+        if: matrix.python-version != '3.13'
+        run: uv pip install --no-config torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install ocnn
-        # Pinned to 2.2.8: ocnn 2.3.x probes the triton GPU driver at import and fails on these CPU runners.
-        if: ${{ matrix.python-version != '3.13' }}
-        run: uv pip install 'ocnn==2.2.8'
+        if: matrix.python-version != '3.13'
+        run: uv pip install --no-deps 'ocnn==2.2.8'
 
-      - name: Install torch-scatter + torch-cluster (pyg-lib)
-        # NOTE: torch-scatter / torch-cluster have no wheels for python 3.13 yet
+      - name: Install torch-scatter + torch-cluster
         if: matrix.python-version != '3.13'
         run: uv pip install torch-scatter torch-cluster -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
 
