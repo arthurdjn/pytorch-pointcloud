@@ -4,11 +4,11 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 
 from torch_pointcloud.layers import (
     PoolLike,
-    create_cls_head,
     create_pool,
 )
 from torch_pointcloud.layers.dropouts import DropPath
@@ -73,8 +73,8 @@ class GroupedVectorAttention(nn.Module):
         if pe_multiplier:
             self.pe_multiplier = nn.Sequential(
                 nn.Linear(3, channels),
-                normalization_resolver(norm, channels, **(norm_kwargs or {})),
-                activation_resolver(act, **(act_kwargs or {})),
+                create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity(),
+                create_act(act, **(act_kwargs or {})) or nn.Identity(),
                 nn.Linear(channels, channels),
             )
 
@@ -82,15 +82,15 @@ class GroupedVectorAttention(nn.Module):
         if pe_bias:
             self.pe_bias = nn.Sequential(
                 nn.Linear(3, channels),
-                normalization_resolver(norm, channels, **(norm_kwargs or {})),
-                activation_resolver(act, **(act_kwargs or {})),
+                create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity(),
+                create_act(act, **(act_kwargs or {})) or nn.Identity(),
                 nn.Linear(channels, channels),
             )
 
         self.weight_encoding = nn.Sequential(
             nn.Linear(channels, num_groups),
-            normalization_resolver(norm, num_groups, **(norm_kwargs or {})),
-            activation_resolver(act, **(act_kwargs or {})),
+            create_norm(norm, num_groups, **(norm_kwargs or {})) or nn.Identity(),
+            create_act(act, **(act_kwargs or {})) or nn.Identity(),
             nn.Linear(num_groups, num_groups),
         )
 
@@ -153,10 +153,10 @@ class Block(nn.Module):
         )
         self.fc1 = nn.Linear(channels, channels, bias=False)
         self.fc3 = nn.Linear(channels, channels, bias=False)
-        self.norm1 = normalization_resolver(norm, channels, **(norm_kwargs or {}))
-        self.norm2 = normalization_resolver(norm, channels, **(norm_kwargs or {}))
-        self.norm3 = normalization_resolver(norm, channels, **(norm_kwargs or {}))
-        self.act = activation_resolver(act, **(act_kwargs or {}))
+        self.norm1 = create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity()
+        self.norm2 = create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity()
+        self.norm3 = create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity()
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
@@ -190,8 +190,8 @@ class GridPool(nn.Module):
         self.reduce = reduce
 
         self.fc = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = normalization_resolver(norm, out_channels, **(norm_kwargs or {}))
-        self.act = activation_resolver(act, **(act_kwargs or {}))
+        self.norm = create_norm(norm, out_channels, **(norm_kwargs or {})) or nn.Identity()
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
     @overload
     def forward(
@@ -648,7 +648,7 @@ class PointTransformerV2Classification(nn.Module):
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -670,7 +670,7 @@ class PointTransformerV2Classification(nn.Module):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(
@@ -873,7 +873,7 @@ class PointTransformerV2Segmentation(nn.Module):
         )
 
         self.dropout = dropout
-        self.head = create_cls_head(num_features=decoder_channels[-1], num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(decoder_channels[-1], self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -896,7 +896,7 @@ class PointTransformerV2Segmentation(nn.Module):
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(

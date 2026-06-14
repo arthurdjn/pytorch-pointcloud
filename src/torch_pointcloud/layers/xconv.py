@@ -4,7 +4,8 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
+from .act import create_act
+from .norms import create_norm
 from torch_geometric.utils import add_self_loops, remove_self_loops
 
 from torch_pointcloud.layers.view import View
@@ -52,25 +53,25 @@ class XConv(nn.Module):
 
         self.mlp1 = nn.Sequential(
             nn.Linear(self.spatial_dim, self.hidden_channels),
-            activation_resolver(act, **act_kwargs),
-            normalization_resolver(norm, self.hidden_channels, **norm_kwargs),
+            create_act(act, **act_kwargs) or nn.Identity(),
+            create_norm(norm, self.hidden_channels, **norm_kwargs) or nn.Identity(),
             nn.Linear(self.hidden_channels, self.hidden_channels),
-            activation_resolver(act, **act_kwargs),
-            normalization_resolver(norm, self.hidden_channels, **norm_kwargs),
+            create_act(act, **act_kwargs) or nn.Identity(),
+            create_norm(norm, self.hidden_channels, **norm_kwargs) or nn.Identity(),
             View(-1, self.kernel_size, self.hidden_channels),
         )
 
         self.mlp2 = nn.Sequential(
             nn.Linear(self.spatial_dim * self.kernel_size, self.kernel_size**2),
-            activation_resolver(act, **act_kwargs),
-            normalization_resolver(norm, self.kernel_size**2, **norm_kwargs),
+            create_act(act, **act_kwargs) or nn.Identity(),
+            create_norm(norm, self.kernel_size**2, **norm_kwargs) or nn.Identity(),
             View(-1, self.kernel_size, self.kernel_size),
             nn.Conv1d(self.kernel_size, self.kernel_size**2, self.kernel_size, groups=self.kernel_size),
-            activation_resolver(act, **act_kwargs),
-            normalization_resolver(norm, self.kernel_size**2, **norm_kwargs),
+            create_act(act, **act_kwargs) or nn.Identity(),
+            create_norm(norm, self.kernel_size**2, **norm_kwargs) or nn.Identity(),
             View(-1, self.kernel_size, self.kernel_size),
             nn.Conv1d(self.kernel_size, self.kernel_size**2, self.kernel_size, groups=self.kernel_size),
-            normalization_resolver(norm, self.kernel_size**2, **norm_kwargs),
+            create_norm(norm, self.kernel_size**2, **norm_kwargs) or nn.Identity(),
             View(-1, self.kernel_size, self.kernel_size),
         )
 

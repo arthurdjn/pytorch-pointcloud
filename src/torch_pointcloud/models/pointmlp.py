@@ -19,7 +19,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.nn.inits import reset
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import FPS, LinearBlock, PoolLike, create_pool
@@ -97,10 +98,10 @@ class ResidualLinearBlock(nn.Module):
         hidden_channels = int(channels * expansion)
 
         self.lin1 = nn.Linear(channels, hidden_channels, bias=bias)
-        self.norm1 = normalization_resolver(norm, hidden_channels, **norm_kwargs)
+        self.norm1 = create_norm(norm, hidden_channels, **norm_kwargs) or nn.Identity()
         self.lin2 = nn.Linear(hidden_channels, channels, bias=bias)
-        self.norm2 = normalization_resolver(norm, channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
+        self.norm2 = create_norm(norm, channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.act_first = act_first
 
     def reset_parameters(self) -> None:

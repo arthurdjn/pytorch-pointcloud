@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
+from .act import create_act
+from .norms import create_norm
 
 from torch_pointcloud.utils.imports import optional_import
 
@@ -61,8 +62,8 @@ class GridPool(nn.Module):
         self.reduce = reduce
         self.act_first = act_first
         self.proj = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
-        self.act = activation_resolver(act, **act_kwargs) if act is not None else None
+        self.norm = create_norm(norm, out_channels, **norm_kwargs)
+        self.act = create_act(act, **act_kwargs)
 
     def forward(
         self,

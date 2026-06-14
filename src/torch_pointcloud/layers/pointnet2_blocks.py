@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing
 from torch_geometric.nn.inits import reset
-from torch_geometric.nn.resolver import activation_resolver
+from .act import create_act
 from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
@@ -339,7 +339,7 @@ class PointNet2SetAbstraction(nn.Module):
         self.spatial_dim = spatial_dim
         self.in_channels = in_channels
         self.dropout = dropout
-        self.act = activation_resolver(act, **act_kwargs)
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm

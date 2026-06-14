@@ -30,7 +30,6 @@ from .dropouts import (
 from .fps import FPS
 from .geometric_affine import GeometricAffineConv, NormalizeType
 from .grid_pool import GridPool
-from .heads import create_cls_head, create_seg_head
 from .layer_container import LayerContainer
 from .linear_blocks import LinearBlock
 from .norms import create_norm

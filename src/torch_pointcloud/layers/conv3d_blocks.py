@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver
+from .act import create_act
 
 from torch_pointcloud.layers.norms import create_norm
 
@@ -18,7 +18,7 @@ class Conv3dBlock(nn.Module):
         in_channels: Input channel count.
         out_channels: Output channel count.
         kernel_size: Conv3d kernel size.
-        act: Activation, name resolved by `activation_resolver`. `None` disables.
+        act: Activation, name resolved by `create_act`. `None` disables.
         act_first: If `True`, run activation before normalization.
         act_kwargs: Extra kwargs for the activation.
         norm: Normalization, name resolved by `create_norm`. `None` disables.
@@ -50,7 +50,7 @@ class Conv3dBlock(nn.Module):
             bias=bias,
         )
         self.norm = create_norm(norm, out_channels, dim=3, **(norm_kwargs or {})) if norm is not None else None
-        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
+        self.act = create_act(act, **(act_kwargs or {}))
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.conv(x)

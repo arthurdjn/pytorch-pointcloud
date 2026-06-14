@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
@@ -136,7 +136,7 @@ class PVCNNClassification(nn.Module):
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(self.embedding_dim, self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -313,7 +313,7 @@ class PVCNNSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if not self.head_channels:
-            return create_cls_head(self.embedding_dim, self.num_classes)
+            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
         channels = [self.embedding_dim, *self.head_channels, self.num_classes]
         dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]

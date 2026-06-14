@@ -6,7 +6,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
@@ -351,11 +351,11 @@ class PVCNN2Classification(nn.Module):
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(self.embedding_dim, self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_head(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(
@@ -465,7 +465,7 @@ class PVCNN2Segmentation(nn.Module):
         )
 
         self.dropout = dropout
-        self.head = create_cls_head(num_features=decoder_channels[-1], num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(decoder_channels[-1], self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -473,7 +473,7 @@ class PVCNN2Segmentation(nn.Module):
 
     def reset_head(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(

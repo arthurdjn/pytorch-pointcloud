@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -390,7 +390,7 @@ class PointNet2Classification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if not self.head_channels:
-            return create_cls_head(self.embedding_dim, self.num_classes)
+            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
         channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
         dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
@@ -596,7 +596,7 @@ class PointNet2Segmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if not self.head_channels:
-            return create_cls_head(self.embedding_dim, self.num_classes)
+            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
         channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
         dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
