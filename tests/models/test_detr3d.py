@@ -7,7 +7,7 @@ from torch import Tensor
 
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.detr3d import DETR3D, DETR3DOutput
+from torch_pointcloud.models.detr3d import DETR3DDetection, DETR3DOutput
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -18,7 +18,7 @@ pytestmark = [
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def _small_detr3d(**overrides: Any) -> DETR3D:
+def _small_detr3d(**overrides: Any) -> DETR3DDetection:
     kwargs: Dict[str, Any] = dict(
         in_channels=0,
         num_classes=5,
@@ -36,7 +36,7 @@ def _small_detr3d(**overrides: Any) -> DETR3D:
         decoder_depth=2,
     )
     kwargs.update(overrides)
-    return DETR3D(**kwargs)
+    return DETR3DDetection(**kwargs)
 
 
 def _make_inputs(n_per_scene: int = 1024, batch_size: int = 2) -> Dict[str, Tensor]:
@@ -119,7 +119,7 @@ def test_detr3d_registered_variants() -> None:
 
 def test_detr3d_create_model_no_pretrained() -> None:
     model = create_model("3detr-fair.sunrgbd", task="detection")
-    assert isinstance(model, DETR3D)
+    assert isinstance(model, DETR3DDetection)
     assert model.num_classes == 10
     assert model.num_angle_bin == 12
     assert model.num_queries == 128
@@ -128,7 +128,7 @@ def test_detr3d_create_model_no_pretrained() -> None:
 
 def test_detr3d_masked_variant_config() -> None:
     model = create_model("3detr-fair-m.scannet", task="detection")
-    assert isinstance(model, DETR3D)
+    assert isinstance(model, DETR3DDetection)
     assert model.encoder_type == "masked"
     assert model.num_classes == 18
     assert model.num_angle_bin == 1
@@ -140,7 +140,7 @@ def test_detr3d_masked_variant_config() -> None:
 )
 def test_detr3d_pretrained_smoke() -> None:
     model = create_model("3detr-fair-m.scannet", task="detection", pretrained=True).to(DEVICE).eval()
-    assert isinstance(model, DETR3D)
+    assert isinstance(model, DETR3DDetection)
     torch.manual_seed(0)
     pos = (torch.rand(40000, 3, device=DEVICE) * 4.0).contiguous()
     batch = torch.zeros(40000, dtype=torch.long, device=DEVICE)
