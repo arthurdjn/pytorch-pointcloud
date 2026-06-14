@@ -13,6 +13,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "h5py>=3.15.1",
+    "huggingface-hub>=1.17.0",
     "joblib>=1.4.2",
     "numpy>=2.0.0",
     "pandas>=2.2.3",
@@ -25,16 +26,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-torchsparse = [
-    "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git",
-]
-ocnn = ["ocnn>=2.2.6"]
-dwconv = ["dwconv @ git+https://github.com/octree-nn/dwconv.git"]
-build = ["setuptools", "wheel", "rootpath"]
-flash-attn = ["flash-attn>=2.4.1"]
-mamba = ["mamba-ssm[causal-conv1d]>=2.2.0"]
-spconv = ["spconv>=2.2.1"]
-pyg-lib = ["torch-scatter>=2.1.2", "torch-cluster>=1.6.3"]
 lightning = ["lightning>=2.0.0,<2.6.0", "torchmetrics>=1.0.0"]
 
 [dependency-groups]
@@ -63,23 +54,6 @@ dev = [
 [tool.uv]
 package = true
 exclude-newer = "14 days"
-find-links = ["https://data.pyg.org/whl/torch-2.6.0+cpu.html"]
-no-build-isolation-package = ["flash-attn", "torchsparse"]
-
-[[tool.uv.dependency-metadata]]
-name = "flash-attn"
-version = "2.4.1"
-requires-dist = ["torch", "einops", "setuptools"]
-
-[[tool.uv.dependency-metadata]]
-name = "torchsparse"
-version = "2.1.0"
-requires-dist = ["torch", "setuptools", "rootpath", "wheel"]
-
-[[tool.uv.dependency-metadata]]
-name = "dwconv"
-version = "1.1.0"
-requires-dist = ["torch"]
 
 [tool.ruff]
 target-version = "py310"

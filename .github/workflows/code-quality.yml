@@ -19,11 +19,21 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install all extras (torch==2.6.0)
-        # NOTE: Do not install flash-attn here, as it requires CUDA
+      - name: Install package + dev tools (torch==2.6.0)
         run: |
           uv add torch==2.6.0
-          uv sync --extra spconv --extra ocnn --extra pyg-lib --frozen
+          uv sync --frozen
+
+      # Model backends are not package extras; install each separately so the logs show exactly what is
+      # installed. ocnn is pure-Python; the others are CPU builds for CI.
+      - name: Install ocnn
+        run: uv pip install ocnn
+
+      - name: Install torch-scatter + torch-cluster (pyg-lib)
+        run: uv pip install torch-scatter torch-cluster -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
+
+      - name: Install spconv
+        run: uv pip install spconv
 
       - name: Check types
         if: ${{ always() }}
