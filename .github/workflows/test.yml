@@ -59,12 +59,10 @@ jobs:
           uv add torch==2.6.0
           uv sync ${{ env.UV_SYNC_ARGS }} --frozen
 
-      # Model backends are not package extras; install each separately so the logs show exactly what is
-      # installed. ocnn is pure-Python; the others are CPU builds for CI.
       - name: Install ocnn
-        # NOTE: ocnn depends on torchvision, which is not fully compatible with python 3.13 yet
-        if: matrix.python-version != '3.13'
-        run: uv pip install ocnn
+        # Pinned to 2.2.8: ocnn 2.3.x probes the triton GPU driver at import and fails on these CPU runners.
+        if: ${{ matrix.python-version != '3.13' }}
+        run: uv pip install 'ocnn==2.2.8'
 
       - name: Install torch-scatter + torch-cluster (pyg-lib)
         # NOTE: torch-scatter / torch-cluster have no wheels for python 3.13 yet
