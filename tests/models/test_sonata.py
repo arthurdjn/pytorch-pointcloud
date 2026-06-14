@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.sontata import SonataSegmentation
+from torch_pointcloud.models.sonata import SonataSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
