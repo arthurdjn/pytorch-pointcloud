@@ -32,7 +32,7 @@ from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
 from .second import SECONDDetection, SECONDMultiHeadDetection, SparseBasicBlock, VoxelBackbone8x, VoxelResBackbone8x
-from .sontata import SonataSegmentation
+from .sonata import SonataSegmentation
 from .spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
 from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
