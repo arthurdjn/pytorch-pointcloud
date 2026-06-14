@@ -246,6 +246,21 @@ def _check_output(
         raise AssertionError(f"{model_name}: output values changed (max abs diff {diff:.6g}, atol={ATOL}, rtol={RTOL})")
 
 
+@pytest.fixture(autouse=True)
+def _torchsparse_kmap_mode() -> None:
+    """torch >= 2.10 rejects torchsparse's default `hashmap_on_the_fly` downsample kmap builder
+    (its legacy `make_variable` call hits `set_stride` on a detached coords tensor). The `hashmap`
+    builder takes a different C++ path and is unaffected."""
+    if not _TORCHSPARSE_AVAILABLE:
+        return
+
+    import torchsparse.nn.functional as spF
+
+    config = spF.conv_config.get_default_conv_config()
+    config.kmap_mode = "hashmap"
+    spF.conv_config.set_global_conv_config(config)
+
+
 @pytest.mark.pretrained
 @pytest.mark.parametrize("model_name,task,dataset_name", PRETRAINED_MODELS)
 def test_pretrained_model(

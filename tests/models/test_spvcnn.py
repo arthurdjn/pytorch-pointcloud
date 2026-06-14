@@ -14,6 +14,18 @@ pytestmark = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _torchsparse_kmap_mode() -> None:
+    """torch >= 2.10 rejects torchsparse's default `hashmap_on_the_fly` downsample kmap builder
+    (its legacy `make_variable` call hits `set_stride` on a detached coords tensor). The `hashmap`
+    builder takes a different C++ path and is unaffected."""
+    import torchsparse.nn.functional as spF
+
+    config = spF.conv_config.get_default_conv_config()
+    config.kmap_mode = "hashmap"
+    spF.conv_config.set_global_conv_config(config)
+
+
 @pytest.fixture
 def data() -> Dict[str, Tensor]:
     torch.manual_seed(42)

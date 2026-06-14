@@ -50,31 +50,20 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Add lightning for python ${{ matrix.python-version }}
-        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra lightning" >> $GITHUB_ENV
+      - name: Install package + extras (torch==2.6.0)
+        run: uv sync --extra lightning --frozen
 
-      - name: Add ocnn dependency for python ${{ matrix.python-version }}
-        # NOTE: ocnn depends on torchvision, which is not fully compatible with python 3.13 yet
+      - name: Install torch deps (python < 3.13)
         if: matrix.python-version != '3.13'
-        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra ocnn" >> $GITHUB_ENV
-
-      - name: Install torch-geometric dependencies
-        # NOTE: `pyg-lib` has no wheels for python 3.13 yet
-        if: matrix.python-version != '3.13'
-        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra pyg-lib" >> $GITHUB_ENV
-
-      - name: Install spconv dependency
-        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra spconv" >> $GITHUB_ENV
-
-      - name: Install flash-attn dependency
-        if: runner.os == 'Linux' && contains(runner.name, 'gpu')
-        run: echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }} --extra flash-attn" >> $GITHUB_ENV
-
-      - name: Install all dependencies (torch==2.6.0)
         run: |
-          echo "UV_SYNC_ARGS=${{ env.UV_SYNC_ARGS }}"
-          uv add torch==2.6.0
-          uv sync ${{ env.UV_SYNC_ARGS }} --frozen
+          uv pip install --no-config --torch-backend=cpu \
+            torch==2.6.0 torchvision==0.21.0 'ocnn==2.2.8' torch-scatter torch-cluster spconv \
+            -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
+
+      # python 3.13: torchvision / ocnn / pyg have no 3.13 wheels yet, so install only torch + spconv.
+      - name: Install torch deps (python == 3.13)
+        if: matrix.python-version == '3.13'
+        run: uv pip install --no-config --torch-backend=cpu torch==2.6.0 spconv
 
       - name: Test with python ${{ matrix.python-version }}
-        run: uv run --frozen pytest
+        run: uv run --no-sync pytest
