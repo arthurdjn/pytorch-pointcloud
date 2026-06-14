@@ -109,9 +109,9 @@ class PointHeadBox(nn.Module):
         cls_channels: Sequence[int],
         reg_channels: Sequence[int],
         mean_sizes: Tensor,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -200,9 +200,9 @@ class PointRCNNRefinementHead(nn.Module):
         num_sampled_points: int = 512,
         pool_extra_width: Sequence[float] = (0.0, 0.0, 0.0),
         depth_normalizer: float = 70.0,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -521,9 +521,9 @@ class PointRCNNDetection(DetectionModel):
         nms_pre_maxsize: int = 9000,
         nms_post_maxsize: int = 100,
         nms_thresh: float = 0.85,
-        act: Union[str, Callable[..., nn.Module], None] = "relu",
+        act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable[..., nn.Module], None] = "batch_norm",
+        norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)

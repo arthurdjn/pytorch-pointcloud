@@ -6,12 +6,13 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing, fps, knn, knn_graph, knn_interpolate
 from torch_geometric.nn.inits import reset
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 from torch_geometric.typing import Adj, OptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops, scatter, softmax
 from typing_extensions import Unpack
 
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import MessagePassingParams
 
@@ -227,9 +228,9 @@ class PointTransformerBlock(torch.nn.Module):
             plain_last=False,
         )
 
-        self.act = activation_resolver(act, **act_kwargs)
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.lin1 = nn.Linear(in_channels, in_channels)
-        self.norm1 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.transformer = PointTransformerConv(
             in_channels,
             out_channels,
@@ -239,9 +240,9 @@ class PointTransformerBlock(torch.nn.Module):
             attn_nn=MLP([out_channels, out_channels // num_groups, out_channels // num_groups], **kwargs),
             add_self_loops=add_self_loops,
         )
-        self.norm2 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.lin3 = nn.Linear(out_channels, out_channels)
-        self.norm3 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.norm3 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
 
     def forward(self, x: Tensor, pos: Tensor, edge_index: Adj) -> Tensor:
         shortcut = x
@@ -654,12 +655,12 @@ class PointTransformerClassification(torch.nn.Module):
             norm_kwargs=norm_kwargs,
         )
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=num_classes)
+        self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.embedding_dim, num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_encoder(
@@ -760,11 +761,11 @@ class PointTransformerSegmentation(torch.nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_encoder(

@@ -18,11 +18,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -192,8 +193,8 @@ class BasicBlock(nn.Module):
             stride=stride,
             transposed=transposed,
         )
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
+        self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
 
     def forward(self, x: "PointTensor") -> "PointTensor":
         x = self.conv(x)
@@ -220,17 +221,17 @@ class ResidualBlock(nn.Module):
         norm_kwargs = norm_kwargs or {}
 
         self.conv1 = spnn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=stride)
-        self.norm1 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.conv2 = spnn.Conv3d(out_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=1)
-        self.norm2 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
 
         self.conv_skip: Optional[nn.Module] = None
         self.norm_skip: Optional[nn.Module] = None
         if in_channels != out_channels or stride != 1:
             self.conv_skip = spnn.Conv3d(in_channels, out_channels, kernel_size=1, dilation=1, stride=stride)
-            self.norm_skip = normalization_resolver(norm, out_channels, **norm_kwargs)
+            self.norm_skip = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
 
-        self.act = activation_resolver(act, **act_kwargs)
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else None
 
     def forward(self, x: "PointTensor") -> "PointTensor":
@@ -266,8 +267,8 @@ class SPVFusionBlock(nn.Module):
         norm_kwargs = norm_kwargs or {}
 
         self.lin = nn.LazyLinear(out_channels) if not in_channels else nn.Linear(in_channels, out_channels)
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
+        self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
 
     def forward(self, x_voxels: "SparseTensor", x_points: "PointTensor") -> Tuple["SparseTensor", "PointTensor"]:
         # NOTE: In the original paper, the fusion is done with a simple addition
@@ -694,12 +695,12 @@ class SPVCNNClassification(ClassificationModel):
         )
 
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def forward(
         self,
@@ -802,7 +803,7 @@ class SPVCNNSegmentation(SegmentationModel):
             norm_kwargs=norm_kwargs,
         )
 
-        self.head = create_cls_head(num_features=decoder_channels[-1], num_classes=num_classes)
+        self.head = nn.Identity() if num_classes == 0 else nn.Linear(decoder_channels[-1], num_classes)
 
     def forward(
         self,

@@ -2,9 +2,11 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 from torch_pointcloud.utils.types import OptTensor
+
+from .act import create_act
+from .norms import create_norm
 
 
 class LinearBlock(nn.Module):
@@ -45,8 +47,8 @@ class LinearBlock(nn.Module):
         super().__init__()
         self.act_first = act_first
         self.stem = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = normalization_resolver(norm, out_channels, **(norm_kwargs or {})) if norm is not None else None
-        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else None
+        self.norm = create_norm(norm, out_channels, **(norm_kwargs or {}))
+        self.act = create_act(act, **(act_kwargs or {}))
 
     # TODO: Rename stem to lin, and remove pos and batch arguments as they are not used.
     def forward(self, x: Tensor, pos: OptTensor = None, batch: OptTensor = None) -> Tensor:
