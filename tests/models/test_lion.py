@@ -61,6 +61,39 @@ def test_lion_head_decode_packs_detections() -> None:
     assert set(det["batch"].tolist()) <= {0, 1}
 
 
+def test_lion_head_predict_supports_non_nuscenes_num_classes() -> None:
+    """`predict` must not assume the nuScenes 10-class layout (regression: hardcoded class indices 8/9)."""
+    torch.manual_seed(0)
+    head = TransFusionHead(16, 3, (40, 40, 32), RANGE, (0.3, 0.3, 0.25), num_proposals=20, query_radius=2).eval()
+    x_size = head.grid_size[0] // head.feature_map_stride
+    y_size = head.grid_size[1] // head.feature_map_stride
+    out = head.predict(torch.randn(2, 16, x_size, y_size))
+    assert int(out["query_labels"].max()) < 3
+
+
+def test_lion_head_local_max_classes_decode() -> None:
+    """`local_max_classes` selects the per-class circular-NMS tasks for an arbitrary label set."""
+    torch.manual_seed(0)
+    head = TransFusionHead(384, 3, (360, 360, 32), RANGE, (0.3, 0.3, 0.25), local_max_classes=(1, 2)).eval()
+    assert head.local_max_classes == (1, 2)
+    num_proposals = head.num_proposals
+    batch_size = 2
+    out = {
+        "center": torch.rand(batch_size, 2, num_proposals),
+        "height": torch.rand(batch_size, 1, num_proposals),
+        "dim": torch.rand(batch_size, 3, num_proposals),
+        "rot": torch.randn(batch_size, 2, num_proposals),
+        "vel": torch.randn(batch_size, 2, num_proposals),
+        "iou": torch.rand(batch_size, 1, num_proposals),
+        "heatmap": torch.randn(batch_size, 3, num_proposals),
+        "query_heatmap_score": torch.rand(batch_size, 3, num_proposals),
+        "query_labels": torch.randint(0, 3, (batch_size, num_proposals)),
+    }
+    det = head.decode(out)
+    assert det["boxes"].shape[1] == 7
+    assert torch.isfinite(det["boxes"]).all()
+
+
 def _make_inputs(scene_sizes: Sequence[int] = (30000,)) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     torch.manual_seed(0)
     pos, x, batch = [], [], []

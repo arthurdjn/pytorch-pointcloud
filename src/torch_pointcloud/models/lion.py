@@ -851,7 +851,10 @@ class TransFusionHead(nn.Module):
         num_heatmap_layers: Layers in the heatmap branch of the prediction head.
         query_radius: Half-width of the local cross-attention window.
         iou_rectifier: Per-class exponent blending heatmap score with predicted IoU.
-        nms_radius: Per-task circular-NMS radius (only ped/cone use $> 0$).
+        nms_radius: Per-task circular-NMS radius (only the `local_max_classes` use $> 0$).
+        local_max_classes: Crowded small-object class indices (nuScenes pedestrian / traffic-cone): their
+            heatmap peaks skip the kernel local-max NMS in `predict` and each gets its own circular NMS
+            task in `decode`. Empty by default so the head stays agnostic to the label set.
         post_center_range: Box-center range filter applied at decode.
     """
 
@@ -880,6 +883,7 @@ class TransFusionHead(nn.Module):
         query_radius: int = 20,
         iou_rectifier: float = 0.5,
         nms_radius: float = 0.175,
+        local_max_classes: Sequence[int] = (),
         post_center_range: Sequence[float] = (-61.2, -61.2, -10.0, 61.2, 61.2, 10.0),
     ) -> None:
         super().__init__()
@@ -892,6 +896,7 @@ class TransFusionHead(nn.Module):
         self.nms_kernel_size = nms_kernel_size
         self.iou_rectifier = iou_rectifier
         self.nms_radius = nms_radius
+        self.local_max_classes = tuple(int(c) for c in local_max_classes)
         self.post_center_range = list(post_center_range)
         self.code_size = 10
 
@@ -944,8 +949,8 @@ class TransFusionHead(nn.Module):
         local_max = torch.zeros_like(heatmap)
         local_max_inner = F.max_pool2d(heatmap, kernel_size=self.nms_kernel_size, stride=1, padding=0)
         local_max[:, :, padding:(-padding), padding:(-padding)] = local_max_inner
-        local_max[:, 8] = F.max_pool2d(heatmap[:, 8], kernel_size=1, stride=1, padding=0)
-        local_max[:, 9] = F.max_pool2d(heatmap[:, 9], kernel_size=1, stride=1, padding=0)
+        for cls_idx in self.local_max_classes:
+            local_max[:, cls_idx] = F.max_pool2d(heatmap[:, cls_idx], kernel_size=1, stride=1, padding=0)
         heatmap = heatmap * (heatmap == local_max)
         heatmap = heatmap.view(batch_size, heatmap.shape[1], -1)
 
@@ -1070,11 +1075,9 @@ class TransFusionHead(nn.Module):
             preds_dicts["vel"],
         )
 
-        tasks: List[Tuple[List[int], float]] = [
-            ([0, 1, 2, 3, 4, 5, 6, 7], -1.0),
-            ([8], self.nms_radius),
-            ([9], self.nms_radius),
-        ]
+        other_classes = [c for c in range(self.num_classes) if c not in self.local_max_classes]
+        tasks: List[Tuple[List[int], float]] = [(other_classes, -1.0)]
+        tasks += [([cls_idx], self.nms_radius) for cls_idx in self.local_max_classes]
         out_boxes, out_scores, out_labels, out_batch = [], [], [], []
         for i in range(batch_size):
             boxes3d = preds[i]["pred_boxes"]
@@ -1144,6 +1147,8 @@ class LIONDetection(DetectionModel):
         upsample_strides: 2D backbone upsample factors per level.
         num_upsample_filters: 2D backbone upsample channels per level.
         feature_map_stride: BEV stride of the head.
+        local_max_classes: Crowded small-object class indices passed to the head (nuScenes pedestrian /
+            traffic-cone); see [`TransFusionHead`][torch_pointcloud.models.lion.TransFusionHead].
         d_state: SSM state width.
         d_conv: Causal-conv kernel width.
         expand: Inner-width expansion factor of the Mamba operator.
@@ -1169,6 +1174,7 @@ class LIONDetection(DetectionModel):
         upsample_strides: Sequence[float] = (0.5, 1, 2),
         num_upsample_filters: Sequence[int] = (128, 128, 128),
         feature_map_stride: int = 2,
+        local_max_classes: Sequence[int] = (),
         d_state: int = 16,
         d_conv: int = 4,
         expand: int = 2,
@@ -1209,6 +1215,7 @@ class LIONDetection(DetectionModel):
             point_cloud_range,
             voxel_size,
             feature_map_stride=feature_map_stride,
+            local_max_classes=local_max_classes,
         )
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -1252,6 +1259,7 @@ class LIONDetection(DetectionModel):
         upsample_strides=(0.5, 1, 2),
         num_upsample_filters=(128, 128, 128),
         feature_map_stride=2,
+        local_max_classes=(8, 9),
         d_state=16,
         d_conv=4,
         expand=2,
