@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 import torch
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_geometric.nn.resolver import activation_resolver
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
@@ -207,7 +207,7 @@ class ConvResBlock1d(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        self.act = activation_resolver(act, **(act_kwargs or {})) if act is not None else nn.Identity()
+        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
         self.net1 = MLP(
             [channels, channels], act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs, plain_last=False
         )

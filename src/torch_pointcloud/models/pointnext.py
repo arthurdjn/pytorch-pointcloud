@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP, global_max_pool, global_mean_pool
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, PointNeXtSetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
@@ -708,7 +708,7 @@ class PointNeXtClassification(ClassificationModel):
                 plain_last=True,
             )
         else:
-            self.head = create_cls_head(num_features=self._embedding_dim, num_classes=self.num_classes)
+            self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self._embedding_dim, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -717,7 +717,7 @@ class PointNeXtClassification(ClassificationModel):
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(
@@ -904,7 +904,7 @@ class PointNeXtSegmentation(SegmentationModel):
                 plain_last=True,
             )
         else:
-            self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+            self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -912,7 +912,7 @@ class PointNeXtSegmentation(SegmentationModel):
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(

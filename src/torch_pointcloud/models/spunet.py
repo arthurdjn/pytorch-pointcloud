@@ -16,10 +16,11 @@ from typing import (
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseModule
+from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
@@ -59,7 +60,7 @@ class SparseBasicBlock(SparseModule):
         else:
             self.proj = spconv.SparseSequential(
                 spconv.SubMConv3d(in_channels, out_channels, kernel_size=1, bias=False),
-                normalization_resolver(norm, out_channels, **norm_kwargs),
+                create_norm(norm, out_channels, **norm_kwargs) or nn.Identity(),
             )
 
         self.conv1 = spconv.SubMConv3d(
@@ -70,7 +71,7 @@ class SparseBasicBlock(SparseModule):
             bias=bias,
             indice_key=indice_key,
         )
-        self.norm1 = normalization_resolver(norm, out_channels, **norm_kwargs)
+        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.conv2 = spconv.SubMConv3d(
             out_channels,
             out_channels,
@@ -79,8 +80,8 @@ class SparseBasicBlock(SparseModule):
             bias=bias,
             indice_key=indice_key,
         )
-        self.norm2 = normalization_resolver(norm, out_channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
+        self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
 
     def forward(self, x: "SparseConvTensor") -> "SparseConvTensor":
         residual = x
@@ -177,8 +178,8 @@ class SparseUNetEncoder(nn.Module):
                 bias=False,
                 indice_key="stem",
             ),
-            normalization_resolver(norm, base_channels, **norm_kwargs),
-            activation_resolver(act, **act_kwargs),
+            create_norm(norm, base_channels, **norm_kwargs) or nn.Identity(),
+            create_act(act, **act_kwargs) or nn.Identity(),
         )
 
         self.down = nn.ModuleList()
@@ -196,8 +197,8 @@ class SparseUNetEncoder(nn.Module):
                         bias=False,
                         indice_key=f"spconv{s + 1}",
                     ),
-                    normalization_resolver(norm, self.channels[s], **norm_kwargs),
-                    activation_resolver(act, **act_kwargs),
+                    create_norm(norm, self.channels[s], **norm_kwargs) or nn.Identity(),
+                    create_act(act, **act_kwargs) or nn.Identity(),
                 )
             )
             self.enc.append(
@@ -320,8 +321,8 @@ class SparseUNetDecoder(nn.Module):
                         bias=False,
                         indice_key=f"spconv{s + 1}",
                     ),
-                    normalization_resolver(norm, dec_out, **norm_kwargs),
-                    activation_resolver(act, **act_kwargs),
+                    create_norm(norm, dec_out, **norm_kwargs) or nn.Identity(),
+                    create_act(act, **act_kwargs) or nn.Identity(),
                 )
             )
             self.dec.append(

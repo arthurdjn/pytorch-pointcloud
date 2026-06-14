@@ -2,10 +2,12 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.imports import optional_import
+
+from .act import create_act
+from .norms import create_norm
 
 if TYPE_CHECKING:
     import ocnn
@@ -50,8 +52,8 @@ class OctreeConvBlock(nn.Module):
             direct_method=direct_method,
             max_buffer=max_buffer,
         )
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
+        self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.act_first = act_first
 
     def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:
@@ -98,8 +100,8 @@ class OctreeDeconvBlock(nn.Module):
             use_bias=bias,
             max_buffer=max_buffer,
         )
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs)
-        self.act = activation_resolver(act, **act_kwargs)
+        self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.act_first = act_first
 
     def forward(self, x: Tensor, octree: Octree, depth: int) -> Tensor:

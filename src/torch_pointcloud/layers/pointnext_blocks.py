@@ -44,7 +44,6 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing, radius, radius_graph
 from torch_geometric.nn.inits import reset
-from torch_geometric.nn.resolver import activation_resolver
 from torch_geometric.typing import Adj, NoneType, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
@@ -52,6 +51,7 @@ from typing_extensions import Unpack
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
+from .act import create_act
 from .pointnet2_blocks import PointNet2SetAbstraction
 
 
@@ -265,7 +265,7 @@ class PointNeXtResidualBlock(nn.Module):
         self.ratio = ratio
         self.radius = radius
         self.num_neighbors = num_neighbors
-        self.act = activation_resolver(act, **act_kwargs)
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
 
         # NOTE: use the PointNeXtConv instead of the PointNeXtSetAbstraction layer to create a larger skip connection:
         # x -> conv -> mlp -> x + identity

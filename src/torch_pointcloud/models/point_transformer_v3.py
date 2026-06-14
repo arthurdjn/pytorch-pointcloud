@@ -4,13 +4,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import PoolLike, create_cls_head, create_pool
+from torch_pointcloud.layers import PoolLike, create_pool
+from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
 from torch_pointcloud.layers.linear_blocks import LinearBlock
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.serialized_attention import (
     SerializedAttention,
     SerializedAttentionRoPE,
@@ -146,9 +147,9 @@ class Block(nn.Module):
             indice_key=cpe_indice_key,
         )
         self.cpe_proj = nn.Linear(channels, channels)
-        self.cpe_norm = normalization_resolver("layer_norm", channels, mode="node")
+        self.cpe_norm = create_norm("layer_norm", channels, mode="node") or nn.Identity()
 
-        self.norm1 = normalization_resolver("layer_norm", channels, mode="node")
+        self.norm1 = create_norm("layer_norm", channels, mode="node") or nn.Identity()
         self.attn = _build_attention(
             attn_kind,
             channels=channels,
@@ -164,10 +165,10 @@ class Block(nn.Module):
             rope_base=rope_base,
         )
 
-        self.norm2 = normalization_resolver("layer_norm", channels, mode="node")
+        self.norm2 = create_norm("layer_norm", channels, mode="node") or nn.Identity()
         self.mlp = nn.Sequential(
             nn.Linear(channels, int(channels * mlp_ratio)),
-            activation_resolver(act, **act_kwargs),
+            create_act(act, **act_kwargs) or nn.Identity(),
             nn.Dropout(proj_drop),
             nn.Linear(int(channels * mlp_ratio), channels),
             nn.Dropout(proj_drop),
@@ -1073,7 +1074,7 @@ class PointTransformerV3Classification(ClassificationModel):
         )
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
@@ -1092,7 +1093,7 @@ class PointTransformerV3Classification(ClassificationModel):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = create_cls_head(num_features=self.embedding_dim, num_classes=self.num_classes, **kwargs)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
     def forward_features(
@@ -1286,7 +1287,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
             legacy=legacy,
         )
         self.dropout = dropout
-        self.head = create_cls_head(num_features=self.out_channels, num_classes=self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:

@@ -4,9 +4,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Tuple,
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn.resolver import activation_resolver, normalization_resolver
 
 from torch_pointcloud.utils.imports import optional_import
+
+from .act import create_act
+from .norms import create_norm
 
 if TYPE_CHECKING:
     import torch_scatter
@@ -39,8 +41,8 @@ class SerializedPool(nn.Module):
         self.stride = stride
         self.reduce = reduce
         self.proj = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = normalization_resolver(norm, out_channels, **norm_kwargs) if norm is not None else None
-        self.act = activation_resolver(act, **act_kwargs) if act is not None else None
+        self.norm = create_norm(norm, out_channels, **norm_kwargs)
+        self.act = create_act(act, **act_kwargs)
 
     @overload
     def forward(
@@ -119,11 +121,11 @@ class SerializedUpsample(nn.Module):
         self.proj = nn.Linear(self.in_channels, self.out_channels, bias=self.bias)
         self.proj_skip = nn.Linear(self.skip_channels, self.out_channels, bias=self.bias)
 
-        self.norm = normalization_resolver(norm, self.out_channels, **norm_kwargs) if norm is not None else None
-        self.norm_skip = normalization_resolver(norm, self.out_channels, **norm_kwargs) if norm is not None else None
+        self.norm = create_norm(norm, self.out_channels, **norm_kwargs)
+        self.norm_skip = create_norm(norm, self.out_channels, **norm_kwargs)
 
-        self.act = activation_resolver(act, **act_kwargs) if act is not None else None
-        self.act_skip = activation_resolver(act, **act_kwargs) if act is not None else None
+        self.act = create_act(act, **act_kwargs)
+        self.act_skip = create_act(act, **act_kwargs)
 
     @overload
     def forward(
