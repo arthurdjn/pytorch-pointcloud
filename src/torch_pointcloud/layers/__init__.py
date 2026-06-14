@@ -14,7 +14,6 @@ from .anchors import (
     AnchorHeadSingle,
     MultiGroupSingleHead,
     generate_anchors,
-    limit_period,
     separate_branch,
 )
 from .bev_backbone import BaseBEVBackbone, BaseBEVResBackbone, BasicBlock2d

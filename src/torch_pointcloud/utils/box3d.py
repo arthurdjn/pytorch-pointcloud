@@ -6,6 +6,7 @@ Corners are $(\ldots, 8, 3)$ with the top face (max $z$) first; IoU is frame-inv
 in any right-handed frame.
 """
 
+import math
 from typing import Tuple
 
 import numpy as np
@@ -85,6 +86,11 @@ def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos:
         rg = rt + ra
     cgs = [t + a for t, a in zip(cts, cas)]
     return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
+
+
+def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> Tensor:
+    r"""Wrap an angle to $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$."""
+    return val - torch.floor(val / period + offset) * period
 
 
 def _polygon_clip(subject: np.ndarray, clip: np.ndarray) -> np.ndarray:
