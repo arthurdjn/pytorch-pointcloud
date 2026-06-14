@@ -24,7 +24,7 @@ from typing_extensions import NotRequired, override
 import torch_pointcloud.transforms as T
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import transform_points, vertex_normals
-from torch_pointcloud.utils.io import load_json, load_safetensors, save_safetensors
+from torch_pointcloud.utils.io import load_json
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
@@ -802,7 +802,7 @@ class ScanNet(PointCloudDataset):
 
     @property
     def processed_files(self) -> List[Path]:
-        return sorted(list(Path(self.processed_dir, self.split).glob("*.safetensors")))
+        return sorted(p.parent for p in Path(self.processed_dir, self.split).glob("*/pos.npy"))
 
     def processed_files_exist(self) -> bool:
         return len(self.processed_files) > 0
@@ -919,10 +919,15 @@ class ScanNet(PointCloudDataset):
                 warnings.warn(f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning)
                 return
 
-            dst_path = Path(self.processed_dir, self.split, f"{scene_id}.safetensors")
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(data, dst_path)
-            save_safetensors(dst_path, data)
+            scene_dir = Path(self.processed_dir, self.split, scene_id)
+            scene_dir.mkdir(parents=True, exist_ok=True)
+            np.save(scene_dir / "pos.npy", data["pos"].numpy())
+            np.save(scene_dir / "color.npy", data["color"].numpy())
+            np.save(scene_dir / "normal.npy", data["normal"].numpy())
+            if "segment" in data:
+                np.save(scene_dir / "segment.npy", data["segment"].numpy())
+            if "instance" in data:
+                np.save(scene_dir / "instance.npy", data["instance"].numpy())
 
         parallel_map(
             process_scene,
@@ -949,7 +954,16 @@ class ScanNet(PointCloudDataset):
             total=len(self.processed_files),
             disable=not show_progress,
         ):
-            scene = load_safetensors(path)
+            scene: Dict[str, Any] = {
+                "pos": torch.from_numpy(np.load(path / "pos.npy")),
+                "color": torch.from_numpy(np.load(path / "color.npy")),
+                "normal": torch.from_numpy(np.load(path / "normal.npy")),
+                "scene": path.name,
+            }
+            if (path / "segment.npy").exists():
+                scene["segment"] = torch.from_numpy(np.load(path / "segment.npy"))
+            if (path / "instance.npy").exists():
+                scene["instance"] = torch.from_numpy(np.load(path / "instance.npy"))
             if block_size is not None and block_size > 0:
                 blocks = tile_scannet_scene(
                     scene,
@@ -1041,7 +1055,16 @@ class ScanNet20(ScanNet):
             total=len(self.processed_files),
             disable=not show_progress,
         ):
-            scene = load_safetensors(path)
+            scene: Dict[str, Any] = {
+                "pos": torch.from_numpy(np.load(path / "pos.npy")),
+                "color": torch.from_numpy(np.load(path / "color.npy")),
+                "normal": torch.from_numpy(np.load(path / "normal.npy")),
+                "scene": path.name,
+            }
+            if (path / "segment.npy").exists():
+                scene["segment"] = torch.from_numpy(np.load(path / "segment.npy"))
+            if (path / "instance.npy").exists():
+                scene["instance"] = torch.from_numpy(np.load(path / "instance.npy"))
             scene = self.relabel(scene)
             if block_size is not None and block_size > 0:
                 blocks = tile_scannet_scene(
@@ -1123,7 +1146,16 @@ class ScanNet200(ScanNet):
             total=len(self.processed_files),
             disable=not show_progress,
         ):
-            scene = load_safetensors(path)
+            scene: Dict[str, Any] = {
+                "pos": torch.from_numpy(np.load(path / "pos.npy")),
+                "color": torch.from_numpy(np.load(path / "color.npy")),
+                "normal": torch.from_numpy(np.load(path / "normal.npy")),
+                "scene": path.name,
+            }
+            if (path / "segment.npy").exists():
+                scene["segment"] = torch.from_numpy(np.load(path / "segment.npy"))
+            if (path / "instance.npy").exists():
+                scene["instance"] = torch.from_numpy(np.load(path / "instance.npy"))
             scene = self.relabel(scene)
             if block_size is not None and block_size > 0:
                 blocks = tile_scannet_scene(
