@@ -62,4 +62,4 @@ def test_create_model_unknown_name_raises() -> None:
 
 def test_create_model_invalid_task_raises() -> None:
     with pytest.raises(ValueError, match="Invalid model task"):
-        create_model("dummy.classification", task="invalid")
+        create_model("dummy.classification", task="invalid")  # type: ignore[call-overload]
