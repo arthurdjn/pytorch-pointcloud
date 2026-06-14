@@ -10,6 +10,8 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
+from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -17,7 +19,6 @@ from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
 from ._registry import register_model
-from .voxel_mamba import BaseBEVResBackbone, DynamicMeanVFE
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
