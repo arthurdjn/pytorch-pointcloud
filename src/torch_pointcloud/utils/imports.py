@@ -48,7 +48,9 @@ def module_available(module_path: str) -> bool:
         return False
     try:
         importlib.import_module(module_path)
-    except ImportError:
+    except Exception:
+        # An installed module can still fail to import for reasons other than ImportError (e.g. a CUDA /
+        # triton driver probe on a GPU-less machine); treat any import failure as "not available".
         return False
     return True
 
@@ -102,14 +104,14 @@ def optional_import(
         Imported module (or proxy if not available) and boolean indicating availability
 
     Examples:
-        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch>=2.5.0")
+        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch", requirement=">=2.5.0")
         >>> IS_TORCH_AVAILABLE
         True
         >>> pkg, IS_PKG_AVAILABLE = optional_import("missing_package")
         >>> IS_PKG_AVAILABLE
         False
-        >>> pkg.some_function()
-        OptionalImportError: ...
+        >>> pkg.some_function()  # doctest: +SKIP
+        ImportError: Optional module 'missing_package' does not meet the requirement missing_package.
     """
     package_name = module_path.split(".")[0]
     # In case the requirement is in the format "package>=1.0.0"

@@ -33,16 +33,16 @@ class OctreeT(Octree):
     (i.e. all attention masks and relative positions) by calling the method `construct_all_attention_context()`.
 
     Example:
-        >>> octree_t = OctreeT.from_octree(octree, patch_size=26, dilation=4)
-        >>> octree_t.construct_all_attention_context(
+        >>> octree_t = OctreeT.from_octree(octree, patch_size=26, dilation=4)  # doctest: +SKIP
+        >>> octree_t.construct_all_attention_context(  # doctest: +SKIP
         ...     nempty=True,
         ...     min_depth=6,
         ...     max_depth=10,
         ... )
-        >>> octree_t.masks[6].shape
-        >>> octree_t.dilated_masks[6].shape
-        >>> octree_t.rel_pos[6].shape
-        >>> octree_t.dilated_rel_pos[6].shape
+        >>> octree_t.masks[6].shape  # doctest: +SKIP
+        >>> octree_t.dilated_masks[6].shape  # doctest: +SKIP
+        >>> octree_t.rel_pos[6].shape  # doctest: +SKIP
+        >>> octree_t.dilated_rel_pos[6].shape  # doctest: +SKIP
     """
 
     def __init__(

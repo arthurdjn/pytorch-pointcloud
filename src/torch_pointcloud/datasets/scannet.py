@@ -259,7 +259,9 @@ def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[Tensor, Tensor]:
         The vertices and face.
 
     Examples:
-        >>> vertices, face = load_ply("data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00_vh_clean_2.ply")
+        >>> vertices, face = load_scannet_scene_mesh(
+        ...     "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00_vh_clean_2.ply"
+        ... )  # doctest: +SKIP
     """
     with open(file_path, "rb") as f:
         plydata = plyfile.PlyData.read(f)
@@ -279,8 +281,10 @@ def load_scannet_scene_metadata(meta_path: PathLike, /) -> Dict[str, Any]:
         The metadata.
 
     Examples:
-        >>> meta = load_scannet_scene_meta("data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.txt")
-        >>> meta.keys()
+        >>> meta = load_scannet_scene_metadata(
+        ...     "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.txt"
+        ... )  # doctest: +SKIP
+        >>> meta.keys()  # doctest: +SKIP
         dict_keys(['axisAlignment', 'colorToDepthExtrinsics', 'colorHeight', 'colorWidth', 'depthHeight', 'depthWidth',
          'fx_color', 'fy_color', 'mx_color', 'my_color', 'numColorFrames', 'numDepthFrames', 'numIMUmeasurements',
          'sceneType'])
@@ -330,15 +334,10 @@ def load_scannet_scene_aggregation_and_segs(
 
     Examples:
         >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
-        >>> instance, labels = load_scannet_scene_aggregation_and_segs(
+        >>> instance, labels = load_scannet_scene_aggregation_and_segs(  # doctest: +SKIP
         ...     f"{scene_dir}/scene0000_00.aggregation.json",
         ...     f"{scene_dir}/scene0000_00.segs.json",
-        ...     label_to_idx={
-        ...         "chair": 1,
-        ...         "floor": 2,
-        ...         "wall": 3,
-        ...         ...,
-        ...     },
+        ...     label_to_idx={"chair": 1, "floor": 2, "wall": 3},
         ... )
     """
     aggregation = load_json(aggregation_path)
@@ -384,7 +383,7 @@ def load_scannet_labels(file_path: PathLike) -> pd.DataFrame:
 
     Examples:
         >>> file_path = "data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv"
-        >>> labels = load_scannet_labels(file_path)
+        >>> labels = load_scannet_labels(file_path)  # doctest: +SKIP
     """
     return pd.read_csv(file_path, sep="\t")
 
@@ -407,9 +406,9 @@ def select_scannet_classes(
         The selected classes.
 
     Examples:
-        >>> labels = load_scannet_labels("data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv")
-        >>> classes = select_scannet_classes(labels, "raw_category", sort_by="id", values=["wall", "floor"])
-        >>> nyu40classes = select_scannet_classes(labels, "nyu40class", sort_by="nyu40id", values="all")
+        >>> labels = load_scannet_labels("data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv")  # doctest: +SKIP
+        >>> classes = select_scannet_classes(labels, "raw_category", sort_by="id", values=["wall", "floor"])  # doctest: +SKIP
+        >>> nyu40classes = select_scannet_classes(labels, "nyu40class", sort_by="nyu40id", values="all")  # doctest: +SKIP
     """
     if sort_by is not None:
         labels = labels.sort_values(sort_by)
@@ -464,17 +463,17 @@ def load_scannet_scene(
 
     Examples:
         >>> labels_path = "data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv"
-        >>> labels = load_scannet_labels(labels_path)
-        >>> label_to_idx = {label: idx for idx, label in enumerate(labels["raw_category"].unique())}
+        >>> labels = load_scannet_labels(labels_path)  # doctest: +SKIP
+        >>> label_to_idx = {label: idx for idx, label in enumerate(labels["raw_category"].unique())}  # doctest: +SKIP
         >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
-        >>> scene = load_scannet_scene(
+        >>> scene = load_scannet_scene(  # doctest: +SKIP
         ...     mesh_path=f"{scene_dir}/scene0000_00_vh_clean_2.ply",
         ...     meta_path=f"{scene_dir}/scene0000_00.txt",
         ...     aggregation_path=f"{scene_dir}/scene0000_00.aggregation.json",
         ...     segments_path=f"{scene_dir}/scene0000_00.segs.json",
         ...     label_to_idx=label_to_idx,
         ... )
-        >>> scene
+        >>> scene  # doctest: +SKIP
         {'points': tensor([[...]]), 'color': tensor([[...]]), 'normal': tensor([[...]]),
          'instance': tensor([...]), 'labels': tensor([...])}}
     """

@@ -52,8 +52,8 @@ def transform_points(points: Tensor, transform: Tensor) -> Tensor:
         >>> points = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         >>> transform = torch.tensor([[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 2.0], [0.0, 0.0, 1.0, 3.0], [0.0, 0.0, 0.0, 1.0]])
         >>> transform_points(points, transform)
-        tensor([[2.0, 4.0, 6.0],
-                [5.0, 7.0, 9.0]])
+        tensor([[2., 4., 6.],
+                [5., 7., 9.]])
     """
     N, _ = points.shape
 

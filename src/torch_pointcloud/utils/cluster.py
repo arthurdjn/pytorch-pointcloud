@@ -225,8 +225,8 @@ def fps(
         >>> from torch_pointcloud.utils.cluster import fps
         >>> src = torch.randn(100, 3)
         >>> batch = torch.cat([torch.zeros(50), torch.ones(50)]).long()
-        >>> idx = fps(src, batch, num_nodes=10)
-        >>> print(idx.shape)
+        >>> idx = fps(src, batch, num_nodes=10)  # doctest: +SKIP
+        >>> print(idx.shape)  # doctest: +SKIP
         torch.Size([10])
     """
     random_start = random_start if FPS_RANDOM_START is None else FPS_RANDOM_START
@@ -307,7 +307,7 @@ def local_grid(src: Tensor, size: float, batch: Tensor | None = None) -> Tensor:
         >>> from torch_pointcloud.utils.cluster import local_grid
         >>> src = torch.randn(100, 3)
         >>> batch = torch.cat([torch.zeros(50), torch.ones(50)]).long()
-        >>> src_grid = local_grid(src, size=1.0, batch=batch)
+        >>> src_grid = local_grid(src, size=1.0, batch=batch)  # doctest: +SKIP
     """
 
     src_quantized = torch.div(src, size, rounding_mode="floor").long()

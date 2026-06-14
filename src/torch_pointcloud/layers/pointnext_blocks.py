@@ -15,10 +15,10 @@ which allows for local aggregation of features.
 
 You can use it as follows:
 
-```python
+```{.python notest}
 import torch
 from torch_geometric.nn import MLP, radius_graph
-from torch_pointcloud.layers.point_next_conv import PointNeXtConv
+from torch_pointcloud.layers import PointNeXtConv
 
 torch.manual_seed(0)
 x = torch.randn(10, 10)
