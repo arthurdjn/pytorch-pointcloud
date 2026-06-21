@@ -38,7 +38,7 @@ echo ">>> Installing dwconv"
 uv pip install --no-config --no-cache-dir --no-build-isolation "dwconv @ git+https://github.com/octree-nn/dwconv.git"
 
 echo ">>> Installing torchsparse"
-uv pip install --no-config --no-deps --no-cache-dir --no-build-isolation "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git"
+uv pip install --no-config --no-deps --no-cache-dir --no-build-isolation "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git@385f5ce8718fcae93540511b7f5832f4e71fd835"
 
 echo ">>> Installing fvdb-core (CUDA 12.8 build from the official fVDB index)"
 uv pip install --no-config --no-deps "fvdb-core==0.4.2+pt210.cu128" --extra-index-url https://d36m13axqqhiit.cloudfront.net/simple
