@@ -193,8 +193,8 @@ def farthest_point_sample(
         >>> import torch
         >>> from torch_pointcloud.transforms.functional import farthest_point_sample
         >>> pos = torch.randn(100, 3)
-        >>> idx = farthest_point_sample(pos, num_samples=10)
-        >>> print(idx.shape)
+        >>> idx = farthest_point_sample(pos, num_samples=10)  # doctest: +SKIP
+        >>> print(idx.shape)  # doctest: +SKIP
         torch.Size([10])
     """
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
@@ -522,7 +522,7 @@ def split_batch(batch: Tensor, max_size: int) -> Tensor:
     Examples:
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 1, 1, 1, 1, 2, 2, 3])
-        >>> split_batch(batch, size=2)
+        >>> split_batch(batch, max_size=2)
         tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])
     """
     device = batch.device
@@ -590,7 +590,7 @@ def abs(x: Tensor, inplace: bool = False) -> Tensor:
         >>> import torch_pointcloud.transforms.functional as F
         >>> x = torch.tensor([-1.0, 2.0, -3.0])
         >>> F.abs(x)
-        tensor([1.0, 2.0, 3.0])
+        tensor([1., 2., 3.])
     """
     if inplace:
         x.abs_()
@@ -719,7 +719,7 @@ def apply_mask(x: Tensor, mask: Tensor) -> Tensor:
         >>> x = torch.tensor([1.0, 2.0, 3.0])
         >>> mask = torch.tensor([True, False, True])
         >>> F.apply_mask(x, mask)
-        tensor([1.0, 3.0])
+        tensor([1., 3.])
     """
     return x[mask]
 
@@ -744,7 +744,7 @@ def shift(
     so axes not listed are left untouched. This is the composable knob for
     mixed-method shifts:
 
-    ```python
+    ```{.python notest}
     # Pointcept-style centering: XY by bbox-mid, Z by min
     x = F.shift(x, method="bbox", axes=[0, 1])
     x = F.shift(x, method="min",  axes=[2])

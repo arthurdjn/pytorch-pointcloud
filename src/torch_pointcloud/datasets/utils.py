@@ -35,9 +35,9 @@ def urltailname(url: str) -> str:
 
     Examples:
         >>> urltailname("https://example.com/file.zip")
-        "file.zip"
+        'file.zip'
         >>> urltailname("https://example.com/path/to/my%20file.zip")
-        "my file.zip"
+        'my file.zip'
     """
     return unquote(urlparse(url).path.split("/")[-1])
 
@@ -65,7 +65,7 @@ def urlsize(
         The size of the URL in bytes.
 
     Examples:
-        >>> urlsize("https://example.com/file.zip")
+        >>> urlsize("https://example.com/file.zip")  # doctest: +SKIP
         1024
     """
     req = Request(url, method="HEAD")
@@ -99,9 +99,9 @@ def download_url(
         The local path to the downloaded file.
 
     Examples:
-        >>> download_url("https://example.com/file.zip")
+        >>> download_url("https://example.com/file.zip")  # doctest: +SKIP
         "file.zip"
-        >>> download_url("https://example.com/my%20file.zip", "my_file.zip", show_progress=False)
+        >>> download_url("https://example.com/my%20file.zip", "my_file.zip", show_progress=False)  # doctest: +SKIP
         "my_file.zip"
     """
     file_path = Path(file_path if file_path else urltailname(url))
@@ -148,7 +148,7 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
         The path to the extracted directory.
 
     Examples:
-        >>> extract_zip("A.zip", "A")
+        >>> extract_zip("A.zip", "A")  # doctest: +SKIP
         "A"
     """
     out_dir = Path(out_dir).resolve()
@@ -229,9 +229,9 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
         True if the hash of the file matches the expected hash, False otherwise.
 
     Examples:
-        >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "md5")
+        >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "md5")  # doctest: +SKIP
         False
-        >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "sha256")
+        >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "sha256")  # doctest: +SKIP
         True
     """
 

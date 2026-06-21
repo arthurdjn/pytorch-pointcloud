@@ -48,7 +48,9 @@ def module_available(module_path: str) -> bool:
         return False
     try:
         importlib.import_module(module_path)
-    except ImportError:
+    except Exception:
+        # An installed module can still fail to import for reasons other than ImportError (e.g. a CUDA /
+        # triton driver probe on a GPU-less machine); treat any import failure as "not available".
         return False
     return True
 
@@ -79,7 +81,9 @@ def check_requirement(requirement: str) -> bool:
             if not req.specifier.contains(Version(base_module.__version__)):
                 return False
         return True
-    except ImportError:
+    # A broken optional dependency (e.g. a CUDA / ABI mismatch in a source-built wheel) can raise more than
+    # ImportError at import time; treat any failure to load as "requirement not met" so callers get a proxy.
+    except Exception:
         return False
 
 
@@ -102,14 +106,14 @@ def optional_import(
         Imported module (or proxy if not available) and boolean indicating availability
 
     Examples:
-        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch>=2.5.0")
+        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch", requirement=">=2.5.0")
         >>> IS_TORCH_AVAILABLE
         True
         >>> pkg, IS_PKG_AVAILABLE = optional_import("missing_package")
         >>> IS_PKG_AVAILABLE
         False
-        >>> pkg.some_function()
-        OptionalImportError: ...
+        >>> pkg.some_function()  # doctest: +SKIP
+        ImportError: Optional module 'missing_package' does not meet the requirement missing_package.
     """
     package_name = module_path.split(".")[0]
     # In case the requirement is in the format "package>=1.0.0"
@@ -126,15 +130,25 @@ def optional_import(
             msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
         except AttributeError:
             msg = f"Optional module '{module_path}' is available but could not import '{name}' from '{module_path}'."
+        except Exception:
+            msg = f"Optional module '{module_path}' is installed but failed to load."
 
     msg = msg or f"Optional module '{module_path}' does not meet the requirement {package_name}{requirement}."
     if url:
         msg += f" Check official documentation to install it: {url}."
 
-    # Create a proxy that will raise an import error when used
+    # Create a proxy that raises an informative ImportError whenever the missing dependency is used. Dunder lookups
+    # are answered with AttributeError instead: they come from introspection machinery (e.g. doctest / inspect probing
+    # `__wrapped__` through `hasattr`, which only swallows AttributeError), so raising ImportError there would crash
+    # module collection on Python < 3.12 even though no real use of the dependency occurred.
+    def _getattr(name: str) -> Any:
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        raise ImportError(msg)
+
     class _Meta(type):
         def __getattr__(cls, name: str) -> Any:
-            raise ImportError(msg)
+            return _getattr(name)
 
         def __call__(cls, *args: Any, **kwargs: Any) -> Any:
             raise ImportError(msg)
@@ -144,7 +158,7 @@ def optional_import(
 
     class ModuleNotFoundProxy(metaclass=_Meta):
         def __getattr__(self, name: str) -> Any:
-            raise ImportError(msg)
+            return _getattr(name)
 
         def __call__(self, *args: Any, **kwargs: Any) -> Any:
             raise ImportError(msg)

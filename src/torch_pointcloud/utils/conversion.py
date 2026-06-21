@@ -164,7 +164,7 @@ def ensure_tuple(value: Any, recursive: bool = False, none_as_empty: bool = Fals
         ('test',)
         >>> ensure_tuple(np.array([1, 2, 3]))
         (1, 2, 3)
-        >>> ensure_tuple(torch.tensor([1, 2, 3], device="cuda"))
+        >>> ensure_tuple(torch.tensor([1, 2, 3], device="cuda"))  # doctest: +SKIP
         (1, 2, 3)
     """
     return ensure_iterable(value, tuple, recursive=recursive, none_as_empty=none_as_empty)
@@ -229,13 +229,15 @@ def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
 
     Examples:
         >>> ensure_option("one", ["one", "two"])  # Ok
-        "one"
+        'one'
         >>> ensure_option("one", Literal["one", "two"])  # Ok
-        "one"
+        'one'
         >>> ensure_option(1, Enum("Number", "ONE, TWO"))  # Ok
         1
         >>> ensure_option("three", ["one", "two"])  # Error
-        ValueError: Invalid option: "three". Valid options are: "one", "two".
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid option: 'three'. Valid options are: 'one', 'two'.
     """
     if get_origin(options) is Literal:
         values = get_args(options)
@@ -316,7 +318,7 @@ def offset_to_cu_seqlens(offset: Tensor) -> Tensor:
         >>> import torch
         >>> offset = torch.tensor([4, 7, 12])
         >>> offset_to_cu_seqlens(offset)
-        tensor([0, 4, 7, 12])
+        tensor([ 0,  4,  7, 12])
     """
     device, dtype = offset.device, offset.dtype
     return torch.cat([torch.tensor([0], device=device, dtype=dtype), offset])
@@ -336,7 +338,7 @@ def batch_to_offset(batch: Tensor) -> Tensor:
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
         >>> batch_to_offset(batch)
-        tensor([4, 7, 12])
+        tensor([ 4,  7, 12])
     """
     bincount = torch.bincount(batch)
     return torch.cumsum(bincount, dim=0)
@@ -385,7 +387,7 @@ def batch_to_cu_seqlens(batch: Tensor) -> Tensor:
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
         >>> batch_to_cu_seqlens(batch)
-        tensor([0, 4, 7, 12])
+        tensor([ 0,  4,  7, 12])
     """
     offset = batch_to_offset(batch)
     return offset_to_cu_seqlens(offset)
@@ -405,7 +407,7 @@ def bincount_to_offset(bincount: Tensor) -> Tensor:
         >>> import torch
         >>> bincount = torch.tensor([4, 3, 5])
         >>> bincount_to_offset(bincount)
-        tensor([4, 7, 12])
+        tensor([ 4,  7, 12])
     """
     return torch.cumsum(bincount, dim=0)
 
@@ -444,7 +446,7 @@ def bincount_to_cu_seqlens(bincount: Tensor) -> Tensor:
         >>> import torch
         >>> bincount = torch.tensor([4, 3, 5])
         >>> bincount_to_cu_seqlens(bincount)
-        tensor([0, 4, 7, 12])
+        tensor([ 0,  4,  7, 12])
     """
     offset = bincount_to_offset(bincount)
     return offset_to_cu_seqlens(offset)
@@ -464,7 +466,7 @@ def cu_seqlens_to_offset(cu_seqlens: Tensor) -> Tensor:
         >>> import torch
         >>> cu_seqlens = torch.tensor([0, 4, 7, 12])
         >>> cu_seqlens_to_offset(cu_seqlens)
-        tensor([4, 7, 12])
+        tensor([ 4,  7, 12])
     """
     return cu_seqlens[1:]
 
@@ -575,13 +577,15 @@ def convert_to_tensor(data: Any, /, strict: bool = True) -> Any:
         >>> convert_to_tensor(torch.tensor([1, 2, 3]))
         tensor([1, 2, 3])
         >>> convert_to_tensor({"a": [1, 2, 3], "b": 4})
-        {"a": tensor([1, 2, 3]), "b": tensor(4)}
+        {'a': tensor([1, 2, 3]), 'b': tensor(4)}
         >>> convert_to_tensor(None)
+        Traceback (most recent call last):
+            ...
         TypeError: Unsupported data type...
-        >>> convert_to_tensor(None, strict=False)
+        >>> print(convert_to_tensor(None, strict=False))
         None
         >>> convert_to_tensor("value", strict=False)
-        "value"
+        'value'
     """
     if isinstance(data, Tensor):
         return data
@@ -628,13 +632,15 @@ def convert_to_numpy(data: Any, /, strict: bool = True) -> Any:
         >>> convert_to_numpy(torch.tensor([1, 2, 3]))
         array([1, 2, 3])
         >>> convert_to_numpy({"a": [1, 2, 3], "b": 4})
-        {"a": array([1, 2, 3]), "b": np.array(4)}
+        {'a': array([1, 2, 3]), 'b': array(4)}
         >>> convert_to_numpy(None)
+        Traceback (most recent call last):
+            ...
         TypeError: Unsupported data type...
-        >>> convert_to_numpy(None, strict=False)
+        >>> print(convert_to_numpy(None, strict=False))
         None
         >>> convert_to_numpy("value", strict=False)
-        "value"
+        'value'
     """
     if isinstance(data, np.ndarray):
         return data
