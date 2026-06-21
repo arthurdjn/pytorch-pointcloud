@@ -137,10 +137,18 @@ def optional_import(
     if url:
         msg += f" Check official documentation to install it: {url}."
 
-    # Create a proxy that raises an informative ImportError whenever the missing dependency is used.
+    # Create a proxy that raises an informative ImportError whenever the missing dependency is used. Dunder lookups
+    # are answered with AttributeError instead: they come from introspection machinery (e.g. doctest / inspect probing
+    # `__wrapped__` through `hasattr`, which only swallows AttributeError), so raising ImportError there would crash
+    # module collection on Python < 3.12 even though no real use of the dependency occurred.
+    def _getattr(name: str) -> Any:
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        raise ImportError(msg)
+
     class _Meta(type):
         def __getattr__(cls, name: str) -> Any:
-            raise ImportError(msg)
+            return _getattr(name)
 
         def __call__(cls, *args: Any, **kwargs: Any) -> Any:
             raise ImportError(msg)
@@ -150,7 +158,7 @@ def optional_import(
 
     class ModuleNotFoundProxy(metaclass=_Meta):
         def __getattr__(self, name: str) -> Any:
-            raise ImportError(msg)
+            return _getattr(name)
 
         def __call__(self, *args: Any, **kwargs: Any) -> Any:
             raise ImportError(msg)
