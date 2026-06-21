@@ -3,7 +3,11 @@
 `torch-pointcloud.transforms` is the preprocessing layer. It is modelled on :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions: every transform operates on a `Dict[str, Tensor]` representing a **single scene** (one sample, pre-collate), and transforms chain via `Compose`.
 
 ```python
+import torch
 import torch_pointcloud.transforms as T
+
+pos = torch.randn(2048, 3)
+color = torch.rand(2048, 3)
 
 pipeline = T.Compose([
     T.Rescale(keys="pos", method="centroid"),
@@ -95,7 +99,7 @@ scene = pipeline({"pos": pos, "color": color})
 
 ### Pointcept-style scene centering
 
-```python
+```{.python continuation}
 T.Compose([
     T.Shift(keys="pos", method="bbox", axes=[0, 1]),  # XY: bbox midrange
     T.Shift(keys="pos", method="min",  axes=[2]),      # Z:  min
@@ -106,7 +110,7 @@ The two `Shift` calls touch disjoint axes, so they commute and produce the same 
 
 ### Unit-sphere normalization (ModelNet-style)
 
-```python
+```{.python continuation}
 T.Compose([
     T.Rescale(keys="pos", method="centroid"),
     T.RandomSample(keys=("pos", "normal"), num_samples=1024),
@@ -115,24 +119,24 @@ T.Compose([
 
 ### Voxel-prep for sparse-conv segmentation
 
-```python
+```{.python continuation}
 T.Compose([
     T.Shift(keys="pos", method="min"),
     T.Voxelize(
         pos_key="pos", pos_reduce="grid", size=0.04,
         keys=["color", "segment"], reduce=["mean", "first"],
-        cluster_key="cluster",
+        dst_inverse_key="cluster",
     ),
 ])
 ```
 
-`cluster_key` stores the inverse mapping so you can project predictions back to the full-resolution cloud at evaluation time.
+`dst_inverse_key` stores the inverse mapping so you can project predictions back to the full-resolution cloud at evaluation time.
 
 ## Going lower-level
 
 If you already have raw tensors and don't want a dict pipeline:
 
-```python
+```{.python continuation}
 import torch_pointcloud.transforms.functional as F
 
 pos = F.shift(pos, method="bbox", axes=[0, 1])

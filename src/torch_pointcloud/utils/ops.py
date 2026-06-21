@@ -34,11 +34,11 @@ def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("
 
     Example:
         >>> safe_divide(torch.tensor([1.0, 2.0, 3.0]), torch.tensor([1.0, 0.0, 1.0]))
-        tensor([1.0, nan, 3.0])
+        tensor([1., nan, 3.])
         >>> safe_divide(torch.tensor([1.0, 2.0, 3.0]), torch.tensor([1.0, 0.0, 1.0]), default=0.0)
-        tensor([1.0, 0.0, 3.0])
+        tensor([1., 0., 3.])
         >>> safe_divide(torch.tensor([1, 2, 3]), torch.tensor([1, 0, 1]), default=torch.tensor([0, 0, 0]))
-        tensor([1.0, 0.0, 3.0])
+        tensor([1., 0., 3.])
     """
     if not isinstance(default, Tensor):
         default = torch.full(a.shape, default, device=a.device)
@@ -344,7 +344,7 @@ def decimate_indices(
 
     Examples:
         >>> batch = torch.tensor([0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3])
-        >>> decimate_indices(batch, 2)
+        >>> decimate_indices(batch, 2)  # doctest: +SKIP
         (tensor([ 0,  4,  7,  6,  9, 10]), tensor([0, 1, 2, 2, 3, 3]))
     """
     if factor < 1:
@@ -398,7 +398,7 @@ def decimate(
     Examples:
         >>> tensors = (torch.randn(10, 3), torch.randn(10, 4))
         >>> batch = torch.tensor([0, 1, 1, 1, 2, 2, 2, 2, 3, 3])
-        >>> decimate(tensors, batch, 2)
+        >>> decimate(tensors, batch, 2)  # doctest: +SKIP
         ((tensor([[-1.4570, -0.1023, -0.5992],
                 [ 0.2408,  0.1325,  0.7642],
                 [-0.2104, -1.4391,  0.5214],

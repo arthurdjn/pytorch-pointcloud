@@ -18,7 +18,7 @@ class Inferer(metaclass=ABCMeta):
     Subclasses implement `forward`; `__call__` delegates to it, mirroring
     `torch.nn.Module`. To use an inferer, call the instance directly:
 
-    ```python
+    ```{.python notest}
     inferer = SomeInferer(...)
     logits = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
     ```

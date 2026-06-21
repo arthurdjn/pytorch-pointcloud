@@ -13,14 +13,13 @@ See [Installation](installation.md) for CUDA extensions and optional features.
 
 ## Hello, point cloud
 
-```python
+```{.python notest}
 import torch
 import torch_pointcloud as tp
 
-# 1. Build a pretrained model. `create_model` returns the model AND its
-#    matching transform pipeline; the transform converts raw point clouds
-#    into the dict shape the model expects.
-model = tp.create_model("pointnext-base.scanobjectnn", pretrained=True).eval()
+# 1. Build a pretrained model. `create_model` looks up the architecture by
+#    name and task, then loads its matching weights.
+model = tp.create_model("pointnext-base.scanobjectnn", task="classification", pretrained=True).eval()
 
 # 2. A toy "scene" with 2048 random points.
 pos = torch.randn(2048, 3)
@@ -38,7 +37,7 @@ The packed-batch convention comes from :pyg: PyTorch Geometric: instead of zero-
 
 ## With a real dataset
 
-```python
+```{.python notest}
 from torch.utils.data import DataLoader
 from torch_pointcloud.datasets import ModelNet10
 from torch_pointcloud.utils.data import collate

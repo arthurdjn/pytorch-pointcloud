@@ -2,10 +2,10 @@
 
 `torch-pointcloud` ships 22 architectures across point cloud classification, segmentation, and self-supervised pretraining. Every model is registered with a timm-style factory:
 
-```python
+```{.python notest}
 import torch_pointcloud as tp
 
-model = tp.create_model("pointnext-base.scanobjectnn", pretrained=True)
+model = tp.create_model("pointnext-base.scanobjectnn", task="classification", pretrained=True)
 ```
 
 Browse available checkpoints with `list_models(task="classification")` / `list_models(task="segmentation")` from `torch_pointcloud.models._registry`.
