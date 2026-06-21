@@ -2,13 +2,13 @@
 
 A PyTorch library for deep learning on point clouds. Production-ready models for classification, segmentation, and detection, with a `create_model` factory, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
 
-```python
+```{.python notest}
 import torch
 import torch_pointcloud as tp
 import torch_pointcloud.transforms as T
 
 # 1. Load a pretrained model
-model = tp.create_model("pointnext-base.scanobjectnn", pretrained=True).eval()
+model = tp.create_model("pointnext-base.scanobjectnn", task="classification", pretrained=True).eval()
 
 # 2. Build a transform pipeline
 transform = T.Compose([

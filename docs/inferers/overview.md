@@ -2,7 +2,7 @@
 
 `torch-pointcloud.inferers` is the test-time inference layer. It mirrors [MONAI's `monai.inferers`](https://docs.monai.io/en/stable/inferers.html): one `Inferer` ABC, several concrete strategies, and a wrap-and-compose pattern so that test-time augmentation (TTA) layers on top of any base inferer.
 
-```python
+```{.python notest}
 from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
 from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate
 

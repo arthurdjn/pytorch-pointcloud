@@ -18,7 +18,7 @@ from ._registry import register_model
 
 
 class PointNet2Encoder(nn.Module):
-    """PointNet++ encoder from the paper
+    r"""PointNet++ encoder from the paper
     :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
     by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
 

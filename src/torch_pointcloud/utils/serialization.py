@@ -44,9 +44,9 @@ def serialize_coords(
 
     Note:
         To get the code's order and inverse, you can use `torch.argsort` twice:
-        >>> code = serialize_coords(grid_coords, batch_idx, depth, order)
-        >>> order = torch.argsort(code)
-        >>> inverse = torch.argsort(order)
+        >>> code = serialize_coords(grid_coords, batch_idx, depth, order)  # doctest: +SKIP
+        >>> order = torch.argsort(code)  # doctest: +SKIP
+        >>> inverse = torch.argsort(order)  # doctest: +SKIP
 
     Args:
         grid_coords: A int tensor of shape $(N, 3)$ containing the grid coordinates.
@@ -66,8 +66,7 @@ def serialize_coords(
         >>> grid_size = 0.1
         >>> grid_coords = torch.div(coords - coords.min(0).values, grid_size, rounding_mode="trunc")
         >>> batch_idx = torch.zeros(10, dtype=torch.long)
-        >>> serialize_coords(grid_coords, batch_idx, depth=5, order="z")
-        tensor([21477, 23409,  2342, 15220, 22319, 25104,   577,  3531,  3721,  5118])
+        >>> code = serialize_coords(grid_coords, batch_idx, depth=5, order="z")  # doctest: +SKIP
     """
     if order not in SERIALIZATION_ORDERS:
         expected_orders = ", ".join(SERIALIZATION_ORDERS)

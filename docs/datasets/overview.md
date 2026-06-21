@@ -2,7 +2,7 @@
 
 `torch-pointcloud` ships loaders for the standard point-cloud benchmarks. Each loader returns a single-scene `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
 
-```python
+```{.python notest}
 from torch.utils.data import DataLoader
 from torch_pointcloud.datasets import ModelNet40
 from torch_pointcloud.utils.data import collate

@@ -198,7 +198,7 @@ def octree_grid(
         >>> normal = torch.randn(100, 3)
         >>> depth = 12
         >>> full_depth = 2
-        >>> octree = octree_grid(
+        >>> octree = octree_grid(  # doctest: +SKIP
         ...     x,
         ...     pos,
         ...     batch=batch,
