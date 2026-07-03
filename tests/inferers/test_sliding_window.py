@@ -215,6 +215,16 @@ def test_sliding_window_covers_all_points() -> None:
         assert (out != 0).all(), f"overlap={overlap}: some points have zero output"
 
 
+def test_sliding_window_accepts_integer_grid_coordinates() -> None:
+    """Integer `pos` (voxel grid coords) must not leak its dtype into the blend weights."""
+    data = _grid_data(steps=4)
+    data[DataKeys.POS] = data[DataKeys.POS].long()
+    pred = _constant_predictor(3.0, num_classes=4)
+    out = sliding_window_inference(data, predictor=pred, block_size=2.0, overlap=0.0, softmax=False)
+    assert out.shape == (64, 4)
+    assert torch.allclose(out, torch.full_like(out, 3.0))
+
+
 def test_sliding_window_roi_num_points_splits_block_into_capped_chunks() -> None:
     """A block larger than `roi_num_points` is split into random sub-batches within the
     cap; every point is still predicted exactly once.

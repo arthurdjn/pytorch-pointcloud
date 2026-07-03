@@ -137,7 +137,8 @@ def _assign_point_blocks(
             dist = torch.linalg.norm(pos_tiled[valid] - centres_v_tiled, dim=-1)
             w = gaussian_weights(dist, sigma)
         else:
-            w = pos.new_ones(int(valid.sum()))
+            # Blend weights are float even when `pos` holds integer grid coordinates.
+            w = pos.new_ones(int(valid.sum()), dtype=torch.float32)
         block_flat_list.append((i_v * strides).sum(dim=1))
         point_id_list.append(arange_n[valid])
         weight_list.append(w)
