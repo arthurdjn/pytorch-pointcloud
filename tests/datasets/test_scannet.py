@@ -30,6 +30,11 @@ def test_load_scannet_scene(datasets_dir: Path) -> None:
     assert data["normal"].shape[1] == 3
     assert data["instance"].ndim == 1
     assert data["segment"].ndim == 1
+    # Unlabeled vertices take instance -1, never 0: ScanNet `objectId`s are 0-based, and a shared id 0
+    # would merge unlabeled points into the first object's instance (corrupting derived boxes).
+    assert (data["instance"] == -1).any()
+    assert (data["instance"] == 0).any()
+    assert torch.unique(data["segment"][data["instance"] == 0]).numel() == 1
 
 
 def test_scannet_dataset_not_found() -> None:

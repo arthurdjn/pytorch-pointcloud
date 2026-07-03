@@ -35,6 +35,33 @@ SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
 
 SCANNET20_LABELS = [SCANNET_UNK_IDX, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+
+# 18-class ScanNet detection taxonomy (the standard votenet / 3DETR benchmark set): the SCANNET20 NYU40
+# ids minus the two "stuff" classes wall (1) and floor (2). Feed `SCANNET_DETECTION_LABELS` to `Relabel`
+# (with `default=-1`) so the segmentation labels map to 0..17 and everything else to -1, then `InstanceToBox`
+# (with `ignore_index=-1`) derives one box per remaining instance.
+SCANNET_DETECTION_LABELS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+SCANNET_DETECTION_CLASSES = [
+    "cabinet",
+    "bed",
+    "chair",
+    "sofa",
+    "table",
+    "door",
+    "window",
+    "bookshelf",
+    "picture",
+    "counter",
+    "desk",
+    "curtain",
+    "refrigerator",
+    "showercurtain",
+    "toilet",
+    "sink",
+    "bathtub",
+    "garbagebin",
+]
+
 SCANNET200_LABELS = [
     SCANNET_UNK_IDX,
     1,
@@ -330,7 +357,8 @@ def load_scannet_scene_aggregation_and_segs(
             Unrecognized categories map to 0 (unlabeled).
 
     Returns:
-        The instance and labels.
+        The per-vertex instance ids (the 0-based aggregation `objectId`, or `-1` for vertices in no
+        segment group) and labels.
 
     Examples:
         >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
@@ -351,7 +379,9 @@ def load_scannet_scene_aggregation_and_segs(
     for vi, seg_id in enumerate(seg_indices):
         seg_to_verts[seg_id].append(vi)
 
-    instance = np.full(num_vertices, SCANNET_UNK_IDX, dtype=np.int32)
+    # ScanNet `objectId`s are 0-based, so unlabeled vertices must not default to 0 (they would merge with
+    # the first object in per-instance grouping); -1 marks "no instance".
+    instance = np.full(num_vertices, -1, dtype=np.int32)
     labels = np.full(num_vertices, SCANNET_UNK_IDX, dtype=np.int32) if label_to_idx is not None else None
 
     for group in aggregation["segGroups"]:
