@@ -1,10 +1,24 @@
+"""Evaluate the Point-M2AE ShapeNetPart part-segmentation model (single-pass, no voting).
+
+`ShapeNetPart` -> `DataLoader` -> model -> argmax -> per-shape IoU averaged into instance / class mIoU.
+The registered transform normalizes each cloud to the unit sphere and one-hot encodes the category.
+
+Results vs reference (instance mIoU / class mIoU; paper Tab. 5):
+
+    | Variant                      | reference     | torch-pointcloud |
+    | ---------------------------- | ------------- | ---------------- |
+    | point-m2ae-base.shapenetpart | 86.51 / 84.86 | 86.17 / 84.60    |
+
+Usage:
+    uv run --no-sync python examples/point_m2ae_benchmark_shapenetpart.py
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -100,16 +114,15 @@ def evaluate(
     for data in pbar:
         pos = data[DataKeys.POS].to(device)
         segment = data[DataKeys.SEGMENT].to(device)
-        category = data[DataKeys.CATEGORY].to(device)
+        cat_onehot = data[DataKeys.CATEGORY].to(device)
         batch = data[DataKeys.BATCH].to(device)
 
-        cat_onehot = F.one_hot(category, num_categories).float()
         logits = model(None, pos, batch, cat_onehot)
         preds = logits.argmax(dim=1)
 
         inter, union = compute_intersection_union(preds, segment, num_classes, batch=batch)
         for b in range(inter.shape[0]):
-            cat_name = category_names[category[b].item()]
+            cat_name = category_names[int(cat_onehot[b].argmax().item())]
             parts = seg_ids[cat_name]
             iou_b = safe_divide(inter[b, parts], union[b, parts], default=1.0)
             shape_ious[cat_name].append(iou_b.mean().item())

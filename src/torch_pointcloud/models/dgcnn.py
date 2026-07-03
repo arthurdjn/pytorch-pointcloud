@@ -693,7 +693,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
         channels=[64, 64, 128, 256],
         proj_channels=1024,
         head_channels=[512, 256],
-        num_neighbors=20,
+        num_neighbors=40,
         act="leaky_relu",
         act_kwargs={"negative_slope": 0.2},
         act_first=False,
@@ -736,6 +736,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     ),
     transforms=T.Compose(
         [
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.FarthestPointSample(
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
                 pos_key=DataKeys.POS,
