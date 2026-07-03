@@ -867,7 +867,7 @@ def point_bert_base_modelnet40(**kwargs: Any) -> PointBERTClassification:
     task="classification",
     weights="hf://torch-pointcloud/point-bert/point-bert-base.modelnet40-4k.pth",
     transforms=_modelnet_transforms(4096),
-    hparams=dict(num_classes=40, **_CLS_HPARAMS),
+    hparams=dict(num_classes=40, **{**_CLS_HPARAMS, "num_group": 256}),
 )
 def point_bert_base_modelnet40_4k(**kwargs: Any) -> PointBERTClassification:
     return PointBERTClassification(**kwargs)
@@ -878,7 +878,7 @@ def point_bert_base_modelnet40_4k(**kwargs: Any) -> PointBERTClassification:
     task="classification",
     weights="hf://torch-pointcloud/point-bert/point-bert-base.modelnet40-8k.pth",
     transforms=_modelnet_transforms(8192),
-    hparams=dict(num_classes=40, **_CLS_HPARAMS),
+    hparams=dict(num_classes=40, **{**_CLS_HPARAMS, "num_group": 512}),
 )
 def point_bert_base_modelnet40_8k(**kwargs: Any) -> PointBERTClassification:
     return PointBERTClassification(**kwargs)
