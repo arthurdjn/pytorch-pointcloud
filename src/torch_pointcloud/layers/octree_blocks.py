@@ -13,8 +13,15 @@ if TYPE_CHECKING:
     import ocnn
     from ocnn.octree import Octree
 
-ocnn, _ = optional_import("ocnn")
+ocnn, _OCNN_AVAILABLE = optional_import("ocnn")
 Octree, _ = optional_import("ocnn.octree", "Octree")
+
+if _OCNN_AVAILABLE:
+    # OCNN 2.3.x defaults octree convs to a GPU-only Triton implicit-GEMM kernel whose split-K reductions
+    # drift from the deterministic GEMM the pretrained weights were exported with (and cannot run on CPU).
+    # Force the deterministic path so convs reproduce the reference outputs and run on CPU. Covers convs
+    # built outside `OctreeConvBlock` too (e.g. OctFormer's CPE `OctreeGroupConv`, which takes no `method`).
+    ocnn.nn.octree_conv.DISABLE_TRITON = True
 
 MAX_BUFFER = int(2e8)
 
@@ -33,7 +40,7 @@ class OctreeConvBlock(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        direct_method: bool = False,
+        method: str = "explicit_gemm",
         max_buffer: int = MAX_BUFFER,
     ):
         super().__init__()
@@ -49,7 +56,7 @@ class OctreeConvBlock(nn.Module):
             stride=stride,
             nempty=nempty,
             use_bias=bias,
-            direct_method=direct_method,
+            method=method,
             max_buffer=max_buffer,
         )
         self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
@@ -81,7 +88,7 @@ class OctreeDeconvBlock(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        direct_method: bool = False,
+        method: str = "explicit_gemm",
         max_buffer: int = MAX_BUFFER,
     ):
         super().__init__()
@@ -96,8 +103,8 @@ class OctreeDeconvBlock(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             nempty=nempty,
-            direct_method=direct_method,
             use_bias=bias,
+            method=method,
             max_buffer=max_buffer,
         )
         self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
