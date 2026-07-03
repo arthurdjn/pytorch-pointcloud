@@ -1134,6 +1134,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
     weights="hf://torch-pointcloud/point-m2ae/point-m2ae-base.shapenetpart.pth",
     transforms=T.Compose(
         [
+            T.Rescale(keys="pos", method="centroid"),
             T.FarthestPointSample(pos_key="pos", keys=("segment",), num_samples=2048, random_start=False),
             T.OneHot(keys="category", num_classes=16),
         ]
