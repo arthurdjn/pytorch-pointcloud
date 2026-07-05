@@ -57,7 +57,7 @@ jobs:
         if: matrix.python-version != '3.13'
         run: |
           uv pip install --no-config --torch-backend=cpu \
-            torch==2.6.0 torchvision==0.21.0 'ocnn==2.2.8' torch-scatter torch-cluster spconv \
+            torch==2.6.0 torchvision==0.21.0 'ocnn==2.3.2' torch-scatter torch-cluster spconv \
             -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
 
       # python 3.13: torchvision / ocnn / pyg have no 3.13 wheels yet, so install only torch + spconv.
