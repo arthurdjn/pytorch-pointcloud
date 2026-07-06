@@ -17,7 +17,7 @@ ModelNet10NormalResampled = functools.partial(ModelNetNormalResampled, variant="
 ModelNet10NormalResampled.__name__ = "ModelNetNormalResampled"  # type: ignore[attr-defined]
 ModelNet40NormalResampled = functools.partial(ModelNetNormalResampled, variant="40")
 ModelNet40NormalResampled.__name__ = "ModelNetNormalResampled"  # type: ignore[attr-defined]
-ModelNetDataset = Union[ModelNet10, ModelNet40]  # TODO: Type hint the ModelNetXXNormalResampled datasets?
+ModelNetDataset = Union[ModelNet10, ModelNet40]
 
 
 @pytest.mark.parametrize("dataset_name", ["ModelNet10", "ModelNet40"])

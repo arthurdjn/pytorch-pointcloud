@@ -157,11 +157,9 @@ def test_offset_conversions(
     result = offset_to_bincount(offset_tensor)
     assert torch.equal(result, bincount_tensor)
 
-    # Test offset -> batch
     result = offset_to_batch(offset_tensor)
     assert torch.equal(result, batch_tensor)
 
-    # Test offset -> cu_seqlens
     result = offset_to_cu_seqlens(offset_tensor)
     assert torch.equal(result, cu_seqlens_tensor)
 
@@ -176,11 +174,9 @@ def test_bincount_conversions(
     result = bincount_to_offset(bincount_tensor)
     assert torch.equal(result, offset_tensor)
 
-    # Test bincount -> batch
     result = bincount_to_batch(bincount_tensor)
     assert torch.equal(result, batch_tensor)
 
-    # Test bincount -> cu_seqlens
     result = bincount_to_cu_seqlens(bincount_tensor)
     assert torch.equal(result, cu_seqlens_tensor)
 
@@ -195,11 +191,9 @@ def test_cu_seqlens_conversions(
     result = cu_seqlens_to_offset(cu_seqlens_tensor)
     assert torch.equal(result, offset_tensor)
 
-    # Test cu_seqlens -> bincount
     result = cu_seqlens_to_bincount(cu_seqlens_tensor)
     assert torch.equal(result, bincount_tensor)
 
-    # Test cu_seqlens -> batch
     result = cu_seqlens_to_batch(cu_seqlens_tensor)
     assert torch.equal(result, batch_tensor)
 

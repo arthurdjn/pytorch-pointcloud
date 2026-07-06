@@ -22,7 +22,6 @@ def data() -> Dict[str, Tensor]:
     features = torch.randn(int(lengths.sum()), 3)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
 
-    # Create edge_index using radius_graph for realistic connectivity
     edge_index = radius_graph(pos, r=0.1, batch=batch, max_num_neighbors=16)
 
     return dict(
@@ -48,11 +47,9 @@ def test_pointnext_conv_with_pos_divisor(data: Dict[str, Tensor]) -> None:
     local_nn = MLP([3 + 3, 32])
     conv = PointNeXtConv(local_nn=local_nn, add_self_loops=True)
 
-    # Test with pos_divisor
     output = conv(data["features"], data["pos"], data["edge_index"], pos_divisor=0.1)
     assert output.shape == (len(data["pos"]), 32)
 
-    # Test without pos_divisor (should be equivalent to PointNetConv)
     output_no_div = conv(data["features"], data["pos"], data["edge_index"])
     assert output_no_div.shape == (len(data["pos"]), 32)
 
@@ -79,7 +76,6 @@ def test_pointnext_set_abstraction_basic(data: Dict[str, Tensor]) -> None:
 
     out_features, out_pos, out_batch = sa(data["features"], data["pos"], data["batch"])
 
-    # Check output shapes
     assert out_features.shape[1] == 32
     assert out_pos.shape[0] == out_features.shape[0] == out_batch.shape[0]
     assert out_pos.shape[1] == 3  # spatial_dim
@@ -99,7 +95,7 @@ def test_pointnext_set_abstraction_multiple_radii(data: Dict[str, Tensor]) -> No
 
     out_features, out_pos, out_batch = sa(data["features"], data["pos"], data["batch"])
 
-    # Should concatenate features from both radii
+    # Features from both radii are concatenated.
     assert out_features.shape[1] == 32 + 64
     assert out_pos.shape[0] == out_features.shape[0] == out_batch.shape[0]
 
@@ -115,7 +111,6 @@ def test_pointnext_set_abstraction_skip_connections(data: Dict[str, Tensor]) -> 
         num_neighbors=16,
     )
 
-    # Check that skip_convs are created
     assert len(sa.skip_convs) == 1
     assert sa.skip_convs[0] is not None
 
