@@ -1,7 +1,21 @@
-"""Benchmark PointNeXt part segmentation on ShapeNetPart.
+"""Evaluate the PointNeXt ShapeNetPart part-segmentation models (single-pass, no voting).
+
+`ShapeNetPart` -> `DataLoader` -> model -> argmax -> per-shape IoU averaged into instance / class mIoU.
+The category one-hot conditioning is written by the registered transform to `cls_onehot`.
+
+Results vs reference (instance mIoU / class mIoU; reference is the model-zoo checkpoint eval):
+
+    | Variant                        | reference   | torch-pointcloud |
+    | ------------------------------ | ----------- | ---------------- |
+    | pointnext-sm.shapenetpart      | 86.7 / 84.2 | 85.94 / 83.62    |
+    | pointnext-sm-c64.shapenetpart  | 86.9 / 85.2 | 85.79 / 84.26    |
+    | pointnext-sm-c160.shapenetpart | 87.1 / 85.4 | 86.24 / 84.58    |
+
+The model-zoo numbers use 10-vote logit averaging plus kNN part refinement; this script runs a single
+deterministic pass with global argmax.
 
 Usage:
-    python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm.shapenetpart
+    uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm.shapenetpart
 """
 
 import os

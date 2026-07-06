@@ -3,7 +3,17 @@
 By default, evaluates at full point resolution: voxel-level logits are
 broadcast back to all raw points via the inverse cluster mapping (matches
 Pointcept's val pipeline). Pass `--voxel-eval` to evaluate at voxel resolution
-(faster, but biased — small voxels weighted same as large ones).
+(faster, but biased: small voxels weighted same as large ones).
+
+Results (ScanNet val, full resolution, single pass):
+
+    | Variant               | reference | torch-pointcloud |
+    | --------------------- | --------- | ---------------- |
+    | spunet-v1m1.scannet20 | 75.67     | 70.02            |
+
+The reference is the checkpoint's 2023 training log (75.5 in the MSC paper). On currently processed
+ScanNet data the same checkpoint scores 71.81 in Pointcept's own pipeline, whose test protocol also
+votes over multiple fragments rather than this script's single pass.
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_scannet.py --limit 5
@@ -72,9 +82,9 @@ def evaluate(
         batch = data[DataKeys.BATCH].to(device)
 
         logits, latency_ms = predict(model, x, pos, batch, device)
-        inverse = data[DataKeys.INVERSE].to(device)  # (N_raw,) → voxel idx
-        target = data["origin_segment"].to(device)  # (N_raw,) raw labels (already 0-19)
-        preds = logits[inverse].argmax(dim=1)  # broadcast voxel preds to raw points
+        inverse = data[DataKeys.INVERSE].to(device)
+        target = data["origin_segment"].to(device)
+        preds = logits[inverse].argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
         total_latency_ms += latency_ms

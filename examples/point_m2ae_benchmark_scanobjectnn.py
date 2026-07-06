@@ -1,3 +1,19 @@
+"""Evaluate the Point-M2AE ScanObjectNN classifiers (single-pass, no voting).
+
+`ScanObjectNN` (variant selected per model) -> `DataLoader` -> model -> argmax -> overall accuracy, with
+the model's registered eval transform.
+
+Results vs reference (ScanObjectNN overall accuracy, paper Tab. 3):
+
+    | Variant                              | reference | torch-pointcloud |
+    | ------------------------------------ | --------- | ---------------- |
+    | point-m2ae-base.scanobjectnn-objbg   | 91.22     | 91.22            |
+    | point-m2ae-base.scanobjectnn-hardest | 86.43     | 86.54            |
+
+Usage:
+    uv run --no-sync python examples/point_m2ae_benchmark_scanobjectnn.py --model point-m2ae-base.scanobjectnn-objbg
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict

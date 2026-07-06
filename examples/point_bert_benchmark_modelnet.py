@@ -1,3 +1,21 @@
+"""Evaluate the Point-BERT ModelNet40 classifiers (single-pass, no voting).
+
+`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
+registered eval transform (FPS to the checkpoint's point count).
+
+Results vs reference (ModelNet40 overall accuracy; reference is the repo checkpoint eval without voting,
+the paper reports 93.2 / 93.4 / 93.8 with voting):
+
+    | Variant                       | reference | torch-pointcloud |
+    | ----------------------------- | --------- | ---------------- |
+    | point-bert-base.modelnet40    | 92.67     | 92.63            |
+    | point-bert-base.modelnet40-4k | 92.91     | 93.03            |
+    | point-bert-base.modelnet40-8k | 93.19     | 93.07            |
+
+Usage:
+    uv run --no-sync python examples/point_bert_benchmark_modelnet.py --model point-bert-base.modelnet40
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict

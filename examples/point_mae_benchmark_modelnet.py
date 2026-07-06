@@ -1,3 +1,22 @@
+"""Evaluate the Point-MAE ModelNet40 classifiers (single-pass, no voting).
+
+`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
+registered eval transform.
+
+Results vs reference (ModelNet40 overall accuracy, single-pass; the paper reports 93.8 with voting):
+
+    | Variant                      | reference | torch-pointcloud |
+    | ---------------------------- | --------- | ---------------- |
+    | point-mae-base.modelnet40    | 93.19     | 92.87            |
+    | point-mae-base.modelnet40-8k | 94.04     | 93.35            |
+
+The remaining gap is FPS sampling variance (reference CUDA FPS and `torch_cluster` FPS pick different
+point subsets).
+
+Usage:
+    uv run --no-sync python examples/point_mae_benchmark_modelnet.py --model point-mae-base.modelnet40
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict

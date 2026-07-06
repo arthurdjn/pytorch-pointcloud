@@ -8,10 +8,10 @@ map, so the reported mIoU is the full-resolution number.
 
 Results vs reference:
 
-    | Source               | SemanticKITTI val mIoU                                                   |
-    | -------------------- | ----------------------------------------------------------------------- |
-    | SphereFormer (paper) | 67.8                                                                    |
-    | torch-pointcloud     | not run (weights gone, dvlab issue #78); arch bit-exact to sptr (2.4e-7) |
+    | Source               | SemanticKITTI val mIoU                                                    |
+    | -------------------- | ------------------------------------------------------------------------- |
+    | SphereFormer (paper) | 67.8                                                                      |
+    | torch-pointcloud     | not run (weights gone, dvlab issue #78); arch bit-exact to sptr (2.4e-7)  |
 
 Usage:
     CUDA_VISIBLE_DEVICES=0 uv run --no-sync python examples/sphereformer_benchmark_semantickitti.py --limit 5

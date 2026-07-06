@@ -1,3 +1,23 @@
+"""Evaluate the Point-BERT ScanObjectNN classifiers (single-pass, no voting).
+
+`ScanObjectNN` (variant selected per model) -> `DataLoader` -> model -> argmax -> overall accuracy, with
+the model's registered eval transform.
+
+Results vs reference (ScanObjectNN overall accuracy, paper Tab. 4):
+
+    | Variant                              | reference | torch-pointcloud |
+    | ------------------------------------ | --------- | ---------------- |
+    | point-bert-base.scanobjectnn-objbg   | 87.43     | 87.44            |
+    | point-bert-base.scanobjectnn-objonly | 88.12     | 88.12            |
+    | point-bert-base.scanobjectnn-hardest | 83.07     | 83.07            |
+
+The released checkpoints keep a 40-wide classification head, which dilutes the printed mean-class
+accuracy; overall accuracy is the reference metric.
+
+Usage:
+    uv run --no-sync python examples/point_bert_benchmark_scanobjectnn.py --model point-bert-base.scanobjectnn-objbg
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict
