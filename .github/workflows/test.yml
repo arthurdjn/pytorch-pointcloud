@@ -6,6 +6,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_COLOR: "1"
+
 jobs:
   # Light tests with no extras (tests requiring extras should be skipped and core components should work)
   # This ensure that optional imports are wrapped with `optional_import`, such that importing them
