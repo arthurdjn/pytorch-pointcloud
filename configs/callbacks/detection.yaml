@@ -1,0 +1,6 @@
+# Default callbacks plus per-epoch 3D detection mAP at fixed IoU thresholds (indoor / nuScenes-mini
+# protocol; VoteNet additionally uses its own group with the BN-momentum decay).
+defaults:
+  - default
+  - val_map
+  - _self_

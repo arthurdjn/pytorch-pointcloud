@@ -1,0 +1,6 @@
+# Default callbacks plus per-class 3D AP at class-specific IoU thresholds (KITTI protocol);
+# the experiment sets `callbacks.val_ap.metric.iou_per_class` / `class_names`.
+defaults:
+  - default
+  - val_ap
+  - _self_

@@ -1,0 +1,49 @@
+# @package _global_
+# pointcnn-base part segmentation on ShapeNetPart, from-scratch recipe from examples/pointcnn_segmentation.py.
+# Run: uv run --no-sync python train.py experiment=pointcnn/shapenetpart
+# No pretrained weights are registered for pointcnn-base, so is meaningless here.
+defaults:
+  - override /datamodule: shapenetpart
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: pointcnn-base
+  pretrained: false
+  num_classes: 50
+  in_channels: 3
+  # The example feeds the raw coordinates as both features and positions: model(pos, pos, batch).
+  input_keys: [pos, pos, batch]
+  target_key: segment
+  scheduler_interval: step
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.006
+    total_steps: 38000 # ShapeNetPart train (12137 shapes) at batch_size 32 over 100 epochs
+    pct_start: 0.05
+    anneal_strategy: cos
+    div_factor: 10.0
+    final_div_factor: 1000.0
+
+# The example applies the same rescaling at train and test time (no sampling, no extra augmentation).
+datamodule:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Rescale
+      keys: pos
+
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Rescale
+      keys: pos

@@ -1,0 +1,20 @@
+# @package _global_
+# Point-BERT classification on ModelNet40 (normal-resampled).
+# Benchmark: uv run --no-sync python test.py experiment=point_bert/modelnet40
+#
+# | model.name                    | accuracy |
+# | ----------------------------- | -------- |
+# | point-bert-base.modelnet40    | 0.9267   |
+# | point-bert-base.modelnet40-4k | 0.9299   |
+# | point-bert-base.modelnet40-8k | 0.9307   |
+defaults:
+  - override /datamodule: modelnet40_normal_resampled
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: point-bert-base.modelnet40
+  num_classes: 40
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss

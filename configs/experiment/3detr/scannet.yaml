@@ -1,0 +1,63 @@
+# @package _global_
+# 3DETR 3D object detection on ScanNet-V2 (18-class).
+# Benchmark: uv run --no-sync python test.py experiment=3detr/scannet
+#
+# | model.name           | mAP@0.25 | mAP@0.5 |
+# | -------------------- | -------- | ------- |
+# | 3detr-fair-m.scannet | 0.6544   | 0.4809  |
+# | 3detr-fair.scannet   | 0.6179   | 0.3830  |
+defaults:
+  - override /datamodule: scannet
+  - override /model: detection
+  - override /callbacks: detection
+
+model:
+  name: 3detr-fair-m.scannet
+  input_keys: [x, pos, batch]
+  # RandomSample(40k) draw depends on seed and num_workers; seed=42 datamodule.num_workers=16 reproduces 0.6676/0.4777 bitwise.
+  score_threshold: 0.0
+  nms_iou: 0.25
+
+datamodule:
+  batch_size: 8
+  # Ragged GT boxes stay packed (emits batch_box).
+  cat_keys: [box]
+
+  # Boxes derive from raw NYU40 segments, so both splits use the base ScanNet dataset (axis-aligned instance boxes).
+  train_dataset:
+    _target_: torch_pointcloud.datasets.ScanNet
+    use_axis_alignment: true
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+          default: -1
+        - _target_: torch_pointcloud.transforms.InstanceToBox
+          ignore_index: -1
+        - _target_: torch_pointcloud.transforms.KeepItems
+          keys: [pos, box]
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, segment, instance]
+          num_samples: 40000
+          allow_missing_keys: true
+
+  val_dataset:
+    _target_: torch_pointcloud.datasets.ScanNet
+    use_axis_alignment: true
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+          default: -1
+        - _target_: torch_pointcloud.transforms.InstanceToBox
+          ignore_index: -1
+        - _target_: torch_pointcloud.transforms.KeepItems
+          keys: [pos, box]
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, segment, instance]
+          num_samples: 40000
+          allow_missing_keys: true

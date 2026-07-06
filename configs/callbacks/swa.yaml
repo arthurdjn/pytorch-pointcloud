@@ -2,5 +2,7 @@
 # Stochastic Weight Averaging: averages weights over the tail of training, a reliable mIoU boost at no
 # extra cost. Compose into an experiment by adding `- /callbacks/swa` to its defaults list.
 _target_: lightning.pytorch.callbacks.StochasticWeightAveraging
-swa_lrs: 0.001 # SWA-phase LR; tune per experiment (lower for AdamW, higher for SGD)
-swa_epoch_start: 0.75 # begin weight averaging in the last 25% of training
+# SWA-phase LR; tune per experiment (lower for AdamW, higher for SGD).
+swa_lrs: 0.001
+# Begin weight averaging in the last 25% of training.
+swa_epoch_start: 0.75

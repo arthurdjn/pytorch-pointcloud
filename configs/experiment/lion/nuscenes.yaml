@@ -1,0 +1,27 @@
+# @package _global_
+# LION 3D object detection on nuScenes v1.0-mini.
+# Benchmark: uv run --no-sync python test.py experiment=lion/nuscenes
+#
+# | model.name                      | mAP@0.25 | mAP@0.5 |
+# | ------------------------------- | -------- | ------- |
+# | lion-mamba-happinesslz.nuscenes | 0.5934   | 0.4364  |
+defaults:
+  - override /datamodule: nuscenes
+  - override /model: detection
+  - override /callbacks: detection
+
+trainer:
+  # the reference protocol evaluates in fp32 (Mamba selective-scan kernels)
+  precision: "32-true"
+
+model:
+  name: lion-mamba-happinesslz.nuscenes
+  input_keys: [x, pos, batch_pos]
+  # Per-class NMS at radius 0.175 with no score filter approximates LION's circular NMS on the crowded classes.
+  score_threshold: 0.0
+  nms_iou: 0.175
+  label_key: label
+
+datamodule:
+  batch_size: 1
+  cat_keys: [pos, x, box]

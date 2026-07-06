@@ -1,0 +1,81 @@
+# @package _global_
+# RandLA-Net semantic segmentation on SemanticKITTI (full-resolution back-projected scoring).
+# Train: uv run --no-sync python train.py experiment=randlanet/semantickitti
+# Benchmark: uv run --no-sync python test.py experiment=randlanet/semantickitti
+# Measured: deferred (full-resolution scoring exceeds the run budget; script baseline mIoU=0.5236)
+defaults:
+  - override /datamodule: semantickitti
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: randlanet-tsunghanwu.semantickitti
+  num_classes: 19
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  inverse_key: inverse
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  # The benchmark script evaluates one LiDAR scan per batch.
+  eval_batch_size: 1
+  # Emits batch_inverse so multi-scan eval batches back-project correctly if eval_batch_size is raised.
+  cat_keys: [inverse]
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Relabel
+          _convert_: all
+          keys: segment
+          labels:
+            10: 0
+            252: 0
+            11: 1
+            15: 2
+            18: 3
+            258: 3
+            20: 4
+            259: 4
+            30: 5
+            254: 5
+            31: 6
+            253: 6
+            32: 7
+            255: 7
+            40: 8
+            44: 9
+            48: 10
+            49: 11
+            50: 12
+            51: 13
+            70: 14
+            71: 15
+            72: 16
+            80: 17
+            81: 18
+          default: 255
+        - _target_: torch_pointcloud.transforms.CopyItems
+          keys: segment
+          names: origin_segment
+        - _target_: torch_pointcloud.transforms.Voxelize
+          pos_key: pos
+          pos_reduce: mean
+          size: 0.06
+          method: fnv
+          keys: [segment]
+          reduce: [first]
+          dst_inverse_key: inverse

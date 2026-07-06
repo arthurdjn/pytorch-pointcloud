@@ -1,0 +1,84 @@
+# @package _global_
+# SECOND 3D object detection on KITTI val (FOV, moderate difficulty).
+# Benchmark: uv run --no-sync python test.py experiment=second/kitti
+#
+# | model.name             | AP/Car | AP/Pedestrian | AP/Cyclist | mAP    |
+# | ---------------------- | ------ | ------------- | ---------- | ------ |
+# | second-openpcdet.kitti | 0.8038 | 0.5099        | 0.6696     | 0.6611 |
+defaults:
+  - override /datamodule: kitti
+  - override /model: detection
+  - override /callbacks: detection_ap
+
+trainer:
+  # the reference numbers are fp32 (OpenPCDet bit-exact parity additionally needs TF32 off)
+  precision: "32-true"
+
+model:
+  name: second-openpcdet.kitti
+  input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
+  score_threshold: 0.1
+  nms_iou: 0.01
+  label_key: label
+  ignore_mask_key: ignore_mask
+
+# Official KITTI 3D IoU thresholds: Car @ 0.7, Pedestrian / Cyclist @ 0.5.
+callbacks:
+  val_ap:
+    metric:
+      iou_per_class: { 0: 0.7, 1: 0.5, 2: 0.5 }
+      class_names: [Car, Pedestrian, Cyclist]
+
+datamodule:
+  # Keep the ragged GT boxes and the voxel grid indices packed (collate emits batch_box / batch_pos_voxel).
+  cat_keys: [box, pos_voxel]
+
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        # KITTI_CLASSES: Car=0, Van=1, Truck=2, Pedestrian=3, Person_sitting=4, Cyclist=5, Tram=6, Misc=7.
+        - _target_: torch_pointcloud.transforms.RelabelBoxes
+          keys: [box, label, truncation, occlusion, bbox_height]
+          mapping: { 0: 0, 3: 1, 5: 2 }
+          ignore_labels: [1, 4]
+          ignore_fields:
+            occlusion: [null, 1]
+            truncation: [null, 0.3]
+            bbox_height: [25, null]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [intensity]
+          dst_key: x
+          dim: 1
+        - _target_: torch_pointcloud.transforms.HardVoxelize
+          pos_key: pos
+          feat_key: x
+          voxel_size: [0.05, 0.05, 0.1]
+          point_cloud_range: [0.0, -40.0, -3.0, 70.4, 40.0, 1.0]
+          max_num_points: 5
+          max_num_voxels: 40000
+
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        # KITTI_CLASSES: Car=0, Van=1, Truck=2, Pedestrian=3, Person_sitting=4, Cyclist=5, Tram=6, Misc=7.
+        - _target_: torch_pointcloud.transforms.RelabelBoxes
+          keys: [box, label, truncation, occlusion, bbox_height]
+          mapping: { 0: 0, 3: 1, 5: 2 }
+          ignore_labels: [1, 4]
+          ignore_fields:
+            occlusion: [null, 1]
+            truncation: [null, 0.3]
+            bbox_height: [25, null]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [intensity]
+          dst_key: x
+          dim: 1
+        - _target_: torch_pointcloud.transforms.HardVoxelize
+          pos_key: pos
+          feat_key: x
+          voxel_size: [0.05, 0.05, 0.1]
+          point_cloud_range: [0.0, -40.0, -3.0, 70.4, 40.0, 1.0]
+          max_num_points: 5
+          max_num_voxels: 40000

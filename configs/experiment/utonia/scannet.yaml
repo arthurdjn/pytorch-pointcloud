@@ -1,0 +1,42 @@
+# @package _global_
+# Utonia linear-probe semantic segmentation on ScanNet20.
+# Train: uv run --no-sync python train.py experiment=utonia/scannet
+# Benchmark: uv run --no-sync python test.py experiment=utonia/scannet
+#
+# | model.name          | mIoU   | accuracy |
+# | ------------------- | ------ | -------- |
+# | utonia-lp.scannet20 | 0.7111 | 0.8904   |
+defaults:
+  - override /datamodule: scannet
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  # spconv/torchsparse fp16 tuner fails under 16-mixed
+  precision: "32-true"
+
+model:
+  name: utonia-lp.scannet20
+  num_classes: 20
+  pretrained: false
+  input_keys: [x, pos, pos_grid, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  # Evaluation runs full-resolution scenes (no crop); more than one per batch exhausts a 24 GB GPU.
+  eval_batch_size: 1
+  train_dataset:
+    transform: null
+  val_dataset:
+    # The benchmark script evaluates the aligned frame.
+    use_axis_alignment: true
+    transform: null

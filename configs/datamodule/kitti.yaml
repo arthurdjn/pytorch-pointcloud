@@ -1,0 +1,23 @@
+# KITTI 3D detection datamodule. The raw split is read from `<root>/KITTI/raw/<split>/`, the frame lists
+# from `raw/ImageSets/`, and the front-camera FOV filter needs `raw/image_2/` (baked into the cache).
+# Transforms (including the `RelabelBoxes` detection-class mapping) and the collation keys are
+# model-specific and live in the experiment configs.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 4
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.KITTI
+  root: ${paths.data_dir}
+  split: training
+  split_file: ${paths.data_dir}/KITTI/raw/ImageSets/train.txt
+  fov: true
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.KITTI
+  root: ${paths.data_dir}
+  split: training
+  split_file: ${paths.data_dir}/KITTI/raw/ImageSets/val.txt
+  fov: true
+  transform: null
