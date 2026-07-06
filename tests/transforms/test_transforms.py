@@ -833,8 +833,8 @@ def test_transforms_do_not_mutate_input_dict(sample_scene: dict) -> None:
 
 
 def test_relabel_sparse_sources_does_not_oom() -> None:
-    # Sparse source values (e.g., 2**20) used to allocate a 1M-entry lookup table.
-    # Searchsorted-based impl handles this in O(|sources|) memory.
+    # The searchsorted-based impl handles sparse source values (e.g. 2**20) in O(|sources|) memory,
+    # instead of a dense max-value lookup table.
     transform = T.Relabel(keys=["seg"], labels={2**20: 0, 5: 1, 2**18: 2}, default=255)
     labels = torch.tensor([2**20, 5, 2**18, 0])
     result = transform({"seg": labels})

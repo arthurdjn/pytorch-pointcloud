@@ -39,11 +39,8 @@ def mock_urlopen(mock_response: Mock) -> Generator[Mock, None, None]:
 
 def test_urltailname() -> None:
     """Test that the URL tail name is correctly extracted."""
-    # Test basic cases
     assert urltailname("https://example.com/file.zip") == "file.zip"
-    # Test with a path
     assert urltailname("https://example.com/path/to/file.zip") == "file.zip"
-    # Test with URL encoded characters
     assert urltailname("https://example.com/my%20file.zip") == "my file.zip"
 
 

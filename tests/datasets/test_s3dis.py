@@ -209,10 +209,6 @@ def test_s3dis_tile_blocks_preserves_cache(datasets_dir_factory: Callable[..., P
     assert len(dataset_a) != len(dataset_b) or dataset_a[0]["pos"].shape != dataset_b[0]["pos"].shape
 
 
-# ---------------------------------------------------------------------------
-# S3DISHdf5
-# ---------------------------------------------------------------------------
-
 HDF5_GLOB = "S3DIS/indoor3d_sem_seg_hdf5_data/**/*"
 
 
