@@ -1,0 +1,26 @@
+# @package _global_
+# DGCNN semantic segmentation on S3DIS (antao97 per-block HDF5 protocol).
+# Benchmark: uv run --no-sync python test.py experiment=dgcnn/s3dis
+#
+# | model.name              | mIoU   | accuracy |
+# | ----------------------- | ------ | -------- |
+# | dgcnn-antao.s3dis.area1 | 0.6919 | 0.8969   |
+# | dgcnn-antao.s3dis.area2 | 0.4351 | 0.8169   |
+# | dgcnn-antao.s3dis.area3 | 0.6873 | 0.9086   |
+# | dgcnn-antao.s3dis.area4 | 0.5068 | 0.8506   |
+# | dgcnn-antao.s3dis.area5 | 0.5029 | 0.8492   |
+# | dgcnn-antao.s3dis.area6 | 0.7560 | 0.9210   |
+#
+# Each areaN checkpoint pairs with its held-out datamodule.val_dataset.areas=[Area_N] (datamodule default: Area_5).
+defaults:
+  - override /datamodule: s3dis_hdf5
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+model:
+  name: dgcnn-antao.s3dis.area5
+  num_classes: 13
+  input_keys: [x, norm_pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss

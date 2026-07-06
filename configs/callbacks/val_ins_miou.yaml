@@ -1,0 +1,9 @@
+# @package callbacks.val_ins_miou
+# Per-epoch ShapeNetPart instance / class mIoU (per-shape IoU over the shape's category parts), logged
+# on validation/test as `{stage}/ins_mIoU` and `{stage}/cls_mIoU`. The metric scores each shape of a
+# packed batch separately, so it reads the per-point shape index from the step output via `batch_key`.
+_target_: torch_pointcloud.lightning.MetricCallback
+name: ins_mIoU
+batch_key: batch
+metric:
+  _target_: torch_pointcloud.lightning.InstancePartMeanIoU

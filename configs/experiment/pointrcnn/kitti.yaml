@@ -1,0 +1,61 @@
+# @package _global_
+# PointRCNN 3D object detection on KITTI val (FOV, moderate difficulty).
+# Benchmark: uv run --no-sync python test.py experiment=pointrcnn/kitti
+# Measured: deferred (exceeds the 5-minute run budget; the two-stage refine makes the full val split a ~40 min run)
+defaults:
+  - override /datamodule: kitti
+  - override /model: detection
+  - override /callbacks: detection_ap
+
+trainer:
+  # the reference protocol evaluates in fp32 (PointNet++ grouping is fp16-fragile)
+  precision: "32-true"
+
+model:
+  name: pointrcnn-openpcdet.kitti
+  input_keys: [x, pos, batch]
+  # The script runs class-agnostic NMS; the per-class NMS here keeps overlapping boxes of different classes.
+  score_threshold: 0.1
+  nms_iou: 0.1
+  label_key: label
+  ignore_mask_key: ignore_mask
+
+# Official KITTI 3D IoU thresholds: Car @ 0.7, Pedestrian / Cyclist @ 0.5.
+callbacks:
+  val_ap:
+    metric:
+      iou_per_class: {0: 0.7, 1: 0.5, 2: 0.5}
+      class_names: [Car, Pedestrian, Cyclist]
+
+datamodule:
+  batch_size: 2
+  cat_keys: [box]
+
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        # KITTI_CLASSES: Car=0, Van=1, Truck=2, Pedestrian=3, Person_sitting=4, Cyclist=5, Tram=6, Misc=7.
+        - _target_: torch_pointcloud.transforms.RelabelBoxes
+          keys: [box, label, truncation, occlusion, bbox_height]
+          mapping: {0: 0, 3: 1, 5: 2}
+          ignore_labels: [1, 4]
+          ignore_fields:
+            occlusion: [null, 1]
+            truncation: [null, 0.3]
+            bbox_height: [25, null]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [intensity]
+          dst_key: x
+          dim: 1
+        - _target_: torch_pointcloud.transforms.BoxMask
+          keys: pos
+          bbox: [0.0, -40.0, -3.0, 70.4, 40.0, 1.0]
+          dst_keys: range_mask
+        - _target_: torch_pointcloud.transforms.ApplyMask
+          keys: [pos, x]
+          mask_key: range_mask
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, x]
+          num_samples: 16384
+          replace: false

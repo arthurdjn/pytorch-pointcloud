@@ -1,0 +1,39 @@
+# @package _global_
+# OctFormer semantic segmentation on ScanNet20.
+# Train: uv run --no-sync python train.py experiment=octformer/scannet
+# Benchmark: uv run --no-sync python test.py experiment=octformer/scannet
+#
+# | model.name               | mIoU   |
+# | ------------------------ | ------ |
+# | octformer-base.scannet20 | 0.7478 |
+defaults:
+  - override /datamodule: scannet
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  # dwconv octree kernels do not support fp16 (Half) inputs
+  precision: "32-true"
+
+model:
+  name: octformer-base.scannet20
+  num_classes: 21
+  pretrained: false
+  input_keys: [x, octree, octree.depth, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 0
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  batch_size: 1
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

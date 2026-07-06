@@ -1,0 +1,26 @@
+# @package _global_
+# Point-MAE classification on ScanObjectNN OBJ_BG (with background).
+# Benchmark: uv run --no-sync python test.py experiment=point_mae/scanobjectnn-objbg
+#
+# | model.name                        | accuracy |
+# | --------------------------------- | -------- |
+# | point-mae-base.scanobjectnn-objbg | 0.9019   |
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: point-mae-base.scanobjectnn-objbg
+  num_classes: 15
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  train_dataset:
+    background: true
+    variant: null
+  val_dataset:
+    background: true
+    variant: null

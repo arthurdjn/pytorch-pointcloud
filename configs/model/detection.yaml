@@ -1,13 +1,9 @@
-# Detection LightningModule API. Required args are `???` and are filled by each experiment
-# (`name`, `input_keys`, `optimizer`, `criterion`); the `criterion` is a `_partial_` (e.g. `VoteNetLoss`)
-# that `LitDetectionModel` completes with the model's head-geometry params (num_heading_bin / num_size_cluster /
-# num_classes / mean_sizes). Evaluation runs the model's raw `decode(output)`, then postprocesses it by
-# dropping boxes below `score_threshold` and applying per-class 3D NMS at `nms_iou` (both overridable
-# below). Other optional args use the defaults.
+# Detection LightningModule API. `???` args are filled by each experiment; `criterion` is a `_partial_`
+# loss factory completed with the model's head-geometry params; leave it (and `optimizer`) null for
+# benchmark-only detectors (training raises). Evaluation decodes raw model output, filters it
+# (`min_points`, `score_threshold`), and runs per-class 3D NMS at `nms_iou`.
 _target_: torch_pointcloud.lightning.LitDetectionModel
 name: ???
 input_keys: ???
-optimizer: ???
-criterion: ???
-# score_threshold: 0.05
-# nms_iou: 0.25
+optimizer: null
+criterion: null

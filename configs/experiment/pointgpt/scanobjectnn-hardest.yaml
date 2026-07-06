@@ -1,0 +1,28 @@
+# @package _global_
+# PointGPT classification on ScanObjectNN PB_T50_RS (hardest).
+# Benchmark: uv run --no-sync python test.py experiment=pointgpt/scanobjectnn-hardest
+#
+# | model.name                                | accuracy |
+# | ----------------------------------------- | -------- |
+# | pointgpt-cguangyan-s.scanobjectnn-hardest | 0.8695   |
+# | pointgpt-cguangyan-b.scanobjectnn-hardest | 0.9195   |
+# | pointgpt-cguangyan-l.scanobjectnn-hardest | 0.9375   |
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: pointgpt-cguangyan-s.scanobjectnn-hardest
+  num_classes: 15
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  train_dataset:
+    background: true
+    variant: augmentedrot_scale75
+  val_dataset:
+    background: true
+    variant: augmentedrot_scale75

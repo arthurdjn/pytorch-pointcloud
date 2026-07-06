@@ -1,0 +1,28 @@
+# @package _global_
+# PointGPT classification on ScanObjectNN OBJ_ONLY (no background).
+# Benchmark: uv run --no-sync python test.py experiment=pointgpt/scanobjectnn-objonly
+#
+# | model.name                                | accuracy |
+# | ----------------------------------------- | -------- |
+# | pointgpt-cguangyan-s.scanobjectnn-objonly | 0.9071   |
+# | pointgpt-cguangyan-b.scanobjectnn-objonly | 0.9518   |
+# | pointgpt-cguangyan-l.scanobjectnn-objonly | 0.9690   |
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: pointgpt-cguangyan-s.scanobjectnn-objonly
+  num_classes: 15
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  train_dataset:
+    background: false
+    variant: null
+  val_dataset:
+    background: false
+    variant: null

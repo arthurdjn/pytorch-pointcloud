@@ -1,0 +1,36 @@
+# @package _global_
+# Point-MAE part segmentation on ShapeNetPart.
+# Benchmark: uv run --no-sync python test.py experiment=point_mae/shapenetpart
+#
+# | model.name                  | ins_mIoU | cls_mIoU |
+# | --------------------------- | -------- | -------- |
+# | point-mae-base.shapenetpart | 0.8593   | 0.8388   |
+defaults:
+  - override /datamodule: shapenetpart
+  - override /model: segmentation
+  - override /callbacks: part_segmentation
+
+model:
+  name: point-mae-base.shapenetpart
+  num_classes: 50
+  input_keys: [x, pos, batch, category]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  val_dataset:
+    # Benchmark protocol: random 2048-point sample per cloud, not the registered transform's FPS.
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+          method: centroid
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, segment]
+          num_samples: 2048
+          replace: true
+        - _target_: torch_pointcloud.transforms.OneHot
+          keys: category
+          num_classes: 16

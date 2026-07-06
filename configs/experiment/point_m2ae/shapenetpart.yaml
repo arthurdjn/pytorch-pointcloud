@@ -1,0 +1,19 @@
+# @package _global_
+# Point-M2AE part segmentation on ShapeNetPart.
+# Benchmark: uv run --no-sync python test.py experiment=point_m2ae/shapenetpart
+#
+# | model.name                   | ins_mIoU | cls_mIoU |
+# | ---------------------------- | -------- | -------- |
+# | point-m2ae-base.shapenetpart | 0.8617   | 0.8460   |
+defaults:
+  - override /datamodule: shapenetpart
+  - override /model: segmentation
+  - override /callbacks: part_segmentation
+
+model:
+  name: point-m2ae-base.shapenetpart
+  num_classes: 50
+  input_keys: [x, pos, batch, category]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
