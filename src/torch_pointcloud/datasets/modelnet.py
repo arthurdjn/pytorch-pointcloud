@@ -276,7 +276,7 @@ class ModelNet40(_ModelNet):
 
     You can download the official dataset from the [Princeton dedicated website](https://modelnet.cs.princeton.edu/).
 
-    The ModelNet40 dataset consists of 40 classes, containing 19,686 training and 4,936 test examples.
+    The ModelNet40 dataset consists of 40 classes, containing 9,843 training and 2,468 test examples.
 
     Args:
         root: Root directory where the dataset should be stored.
