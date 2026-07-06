@@ -59,9 +59,12 @@ class Detection3D(Boxes3D):
         batch: Per-box scene index, shape $(N,)$.
         ignore_mask: Per-box ignore mask, shape $(N,)$.
         scores: Per-box confidence score, shape $(N,)$.
+        class_probs: Per-box class probabilities, shape $(N, C)$, emitted by detectors whose eval protocol
+            expands every kept box across all classes (e.g. VoteNet / 3DETR).
     """
 
     scores: Tensor
+    class_probs: NotRequired[Tensor]
 
 
 # Flow and aggregation types for message passing

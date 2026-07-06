@@ -166,6 +166,81 @@ def compute_mean_iou(
     return iou.mean(dim=-1)
 
 
+def part_iou(
+    preds: Tensor,
+    target: Tensor,
+    part_ids: Sequence[Sequence[int]],
+    category: Tensor,
+    batch: Tensor,
+) -> Tensor:
+    r"""Per-shape IoU averaged over the parts of the shape's category (the ShapeNetPart protocol).
+
+    Each shape is scored only over the part labels its category owns (e.g. ShapeNetPart's `Airplane`
+    owns parts $[0, 1, 2, 3]$); a part absent from both the prediction and the target counts as IoU $1$.
+
+    Args:
+        preds: Predicted part indices, shape $(N,)$.
+        target: Ground truth part indices, shape $(N,)$.
+        part_ids: Part labels owned by each category, e.g. `ShapeNetPart.seg_ids.values()`.
+        category: Per-shape category index into `part_ids`, shape $(B,)$.
+        batch: Per-point shape index, shape $(N,)$.
+
+    Returns:
+        Per-shape IoU tensor of shape $(B,)$.
+    """
+    parts = [list(ids) for ids in part_ids]
+    num_classes = max(max(ids) for ids in parts) + 1
+    mask = torch.zeros(len(parts), num_classes, dtype=torch.float, device=preds.device)
+    for c, ids in enumerate(parts):
+        mask[c, ids] = 1.0
+
+    inter, union = compute_intersection_union(preds, target, num_classes, batch=batch)
+    iou = safe_divide(inter.float(), union.float(), default=1.0)
+    shape_mask = mask[category.long()]
+    return (iou * shape_mask).sum(dim=1) / shape_mask.sum(dim=1)
+
+
+def part_mean_iou(
+    preds: Tensor,
+    target: Tensor,
+    part_ids: Sequence[Sequence[int]],
+    category: Tensor,
+    batch: Tensor,
+) -> Dict[str, float]:
+    r"""ShapeNetPart instance and class mean IoU.
+
+    `part_iou` scores each shape over its category's parts; the instance mIoU averages these per-shape
+    IoUs over all shapes, and the class mIoU averages them per category first, then over the categories
+    present in `category`.
+
+    Args:
+        preds: Predicted part indices, shape $(N,)$.
+        target: Ground truth part indices, shape $(N,)$.
+        part_ids: Part labels owned by each category, e.g. `ShapeNetPart.seg_ids.values()`.
+        category: Per-shape category index into `part_ids`, shape $(B,)$.
+        batch: Per-point shape index, shape $(N,)$.
+
+    Returns:
+        A dict `{"ins_mIoU": ..., "cls_mIoU": ...}`.
+
+    Example:
+        >>> part_ids = [[0, 1], [2, 3]]
+        >>> preds = torch.tensor([0, 1, 2, 2])
+        >>> target = torch.tensor([0, 1, 2, 3])
+        >>> category = torch.tensor([0, 1])
+        >>> batch = torch.tensor([0, 0, 1, 1])
+        >>> part_mean_iou(preds, target, part_ids, category, batch)
+        {'ins_mIoU': 0.625, 'cls_mIoU': 0.625}
+    """
+    ious = part_iou(preds, target, part_ids, category, batch)
+    category = category.long()
+    count = torch.bincount(category, minlength=len(part_ids))
+    iou_sum = torch.zeros(len(part_ids), device=ious.device).index_add_(0, category, ious)
+    present = count > 0
+    cls_miou = (iou_sum[present] / count[present]).mean()
+    return {"ins_mIoU": float(ious.mean()), "cls_mIoU": float(cls_miou)}
+
+
 def overall_accuracy(
     preds: Tensor,
     target: Tensor,

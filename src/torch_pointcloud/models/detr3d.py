@@ -823,20 +823,22 @@ class DETR3DDetection(DetectionModel):
         Builds one oriented box per query (the heading is `angle_continuous` directly, matching the dataset
         / metric $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ convention), scores it by objectness, and labels it
         by the argmax semantic class. The result is the full unfiltered query set; the evaluation pipeline
-        applies point-count filtering, NMS, score thresholding, and the indoor per-class expansion via the
-        `torch_pointcloud.utils.box3d` utilities (see the benchmark examples), reproducing 3DETR's
+        applies point-count filtering, NMS, score thresholding, and the indoor per-class expansion (driven
+        by the returned `class_probs`) via the `torch_pointcloud.utils.box3d` utilities, reproducing 3DETR's
         `APCalculator` test protocol (`exact_eval=True`).
 
         Args:
             out: A `DETR3DOutput` from `forward`.
 
         Returns:
-            Packed queries `{"boxes": (B * Q, 7), "scores": (B * Q,), "labels": (B * Q,), "batch": (B * Q,)}`
-            (PyG layout), where the per-query score is objectness and the label is the argmax semantic class.
+            Packed queries `{"boxes", "scores", "labels", "batch", "class_probs"}` (PyG layout), where the
+            per-query score is objectness, the label is the argmax semantic class, and `class_probs` holds
+            the semantic-class probabilities.
 
         Shape:
             - boxes: $(B \cdot Q, 7)$
             - scores / labels / batch: $(B \cdot Q,)$
+            - class_probs: $(B \cdot Q, C)$
         """
         batch_size, num_queries = out["center_unnormalized"].shape[:2]
         boxes = torch.cat(
@@ -850,6 +852,7 @@ class DETR3DDetection(DetectionModel):
             "scores": objectness.reshape(-1),
             "labels": class_probs.argmax(dim=-1).reshape(-1),
             "batch": batch,
+            "class_probs": class_probs.reshape(-1, class_probs.size(-1)),
         }
 
 
