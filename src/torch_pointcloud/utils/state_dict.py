@@ -63,10 +63,7 @@ def transform_state_dict(
         pattern = re.sub(r"\{(\w+)\}", r"(?P<\1>[^.]+)", pattern)
         rules.append((re.compile(f"^{pattern}$"), dst))
 
-    # we keep track of the rules that were used to transform a given key,
-    # which is mostly used to help debugging -- we likely would like to be informed
-    # if some keys were provided but were not used,
-    # meaning the mapping is too verbose and could be simplified.
+    # Track which rules matched so `strict` can report mapping patterns that never applied.
     used_rule_idxs: Set[int] = set()
 
     def key_transform(key: str) -> str:

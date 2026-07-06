@@ -116,7 +116,6 @@ def test_random_sample_face_vertices_with_normals(sample_mesh: Tuple[Tensor, Ten
     sampled, normal = F.random_sample_face_vertices(vertices, face, num_samples, return_normals=True)
     assert sampled.shape == (num_samples, 3)
     assert normal.shape == (num_samples, 3)
-    # Check normal are normalized
     assert torch.allclose(torch.norm(normal, dim=1), torch.ones(num_samples))
 
 
@@ -488,7 +487,6 @@ def test_abs_not_inplace_by_default() -> None:
     x = torch.tensor([-1.0, -2.0])
     original = x.clone()
     result = abs(x)
-    # Original should be unchanged
     assert torch.equal(x, original)
     assert torch.equal(result, torch.tensor([1.0, 2.0]))
 
