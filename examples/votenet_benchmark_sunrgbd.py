@@ -59,7 +59,7 @@ def main() -> None:
         cat_keys=[DataKeys.BOX],
     )
     print(f"Test set: {len(dataset)} scenes")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.iou_thresholds)
+    metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.ap_iou)
 
     print("\nResults:")
     for name, value in metrics.items():

@@ -781,7 +781,6 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
     ),
     transforms=T.Compose(
         [
-            T.Divide(keys=DataKeys.COLOR, divisor=255.0),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
         ]
     ),
