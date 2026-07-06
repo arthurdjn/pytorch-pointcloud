@@ -495,18 +495,20 @@ class VoteNetDetection(DetectionModel):
         Builds one oriented box per proposal from the predicted heading/size bins, scores it by objectness,
         and labels it by the argmax semantic class. The result is the full unfiltered proposal set; the
         evaluation pipeline applies point-count filtering, NMS, score thresholding, and the indoor per-class
-        expansion via the `torch_pointcloud.utils.box3d` utilities (see the benchmark examples).
+        expansion (driven by the returned `class_probs`) via the `torch_pointcloud.utils.box3d` utilities.
 
         Args:
             out: A `VoteNetOutput` from `forward`.
 
         Returns:
-            Packed proposals `{"boxes": (B * P, 7), "scores": (B * P,), "labels": (B * P,), "batch": (B * P,)}`
-            (PyG layout), where the per-proposal score is objectness and the label is the argmax semantic class.
+            Packed proposals `{"boxes", "scores", "labels", "batch", "class_probs"}` (PyG layout), where the
+            per-proposal score is objectness, the label is the argmax semantic class, and `class_probs` holds
+            the softmaxed semantic-class probabilities.
 
         Shape:
             - boxes: $(B \cdot P, 7)$
             - scores / labels / batch: $(B \cdot P,)$
+            - class_probs: $(B \cdot P, C)$
         """
         batch_size, num_proposal = out["center"].shape[:2]
 
@@ -528,6 +530,7 @@ class VoteNetDetection(DetectionModel):
             "scores": objectness.reshape(-1),
             "labels": class_probs.argmax(dim=-1).reshape(-1),
             "batch": batch,
+            "class_probs": class_probs.reshape(-1, class_probs.size(-1)),
         }
 
 

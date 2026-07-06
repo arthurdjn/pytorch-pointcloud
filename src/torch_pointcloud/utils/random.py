@@ -33,3 +33,24 @@ def seed_everything(seed: Optional[int] = None) -> int:
     torch.cuda.manual_seed_all(seed)
 
     return seed
+
+
+def set_determinism(*, tf32: bool = False) -> None:
+    """Pin the global numeric flags that make CUDA results reproducible across runs and machines.
+
+    TensorFloat-32 rounds fp32 matmul/convolution inputs to 19-bit mantissas on Ampere+ GPUs, which
+    shifts benchmark metrics relative to references measured with it off. Neither the Lightning
+    `Trainer(precision=...)` flag nor `torch.set_float32_matmul_precision` covers the cuDNN
+    convolution path (`torch.backends.cudnn.allow_tf32` defaults to `True`), so both backends are
+    pinned here.
+
+    Args:
+        tf32: Allow TensorFloat-32 in fp32 CUDA matmul and cuDNN convolutions.
+
+    Example:
+        >>> set_determinism(tf32=False)
+        >>> torch.backends.cudnn.allow_tf32
+        False
+    """
+    torch.backends.cuda.matmul.allow_tf32 = tf32
+    torch.backends.cudnn.allow_tf32 = tf32
