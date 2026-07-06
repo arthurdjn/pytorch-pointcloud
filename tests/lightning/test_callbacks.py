@@ -41,15 +41,17 @@ class DummySegmentationModel(SegmentationModel):
 
 
 class DummyDetectionModel(DetectionModel):
-    def __init__(self, in_channels: int = 1, num_classes: int = 1) -> None:
+    def __init__(
+        self, in_channels: int = 1, num_classes: int = 10, num_heading_bin: int = 12, num_size_cluster: int = 10
+    ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.register_buffer("mean_sizes", torch.ones(num_classes, 3))
+        self.num_heading_bin = num_heading_bin
+        self.num_size_cluster = num_size_cluster
+        self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
+        self.fc = nn.Linear(in_channels, num_classes)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
-        return {}
-
-    def decode(self, out: Dict[str, Tensor], pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
-        return out
+        return {"objectness_scores": self.fc(x)}
 
 
 def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:

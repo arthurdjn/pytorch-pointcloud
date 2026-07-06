@@ -81,7 +81,7 @@ def test_detr3d_decode_packed_detections() -> None:
     data = _make_inputs()
     with torch.no_grad():
         out = model(None, data["pos"], data["batch"])
-        det = model.decode(out, data["pos"], data["batch"])
+        det = model.decode(out)
     for key in ("boxes", "scores", "labels", "batch"):
         assert key in det
     n = det["boxes"].shape[0]
@@ -146,7 +146,7 @@ def test_detr3d_pretrained_smoke() -> None:
     batch = torch.zeros(40000, dtype=torch.long, device=DEVICE)
     with torch.no_grad():
         out = model(None, pos, batch)
-        det = model.decode(out, pos, batch)
+        det = model.decode(out)
     assert out["center_unnormalized"].shape == (1, 256, 3)
     assert torch.isfinite(out["sem_cls_logits"]).all()
     assert det["boxes"].shape[1] == 7

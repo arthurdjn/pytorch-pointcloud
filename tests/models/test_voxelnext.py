@@ -88,7 +88,7 @@ def test_voxelnext_pretrained_forward_decode() -> None:
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 160000)
     with torch.no_grad():
         out = model(voxels, pos_voxel, num_points, vbatch)
-    det = model.decode(out, score_threshold=0.1, nms_iou=0.2)
+    det = model.decode(out)
     for key in ("boxes", "scores", "labels", "batch"):
         assert key in det
     assert det["boxes"].shape[1] == 7

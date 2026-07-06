@@ -14,7 +14,6 @@ from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
-from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.hilbert import encode as hilbert_encode
 from torch_pointcloud.utils.imports import optional_import
@@ -716,26 +715,26 @@ class VoxelMambaDetection(DetectionModel):
         out: Dict[str, Tensor],
         *,
         score_threshold: float = 0.1,
-        nms_iou: float = 0.7,
         k: int = 500,
         iou_rectifier: Sequence[float] = (0.68, 0.71, 0.65),
     ) -> Detection3D:
-        r"""Decode center-head predictions into packed detections.
+        r"""Decode center-head predictions into raw candidate detections (no NMS).
 
         Peaks of the (sigmoid) heatmap give candidate centers; box attributes are gathered at those
-        peaks, mapped to world coordinates, thresholded by score, rescored by the predicted IoU
-        ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference),
-        and reduced by per-class 3D NMS.
+        peaks, mapped to world coordinates, thresholded by score, and rescored by the predicted IoU
+        ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference). The
+        full candidate set is returned; the evaluation pipeline applies per-class 3D NMS via the
+        `torch_pointcloud.utils.box3d` utilities.
 
         Args:
             out: The dict returned by `forward`.
-            score_threshold: Minimum (pre-rectification) heatmap score to keep a box.
-            nms_iou: IoU threshold of the per-class 3D NMS.
+            score_threshold: Minimum (pre-rectification) heatmap score to keep a peak.
             k: Number of heatmap peaks gathered per scene.
             iou_rectifier: Per-class IoU-rectification exponent (the reference Waymo values).
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
+            (PyG layout).
         """
         heatmap = out["heatmap"].sigmoid()
         batch_size, _, h, w = heatmap.shape
@@ -762,12 +761,10 @@ class VoxelMambaDetection(DetectionModel):
             keep = scores[b] > score_threshold
             scene_boxes, scene_scores, scene_labels = boxes[b][keep], scores[b][keep], classes[b][keep]
             rectifier = scene_scores.new_tensor(iou_rectifier)[scene_labels.long()]
-            scene_scores = scene_scores.pow(1 - rectifier) * iou[b][keep].pow(rectifier)
-            idx = nms3d(scene_boxes, scene_scores, scene_labels, nms_iou)
-            out_boxes.append(scene_boxes[idx])
-            out_scores.append(scene_scores[idx])
-            out_labels.append(scene_labels[idx])
-            out_batch.append(torch.full((idx.numel(),), b, dtype=torch.long, device=heatmap.device))
+            out_boxes.append(scene_boxes)
+            out_scores.append(scene_scores.pow(1 - rectifier) * iou[b][keep].pow(rectifier))
+            out_labels.append(scene_labels)
+            out_batch.append(torch.full((scene_boxes.shape[0],), b, dtype=torch.long, device=heatmap.device))
 
         return {
             "boxes": torch.cat(out_boxes),

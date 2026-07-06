@@ -72,7 +72,7 @@ def test_lion_head_predict_supports_non_nuscenes_num_classes() -> None:
 
 
 def test_lion_head_local_max_classes_decode() -> None:
-    """`local_max_classes` selects the per-class circular-NMS tasks for an arbitrary label set."""
+    """`decode` is class-count agnostic: a 3-class head with `local_max_classes` set still packs raw detections."""
     torch.manual_seed(0)
     head = TransFusionHead(384, 3, (360, 360, 32), RANGE, (0.3, 0.3, 0.25), local_max_classes=(1, 2)).eval()
     assert head.local_max_classes == (1, 2)

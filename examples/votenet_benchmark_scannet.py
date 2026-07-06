@@ -29,6 +29,7 @@ import torch
 from tqdm import tqdm
 
 from torch_pointcloud.models import VoteNetDetection, create_model
+from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
@@ -36,6 +37,9 @@ from torch_pointcloud.utils.types import Boxes3D, Detection3D
 # NYU40 ids of the 18 ScanNet detection classes (order = class index), from model_util_scannet.py.
 NYU40_IDS = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+SCORE_THRESHOLD = 0.05
+NMS_IOU = 0.25
+MIN_POINTS = 5
 
 
 def main() -> None:
@@ -56,8 +60,8 @@ def main() -> None:
     if not scans:
         raise FileNotFoundError(f"No `*_vert.npy` scenes found under {data_root}.")
 
-    print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
-    metrics = evaluate(model, scans, data_root, transform, args.device, iou_thresholds=args.iou_thresholds)
+    print(f"Benchmarking model {args.model!r} on {len(scans)} ScanNet val scenes!")
+    metrics = evaluate(model, scans, data_root, transform, args.device, iou_thresholds=args.ap_iou)
 
     print("\nResults:")
     for name, value in metrics.items():
@@ -88,7 +92,21 @@ def evaluate(
         pos_s, x_s = sample["pos"].to(device), sample["x"].to(device)
         batch = torch.zeros(pos_s.shape[0], dtype=torch.long, device=device)
 
-        pred = model.decode(model(x_s, pos_s, batch), pos_s, batch)
+        out = model(x_s, pos_s, batch)
+        det = model.decode(out)
+        boxes, obj, labels, det_batch = det["boxes"], det["scores"], det["labels"], det["batch"]
+        counts = count_points_in_boxes(pos_s, boxes, pos_batch=batch, box_batch=det_batch)
+        cand = (counts >= MIN_POINTS).nonzero(as_tuple=False).squeeze(-1)
+        keep = cand[nms3d(boxes[cand], obj[cand], NMS_IOU, labels=labels[cand], batch=det_batch[cand])]
+        keep = keep[obj[keep] > SCORE_THRESHOLD]
+        # Indoor AP convention: score every surviving box against each class by its class probability.
+        class_probs = out["sem_cls_scores"].softmax(-1).reshape(-1, model.num_classes)[keep]
+        pred: Detection3D = {
+            "boxes": boxes[keep].repeat_interleave(model.num_classes, dim=0),
+            "scores": (class_probs * obj[keep, None]).reshape(-1),
+            "labels": torch.arange(model.num_classes, device=boxes.device).repeat(keep.numel()),
+            "batch": det_batch[keep].repeat_interleave(model.num_classes),
+        }
         target = encode_scannet_target(bbox)
 
         metrics = mean_average_precision3d([pred], [target], iou_thresholds=iou_thresholds)

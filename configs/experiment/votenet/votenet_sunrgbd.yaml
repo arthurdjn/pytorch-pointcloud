@@ -15,12 +15,10 @@ model:
   name: votenet-fair-base.sunrgbd
   pretrained: false
   input_keys: [x, pos, batch]
+  # LitDetectionModel completes this partial with the model's num_heading_bin / num_size_cluster / num_classes / mean_sizes.
   criterion:
     _target_: torch_pointcloud.losses.VoteNetLoss
     _partial_: true
-    num_heading_bin: 12
-    num_size_cluster: 10
-    num_classes: 10
   optimizer:
     _target_: torch.optim.Adam
     _partial_: true
