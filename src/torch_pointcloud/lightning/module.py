@@ -6,6 +6,7 @@ from torch.optim import Optimizer
 
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
+from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.misc import deep_getattr
@@ -139,35 +140,54 @@ class LitSegmentationModel(LiTModel):
 
 
 class LitDetectionModel(LiTModel):
-    r"""LightningModule for a VoteNet-style 3D object detection model, built from the registry.
+    r"""LightningModule for a 3D object detection model, built from the registry.
 
     Detection breaks the shared classification/segmentation loop in three places, so this subclass
     overrides them and reuses the base for everything else (model construction, `forward`, optimizer
     wiring, `training_step`):
 
-    - the loss is a factory completed at build time with the model's `mean_sizes` buffer (a tensor that
-      is shared with the model rather than duplicated in config);
+    - the loss is a factory completed at build time with the model's head-geometry params
+      (`num_heading_bin`, `num_size_cluster`, `num_classes`, `mean_sizes`) rather than duplicating them in config;
     - `step` feeds the whole forward output and the batch to the loss, which returns a dict of named
       components (each logged), and reports the total `loss`;
-    - the eval steps `decode` the forward output into packed detections and pair them with the
-      ground-truth boxes for a `MetricCallback` (e.g. `MeanAveragePrecision3D`).
+    - the eval steps run the model's raw `decode`, postprocess it (drop boxes below `score_threshold`, then
+      per-class 3D `nms3d` at `nms_iou`), and pair the result with the ground-truth boxes for a
+      `MetricCallback` (e.g. `MeanAveragePrecision3D`).
 
-    A model is swappable as long as it returns a prediction dict from `forward`, exposes a `mean_sizes`
-    buffer and a `decode(output, pos, batch)` method, and is paired with a `criterion(output, batch)`.
+    A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
+    from `decode(output)`, and is paired with a `criterion(output, batch)`.
 
     Args:
         name: Registered detection model name; built via `create_model(name, task="detection")`.
-        criterion: A loss factory completed with the model's `mean_sizes` (e.g. a `VoteNetLoss` `_partial_`);
-            its `forward(output, batch)` returns a dict whose `loss` entry is the total to optimize.
+        criterion: A loss factory completed with the model's head-geometry params, i.e. called as
+            `criterion(num_heading_bin=..., num_size_cluster=..., num_classes=..., mean_sizes=...)` (e.g.
+            `VoteNetLoss`); its `forward(output, batch)` returns a dict whose `loss` entry is the total to optimize.
+        score_threshold: Minimum score to keep a decoded box in the eval postprocess.
+        nms_iou: IoU threshold of the per-class 3D NMS in the eval postprocess.
         **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`).
     """
 
-    def __init__(self, name: str, *, criterion: Callable[..., nn.Module], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        name: str,
+        *,
+        criterion: Callable[..., nn.Module],
+        score_threshold: float = 0.05,
+        nms_iou: float = 0.25,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(name, task="detection", **kwargs)
-        # The base registered a placeholder loss; drop it so the factory result (completed from the model's
-        # `mean_sizes` buffer) can take its place, including a non-Module test double.
+        # The base registered a placeholder loss; drop it so the factory result (completed with the model's
+        # head-geometry params) can take its place, including a non-Module test double.
         del self.criterion
-        self.criterion = criterion(mean_sizes=self.model.get_buffer("mean_sizes"))
+        self.criterion = criterion(
+            num_heading_bin=self.model.num_heading_bin,
+            num_size_cluster=self.model.num_size_cluster,
+            num_classes=self.model.num_classes,
+            mean_sizes=self.model.mean_sizes,
+        )
+        self.score_threshold = score_threshold
+        self.nms_iou = nms_iou
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
         output = self.forward(batch)
@@ -185,9 +205,18 @@ class LitDetectionModel(LiTModel):
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
         output = self.step(batch, stage)["output"]
-        preds = self.model.decode(output, batch[DataKeys.POS], batch[DataKeys.BATCH])
+        det = self.model.decode(output)
+        keep = det["scores"] > self.score_threshold
+        boxes, scores, labels, det_batch = (
+            det["boxes"][keep],
+            det["scores"][keep],
+            det["labels"][keep],
+            det["batch"][keep],
+        )
+        idx = nms3d(boxes, scores, self.nms_iou, labels=labels, batch=det_batch)
+        preds = {"boxes": boxes[idx], "scores": scores[idx], "labels": labels[idx], "batch": det_batch[idx]}
         # GT boxes store half-extents; the metric wants full edge lengths (matches the benchmark examples).
         box = batch[DataKeys.BOX]
-        boxes = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
-        target = {"boxes": boxes, "labels": box[:, 7].long(), "batch": batch[DataKeys.BATCH_BOX]}
+        gt_boxes = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
+        target = {"boxes": gt_boxes, "labels": box[:, 7].long(), "batch": batch[DataKeys.BATCH_BOX]}
         return {"preds": preds, "target": target}

@@ -655,52 +655,30 @@ class PointRCNNDetection(DetectionModel):
             return boxes.new_zeros((0,), dtype=torch.long)
         topk = min(self.nms_pre_maxsize, scores.shape[0])
         top_scores, top_idx = torch.topk(scores, k=topk)
-        labels = boxes.new_zeros(top_idx.shape[0], dtype=torch.long)
-        keep = nms3d(boxes[top_idx], top_scores, labels, self.nms_thresh)
+        keep = nms3d(boxes[top_idx], top_scores, self.nms_thresh)
         return top_idx[keep[: self.nms_post_maxsize]]
 
     @torch.no_grad()
-    def decode(self, out: Dict[str, Tensor], *, score_threshold: float = 0.1, nms_iou: float = 0.1) -> Detection3D:
-        r"""Decode a forward output into packed detections (final stage-2 confidence + class-agnostic NMS).
+    def decode(self, out: Dict[str, Tensor]) -> Detection3D:
+        r"""Decode a forward output into raw per-ROI detections (no score threshold or NMS).
 
-        The stage-2 confidence (sigmoid of `rcnn_cls`) scores each refined box; class labels come from the
-        stage-1 ROI labels. A final class-agnostic BEV NMS at `nms_iou` removes duplicates, then boxes below
-        `score_threshold` are dropped. Feeds `average_precision3d`.
+        Scores each refined box by its stage-2 confidence (sigmoid of `rcnn_cls`) and labels it by the
+        stage-1 ROI label (shifted to 0-indexed). The full per-ROI set is returned; the evaluation
+        pipeline applies class-agnostic 3D NMS then score thresholding via the
+        `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
 
         Args:
             out: A forward output `{"rcnn_cls", "boxes", "roi_labels", "roi_scores", "batch"}`.
-            score_threshold: Minimum confidence to keep a box.
-            nms_iou: BEV IoU threshold for the final class-agnostic NMS.
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed per-ROI detections `{"boxes": (R, 7), "scores": (R,), "labels": (R,), "batch": (R,)}`
+            (PyG layout).
         """
-        scores = torch.sigmoid(out["rcnn_cls"].view(-1))
-        boxes = out["boxes"]
-        labels = out["roi_labels"]
-        roi_batch = out["batch"]
-
-        batch_size = int(roi_batch.max().item()) + 1 if roi_batch.numel() else 0
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(batch_size):
-            mask = roi_batch == b
-            scene_boxes = boxes[mask]
-            scene_scores = scores[mask]
-            scene_labels = labels[mask]
-            keep = nms3d(
-                scene_boxes, scene_scores, scene_boxes.new_zeros(scene_boxes.shape[0], dtype=torch.long), nms_iou
-            )
-            scene_boxes, scene_scores, scene_labels = scene_boxes[keep], scene_scores[keep], scene_labels[keep]
-            sel = scene_scores >= score_threshold
-            out_boxes.append(scene_boxes[sel])
-            out_scores.append(scene_scores[sel])
-            out_labels.append(scene_labels[sel] - 1)
-            out_batch.append(torch.full((int(sel.sum()),), b, dtype=torch.long, device=boxes.device))
         return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
+            "boxes": out["boxes"],
+            "scores": torch.sigmoid(out["rcnn_cls"].view(-1)),
+            "labels": out["roi_labels"] - 1,
+            "batch": out["batch"],
         }
 
 

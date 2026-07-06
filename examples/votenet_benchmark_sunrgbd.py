@@ -24,6 +24,7 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.models import VoteNetDetection, create_model
+from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
@@ -33,6 +34,9 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+SCORE_THRESHOLD = 0.05
+NMS_IOU = 0.25
+MIN_POINTS = 5
 
 
 def main() -> None:
@@ -72,25 +76,36 @@ def evaluate(
 ) -> Dict[str, float]:
     all_preds: List[Detection3D] = []
     all_targets: List[Boxes3D] = []
-    metrics: Dict[str, float] = {}
 
-    pbdar = tqdm(dataloader, desc="SUN RGB-D val")
-    for data in pbdar:
+    for data in tqdm(dataloader, desc="SUN RGB-D val"):
         x = data[DataKeys.X].to(device)
         pos = data[DataKeys.POS].to(device)
         box = data[DataKeys.BOX].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        preds = model.decode(model(x, pos, batch), pos, batch)
-        all_preds.append(preds)
+        batch_box = data[DataKeys.BATCH_BOX].to(device)
 
+        out = model(x, pos, batch)
+        det = model.decode(out)
+        boxes, obj, labels, det_batch = det["boxes"], det["scores"], det["labels"], det["batch"]
+        counts = count_points_in_boxes(pos, boxes, pos_batch=batch, box_batch=det_batch)
+        cand = (counts >= MIN_POINTS).nonzero(as_tuple=False).squeeze(-1)
+        keep = cand[nms3d(boxes[cand], obj[cand], NMS_IOU, labels=labels[cand], batch=det_batch[cand])]
+        keep = keep[obj[keep] > SCORE_THRESHOLD]
+        # Indoor AP convention: score every surviving box against each class by its class probability.
+        class_probs = out["sem_cls_scores"].softmax(-1).reshape(-1, model.num_classes)[keep]
+        all_preds.append(
+            {
+                "boxes": boxes[keep].repeat_interleave(model.num_classes, dim=0),
+                "scores": (class_probs * obj[keep, None]).reshape(-1),
+                "labels": torch.arange(model.num_classes, device=boxes.device).repeat(keep.numel()),
+                "batch": det_batch[keep].repeat_interleave(model.num_classes),
+            }
+        )
         # The dataset stores half extents; the metric expects full edge lengths.
         full = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
-        all_targets.append(Boxes3D(boxes=full, labels=box[:, 7].long(), batch=batch))
+        all_targets.append({"boxes": full, "labels": box[:, 7].long(), "batch": batch_box})
 
-        metrics = mean_average_precision3d(all_preds, all_targets, iou_thresholds=iou_thresholds)
-        pbdar.set_postfix({name: f"{value * 100:.2f}" for name, value in metrics.items()})
-
-    return metrics
+    return mean_average_precision3d(all_preds, all_targets, iou_thresholds=iou_thresholds)
 
 
 def parse_args() -> Namespace:

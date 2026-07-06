@@ -1,6 +1,6 @@
 """Evaluate `second-openpcdet.kitti` on KITTI with per-class 3D AP.
 
-`KITTI` -> `RelabelBoxes` -> `PointCloudDataLoader` -> model -> `model.decode` -> `average_precision3d`.
+`KITTI` -> `RelabelBoxes` -> `PointCloudDataLoader` -> model -> `model.decode` -> `nms3d` -> `average_precision3d`.
 
 `KITTI` returns the raw annotated boxes; `RelabelBoxes` maps them to the 3 detection classes and flags
 the `Van` / `Person_sitting` neighbours plus harder-than-moderate boxes (occlusion > 1, truncation > 0.3,
@@ -35,6 +35,7 @@ from torch_pointcloud.datasets import KITTI
 from torch_pointcloud.datasets.kitti import KITTI_CLASSES
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._base import DetectionModel
+from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import average_precision3d
 from torch_pointcloud.utils.random import seed_everything
@@ -47,6 +48,8 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 KITTI_DETECTION_CLASSES = ("Car", "Pedestrian", "Cyclist")
 KITTI_DETECTION_MAPPING = {KITTI_CLASSES.index(name): i for i, name in enumerate(KITTI_DETECTION_CLASSES)}
 KITTI_IOU = {0: 0.7, 1: 0.5, 2: 0.5}
+SCORE_THRESHOLD = 0.1
+NMS_IOU = 0.01
 
 
 def main() -> None:
@@ -102,13 +105,17 @@ def evaluate(model: DetectionModel, loader: PointCloudDataLoader, device: str) -
             data[DataKeys.VOXEL_NUM_POINTS].to(device),
             data[f"batch_{DataKeys.POS_VOXEL}"].to(device),
         )
-        pred = model.decode(out)
+        det = model.decode(out)
+        boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
+        keep = scores > SCORE_THRESHOLD
+        boxes, scores, labels, batch = boxes[keep], scores[keep], labels[keep], batch[keep]
+        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
         preds.append(
             {
-                "boxes": pred["boxes"].cpu(),
-                "scores": pred["scores"].cpu(),
-                "labels": pred["labels"].cpu(),
-                "batch": pred["batch"].cpu(),
+                "boxes": boxes[idx].cpu(),
+                "scores": scores[idx].cpu(),
+                "labels": labels[idx].cpu(),
+                "batch": batch[idx].cpu(),
             }
         )
         targets.append(
