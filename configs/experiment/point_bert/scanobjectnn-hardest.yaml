@@ -1,0 +1,28 @@
+# @package _global_
+# Point-BERT classification on ScanObjectNN PB_T50_RS (hardest).
+# Benchmark: uv run --no-sync python test.py experiment=point_bert/scanobjectnn-hardest
+#
+# | model.name                           | accuracy |
+# | ------------------------------------ | -------- |
+# | point-bert-base.scanobjectnn-hardest | 0.8307   |
+# (exact at precision=32-true datamodule.batch_size=16)
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: point-bert-base.scanobjectnn-hardest
+  # The released checkpoints keep the 40-wide ModelNet head (ScanObjectNN has 15 classes); OA is the reference metric.
+  num_classes: 40
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  train_dataset:
+    background: true
+    variant: augmentedrot_scale75
+  val_dataset:
+    background: true
+    variant: augmentedrot_scale75

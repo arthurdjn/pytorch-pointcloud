@@ -1,0 +1,43 @@
+# @package _global_
+# PointNeXt semantic segmentation on S3DIS Area 5.
+# Train: uv run --no-sync python train.py experiment=pointnext/s3dis
+# Benchmark: uv run --no-sync python test.py experiment=pointnext/s3dis
+#
+# | model.name                 | mIoU   | accuracy |
+# | -------------------------- | ------ | -------- |
+# | pointnext-sm.s3dis-area5   | 0.6301 | 0.8710   |
+# | pointnext-base.s3dis-area5 | -      | -        |
+# | pointnext-lg.s3dis-area5   | -      | -        |
+# | pointnext-xl.s3dis-area5   | -      | -        |
+#
+# pointnext-sm: new deterministic-FPS reference; script and config paths are identical.
+defaults:
+  - override /datamodule: s3dis
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: pointnext-xl.s3dis-area5
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  # The benchmark script evaluates one whole room per batch.
+  eval_batch_size: 1
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

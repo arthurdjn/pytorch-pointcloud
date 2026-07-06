@@ -1,27 +1,30 @@
 """Hydra entrypoint for reproducible point cloud training.
 
-Composes a LightningModule, datamodule, callbacks, loggers, and `Trainer` from
-the `configs/` tree, runs `Trainer.fit`, and (when `test=true`) `Trainer.test`
-(falling back to the validation set when no test set is defined). Repo-only dev
-tooling, not part of the installed `torch_pointcloud` package.
+Composes a LightningModule, datamodule, callbacks, loggers, and `Trainer` from the `configs/` tree,
+runs `Trainer.fit`, and (when `test=true`) `Trainer.test` on the best checkpoint (falling back to the
+validation set when no test set is defined). Evaluation of pretrained weights or an existing
+checkpoint lives in `test.py`. Repo-only dev tooling, not part of the installed `torch_pointcloud`
+package.
 
 Usage:
-    # train
-    uv run --no-sync python train.py experiment=spunet/spunet_scannet
-    # benchmark pretrained weights (no training): evaluate on the held-out set
-    uv run --no-sync python train.py experiment=spunet/spunet_scannet train=false model.pretrained=true
-    uv run --no-sync python train.py experiment=point_transformer_v3/point_transformer_v3_scannet \
-        ckpt_path=logs/train/runs/foo/checkpoints/last.ckpt
+    # train from scratch, then test the best checkpoint
+    uv run --no-sync python train.py experiment=spunet/scannet
+    # resume an interrupted fit
+    uv run --no-sync python train.py experiment=spunet/scannet ckpt_path=logs/.../last.ckpt
 """
+
+import logging
 
 import hydra
 import lightning as L
 from dotenv import load_dotenv
 from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf, open_dict
+from omegaconf import DictConfig, OmegaConf
 
 from torch_pointcloud.utils.hydra import instantiate_list
 from torch_pointcloud.utils.random import seed_everything
+
+log = logging.getLogger(__name__)
 
 # Load .env so the configs' `${oc.env:...}` interpolations resolve.
 load_dotenv()
@@ -37,29 +40,28 @@ def main(cfg: DictConfig) -> None:
     """Build the training objects from `cfg`, fit, and optionally test."""
     seed_everything(cfg.seed)
 
-    # Benchmark mode (`train=false`): drop the training split so only the held-out (val) set is built.
-    if not cfg.get("train", True):
-        with open_dict(cfg):
-            cfg.data.train_dataset = None
-
     model: L.LightningModule = instantiate(cfg.model)
-    datamodule: L.LightningDataModule = instantiate(cfg.data)
+    datamodule: L.LightningDataModule = instantiate(cfg.datamodule)
     callbacks = instantiate_list(cfg.get("callbacks"))
     loggers = instantiate_list(cfg.get("logger"))
     trainer: L.Trainer = instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)
 
     # Push the resolved config to every logger so each tracking UI shows it.
     cfg_dict = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=False)
-    for log in loggers:
-        if hasattr(log, "log_hyperparams"):
-            log.log_hyperparams(cfg_dict)
+    for backend in loggers:
+        if hasattr(backend, "log_hyperparams"):
+            backend.log_hyperparams(cfg_dict)
 
-    if cfg.get("train", True):
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+    trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
 
     if cfg.get("test", False):
-        ckpt_path = "best" if cfg.get("train", True) and trainer.checkpoint_callback else cfg.get("ckpt_path")
-        trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
+        ckpt_path = "best" if trainer.checkpoint_callback else None
+        results = trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
+        # Lightning prints its metrics table to stdout only; mirror it through `logging` so the
+        # run dir's ${task_name}.log records the final numbers.
+        for metrics in results:
+            for name, value in sorted(metrics.items()):
+                log.info("%s: %s", name, value)
 
 
 if __name__ == "__main__":

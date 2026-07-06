@@ -1,0 +1,41 @@
+# @package _global_
+# PointMamba classification on ScanObjectNN OBJ_BG (with background).
+# Train: uv run --no-sync python train.py experiment=point_mamba/scanobjectnn
+# Benchmark: uv run --no-sync python test.py experiment=point_mamba/scanobjectnn
+#
+# | model.name                    | accuracy |
+# | ----------------------------- | -------- |
+# | point-mamba-base.scanobjectnn | 0.9415   |
+# (exact at precision=32-true datamodule.batch_size=16)
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 250
+
+model:
+  name: point-mamba-base.scanobjectnn
+  num_classes: 15
+  pretrained: false
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: ${trainer.max_epochs}
+
+datamodule:
+  train_dataset:
+    background: true
+    variant: null
+  val_dataset:
+    background: true
+    variant: null

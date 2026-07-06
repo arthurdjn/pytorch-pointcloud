@@ -1,0 +1,31 @@
+# @package _global_
+# SphereFormer semantic segmentation on SemanticKITTI.
+# Benchmark: uv run --no-sync python test.py experiment=sphereformer/semantickitti
+# Measured: blocked (no weights upstream, sptr not installed)
+defaults:
+  - override /datamodule: semantickitti
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  # spconv fp16 tuner fails under 16-mixed
+  precision: "32-true"
+
+model:
+  name: sphereformer-dvlab.semantickitti
+  num_classes: 19
+  input_keys: [x, pos_grid, batch, pos]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+  inferer:
+    _target_: torch_pointcloud.inferers.SimpleInferer
+  inverse_key: inverse
+  origin_target_key: segment
+
+datamodule:
+  # The example script evaluates one LiDAR scan per batch.
+  batch_size: 1
+  # Emits batch_inverse so multi-scan eval batches back-project correctly if batch_size is raised.
+  cat_keys: [inverse]

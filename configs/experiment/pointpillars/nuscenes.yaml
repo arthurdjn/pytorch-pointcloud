@@ -1,0 +1,28 @@
+# @package _global_
+# PointPillars multi-head 3D object detection on nuScenes v1.0-mini.
+# Benchmark: uv run --no-sync python test.py experiment=pointpillars/nuscenes
+#
+# | model.name                                | mAP@0.25 | mAP@0.5 |
+# | ----------------------------------------- | -------- | ------- |
+# | pointpillars-openpcdet-multihead.nuscenes | 0.4835   | 0.3538  |
+defaults:
+  - override /datamodule: nuscenes
+  - override /model: detection
+  - override /callbacks: detection
+
+trainer:
+  # the reference numbers are fp32 (OpenPCDet bit-exact parity additionally needs TF32 off)
+  precision: "32-true"
+
+model:
+  name: pointpillars-openpcdet-multihead.nuscenes
+  input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
+  score_threshold: 0.1
+  nms_iou: 0.2
+  label_key: label
+
+datamodule:
+  # 10-sweep keyframes are memory-heavy
+  batch_size: 2
+  # Keep the ragged GT boxes and the voxel grid indices packed (collate emits batch_box / batch_pos_voxel).
+  cat_keys: [box, pos_voxel]

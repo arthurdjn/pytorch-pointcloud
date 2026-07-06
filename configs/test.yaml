@@ -1,18 +1,27 @@
-# Eval-only entrypoint: `test.py ckpt_path=path/to/last.ckpt`.
+# Main config for the Hydra evaluation entrypoint `test.py`:
+#   uv run --no-sync python test.py experiment=spunet/scannet
+#   uv run --no-sync python test.py experiment=spunet/scannet ckpt_path=logs/.../last.ckpt
+# `datamodule`, `model` and `experiment` are mandatory; every experiment overrides the first two.
 defaults:
   - _self_
   - paths: default
   - hydra: default
   - trainer: default
-  - logger: csv
-  - data: scannet
-  - model: spunet
-  - experiment: null
+  - callbacks: default
+  - logger: default
+  - datamodule: ???
+  - model: ???
+  - experiment: ???
+  # Optional test-time inference strategy composed into `model.inferer` (e.g. `inferer=tta`).
+  - inferer: null
 
 task_name: test
 tags: [test]
 run_name: default
-run_id: ${run_name}_${now:%Y-%m-%d_%H-%M-%S}
+# Captured once at compose time so the filesystem layout and the cross-backend `run_id` agree to the second.
+timestamp: ${now:%Y-%m-%d_%H-%M-%S}
+run_id: ${run_name}_${timestamp}
 
 seed: 42
-ckpt_path: ???
+# Checkpoint to evaluate instead of the registry's pretrained weights.
+ckpt_path: null

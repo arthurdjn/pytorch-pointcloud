@@ -1,0 +1,28 @@
+# @package _global_
+# PointGPT classification on ScanObjectNN OBJ_BG (with background).
+# Benchmark: uv run --no-sync python test.py experiment=pointgpt/scanobjectnn-objbg
+#
+# | model.name                              | accuracy |
+# | --------------------------------------- | -------- |
+# | pointgpt-cguangyan-s.scanobjectnn-objbg | 0.9157   |
+# | pointgpt-cguangyan-b.scanobjectnn-objbg | 0.9707   |
+# | pointgpt-cguangyan-l.scanobjectnn-objbg | 0.9845   |
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: pointgpt-cguangyan-s.scanobjectnn-objbg
+  num_classes: 15
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  train_dataset:
+    background: true
+    variant: null
+  val_dataset:
+    background: true
+    variant: null
