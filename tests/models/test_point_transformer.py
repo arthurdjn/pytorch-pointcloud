@@ -108,7 +108,6 @@ def test_point_transformer_clf_forward_encoder(
     assert pos.dim() == 2
     assert batch.dim() == 1
 
-    # Test forward features with intermediates
     x, pos, batch, intermediates = model_clf.forward_encoder(
         data["features"],
         data["pos"],

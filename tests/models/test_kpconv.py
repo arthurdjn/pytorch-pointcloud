@@ -59,7 +59,6 @@ def test_kpconv_module(data: Dict[str, Tensor]) -> None:
     output = conv(x, pos, pos, data["edge_index"])
     assert output.shape == (len(data["pos"]), 32)
 
-    # Test with deformable and modulated options
     conv = KPConv(
         spatial_dim=3,
         in_channels=3,
@@ -216,7 +215,6 @@ def test_kpconv_clf_forward_features(model_clf: KPFCNNClassification, data: Dict
     assert out_pos.dim() == 2
     assert out_batch.dim() == 1
 
-    # Test forward features with intermediates
     out_x, out_pos, out_batch, intermediates = model_clf.forward_features(
         data["features"],
         data["pos"],

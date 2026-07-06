@@ -392,7 +392,6 @@ def test_classification_architecture(model_name: str, force_regen: bool, models_
     uv run pytest tests/models/test_registered_models.py -k test_classification_architecture --force-regen
     ```
     """
-    # Only copy the models directory to the temporary directory
     models_dir = models_dir_factory("*.json")
 
     _skip_if_model_deps_missing(model_name)
@@ -426,7 +425,6 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, models_di
     ```
     """
     _skip_if_model_deps_missing(model_name)
-    # Only copy the models directory to the temporary directory
     models_dir = models_dir_factory("*.json")
 
     model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
@@ -592,7 +590,6 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
-    # Keep only the kwargs the model's forward actually accepts, then move to device.
     sig = inspect.signature(model.forward)
     kwargs = {a: data[a] for a in sig.parameters if a != "self"}
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}

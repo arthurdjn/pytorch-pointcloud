@@ -124,7 +124,6 @@ def test_pointconv_classification_forward_features(
     assert out_pos.dim() == 2
     assert out_batch.dim() == 1
 
-    # Test with intermediates
     out_features, out_pos, out_batch, intermediates = model_clf.forward_features(
         data["features"], data["pos"], data["batch"], return_intermediates=True
     )

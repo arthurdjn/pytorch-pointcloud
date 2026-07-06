@@ -142,7 +142,6 @@ def test_pointmlp_classification_forward_features(
     assert pos.dim() == 2
     assert batch.dim() == 1
 
-    # Test forward features with intermediates
     x, pos, batch, intermediates = model_clf.forward_features(
         data["x"],
         data["pos"],
