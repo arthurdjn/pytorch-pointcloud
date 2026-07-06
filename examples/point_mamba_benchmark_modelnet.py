@@ -1,3 +1,18 @@
+"""Evaluate the PointMamba ModelNet40 classifier (single-pass, no voting).
+
+`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
+registered eval transform.
+
+Results vs reference (ModelNet40 overall accuracy, no voting; camera-ready PointMamba numbers):
+
+    | Variant                     | reference | torch-pointcloud |
+    | --------------------------- | --------- | ---------------- |
+    | point-mamba-base.modelnet40 | 93.6      | 93.64            |
+
+Usage:
+    uv run --no-sync python examples/point_mamba_benchmark_modelnet.py
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict
