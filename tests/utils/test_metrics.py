@@ -11,6 +11,8 @@ from torch_pointcloud.utils.metrics import (
     compute_mean_iou,
     confusion_matrix,
     overall_accuracy,
+    part_iou,
+    part_mean_iou,
     per_class_accuracy,
 )
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
@@ -179,6 +181,51 @@ def test_mean_iou_per_batch() -> None:
     assert miou.shape == (2,)
     assert miou[0].item() == pytest.approx(1.0)
     assert miou[1].item() == pytest.approx(0.25)
+
+
+def test_part_iou_two_shapes_hand_checked() -> None:
+    # Shape 0 (cat 0, parts [0, 1]): class 0 iou 1/2, class 1 iou 2/3 -> mean 7/12.
+    # Shape 1 (cat 1, parts [2, 3]): class 2 iou 1, class 3 absent from preds and target -> 1 -> mean 1.
+    part_ids = [[0, 1], [2, 3]]
+    preds = torch.tensor([0, 1, 1, 1, 2, 2])
+    target = torch.tensor([0, 0, 1, 1, 2, 2])
+    category = torch.tensor([0, 1])
+    batch = torch.tensor([0, 0, 0, 0, 1, 1])
+    ious = part_iou(preds, target, part_ids, category, batch)
+    assert torch.allclose(ious, torch.tensor([7.0 / 12.0, 1.0]))
+
+
+def test_part_iou_absent_parts_count_as_one() -> None:
+    # Only part 0 of the 3-part category appears; the two absent parts each contribute IoU 1.
+    part_ids = [[0, 1, 2]]
+    preds = torch.tensor([0, 0])
+    target = torch.tensor([0, 0])
+    ious = part_iou(preds, target, part_ids, torch.tensor([0]), torch.tensor([0, 0]))
+    assert ious.item() == pytest.approx(1.0)
+
+
+def test_part_iou_scores_only_the_category_parts() -> None:
+    # A point predicted as another category's part (4) only costs intersection on the true part;
+    # part 4 itself is outside the shape's category and is never scored.
+    part_ids = [[0, 1], [2, 3], [4]]
+    preds = torch.tensor([0, 4])
+    target = torch.tensor([0, 0])
+    ious = part_iou(preds, target, part_ids, torch.tensor([0]), torch.tensor([0, 0]))
+    # class 0 iou 1/2, class 1 absent -> 1 -> mean 3/4.
+    assert ious.item() == pytest.approx(0.75)
+
+
+def test_part_mean_iou_instance_vs_class_averaging() -> None:
+    # Shape 0 (cat 0): 7/12. Shapes 1 and 2 (cat 1): 1 and 0. Category 2 has no shape.
+    # ins = mean(7/12, 1, 0) = 19/36; cls = mean(7/12, (1 + 0) / 2) = 13/24 (absent category excluded).
+    part_ids = [[0, 1], [2, 3], [4]]
+    preds = torch.tensor([0, 1, 1, 1, 2, 2, 2])
+    target = torch.tensor([0, 0, 1, 1, 2, 2, 3])
+    category = torch.tensor([0, 1, 1])
+    batch = torch.tensor([0, 0, 0, 0, 1, 1, 2])
+    out = part_mean_iou(preds, target, part_ids, category, batch)
+    assert out["ins_mIoU"] == pytest.approx(19.0 / 36.0)
+    assert out["cls_mIoU"] == pytest.approx(13.0 / 24.0)
 
 
 def test_overall_accuracy_perfect(perfect_preds: tuple[Tensor, Tensor]) -> None:
