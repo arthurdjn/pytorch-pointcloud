@@ -1,8 +1,21 @@
-"""Benchmark PointNeXt classification on ModelNet40 (normal-resampled).
+"""Evaluate the PointNeXt ModelNet40 classifier (single-pass, no voting).
+
+`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
+registered eval transform (FPS to 1024 points).
+
+Results vs reference (ModelNet40 overall accuracy; reference is the model-zoo best-seed checkpoint eval,
+paper mean 93.7 +- 0.3):
+
+    | Variant                     | reference | torch-pointcloud |
+    | --------------------------- | --------- | ---------------- |
+    | pointnext-sm-c64.modelnet40 | 94.0      | 92.10            |
+
+The gap comes from the eval data: the reference takes the first 1024 points of the
+`modelnet40_ply_hdf5_2048` clouds, while this script FPS-samples the normal-resampled dataset, and the
+fixed ball-query radii make PointNeXt sensitive to that shift in point distribution.
 
 Usage:
-    python examples/pointnext_benchmark_modelnet.py --download
-    python examples/pointnext_benchmark_modelnet.py --model pointnext-sm.modelnet40 --download
+    uv run --no-sync python examples/pointnext_benchmark_modelnet.py --download
 """
 
 import os

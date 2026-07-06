@@ -1,3 +1,19 @@
+"""Evaluate the DGCNN ScanNet-V2 model with antao97's original block protocol.
+
+Reads the raw ScanNet `.ply` scenes directly and reproduces the antao97 eval verbatim (per-scene sliding
+$1.5$ m blocks, block-level voting, full-resolution scoring); use `dgcnn_benchmark_scannet.py` for the
+equivalent benchmark built on the repo dataset (which scores slightly higher).
+
+Results vs reference (ScanNet val mIoU; reference is the antao97 repo's ScanNet section):
+
+    | Variant               | reference | torch-pointcloud |
+    | --------------------- | --------- | ---------------- |
+    | dgcnn-antao.scannet20 | 49.6      | 49.17            |
+
+Usage:
+    uv run --no-sync python examples/dgcnn_scannet_benchmark_antao.py
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
