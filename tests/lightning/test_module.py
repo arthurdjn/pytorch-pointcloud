@@ -170,6 +170,13 @@ def test_configure_optimizers_without_scheduler_returns_optimizer() -> None:
     assert isinstance(out, torch.optim.Optimizer)
 
 
+def test_configure_optimizers_without_optimizer_raises() -> None:
+    """Without an `optimizer` the module is evaluation-only, so `Trainer.fit` must fail loudly."""
+    lit = LitClassificationModel(name="dummy.classification")
+    with pytest.raises(RuntimeError, match="evaluation-only"):
+        lit.configure_optimizers()
+
+
 def test_configure_optimizers_uses_param_groups() -> None:
     lit = _make_seg_module(
         param_groups={
@@ -189,7 +196,7 @@ def test_configure_optimizers_uses_param_groups() -> None:
 
 def test_fit_smoke_with_explicit_scheduler() -> None:
     """End-to-end: a real `fit` runs train + val steps with a scheduler whose `total_steps`
-    is set explicitly (the LitModule no longer auto-injects it)."""
+    is set explicitly (the LitModule does not auto-inject it)."""
     lit = _make_seg_module(scheduler=partial(OneCycleLR, max_lr=0.01, total_steps=10))
     dm = PointCloudDataModule(
         train_dataset=DummySegmentationDataset(4),
@@ -226,6 +233,116 @@ def test_mix3d_halves_batch_index_during_training(monkeypatch: pytest.MonkeyPatc
     assert torch.equal(out["batch"], torch.tensor([0, 0, 0, 0, 1, 1, 1, 1]))
 
 
+def test_seg_inferer_runs_on_test_step() -> None:
+    """`test_step` delegates the forward to the inferer, passing the batch and the module's forward."""
+    preds = torch.randn(12, 4)
+    inferer = Mock(return_value=preds)
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
+    batch = {
+        "x": torch.randn(12, 3),
+        "pos": torch.randn(12, 3),
+        "batch": torch.cat([torch.zeros(6, dtype=torch.long), torch.ones(6, dtype=torch.long)]),
+        "segment": torch.randint(0, 4, (12,)),
+    }
+    out = lit.test_step(batch, batch_idx=0)
+    inferer.assert_called_once()
+    assert inferer.call_args.args[0] is batch
+    assert inferer.call_args.kwargs["predictor"] == lit.forward
+    assert out["preds"] is preds
+    assert torch.equal(out["target"], batch["segment"])
+
+
+def test_seg_eval_step_returns_per_point_batch() -> None:
+    """Eval steps expose the packed per-point shape index so multi-shape metrics can score per shape."""
+    lit = _make_seg_module()
+    batch = {
+        "x": torch.randn(12, 3),
+        "pos": torch.randn(12, 3),
+        "batch": torch.cat([torch.zeros(6, dtype=torch.long), torch.ones(6, dtype=torch.long)]),
+        "segment": torch.randint(0, 4, (12,)),
+    }
+    out = lit.validation_step(batch, batch_idx=0)
+    assert out["batch"] is batch["batch"]
+
+
+def test_seg_inferer_not_used_on_validation_step() -> None:
+    inferer = Mock(return_value=torch.randn(12, 4))
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
+    batch = {
+        "x": torch.randn(12, 3),
+        "pos": torch.randn(12, 3),
+        "batch": torch.cat([torch.zeros(6, dtype=torch.long), torch.ones(6, dtype=torch.long)]),
+        "segment": torch.randint(0, 4, (12,)),
+    }
+    out = lit.validation_step(batch, batch_idx=0)
+    inferer.assert_not_called()
+    assert out["preds"].shape == (12, 4)
+
+
+def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
+    """With `inverse_key`, eval preds are gathered to raw resolution and scored against `origin_segment`."""
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    batch = {
+        "x": torch.randn(6, 3),
+        "pos": torch.randn(6, 3),
+        "batch": torch.zeros(6, dtype=torch.long),
+        "segment": torch.randint(0, 4, (6,)),
+        "inverse": torch.randint(0, 6, (12,)),
+        "origin_segment": torch.randint(0, 4, (12,)),
+    }
+    logits = lit(batch)
+    out = lit.test_step(batch, batch_idx=0)
+    assert out["preds"].shape == (12, 4)
+    assert torch.equal(out["preds"], logits[batch["inverse"]])
+    assert torch.equal(out["target"], batch["origin_segment"])
+
+
+def test_seg_inverse_key_missing_from_batch_raises() -> None:
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    batch = {
+        "x": torch.randn(6, 3),
+        "pos": torch.randn(6, 3),
+        "batch": torch.zeros(6, dtype=torch.long),
+        "segment": torch.randint(0, 4, (6,)),
+    }
+    with pytest.raises(KeyError):
+        lit.test_step(batch, batch_idx=0)
+
+
+def test_seg_inverse_key_offsets_per_scene_with_batch_index() -> None:
+    """Multi-scene batches offset each scene's inverse map by the voxel rows of the scenes before it."""
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    batch = {
+        "x": torch.randn(5, 3),
+        "pos": torch.randn(5, 3),
+        "batch": torch.tensor([0, 0, 1, 1, 1]),
+        "segment": torch.randint(0, 4, (5,)),
+        "inverse": torch.tensor([0, 1, 1, 0, 2, 2, 1]),
+        "batch_inverse": torch.tensor([0, 0, 0, 1, 1, 1, 1]),
+        "origin_segment": torch.randint(0, 4, (7,)),
+    }
+    logits = lit(batch)
+    out = lit.test_step(batch, batch_idx=0)
+    expected_rows = torch.tensor([0, 1, 1, 2, 4, 4, 3])
+    assert torch.equal(out["preds"], logits[expected_rows])
+    assert torch.equal(out["target"], batch["origin_segment"])
+    assert torch.equal(out["batch"], batch["batch"][expected_rows])
+
+
+def test_seg_inverse_key_multi_scene_without_batch_index_raises() -> None:
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    batch = {
+        "x": torch.randn(5, 3),
+        "pos": torch.randn(5, 3),
+        "batch": torch.tensor([0, 0, 1, 1, 1]),
+        "segment": torch.randint(0, 4, (5,)),
+        "inverse": torch.tensor([0, 1, 1, 0, 2, 2, 1]),
+        "origin_segment": torch.randint(0, 4, (7,)),
+    }
+    with pytest.raises(RuntimeError, match="cat_keys"):
+        lit.test_step(batch, batch_idx=0)
+
+
 def test_detection_criterion_completed_with_model_params() -> None:
     """`__init__` forwards the model's head-geometry params (not the model itself) to the criterion factory."""
     criterion = Mock()
@@ -236,6 +353,59 @@ def test_detection_criterion_completed_with_model_params() -> None:
     assert kwargs["num_size_cluster"] == lit.model.num_size_cluster
     assert kwargs["num_classes"] == lit.model.num_classes
     assert kwargs["mean_sizes"] is lit.model.mean_sizes
+
+
+def test_detection_criterion_none_skips_head_geometry_completion() -> None:
+    """Without a `criterion` the head-geometry params are never read, so a model may not expose them."""
+
+    def factory(**kwargs: Any) -> DummyDetectionModel:
+        model = DummyDetectionModel(**kwargs)
+        del model.num_heading_bin
+        del model.num_size_cluster
+        del model.mean_sizes
+        return model
+
+    register_model("dummy-headless.detection", task="detection")(factory)
+    try:
+        module = LitDetectionModel(name="dummy-headless.detection")
+        assert module.criterion is None
+    finally:
+        _REGISTERED_MODELS["detection"].pop("dummy-headless.detection", None)
+
+
+def test_detection_criterion_none_eval_step_returns_preds_without_loss(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = LitDetectionModel(name="dummy.detection")
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([2]),
+        "batch": torch.tensor([0]),
+    }
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    log = Mock()
+    monkeypatch.setattr(module, "log", log)
+    batch = {
+        "x": torch.rand(4, 1),
+        "pos": torch.zeros(4, 3),
+        "batch": torch.zeros(4, dtype=torch.long),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 3.0]]),
+        "batch_box": torch.tensor([0]),
+    }
+    out = module.test_step(batch, batch_idx=0)
+    log.assert_not_called()
+    assert out["preds"]["labels"].tolist() == [2]
+    assert out["target"]["labels"].tolist() == [3]
+
+
+def test_detection_criterion_none_training_step_raises() -> None:
+    module = LitDetectionModel(name="dummy.detection")
+    batch = {
+        "x": torch.rand(4, 1),
+        "pos": torch.rand(4, 3),
+        "batch": torch.zeros(4, dtype=torch.long),
+    }
+    with pytest.raises(RuntimeError, match="evaluation-only"):
+        module.training_step(batch, batch_idx=0)
 
 
 def test_detection_forward_delegates_to_model(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -343,6 +513,92 @@ def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch
     out = module.validation_step(batch, batch_idx=0)
     # the 0.3-score box is below score_threshold=0.5, so nothing is kept.
     assert out["preds"]["boxes"].shape[0] == 0
+
+
+def test_detection_min_points_filters_boxes_without_points(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = LitDetectionModel(
+        name="dummy.detection",
+        optimizer=partial(torch.optim.AdamW, lr=0.01),
+        criterion=Mock(),
+        min_points=2,
+    )
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [9.0, 9.0, 9.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.9, 0.8]),
+        "labels": torch.tensor([1, 2]),
+        "batch": torch.tensor([0, 0]),
+    }
+    monkeypatch.setattr(module, "step", Mock(return_value={"output": {}, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    batch = {
+        "pos": torch.zeros(4, 3),
+        "batch": torch.zeros(4, dtype=torch.long),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0]]),
+        "batch_box": torch.tensor([0]),
+    }
+    out = module.validation_step(batch, batch_idx=0)
+    # all 4 points fall in the first box; the far-away box holds 0 < min_points=2 and is dropped.
+    assert out["preds"]["labels"].tolist() == [1]
+    assert out["preds"]["boxes"].shape[0] == 1
+
+
+def test_detection_class_probs_expands_boxes_per_class(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When `decode` emits `class_probs`, each surviving box is scored once per class (indoor AP protocol)."""
+    module = _make_det_module()
+    probs = torch.tensor([[0.5, 0.3, 0.2], [0.1, 0.6, 0.3]])
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0], [5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.9, 0.8]),
+        "labels": torch.tensor([0, 1]),
+        "batch": torch.tensor([0, 1]),
+        "class_probs": probs,
+    }
+    monkeypatch.setattr(module, "step", Mock(return_value={"output": {}, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    batch = {
+        "pos": torch.zeros(4, 3),
+        "batch": torch.tensor([0, 0, 1, 1]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0]]),
+        "batch_box": torch.tensor([0]),
+    }
+    out = module.validation_step(batch, batch_idx=0)
+    assert out["preds"]["boxes"].shape == (6, 7)
+    assert torch.equal(out["preds"]["boxes"][:3], decoded["boxes"][0].expand(3, 7))
+    assert torch.allclose(out["preds"]["scores"], (probs * torch.tensor([[0.9], [0.8]])).reshape(-1))
+    assert out["preds"]["labels"].tolist() == [0, 1, 2, 0, 1, 2]
+    assert out["preds"]["batch"].tolist() == [0, 0, 0, 1, 1, 1]
+
+
+def test_detection_label_key_passes_full_extent_target_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With `label_key`, the GT boxes are $(K, 7)$ full-extent rows passed through unmodified."""
+    module = LitDetectionModel(
+        name="dummy.detection",
+        optimizer=partial(torch.optim.AdamW, lr=0.01),
+        criterion=Mock(),
+        label_key="label",
+        ignore_mask_key="ignore_mask",
+    )
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    monkeypatch.setattr(module, "step", Mock(return_value={"output": {}, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    batch = {
+        "pos": torch.zeros(2, 3),
+        "batch": torch.zeros(2, dtype=torch.long),
+        "box": torch.tensor([[1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.3]]),
+        "batch_box": torch.tensor([0]),
+        "label": torch.tensor([2]),
+        "ignore_mask": torch.tensor([False]),
+    }
+    out = module.validation_step(batch, batch_idx=0)
+    assert out["target"]["boxes"] is batch["box"]
+    assert out["target"]["labels"].tolist() == [2]
+    assert out["target"]["batch"] is batch["batch_box"]
+    assert out["target"]["ignore_mask"] is batch["ignore_mask"]
 
 
 def test_detection_configure_optimizers_without_scheduler_returns_optimizer() -> None:

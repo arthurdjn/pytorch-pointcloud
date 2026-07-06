@@ -82,6 +82,9 @@ class MetricCallback(Callback):
         stages: Stages to score; each listed stage's `*_step` must return `preds_key` / `target_key`.
         preds_key: Key in the step output holding predictions (logits, probabilities, labels, or detections).
         target_key: Key in the step output holding the targets.
+        batch_key: Optional key in the step output holding the per-point shape index, forwarded as a third
+            positional argument to `metric.update` (packed multi-shape metrics like `InstancePartMeanIoU`
+            need it). Leave `None` for two-argument metrics.
         prog_bar: Whether to show the metric on the progress bar.
     """
 
@@ -93,6 +96,7 @@ class MetricCallback(Callback):
         stages: Sequence[str] = ("val", "test"),
         preds_key: str = "preds",
         target_key: str = "target",
+        batch_key: Optional[str] = None,
         prog_bar: bool = True,
     ) -> None:
         super().__init__()
@@ -100,6 +104,7 @@ class MetricCallback(Callback):
         self.stages = tuple(stages)
         self.preds_key = preds_key
         self.target_key = target_key
+        self.batch_key = batch_key
         self.prog_bar = prog_bar
         self.metric: Optional[Metric] = metric
 
@@ -111,7 +116,10 @@ class MetricCallback(Callback):
     def _update(self, outputs: Any) -> None:
         assert self.metric is not None
         if isinstance(outputs, dict):
-            self.metric.update(outputs[self.preds_key], outputs[self.target_key])
+            if self.batch_key is not None:
+                self.metric.update(outputs[self.preds_key], outputs[self.target_key], outputs[self.batch_key])
+            else:
+                self.metric.update(outputs[self.preds_key], outputs[self.target_key])
 
     def _compute(self, pl_module: "L.LightningModule", stage: str) -> None:
         assert self.metric is not None

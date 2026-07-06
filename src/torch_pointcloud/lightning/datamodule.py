@@ -31,6 +31,9 @@ class PointCloudDataModule(LightningDataModule):
         stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
         cat_keys: Packed keys that additionally emit a `batch_<key>` per-element scene index.
         batch_size: Number of point clouds per batch.
+        eval_batch_size: Batch size of the val/test loaders; defaults to `batch_size`. Evaluation often
+            runs full-resolution scenes while training runs crops, so the two memory envelopes differ
+            (a benchmark protocol is typically one scene per batch).
         num_workers: Number of worker processes for data loading.
         pin_memory: Pin tensors in pinned (page-locked) memory before transfer.
         drop_last: Drop the last incomplete batch. Applied to the *train* loader only;
@@ -50,6 +53,7 @@ class PointCloudDataModule(LightningDataModule):
         stack_keys: Optional[Sequence[str]] = None,
         cat_keys: Optional[Sequence[str]] = None,
         batch_size: int = 1,
+        eval_batch_size: Optional[int] = None,
         num_workers: int = 0,
         pin_memory: bool = False,
         drop_last: bool = True,
@@ -66,6 +70,7 @@ class PointCloudDataModule(LightningDataModule):
         self.stack_keys = stack_keys
         self.cat_keys = cat_keys
         self.batch_size = batch_size
+        self.eval_batch_size = eval_batch_size if eval_batch_size is not None else batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.drop_last = drop_last
@@ -96,6 +101,7 @@ class PointCloudDataModule(LightningDataModule):
         *,
         shuffle: bool,
         drop_last: bool,
+        batch_size: Optional[int] = None,
         sampler: Optional[Union[Sampler, Iterable]] = None,
         batch_sampler: Optional[Union[Sampler, Iterable]] = None,
     ) -> DataLoader:
@@ -109,7 +115,7 @@ class PointCloudDataModule(LightningDataModule):
             dataset,
             stack_keys=self.stack_keys,
             cat_keys=self.cat_keys,
-            batch_size=self.batch_size,
+            batch_size=batch_size if batch_size is not None else self.batch_size,
             shuffle=effective_shuffle,
             sampler=sampler,
             batch_sampler=batch_sampler,
@@ -126,11 +132,13 @@ class PointCloudDataModule(LightningDataModule):
         return self.configure_dataloader(self.train_dataset, shuffle=True, drop_last=self.drop_last)
 
     def val_dataloader(self) -> DataLoader:
-        return self.configure_dataloader(self.val_dataset, shuffle=False, drop_last=False)
+        return self.configure_dataloader(
+            self.val_dataset, shuffle=False, drop_last=False, batch_size=self.eval_batch_size
+        )
 
     def test_dataloader(self) -> DataLoader:
         # Fall back to the validation set when no dedicated test set is given: for these benchmarks the
         # held-out split is the validation set, so `Trainer.test` (e.g. a pretrained-weight benchmark)
         # evaluates on it without the experiment having to duplicate the dataset as `test_dataset`.
         dataset = self.test_dataset if self.test_dataset is not None else self.val_dataset
-        return self.configure_dataloader(dataset, shuffle=False, drop_last=False)
+        return self.configure_dataloader(dataset, shuffle=False, drop_last=False, batch_size=self.eval_batch_size)

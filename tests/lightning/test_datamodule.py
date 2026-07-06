@@ -40,6 +40,28 @@ def test_datamodule_returns_packed_batches() -> None:
     assert int(batch["batch"].max().item()) == 1
 
 
+def test_datamodule_eval_batch_size_applies_to_val_and_test_only() -> None:
+    from torch_pointcloud.lightning import PointCloudDataModule
+
+    dm = PointCloudDataModule(
+        train_dataset=_StubDataset(4),
+        val_dataset=_StubDataset(4),
+        batch_size=2,
+        eval_batch_size=1,
+        num_workers=0,
+    )
+    assert next(iter(dm.train_dataloader()))["x"].shape == (16, 3)
+    assert next(iter(dm.val_dataloader()))["x"].shape == (8, 3)
+    assert next(iter(dm.test_dataloader()))["x"].shape == (8, 3)
+
+
+def test_datamodule_eval_batch_size_defaults_to_batch_size() -> None:
+    from torch_pointcloud.lightning import PointCloudDataModule
+
+    dm = PointCloudDataModule(val_dataset=_StubDataset(4), batch_size=2, num_workers=0)
+    assert next(iter(dm.val_dataloader()))["x"].shape == (16, 3)
+
+
 def test_repeat_dataset_lengthens_epoch() -> None:
     """`RepeatDataset(dataset, loop=k)` lengthens an epoch by k. The datamodule
     treats it as any other dataset; the loop concept is owned by the dataset wrapper."""

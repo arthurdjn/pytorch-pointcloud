@@ -145,6 +145,25 @@ def test_metric_callback_skips_unlisted_stage(trainer: L.Trainer, monkeypatch: p
     log.assert_not_called()
 
 
+def test_metric_callback_batch_key_forwards_third_update_arg(trainer: L.Trainer) -> None:
+    """With `batch_key` set, `metric.update` receives the step output's batch index as a third positional
+    argument (packed multi-shape metrics need it); without it, the two-argument call is unchanged."""
+    module = _cls_module(num_classes=3)
+    metric = Mock()
+    callback = MetricCallback(metric=metric, name="ins_mIoU", stages=("val",), batch_key="batch")
+    preds = torch.randn(4, 3)
+    target = torch.tensor([0, 1, 2, 1])
+    batch_index = torch.tensor([0, 0, 1, 1])
+
+    callback.on_validation_batch_end(trainer, module, {"preds": preds, "target": target, "batch": batch_index}, {}, 0)
+
+    metric.update.assert_called_once()
+    args = metric.update.call_args.args
+    assert args[0] is preds
+    assert args[1] is target
+    assert args[2] is batch_index
+
+
 def test_metric_callback_logs_detection_map(trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch) -> None:
     """A perfect detection scored through `MetricCallback` + `MeanAveragePrecision3D` logs `mAP@t = 1.0`."""
     module = _det_module()
