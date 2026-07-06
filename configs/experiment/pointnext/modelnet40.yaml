@@ -1,0 +1,52 @@
+# @package _global_
+# PointNeXt classification on ModelNet40 (normal-resampled).
+# Train: uv run --no-sync python train.py experiment=pointnext/modelnet40
+# Benchmark: uv run --no-sync python test.py experiment=pointnext/modelnet40
+#
+# | model.name                  | accuracy |
+# | --------------------------- | -------- |
+# | pointnext-sm-c64.modelnet40 | 0.9218   |
+defaults:
+  - override /datamodule: modelnet40_normal_resampled
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 200
+
+model:
+  name: pointnext-sm-c64.modelnet40
+  num_classes: 40
+  pretrained: false
+  input_keys: [pos, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: ${trainer.max_epochs}
+
+datamodule:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.FarthestPointSample
+          pos_key: pos
+          keys: pos
+          num_samples: 1024
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+          method: centroid
+        - _target_: torch_pointcloud.transforms.RandomScale
+          keys: pos
+          scale_range: [0.8, 1.25]
+        - _target_: torch_pointcloud.transforms.RandomJitter
+          keys: pos
+          sigma: 0.01
+          clip: 0.05

@@ -1,0 +1,48 @@
+# @package _global_
+# PointNet++ (yanx27) semantic segmentation on S3DIS Area 5 (per-block HDF5 protocol).
+# Train: uv run --no-sync python train.py experiment=pointnet2/yanx27_s3dis
+# Benchmark: uv run --no-sync python test.py experiment=pointnet2/yanx27_s3dis
+#
+# | model.name                   | mIoU   | accuracy |
+# | ---------------------------- | ------ | -------- |
+# | pointnet2-yanx27.s3dis-area5 | 0.3476 | 0.7505   |
+#
+# New reference after the registered-transform color fix; script and config paths are identical.
+defaults:
+  - override /datamodule: s3dis_hdf5
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: pointnet2-yanx27.s3dis-area5
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  scheduler_interval: step
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.001
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.001
+    # S3DIS HDF5 train (16733 blocks, Areas 1-4 + 6) at batch_size 32 over 100 epochs
+    total_steps: 52300
+    pct_start: 0.05
+    anneal_strategy: cos
+    div_factor: 10.0
+    final_div_factor: 1000.0
+
+datamodule:
+  batch_size: 32
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

@@ -1,0 +1,41 @@
+# @package _global_
+# KPFCNN semantic segmentation on S3DIS Area 5.
+# Train: uv run --no-sync python train.py experiment=kpfcnn/s3dis
+# Benchmark: uv run --no-sync python test.py experiment=kpfcnn/s3dis
+#
+# | model.name                  | mIoU   |
+# | --------------------------- | ------ |
+# | kpfcnn-base.s3dis           | 0.6564 |
+# | kpfcnn-base-sm.s3dis        | 0.6395 |
+# | kpfcnn-base-deform.s3dis    | 0.6566 |
+# | kpfcnn-base-sm-deform.s3dis | 0.6449 |
+defaults:
+  - override /datamodule: s3dis
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: kpfcnn-base.s3dis
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: label
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  # Evaluation runs full-resolution scenes (no crop); more than one per batch exhausts a 24 GB GPU.
+  eval_batch_size: 1
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

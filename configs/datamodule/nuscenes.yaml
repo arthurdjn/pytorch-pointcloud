@@ -1,0 +1,19 @@
+# nuScenes v1.0-mini detection datamodule (404 keyframes).
+# The mini set has no train/val split, so both datasets point at the same keyframes: use it for
+# benchmark smoke runs, not from-scratch training. Transforms and collation keys live in the
+# experiment configs.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 4
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.NuScenesMini
+  root: ${paths.data_dir}
+  version: v1.0-mini
+  transform: null
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.NuScenesMini
+  root: ${paths.data_dir}
+  version: v1.0-mini
+  transform: null

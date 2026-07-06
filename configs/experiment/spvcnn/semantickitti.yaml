@@ -1,0 +1,40 @@
+# @package _global_
+# SPVCNN semantic segmentation on SemanticKITTI (per-voxel scoring).
+# Train: uv run --no-sync python train.py experiment=spvcnn/semantickitti
+# Benchmark: uv run --no-sync python test.py experiment=spvcnn/semantickitti
+#
+# | model.name                    | mIoU   |
+# | ----------------------------- | ------ |
+# | spvcnn-30gmacs.semantickitti  | 0.5923 |
+# | spvcnn-47gmacs.semantickitti  | 0.6025 |
+# | spvcnn-119gmacs.semantickitti | 0.6240 |
+defaults:
+  - override /datamodule: semantickitti
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  # spconv/torchsparse fp16 tuner fails under 16-mixed
+  precision: "32-true"
+
+model:
+  name: spvcnn-47gmacs.semantickitti
+  num_classes: 19
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

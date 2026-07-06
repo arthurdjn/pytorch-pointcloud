@@ -1,0 +1,78 @@
+# @package _global_
+# DGCNN semantic segmentation on ScanNet20 (antao97 block protocol, scored per block).
+# Benchmark: uv run --no-sync python test.py experiment=dgcnn/scannet
+# Measured: deferred (dgcnn family skipped for slowness)
+defaults:
+  - override /datamodule: scannet
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+model:
+  name: dgcnn-antao.scannet20
+  num_classes: 20
+  input_keys: [x, norm_pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+
+datamodule:
+  batch_size: 6
+
+  train_dataset:
+    block_size: 1.5
+    block_stride: 0.75
+    num_nodes: 8192
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          default: 255
+        - _target_: torch_pointcloud.transforms.Divide
+          keys: color
+          divisor: 255
+        # norm_pos is normalized by the whole-scene extent (scene_max), not the block's; pos is centered on block_center.
+        - _target_: torch_pointcloud.transforms.CopyItems
+          keys: pos
+          names: norm_pos
+        - _target_: torch_pointcloud.transforms.DivideKey
+          keys: norm_pos
+          div_keys: scene_max
+        - _target_: torch_pointcloud.transforms.SubtractKey
+          keys: pos
+          sub_keys: block_center
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [pos, color]
+          dst_key: x
+          dim: 1
+
+  val_dataset:
+    block_size: 1.5
+    block_stride: 0.75
+    num_nodes: 8192
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          default: 255
+        - _target_: torch_pointcloud.transforms.Divide
+          keys: color
+          divisor: 255
+        # norm_pos is normalized by the whole-scene extent (scene_max), not the block's; pos is centered on block_center.
+        - _target_: torch_pointcloud.transforms.CopyItems
+          keys: pos
+          names: norm_pos
+        - _target_: torch_pointcloud.transforms.DivideKey
+          keys: norm_pos
+          div_keys: scene_max
+        - _target_: torch_pointcloud.transforms.SubtractKey
+          keys: pos
+          sub_keys: block_center
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [pos, color]
+          dst_key: x
+          dim: 1

@@ -1,9 +1,9 @@
-# Segmentation LightningModule API. Required args are `???` and are filled by each experiment
-# (`name`, `input_keys`, `optimizer`, `criterion`); `target_key` defaults to `segment` (override per
-# experiment, e.g. kpfcnn renames to `label`); other optional args use the LightningModule defaults.
+# Segmentation LightningModule API. `???` args are filled by each experiment; `optimizer` stays null
+# for benchmark-only experiments (training raises without one). Optional args: `inferer` (test-time
+# strategy, see `configs/inferer/`), `inverse_key` / `origin_target_key` (voxel-to-raw benchmark scoring).
 _target_: torch_pointcloud.lightning.LitSegmentationModel
 name: ???
 input_keys: ???
-optimizer: ???
+optimizer: null
 criterion: ???
 target_key: segment

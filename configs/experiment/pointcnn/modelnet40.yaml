@@ -1,0 +1,72 @@
+# @package _global_
+# PointCNN classification on ModelNet40 (mesh-sampled); from-scratch recipe, no pretrained weights registered.
+# Train: uv run --no-sync python train.py experiment=pointcnn/modelnet40
+#
+# | model.name    | accuracy |
+# | ------------- | -------- |
+# | pointcnn-base | -        |
+defaults:
+  - override /datamodule: modelnet40
+  - override /model: classification
+  - override /callbacks: classification
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: pointcnn-base
+  pretrained: false
+  num_classes: 40
+  in_channels: 6
+  input_keys: [x, pos, batch]
+  scheduler_interval: step
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.01
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.001
+    # ModelNet40 train (9843 meshes) at batch_size 32 over 100 epochs
+    total_steps: 30800
+    pct_start: 0.05
+    anneal_strategy: cos
+    div_factor: 10.0
+    final_div_factor: 1000.0
+
+datamodule:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+        - _target_: torch_pointcloud.transforms.RandomSampleFaceVertices
+          keys: pos
+          face_key: face
+          normal_key: normal
+          num_samples: 1024
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [pos, normal]
+          dst_key: x
+          dim: 1
+
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+        - _target_: torch_pointcloud.transforms.RandomSampleFaceVertices
+          keys: pos
+          face_key: face
+          normal_key: normal
+          num_samples: 1024
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [pos, normal]
+          dst_key: x
+          dim: 1

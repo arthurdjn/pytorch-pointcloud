@@ -1,7 +1,8 @@
-# Main training config for the Hydra entrypoint `train.py`.
-# Select an experiment to compose a full run:
-#   uv run --no-sync python train.py experiment=spunet/spunet_scannet
-#   uv run --no-sync python train.py experiment=spunet/spunet_scannet logger=csv
+# Main config for the Hydra training entrypoint `train.py` (benchmarks and checkpoint evaluation
+# live in `test.py`):
+#   uv run --no-sync python train.py experiment=spunet/scannet
+#   uv run --no-sync python train.py experiment=spunet/scannet logger=csv
+# `datamodule`, `model` and `experiment` are mandatory; every experiment overrides the first two.
 defaults:
   - _self_
   - paths: default
@@ -9,23 +10,23 @@ defaults:
   - trainer: default
   - callbacks: default
   - logger: default
-  - data: scannet
-  - model: spunet
-  - experiment: null
+  - datamodule: ???
+  - model: ???
+  - experiment: ???
+  # Optional test-time inference strategy composed into `model.inferer` (e.g. `inferer=tta`).
+  - inferer: null
 
 task_name: train
 tags: [dev]
-# Friendly run tag. Experiment configs override this; CLI override wins:
-#   train.py experiment=point_transformer_v3/point_transformer_v3_scannet run_name=ablation_no_mix3d
+# Friendly run tag; experiment configs override it, a CLI override wins.
 run_name: default
-# Single timestamp captured at compose time and reused everywhere so the
-# filesystem layout and the cross-backend `run_id` agree to the second.
+# Captured once at compose time so the filesystem layout and the cross-backend `run_id` agree to the second.
 timestamp: ${now:%Y-%m-%d_%H-%M-%S}
-# Shared run id used by every tracking backend (aim/mlflow/...) so the same
-# run is correlatable across UIs.
+# Shared run id so the same run is correlatable across tracking backends (aim/mlflow/...).
 run_id: ${run_name}_${timestamp}
 
 seed: 42
-train: true
+# Run `Trainer.test` on the best checkpoint after the fit.
 test: true
+# Checkpoint to resume `Trainer.fit` from.
 ckpt_path: null

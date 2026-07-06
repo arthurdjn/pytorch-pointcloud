@@ -1,0 +1,19 @@
+# @package _global_
+# Point-MAE classification on ModelNet40 (normal-resampled), single pass (no voting).
+# Benchmark: uv run --no-sync python test.py experiment=point_mae/modelnet40
+#
+# | model.name                   | accuracy |
+# | ---------------------------- | -------- |
+# | point-mae-base.modelnet40    | 0.9283   |
+# | point-mae-base.modelnet40-8k | 0.9335   |
+defaults:
+  - override /datamodule: modelnet40_normal_resampled
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: point-mae-base.modelnet40
+  num_classes: 40
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss

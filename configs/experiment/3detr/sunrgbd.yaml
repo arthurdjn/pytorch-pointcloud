@@ -1,0 +1,19 @@
+# @package _global_
+# 3DETR 3D object detection on SUN RGB-D.
+# Benchmark: uv run --no-sync python test.py experiment=3detr/sunrgbd
+# Measured: deferred (exceeds the 5-minute run budget)
+defaults:
+  - override /datamodule: sunrgbd
+  - override /model: detection
+  - override /callbacks: detection
+
+model:
+  name: 3detr-fair.sunrgbd
+  input_keys: [x, pos, batch]
+  score_threshold: 0.05
+  nms_iou: 0.25
+  min_points: 5
+
+datamodule:
+  # Ragged GT boxes stay packed (emits batch_box).
+  cat_keys: [box]

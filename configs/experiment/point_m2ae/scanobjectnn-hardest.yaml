@@ -1,0 +1,26 @@
+# @package _global_
+# Point-M2AE classification on ScanObjectNN PB_T50_RS (hardest).
+# Benchmark: uv run --no-sync python test.py experiment=point_m2ae/scanobjectnn-hardest
+#
+# | model.name                           | accuracy |
+# | ------------------------------------ | -------- |
+# | point-m2ae-base.scanobjectnn-hardest | 0.8654   |
+defaults:
+  - override /datamodule: scanobjectnn
+  - override /model: classification
+  - override /callbacks: classification
+
+model:
+  name: point-m2ae-base.scanobjectnn-hardest
+  num_classes: 15
+  input_keys: [x, pos, batch]
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+
+datamodule:
+  train_dataset:
+    background: true
+    variant: augmentedrot_scale75
+  val_dataset:
+    background: true
+    variant: augmentedrot_scale75
