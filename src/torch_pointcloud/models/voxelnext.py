@@ -8,7 +8,6 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import Detection3D
@@ -372,29 +371,22 @@ class VoxelNeXtHead(nn.Module):
         return torch.cat(out_boxes), torch.cat(out_scores), torch.cat(out_labels), torch.cat(out_batch)
 
     @torch.no_grad()
-    def decode(
-        self,
-        out: VoxelNeXtHeadOutput,
-        *,
-        batch_size: int,
-        score_threshold: float = 0.1,
-        nms_iou: float = 0.2,
-        top_k: int = 500,
-    ) -> Detection3D:
-        r"""Decode raw sparse head outputs into packed detections (feeds `mean_average_precision3d`).
+    def decode(self, out: VoxelNeXtHeadOutput, *, batch_size: int, top_k: int = 500) -> Detection3D:
+        r"""Decode raw sparse head outputs into raw candidate detections (no score threshold or NMS).
 
-        Selects the top-$K$ scoring voxels per group and scene, recovers oriented boxes from the sparse
-        BEV indices, thresholds on score, and applies per-class 3D NMS within each scene.
+        Selects the top-$K$ scoring voxels per group and scene and recovers an oriented box, score and
+        label per candidate. The full candidate set is returned; the evaluation pipeline applies score
+        thresholding and per-class 3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the
+        benchmark example).
 
         Args:
             out: A `VoxelNeXtHeadOutput` from `forward`.
             batch_size: Number of scenes $B$ in the batch.
-            score_threshold: Minimum class score to keep a box.
-            nms_iou: BEV IoU threshold for per-class NMS.
-            top_k: Per-group, per-scene voxel cap before thresholding.
+            top_k: Per-group, per-scene voxel cap.
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
+            (PyG layout).
         """
         all_boxes, all_scores, all_labels, all_batch = [], [], [], []
         for group_idx in range(len(self.heads_list)):
@@ -404,39 +396,11 @@ class VoxelNeXtHead(nn.Module):
             all_labels.append(labels)
             all_batch.append(batch)
 
-        boxes = torch.cat(all_boxes)
-        scores = torch.cat(all_scores)
-        labels = torch.cat(all_labels)
-        batch = torch.cat(all_batch)
-
-        keep = scores > score_threshold
-        boxes, scores, labels, batch = boxes[keep], scores[keep], labels[keep], batch[keep]
-
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(batch_size):
-            mask = batch == b
-            if not bool(mask.any()):
-                continue
-
-            keep_idx = nms3d(boxes[mask][:, :7], scores[mask], labels[mask], nms_iou)
-            out_boxes.append(boxes[mask][keep_idx, :7])
-            out_scores.append(scores[mask][keep_idx])
-            out_labels.append(labels[mask][keep_idx])
-            out_batch.append(batch[mask][keep_idx])
-
-        if not out_boxes:
-            return {
-                "boxes": boxes.new_zeros((0, 7)),
-                "scores": scores.new_zeros(0),
-                "labels": labels.new_zeros(0),
-                "batch": batch.new_zeros(0),
-            }
-
         return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
+            "boxes": torch.cat(all_boxes)[:, :7],
+            "scores": torch.cat(all_scores),
+            "labels": torch.cat(all_labels),
+            "batch": torch.cat(all_batch),
         }
 
 
@@ -555,23 +519,10 @@ class VoxelNeXtDetection(DetectionModel):
         return self.head(encoded)
 
     @torch.no_grad()
-    def decode(
-        self,
-        out: VoxelNeXtHeadOutput,
-        *,
-        score_threshold: float = 0.1,
-        nms_iou: float = 0.2,
-        top_k: int = 500,
-    ) -> Detection3D:
-        r"""Decode a forward output into packed detections (see `VoxelNeXtHead.decode`)."""
+    def decode(self, out: VoxelNeXtHeadOutput, *, top_k: int = 500) -> Detection3D:
+        r"""Decode a forward output into raw candidate detections (see `VoxelNeXtHead.decode`)."""
         batch_size = int(out["voxel_indices"][:, 0].max().item()) + 1 if out["voxel_indices"].numel() else 0
-        return self.head.decode(
-            out,
-            batch_size=batch_size,
-            score_threshold=score_threshold,
-            nms_iou=nms_iou,
-            top_k=top_k,
-        )
+        return self.head.decode(out, batch_size=batch_size, top_k=top_k)
 
 
 @register_model(

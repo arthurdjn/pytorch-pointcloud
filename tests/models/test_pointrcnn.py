@@ -91,7 +91,7 @@ def test_pointrcnn_decode_packed_detections() -> None:
     data = _make_inputs()
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
-        det = model.decode(out, score_threshold=0.0)
+        det = model.decode(out)
     for key in ("boxes", "scores", "labels", "batch"):
         assert key in det
     assert det["boxes"].shape[1] == 7

@@ -43,8 +43,12 @@ class DummySegmentationModel(SegmentationModel):
 
 
 class DummyDetectionModel(DetectionModel):
-    def __init__(self, in_channels: int = 1, num_classes: int = 10, num_size_cluster: int = 10) -> None:
+    def __init__(
+        self, in_channels: int = 1, num_classes: int = 10, num_heading_bin: int = 12, num_size_cluster: int = 10
+    ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.num_heading_bin = num_heading_bin
+        self.num_size_cluster = num_size_cluster
         self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
         self.fc = nn.Linear(in_channels, num_classes)
 
@@ -222,12 +226,16 @@ def test_mix3d_halves_batch_index_during_training(monkeypatch: pytest.MonkeyPatc
     assert torch.equal(out["batch"], torch.tensor([0, 0, 0, 0, 1, 1, 1, 1]))
 
 
-def test_detection_criterion_built_with_model_mean_sizes() -> None:
-    """`__init__` injects the built model's `mean_sizes` buffer into the criterion factory."""
+def test_detection_criterion_completed_with_model_params() -> None:
+    """`__init__` forwards the model's head-geometry params (not the model itself) to the criterion factory."""
     criterion = Mock()
     lit = LitDetectionModel(name="dummy.detection", optimizer=partial(torch.optim.AdamW, lr=0.01), criterion=criterion)
     criterion.assert_called_once()
-    assert criterion.call_args.kwargs["mean_sizes"] is lit.model.get_buffer("mean_sizes")
+    kwargs = criterion.call_args.kwargs
+    assert kwargs["num_heading_bin"] == lit.model.num_heading_bin
+    assert kwargs["num_size_cluster"] == lit.model.num_size_cluster
+    assert kwargs["num_classes"] == lit.model.num_classes
+    assert kwargs["mean_sizes"] is lit.model.mean_sizes
 
 
 def test_detection_forward_delegates_to_model(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -277,18 +285,18 @@ def test_detection_training_step_delegates_to_step(monkeypatch: pytest.MonkeyPat
     assert out is sentinel
 
 
-def test_detection_validation_step_decodes_to_preds_and_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`validation_step` decodes the forward output and pairs it with the GT boxes for the metric callback."""
+def test_detection_validation_step_decodes_filters_and_targets(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`validation_step` runs raw `decode`, drops low-confidence boxes + per-class NMS, and pairs with the GT."""
     module = _make_det_module()
     output = {"objectness_scores": torch.randn(2, 10)}
-    detections = {
-        "boxes": torch.empty(0, 7),
-        "scores": torch.empty(0),
-        "labels": torch.empty(0),
-        "batch": torch.empty(0),
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0], [9.0, 9.0, 9.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.9, 0.01]),
+        "labels": torch.tensor([2, 5]),
+        "batch": torch.tensor([0, 1]),
     }
     step = Mock(return_value={"output": output, "loss": torch.tensor(1.0)})
-    decode = Mock(return_value=detections)
+    decode = Mock(return_value=decoded)
     monkeypatch.setattr(module, "step", step)
     monkeypatch.setattr(module.model, "decode", decode)
     batch = {
@@ -300,9 +308,41 @@ def test_detection_validation_step_decodes_to_preds_and_target(monkeypatch: pyte
     out = module.validation_step(batch, batch_idx=0)
     step.assert_called_once_with(batch, "val")
     assert decode.call_args.args[0] is output
-    assert out["preds"] is detections
+    # the 0.01-score box is below the default 0.05 threshold (dropped); the 0.9 box survives NMS.
+    assert out["preds"]["labels"].tolist() == [2]
+    assert out["preds"]["boxes"].shape[0] == 1
     assert out["target"]["labels"].tolist() == [3]
     assert torch.allclose(out["target"]["boxes"][0], torch.tensor([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]))
+
+
+def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The `score_threshold` / `nms_iou` __init__ kwargs control the inlined eval postprocess."""
+    module = LitDetectionModel(
+        name="dummy.detection",
+        optimizer=partial(torch.optim.AdamW, lr=0.01),
+        criterion=Mock(),
+        score_threshold=0.5,
+        nms_iou=0.1,
+    )
+    assert module.score_threshold == 0.5 and module.nms_iou == 0.1
+    output = {"objectness_scores": torch.randn(2, 10)}
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.3]),
+        "labels": torch.tensor([1]),
+        "batch": torch.tensor([0]),
+    }
+    monkeypatch.setattr(module, "step", Mock(return_value={"output": output, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    batch = {
+        "pos": torch.zeros(2, 3),
+        "batch": torch.tensor([0, 0]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0]]),
+        "batch_box": torch.tensor([0]),
+    }
+    out = module.validation_step(batch, batch_idx=0)
+    # the 0.3-score box is below score_threshold=0.5, so nothing is kept.
+    assert out["preds"]["boxes"].shape[0] == 0
 
 
 def test_detection_configure_optimizers_without_scheduler_returns_optimizer() -> None:

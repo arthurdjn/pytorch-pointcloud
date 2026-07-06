@@ -12,10 +12,8 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.layers import create_act, create_norm
 from torch_pointcloud.layers.pointnet2_blocks import SAModule
-from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -819,83 +817,39 @@ class DETR3DDetection(DetectionModel):
         return self.forward_head(enc_xyz, enc_features, point_cloud_dims)
 
     @torch.no_grad()
-    def decode(
-        self,
-        out: DETR3DOutput,
-        pos: Tensor,
-        batch: Tensor,
-        *,
-        score_threshold: float = 0.05,
-        nms_iou: float = 0.25,
-        min_points: int = 5,
-        per_class: bool = True,
-    ) -> Detection3D:
-        r"""Decode a forward output into packed detections (no forward pass).
+    def decode(self, out: DETR3DOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-query detections (no NMS, threshold, or filtering).
 
-        Mirrors 3DETR's `APCalculator` test protocol (`exact_eval=True`): oriented boxes are built per
-        query, near-empty boxes are dropped, same-class axis-aligned 3D NMS keeps one box per object scored
-        by objectness, and each survivor with objectness above `score_threshold` is then emitted once per
-        class scored by $\text{sem\_cls\_prob} \cdot \text{objectness}$ (the indoor per-class-proposal AP
-        convention). The heading is `angle_continuous` directly, matching the dataset / metric
-        $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ convention. Feeds `mean_average_precision3d`.
+        Builds one oriented box per query (the heading is `angle_continuous` directly, matching the dataset
+        / metric $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ convention), scores it by objectness, and labels it
+        by the argmax semantic class. The result is the full unfiltered query set; the evaluation pipeline
+        applies point-count filtering, NMS, score thresholding, and the indoor per-class expansion via the
+        `torch_pointcloud.utils.box3d` utilities (see the benchmark examples), reproducing 3DETR's
+        `APCalculator` test protocol (`exact_eval=True`).
 
         Args:
             out: A `DETR3DOutput` from `forward`.
-            pos: Point coordinates, shape $(N, 3)$ (used only for empty-box removal).
-            batch: Per-point batch index, shape $(N,)$.
-            score_threshold: Minimum objectness to keep a query before per-class expansion.
-            nms_iou: Axis-aligned IoU threshold for same-class NMS.
-            min_points: Drop boxes containing fewer than this many points (0 disables the filter).
-            per_class: If `True`, emit one detection per class per surviving box (indoor AP convention);
-                otherwise emit only the top-scoring class per box.
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed queries `{"boxes": (B * Q, 7), "scores": (B * Q,), "labels": (B * Q,), "batch": (B * Q,)}`
+            (PyG layout), where the per-query score is objectness and the label is the argmax semantic class.
+
+        Shape:
+            - boxes: $(B \cdot Q, 7)$
+            - scores / labels / batch: $(B \cdot Q,)$
         """
         batch_size, num_queries = out["center_unnormalized"].shape[:2]
-        center = out["center_unnormalized"]
-        size = out["size_unnormalized"]
-        heading = out["angle_continuous"]
-        boxes = torch.cat([center, size, heading.unsqueeze(-1)], dim=-1)
-
+        boxes = torch.cat(
+            [out["center_unnormalized"], out["size_unnormalized"], out["angle_continuous"].unsqueeze(-1)], dim=-1
+        )
         objectness = out["objectness_prob"]
         class_probs = out["sem_cls_prob"]
-        num_classes = class_probs.shape[-1]
-
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(batch_size):
-            scene_boxes = boxes[b]
-            sem_cls = class_probs[b].argmax(dim=-1)
-
-            keep = torch.ones(num_queries, dtype=torch.bool, device=boxes.device)
-            if min_points > 0:
-                scene_pos = pos[batch == b]
-                for k in range(num_queries):
-                    half_box = torch.cat([scene_boxes[k, :3], scene_boxes[k, 3:6] / 2, scene_boxes[k, 6:7]])
-                    if int(F.points_in_oriented_box(scene_pos, half_box).sum()) < min_points:
-                        keep[k] = False
-
-            candidates = keep.nonzero(as_tuple=False).squeeze(-1)
-            picked = nms3d(scene_boxes[candidates], objectness[b, candidates], sem_cls[candidates], nms_iou)
-            survivors = candidates[picked]
-            survivors = survivors[objectness[b, survivors] > score_threshold]
-
-            if per_class:
-                out_boxes.append(scene_boxes[survivors].repeat_interleave(num_classes, dim=0))
-                out_scores.append((class_probs[b, survivors] * objectness[b, survivors, None]).reshape(-1))
-                out_labels.append(torch.arange(num_classes, device=boxes.device).repeat(survivors.numel()))
-                out_batch.append(survivors.new_full((survivors.numel() * num_classes,), b))
-            else:
-                out_boxes.append(scene_boxes[survivors])
-                out_scores.append(objectness[b, survivors] * class_probs[b, survivors].max(dim=-1).values)
-                out_labels.append(sem_cls[survivors])
-                out_batch.append(survivors.new_full((survivors.numel(),), b))
-
+        batch = torch.arange(batch_size, device=boxes.device).repeat_interleave(num_queries)
         return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch).long(),
+            "boxes": boxes.reshape(-1, 7),
+            "scores": objectness.reshape(-1),
+            "labels": class_probs.argmax(dim=-1).reshape(-1),
+            "batch": batch,
         }
 
 
