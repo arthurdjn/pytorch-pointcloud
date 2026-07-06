@@ -1,8 +1,19 @@
-"""Benchmark PointMLP classification on ModelNet40 (normal-resampled).
+"""Evaluate the PointMLP ModelNet40 classifiers (single-pass, no voting).
+
+`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
+registered eval transform.
+
+Results vs reference (ModelNet40 overall accuracy; reference is the paper's best-seed number without
+voting, with 94.5 / 94.0 reported with voting):
+
+    | Variant                   | reference | torch-pointcloud |
+    | ------------------------- | --------- | ---------------- |
+    | pointmlp-base.modelnet40  | 94.1      | 93.52            |
+    | pointmlp-elite.modelnet40 | 93.6      | 92.46            |
 
 Usage:
-    python examples/pointmlp_benchmark_modelnet.py --download
-    python examples/pointmlp_benchmark_modelnet.py --model pointmlp-elite.modelnet40 --download
+    uv run --no-sync python examples/pointmlp_benchmark_modelnet.py --download
+    uv run --no-sync python examples/pointmlp_benchmark_modelnet.py --model pointmlp-elite.modelnet40
 """
 
 import os

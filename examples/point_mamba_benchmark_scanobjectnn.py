@@ -1,3 +1,24 @@
+"""Evaluate the PointMamba ScanObjectNN classifiers (single-pass, no voting).
+
+`ScanObjectNN` (variant selected per model) -> `DataLoader` -> model -> argmax -> overall accuracy, with
+the model's registered eval transform.
+
+Results vs reference (ScanObjectNN overall accuracy, PointMamba camera-ready numbers):
+
+    | Variant                                            | reference | torch-pointcloud |
+    | -------------------------------------------------- | --------- | ---------------- |
+    | point-mamba-base.scanobjectnn                      | 94.32     | 94.15            |
+    | point-mamba-base.scanobjectnn-nobg                 | 92.60     | 83.82            |
+    | point-mamba-base.scanobjectnn-augmentedrot-scale75 | 89.31     | 89.28            |
+
+The `-nobg` (OBJ_ONLY) checkpoint was released for an older block revision with an extra per-block
+LayerNorm and cannot be loaded faithfully into the published architecture; the reference code also
+scores 83.3 with it.
+
+Usage:
+    uv run --no-sync python examples/point_mamba_benchmark_scanobjectnn.py --model point-mamba-base.scanobjectnn
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict

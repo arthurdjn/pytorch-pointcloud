@@ -1,8 +1,17 @@
-"""Benchmark PointNeXt classification on ScanObjectNN.
+"""Evaluate the PointNeXt ScanObjectNN (PB_T50_RS) classifier (single-pass, no voting).
+
+`ScanObjectNN` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's registered eval
+transform.
+
+Results vs reference (ScanObjectNN hardest-variant overall accuracy; the model-zoo checkpoint eval is
+88.20, the paper mean is 87.7 +- 0.4 over seeds):
+
+    | Variant                   | reference | torch-pointcloud |
+    | ------------------------- | --------- | ---------------- |
+    | pointnext-sm.scanobjectnn | 88.20     | 87.51            |
 
 Usage:
-    python examples/pointnext_benchmark_scanobjectnn.py --download
-    python examples/pointnext_benchmark_scanobjectnn.py --model pointnext-sm.scanobjectnn --download
+    uv run --no-sync python examples/pointnext_benchmark_scanobjectnn.py --download
 """
 
 import os

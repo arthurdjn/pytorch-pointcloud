@@ -1,3 +1,27 @@
+"""Evaluate the DGCNN S3DIS semantic-segmentation models (one held-out area per checkpoint).
+
+`S3DISHdf5` blocks -> `DataLoader` -> model -> argmax -> confusion matrix over the held-out area. Each
+`dgcnn-antao.s3dis.areaN` checkpoint is trained on the other five areas and evaluated here on area $N$.
+
+Results (per-area mIoU / overall accuracy):
+
+    | Area        | mIoU  | OA    |
+    | ----------- | ----- | ----- |
+    | 1           | 69.19 | 89.69 |
+    | 2           | 43.51 | 81.69 |
+    | 3           | 68.73 | 90.86 |
+    | 4           | 50.68 | 85.06 |
+    | 5           | 50.29 | 84.92 |
+    | 6           | 75.60 | 92.10 |
+    | 6-fold mean | 59.67 | 87.39 |
+
+The antao97 reference publishes only the pooled 6-fold overall (59.2 mIoU / 85.0 OA); the mean above
+averages per-area metrics instead.
+
+Usage:
+    uv run --no-sync python examples/dgcnn_benchmark_s3dis.py --area 5
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict

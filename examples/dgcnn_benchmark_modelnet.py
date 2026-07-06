@@ -1,3 +1,23 @@
+"""Evaluate the DGCNN ModelNet40 classifiers (single-pass, no voting).
+
+`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
+registered eval transform (FPS to the checkpoint's point count).
+
+Results vs reference (ModelNet40 overall accuracy; antao97 repo eval of the released checkpoints):
+
+    | Variant                     | reference | torch-pointcloud |
+    | --------------------------- | --------- | ---------------- |
+    | dgcnn-antao.modelnet40.1024 | 93.3      | 92.34            |
+    | dgcnn-antao.modelnet40.2048 | 93.6      | 92.46            |
+
+Both variants sit about a point below the reference because the eval data differs: antao97 takes the
+first $N$ points of the pre-shuffled HDF5 clouds, while this script FPS-samples the normal-resampled
+dataset.
+
+Usage:
+    uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn-antao.modelnet40.1024
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict

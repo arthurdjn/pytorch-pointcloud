@@ -9,10 +9,10 @@ Both use the upstream pre-transform: FPS to 1024 points + center-and-rescale to 
 
 Reproduced performance on ModelNet40 test split (seed=42, batch_size=32):
 
-| Model                              | Upstream (yanx27 README) | torch-pointcloud |
-| ---------------------------------- | ------------------------ | ---------------- |
-| `pointnet2-yanx27-ssg.modelnet40`  | 92.0% OA                 | 92.30% OA / 88.23% mAcc |
-| `pointnet2-yanx27-msg.modelnet40`  | 92.8% OA                 | 92.67% OA / 90.60% mAcc |
+| Model                             | Upstream (yanx27 README) | torch-pointcloud        |
+| --------------------------------- | ------------------------ | ----------------------- |
+| `pointnet2-yanx27-ssg.modelnet40` | 92.0% OA                 | 92.30% OA / 88.23% mAcc |
+| `pointnet2-yanx27-msg.modelnet40` | 92.8% OA                 | 92.67% OA / 90.60% mAcc |
 
 Usage:
 
