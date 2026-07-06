@@ -218,7 +218,8 @@ class PointNeXtSetAbstraction(PointNet2SetAbstraction):
         )
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        idx = fps(pos, batch, ratio=self.ratio)
+        # In eval mode pin the FPS start to make predictions reproducible across runs.
+        idx = fps(pos, batch, ratio=self.ratio, random_start=self.training)
         x_dst = None if x is None else x[idx]
         pos_dst = pos[idx]
         batch_dst = batch[idx]
