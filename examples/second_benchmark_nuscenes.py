@@ -1,6 +1,6 @@
 """Evaluate `second-openpcdet-multihead.nuscenes` on nuScenes mini with 3D mAP.
 
-`NuScenesMini` -> `PointCloudDataLoader` -> model -> `model.decode` -> `mean_average_precision3d`.
+`NuScenesMini` -> `PointCloudDataLoader` -> model -> `model.decode` -> `nms3d` -> `mean_average_precision3d`.
 
 The dataset aggregates `max_sweeps` LiDAR sweeps per keyframe and converts the global-frame
 annotations to LiDAR boxes; results are scored with the generic oriented-3D mAP (not the official
@@ -25,6 +25,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenesMini
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._base import DetectionModel
+from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import mean_average_precision3d
 from torch_pointcloud.utils.random import seed_everything
@@ -33,6 +34,8 @@ from torch_pointcloud.utils.types import Boxes3D, Detection3D
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
+SCORE_THRESHOLD = 0.1
+NMS_IOU = 0.2
 
 
 def main() -> None:
@@ -77,13 +80,17 @@ def evaluate(
             data[DataKeys.VOXEL_NUM_POINTS].to(device),
             data[f"batch_{DataKeys.POS_VOXEL}"].to(device),
         )
-        pred = model.decode(out)
+        det = model.decode(out)
+        boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
+        keep = scores > SCORE_THRESHOLD
+        boxes, scores, labels, batch = boxes[keep], scores[keep], labels[keep], batch[keep]
+        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
         preds.append(
             {
-                "boxes": pred["boxes"].cpu(),
-                "scores": pred["scores"].cpu(),
-                "labels": pred["labels"].cpu(),
-                "batch": pred["batch"].cpu(),
+                "boxes": boxes[idx].cpu(),
+                "scores": scores[idx].cpu(),
+                "labels": labels[idx].cpu(),
+                "batch": batch[idx].cpu(),
             }
         )
         targets.append({"boxes": data[DataKeys.BOX], "labels": data[DataKeys.LABEL], "batch": data[DataKeys.BATCH_BOX]})

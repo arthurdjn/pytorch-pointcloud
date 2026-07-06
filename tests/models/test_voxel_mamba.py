@@ -7,6 +7,7 @@ from torch_pointcloud.models.voxel_mamba import (
     build_hilbert_template,
     hilbert_serialize,
 )
+from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
@@ -102,9 +103,11 @@ def test_voxel_mamba_decode() -> None:
     pos, x, batch = _make_inputs()
     with torch.no_grad():
         out = model(x, pos, batch)
-        det = model.decode(out, score_threshold=0.1, nms_iou=0.7, k=100)
+        det = model.decode(out, score_threshold=0.1, k=100)
+        idx = nms3d(det["boxes"], det["scores"], 0.7, labels=det["labels"], batch=det["batch"])
     assert det["boxes"].shape[1] == 7
     assert det["scores"].shape[0] == det["boxes"].shape[0] == det["labels"].shape[0] == det["batch"].shape[0]
+    assert idx.numel() <= det["boxes"].shape[0]
     assert torch.isfinite(det["boxes"]).all()
 
 

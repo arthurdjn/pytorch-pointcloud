@@ -9,7 +9,6 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule
-from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
@@ -490,33 +489,24 @@ class VoteNetDetection(DetectionModel):
         return self.forward_head(x_seed, pos_seed, batch_seed, seed_indices)
 
     @torch.no_grad()
-    def decode(
-        self,
-        out: VoteNetOutput,
-        pos: Tensor,
-        batch: Tensor,
-        *,
-        score_threshold: float = 0.05,
-        nms_iou: float = 0.25,
-        min_points: int = 5,
-    ) -> Detection3D:
-        r"""Decode an existing forward output into packed detections (no forward pass).
+    def decode(self, out: VoteNetOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-proposal detections (no NMS, threshold, or filtering).
 
-        Decodes oriented boxes from the heading/size bins, removes near-empty boxes, applies per-class 3D
-        NMS, and scores each surviving box against every class (the indoor AP convention). Takes a forward
-        output already in hand (the benchmark examples and the training-loop validation reuse it), so it
-        runs no model pass; feeds `mean_average_precision3d`.
+        Builds one oriented box per proposal from the predicted heading/size bins, scores it by objectness,
+        and labels it by the argmax semantic class. The result is the full unfiltered proposal set; the
+        evaluation pipeline applies point-count filtering, NMS, score thresholding, and the indoor per-class
+        expansion via the `torch_pointcloud.utils.box3d` utilities (see the benchmark examples).
 
         Args:
             out: A `VoteNetOutput` from `forward`.
-            pos: Point coordinates, shape $(N, 3)$.
-            batch: Per-point batch index, shape $(N,)$.
-            score_threshold: Minimum objectness to keep a proposal.
-            nms_iou: Axis-aligned IoU threshold for per-class NMS.
-            min_points: Drop proposals containing fewer than this many points (0 disables the filter).
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed proposals `{"boxes": (B * P, 7), "scores": (B * P,), "labels": (B * P,), "batch": (B * P,)}`
+            (PyG layout), where the per-proposal score is objectness and the label is the argmax semantic class.
+
+        Shape:
+            - boxes: $(B \cdot P, 7)$
+            - scores / labels / batch: $(B \cdot P,)$
         """
         batch_size, num_proposal = out["center"].shape[:2]
 
@@ -532,38 +522,12 @@ class VoteNetDetection(DetectionModel):
         boxes = torch.cat([out["center"], size.view(batch_size, num_proposal, 3), angle.unsqueeze(-1)], dim=-1)
         objectness = out["objectness_scores"].softmax(dim=-1)[..., 1]
         class_probs = out["sem_cls_scores"].softmax(dim=-1)
-        num_classes = class_probs.shape[-1]
-
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(batch_size):
-            scene_pos, scene_boxes = pos[batch == b], boxes[b]
-            keep = torch.ones(num_proposal, dtype=torch.bool, device=boxes.device)
-            if min_points > 0:
-                for k in range(num_proposal):
-                    half_box = torch.cat([scene_boxes[k, :3], scene_boxes[k, 3:6] / 2, scene_boxes[k, 6:7]])
-                    if int(F.points_in_oriented_box(scene_pos, half_box).sum()) < min_points:
-                        keep[k] = False
-
-            candidates = keep.nonzero(as_tuple=False).squeeze(-1)
-            keep_idx = nms3d(
-                scene_boxes[candidates],
-                objectness[b, candidates],
-                class_probs[b, candidates].argmax(-1),
-                nms_iou,
-            )
-            kept = candidates[keep_idx]
-
-            kept = kept[objectness[b, kept] > score_threshold]
-            out_boxes.append(scene_boxes[kept].repeat_interleave(num_classes, dim=0))
-            out_scores.append((class_probs[b, kept] * objectness[b, kept, None]).reshape(-1))
-            out_labels.append(torch.arange(num_classes, device=boxes.device).repeat(kept.numel()))
-            out_batch.append(torch.full((kept.numel() * num_classes,), b, dtype=torch.long, device=boxes.device))
-
+        batch = torch.arange(batch_size, device=boxes.device).repeat_interleave(num_proposal)
         return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
+            "boxes": boxes.reshape(-1, 7),
+            "scores": objectness.reshape(-1),
+            "labels": class_probs.argmax(dim=-1).reshape(-1),
+            "batch": batch,
         }
 
 

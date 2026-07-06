@@ -298,9 +298,9 @@ class PointPillarsDetection(DetectionModel):
         return self.head(spatial_features_2d)
 
     @torch.no_grad()
-    def decode(self, out: AnchorHeadOutput, *, score_threshold: float = 0.1, nms_iou: float = 0.01) -> Detection3D:
-        r"""Decode a forward output into packed detections (see `AnchorHeadSingle.decode`)."""
-        return self.head.decode(out, score_threshold=score_threshold, nms_iou=nms_iou)
+    def decode(self, out: AnchorHeadOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-anchor detections (see `AnchorHeadSingle.decode`)."""
+        return self.head.decode(out)
 
 
 class PointPillarsMultiHeadDetection(DetectionModel):
@@ -405,9 +405,9 @@ class PointPillarsMultiHeadDetection(DetectionModel):
         return self.head(spatial_features_2d)
 
     @torch.no_grad()
-    def decode(self, out: AnchorHeadMultiOutput, *, score_threshold: float = 0.1, nms_iou: float = 0.2) -> Detection3D:
-        r"""Decode a forward output into packed detections (see `AnchorHeadMulti.decode`)."""
-        return self.head.decode(out, score_threshold=score_threshold, nms_iou=nms_iou)
+    def decode(self, out: AnchorHeadMultiOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-anchor detections (see `AnchorHeadMulti.decode`)."""
+        return self.head.decode(out)
 
 
 @register_model(

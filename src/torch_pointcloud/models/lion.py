@@ -12,7 +12,6 @@ from torch_geometric.nn.dense.linear import Linear
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
-from torch_pointcloud.utils.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -1048,17 +1047,20 @@ class TransFusionHead(nn.Module):
 
     @torch.no_grad()
     def decode(self, preds_dicts: Dict[str, Tensor]) -> Detection3D:
-        r"""Decode raw head predictions into packed detections (feeds the detection metric).
+        r"""Decode raw head predictions into raw candidate detections (no NMS).
 
         Multiplies the sigmoid query scores by the gathered dense-heatmap score, recovers oriented
-        boxes, rescores each by predicted IoU (`iou_rectifier`), filters by the post-center range, and
-        applies per-task circular NMS on the nuScenes pedestrian and traffic-cone classes.
+        boxes, rescores each by predicted IoU (`iou_rectifier`), and filters by the post-center range.
+        The full candidate set is returned; the evaluation pipeline applies the per-task circular NMS
+        (on the `local_max_classes`, e.g. the nuScenes pedestrian / traffic-cone) via the
+        `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
 
         Args:
             preds_dicts: The dict returned by `forward` / `predict`.
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
+            (PyG layout).
         """
         batch_size = preds_dicts["heatmap"].shape[0]
         batch_score = preds_dicts["heatmap"].sigmoid()
@@ -1075,9 +1077,6 @@ class TransFusionHead(nn.Module):
             preds_dicts["vel"],
         )
 
-        other_classes = [c for c in range(self.num_classes) if c not in self.local_max_classes]
-        tasks: List[Tuple[List[int], float]] = [(other_classes, -1.0)]
-        tasks += [([cls_idx], self.nms_radius) for cls_idx in self.local_max_classes]
         out_boxes, out_scores, out_labels, out_batch = [], [], [], []
         for i in range(batch_size):
             boxes3d = preds[i]["pred_boxes"]
@@ -1086,28 +1085,10 @@ class TransFusionHead(nn.Module):
             cmask = preds[i]["cmask"]
             pred_iou = torch.clamp(batch_iou[i][0][cmask], min=0, max=1.0)
             rectifier = scores.new_full((self.num_classes,), self.iou_rectifier)
-            scores = torch.pow(scores, 1 - rectifier[labels]) * torch.pow(pred_iou, rectifier[labels])
-
-            keep_mask = torch.zeros_like(scores)
-            for indices, radius in tasks:
-                task_mask = torch.zeros_like(scores)
-                for cls_idx in indices:
-                    task_mask += labels == cls_idx
-                task_mask = task_mask.bool()
-                if radius > 0:
-                    top_scores = scores[task_mask]
-                    boxes_for_nms = boxes3d[task_mask][:, :7].clone()
-                    task_keep = nms3d(boxes_for_nms, top_scores, torch.zeros_like(labels[task_mask]), radius)
-                else:
-                    task_keep = torch.arange(int(task_mask.sum()), device=scores.device)
-                if task_keep.shape[0] != 0:
-                    keep_indices = torch.where(task_mask != 0)[0][task_keep]
-                    keep_mask[keep_indices] = 1
-            keep_mask = keep_mask.bool()
-            out_boxes.append(boxes3d[keep_mask][:, :7])
-            out_scores.append(scores[keep_mask])
-            out_labels.append(labels[keep_mask].long())
-            out_batch.append(torch.full((int(keep_mask.sum()),), i, dtype=torch.long, device=scores.device))
+            out_boxes.append(boxes3d[:, :7])
+            out_scores.append(torch.pow(scores, 1 - rectifier[labels]) * torch.pow(pred_iou, rectifier[labels]))
+            out_labels.append(labels.long())
+            out_batch.append(torch.full((scores.shape[0],), i, dtype=torch.long, device=scores.device))
 
         return {
             "boxes": torch.cat(out_boxes),
@@ -1232,7 +1213,7 @@ class LIONDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(self, out: Dict[str, Tensor]) -> Detection3D:
-        r"""Decode a forward output into packed detections (see `TransFusionHead.decode`)."""
+        r"""Decode a forward output into raw candidate detections (see `TransFusionHead.decode`)."""
         return self.head.decode(out)
 
 

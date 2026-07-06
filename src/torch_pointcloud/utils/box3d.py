@@ -14,6 +14,9 @@ import torch
 from scipy.spatial import ConvexHull
 from torch import Tensor
 
+import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.utils.types import OptTensor
+
 _CORNER_X = torch.tensor([1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0])
 _CORNER_Y = torch.tensor([1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0])
 _CORNER_Z = torch.tensor([1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0])
@@ -189,21 +192,8 @@ def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     return torch.from_numpy(inter), torch.from_numpy(iou)
 
 
-def nms3d(boxes: Tensor, scores: Tensor, labels: Tensor, iou_threshold: float) -> Tensor:
-    r"""Greedy axis-aligned 3D non-maximum suppression that only suppresses boxes of the same class.
-
-    Args:
-        boxes: Boxes $(N, 7)$ (see `box_corners`).
-        scores: Per-box confidence, shape $(N,)$.
-        labels: Per-box class, shape $(N,)$; only same-class boxes suppress each other.
-        iou_threshold: Axis-aligned IoU above which a lower-scoring same-class box is removed.
-
-    Returns:
-        Indices of the kept boxes, highest score first, shape $(K,)$ long.
-    """
-    if boxes.numel() == 0:
-        return boxes.new_zeros((0,), dtype=torch.long)
-
+def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshold: float) -> Tensor:
+    """Greedy axis-aligned 3D NMS within a single scene; see `nms3d`."""
     corners = box_corners(boxes)
     lo, hi = corners.amin(dim=1), corners.amax(dim=1)
     volume = (hi - lo).clamp_min(0).prod(dim=-1)
@@ -217,6 +207,85 @@ def nms3d(boxes: Tensor, scores: Tensor, labels: Tensor, iou_threshold: float) -
         inter_hi = torch.minimum(hi[i], hi[rest])
         inter = (inter_hi - inter_lo).clamp_min(0).prod(dim=-1)
         iou = inter / (volume[i] + volume[rest] - inter)
-        suppress = (iou > iou_threshold) & (labels[rest] == labels[i])
+        suppress = iou > iou_threshold
+        if labels is not None:
+            suppress = suppress & (labels[rest] == labels[i])
         order = rest[~suppress]
     return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+
+
+def nms3d(
+    boxes: Tensor,
+    scores: Tensor,
+    iou_threshold: float,
+    *,
+    labels: OptTensor = None,
+    batch: OptTensor = None,
+) -> Tensor:
+    r"""Greedy axis-aligned 3D non-maximum suppression.
+
+    Keeps the highest-scoring box of each overlapping cluster. Pass `labels` to restrict suppression to
+    boxes of the same class, and `batch` (PyG-style per-box scene index) to run NMS independently per
+    scene and return a single index tensor over the concatenated input.
+
+    Args:
+        boxes: Boxes $(N, 7)$ (see `box_corners`).
+        scores: Per-box confidence, shape $(N,)$.
+        iou_threshold: Axis-aligned IoU above which a lower-scoring box is removed.
+        labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
+        batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
+
+    Returns:
+        Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
+
+    Shape:
+        - boxes: $(N, 7)$
+        - output: $(K,)$
+    """
+    if boxes.numel() == 0:
+        return boxes.new_zeros((0,), dtype=torch.long)
+    if batch is None:
+        return _nms3d_single(boxes, scores, labels, iou_threshold)
+
+    keep = []
+    for b in torch.unique(batch):
+        scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
+        scene_labels = None if labels is None else labels[scene]
+        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold)])
+    return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+
+
+def count_points_in_boxes(
+    pos: Tensor, boxes: Tensor, *, pos_batch: OptTensor = None, box_batch: OptTensor = None
+) -> Tensor:
+    r"""Count how many points fall inside each oriented box.
+
+    Pass `pos_batch` and `box_batch` (PyG-style per-point / per-box scene indices) to restrict each box's
+    count to points from its own scene, so boxes of different scenes never share points.
+
+    Args:
+        pos: Point coordinates, shape $(N, 3)$.
+        boxes: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(K, 7)$.
+        pos_batch: Optional per-point scene index, shape $(N,)$.
+        box_batch: Optional per-box scene index, shape $(K,)$.
+
+    Returns:
+        Per-box point count, shape $(K,)$ long.
+
+    Shape:
+        - pos: $(N, 3)$
+        - boxes: $(K, 7)$
+        - output: $(K,)$
+
+    Example:
+        >>> pos = torch.tensor([[0.0, 0.0, 0.0], [5.0, 5.0, 5.0]])
+        >>> boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+        >>> count_points_in_boxes(pos, boxes).tolist()
+        [1]
+    """
+    counts = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
+    for k in range(boxes.shape[0]):
+        scene_pos = pos if pos_batch is None or box_batch is None else pos[pos_batch == box_batch[k]]
+        half_box = torch.cat([boxes[k, :3], boxes[k, 3:6] / 2, boxes[k, 6:7]])
+        counts[k] = int(F.points_in_oriented_box(scene_pos, half_box).sum())
+    return counts

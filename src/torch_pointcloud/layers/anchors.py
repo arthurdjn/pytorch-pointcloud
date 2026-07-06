@@ -23,7 +23,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
-from torch_pointcloud.utils.box3d import decode_box_residuals, limit_period, nms3d
+from torch_pointcloud.utils.box3d import decode_box_residuals, limit_period
 from torch_pointcloud.utils.types import Detection3D
 
 
@@ -200,30 +200,25 @@ class AnchorHeadSingle(nn.Module):
         return batch_cls_preds, batch_box_preds
 
     @torch.no_grad()
-    def decode(self, out: AnchorHeadOutput, *, score_threshold: float = 0.1, nms_iou: float = 0.01) -> Detection3D:
-        r"""Decode a forward output into packed detections: sigmoid scores, threshold, per-class 3D NMS.
+    def decode(self, out: AnchorHeadOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-anchor detections (no score threshold or NMS).
+
+        Scores each anchor by its top sigmoid class probability and labels it by the argmax class. The
+        full per-anchor set is returned; the evaluation pipeline applies score thresholding and per-class
+        3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the benchmark examples).
 
         Returns:
-            Packed detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}` (PyG layout).
+            Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
+            "batch": (B * A,)}` (PyG layout).
         """
-        scores_per_class = out["batch_cls"].sigmoid()
-        boxes = out["batch_box"]
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(boxes.shape[0]):
-            scores, labels = scores_per_class[b].max(dim=-1)
-            keep = scores > score_threshold
-            scene_boxes, scene_scores, scene_labels = boxes[b][keep], scores[keep], labels[keep]
-            idx = nms3d(scene_boxes, scene_scores, scene_labels, nms_iou)
-            out_boxes.append(scene_boxes[idx])
-            out_scores.append(scene_scores[idx])
-            out_labels.append(scene_labels[idx])
-            out_batch.append(torch.full((idx.numel(),), b, dtype=torch.long, device=boxes.device))
-
+        scores, labels = out["batch_cls"].sigmoid().max(dim=-1)
+        batch_size, num_anchors = scores.shape
+        batch = torch.arange(batch_size, device=scores.device).repeat_interleave(num_anchors)
         return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
+            "boxes": out["batch_box"].reshape(-1, 7),
+            "scores": scores.reshape(-1),
+            "labels": labels.reshape(-1),
+            "batch": batch,
         }
 
 
@@ -520,35 +515,35 @@ class AnchorHeadMulti(nn.Module):
         }
 
     @torch.no_grad()
-    def decode(self, out: AnchorHeadMultiOutput, *, score_threshold: float = 0.1, nms_iou: float = 0.2) -> Detection3D:
-        r"""Decode a multihead forward output into packed detections (per-head sigmoid, threshold, 3D NMS).
+    def decode(self, out: AnchorHeadMultiOutput) -> Detection3D:
+        r"""Decode a multihead forward output into raw per-anchor detections (no score threshold or NMS).
 
-        Each head's class scores carry their global label mapping; boxes use the 7-DoF pose (velocity
-        columns are dropped). Returns `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`.
+        Each head scores its anchors by their top sigmoid class probability and maps the argmax to the
+        global label; the per-head results are concatenated in head order (matching `batch_box`'s anchor
+        order) and the velocity columns are dropped. The full per-anchor set is returned; the evaluation
+        pipeline applies score thresholding and per-class 3D NMS via the `torch_pointcloud.utils.box3d`
+        utilities (see the benchmark examples).
+
+        Returns:
+            Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
+            "batch": (B * A,)}` (PyG layout).
         """
         boxes_all = out["batch_box"]
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(boxes_all.shape[0]):
+        batch_size, num_anchors = boxes_all.shape[:2]
+        scores_per_scene, labels_per_scene = [], []
+        for b in range(batch_size):
             scene_scores, scene_labels = [], []
             for head_idx, cls_preds in enumerate(out["cls"]):
                 head_scores, head_classes = cls_preds[b].sigmoid().max(dim=-1)
                 scene_scores.append(head_scores)
                 scene_labels.append(out["multihead_label_mapping"][head_idx][head_classes] - 1)
+            scores_per_scene.append(torch.cat(scene_scores))
+            labels_per_scene.append(torch.cat(scene_labels))
 
-            scores = torch.cat(scene_scores)
-            labels = torch.cat(scene_labels)
-            boxes = boxes_all[b][:, :7]
-            keep = scores > score_threshold
-            scene_boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
-            idx = nms3d(scene_boxes, scores, labels, nms_iou)
-            out_boxes.append(scene_boxes[idx])
-            out_scores.append(scores[idx])
-            out_labels.append(labels[idx])
-            out_batch.append(torch.full((idx.numel(),), b, dtype=torch.long, device=boxes_all.device))
-
+        batch = torch.arange(batch_size, device=boxes_all.device).repeat_interleave(num_anchors)
         return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
+            "boxes": boxes_all[:, :, :7].reshape(-1, 7),
+            "scores": torch.stack(scores_per_scene).reshape(-1),
+            "labels": torch.stack(labels_per_scene).reshape(-1),
+            "batch": batch,
         }
