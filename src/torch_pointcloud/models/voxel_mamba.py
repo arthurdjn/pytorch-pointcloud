@@ -16,7 +16,7 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.hilbert import encode as hilbert_encode
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _MAMBA_SSM_GITHUB_URL, _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
@@ -26,10 +26,10 @@ if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from mamba_ssm.modules.block import Block
 
-spconv, _ = optional_import("spconv.pytorch")
-Block, _ = optional_import("mamba_ssm.modules.block", "Block")
-Mamba, _ = optional_import("mamba_ssm", "Mamba")
-RMSNorm, _ = optional_import("mamba_ssm.ops.triton.layer_norm", "RMSNorm")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+Block, _ = optional_import("mamba_ssm.modules.block", "Block", url=_MAMBA_SSM_GITHUB_URL)
+Mamba, _ = optional_import("mamba_ssm", "Mamba", url=_MAMBA_SSM_GITHUB_URL)
+RMSNorm, _ = optional_import("mamba_ssm.ops.triton.layer_norm", "RMSNorm", url=_MAMBA_SSM_GITHUB_URL)
 
 
 def build_hilbert_template(rank: int, z_max: int, device: Union[str, torch.device] = "cpu") -> Tensor:

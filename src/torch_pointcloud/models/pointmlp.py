@@ -28,7 +28,7 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import OptTensor
 
@@ -38,10 +38,10 @@ if TYPE_CHECKING:
     from torch_cluster import fps, knn, scatter_mean, scatter_std
 
 
-fps, _ = optional_import("torch_cluster", "fps")
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
-scatter_std, _ = optional_import("torch_scatter", "scatter_std")
-knn, _ = optional_import("torch_cluster", "knn")
+fps, _ = optional_import("torch_cluster", "fps", url=_TORCH_CLUSTER_GITHUB_URL)
+scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
+scatter_std, _ = optional_import("torch_scatter", "scatter_std", url=_TORCH_SCATTER_GITHUB_URL)
+knn, _ = optional_import("torch_cluster", "knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 class PointMLPIntermediate(NamedTuple):

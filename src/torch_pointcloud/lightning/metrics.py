@@ -4,14 +4,14 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.datasets.shapenetpart import ShapeNetPart
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCHMETRICS_GITHUB_URL, optional_import
 from torch_pointcloud.utils.metrics import average_precision3d, mean_average_precision3d, part_iou
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 if TYPE_CHECKING:
     from torchmetrics import Metric
 else:
-    Metric, _ = optional_import("torchmetrics", "Metric")
+    Metric, _ = optional_import("torchmetrics", "Metric", url=_TORCHMETRICS_GITHUB_URL)
 
 
 def boxes_from_packed(box: Tensor, batch: Tensor) -> Boxes3D:

@@ -13,7 +13,7 @@ from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _DWCONV_GITHUB_URL, _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.octree import octree_interpolate, octree_upsample
 from torch_pointcloud.utils.types import OptTensor
 
@@ -25,10 +25,10 @@ if TYPE_CHECKING:
     import ocnn
     from ocnn.octree import Octree, Points
 
-dwconv, _DWCONV_AVAILABLE = optional_import("dwconv")
-ocnn, _ = optional_import("ocnn")
-Octree, _ = optional_import("ocnn.octree", "Octree")
-Points, _ = optional_import("ocnn.octree", "Points")
+dwconv, _DWCONV_AVAILABLE = optional_import("dwconv", url=_DWCONV_GITHUB_URL)
+ocnn, _ = optional_import("ocnn", url=_OCNN_GITHUB_URL)
+Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
+Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 class CPE(nn.Module):

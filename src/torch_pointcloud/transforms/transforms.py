@@ -19,7 +19,7 @@ from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
@@ -45,7 +45,7 @@ VoxelPosReduce = Literal["mean", "min", "max", "sum", "first", "grid"]
 if TYPE_CHECKING:
     from torch_scatter import scatter
 
-scatter, _ = optional_import("torch_scatter", name="scatter")
+scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 __all__ = [

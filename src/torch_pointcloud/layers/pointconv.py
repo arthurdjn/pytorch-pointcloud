@@ -8,7 +8,7 @@ from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, Sp
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, _TORCH_SPARSE_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import MessagePassingParams
 
 if TYPE_CHECKING:
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
     from torch_scatter import scatter_max
 
 
-torch_sparse, _ = optional_import("torch_sparse")
-scatter_max, _ = optional_import("torch_scatter", "scatter_max")
+torch_sparse, _ = optional_import("torch_sparse", url=_TORCH_SPARSE_GITHUB_URL)
+scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PointConv(MessagePassing):

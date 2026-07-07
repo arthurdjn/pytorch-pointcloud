@@ -13,7 +13,12 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import (
+    _MAMBA_SSM_GITHUB_URL,
+    _SPCONV_GITHUB_URL,
+    _TORCH_SCATTER_GITHUB_URL,
+    optional_import,
+)
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
@@ -24,9 +29,11 @@ if TYPE_CHECKING:
     from mamba_ssm.ops.selective_scan_interface import mamba_inner_fn
     from torch_scatter import scatter_add
 
-spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch")
-mamba_inner_fn, _ = optional_import("mamba_ssm.ops.selective_scan_interface", "mamba_inner_fn")
-scatter_add, _ = optional_import("torch_scatter", "scatter_add")
+spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+mamba_inner_fn, _ = optional_import(
+    "mamba_ssm.ops.selective_scan_interface", "mamba_inner_fn", url=_MAMBA_SSM_GITHUB_URL
+)
+scatter_add, _ = optional_import("torch_scatter", "scatter_add", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class BiMamba(nn.Module):

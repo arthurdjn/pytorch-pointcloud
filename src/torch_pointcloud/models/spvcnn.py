@@ -27,7 +27,7 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, _TORCHSPARSE_GITHUB_URL, optional_import
 
 from ._registry import register_model
 
@@ -39,11 +39,11 @@ if TYPE_CHECKING:
     from torchsparse.tensor import SparseTensor
 
 
-torch_scatter, _ = optional_import("torch_scatter")
-torchsparse, _IS_TORCHSPARSE_AVAILABLE = optional_import("torchsparse")
-spnn, _ = optional_import("torchsparse.nn")
-spF, _ = optional_import("torchsparse.nn.functional")
-SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor")
+torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_URL)
+torchsparse, _IS_TORCHSPARSE_AVAILABLE = optional_import("torchsparse", url=_TORCHSPARSE_GITHUB_URL)
+spnn, _ = optional_import("torchsparse.nn", url=_TORCHSPARSE_GITHUB_URL)
+spF, _ = optional_import("torchsparse.nn.functional", url=_TORCHSPARSE_GITHUB_URL)
+SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor", url=_TORCHSPARSE_GITHUB_URL)
 
 if _IS_TORCHSPARSE_AVAILABLE:
 

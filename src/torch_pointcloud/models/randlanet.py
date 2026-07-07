@@ -26,7 +26,7 @@ from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.utils.cluster import knn, knn_graph
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import decimate_indices, softmax
 from torch_pointcloud.utils.types import OptTensor
 
@@ -37,8 +37,8 @@ if TYPE_CHECKING:
     from torch_scatter import scatter_add, scatter_max
 
 
-scatter_add, _ = optional_import("torch_scatter", "scatter_add")
-scatter_max, _ = optional_import("torch_scatter", "scatter_max")
+scatter_add, _ = optional_import("torch_scatter", "scatter_add", url=_TORCH_SCATTER_GITHUB_URL)
+scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class RandLANetIntermediate(NamedTuple):

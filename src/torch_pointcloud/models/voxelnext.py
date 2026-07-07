@@ -9,7 +9,7 @@ from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
@@ -19,7 +19,7 @@ from .second import SparseBasicBlock
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
 
-spconv, _ = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 
 class VoxelNeXtHeadOutput(TypedDict):
