@@ -11,14 +11,14 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
     from torch_scatter import scatter_max, scatter_mean
 
-scatter_max, _ = optional_import("torch_scatter", "scatter_max")
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
+scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
+scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PFNLayer(nn.Module):

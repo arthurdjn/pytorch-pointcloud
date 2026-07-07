@@ -7,7 +7,7 @@ from torch_geometric.nn import MLP, global_max_pool
 from torch_geometric.typing import OptTensor
 
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.neighbors import gaussian_kernel_density
 
 from .linear_blocks import LinearBlock
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from torch_cluster import knn
 
 
-knn, _ = optional_import("torch_cluster", "knn")
+knn, _ = optional_import("torch_cluster", "knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 # ! IMPORTANT: In original PointConv, the density net has a sigmoid activation function in the last layer,
 # ! but is never called due to a bug in the code. For reproducibility, this behavior is replicated here.

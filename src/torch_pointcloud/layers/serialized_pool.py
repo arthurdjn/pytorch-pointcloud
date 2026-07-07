@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 
 from .act import create_act
 from .norms import create_norm
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     import torch_scatter
 
 
-torch_scatter, _ = optional_import("torch_scatter")
+torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class SerializedPool(nn.Module):

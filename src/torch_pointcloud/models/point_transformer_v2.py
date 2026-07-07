@@ -13,7 +13,7 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import softmax, voxel_grid
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
 
@@ -21,9 +21,9 @@ if TYPE_CHECKING:
     from torch_cluster import knn_graph
     from torch_scatter import scatter_sum, segment_csr
 
-knn_graph, _ = optional_import("torch_cluster", name="knn_graph")
-scatter_sum, _ = optional_import("torch_scatter", name="scatter_sum")
-segment_csr, _ = optional_import("torch_scatter", name="segment_csr")
+knn_graph, _ = optional_import("torch_cluster", name="knn_graph", url=_TORCH_CLUSTER_GITHUB_URL)
+scatter_sum, _ = optional_import("torch_scatter", name="scatter_sum", url=_TORCH_SCATTER_GITHUB_URL)
+segment_csr, _ = optional_import("torch_scatter", name="segment_csr", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class GroupedVectorAttention(nn.Module):

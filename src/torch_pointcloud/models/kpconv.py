@@ -19,7 +19,7 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import OptTensor
 
@@ -31,9 +31,9 @@ if TYPE_CHECKING:
     from torch_cluster import radius, radius_graph
     from torch_scatter import scatter
 
-radius, _ = optional_import("torch_cluster", name="radius")
-radius_graph, _ = optional_import("torch_cluster", name="radius_graph")
-scatter, _ = optional_import("torch_scatter", name="scatter")
+radius, _ = optional_import("torch_cluster", name="radius", url=_TORCH_CLUSTER_GITHUB_URL)
+radius_graph, _ = optional_import("torch_cluster", name="radius_graph", url=_TORCH_CLUSTER_GITHUB_URL)
+scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 def create_kernel_points(

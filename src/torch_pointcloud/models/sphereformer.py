@@ -24,7 +24,12 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import (
+    _SPCONV_GITHUB_URL,
+    _SPTR_GITHUB_URL,
+    _TORCH_SCATTER_GITHUB_URL,
+    optional_import,
+)
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -33,11 +38,11 @@ if TYPE_CHECKING:
     from torch_scatter import scatter_mean
 
 
-spconv, _ = optional_import("spconv.pytorch")
-SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
-ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo")
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
-sptr, _ = optional_import("sptr")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=_SPCONV_GITHUB_URL)
+ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo", url=_SPCONV_GITHUB_URL)
+scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
+sptr, _ = optional_import("sptr", url=_SPTR_GITHUB_URL)
 
 
 def cart2sphere(pos: Tensor) -> Tensor:

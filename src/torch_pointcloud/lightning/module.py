@@ -10,7 +10,7 @@ from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 from torch_pointcloud.utils.misc import deep_getattr
 from torch_pointcloud.utils.optim import generate_param_groups
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
@@ -18,7 +18,7 @@ from torch_pointcloud.utils.types import Boxes3D, Detection3D
 if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
 else:
-    LightningModule, _ = optional_import("lightning.pytorch", "LightningModule")
+    LightningModule, _ = optional_import("lightning.pytorch", "LightningModule", url=_LIGHTNING_GITHUB_URL)
 
 
 class LitModel(LightningModule):
