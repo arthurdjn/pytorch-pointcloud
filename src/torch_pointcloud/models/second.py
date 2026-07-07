@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.anchors import (
@@ -20,7 +21,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -468,11 +469,18 @@ class SECONDMultiHeadDetection(DetectionModel):
 
 
 @register_model(
-    "second-openpcdet.kitti",
+    "second.kitti.openpcdet",
     task="detection",
-    weights="hf://torch-pointcloud/second/second-openpcdet.kitti.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/second/second.kitti.openpcdet.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 66.11},
+        classes=("Car", "Pedestrian", "Cyclist"),
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
     # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
@@ -502,11 +510,17 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
 
 
 @register_model(
-    "second-openpcdet-multihead.nuscenes",
+    "second-multihead.nuscenes.openpcdet",
     task="detection",
-    weights="hf://torch-pointcloud/second/second-openpcdet-multihead.nuscenes.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/second/second-multihead.nuscenes.openpcdet.safetensors",
+        dataset="nuscenes",
+        classes=NUSCENES_DETECTION_CLASSES,
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
     # nuScenes inference: lidar reflectance + sweep timestamp are the model's point features.
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(

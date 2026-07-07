@@ -4,12 +4,12 @@
 #
 # | model.name              | mIoU   | accuracy |
 # | ----------------------- | ------ | -------- |
-# | dgcnn-antao.s3dis.area1 | 0.6919 | 0.8969   |
-# | dgcnn-antao.s3dis.area2 | 0.4351 | 0.8169   |
-# | dgcnn-antao.s3dis.area3 | 0.6873 | 0.9086   |
-# | dgcnn-antao.s3dis.area4 | 0.5068 | 0.8506   |
-# | dgcnn-antao.s3dis.area5 | 0.5029 | 0.8492   |
-# | dgcnn-antao.s3dis.area6 | 0.7560 | 0.9210   |
+# | dgcnn.s3dis-area1.an-tao | 0.6919 | 0.8969   |
+# | dgcnn.s3dis-area2.an-tao | 0.4351 | 0.8169   |
+# | dgcnn.s3dis-area3.an-tao | 0.6873 | 0.9086   |
+# | dgcnn.s3dis-area4.an-tao | 0.5068 | 0.8506   |
+# | dgcnn.s3dis-area5.an-tao | 0.5029 | 0.8492   |
+# | dgcnn.s3dis-area6.an-tao | 0.7560 | 0.9210   |
 #
 # Each areaN checkpoint pairs with its held-out datamodule.val_dataset.areas=[Area_N] (datamodule default: Area_5).
 defaults:
@@ -18,7 +18,7 @@ defaults:
   - override /callbacks: segmentation
 
 model:
-  name: dgcnn-antao.s3dis.area5
+  name: dgcnn.s3dis-area5.an-tao
   num_classes: 13
   input_keys: [x, norm_pos, batch]
   target_key: segment

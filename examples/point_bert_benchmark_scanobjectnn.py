@@ -7,15 +7,15 @@ Results vs reference (ScanObjectNN overall accuracy, paper Tab. 4):
 
     | Variant                              | reference | torch-pointcloud |
     | ------------------------------------ | --------- | ---------------- |
-    | point-bert-base.scanobjectnn-objbg   | 87.43     | 87.44            |
-    | point-bert-base.scanobjectnn-objonly | 88.12     | 88.12            |
-    | point-bert-base.scanobjectnn-hardest | 83.07     | 83.07            |
+    | point-bert-base.scanobjectnn-objbg.xumin-yu   | 87.43     | 87.44            |
+    | point-bert-base.scanobjectnn-objonly.xumin-yu | 88.12     | 88.12            |
+    | point-bert-base.scanobjectnn-hardest.xumin-yu | 83.07     | 83.07            |
 
 The released checkpoints keep a 40-wide classification head, which dilutes the printed mean-class
 accuracy; overall accuracy is the reference metric.
 
 Usage:
-    uv run --no-sync python examples/point_bert_benchmark_scanobjectnn.py --model point-bert-base.scanobjectnn-objbg
+    uv run --no-sync python examples/point_bert_benchmark_scanobjectnn.py --model point-bert-base.scanobjectnn-objbg.xumin-yu
 """
 
 import os
@@ -43,15 +43,17 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "point-bert-base.scanobjectnn-objonly",
-    "point-bert-base.scanobjectnn-objbg",
-    "point-bert-base.scanobjectnn-hardest",
+    "point-bert-base.scanobjectnn-objonly.xumin-yu",
+    "point-bert-base.scanobjectnn-objbg.xumin-yu",
+    "point-bert-base.scanobjectnn-hardest.xumin-yu",
 ]
 
 DATASET_CONFIG = {
-    "point-bert-base.scanobjectnn-objonly": dict(split="main", background=False, variant=None),
-    "point-bert-base.scanobjectnn-objbg": dict(split="main", background=True, variant=None),
-    "point-bert-base.scanobjectnn-hardest": dict(split="main", background=True, variant="augmentedrot_scale75"),
+    "point-bert-base.scanobjectnn-objonly.xumin-yu": dict(split="main", background=False, variant=None),
+    "point-bert-base.scanobjectnn-objbg.xumin-yu": dict(split="main", background=True, variant=None),
+    "point-bert-base.scanobjectnn-hardest.xumin-yu": dict(
+        split="main", background=True, variant="augmentedrot_scale75"
+    ),
 }
 
 
@@ -99,7 +101,9 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark Point-BERT classification on ScanObjectNN.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="point-bert-base.scanobjectnn-objonly", choices=MODEL_CHOICES)
+    parser.add_argument(
+        "--model", type=str, default="point-bert-base.scanobjectnn-objonly.xumin-yu", choices=MODEL_CHOICES
+    )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

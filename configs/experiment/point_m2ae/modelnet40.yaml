@@ -4,14 +4,14 @@
 #
 # | model.name                 | accuracy |
 # | -------------------------- | -------- |
-# | point-m2ae-base.modelnet40 | 0.9287   |
+# | point-m2ae-base.modelnet40.renrui-zhang | 0.9287   |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: point-m2ae-base.modelnet40
+  name: point-m2ae-base.modelnet40.renrui-zhang
   num_classes: 40
   input_keys: [x, pos, batch]
   criterion:

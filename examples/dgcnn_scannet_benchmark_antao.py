@@ -8,7 +8,7 @@ Results vs reference (ScanNet val mIoU; reference is the antao97 repo's ScanNet 
 
     | Variant               | reference | torch-pointcloud |
     | --------------------- | --------- | ---------------- |
-    | dgcnn-antao.scannet20 | 49.6      | 49.17            |
+    | dgcnn.scannet20.an-tao | 49.6      | 49.17            |
 
 Usage:
     uv run --no-sync python examples/dgcnn_scannet_benchmark_antao.py
@@ -127,8 +127,8 @@ def main() -> None:
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
 
-    print("Loading model 'dgcnn-antao.scannet20'!")
-    model = create_model("dgcnn-antao.scannet20", task="segmentation", pretrained=True)
+    print("Loading model 'dgcnn.scannet20.an-tao'!")
+    model = create_model("dgcnn.scannet20.an-tao", task="segmentation", pretrained=True)
 
     label_map = gen_label_map()
     scans_dir = os.path.join(args.root, "raw", "v2", "scans")

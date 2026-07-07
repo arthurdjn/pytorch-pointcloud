@@ -7,6 +7,9 @@ from torch import Tensor
 from torch_geometric.nn import MLP, DynamicEdgeConv, global_max_pool
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers import CatPool, PoolLike, create_pool
 from torch_pointcloud.layers.tnet import DynamicTNet, TNet
 from torch_pointcloud.utils.cluster import knn
@@ -15,7 +18,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class DGCNNIntermediate(NamedTuple):
@@ -631,11 +634,18 @@ class DGCNNPartSegmentation(SegmentationModel):
         return self.forward_head(x, batch)
 
 
-def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
+def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
     return dict(
-        name=f"dgcnn-antao.s3dis.area{area}",
+        name=f"dgcnn.s3dis-area{area}.an-tao",
         task="segmentation",
-        weights=f"hf://torch-pointcloud/dgcnn/dgcnn-antao.s3dis.area{area}.pt",
+        weights=WeightsDict(
+            url=f"hf://torch-pointcloud/dgcnn/dgcnn.s3dis-area{area}.an-tao.safetensors",
+            dataset=f"s3dis-area{area}",
+            metrics={"mIoU": miou},
+            classes=S3DIS_CLASSES,
+            author="an-tao",
+            license="MIT",
+        ),
         hparams=dict(
             in_channels=6,
             num_classes=13,
@@ -651,14 +661,20 @@ def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
             bias=True,
             dropout=0.5,
         ),
-        transforms=T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
+        transform=T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
     )
 
 
 @register_model(
-    "dgcnn-antao.modelnet40.1024",
+    "dgcnn.modelnet40-1024.an-tao",
     task="classification",
-    weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.modelnet40.1024.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn/dgcnn.modelnet40-1024.an-tao.safetensors",
+        dataset="modelnet40",
+        classes=MODELNET40_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=0,
         num_classes=40,
@@ -675,7 +691,7 @@ def _dgcnn_antao_s3dis_cfg(area: int) -> dict[str, Any]:
         dropout=0.5,
         global_pool=["max", "mean"],
     ),
-    transforms=T.FarthestPointSample(pos_key="pos", keys=["normal"], num_samples=1024),
+    transform=T.FarthestPointSample(pos_key="pos", keys=["normal"], num_samples=1024),
 )
 def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     # from the repo: https://github.com/antao97/dgcnn.pytorch
@@ -683,9 +699,16 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
 
 
 @register_model(
-    "dgcnn-antao.modelnet40.2048",
+    "dgcnn.modelnet40-2048.an-tao",
     task="classification",
-    weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.modelnet40.2048.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn/dgcnn.modelnet40-2048.an-tao.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 92.46},
+        classes=MODELNET40_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=0,
         num_classes=40,
@@ -702,7 +725,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
         dropout=0.5,
         global_pool=["max", "mean"],
     ),
-    transforms=T.FarthestPointSample(pos_key="pos", keys=["normal"], num_samples=2048),
+    transform=T.FarthestPointSample(pos_key="pos", keys=["normal"], num_samples=2048),
 )
 def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     # from the repo: https://github.com/antao97/dgcnn.pytorch
@@ -710,9 +733,14 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
 
 
 @register_model(
-    "dgcnn-antao.shapenetpart",
+    "dgcnn.shapenetpart.an-tao",
     task="segmentation",
-    weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.shapenetpart.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn/dgcnn.shapenetpart.an-tao.safetensors",
+        dataset="shapenetpart",
+        author="an-tao",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=0,
         num_classes=50,
@@ -734,7 +762,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
         bias=True,
         dropout=0.5,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.FarthestPointSample(
@@ -750,40 +778,46 @@ def dgcnn_antao_shapenet_partseg(**hparams: Any) -> DGCNNPartSegmentation:
     return DGCNNPartSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(1))
+@register_model(**_dgcnn_antao_s3dis_cfg(1, miou=69.19))
 def dgcnn_antao_s3dis_area1_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(2))
+@register_model(**_dgcnn_antao_s3dis_cfg(2, miou=43.51))
 def dgcnn_antao_s3dis_area2_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(3))
+@register_model(**_dgcnn_antao_s3dis_cfg(3, miou=68.73))
 def dgcnn_antao_s3dis_area3_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(4))
+@register_model(**_dgcnn_antao_s3dis_cfg(4, miou=50.68))
 def dgcnn_antao_s3dis_area4_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(5))
+@register_model(**_dgcnn_antao_s3dis_cfg(5, miou=50.29))
 def dgcnn_antao_s3dis_area5_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(6))
+@register_model(**_dgcnn_antao_s3dis_cfg(6, miou=75.6))
 def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
 @register_model(
-    "dgcnn-antao.scannet20",
+    "dgcnn.scannet20.an-tao",
     task="segmentation",
-    weights="hf://torch-pointcloud/dgcnn/dgcnn-antao.scannet20.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn/dgcnn.scannet20.an-tao.safetensors",
+        dataset="scannet20",
+        classes=SCANNET20_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -799,7 +833,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
         bias=True,
         dropout=0.5,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             # The model was trained on 20 classes without a dedicated class for "unknown" objects,
             # so we relabel the segmentation labels from [0, 20] -> [0, 19] and set "unknown" objects to 255.

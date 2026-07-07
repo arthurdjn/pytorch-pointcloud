@@ -7,14 +7,14 @@ Results vs reference (ModelNet40 overall accuracy, single-pass; the paper report
 
     | Variant                      | reference | torch-pointcloud |
     | ---------------------------- | --------- | ---------------- |
-    | point-mae-base.modelnet40    | 93.19     | 92.87            |
-    | point-mae-base.modelnet40-8k | 94.04     | 93.35            |
+    | point-mae-base.modelnet40.yatian-pang    | 93.19     | 92.87            |
+    | point-mae-base.modelnet40-8k.yatian-pang | 94.04     | 93.35            |
 
 The remaining gap is FPS sampling variance (reference CUDA FPS and `torch_cluster` FPS pick different
 point subsets).
 
 Usage:
-    uv run --no-sync python examples/point_mae_benchmark_modelnet.py --model point-mae-base.modelnet40
+    uv run --no-sync python examples/point_mae_benchmark_modelnet.py --model point-mae-base.modelnet40.yatian-pang
 """
 
 import os
@@ -41,8 +41,8 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "point-mae-base.modelnet40",
-    "point-mae-base.modelnet40-8k",
+    "point-mae-base.modelnet40.yatian-pang",
+    "point-mae-base.modelnet40-8k.yatian-pang",
 ]
 
 
@@ -92,7 +92,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark Point-MAE classification on ModelNet40 (normal-resampled).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="point-mae-base.modelnet40", choices=MODEL_CHOICES)
+    parser.add_argument("--model", type=str, default="point-mae-base.modelnet40.yatian-pang", choices=MODEL_CHOICES)
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

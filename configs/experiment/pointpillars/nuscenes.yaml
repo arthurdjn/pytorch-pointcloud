@@ -4,7 +4,7 @@
 #
 # | model.name                                | mAP@0.25 | mAP@0.5 |
 # | ----------------------------------------- | -------- | ------- |
-# | pointpillars-openpcdet-multihead.nuscenes | 0.4835   | 0.3538  |
+# | pointpillars-multihead.nuscenes.openpcdet | 0.4835   | 0.3538  |
 defaults:
   - override /datamodule: nuscenes
   - override /model: detection
@@ -15,7 +15,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: pointpillars-openpcdet-multihead.nuscenes
+  name: pointpillars-multihead.nuscenes.openpcdet
   input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
   score_threshold: 0.1
   nms_iou: 0.2

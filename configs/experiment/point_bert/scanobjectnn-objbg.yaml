@@ -4,14 +4,14 @@
 #
 # | model.name                         | accuracy |
 # | ---------------------------------- | -------- |
-# | point-bert-base.scanobjectnn-objbg | 0.8744   |
+# | point-bert-base.scanobjectnn-objbg.xumin-yu | 0.8744   |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: point-bert-base.scanobjectnn-objbg
+  name: point-bert-base.scanobjectnn-objbg.xumin-yu
   # The released checkpoints keep the 40-wide ModelNet head (ScanObjectNN has 15 classes); OA is the reference metric.
   num_classes: 40
   input_keys: [x, pos, batch]

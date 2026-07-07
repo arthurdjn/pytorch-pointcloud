@@ -5,7 +5,7 @@
 #
 # | model.name                  | accuracy |
 # | --------------------------- | -------- |
-# | dgcnn-antao.modelnet40.1024 | 0.9234   |
+# | dgcnn.modelnet40-1024.an-tao | 0.9234   |
 # (exact at precision=32-true datamodule.batch_size=16)
 defaults:
   - override /datamodule: modelnet40_normal_resampled
@@ -16,7 +16,7 @@ trainer:
   max_epochs: 200
 
 model:
-  name: dgcnn-antao.modelnet40.1024
+  name: dgcnn.modelnet40-1024.an-tao
   num_classes: 40
   pretrained: false
   input_keys: [x, pos, batch]

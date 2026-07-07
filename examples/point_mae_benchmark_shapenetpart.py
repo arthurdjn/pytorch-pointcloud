@@ -7,7 +7,7 @@ Results vs reference (instance mIoU / class mIoU; paper Tab. 4, class mIoU via P
 
     | Variant                     | reference    | torch-pointcloud |
     | --------------------------- | ------------ | ---------------- |
-    | point-mae-base.shapenetpart | 86.1 / 84.19 | 86.09 / 84.12    |
+    | point-mae-base.shapenetpart.yatian-pang | 86.1 / 84.19 | 86.09 / 84.12    |
 
 Usage:
     uv run --no-sync python examples/point_mae_benchmark_shapenetpart.py
@@ -85,7 +85,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument(
-        "--model", type=str, default="point-mae-base.shapenetpart", choices=["point-mae-base.shapenetpart"]
+        "--model",
+        type=str,
+        default="point-mae-base.shapenetpart.yatian-pang",
+        choices=["point-mae-base.shapenetpart.yatian-pang"],
     )
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

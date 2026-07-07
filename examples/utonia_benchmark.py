@@ -1,7 +1,7 @@
 """Benchmark Utonia on ScanNet.
 
-For the linear-probe segmentation variant (`utonia-lp.scannet20`), reports mIoU
-+ OA + latency on ScanNet20 val. For the encoder-only variant (`utonia`), only
+For the linear-probe segmentation variant (`utonia-lp.scannet20.pointcept`), reports mIoU
++ OA + latency on ScanNet20 val. For the encoder-only variant (`utonia.pointcept`), only
 latency / throughput is reported (no head, no labels). Utonia's forward takes
 real-valued positions (`pos`) for 3D RoPE in addition to integer grid coords.
 
@@ -10,11 +10,11 @@ full-resolution per-point evaluation):
 
 | Model               | Here                  |
 | ------------------- | --------------------- |
-| utonia-lp.scannet20 | 71.11 mIoU / 89.04 OA |
+| utonia-lp.scannet20.pointcept | 71.11 mIoU / 89.04 OA |
 
 Usage:
-    uv run --no-sync python examples/utonia_benchmark.py --model utonia-lp.scannet20 --limit 5
-    uv run --no-sync python examples/utonia_benchmark.py --model utonia --limit 5
+    uv run --no-sync python examples/utonia_benchmark.py --model utonia-lp.scannet20.pointcept --limit 5
+    uv run --no-sync python examples/utonia_benchmark.py --model utonia.pointcept --limit 5
 """
 
 import argparse
@@ -42,8 +42,8 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 1
 SEED = 42
 
-ENCODER_MODELS = ("utonia",)
-SEG_MODELS = ("utonia-lp.scannet20",)
+ENCODER_MODELS = ("utonia.pointcept",)
+SEG_MODELS = ("utonia-lp.scannet20.pointcept",)
 
 
 def _resolve_task(model_name: str) -> str:
@@ -152,7 +152,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark Utonia on ScanNet.")
     parser.add_argument(
         "--model",
-        default="utonia-lp.scannet20",
+        default="utonia-lp.scannet20.pointcept",
         choices=[*ENCODER_MODELS, *SEG_MODELS],
         help="Registered Utonia model name.",
     )

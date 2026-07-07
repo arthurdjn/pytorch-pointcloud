@@ -1,4 +1,4 @@
-r"""Evaluate `pointnet2-openpoints.s3dis-area5` on S3DIS via the voxel-partition test protocol.
+r"""Evaluate `pointnet2.s3dis-area5.openpoints` on S3DIS via the voxel-partition test protocol.
 
 The protocol partitions each room into FNV voxel buckets and runs the model on $K = \max_v c_v$
 sub-clouds; per-sub-cloud logits are scatter-summed to original-point indices. See
@@ -6,7 +6,7 @@ sub-clouds; per-sub-cloud logits are scatter-summed to original-point indices. S
 
 | Model                              | This script             | Reference  |
 | ---------------------------------- | ----------------------- | ---------- |
-| `pointnet2-openpoints.s3dis-area5` | 63.59% mIoU / 88.23% OA | 63.6% mIoU |
+| `pointnet2.s3dis-area5.openpoints` | 63.59% mIoU / 88.23% OA | 63.6% mIoU |
 
 Usage:
 
@@ -88,7 +88,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="openpoints PointNet++ S3DIS reproduction (Pointcept-style scatter-back).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR)
-    parser.add_argument("--model", type=str, default="pointnet2-openpoints.s3dis-area5")
+    parser.add_argument("--model", type=str, default="pointnet2.s3dis-area5.openpoints")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--voxel-size", type=float, default=0.04, help="FNV voxel partition size (m).")
     parser.add_argument("--limit", type=int, default=None)
@@ -116,7 +116,7 @@ def main() -> None:
     print(f"Loading model {args.model!r}!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
-    model_transform = model_info["transforms"]
+    model_transform = model_info["transform"]
     if model_transform is None:
         raise RuntimeError(f"Model {args.model!r} has no registered transform; cannot run the multi-voxel protocol.")
 

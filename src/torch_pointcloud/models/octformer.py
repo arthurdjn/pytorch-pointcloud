@@ -8,6 +8,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
@@ -18,7 +19,7 @@ from torch_pointcloud.utils.octree import octree_interpolate, octree_upsample
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     import dwconv
@@ -885,9 +886,16 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
 
 
 @register_model(
-    name="octformer-base.modelnet40",
+    name="octformer-base.modelnet40.octree-nn",
     task="classification",
-    weights="hf://torch-pointcloud/octformer/octformer-base.modelnet40.pth",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/octformer/octformer-base.modelnet40.octree-nn.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 89.02},
+        classes=MODELNET40_CLASSES,
+        author="octree-nn",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=4,
         num_classes=40,
@@ -917,7 +925,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
         dropout=0.5,
         global_pool="mean",
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
@@ -955,8 +963,14 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
 
 
 @register_model(
-    name="octformer-base.scannet20",
-    weights="hf://torch-pointcloud/octformer/octformer-base.scannet20.pth",
+    name="octformer-base.scannet20.octree-nn",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/octformer/octformer-base.scannet20.octree-nn.safetensors",
+        dataset="scannet20",
+        metrics={"mIoU": 74.78},
+        author="octree-nn",
+        license="MIT",
+    ),
     task="segmentation",
     hparams=dict(
         in_channels=10,
@@ -987,7 +1001,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         bias=True,
         dropout=0.5,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
@@ -1019,8 +1033,14 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
 
 
 @register_model(
-    name="octformer-base.scannet200",
-    weights="hf://torch-pointcloud/octformer/octformer-base.scannet200.pth",
+    name="octformer-base.scannet200.octree-nn",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/octformer/octformer-base.scannet200.octree-nn.safetensors",
+        dataset="scannet200",
+        metrics={"mIoU": 31.71},
+        author="octree-nn",
+        license="MIT",
+    ),
     task="segmentation",
     hparams=dict(
         in_channels=10,
@@ -1051,7 +1071,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         bias=True,
         dropout=0.5,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
@@ -1081,7 +1101,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
 
 
 @register_model(
-    name="octformer-base.lg",
+    name="octformer-lg",
     task="segmentation",
     hparams=dict(
         stem_channels=(24, 48, 96),
@@ -1116,7 +1136,7 @@ def octformer_base_lg_seg(**hparams: Any) -> OctFormerSegmentation:
 
 
 @register_model(
-    name="octformer-base.sm",
+    name="octformer-sm",
     task="segmentation",
     hparams=dict(
         stem_channels=(24, 48, 96),

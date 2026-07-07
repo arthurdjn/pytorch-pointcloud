@@ -7,12 +7,12 @@ Results vs reference (ScanObjectNN overall accuracy, paper Tab. 1):
 
     | Variant                             | reference | torch-pointcloud |
     | ----------------------------------- | --------- | ---------------- |
-    | point-mae-base.scanobjectnn-objbg   | 90.02     | 90.19            |
-    | point-mae-base.scanobjectnn-objonly | 88.29     | 88.30            |
-    | point-mae-base.scanobjectnn-hardest | 85.18     | 85.05            |
+    | point-mae-base.scanobjectnn-objbg.yatian-pang   | 90.02     | 90.19            |
+    | point-mae-base.scanobjectnn-objonly.yatian-pang | 88.29     | 88.30            |
+    | point-mae-base.scanobjectnn-hardest.yatian-pang | 85.18     | 85.05            |
 
 Usage:
-    uv run --no-sync python examples/point_mae_benchmark_scanobjectnn.py --model point-mae-base.scanobjectnn-objbg
+    uv run --no-sync python examples/point_mae_benchmark_scanobjectnn.py --model point-mae-base.scanobjectnn-objbg.yatian-pang
 """
 
 import os
@@ -39,15 +39,17 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "point-mae-base.scanobjectnn-objbg",
-    "point-mae-base.scanobjectnn-objonly",
-    "point-mae-base.scanobjectnn-hardest",
+    "point-mae-base.scanobjectnn-objbg.yatian-pang",
+    "point-mae-base.scanobjectnn-objonly.yatian-pang",
+    "point-mae-base.scanobjectnn-hardest.yatian-pang",
 ]
 
 DATASET_CONFIG = {
-    "point-mae-base.scanobjectnn-objbg": dict(split="main", background=True, variant=None),
-    "point-mae-base.scanobjectnn-objonly": dict(split="main", background=False, variant=None),
-    "point-mae-base.scanobjectnn-hardest": dict(split="main", background=True, variant="augmentedrot_scale75"),
+    "point-mae-base.scanobjectnn-objbg.yatian-pang": dict(split="main", background=True, variant=None),
+    "point-mae-base.scanobjectnn-objonly.yatian-pang": dict(split="main", background=False, variant=None),
+    "point-mae-base.scanobjectnn-hardest.yatian-pang": dict(
+        split="main", background=True, variant="augmentedrot_scale75"
+    ),
 }
 
 
@@ -100,7 +102,9 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark Point-MAE classification on ScanObjectNN.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="point-mae-base.scanobjectnn-objbg", choices=MODEL_CHOICES)
+    parser.add_argument(
+        "--model", type=str, default="point-mae-base.scanobjectnn-objbg.yatian-pang", choices=MODEL_CHOICES
+    )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

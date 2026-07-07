@@ -93,6 +93,30 @@ SEMANTIC_KITTI_LABEL_NAMES: Dict[int, str] = {
     259: "moving-other-vehicle",
 }
 
+# 19-class single-scan benchmark taxonomy: `SEMANTIC_KITTI_CLASSES[i]` names learning-map index i
+# (the raw-id to contiguous-index convention used by the SemanticKITTI segmentation checkpoints).
+SEMANTIC_KITTI_CLASSES = (
+    "car",
+    "bicycle",
+    "motorcycle",
+    "truck",
+    "other-vehicle",
+    "person",
+    "bicyclist",
+    "motorcyclist",
+    "road",
+    "parking",
+    "sidewalk",
+    "other-ground",
+    "building",
+    "fence",
+    "vegetation",
+    "trunk",
+    "terrain",
+    "pole",
+    "traffic-sign",
+)
+
 
 def _check_sequences(sequences: Sequence[str]) -> None:
     for seq in sequences:

@@ -1,6 +1,6 @@
 """Benchmark Concerto on ScanNet.
 
-For the linear-probe segmentation variant (`concerto-large-lp.scannet20`), reports
+For the linear-probe segmentation variant (`concerto-large-lp.scannet20.pointcept`), reports
 mIoU + OA + latency on ScanNet20 val. For encoder-only variants (tiny / small /
 base / large), only latency / throughput is reported (no head, no labels).
 
@@ -9,11 +9,11 @@ full-resolution per-point evaluation):
 
 | Model                       | Here                  |
 | --------------------------- | --------------------- |
-| concerto-large-lp.scannet20 | 77.68 mIoU / 92.35 OA |
+| concerto-large-lp.scannet20.pointcept | 77.68 mIoU / 92.35 OA |
 
 Usage:
-    uv run --no-sync python examples/concerto_benchmark.py --model concerto-large-lp.scannet20 --limit 5
-    uv run --no-sync python examples/concerto_benchmark.py --model concerto-base --limit 5
+    uv run --no-sync python examples/concerto_benchmark.py --model concerto-large-lp.scannet20.pointcept --limit 5
+    uv run --no-sync python examples/concerto_benchmark.py --model concerto-base.pointcept --limit 5
 """
 
 import argparse
@@ -41,8 +41,13 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 1
 SEED = 42
 
-ENCODER_MODELS = ("concerto-tiny", "concerto-small", "concerto-base", "concerto-large")
-SEG_MODELS = ("concerto-large-lp.scannet20",)
+ENCODER_MODELS = (
+    "concerto-tiny.pointcept",
+    "concerto-small.pointcept",
+    "concerto-base.pointcept",
+    "concerto-large.pointcept",
+)
+SEG_MODELS = ("concerto-large-lp.scannet20.pointcept",)
 
 
 def _resolve_task(model_name: str) -> str:
@@ -131,7 +136,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark Concerto on ScanNet.")
     parser.add_argument(
         "--model",
-        default="concerto-large-lp.scannet20",
+        default="concerto-large-lp.scannet20.pointcept",
         choices=[*ENCODER_MODELS, *SEG_MODELS],
         help="Registered Concerto model name.",
     )

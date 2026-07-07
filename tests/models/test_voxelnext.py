@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not ins
 # The fully sparse 3D backbone (spconv SubM/SparseConv) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
-WEIGHTS = Path(MODELS_DIR, "voxelnext", "voxelnext-openpcdet.nuscenes.pt")
+WEIGHTS = Path(MODELS_DIR, "voxelnext", "voxelnext.nuscenes.openpcdet.pt")
 
 
 def _voxelize(model: VoxelNeXtDetection, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int) -> tuple:
@@ -48,7 +48,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
 
 
 def test_voxelnext_create_model_hparams() -> None:
-    model = create_model("voxelnext-openpcdet.nuscenes", task="detection")
+    model = create_model("voxelnext.nuscenes.openpcdet", task="detection")
     assert isinstance(model, VoxelNeXtDetection)
     assert model.in_channels == 5
     assert model.num_classes == 10
@@ -59,12 +59,12 @@ def test_voxelnext_create_model_hparams() -> None:
 
 
 def test_voxelnext_registered_variant() -> None:
-    assert "voxelnext-openpcdet.nuscenes" in list_models("voxelnext*", task="detection")
+    assert "voxelnext.nuscenes.openpcdet" in list_models("voxelnext*", task="detection")
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="VoxelNeXt sparse backbone requires CUDA")
 def test_voxelnext_forward_shapes() -> None:
-    model = create_model("voxelnext-openpcdet.nuscenes", task="detection").to(DEVICE).eval()
+    model = create_model("voxelnext.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, VoxelNeXtDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 160000)
@@ -82,7 +82,7 @@ def test_voxelnext_forward_shapes() -> None:
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="VoxelNeXt sparse backbone requires CUDA")
 @pytest.mark.skipif(not WEIGHTS.exists(), reason="VoxelNeXt nuScenes weights not in local cache")
 def test_voxelnext_pretrained_forward_decode() -> None:
-    model = create_model("voxelnext-openpcdet.nuscenes", task="detection", pretrained=True).to(DEVICE).eval()
+    model = create_model("voxelnext.nuscenes.openpcdet", task="detection", pretrained=True).to(DEVICE).eval()
     assert isinstance(model, VoxelNeXtDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 160000)

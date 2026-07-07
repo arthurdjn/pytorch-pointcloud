@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
@@ -13,7 +14,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 from .second import SparseBasicBlock
 
 if TYPE_CHECKING:
@@ -526,10 +527,16 @@ class VoxelNeXtDetection(DetectionModel):
 
 
 @register_model(
-    "voxelnext-openpcdet.nuscenes",
+    "voxelnext.nuscenes.openpcdet",
     task="detection",
-    weights="hf://torch-pointcloud/voxelnext/voxelnext-openpcdet.nuscenes.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/voxelnext/voxelnext.nuscenes.openpcdet.safetensors",
+        dataset="nuscenes",
+        classes=NUSCENES_DETECTION_CLASSES,
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(

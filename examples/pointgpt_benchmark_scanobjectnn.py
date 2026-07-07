@@ -9,15 +9,15 @@ Results vs reference (ScanObjectNN overall accuracy):
 
     | Variant                                   | paper | torch-pointcloud |
     | ----------------------------------------- | ----- | ---------------- |
-    | pointgpt-cguangyan-s.scanobjectnn-hardest | 86.9  | 86.95            |
-    | pointgpt-cguangyan-b.scanobjectnn-hardest | 91.9  | 91.92            |
-    | pointgpt-cguangyan-l.scanobjectnn-hardest | 93.4  | 93.75            |
-    | pointgpt-cguangyan-s.scanobjectnn-objbg   | 91.6  | 91.57            |
-    | pointgpt-cguangyan-b.scanobjectnn-objbg   | 95.8  | 97.07            |
-    | pointgpt-cguangyan-l.scanobjectnn-objbg   | 97.2  | 98.45            |
-    | pointgpt-cguangyan-s.scanobjectnn-objonly | 90.0  | 90.71            |
-    | pointgpt-cguangyan-b.scanobjectnn-objonly | 95.2  | 95.18            |
-    | pointgpt-cguangyan-l.scanobjectnn-objonly | 96.6  | 96.90            |
+    | pointgpt-s.scanobjectnn-hardest.guangyan-chen | 86.9  | 86.95            |
+    | pointgpt-b.scanobjectnn-hardest.guangyan-chen | 91.9  | 91.92            |
+    | pointgpt-l.scanobjectnn-hardest.guangyan-chen | 93.4  | 93.75            |
+    | pointgpt-s.scanobjectnn-objbg.guangyan-chen   | 91.6  | 91.57            |
+    | pointgpt-b.scanobjectnn-objbg.guangyan-chen   | 95.8  | 97.07            |
+    | pointgpt-l.scanobjectnn-objbg.guangyan-chen   | 97.2  | 98.45            |
+    | pointgpt-s.scanobjectnn-objonly.guangyan-chen | 90.0  | 90.71            |
+    | pointgpt-b.scanobjectnn-objonly.guangyan-chen | 95.2  | 95.18            |
+    | pointgpt-l.scanobjectnn-objonly.guangyan-chen | 96.6  | 96.90            |
 
 Usage:
     uv run --no-sync python examples/pointgpt_benchmark_scanobjectnn.py --model <one of MODEL_CHOICES>
@@ -48,15 +48,15 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointgpt-cguangyan-s.scanobjectnn-objbg",
-    "pointgpt-cguangyan-s.scanobjectnn-objonly",
-    "pointgpt-cguangyan-s.scanobjectnn-hardest",
-    "pointgpt-cguangyan-b.scanobjectnn-objbg",
-    "pointgpt-cguangyan-b.scanobjectnn-objonly",
-    "pointgpt-cguangyan-b.scanobjectnn-hardest",
-    "pointgpt-cguangyan-l.scanobjectnn-objbg",
-    "pointgpt-cguangyan-l.scanobjectnn-objonly",
-    "pointgpt-cguangyan-l.scanobjectnn-hardest",
+    "pointgpt-s.scanobjectnn-objbg.guangyan-chen",
+    "pointgpt-s.scanobjectnn-objonly.guangyan-chen",
+    "pointgpt-s.scanobjectnn-hardest.guangyan-chen",
+    "pointgpt-b.scanobjectnn-objbg.guangyan-chen",
+    "pointgpt-b.scanobjectnn-objonly.guangyan-chen",
+    "pointgpt-b.scanobjectnn-hardest.guangyan-chen",
+    "pointgpt-l.scanobjectnn-objbg.guangyan-chen",
+    "pointgpt-l.scanobjectnn-objonly.guangyan-chen",
+    "pointgpt-l.scanobjectnn-hardest.guangyan-chen",
 ]
 
 
@@ -117,7 +117,9 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark PointGPT classification on ScanObjectNN.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="pointgpt-cguangyan-s.scanobjectnn-hardest", choices=MODEL_CHOICES)
+    parser.add_argument(
+        "--model", type=str, default="pointgpt-s.scanobjectnn-hardest.guangyan-chen", choices=MODEL_CHOICES
+    )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

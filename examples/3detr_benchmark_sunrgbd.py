@@ -7,7 +7,7 @@ is the dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
 
 | Model                | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
 | -------------------- | ------------------------------ | ------------------------- |
-| `3detr-fair.sunrgbd` | 58.20 / 29.70                  | 58.0 / 30.3               |
+| `3detr.sunrgbd.fair` | 58.20 / 29.70                  | 58.0 / 30.3               |
 
 Usage:
     uv run --no-sync python examples/3detr_benchmark_sunrgbd.py --root /path/to/data
@@ -48,7 +48,7 @@ def main() -> None:
     assert isinstance(model, DETR3DDetection)
     model.to(args.device).eval()
 
-    dataset: Dataset = SunRGBD(root=args.root, split="val", transform=info["transforms"], download=args.download)
+    dataset: Dataset = SunRGBD(root=args.root, split="val", transform=info["transform"], download=args.download)
     if args.limit is not None:
         dataset = Subset(dataset, range(args.limit))
 
@@ -112,7 +112,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="3DETR SUN RGB-D detection AP benchmark.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="3detr-fair.sunrgbd")
+    parser.add_argument("--model", type=str, default="3detr.sunrgbd.fair")
     parser.add_argument("--download", action="store_true", help="Download SUN RGB-D if missing.")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

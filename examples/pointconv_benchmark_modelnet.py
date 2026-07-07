@@ -7,7 +7,7 @@ Results vs reference (ModelNet40 overall accuracy):
 
     | Variant                           | reference | torch-pointcloud |
     | --------------------------------- | --------- | ---------------- |
-    | pointconv-density-base.modelnet40 | 92.5      | 92.02            |
+    | pointconv-density-base.modelnet40.wenxuan-wu | 92.5      | 92.02            |
 
 Usage:
     uv run --no-sync python examples/pointconv_benchmark_modelnet.py
@@ -86,8 +86,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointconv-density-base.modelnet40",
-        choices=["pointconv-density-base.modelnet40"],
+        default="pointconv-density-base.modelnet40.wenxuan-wu",
+        choices=["pointconv-density-base.modelnet40.wenxuan-wu"],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

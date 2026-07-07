@@ -101,7 +101,7 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark PT-v3 semantic segmentation on S3DIS Area-5.")
-    parser.add_argument("--model", default="ptv3-base.s3dis-area5", help="Registered segmentation model name")
+    parser.add_argument("--model", default="ptv3-base.s3dis-area5.pointcept", help="Registered segmentation model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])

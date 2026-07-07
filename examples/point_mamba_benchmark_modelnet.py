@@ -7,7 +7,7 @@ Results vs reference (ModelNet40 overall accuracy, no voting; camera-ready Point
 
     | Variant                     | reference | torch-pointcloud |
     | --------------------------- | --------- | ---------------- |
-    | point-mamba-base.modelnet40 | 93.6      | 93.64            |
+    | point-mamba-base.modelnet40.dingkang-liang | 93.6      | 93.64            |
 
 Usage:
     uv run --no-sync python examples/point_mamba_benchmark_modelnet.py
@@ -86,8 +86,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="point-mamba-base.modelnet40",
-        choices=["point-mamba-base.modelnet40"],
+        default="point-mamba-base.modelnet40.dingkang-liang",
+        choices=["point-mamba-base.modelnet40.dingkang-liang"],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

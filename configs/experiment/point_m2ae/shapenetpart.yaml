@@ -4,14 +4,14 @@
 #
 # | model.name                   | ins_mIoU | cls_mIoU |
 # | ---------------------------- | -------- | -------- |
-# | point-m2ae-base.shapenetpart | 0.8617   | 0.8460   |
+# | point-m2ae-base.shapenetpart.renrui-zhang | 0.8617   | 0.8460   |
 defaults:
   - override /datamodule: shapenetpart
   - override /model: segmentation
   - override /callbacks: part_segmentation
 
 model:
-  name: point-m2ae-base.shapenetpart
+  name: point-m2ae-base.shapenetpart.renrui-zhang
   num_classes: 50
   input_keys: [x, pos, batch, category]
   target_key: segment

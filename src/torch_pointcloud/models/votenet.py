@@ -8,6 +8,8 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
+from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_list
@@ -15,7 +17,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class VoteNetOutput(TypedDict):
@@ -570,10 +572,16 @@ _SUNRGBD_MEAN_SIZES = [
 
 
 @register_model(
-    "votenet-fair-base.scannet",
+    "votenet.scannet.fair",
     task="detection",
-    weights="hf://torch-pointcloud/votenet/votenet-fair-base.scannet.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/votenet/votenet.scannet.fair.safetensors",
+        dataset="scannet",
+        classes=SCANNET_DETECTION_CLASSES,
+        author="fair",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
             # `segment` / `instance` are carried along only when present (detection data is xyz-only).
@@ -609,10 +617,16 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
 
 
 @register_model(
-    "votenet-fair-base.sunrgbd",
+    "votenet.sunrgbd.fair",
     task="detection",
-    weights="hf://torch-pointcloud/votenet/votenet-fair-base.sunrgbd.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/votenet/votenet.sunrgbd.fair.safetensors",
+        dataset="sunrgbd",
+        classes=SUNRGBD_CLASSES,
+        author="fair",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
             T.RandomSample(keys=[DataKeys.POS, "height"], num_samples=20000),

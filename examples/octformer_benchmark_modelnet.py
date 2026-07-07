@@ -73,7 +73,12 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark OctFormer classification on ModelNet40.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="octformer-base.modelnet40", choices=["octformer-base.modelnet40"])
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="octformer-base.modelnet40.octree-nn",
+        choices=["octformer-base.modelnet40.octree-nn"],
+    )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

@@ -112,13 +112,13 @@ def test_detr3d_bad_encoder_type() -> None:
 
 def test_detr3d_registered_variants() -> None:
     names = list_models("3detr*", task="detection")
-    assert "3detr-fair-m.scannet" in names
-    assert "3detr-fair.scannet" in names
-    assert "3detr-fair.sunrgbd" in names
+    assert "3detr-m.scannet.fair" in names
+    assert "3detr.scannet.fair" in names
+    assert "3detr.sunrgbd.fair" in names
 
 
 def test_detr3d_create_model_no_pretrained() -> None:
-    model = create_model("3detr-fair.sunrgbd", task="detection")
+    model = create_model("3detr.sunrgbd.fair", task="detection")
     assert isinstance(model, DETR3DDetection)
     assert model.num_classes == 10
     assert model.num_angle_bin == 12
@@ -127,7 +127,7 @@ def test_detr3d_create_model_no_pretrained() -> None:
 
 
 def test_detr3d_masked_variant_config() -> None:
-    model = create_model("3detr-fair-m.scannet", task="detection")
+    model = create_model("3detr-m.scannet.fair", task="detection")
     assert isinstance(model, DETR3DDetection)
     assert model.encoder_type == "masked"
     assert model.num_classes == 18
@@ -135,11 +135,11 @@ def test_detr3d_masked_variant_config() -> None:
 
 
 @pytest.mark.skipif(
-    not Path(MODELS_DIR, "3detr", "3detr-fair-m.scannet.pt").exists(),
-    reason="3detr-fair-m.scannet pretrained weights not available",
+    not Path(MODELS_DIR, "3detr", "3detr-m.scannet.fair.pt").exists(),
+    reason="3detr-m.scannet.fair pretrained weights not available",
 )
 def test_detr3d_pretrained_smoke() -> None:
-    model = create_model("3detr-fair-m.scannet", task="detection", pretrained=True).to(DEVICE).eval()
+    model = create_model("3detr-m.scannet.fair", task="detection", pretrained=True).to(DEVICE).eval()
     assert isinstance(model, DETR3DDetection)
     torch.manual_seed(0)
     pos = (torch.rand(40000, 3, device=DEVICE) * 4.0).contiguous()

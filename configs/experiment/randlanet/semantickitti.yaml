@@ -12,7 +12,7 @@ trainer:
   max_epochs: 100
 
 model:
-  name: randlanet-tsunghanwu.semantickitti
+  name: randlanet.semantickitti.tsung-han-wu
   num_classes: 19
   pretrained: false
   input_keys: [x, pos, batch]

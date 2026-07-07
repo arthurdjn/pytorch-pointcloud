@@ -5,7 +5,7 @@
 #
 # | model.name                  | accuracy |
 # | --------------------------- | -------- |
-# | dgcnn-antao.modelnet40.2048 | 0.9242   |
+# | dgcnn.modelnet40-2048.an-tao | 0.9242   |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 200
 
 model:
-  name: dgcnn-antao.modelnet40.2048
+  name: dgcnn.modelnet40-2048.an-tao
   num_classes: 40
   pretrained: false
   input_keys: [x, pos, batch]

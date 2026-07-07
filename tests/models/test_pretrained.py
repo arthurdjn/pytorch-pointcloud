@@ -125,81 +125,81 @@ DATASET_REGISTRY: Dict[str, Callable[..., Dataset]] = {
 
 PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     # ModelNet40 based models
-    ("pointmlp-base.modelnet40", "classification", "modelnet_resampled"),
-    ("pointmlp-elite.modelnet40", "classification", "modelnet_resampled"),
-    ("point-mamba-base.modelnet40", "classification", "modelnet_resampled"),
-    ("pointnext-sm-c64.modelnet40", "classification", "modelnet_resampled"),
-    ("pointconv-density-base.modelnet40", "classification", "modelnet_resampled"),
-    ("dgcnn-antao.modelnet40.1024", "classification", "modelnet_resampled"),
-    ("dgcnn-antao.modelnet40.2048", "classification", "modelnet_resampled"),
-    ("pointnet2-yanx27-ssg.modelnet40", "classification", "modelnet_resampled"),
-    ("pointnet2-yanx27-msg.modelnet40", "classification", "modelnet_resampled"),
-    ("pointnet2-openpoints.modelnet40", "classification", "modelnet_resampled"),
-    ("point-mae-base.modelnet40", "classification", "modelnet_resampled"),
-    ("point-mae-base.modelnet40-8k", "classification", "modelnet_resampled"),
-    ("point-bert-base.modelnet40", "classification", "modelnet_resampled"),
-    ("point-bert-base.modelnet40-4k", "classification", "modelnet_resampled"),
-    ("point-bert-base.modelnet40-8k", "classification", "modelnet_resampled"),
-    ("point-m2ae-base.modelnet40", "classification", "modelnet_resampled"),
+    ("pointmlp-base.modelnet40.xu-ma", "classification", "modelnet_resampled"),
+    ("pointmlp-elite.modelnet40.xu-ma", "classification", "modelnet_resampled"),
+    ("point-mamba-base.modelnet40.dingkang-liang", "classification", "modelnet_resampled"),
+    ("pointnext-sm-c64.modelnet40.openpoints", "classification", "modelnet_resampled"),
+    ("pointconv-density-base.modelnet40.wenxuan-wu", "classification", "modelnet_resampled"),
+    ("dgcnn.modelnet40-1024.an-tao", "classification", "modelnet_resampled"),
+    ("dgcnn.modelnet40-2048.an-tao", "classification", "modelnet_resampled"),
+    ("pointnet2-ssg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
+    ("pointnet2-msg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
+    ("pointnet2.modelnet40.openpoints", "classification", "modelnet_resampled"),
+    ("point-mae-base.modelnet40.yatian-pang", "classification", "modelnet_resampled"),
+    ("point-mae-base.modelnet40-8k.yatian-pang", "classification", "modelnet_resampled"),
+    ("point-bert-base.modelnet40.xumin-yu", "classification", "modelnet_resampled"),
+    ("point-bert-base.modelnet40-4k.xumin-yu", "classification", "modelnet_resampled"),
+    ("point-bert-base.modelnet40-8k.xumin-yu", "classification", "modelnet_resampled"),
+    ("point-m2ae-base.modelnet40.renrui-zhang", "classification", "modelnet_resampled"),
     *[(f"pointgpt-cguangyan-{s}.modelnet40", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
     *[(f"pointgpt-cguangyan-{s}.modelnet40-8k", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
     # S3DIS based models
-    ("kpfcnn-base.s3dis", "segmentation", "s3dis_hdf5"),
-    ("kpfcnn-base-sm.s3dis", "segmentation", "s3dis_hdf5"),
-    ("kpfcnn-base-deform.s3dis", "segmentation", "s3dis_hdf5"),
-    ("kpfcnn-base-sm-deform.s3dis", "segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base-sm.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base-deform.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base-sm-deform.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
     *[(f"pointnext-sm.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
     *[(f"pointnext-base.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
     *[(f"pointnext-lg.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
     *[(f"pointnext-xl.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 6)],
     *[(f"dgcnn-antao.s3dis.area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    ("pointnet2-yanx27.s3dis-area5", "segmentation", "s3dis_hdf5"),
+    ("pointnet2.s3dis-area5.xu-yan", "segmentation", "s3dis_hdf5"),
     *[(f"pointnet2-openpoints.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 7)],
-    ("pvcnn-mit-han-lab.s3dis-area5", "segmentation", "s3dis_hdf5"),
-    ("ptv3-base.s3dis-area5", "segmentation", "s3dis"),
+    ("pvcnn.s3dis-area5.mit-han-lab", "segmentation", "s3dis_hdf5"),
+    ("ptv3-base.s3dis-area5.pointcept", "segmentation", "s3dis"),
     # ShapenetPart based models
-    ("pointnext-sm.shapenetpart", "segmentation", "shapenetpart"),
-    ("pointnext-sm-c64.shapenetpart", "segmentation", "shapenetpart"),
-    ("pointnext-sm-c160.shapenetpart", "segmentation", "shapenetpart"),
-    ("dgcnn-antao.shapenetpart", "segmentation", "shapenetpart"),
-    ("point-mae-base.shapenetpart", "segmentation", "shapenetpart"),
-    ("point-m2ae-base.shapenetpart", "segmentation", "shapenetpart"),
+    ("pointnext-sm.shapenetpart.openpoints", "segmentation", "shapenetpart"),
+    ("pointnext-sm-c64.shapenetpart.openpoints", "segmentation", "shapenetpart"),
+    ("pointnext-sm-c160.shapenetpart.openpoints", "segmentation", "shapenetpart"),
+    ("dgcnn.shapenetpart.an-tao", "segmentation", "shapenetpart"),
+    ("point-mae-base.shapenetpart.yatian-pang", "segmentation", "shapenetpart"),
+    ("point-m2ae-base.shapenetpart.renrui-zhang", "segmentation", "shapenetpart"),
     # ScanObjectNN based models
-    ("pointmlp-base.scanobjectnn", "classification", "scanobjectnn"),
-    ("pointmlp-elite.scanobjectnn", "classification", "scanobjectnn"),
-    ("point-mamba-base.scanobjectnn", "classification", "scanobjectnn"),
-    ("point-mamba-base.scanobjectnn-nobg", "classification", "scanobjectnn"),
-    ("point-mamba-base.scanobjectnn-augmentedrot-scale75", "classification", "scanobjectnn"),
-    ("pointnext-sm.scanobjectnn", "classification", "scanobjectnn"),
-    ("pointnet2-openpoints.scanobjectnn", "classification", "scanobjectnn"),
-    ("point-mae-base.scanobjectnn-objbg", "classification", "scanobjectnn"),
-    ("point-mae-base.scanobjectnn-objonly", "classification", "scanobjectnn"),
-    ("point-mae-base.scanobjectnn-hardest", "classification", "scanobjectnn"),
-    ("point-bert-base.scanobjectnn-objonly", "classification", "scanobjectnn"),
-    ("point-bert-base.scanobjectnn-objbg", "classification", "scanobjectnn"),
-    ("point-bert-base.scanobjectnn-hardest", "classification", "scanobjectnn"),
-    ("point-m2ae-base.scanobjectnn-hardest", "classification", "scanobjectnn"),
-    ("point-m2ae-base.scanobjectnn-objbg", "classification", "scanobjectnn"),
+    ("pointmlp-base.scanobjectnn.xu-ma", "classification", "scanobjectnn"),
+    ("pointmlp-elite.scanobjectnn.xu-ma", "classification", "scanobjectnn"),
+    ("point-mamba-base.scanobjectnn.dingkang-liang", "classification", "scanobjectnn"),
+    ("point-mamba-base.scanobjectnn-nobg.dingkang-liang", "classification", "scanobjectnn"),
+    ("point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang", "classification", "scanobjectnn"),
+    ("pointnext-sm.scanobjectnn.openpoints", "classification", "scanobjectnn"),
+    ("pointnet2.scanobjectnn.openpoints", "classification", "scanobjectnn"),
+    ("point-mae-base.scanobjectnn-objbg.yatian-pang", "classification", "scanobjectnn"),
+    ("point-mae-base.scanobjectnn-objonly.yatian-pang", "classification", "scanobjectnn"),
+    ("point-mae-base.scanobjectnn-hardest.yatian-pang", "classification", "scanobjectnn"),
+    ("point-bert-base.scanobjectnn-objonly.xumin-yu", "classification", "scanobjectnn"),
+    ("point-bert-base.scanobjectnn-objbg.xumin-yu", "classification", "scanobjectnn"),
+    ("point-bert-base.scanobjectnn-hardest.xumin-yu", "classification", "scanobjectnn"),
+    ("point-m2ae-base.scanobjectnn-hardest.renrui-zhang", "classification", "scanobjectnn"),
+    ("point-m2ae-base.scanobjectnn-objbg.renrui-zhang", "classification", "scanobjectnn"),
     *[
         (f"pointgpt-cguangyan-{s}.scanobjectnn-{v}", "classification", "scanobjectnn")
         for s in ("s", "b", "l")
         for v in ("hardest", "objbg", "objonly")
     ],
     # ScanNet20 based models
-    ("sonata-lp.scannet20", "segmentation", "scannet20"),
-    ("concerto-large-lp.scannet20", "segmentation", "scannet20"),
-    ("utonia-lp.scannet20", "segmentation", "scannet20"),
-    ("ptv3-base.scannet20", "segmentation", "scannet20"),
-    ("ptv3-base.scannet200", "segmentation", "scannet20"),
-    ("octformer-base.scannet20", "segmentation", "scannet20"),
-    ("octformer-base.scannet200", "segmentation", "scannet20"),
-    ("dgcnn-antao.scannet20", "segmentation", "scannet20_blocks"),
-    ("spunet-v1m1.scannet20", "segmentation", "scannet20"),
+    ("sonata-lp.scannet20.fair", "segmentation", "scannet20"),
+    ("concerto-large-lp.scannet20.pointcept", "segmentation", "scannet20"),
+    ("utonia-lp.scannet20.pointcept", "segmentation", "scannet20"),
+    ("ptv3-base.scannet20.pointcept", "segmentation", "scannet20"),
+    ("ptv3-base.scannet200.pointcept", "segmentation", "scannet20"),
+    ("octformer-base.scannet20.octree-nn", "segmentation", "scannet20"),
+    ("octformer-base.scannet200.octree-nn", "segmentation", "scannet20"),
+    ("dgcnn.scannet20.an-tao", "segmentation", "scannet20_blocks"),
+    ("spunet-v1m1.scannet20.pointcept", "segmentation", "scannet20"),
     # SemanticKITTI based models
-    ("randlanet-tsunghanwu.semantickitti", "segmentation", "semantickitti"),
-    ("spvcnn-30gmacs.semantickitti", "segmentation", "semantickitti"),
-    ("spvcnn-47gmacs.semantickitti", "segmentation", "semantickitti"),
-    ("spvcnn-119gmacs.semantickitti", "segmentation", "semantickitti"),
+    ("randlanet.semantickitti.tsung-han-wu", "segmentation", "semantickitti"),
+    ("spvcnn-30gmacs.semantickitti.mit-han-lab", "segmentation", "semantickitti"),
+    ("spvcnn-47gmacs.semantickitti.mit-han-lab", "segmentation", "semantickitti"),
+    ("spvcnn-119gmacs.semantickitti.mit-han-lab", "segmentation", "semantickitti"),
 ]
 
 
@@ -280,7 +280,7 @@ def test_pretrained_model(
     model, info = create_model(model_name, task=task, pretrained=True, return_info=True)  # type: ignore[call-overload]
 
     # Load the dataset / dataloader
-    dataset = DATASET_REGISTRY[dataset_name](transform=info["transforms"])
+    dataset = DATASET_REGISTRY[dataset_name](transform=info["transform"])
     dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate)
 
     # Get first batch of data
@@ -309,8 +309,8 @@ def test_pretrained_model(
 @pytest.mark.parametrize(
     "model_name,dataset_name",
     [
-        ("oneformer3d-base.s3dis-area5", "s3dis"),
-        ("oneformer3d-base.scannet20", "scannet20"),
+        ("oneformer3d-base.s3dis-area5.danila-rukhovich", "s3dis"),
+        ("oneformer3d-base.scannet20.danila-rukhovich", "scannet20"),
     ],
 )
 def test_pretrained_oneformer3d(
@@ -332,7 +332,7 @@ def test_pretrained_oneformer3d(
     models_dir = models_dir_factory("*.safetensors")
 
     model, info = create_model(model_name, task="segmentation", pretrained=True, return_info=True)
-    dataset = DATASET_REGISTRY[dataset_name](transform=info["transforms"])
+    dataset = DATASET_REGISTRY[dataset_name](transform=info["transform"])
     data = collate([dataset[0]])
     data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
     model = model.to(DEVICE).eval()
@@ -352,7 +352,7 @@ def test_pretrained_oneformer3d(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["votenet-fair-base.scannet", "votenet-fair-base.sunrgbd"])
+@pytest.mark.parametrize("model_name", ["votenet.scannet.fair", "votenet.sunrgbd.fair"])
 def test_pretrained_votenet(
     model_name: str,
     force_regen: bool,
@@ -392,7 +392,7 @@ def test_pretrained_votenet(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["3detr-fair.scannet", "3detr-fair.sunrgbd", "3detr-fair-m.scannet"])
+@pytest.mark.parametrize("model_name", ["3detr.scannet.fair", "3detr.sunrgbd.fair", "3detr-m.scannet.fair"])
 def test_pretrained_detr3d(
     model_name: str,
     force_regen: bool,
@@ -438,7 +438,7 @@ def test_pretrained_detr3d(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["pointrcnn-openpcdet.kitti"])
+@pytest.mark.parametrize("model_name", ["pointrcnn.kitti.openpcdet"])
 def test_pretrained_pointrcnn(
     model_name: str,
     force_regen: bool,
@@ -482,7 +482,7 @@ def test_pretrained_pointrcnn(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["lion-mamba-happinesslz.nuscenes"])
+@pytest.mark.parametrize("model_name", ["lion-mamba.nuscenes.zhe-liu"])
 def test_pretrained_lion(
     model_name: str,
     force_regen: bool,
@@ -527,7 +527,7 @@ def test_pretrained_lion(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["voxel-mamba-gwenzhang.waymo"])
+@pytest.mark.parametrize("model_name", ["voxel-mamba.waymo"])
 def test_seeded_voxel_mamba(
     model_name: str,
     force_regen: bool,
@@ -567,7 +567,7 @@ def test_seeded_voxel_mamba(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["voxelnext-openpcdet.nuscenes"])
+@pytest.mark.parametrize("model_name", ["voxelnext.nuscenes.openpcdet"])
 def test_pretrained_voxelnext(
     model_name: str,
     force_regen: bool,
@@ -618,10 +618,10 @@ def test_pretrained_voxelnext(
 
 
 ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
-    ("pointpillars-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
-    ("second-openpcdet.kitti", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),
-    ("pointpillars-openpcdet-multihead.nuscenes", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 30000),
-    ("second-openpcdet-multihead.nuscenes", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 60000),
+    ("pointpillars.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
+    ("second.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),
+    ("pointpillars-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 30000),
+    ("second-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 60000),
 ]
 
 
@@ -686,12 +686,12 @@ def test_pretrained_anchor_detection(
 @pytest.mark.parametrize(
     "model_name",
     [
-        "xcube-vae-coarse-nvidia.shapenet-chair",
-        "xcube-vae-fine-nvidia.shapenet-chair",
-        "xcube-vae-coarse-nvidia.shapenet-car",
-        "xcube-vae-fine-nvidia.shapenet-car",
-        "xcube-vae-coarse-nvidia.shapenet-plane",
-        "xcube-vae-fine-nvidia.shapenet-plane",
+        "xcube-vae-coarse.shapenet-chair.nvidia",
+        "xcube-vae-fine.shapenet-chair.nvidia",
+        "xcube-vae-coarse.shapenet-car.nvidia",
+        "xcube-vae-fine.shapenet-car.nvidia",
+        "xcube-vae-coarse.shapenet-plane.nvidia",
+        "xcube-vae-fine.shapenet-plane.nvidia",
     ],
 )
 def test_pretrained_xcube_vae(
@@ -734,12 +734,12 @@ def test_pretrained_xcube_vae(
 @pytest.mark.parametrize(
     "model_name",
     [
-        "xcube-diffusion-coarse-nvidia.shapenet-chair",
-        "xcube-diffusion-fine-nvidia.shapenet-chair",
-        "xcube-diffusion-coarse-nvidia.shapenet-car",
-        "xcube-diffusion-fine-nvidia.shapenet-car",
-        "xcube-diffusion-coarse-nvidia.shapenet-plane",
-        "xcube-diffusion-fine-nvidia.shapenet-plane",
+        "xcube-diffusion-coarse.shapenet-chair.nvidia",
+        "xcube-diffusion-fine.shapenet-chair.nvidia",
+        "xcube-diffusion-coarse.shapenet-car.nvidia",
+        "xcube-diffusion-fine.shapenet-car.nvidia",
+        "xcube-diffusion-coarse.shapenet-plane.nvidia",
+        "xcube-diffusion-fine.shapenet-plane.nvidia",
     ],
 )
 def test_pretrained_xcube_diffusion(

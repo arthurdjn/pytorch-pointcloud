@@ -1,6 +1,6 @@
 """Benchmark SphereFormer on the 19-class SemanticKITTI val split.
 
-The pretrained `sphereformer-dvlab.semantickitti` checkpoint comes from the official release
+The pretrained `sphereformer.semantickitti` checkpoint comes from the official release
 (:github: [dvlab-research/SphereFormer](https://github.com/dvlab-research/SphereFormer), 67.8 val mIoU).
 The registered eval pipeline voxelises the cloud to $5\\,\\text{cm}$, runs the sparse-conv UNet with cubic +
 radial windowed attention, then back-projects per-voxel predictions to full resolution via the stored inverse
@@ -125,9 +125,7 @@ def evaluate(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SphereFormer semantic segmentation on SemanticKITTI.")
-    parser.add_argument(
-        "--model", default="sphereformer-dvlab.semantickitti", help="Registered segmentation model name."
-    )
+    parser.add_argument("--model", default="sphereformer.semantickitti", help="Registered segmentation model name.")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "trainval", "test"])

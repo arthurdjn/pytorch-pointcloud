@@ -1,5 +1,5 @@
 from ._base import BaseModel, ClassificationModel, DetectionModel, SegmentationModel
-from ._registry import Task, create_model, list_models, register_model
+from ._registry import ModelDict, Task, WeightsDict, create_model, list_models, register_model
 from .concerto import ConcertoSegmentation
 from .detr3d import DETR3DDetection
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation

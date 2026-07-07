@@ -12,6 +12,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
@@ -23,7 +24,7 @@ from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 from .pointnet2 import PointNet2Decoder
 
 if TYPE_CHECKING:
@@ -1193,10 +1194,17 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
 
 
 @register_model(
-    "kpfcnn-base-sm.s3dis",
+    "kpfcnn-base-sm.s3dis.hugues-thomas",
     task="segmentation",
-    transforms=_BASE_S3DIS_TRANSFORMS,
-    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm.s3dis.pth",
+    transform=_BASE_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm.s3dis.hugues-thomas.safetensors",
+        dataset="s3dis",
+        metrics={"mIoU": 63.92},
+        classes=S3DIS_CLASSES,
+        author="hugues-thomas",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=5,
         num_classes=13,
@@ -1229,10 +1237,17 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 
 @register_model(
-    "kpfcnn-base.s3dis",
+    "kpfcnn-base.s3dis.hugues-thomas",
     task="segmentation",
-    transforms=_BASE_S3DIS_TRANSFORMS,
-    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base.s3dis.pth",
+    transform=_BASE_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/kpfcnn/kpfcnn-base.s3dis.hugues-thomas.safetensors",
+        dataset="s3dis",
+        metrics={"mIoU": 65.64},
+        classes=S3DIS_CLASSES,
+        author="hugues-thomas",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=5,
         num_classes=13,
@@ -1265,10 +1280,17 @@ def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 
 @register_model(
-    "kpfcnn-base-deform.s3dis",
+    "kpfcnn-base-deform.s3dis.hugues-thomas",
     task="segmentation",
-    transforms=_BASE_S3DIS_TRANSFORMS,
-    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-deform.s3dis.pth",
+    transform=_BASE_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/kpfcnn/kpfcnn-base-deform.s3dis.hugues-thomas.safetensors",
+        dataset="s3dis",
+        metrics={"mIoU": 65.66},
+        classes=S3DIS_CLASSES,
+        author="hugues-thomas",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=5,
         num_classes=13,
@@ -1301,10 +1323,17 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 
 @register_model(
-    "kpfcnn-base-sm-deform.s3dis",
+    "kpfcnn-base-sm-deform.s3dis.hugues-thomas",
     task="segmentation",
-    transforms=_BASE_S3DIS_TRANSFORMS,
-    weights="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm-deform.s3dis.pth",
+    transform=_BASE_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/kpfcnn/kpfcnn-base-sm-deform.s3dis.hugues-thomas.safetensors",
+        dataset="s3dis",
+        metrics={"mIoU": 64.47},
+        classes=S3DIS_CLASSES,
+        author="hugues-thomas",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=5,
         num_classes=13,

@@ -5,7 +5,7 @@
 #
 # | model.name                        | accuracy |
 # | --------------------------------- | -------- |
-# | pointnet2-openpoints.scanobjectnn | -        |
+# | pointnet2.scanobjectnn.openpoints | -        |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 250
 
 model:
-  name: pointnet2-openpoints.scanobjectnn
+  name: pointnet2.scanobjectnn.openpoints
   num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]

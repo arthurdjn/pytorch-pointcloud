@@ -36,6 +36,30 @@ SCANNET_UNK_IDX = 0
 
 SCANNET20_LABELS = [SCANNET_UNK_IDX, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
 
+# Benchmark class names for `SCANNET20_LABELS[1:]`, i.e. `SCANNET20_CLASSES[i]` names segmentation label i.
+SCANNET20_CLASSES = [
+    "wall",
+    "floor",
+    "cabinet",
+    "bed",
+    "chair",
+    "sofa",
+    "table",
+    "door",
+    "window",
+    "bookshelf",
+    "picture",
+    "counter",
+    "desk",
+    "curtain",
+    "refrigerator",
+    "showercurtain",
+    "toilet",
+    "sink",
+    "bathtub",
+    "otherfurniture",
+]
+
 # 18-class ScanNet detection taxonomy (the standard votenet / 3DETR benchmark set): the SCANNET20 NYU40
 # ids minus the two "stuff" classes wall (1) and floor (2). Feed `SCANNET_DETECTION_LABELS` to `Relabel`
 # (with `default=-1`) so the segmentation labels map to 0..17 and everything else to -1, then `InstanceToBox`

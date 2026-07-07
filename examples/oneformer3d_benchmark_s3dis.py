@@ -142,10 +142,10 @@ def main() -> None:
     seed_everything(args.seed)
 
     model, model_info = create_model(
-        "oneformer3d-base.s3dis-area5", task="segmentation", pretrained=True, return_info=True
+        "oneformer3d-base.s3dis-area5.danila-rukhovich", task="segmentation", pretrained=True, return_info=True
     )
     assert isinstance(model, OneFormer3DSegmentation)
-    transform = model_info["transforms"]
+    transform = model_info["transform"]
     num_classes = int(model.num_semantic_classes)
 
     dataset = S3DIS(
@@ -157,7 +157,7 @@ def main() -> None:
         force_process=args.force_process,
     )
 
-    print(f"Benchmarking 'oneformer3d-base.s3dis-area5' on S3DIS {args.area} ({len(dataset)} rooms)")
+    print(f"Benchmarking 'oneformer3d-base.s3dis-area5.danila-rukhovich' on S3DIS {args.area} ({len(dataset)} rooms)")
     metrics = evaluate(model, dataset, transform, args.device, num_classes, args.limit)
     print("\nResults:")
     for key, value in metrics.items():

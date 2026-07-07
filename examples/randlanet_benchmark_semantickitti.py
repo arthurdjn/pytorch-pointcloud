@@ -1,6 +1,6 @@
 """Benchmark RandLA-Net semantic segmentation on SemanticKITTI.
 
-The pretrained `randlanet-tsunghanwu.semantickitti` checkpoint is converted from
+The pretrained `randlanet.semantickitti.tsung-han-wu` checkpoint is converted from
 [tsunghan-wu/RandLA-Net-pytorch](https://github.com/tsunghan-wu/RandLA-Net-pytorch),
 a faithful PyTorch port of the original
 [QingyongHu/RandLA-Net](https://github.com/QingyongHu/RandLA-Net) Tensorflow code.
@@ -170,7 +170,7 @@ def evaluate(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark RandLA-Net semantic segmentation on SemanticKITTI.")
     parser.add_argument(
-        "--model", default="randlanet-tsunghanwu.semantickitti", help="Registered segmentation model name."
+        "--model", default="randlanet.semantickitti.tsung-han-wu", help="Registered segmentation model name."
     )
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")

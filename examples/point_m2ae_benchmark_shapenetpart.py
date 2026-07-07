@@ -7,7 +7,7 @@ Results vs reference (instance mIoU / class mIoU; paper Tab. 5):
 
     | Variant                      | reference     | torch-pointcloud |
     | ---------------------------- | ------------- | ---------------- |
-    | point-m2ae-base.shapenetpart | 86.51 / 84.86 | 86.17 / 84.60    |
+    | point-m2ae-base.shapenetpart.renrui-zhang | 86.51 / 84.86 | 86.17 / 84.60    |
 
 Usage:
     uv run --no-sync python examples/point_m2ae_benchmark_shapenetpart.py
@@ -87,8 +87,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="point-m2ae-base.shapenetpart",
-        choices=["point-m2ae-base.shapenetpart"],
+        default="point-m2ae-base.shapenetpart.renrui-zhang",
+        choices=["point-m2ae-base.shapenetpart.renrui-zhang"],
     )
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

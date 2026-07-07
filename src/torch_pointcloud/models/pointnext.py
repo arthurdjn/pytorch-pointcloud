@@ -7,6 +7,9 @@ from torch import Tensor
 from torch_geometric.nn import MLP, global_max_pool, global_mean_pool
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, PointNeXtSetAbstraction
@@ -15,7 +18,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PointNeXtIntermediate(NamedTuple):
@@ -1078,10 +1081,16 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
 
 
 @register_model(
-    "pointnext-sm.scanobjectnn",
+    "pointnext-sm.scanobjectnn.openpoints",
     task="classification",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.scanobjectnn.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.scanobjectnn.openpoints.safetensors",
+        dataset="scanobjectnn",
+        classes=SCANOBJECTNN_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
@@ -1118,10 +1127,17 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
 
 
 @register_model(
-    "pointnext-sm-c64.modelnet40",
+    "pointnext-sm-c64.modelnet40.openpoints",
     task="classification",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm-c64.modelnet40.pt",
-    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm-c64.modelnet40.openpoints.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 92.1},
+        classes=MODELNET40_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
     hparams=dict(
         in_channels=3,
         num_classes=40,
@@ -1359,10 +1375,16 @@ _S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
 
 
 @register_model(
-    "pointnext-sm.s3dis-area1",
+    "pointnext-sm.s3dis-area1.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area1.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area1.openpoints.safetensors",
+        dataset="s3dis-area1",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1370,10 +1392,16 @@ def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-sm.s3dis-area2",
+    "pointnext-sm.s3dis-area2.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area2.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area2.openpoints.safetensors",
+        dataset="s3dis-area2",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1381,10 +1409,16 @@ def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-sm.s3dis-area3",
+    "pointnext-sm.s3dis-area3.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area3.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area3.openpoints.safetensors",
+        dataset="s3dis-area3",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1392,10 +1426,16 @@ def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-sm.s3dis-area4",
+    "pointnext-sm.s3dis-area4.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area4.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area4.openpoints.safetensors",
+        dataset="s3dis-area4",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1403,10 +1443,17 @@ def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-sm.s3dis-area5",
+    "pointnext-sm.s3dis-area5.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area5.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area5.openpoints.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 63.01},
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1414,10 +1461,16 @@ def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-sm.s3dis-area6",
+    "pointnext-sm.s3dis-area6.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area6.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area6.openpoints.safetensors",
+        dataset="s3dis-area6",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1425,10 +1478,16 @@ def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-base.s3dis-area1",
+    "pointnext-base.s3dis-area1.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area1.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area1.openpoints.safetensors",
+        dataset="s3dis-area1",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
 )
 def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1436,10 +1495,16 @@ def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-base.s3dis-area2",
+    "pointnext-base.s3dis-area2.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area2.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area2.openpoints.safetensors",
+        dataset="s3dis-area2",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
 )
 def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1447,10 +1512,16 @@ def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-base.s3dis-area3",
+    "pointnext-base.s3dis-area3.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area3.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area3.openpoints.safetensors",
+        dataset="s3dis-area3",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
 )
 def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1458,10 +1529,16 @@ def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-base.s3dis-area4",
+    "pointnext-base.s3dis-area4.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area4.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area4.openpoints.safetensors",
+        dataset="s3dis-area4",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
 )
 def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1469,10 +1546,16 @@ def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-base.s3dis-area5",
+    "pointnext-base.s3dis-area5.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area5.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area5.openpoints.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
 )
 def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1480,10 +1563,16 @@ def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-base.s3dis-area6",
+    "pointnext-base.s3dis-area6.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area6.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area6.openpoints.safetensors",
+        dataset="s3dis-area6",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
 )
 def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1491,10 +1580,16 @@ def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-lg.s3dis-area1",
+    "pointnext-lg.s3dis-area1.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area1.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area1.openpoints.safetensors",
+        dataset="s3dis-area1",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
 )
 def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1502,10 +1597,16 @@ def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-lg.s3dis-area2",
+    "pointnext-lg.s3dis-area2.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area2.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area2.openpoints.safetensors",
+        dataset="s3dis-area2",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
 )
 def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1513,10 +1614,16 @@ def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-lg.s3dis-area3",
+    "pointnext-lg.s3dis-area3.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area3.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area3.openpoints.safetensors",
+        dataset="s3dis-area3",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
 )
 def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1524,10 +1631,16 @@ def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-lg.s3dis-area4",
+    "pointnext-lg.s3dis-area4.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area4.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area4.openpoints.safetensors",
+        dataset="s3dis-area4",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
 )
 def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1535,10 +1648,16 @@ def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-lg.s3dis-area5",
+    "pointnext-lg.s3dis-area5.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area5.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area5.openpoints.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
 )
 def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1546,10 +1665,16 @@ def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-lg.s3dis-area6",
+    "pointnext-lg.s3dis-area6.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area6.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area6.openpoints.safetensors",
+        dataset="s3dis-area6",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
 )
 def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1557,10 +1682,16 @@ def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-xl.s3dis-area1",
+    "pointnext-xl.s3dis-area1.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area1.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area1.openpoints.safetensors",
+        dataset="s3dis-area1",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
 def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1568,10 +1699,16 @@ def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-xl.s3dis-area2",
+    "pointnext-xl.s3dis-area2.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area2.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area2.openpoints.safetensors",
+        dataset="s3dis-area2",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
 def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1579,10 +1716,16 @@ def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-xl.s3dis-area3",
+    "pointnext-xl.s3dis-area3.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area3.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area3.openpoints.safetensors",
+        dataset="s3dis-area3",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
 def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1590,10 +1733,16 @@ def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-xl.s3dis-area4",
+    "pointnext-xl.s3dis-area4.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area4.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area4.openpoints.safetensors",
+        dataset="s3dis-area4",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
 def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1601,10 +1750,16 @@ def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-xl.s3dis-area5",
+    "pointnext-xl.s3dis-area5.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area5.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area5.openpoints.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
 def pointnext_xl_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1612,10 +1767,16 @@ def pointnext_xl_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 
 @register_model(
-    "pointnext-xl.s3dis-area6",
+    "pointnext-xl.s3dis-area6.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area6.pt",
-    transforms=_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area6.openpoints.safetensors",
+        dataset="s3dis-area6",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
 def pointnext_xl_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
@@ -1681,10 +1842,15 @@ _SHAPENETPART_VARIANT_HPARAMS = {
 
 
 @register_model(
-    "pointnext-sm.shapenetpart",
+    "pointnext-sm.shapenetpart.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm.shapenetpart.pt",
-    transforms=_SHAPENETPART_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm.shapenetpart.openpoints.safetensors",
+        dataset="shapenetpart",
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_SHAPENETPART_TRANSFORMS,
     hparams={**_SHAPENETPART_COMMON_HPARAMS, **_SHAPENETPART_VARIANT_HPARAMS["sm"]},
 )
 def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
@@ -1692,10 +1858,15 @@ def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
 
 
 @register_model(
-    "pointnext-sm-c64.shapenetpart",
+    "pointnext-sm-c64.shapenetpart.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm-c64.shapenetpart.pt",
-    transforms=_SHAPENETPART_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm-c64.shapenetpart.openpoints.safetensors",
+        dataset="shapenetpart",
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_SHAPENETPART_TRANSFORMS,
     hparams={**_SHAPENETPART_COMMON_HPARAMS, **_SHAPENETPART_VARIANT_HPARAMS["sm-c64"]},
 )
 def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
@@ -1703,10 +1874,15 @@ def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
 
 
 @register_model(
-    "pointnext-sm-c160.shapenetpart",
+    "pointnext-sm-c160.shapenetpart.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnext/pointnext-sm-c160.shapenetpart.pt",
-    transforms=_SHAPENETPART_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnext/pointnext-sm-c160.shapenetpart.openpoints.safetensors",
+        dataset="shapenetpart",
+        author="openpoints",
+        license="MIT",
+    ),
+    transform=_SHAPENETPART_TRANSFORMS,
     hparams={**_SHAPENETPART_COMMON_HPARAMS, **_SHAPENETPART_VARIANT_HPARAMS["sm-c160"]},
 )
 def pointnext_sm_c160_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
