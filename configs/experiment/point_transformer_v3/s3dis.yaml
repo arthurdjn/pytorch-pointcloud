@@ -14,7 +14,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: ptv3-base.s3dis-area5
+  name: ptv3-base.s3dis-area5.pointcept
   num_classes: 13
   pretrained: false
   input_keys: [x, pos_grid, batch]

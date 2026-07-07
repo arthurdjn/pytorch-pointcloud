@@ -12,6 +12,8 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
+from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers import create_act, create_norm
 from torch_pointcloud.layers.pointnet2_blocks import SAModule
 from torch_pointcloud.utils.cluster import fps
@@ -19,7 +21,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 def _to_dense(x: Tensor, batch: Tensor, num_points: int) -> Tensor:
@@ -870,10 +872,16 @@ _SUNRGBD_TRANSFORM = T.Compose([T.RandomSample(keys=[DataKeys.POS], num_samples=
 
 
 @register_model(
-    "3detr-fair-m.scannet",
+    "3detr-m.scannet.fair",
     task="detection",
-    weights="hf://torch-pointcloud/3detr/3detr-fair-m.scannet.pt",
-    transforms=_SCANNET_TRANSFORM,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/3detr/3detr-m.scannet.fair.safetensors",
+        dataset="scannet",
+        classes=SCANNET_DETECTION_CLASSES,
+        author="fair",
+        license="Apache-2.0",
+    ),
+    transform=_SCANNET_TRANSFORM,
     hparams=dict(
         in_channels=0,
         num_classes=18,
@@ -888,10 +896,16 @@ def detr3d_m_scannet(**hparams: Any) -> DETR3DDetection:
 
 
 @register_model(
-    "3detr-fair.scannet",
+    "3detr.scannet.fair",
     task="detection",
-    weights="hf://torch-pointcloud/3detr/3detr-fair.scannet.pt",
-    transforms=_SCANNET_TRANSFORM,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/3detr/3detr.scannet.fair.safetensors",
+        dataset="scannet",
+        classes=SCANNET_DETECTION_CLASSES,
+        author="fair",
+        license="Apache-2.0",
+    ),
+    transform=_SCANNET_TRANSFORM,
     hparams=dict(
         in_channels=0,
         num_classes=18,
@@ -905,10 +919,16 @@ def detr3d_scannet(**hparams: Any) -> DETR3DDetection:
 
 
 @register_model(
-    "3detr-fair.sunrgbd",
+    "3detr.sunrgbd.fair",
     task="detection",
-    weights="hf://torch-pointcloud/3detr/3detr-fair.sunrgbd.pt",
-    transforms=_SUNRGBD_TRANSFORM,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/3detr/3detr.sunrgbd.fair.safetensors",
+        dataset="sunrgbd",
+        classes=SUNRGBD_CLASSES,
+        author="fair",
+        license="Apache-2.0",
+    ),
+    transform=_SUNRGBD_TRANSFORM,
     hparams=dict(
         in_channels=0,
         num_classes=10,

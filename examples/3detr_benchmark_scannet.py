@@ -8,8 +8,8 @@ dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
 
 | Model                  | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
 | ---------------------- | ------------------------------ | ------------------------- |
-| `3detr-fair-m.scannet` | 66.76 / 47.77                  | 65.0 / 47.0               |
-| `3detr-fair.scannet`   | 62.17 / 38.60                  | 62.1 / 37.9               |
+| `3detr-m.scannet.fair` | 66.76 / 47.77                  | 65.0 / 47.0               |
+| `3detr.scannet.fair`   | 62.17 / 38.60                  | 62.1 / 37.9               |
 
 Usage:
     uv run --no-sync python examples/3detr_benchmark_scannet.py --root "/path/to/data"
@@ -56,7 +56,7 @@ def main() -> None:
             T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET_DETECTION_LABELS, default=-1),
             T.InstanceToBox(ignore_index=-1),
             T.KeepItems(keys=[DataKeys.POS, DataKeys.BOX]),
-            info["transforms"],
+            info["transform"],
         ]
     )
     dataset: Dataset = ScanNet(root=args.root, split="val", transform=transform)
@@ -114,7 +114,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="3DETR ScanNet-V2 detection AP benchmark.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="3detr-fair-m.scannet")
+    parser.add_argument("--model", type=str, default="3detr-m.scannet.fair")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)
     parser.add_argument("--ap-iou", type=float, nargs="+", default=[0.25, 0.5])

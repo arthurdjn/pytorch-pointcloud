@@ -14,7 +14,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: votenet-fair-base.sunrgbd
+  name: votenet.sunrgbd.fair
   pretrained: false
   input_keys: [x, pos, batch]
   min_points: 5

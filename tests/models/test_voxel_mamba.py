@@ -53,12 +53,12 @@ def test_hilbert_serialize_round_trip() -> None:
 
 
 def test_voxel_mamba_registered_variant() -> None:
-    assert "voxel-mamba-gwenzhang.waymo" in list_models("voxel-mamba*", task="detection")
+    assert "voxel-mamba.waymo" in list_models("voxel-mamba*", task="detection")
 
 
 @pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")
 def test_voxel_mamba_create_model_hparams() -> None:
-    model = create_model("voxel-mamba-gwenzhang.waymo", task="detection")
+    model = create_model("voxel-mamba.waymo", task="detection")
     assert isinstance(model, VoxelMambaDetection)
     assert model.in_channels == 5
     assert model.num_classes == 3
@@ -83,7 +83,7 @@ def _make_inputs(n_per_scene: int = 6000, batch_size: int = 1) -> tuple[torch.Te
 
 @pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv + torch_scatter")
 def test_voxel_mamba_forward_shapes() -> None:
-    model = create_model("voxel-mamba-gwenzhang.waymo", task="detection").to(DEVICE).eval()
+    model = create_model("voxel-mamba.waymo", task="detection").to(DEVICE).eval()
     assert isinstance(model, VoxelMambaDetection)
     pos, x, batch = _make_inputs()
     with torch.no_grad():
@@ -98,7 +98,7 @@ def test_voxel_mamba_forward_shapes() -> None:
 
 @pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv + torch_scatter")
 def test_voxel_mamba_decode() -> None:
-    model = create_model("voxel-mamba-gwenzhang.waymo", task="detection").to(DEVICE).eval()
+    model = create_model("voxel-mamba.waymo", task="detection").to(DEVICE).eval()
     assert isinstance(model, VoxelMambaDetection)
     pos, x, batch = _make_inputs()
     with torch.no_grad():
@@ -115,5 +115,5 @@ def test_voxel_mamba_decode() -> None:
 def test_voxel_mamba_registered_without_pretrained_weights() -> None:
     """Voxel Mamba has no public trained weights, so `pretrained=True` warns and returns the model unloaded."""
     with pytest.warns(UserWarning, match="No pretrained weights"):
-        model = create_model("voxel-mamba-gwenzhang.waymo", task="detection", pretrained=True)
+        model = create_model("voxel-mamba.waymo", task="detection", pretrained=True)
     assert isinstance(model, VoxelMambaDetection)

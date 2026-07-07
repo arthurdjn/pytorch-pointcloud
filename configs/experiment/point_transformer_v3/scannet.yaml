@@ -5,7 +5,7 @@
 #
 # | model.name          | mIoU   | accuracy |
 # | ------------------- | ------ | -------- |
-# | ptv3-base.scannet20 | 0.7604 | 0.9167   |
+# | ptv3-base.scannet20.pointcept | 0.7604 | 0.9167   |
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
@@ -19,7 +19,7 @@ trainer:
   accumulate_grad_batches: 12
 
 model:
-  name: ptv3-base.scannet20
+  name: ptv3-base.scannet20.pointcept
   num_classes: 20
   pretrained: false
   input_keys: [x, pos, batch]

@@ -22,7 +22,7 @@ from torch import Tensor
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import BaseModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.diffusion import DDIMScheduler
 from torch_pointcloud.utils.imports import _FVDB_GITHUB_URL, optional_import
 
@@ -488,7 +488,7 @@ class XCubeVAE(BaseModel):
 
     Example:
         ```python
-        model = create_model("xcube-vae-coarse-nvidia.shapenet-chair", task="base", pretrained=True)
+        model = create_model("xcube-vae-coarse.shapenet-chair.nvidia", task="base", pretrained=True)
         out = model(pos, batch, normal=normal)
         recon_grid = out["grid"]
         ```
@@ -1255,8 +1255,8 @@ class XCubeDiffusion(BaseModel):
 
     Example:
         ```python
-        coarse = create_model("xcube-diffusion-coarse-nvidia.shapenet-chair", task="base", pretrained=True)
-        fine = create_model("xcube-diffusion-fine-nvidia.shapenet-chair", task="base", pretrained=True)
+        coarse = create_model("xcube-diffusion-coarse.shapenet-chair.nvidia", task="base", pretrained=True)
+        fine = create_model("xcube-diffusion-fine.shapenet-chair.nvidia", task="base", pretrained=True)
         out = coarse.sample(batch_size=4, num_steps=100)
         out = fine.sample(grid=out["grid"], normal=out["normal"], num_steps=100)
         ```
@@ -1565,9 +1565,14 @@ def _shapenet_fine_diffusion_hparams(model_channels: int = 128) -> Dict[str, Any
 
 
 @register_model(
-    "xcube-vae-coarse-nvidia.shapenet-chair",
+    "xcube-vae-coarse.shapenet-chair.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-vae-coarse-nvidia.shapenet-chair.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-vae-coarse.shapenet-chair.nvidia.safetensors",
+        dataset="shapenet-chair",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_coarse_vae_hparams(),
 )
 def xcube_vae_coarse_shapenet_chair(**hparams: Any) -> XCubeVAE:
@@ -1575,9 +1580,14 @@ def xcube_vae_coarse_shapenet_chair(**hparams: Any) -> XCubeVAE:
 
 
 @register_model(
-    "xcube-vae-fine-nvidia.shapenet-chair",
+    "xcube-vae-fine.shapenet-chair.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-vae-fine-nvidia.shapenet-chair.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-vae-fine.shapenet-chair.nvidia.safetensors",
+        dataset="shapenet-chair",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_fine_vae_hparams(),
 )
 def xcube_vae_fine_shapenet_chair(**hparams: Any) -> XCubeVAE:
@@ -1585,9 +1595,14 @@ def xcube_vae_fine_shapenet_chair(**hparams: Any) -> XCubeVAE:
 
 
 @register_model(
-    "xcube-vae-coarse-nvidia.shapenet-car",
+    "xcube-vae-coarse.shapenet-car.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-vae-coarse-nvidia.shapenet-car.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-vae-coarse.shapenet-car.nvidia.safetensors",
+        dataset="shapenet-car",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_coarse_vae_hparams(),
 )
 def xcube_vae_coarse_shapenet_car(**hparams: Any) -> XCubeVAE:
@@ -1595,9 +1610,14 @@ def xcube_vae_coarse_shapenet_car(**hparams: Any) -> XCubeVAE:
 
 
 @register_model(
-    "xcube-vae-fine-nvidia.shapenet-car",
+    "xcube-vae-fine.shapenet-car.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-vae-fine-nvidia.shapenet-car.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-vae-fine.shapenet-car.nvidia.safetensors",
+        dataset="shapenet-car",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_fine_vae_hparams(),
 )
 def xcube_vae_fine_shapenet_car(**hparams: Any) -> XCubeVAE:
@@ -1605,9 +1625,14 @@ def xcube_vae_fine_shapenet_car(**hparams: Any) -> XCubeVAE:
 
 
 @register_model(
-    "xcube-vae-coarse-nvidia.shapenet-plane",
+    "xcube-vae-coarse.shapenet-plane.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-vae-coarse-nvidia.shapenet-plane.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-vae-coarse.shapenet-plane.nvidia.safetensors",
+        dataset="shapenet-plane",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_coarse_vae_hparams(),
 )
 def xcube_vae_coarse_shapenet_plane(**hparams: Any) -> XCubeVAE:
@@ -1615,9 +1640,14 @@ def xcube_vae_coarse_shapenet_plane(**hparams: Any) -> XCubeVAE:
 
 
 @register_model(
-    "xcube-vae-fine-nvidia.shapenet-plane",
+    "xcube-vae-fine.shapenet-plane.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-vae-fine-nvidia.shapenet-plane.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-vae-fine.shapenet-plane.nvidia.safetensors",
+        dataset="shapenet-plane",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_fine_vae_hparams(),
 )
 def xcube_vae_fine_shapenet_plane(**hparams: Any) -> XCubeVAE:
@@ -1625,9 +1655,14 @@ def xcube_vae_fine_shapenet_plane(**hparams: Any) -> XCubeVAE:
 
 
 @register_model(
-    "xcube-diffusion-coarse-nvidia.shapenet-chair",
+    "xcube-diffusion-coarse.shapenet-chair.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-diffusion-coarse-nvidia.shapenet-chair.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-diffusion-coarse.shapenet-chair.nvidia.safetensors",
+        dataset="shapenet-chair",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_coarse_diffusion_hparams(),
 )
 def xcube_diffusion_coarse_shapenet_chair(**hparams: Any) -> XCubeDiffusion:
@@ -1635,9 +1670,14 @@ def xcube_diffusion_coarse_shapenet_chair(**hparams: Any) -> XCubeDiffusion:
 
 
 @register_model(
-    "xcube-diffusion-fine-nvidia.shapenet-chair",
+    "xcube-diffusion-fine.shapenet-chair.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-diffusion-fine-nvidia.shapenet-chair.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-diffusion-fine.shapenet-chair.nvidia.safetensors",
+        dataset="shapenet-chair",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_fine_diffusion_hparams(model_channels=64),
 )
 def xcube_diffusion_fine_shapenet_chair(**hparams: Any) -> XCubeDiffusion:
@@ -1645,9 +1685,14 @@ def xcube_diffusion_fine_shapenet_chair(**hparams: Any) -> XCubeDiffusion:
 
 
 @register_model(
-    "xcube-diffusion-coarse-nvidia.shapenet-car",
+    "xcube-diffusion-coarse.shapenet-car.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-diffusion-coarse-nvidia.shapenet-car.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-diffusion-coarse.shapenet-car.nvidia.safetensors",
+        dataset="shapenet-car",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_coarse_diffusion_hparams(),
 )
 def xcube_diffusion_coarse_shapenet_car(**hparams: Any) -> XCubeDiffusion:
@@ -1655,9 +1700,14 @@ def xcube_diffusion_coarse_shapenet_car(**hparams: Any) -> XCubeDiffusion:
 
 
 @register_model(
-    "xcube-diffusion-fine-nvidia.shapenet-car",
+    "xcube-diffusion-fine.shapenet-car.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-diffusion-fine-nvidia.shapenet-car.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-diffusion-fine.shapenet-car.nvidia.safetensors",
+        dataset="shapenet-car",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_fine_diffusion_hparams(),
 )
 def xcube_diffusion_fine_shapenet_car(**hparams: Any) -> XCubeDiffusion:
@@ -1665,9 +1715,14 @@ def xcube_diffusion_fine_shapenet_car(**hparams: Any) -> XCubeDiffusion:
 
 
 @register_model(
-    "xcube-diffusion-coarse-nvidia.shapenet-plane",
+    "xcube-diffusion-coarse.shapenet-plane.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-diffusion-coarse-nvidia.shapenet-plane.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-diffusion-coarse.shapenet-plane.nvidia.safetensors",
+        dataset="shapenet-plane",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_coarse_diffusion_hparams(),
 )
 def xcube_diffusion_coarse_shapenet_plane(**hparams: Any) -> XCubeDiffusion:
@@ -1675,9 +1730,14 @@ def xcube_diffusion_coarse_shapenet_plane(**hparams: Any) -> XCubeDiffusion:
 
 
 @register_model(
-    "xcube-diffusion-fine-nvidia.shapenet-plane",
+    "xcube-diffusion-fine.shapenet-plane.nvidia",
     task="base",
-    weights="hf://torch-pointcloud/xcube/xcube-diffusion-fine-nvidia.shapenet-plane.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/xcube/xcube-diffusion-fine.shapenet-plane.nvidia.safetensors",
+        dataset="shapenet-plane",
+        author="nvidia",
+        license="NVIDIA Source Code License",
+    ),
     hparams=_shapenet_fine_diffusion_hparams(),
 )
 def xcube_diffusion_fine_shapenet_plane(**hparams: Any) -> XCubeDiffusion:

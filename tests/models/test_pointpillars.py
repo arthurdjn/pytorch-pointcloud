@@ -49,7 +49,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
 
 
 def test_pointpillars_forward_shapes() -> None:
-    model = create_model("pointpillars-openpcdet.kitti", task="detection").to(DEVICE).eval()
+    model = create_model("pointpillars.kitti.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 32, 40000)
@@ -68,7 +68,7 @@ def test_pointpillars_forward_shapes() -> None:
 
 
 def test_pointpillars_eval_is_deterministic() -> None:
-    model = create_model("pointpillars-openpcdet.kitti", task="detection").to(DEVICE).eval()
+    model = create_model("pointpillars.kitti.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 32, 40000)
@@ -83,11 +83,11 @@ def test_pointpillars_eval_is_deterministic() -> None:
 
 
 def test_pointpillars_registered_variant() -> None:
-    assert "pointpillars-openpcdet.kitti" in list_models("pointpillars*", task="detection")
+    assert "pointpillars.kitti.openpcdet" in list_models("pointpillars*", task="detection")
 
 
 def test_pointpillars_create_model_hparams() -> None:
-    model = create_model("pointpillars-openpcdet.kitti", task="detection")
+    model = create_model("pointpillars.kitti.openpcdet", task="detection")
     assert isinstance(model, PointPillarsDetection)
     assert model.in_channels == 4
     assert model.num_classes == 3
@@ -117,7 +117,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
 
 
 def test_pp_multihead_forward_shapes() -> None:
-    model = create_model("pointpillars-openpcdet-multihead.nuscenes", task="detection").to(DEVICE).eval()
+    model = create_model("pointpillars-multihead.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsMultiHeadDetection)
     data = _make_nuscenes_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 20, 30000)
@@ -136,10 +136,10 @@ def test_pp_multihead_forward_shapes() -> None:
 
 
 def test_pp_multihead_create_model_hparams() -> None:
-    model = create_model("pointpillars-openpcdet-multihead.nuscenes", task="detection")
+    model = create_model("pointpillars-multihead.nuscenes.openpcdet", task="detection")
     assert isinstance(model, PointPillarsMultiHeadDetection)
     assert model.in_channels == 5
     assert model.num_classes == 10
     assert model.grid_size == (512, 512, 1)
     assert len(model.head.rpn_heads) == 6
-    assert "pointpillars-openpcdet-multihead.nuscenes" in list_models("pointpillars*", task="detection")
+    assert "pointpillars-multihead.nuscenes.openpcdet" in list_models("pointpillars*", task="detection")

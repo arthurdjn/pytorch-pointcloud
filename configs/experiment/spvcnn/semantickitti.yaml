@@ -5,9 +5,9 @@
 #
 # | model.name                    | mIoU   |
 # | ----------------------------- | ------ |
-# | spvcnn-30gmacs.semantickitti  | 0.5923 |
-# | spvcnn-47gmacs.semantickitti  | 0.6025 |
-# | spvcnn-119gmacs.semantickitti | 0.6240 |
+# | spvcnn-30gmacs.semantickitti.mit-han-lab  | 0.5923 |
+# | spvcnn-47gmacs.semantickitti.mit-han-lab  | 0.6025 |
+# | spvcnn-119gmacs.semantickitti.mit-han-lab | 0.6240 |
 defaults:
   - override /datamodule: semantickitti
   - override /model: segmentation
@@ -19,7 +19,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: spvcnn-47gmacs.semantickitti
+  name: spvcnn-47gmacs.semantickitti.mit-han-lab
   num_classes: 19
   pretrained: false
   input_keys: [x, pos, batch]

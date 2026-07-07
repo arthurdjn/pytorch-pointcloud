@@ -2,23 +2,48 @@ import fnmatch
 import functools
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, TypedDict, Union, overload
 from urllib.parse import urlparse
 
-import torch
 from torch import nn
+from typing_extensions import NotRequired
 
 from torch_pointcloud.config import MODELS_DIR
+from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
+from torch_pointcloud.utils.types import PathLike
 
 from ._base import BaseModel, ClassificationModel, DetectionModel, SegmentationModel
 
 Task = Literal["base", "classification", "segmentation", "detection"]
 
 
+class WeightsDict(TypedDict):
+    """Structured description of a pretrained checkpoint.
+
+    Attributes:
+        url: Location of the weight file (e.g. `hf://torch-pointcloud/pointnext/pointnext-sm.scanobjectnn.openpoints.safetensors`).
+        dataset: Benchmark the checkpoint was trained on (e.g. `scanobjectnn`, `s3dis-area5`).
+        metrics: Scores measured with this package's benchmark scripts, keyed by metric name
+            (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
+        classes: Label names in prediction-channel order, so `classes[i]` names class $i$ of the head.
+        author: Tag identifying who trained the original checkpoint (e.g. `openpcdet`, `facebookresearch`).
+        license: License of the weight file (e.g. `CC-BY-NC-4.0`), when the source repository declares one.
+    """
+
+    url: str
+    dataset: NotRequired[str]
+    metrics: NotRequired[Dict[str, float]]
+    classes: NotRequired[Sequence[str]]
+    author: NotRequired[str]
+    license: NotRequired[str]
+
+
 class ModelDict(TypedDict):
+    """Registry entry describing a registered model, returned by `create_model(..., return_info=True)`."""
+
     name: str
-    weights: Optional[str]
-    transforms: Optional[Callable]
+    weights: Optional[WeightsDict]
+    transform: Optional[Callable]
     hparams: Dict[str, Any]
     fn: Callable
 
@@ -36,8 +61,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transforms: Optional[Callable] = None,
-    weights: Optional[str] = None,
+    transform: Optional[Callable] = None,
+    weights: Union[str, WeightsDict, None] = None,
     task: Literal["base"],
 ) -> Callable[[Callable[..., nn.Module]], Callable[..., nn.Module]]: ...
 
@@ -47,8 +72,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transforms: Optional[Callable] = None,
-    weights: Optional[str] = None,
+    transform: Optional[Callable] = None,
+    weights: Union[str, WeightsDict, None] = None,
     task: Literal["classification"],
 ) -> Callable[[Callable[..., ClassificationModel]], Callable[..., ClassificationModel]]: ...
 
@@ -58,8 +83,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transforms: Optional[Callable] = None,
-    weights: Optional[str] = None,
+    transform: Optional[Callable] = None,
+    weights: Union[str, WeightsDict, None] = None,
     task: Literal["segmentation"],
 ) -> Callable[[Callable[..., SegmentationModel]], Callable[..., SegmentationModel]]: ...
 
@@ -69,8 +94,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transforms: Optional[Callable] = None,
-    weights: Optional[str] = None,
+    transform: Optional[Callable] = None,
+    weights: Union[str, WeightsDict, None] = None,
     task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
 
@@ -80,10 +105,45 @@ def register_model(
     *,
     task: Task,
     hparams: Optional[Dict[str, Any]] = None,
-    transforms: Optional[Callable] = None,
-    weights: Optional[str] = None,
+    transform: Optional[Callable] = None,
+    weights: Union[str, WeightsDict, None] = None,
 ) -> Callable:
+    """Register a model entry point under `name` for `task`.
+
+    The decorated callable becomes reachable through `create_model`. A bare `weights` URL string is
+    normalized to a `WeightsDict`, so registry consumers always see the structured form.
+
+    Args:
+        name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn.openpoints`).
+        task: Registry the model belongs to (`base`, `classification`, `segmentation`, or `detection`).
+        hparams: Default keyword arguments the entry point is called with; `create_model` kwargs override them.
+        transform: Evaluation transform reproducing the preprocessing the weights were trained with.
+        weights: Pretrained checkpoint, either a URL string or a `WeightsDict` with metadata.
+
+    Returns:
+        The decorator registering its target callable.
+
+    Example:
+        ```{.python notest}
+        from torch_pointcloud.models._registry import WeightsDict, register_model
+
+
+        @register_model(
+            "my-model.scanobjectnn",
+            task="classification",
+            hparams=dict(in_channels=3, num_classes=15),
+            weights=WeightsDict(
+                url="hf://my-org/my-model/my-model.scanobjectnn.safetensors",
+                dataset="scanobjectnn",
+                metrics={"OA": 88.20},
+            ),
+        )
+        def my_model(**hparams):
+            return MyModelClassification(**hparams)
+        ```
+    """
     hparams = hparams or {}
+    weights_dict: Optional[WeightsDict] = {"url": weights} if isinstance(weights, str) else weights
 
     if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
@@ -94,9 +154,9 @@ def register_model(
             warnings.warn(f"Model {name!r} is already registered for task {task!r}; overwriting the existing entry.")
         _REGISTERED_MODELS[task][name] = {
             "name": name,
-            "transforms": transforms,
+            "transform": transform,
             "hparams": hparams,
-            "weights": weights,
+            "weights": weights_dict,
             "fn": fn,
         }
 
@@ -111,19 +171,37 @@ def register_model(
 
 @overload
 def create_model(
-    name: str, task: Literal["base"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
+    name: str,
+    task: Literal["base"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
 ) -> tuple[BaseModel, Dict[str, Any]]: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["base"], *, pretrained: bool = False, return_info: Literal[False] = False, **kwargs: Any
+    name: str,
+    task: Literal["base"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
 ) -> BaseModel: ...
 
 
 @overload
 def create_model(
-    name: str, task: Literal["classification"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
+    name: str,
+    task: Literal["classification"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
 ) -> tuple[ClassificationModel, Dict[str, Any]]: ...
 
 
@@ -133,6 +211,7 @@ def create_model(
     task: Literal["classification"],
     *,
     pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[False] = False,
     **kwargs: Any,
 ) -> ClassificationModel: ...
@@ -140,7 +219,13 @@ def create_model(
 
 @overload
 def create_model(
-    name: str, task: Literal["segmentation"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
+    name: str,
+    task: Literal["segmentation"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
 ) -> tuple[SegmentationModel, Dict[str, Any]]: ...
 
 
@@ -150,6 +235,7 @@ def create_model(
     task: Literal["segmentation"],
     *,
     pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[False] = False,
     **kwargs: Any,
 ) -> SegmentationModel: ...
@@ -157,7 +243,13 @@ def create_model(
 
 @overload
 def create_model(
-    name: str, task: Literal["detection"], *, pretrained: bool = False, return_info: Literal[True], **kwargs: Any
+    name: str,
+    task: Literal["detection"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
 ) -> tuple[DetectionModel, Dict[str, Any]]: ...
 
 
@@ -167,6 +259,7 @@ def create_model(
     task: Literal["detection"],
     *,
     pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[False] = False,
     **kwargs: Any,
 ) -> DetectionModel: ...
@@ -174,14 +267,65 @@ def create_model(
 
 @overload
 def create_model(
-    name: str, task: Task, *, pretrained: bool = False, return_info: bool = False, **kwargs: Any
+    name: str,
+    task: Task,
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: bool = False,
+    **kwargs: Any,
 ) -> Any: ...
 
 
-def create_model(name: str, task: Task, *, pretrained: bool = False, return_info: bool = False, **kwargs: Any) -> Any:
+def create_model(
+    name: str,
+    task: Task,
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: bool = False,
+    **kwargs: Any,
+) -> Any:
+    """Build a registered model, optionally loading pretrained or local checkpoint weights.
+
+    Weights load through a head-adapting policy: overriding `num_classes` (or `in_channels`) keeps the
+    matching backbone weights and leaves the rebuilt head at its fresh initialization with a warning, while
+    an untouched configuration loads completely. Model keys missing from the checkpoint raise.
+
+    Args:
+        name: Registered model name (see `list_models`).
+        task: Registry the model belongs to (`base`, `classification`, `segmentation`, or `detection`).
+        pretrained: Load the registered pretrained weights. Mutually exclusive with `checkpoint_path`.
+        checkpoint_path: Local checkpoint to load instead of the registered weights. Supports `torch.save`
+            files, `.safetensors`, and Lightning checkpoints (the wrapped network is extracted).
+        return_info: Also return the registry entry, with `hparams` reflecting the effective values.
+        **kwargs: Overrides merged into the registered `hparams` and passed to the model constructor.
+
+    Returns:
+        The model, or a `(model, info)` tuple when `return_info` is true.
+
+    Raises:
+        ValueError: If `task` or `name` is unknown, or both `pretrained` and `checkpoint_path` are passed.
+        FileNotFoundError: If the weight or checkpoint file does not exist.
+
+    Example:
+        ```{.python notest}
+        import torch_pointcloud as tp
+
+        model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True)
+
+        # Fine-tuning: reuse the pretrained backbone with a fresh 10-class head.
+        model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True, num_classes=10)
+
+        # Load your own trained checkpoint (e.g. saved by Lightning).
+        model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", checkpoint_path="last.ckpt")
+        ```
+    """
     if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
+    if pretrained and checkpoint_path is not None:
+        raise ValueError("'pretrained' and 'checkpoint_path' are mutually exclusive. Pass a single weight source.")
 
     model_info = _REGISTERED_MODELS[task].get(name)
     if model_info is None:
@@ -198,36 +342,59 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
     hparams = {**model_info["hparams"], **kwargs}
     model_info["hparams"] = hparams
     model = model_fn(**hparams)
-    if not pretrained:
-        if return_info:
-            return model, model_info
-        return model
 
-    weights_path = model_info["weights"]
-    if weights_path is None:
-        warnings.warn(f"No pretrained weights available for model {name!r}.")
-        if return_info:
-            return model, model_info
-        return model
-
-    parsed = urlparse(weights_path)
-    local_path = Path(MODELS_DIR, parsed.path.lstrip("/"))
-    if not local_path.exists():
-        raise FileNotFoundError(f"Model weights not found at {local_path.as_posix()}. Download the weights first.")
-
-    weights_data = torch.load(local_path, weights_only=True)
-    state_dict = weights_data["state_dict"] if "state_dict" in weights_data else weights_data
-    model.load_state_dict(state_dict, strict=True)
+    if pretrained:
+        weights = model_info["weights"]
+        if weights is None:
+            warnings.warn(f"No pretrained weights available for model {name!r}.")
+        else:
+            parsed = urlparse(weights["url"])
+            local_path = Path(MODELS_DIR, parsed.path.lstrip("/"))
+            if not local_path.exists():
+                raise FileNotFoundError(
+                    f"Model weights not found at {local_path.as_posix()}. Download the weights first."
+                )
+            load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+    elif checkpoint_path is not None:
+        path = Path(checkpoint_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Checkpoint not found at {path.as_posix()}.")
+        load_state_dict(model, read_state_dict(path), source=path.as_posix())
 
     if return_info:
         return model, model_info
     return model
 
 
-def list_models(name: str = "*", *, task: Task) -> List[str]:
-    if task not in _REGISTERED_MODELS.keys():
+def list_models(name: str = "*", *, task: Optional[Task] = None, pretrained: bool = False) -> List[str]:
+    """List registered model names, sorted alphabetically.
+
+    Args:
+        name: Wildcard filter on the registered name (`fnmatch` syntax, e.g. `"pointnext*"`).
+        task: Restrict the listing to one registry; `None` lists across all tasks (duplicates removed).
+        pretrained: Only list models that ship pretrained weights.
+
+    Returns:
+        The matching model names.
+
+    Example:
+        ```python
+        import torch_pointcloud as tp
+
+        classifiers = tp.list_models("pointnext*", task="classification")
+        with_weights = tp.list_models(task="segmentation", pretrained=True)
+        everything = tp.list_models()
+        ```
+    """
+    if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
 
-    model_names = list(_REGISTERED_MODELS[task].keys())
+    tasks = [task] if task is not None else list(_REGISTERED_MODELS.keys())
+    model_names = {
+        model_name
+        for t in tasks
+        for model_name, entry in _REGISTERED_MODELS[t].items()
+        if not pretrained or entry["weights"] is not None
+    }
     return sorted(fnmatch.filter(model_names, name))

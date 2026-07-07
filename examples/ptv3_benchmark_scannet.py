@@ -6,12 +6,12 @@ per-point evaluation):
 
 | Model                | Zoo (TTA) | Here                  |
 | -------------------- | --------- | --------------------- |
-| ptv3-base.scannet20  | 77.6      | 76.04 mIoU / 91.67 OA |
-| ptv3-base.scannet200 | 35.3      | 32.09 mIoU / 83.34 OA |
+| ptv3-base.scannet20.pointcept  | 77.6      | 76.04 mIoU / 91.67 OA |
+| ptv3-base.scannet200.pointcept | 35.3      | 32.09 mIoU / 83.34 OA |
 
 Usage:
-    uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet20 --limit 5
-    uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet200
+    uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet20.pointcept --limit 5
+    uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet200.pointcept
 """
 
 import argparse
@@ -94,7 +94,7 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark PT-v3 semantic segmentation on ScanNet.")
-    parser.add_argument("--model", default="ptv3-base.scannet20", help="Registered segmentation model name")
+    parser.add_argument("--model", default="ptv3-base.scannet20.pointcept", help="Registered segmentation model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])

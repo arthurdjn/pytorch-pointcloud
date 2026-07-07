@@ -2,7 +2,7 @@
 
 Usage:
     # Area 5 evaluation (default)
-    python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area5 --download
+    python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area5.openpoints --download
 
     # 6-fold cross-validation (all areas, one at a time)
     python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-6fold --areas Area_1 --download
@@ -94,7 +94,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointnext-sm.s3dis-area5",
+        default="pointnext-sm.s3dis-area5.openpoints",
         choices=MODEL_CHOICES,
     )
     parser.add_argument(

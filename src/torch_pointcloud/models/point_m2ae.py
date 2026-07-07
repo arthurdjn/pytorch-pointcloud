@@ -5,6 +5,8 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import group
@@ -12,7 +14,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     from torch_scatter import scatter
@@ -1046,10 +1048,17 @@ class HierarchicalEncoderMAE(nn.Module):
 
 
 @register_model(
-    "point-m2ae-base.modelnet40",
+    "point-m2ae-base.modelnet40.renrui-zhang",
     task="classification",
-    weights="hf://torch-pointcloud/point-m2ae/point-m2ae-base.modelnet40.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-m2ae/point-m2ae-base.modelnet40.renrui-zhang.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 92.87},
+        classes=MODELNET40_CLASSES,
+        author="renrui-zhang",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.Rescale(keys="pos"),
             T.FarthestPointSample(pos_key="pos", num_samples=1024, random_start=False),
@@ -1077,10 +1086,17 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
 
 
 @register_model(
-    "point-m2ae-base.scanobjectnn-hardest",
+    "point-m2ae-base.scanobjectnn-hardest.renrui-zhang",
     task="classification",
-    weights="hf://torch-pointcloud/point-m2ae/point-m2ae-base.scanobjectnn-hardest.pth",
-    transforms=T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)]),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-m2ae/point-m2ae-base.scanobjectnn-hardest.renrui-zhang.safetensors",
+        dataset="scanobjectnn-hardest",
+        metrics={"OA": 86.54},
+        classes=SCANOBJECTNN_CLASSES,
+        author="renrui-zhang",
+        license="MIT",
+    ),
+    transform=T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)]),
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -1103,10 +1119,17 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
 
 
 @register_model(
-    "point-m2ae-base.scanobjectnn-objbg",
+    "point-m2ae-base.scanobjectnn-objbg.renrui-zhang",
     task="classification",
-    weights="hf://torch-pointcloud/point-m2ae/point-m2ae-base.scanobjectnn-objbg.pth",
-    transforms=T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)]),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-m2ae/point-m2ae-base.scanobjectnn-objbg.renrui-zhang.safetensors",
+        dataset="scanobjectnn-objbg",
+        metrics={"OA": 91.22},
+        classes=SCANOBJECTNN_CLASSES,
+        author="renrui-zhang",
+        license="MIT",
+    ),
+    transform=T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)]),
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -1129,10 +1152,15 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
 
 
 @register_model(
-    "point-m2ae-base.shapenetpart",
+    "point-m2ae-base.shapenetpart.renrui-zhang",
     task="segmentation",
-    weights="hf://torch-pointcloud/point-m2ae/point-m2ae-base.shapenetpart.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-m2ae/point-m2ae-base.shapenetpart.renrui-zhang.safetensors",
+        dataset="shapenetpart",
+        author="renrui-zhang",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.Rescale(keys="pos", method="centroid"),
             T.FarthestPointSample(pos_key="pos", keys=("segment",), num_samples=2048, random_start=False),
@@ -1158,9 +1186,14 @@ def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AESegmentation:
 
 
 @register_model(
-    "point-m2ae-base.pretrain",
+    "point-m2ae-base.pretrain.renrui-zhang",
     task="base",
-    weights="hf://torch-pointcloud/point-m2ae/point-m2ae-base.pretrain.pth",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-m2ae/point-m2ae-base.pretrain.renrui-zhang.safetensors",
+        dataset="shapenet55",
+        author="renrui-zhang",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=0,
         group_sizes=(16, 8, 8),

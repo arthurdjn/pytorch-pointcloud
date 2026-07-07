@@ -5,7 +5,7 @@
 #
 # | model.name          | mIoU   | accuracy |
 # | ------------------- | ------ | -------- |
-# | sonata-lp.scannet20 | 0.7193 | 0.9002   |
+# | sonata-lp.scannet20.fair | 0.7193 | 0.9002   |
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
@@ -17,7 +17,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: sonata-lp.scannet20
+  name: sonata-lp.scannet20.fair
   num_classes: 20
   pretrained: false
   input_keys: [x, pos_grid, batch]

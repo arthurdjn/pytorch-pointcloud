@@ -21,11 +21,13 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.inits import reset
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import FPS, LinearBlock, PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -857,10 +859,16 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
 
 
 @register_model(
-    "pointmlp-base.modelnet40",
+    "pointmlp-base.modelnet40.xu-ma",
     task="classification",
-    weights="hf://torch-pointcloud/pointmlp/pointmlp-base.modelnet40.pt",
-    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointmlp/pointmlp-base.modelnet40.xu-ma.safetensors",
+        dataset="modelnet40",
+        classes=MODELNET40_CLASSES,
+        author="xu-ma",
+        license="Apache-2.0",
+    ),
+    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_base_clf_hparams(num_classes=40),
 )
 def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
@@ -868,10 +876,16 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
 
 
 @register_model(
-    "pointmlp-elite.modelnet40",
+    "pointmlp-elite.modelnet40.xu-ma",
     task="classification",
-    weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.modelnet40.pt",
-    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointmlp/pointmlp-elite.modelnet40.xu-ma.safetensors",
+        dataset="modelnet40",
+        classes=MODELNET40_CLASSES,
+        author="xu-ma",
+        license="Apache-2.0",
+    ),
+    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_elite_clf_hparams(num_classes=40),
 )
 def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
@@ -891,22 +905,34 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
 # Our conversion reproduces upstream-on-this-checkpoint to within ~1%, so the
 # residual gap is intrinsic to the demo1 weights, not a refactor regression.
 @register_model(
-    "pointmlp-base.scanobjectnn",
+    "pointmlp-base.scanobjectnn.xu-ma",
     task="classification",
-    weights="hf://torch-pointcloud/pointmlp/pointmlp-base.scanobjectnn.pt",
-    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointmlp/pointmlp-base.scanobjectnn.xu-ma.safetensors",
+        dataset="scanobjectnn",
+        classes=SCANOBJECTNN_CLASSES,
+        author="xu-ma",
+        license="Apache-2.0",
+    ),
+    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_base_clf_hparams(num_classes=15),
 )
 def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-# NOTE: Same caveat as `pointmlp-base.scanobjectnn`
+# NOTE: Same caveat as `pointmlp-base.scanobjectnn.xu-ma`
 @register_model(
-    "pointmlp-elite.scanobjectnn",
+    "pointmlp-elite.scanobjectnn.xu-ma",
     task="classification",
-    weights="hf://torch-pointcloud/pointmlp/pointmlp-elite.scanobjectnn.pt",
-    transforms=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointmlp/pointmlp-elite.scanobjectnn.xu-ma.safetensors",
+        dataset="scanobjectnn",
+        classes=SCANOBJECTNN_CLASSES,
+        author="xu-ma",
+        license="Apache-2.0",
+    ),
+    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
     hparams=_pointmlp_elite_clf_hparams(num_classes=15),
 )
 def pointmlp_elite_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:

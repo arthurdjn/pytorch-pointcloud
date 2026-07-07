@@ -5,10 +5,10 @@
 #
 # | model.name                  | mIoU   |
 # | --------------------------- | ------ |
-# | kpfcnn-base.s3dis           | 0.6564 |
-# | kpfcnn-base-sm.s3dis        | 0.6395 |
-# | kpfcnn-base-deform.s3dis    | 0.6566 |
-# | kpfcnn-base-sm-deform.s3dis | 0.6449 |
+# | kpfcnn-base.s3dis.hugues-thomas           | 0.6564 |
+# | kpfcnn-base-sm.s3dis.hugues-thomas        | 0.6395 |
+# | kpfcnn-base-deform.s3dis.hugues-thomas    | 0.6566 |
+# | kpfcnn-base-sm-deform.s3dis.hugues-thomas | 0.6449 |
 defaults:
   - override /datamodule: s3dis
   - override /model: segmentation
@@ -18,7 +18,7 @@ trainer:
   max_epochs: 100
 
 model:
-  name: kpfcnn-base.s3dis
+  name: kpfcnn-base.s3dis.hugues-thomas
   num_classes: 13
   pretrained: false
   input_keys: [x, pos, batch]

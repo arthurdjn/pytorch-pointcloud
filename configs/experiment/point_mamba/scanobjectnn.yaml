@@ -5,7 +5,7 @@
 #
 # | model.name                    | accuracy |
 # | ----------------------------- | -------- |
-# | point-mamba-base.scanobjectnn | 0.9415   |
+# | point-mamba-base.scanobjectnn.dingkang-liang | 0.9415   |
 # (exact at precision=32-true datamodule.batch_size=16)
 defaults:
   - override /datamodule: scanobjectnn
@@ -16,7 +16,7 @@ trainer:
   max_epochs: 250
 
 model:
-  name: point-mamba-base.scanobjectnn
+  name: point-mamba-base.scanobjectnn.dingkang-liang
   num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]

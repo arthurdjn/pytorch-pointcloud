@@ -7,7 +7,8 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.models._base import SegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.serialization import SerializationOrder
@@ -230,10 +231,12 @@ def _utonia_encoder_hparams() -> Dict[str, Any]:
 
 
 @register_model(
-    "utonia",
+    "utonia.pointcept",
     task="base",
-    weights="hf://torch-pointcloud/utonia/utonia.pth",
-    transforms=_UTONIA_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/utonia/utonia.pointcept.safetensors", author="pointcept", license="CC-BY-NC-4.0"
+    ),
+    transform=_UTONIA_TRANSFORMS,
     hparams=_utonia_encoder_hparams(),
 )
 def utonia(**hparams: Any) -> PointTransformerV3Encoder:
@@ -241,10 +244,17 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "utonia-lp.scannet20",
+    "utonia-lp.scannet20.pointcept",
     task="segmentation",
-    weights="hf://torch-pointcloud/utonia/utonia-lp.scannet20.pth",
-    transforms=_UTONIA_SEG_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/utonia/utonia-lp.scannet20.pointcept.safetensors",
+        dataset="scannet20",
+        metrics={"mIoU": 71.11},
+        classes=SCANNET20_CLASSES,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_UTONIA_SEG_TRANSFORMS,
     hparams=dict(
         num_classes=20,
         in_channels=9,

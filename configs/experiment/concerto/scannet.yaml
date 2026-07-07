@@ -5,7 +5,7 @@
 #
 # | model.name                  | mIoU   | accuracy |
 # | --------------------------- | ------ | -------- |
-# | concerto-large-lp.scannet20 | 0.7768 | 0.9235   |
+# | concerto-large-lp.scannet20.pointcept | 0.7768 | 0.9235   |
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
@@ -17,7 +17,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: concerto-large-lp.scannet20
+  name: concerto-large-lp.scannet20.pointcept
   num_classes: 20
   pretrained: false
   input_keys: [x, pos, batch]

@@ -7,16 +7,16 @@ Results vs reference (ScanObjectNN overall accuracy, PointMamba camera-ready num
 
     | Variant                                            | reference | torch-pointcloud |
     | -------------------------------------------------- | --------- | ---------------- |
-    | point-mamba-base.scanobjectnn                      | 94.32     | 94.15            |
-    | point-mamba-base.scanobjectnn-nobg                 | 92.60     | 83.82            |
-    | point-mamba-base.scanobjectnn-augmentedrot-scale75 | 89.31     | 89.28            |
+    | point-mamba-base.scanobjectnn.dingkang-liang                      | 94.32     | 94.15            |
+    | point-mamba-base.scanobjectnn-nobg.dingkang-liang                 | 92.60     | 83.82            |
+    | point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang | 89.31     | 89.28            |
 
 The `-nobg` (OBJ_ONLY) checkpoint was released for an older block revision with an extra per-block
 LayerNorm and cannot be loaded faithfully into the published architecture; the reference code also
 scores 83.3 with it.
 
 Usage:
-    uv run --no-sync python examples/point_mamba_benchmark_scanobjectnn.py --model point-mamba-base.scanobjectnn
+    uv run --no-sync python examples/point_mamba_benchmark_scanobjectnn.py --model point-mamba-base.scanobjectnn.dingkang-liang
 """
 
 import os
@@ -43,23 +43,23 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "point-mamba-base.scanobjectnn",
-    "point-mamba-base.scanobjectnn-nobg",
-    "point-mamba-base.scanobjectnn-augmentedrot-scale75",
+    "point-mamba-base.scanobjectnn.dingkang-liang",
+    "point-mamba-base.scanobjectnn-nobg.dingkang-liang",
+    "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang",
 ]
 
 DATASET_CONFIG = {
-    "point-mamba-base.scanobjectnn": dict(
+    "point-mamba-base.scanobjectnn.dingkang-liang": dict(
         split="main",
         background=True,
         variant=None,
     ),
-    "point-mamba-base.scanobjectnn-nobg": dict(
+    "point-mamba-base.scanobjectnn-nobg.dingkang-liang": dict(
         split="main",
         background=False,
         variant=None,
     ),
-    "point-mamba-base.scanobjectnn-augmentedrot-scale75": dict(
+    "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang": dict(
         split="main",
         background=True,
         variant="augmentedrot_scale75",
@@ -119,7 +119,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="point-mamba-base.scanobjectnn",
+        default="point-mamba-base.scanobjectnn.dingkang-liang",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")

@@ -21,8 +21,9 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseModule
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -465,10 +466,17 @@ class SparseUNetSegmentation(SegmentationModel):
 
 
 @register_model(
-    "spunet-v1m1.scannet20",
+    "spunet-v1m1.scannet20.pointcept",
     task="segmentation",
-    weights="hf://torch-pointcloud/spunet/spunet-v1m1.scannet20.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/spunet/spunet-v1m1.scannet20.pointcept.safetensors",
+        dataset="scannet20",
+        metrics={"mIoU": 70.02},
+        classes=SCANNET20_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min

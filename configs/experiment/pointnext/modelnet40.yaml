@@ -5,7 +5,7 @@
 #
 # | model.name                  | accuracy |
 # | --------------------------- | -------- |
-# | pointnext-sm-c64.modelnet40 | 0.9218   |
+# | pointnext-sm-c64.modelnet40.openpoints | 0.9218   |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 200
 
 model:
-  name: pointnext-sm-c64.modelnet40
+  name: pointnext-sm-c64.modelnet40.openpoints
   num_classes: 40
   pretrained: false
   input_keys: [pos, pos, batch]

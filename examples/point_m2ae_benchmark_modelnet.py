@@ -7,7 +7,7 @@ Results vs reference (ModelNet40 overall accuracy, single-pass; the paper report
 
     | Variant                    | reference | torch-pointcloud |
     | -------------------------- | --------- | ---------------- |
-    | point-m2ae-base.modelnet40 | 93.43     | 92.87            |
+    | point-m2ae-base.modelnet40.renrui-zhang | 93.43     | 92.87            |
 
 The remaining gap is FPS sampling variance (reference CUDA FPS and `torch_cluster` FPS pick different
 point subsets).
@@ -90,8 +90,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="point-m2ae-base.modelnet40",
-        choices=["point-m2ae-base.modelnet40"],
+        default="point-m2ae-base.modelnet40.renrui-zhang",
+        choices=["point-m2ae-base.modelnet40.renrui-zhang"],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

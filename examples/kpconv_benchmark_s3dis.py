@@ -7,16 +7,16 @@ Results vs reference (Area-5 mIoU; reference is the HuguesTHOMAS pretrained-mode
 
     | Variant                     | reference | torch-pointcloud |
     | --------------------------- | --------- | ---------------- |
-    | kpfcnn-base.s3dis           | 66.4      | 65.64            |
-    | kpfcnn-base-sm.s3dis        | 65.4      | 63.92            |
-    | kpfcnn-base-deform.s3dis    | 67.3      | 65.66            |
-    | kpfcnn-base-sm-deform.s3dis | 66.7      | 64.47            |
+    | kpfcnn-base.s3dis.hugues-thomas           | 66.4      | 65.64            |
+    | kpfcnn-base-sm.s3dis.hugues-thomas        | 65.4      | 63.92            |
+    | kpfcnn-base-deform.s3dis.hugues-thomas    | 67.3      | 65.66            |
+    | kpfcnn-base-sm-deform.s3dis.hugues-thomas | 66.7      | 64.47            |
 
 The guide's protocol accumulates votes over repeated potential-sampled sphere crops at full resolution;
 this single-pass whole-room eval lands 1-2 points below it.
 
 Usage:
-    uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base.s3dis
+    uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base.s3dis.hugues-thomas
 """
 
 import os
@@ -58,7 +58,7 @@ def main() -> None:
     if transform is None:
         raise ValueError(
             f"Model {args.model!r} has no registered `transforms`. "
-            "Use a registered S3DIS KP-FCNN checkpoint (e.g. 'kpfcnn-base.s3dis')."
+            "Use a registered S3DIS KP-FCNN checkpoint (e.g. 'kpfcnn-base.s3dis.hugues-thomas')."
         )
 
     test_dataset: Dataset = S3DIS(
@@ -113,7 +113,9 @@ def parse_args() -> Namespace:
         default=["Area_5"],
         help="Which S3DIS areas to load (default: Area_5, the usual held-out test area).",
     )
-    parser.add_argument("--model", type=str, default="kpfcnn-base.s3dis", help="Registered segmentation model name.")
+    parser.add_argument(
+        "--model", type=str, default="kpfcnn-base.s3dis.hugues-thomas", help="Registered segmentation model name."
+    )
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

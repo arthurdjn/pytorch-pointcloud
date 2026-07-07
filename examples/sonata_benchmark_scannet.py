@@ -1,11 +1,11 @@
 """Benchmark Sonata semantic segmentation on ScanNet.
 
-`sonata-lp.scannet20` is a linear-probe head on the frozen Sonata encoder. Single-forward, voxel-level mIoU
+`sonata-lp.scannet20.fair` is a linear-probe head on the frozen Sonata encoder. Single-forward, voxel-level mIoU
 on ScanNet20 val (the paper's ~72.5 adds test-time augmentation and full-resolution per-point evaluation):
 
 | Model               | Here                  |
 | ------------------- | --------------------- |
-| sonata-lp.scannet20 | 71.93 mIoU / 90.02 OA |
+| sonata-lp.scannet20.fair | 71.93 mIoU / 90.02 OA |
 
 Usage:
     uv run --no-sync python examples/sonata_benchmark_scannet.py --limit 5
@@ -91,7 +91,7 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark Sonata semantic segmentation on ScanNet.")
-    parser.add_argument("--model", default="sonata-lp.scannet20", help="Registered segmentation model name")
+    parser.add_argument("--model", default="sonata-lp.scannet20.fair", help="Registered segmentation model name")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])

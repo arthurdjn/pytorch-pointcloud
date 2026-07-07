@@ -1,4 +1,4 @@
-"""Evaluate `pvcnn-mit-han-lab.s3dis-area5` on S3DIS Area-5, per-block protocol.
+"""Evaluate `pvcnn.s3dis-area5.mit-han-lab` on S3DIS Area-5, per-block protocol.
 
 Each pre-tiled $4096$-point block is classified in isolation, so the result is
 a lower bound on what the model can do. For the upstream sliding-window
@@ -6,7 +6,7 @@ protocol that recovers room-level context, see `pvcnn_benchmark_s3dis_sw.py`.
 
 | Model                             | Paper        | Per-block (here)          | Sliding-window |
 | --------------------------------- | ------------ | ------------------------- | -------------- |
-| `pvcnn-mit-han-lab.s3dis-area5`   | 56.64 % mIoU | 35.93 % mIoU / 76.54 % OA | 57.51 % mIoU   |
+| `pvcnn.s3dis-area5.mit-han-lab`   | 56.64 % mIoU | 35.93 % mIoU / 76.54 % OA | 57.51 % mIoU   |
 
 Usage:
 
@@ -83,7 +83,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark PVCNN semantic segmentation on S3DIS.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="pvcnn-mit-han-lab.s3dis-area5")
+    parser.add_argument("--model", type=str, default="pvcnn.s3dis-area5.mit-han-lab")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--download", action="store_true", help="Download S3DIS-HDF5 if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

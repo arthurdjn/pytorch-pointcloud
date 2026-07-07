@@ -6,6 +6,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers.anchors import (
     AnchorHeadMulti,
     AnchorHeadMultiOutput,
@@ -17,7 +18,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PFNLayer(nn.Module):
@@ -411,11 +412,18 @@ class PointPillarsMultiHeadDetection(DetectionModel):
 
 
 @register_model(
-    "pointpillars-openpcdet.kitti",
+    "pointpillars.kitti.openpcdet",
     task="detection",
-    weights="hf://torch-pointcloud/pointpillars/pointpillars-openpcdet.kitti.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointpillars/pointpillars.kitti.openpcdet.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 62.86},
+        classes=("Car", "Pedestrian", "Cyclist"),
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
     # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
@@ -445,10 +453,16 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
 
 
 @register_model(
-    "pointpillars-openpcdet-multihead.nuscenes",
+    "pointpillars-multihead.nuscenes.openpcdet",
     task="detection",
-    weights="hf://torch-pointcloud/pointpillars/pointpillars-openpcdet-multihead.nuscenes.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointpillars/pointpillars-multihead.nuscenes.openpcdet.safetensors",
+        dataset="nuscenes",
+        classes=NUSCENES_DETECTION_CLASSES,
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(

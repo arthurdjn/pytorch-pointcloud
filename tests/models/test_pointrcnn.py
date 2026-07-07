@@ -183,11 +183,11 @@ def test_point_head_box_returns_scores_logits_boxes() -> None:
 
 
 def test_pointrcnn_registered_variant() -> None:
-    assert "pointrcnn-openpcdet.kitti" in list_models("pointrcnn*", task="detection")
+    assert "pointrcnn.kitti.openpcdet" in list_models("pointrcnn*", task="detection")
 
 
 def test_pointrcnn_create_model_hparams() -> None:
-    model = create_model("pointrcnn-openpcdet.kitti", task="detection")
+    model = create_model("pointrcnn.kitti.openpcdet", task="detection")
     assert isinstance(model, PointRCNNDetection)
     assert model.in_channels == 4
     assert model.num_classes == 3
@@ -198,14 +198,14 @@ def test_pointrcnn_create_model_hparams() -> None:
     assert len(model.roi_head.sa_modules) == 3
 
 
-_WEIGHTS = Path(MODELS_DIR, "pointrcnn", "pointrcnn-openpcdet.kitti.pt")
+_WEIGHTS = Path(MODELS_DIR, "pointrcnn", "pointrcnn.kitti.openpcdet.pt")
 _KITTI_DIR = Path(DATA_DIR, "KITTI")
 
 
 @pytest.mark.skipif(not _WEIGHTS.exists(), reason="PointRCNN KITTI weights not downloaded")
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="PointRCNN backbone exercised on CUDA")
 def test_pointrcnn_pretrained_loads_strict() -> None:
-    model = create_model("pointrcnn-openpcdet.kitti", task="detection", pretrained=True).to(DEVICE).eval()
+    model = create_model("pointrcnn.kitti.openpcdet", task="detection", pretrained=True).to(DEVICE).eval()
     assert isinstance(model, PointRCNNDetection)
     data = _make_inputs(n_per_scene=16384, batch_size=1)
     with torch.no_grad():

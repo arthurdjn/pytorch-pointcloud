@@ -1,10 +1,91 @@
 import re
+import warnings
 from collections import OrderedDict
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Set
 
-from torch import Tensor
+import torch
+from safetensors.torch import load_file
+from torch import Tensor, nn
+
+from .types import PathLike
 
 _PLACEHOLDER_RE = re.compile(r"^\s*(\w+)\s*(?:([+-])\s*(\d+))?\s*$")
+
+
+def read_state_dict(path: PathLike) -> Dict[str, Any]:
+    """Read a checkpoint file into a flat state dict.
+
+    Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` key if present. Lightning
+    checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
+    only `model.`-prefixed keys are kept, with the prefix stripped.
+
+    Args:
+        path: Checkpoint file to read.
+
+    Returns:
+        The flat parameter-name to tensor mapping.
+
+    Example:
+        ```{.python notest}
+        from torch_pointcloud.utils.state_dict import read_state_dict
+
+        state_dict = read_state_dict("checkpoints/last.ckpt")
+        ```
+    """
+    path = Path(path)
+    if path.suffix == ".safetensors":
+        return dict(load_file(path.as_posix()))
+
+    data = torch.load(path, weights_only=True, map_location="cpu")
+    state_dict = data["state_dict"] if "state_dict" in data else data
+    if "pytorch-lightning_version" in data:
+        state_dict = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
+
+    return state_dict
+
+
+def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str) -> None:
+    """Load `state_dict` into `model`, adapting the head instead of failing on a rebuilt classifier.
+
+    Checkpoint keys absent from the model are ignored with a warning (e.g. head weights when the model was
+    built with `num_classes=0`), keys with mismatched tensor shapes are skipped with a warning and keep their
+    fresh initialization (e.g. after a `num_classes` override), and model keys missing from the checkpoint
+    raise. A checkpoint matching the model exactly loads completely, as with a strict load.
+
+    Args:
+        model: Module to load the parameters into.
+        state_dict: Flat parameter-name to tensor mapping (see `read_state_dict`).
+        source: Label identifying where the checkpoint came from, used in warnings and errors.
+
+    Raises:
+        RuntimeError: If the checkpoint is missing keys the model requires.
+
+    Example:
+        ```{.python notest}
+        from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
+
+        load_state_dict(model, read_state_dict("checkpoints/last.ckpt"), source="last.ckpt")
+        ```
+    """
+    model_state = model.state_dict()
+    unexpected = sorted(key for key in state_dict if key not in model_state)
+    mismatched = sorted(
+        key for key in state_dict if key in model_state and state_dict[key].shape != model_state[key].shape
+    )
+    missing = sorted(key for key in model_state if key not in state_dict)
+    if missing:
+        raise RuntimeError(f"Checkpoint {source!r} is missing model keys: {', '.join(missing)}.")
+    if unexpected:
+        warnings.warn(f"Ignoring checkpoint keys from {source!r} absent from the model: {', '.join(unexpected)}.")
+    if mismatched:
+        warnings.warn(
+            f"Skipping checkpoint keys from {source!r} with mismatched shapes, keeping their initialization: "
+            f"{', '.join(mismatched)}."
+        )
+
+    dropped = set(unexpected) | set(mismatched)
+    model.load_state_dict({key: value for key, value in state_dict.items() if key not in dropped}, strict=False)
 
 
 def _resolve_placeholder(expr: str, ctx: Dict[str, Any]) -> Any:

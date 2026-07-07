@@ -1,4 +1,4 @@
-r"""Evaluate `votenet-fair-base.scannet` on ScanNet-V2 val with mAP@0.25 / mAP@0.5.
+r"""Evaluate `votenet.scannet.fair` on ScanNet-V2 val with mAP@0.25 / mAP@0.5.
 
 The benchmark is `create_model` -> `model.predict` -> `mean_average_precision3d`. Detection ground
 truth is read from facebookresearch/votenet's preprocessed export (`{scene}_vert.npy` xyz[+rgb] and
@@ -8,7 +8,7 @@ preprocessed export to keep the verified reproduction.
 
 | Model                       | This script (mAP@0.25) | Reference |
 | --------------------------- | ---------------------- | --------- |
-| `votenet-fair-base.scannet` | 57.84                  | 58.6      |
+| `votenet.scannet.fair` | 57.84                  | 58.6      |
 
 Data preparation (one-time, in a clone of facebookresearch/votenet):
     follow `scannet/README.md` to produce `scannet/scannet_train_detection_data/` and the
@@ -50,7 +50,7 @@ def main() -> None:
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
     assert isinstance(model, VoteNetDetection)
     model.to(args.device).eval()
-    transform = info["transforms"]
+    transform = info["transform"]
 
     data_root = Path(args.data_root)
     scans = [s.strip() for s in Path(args.split_file).read_text().splitlines() if s.strip()]
@@ -129,7 +129,7 @@ def encode_scannet_target(bbox: np.ndarray) -> Boxes3D:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="VoteNet ScanNet-V2 detection AP benchmark.")
-    parser.add_argument("--model", type=str, default="votenet-fair-base.scannet")
+    parser.add_argument("--model", type=str, default="votenet.scannet.fair")
     parser.add_argument("--data-root", type=str, required=True, help="Dir with {scene}_vert.npy / {scene}_bbox.npy.")
     parser.add_argument("--split-file", type=str, required=True, help="scannetv2_val.txt path.")
     parser.add_argument("--ap-iou", type=float, nargs="+", default=[0.25, 0.5])

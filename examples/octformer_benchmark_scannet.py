@@ -43,7 +43,7 @@ def main() -> None:
     if transform is None:
         raise ValueError(
             f"Model {args.model!r} has no registered `transforms`. "
-            "Use a registered ScanNet OctFormer checkpoint (e.g. 'octformer-base.scannet20')."
+            "Use a registered ScanNet OctFormer checkpoint (e.g. 'octformer-base.scannet20.octree-nn')."
         )
 
     test_dataset: Dataset
@@ -115,8 +115,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="octformer-base.scannet20",
-        choices=["octformer-base.scannet20", "octformer-base.scannet200"],
+        default="octformer-base.scannet20.octree-nn",
+        choices=["octformer-base.scannet20.octree-nn", "octformer-base.scannet200.octree-nn"],
     )
     parser.add_argument("--download", action="store_true", help="Download ScanNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

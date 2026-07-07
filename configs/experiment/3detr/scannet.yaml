@@ -4,15 +4,15 @@
 #
 # | model.name           | mAP@0.25 | mAP@0.5 |
 # | -------------------- | -------- | ------- |
-# | 3detr-fair-m.scannet | 0.6544   | 0.4809  |
-# | 3detr-fair.scannet   | 0.6179   | 0.3830  |
+# | 3detr-m.scannet.fair | 0.6544   | 0.4809  |
+# | 3detr.scannet.fair   | 0.6179   | 0.3830  |
 defaults:
   - override /datamodule: scannet
   - override /model: detection
   - override /callbacks: detection
 
 model:
-  name: 3detr-fair-m.scannet
+  name: 3detr-m.scannet.fair
   input_keys: [x, pos, batch]
   # RandomSample(40k) draw depends on seed and num_workers; seed=42 datamodule.num_workers=16 reproduces 0.6676/0.4777 bitwise.
   score_threshold: 0.0

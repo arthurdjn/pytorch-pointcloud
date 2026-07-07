@@ -7,7 +7,8 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.models._base import SegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import AttentionKind, PointTransformerV3Encoder
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.serialization import SerializationOrder
@@ -154,10 +155,12 @@ class SonataSegmentation(SegmentationModel):
 
 
 @register_model(
-    "sonata-base",
+    "sonata-base.fair",
     task="base",
-    weights="hf://torch-pointcloud/sonata/sonata-base.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/sonata/sonata-base.fair.safetensors", author="fair", license="CC-BY-NC-4.0"
+    ),
+    transform=T.Compose(
         [
             T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
@@ -207,10 +210,17 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "sonata-lp.scannet20",
+    "sonata-lp.scannet20.fair",
     task="segmentation",
-    weights="hf://torch-pointcloud/sonata/sonata-lp.scannet20.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/sonata/sonata-lp.scannet20.fair.safetensors",
+        dataset="scannet20",
+        metrics={"mIoU": 71.93},
+        classes=SCANNET20_CLASSES,
+        author="fair",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=T.Compose(
         [
             T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min

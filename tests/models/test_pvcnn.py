@@ -129,7 +129,7 @@ def test_pvcnn_mit_han_lab_factory_patches_voxel_branch_to_paper_recipe() -> Non
     from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
     from torch_pointcloud.models._registry import create_model
 
-    model = create_model("pvcnn-mit-han-lab.s3dis-area5", task="segmentation", pretrained=False)
+    model = create_model("pvcnn.s3dis-area5.mit-han-lab", task="segmentation", pretrained=False)
     pvconvs = [m for m in model.modules() if isinstance(m, PVConv)]
     assert pvconvs, "Expected at least one PVConv in the factory-built model."
     for pv in pvconvs:
