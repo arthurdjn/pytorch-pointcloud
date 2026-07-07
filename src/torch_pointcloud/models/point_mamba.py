@@ -24,7 +24,12 @@ from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.utils.cluster import fps, local_grid
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import (
+    _MAMBA_SSM_GITHUB_URL,
+    _TORCH_CLUSTER_GITHUB_URL,
+    _TORCH_SCATTER_GITHUB_URL,
+    optional_import,
+)
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor
 
@@ -36,9 +41,9 @@ if TYPE_CHECKING:
     from torch_cluster import knn
     from torch_scatter import scatter
 
-Mamba, _ = optional_import("mamba_ssm", "Mamba")
-knn, _ = optional_import("torch_cluster", "knn")
-scatter, _ = optional_import("torch_scatter", "scatter")
+Mamba, _ = optional_import("mamba_ssm", "Mamba", url=_MAMBA_SSM_GITHUB_URL)
+knn, _ = optional_import("torch_cluster", "knn", url=_TORCH_CLUSTER_GITHUB_URL)
+scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 RADIUS = 0.03162277660168379  # sqrt(1e-3)

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Literal, Optional, overload
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
@@ -19,13 +19,13 @@ if TYPE_CHECKING:
     from ocnn.octree import Octree, Points
 
 
-ocnn, _ = optional_import("ocnn")
-octree_linear_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_linear_pts")
-octree_linear_upsample, _ = optional_import("ocnn.nn.octree_interp", "octree_linear_upsample")
-octree_nearest_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest_pts")
-octree_nearest_upsample, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest_upsample")
-Octree, _ = optional_import("ocnn.octree", "Octree")
-Points, _ = optional_import("ocnn.octree", "Points")
+ocnn, _ = optional_import("ocnn", url=_OCNN_GITHUB_URL)
+octree_linear_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_linear_pts", url=_OCNN_GITHUB_URL)
+octree_linear_upsample, _ = optional_import("ocnn.nn.octree_interp", "octree_linear_upsample", url=_OCNN_GITHUB_URL)
+octree_nearest_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest_pts", url=_OCNN_GITHUB_URL)
+octree_nearest_upsample, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest_upsample", url=_OCNN_GITHUB_URL)
+Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
+Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 @overload

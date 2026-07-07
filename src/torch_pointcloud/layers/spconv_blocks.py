@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
-from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, optional_import
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, _SPCONV_GITHUB_URL, optional_import
 
 from .act import create_act
 from .norms import create_norm
@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from spconv.pytorch import SparseSequential
 else:
-    SparseSequential, _ = optional_import("spconv.pytorch", "SparseSequential")
+    SparseSequential, _ = optional_import("spconv.pytorch", "SparseSequential", url=_SPCONV_GITHUB_URL)
 
 
-spconv, _ = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 SparseModule: Any = spconv.SparseModule if _SPCONV_AVAILABLE else nn.Module
 

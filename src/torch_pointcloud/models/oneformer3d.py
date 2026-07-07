@@ -24,7 +24,7 @@ from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.spformer_unet import SPFormerUNet
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import consecutive_cluster
 from torch_pointcloud.utils.types import OptTensor
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from torch_scatter import scatter_mean
 
 
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean")
+scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class OneFormer3DOutput(TypedDict, total=False):

@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 from torch.utils.data import DataLoader, Dataset, Sampler
 
 from torch_pointcloud.utils.data import PointCloudDataLoader
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningDataModule
 else:
-    LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule")
+    LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule", url=_LIGHTNING_GITHUB_URL)
 
 
 class PointCloudDataModule(LightningDataModule):

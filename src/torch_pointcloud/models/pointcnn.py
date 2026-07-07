@@ -22,7 +22,7 @@ from torch_geometric.nn import MLP
 from torch_pointcloud.layers import FPS, PoolLike, XConv, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
@@ -31,8 +31,8 @@ from ._registry import register_model
 if TYPE_CHECKING:
     from torch_cluster import knn
 
-fps, _ = optional_import("torch_cluster", name="fps")
-knn, _ = optional_import("torch_cluster", name="knn")
+fps, _ = optional_import("torch_cluster", name="fps", url=_TORCH_CLUSTER_GITHUB_URL)
+knn, _ = optional_import("torch_cluster", name="knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 class PointCNNIntermediate(NamedTuple):

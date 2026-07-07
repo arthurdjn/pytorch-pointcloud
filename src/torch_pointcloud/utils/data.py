@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from torch_pointcloud.utils.conversion import ensure_tuple
-from torch_pointcloud.utils.imports import _OCNN_AVAILABLE, optional_import
+from torch_pointcloud.utils.imports import _OCNN_AVAILABLE, _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import KeyCollection, StrEnum
 
 if TYPE_CHECKING:
@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from ocnn.octree import Octree, Points
 
 
-ocnn, _ = optional_import("ocnn")
-Octree, _ = optional_import("ocnn.octree", "Octree")
-Points, _ = optional_import("ocnn.octree", "Points")
+ocnn, _ = optional_import("ocnn", url=_OCNN_GITHUB_URL)
+Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
+Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 class DataKeys(StrEnum):

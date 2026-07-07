@@ -6,13 +6,13 @@ from torch import Tensor
 from torch_geometric.nn import MLP, DynamicEdgeConv
 
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import AggrType
 
 if TYPE_CHECKING:
     from torch_scatter import scatter
 
-scatter, _ = optional_import("torch_scatter", "scatter")
+scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class TNet(nn.Module):

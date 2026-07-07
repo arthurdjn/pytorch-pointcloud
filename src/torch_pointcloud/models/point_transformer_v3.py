@@ -25,7 +25,7 @@ from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
 
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     import spconv.pytorch as spconv
 
 
-spconv, _ = optional_import("spconv.pytorch")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 AttentionKind = Literal["default", "rpe", "rope"]
 

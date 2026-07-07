@@ -5,15 +5,15 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_list_size
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import pad_tail
 
 if TYPE_CHECKING:
     import ocnn
     from ocnn.octree import Octree
 
-ocnn, _OCNN_AVAILABLE = optional_import("ocnn")
-Octree, _ = optional_import("ocnn.octree", "Octree")
+ocnn, _OCNN_AVAILABLE = optional_import("ocnn", url=_OCNN_GITHUB_URL)
+Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
 
 # Safely set `Octree` as a dummy object such that the `OctreeT` class is defined
 if not _OCNN_AVAILABLE:

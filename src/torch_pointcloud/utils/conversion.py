@@ -20,15 +20,15 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from spconv.pytorch import SparseConvTensor
 
 
-spconv, _ = optional_import("spconv.pytorch")
-SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=_SPCONV_GITHUB_URL)
 
 
 def is_iterable(value: Any) -> TypeGuard[Iterable[Any]]:

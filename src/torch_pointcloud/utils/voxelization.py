@@ -7,12 +7,12 @@ from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
     from spconv.pytorch.utils import PointToVoxel
 else:
-    PointToVoxel, _ = optional_import("spconv.pytorch.utils", "PointToVoxel")
+    PointToVoxel, _ = optional_import("spconv.pytorch.utils", "PointToVoxel", url=_SPCONV_GITHUB_URL)
 
 
 def dense_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int, reduce: str = "mean") -> Tensor:

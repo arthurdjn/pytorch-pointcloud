@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Literal, Tuple
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from .hilbert import encode as hilbert_encode
@@ -11,7 +11,7 @@ from .hilbert import encode as hilbert_encode
 if TYPE_CHECKING:
     from ocnn.octree import xyz2key as octree_encode
 
-octree_encode, _ = optional_import("ocnn.octree", "xyz2key")
+octree_encode, _ = optional_import("ocnn.octree", "xyz2key", url=_OCNN_GITHUB_URL)
 
 
 MAX_DEPTH = 16

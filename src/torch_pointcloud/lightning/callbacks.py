@@ -2,15 +2,15 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from torch import nn
 
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, _TORCHMETRICS_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
     import lightning.pytorch as L
     from lightning.pytorch import Callback
     from torchmetrics import Metric
 else:
-    Callback, _ = optional_import("lightning.pytorch", "Callback")
-    Metric, _ = optional_import("torchmetrics", "Metric")
+    Callback, _ = optional_import("lightning.pytorch", "Callback", url=_LIGHTNING_GITHUB_URL)
+    Metric, _ = optional_import("torchmetrics", "Metric", url=_TORCHMETRICS_GITHUB_URL)
 
 
 class BNMomentumScheduler(Callback):

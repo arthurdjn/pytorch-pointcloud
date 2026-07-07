@@ -22,7 +22,7 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from spconv.pytorch import SparseConvTensor
 
 
-spconv, _ = optional_import("spconv.pytorch")
-SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor")
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=_SPCONV_GITHUB_URL)
 
 
 def _make_residual_seq(
