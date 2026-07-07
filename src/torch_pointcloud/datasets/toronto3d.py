@@ -18,6 +18,7 @@ from torch import Tensor
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -88,11 +89,11 @@ def load_toronto3d_data(path: PathLike, /, utm_offset: Sequence[float] = TORONTO
     segment = np.ascontiguousarray(v["scalar_Label"]).astype(np.int64)
 
     return {
-        "pos": torch.from_numpy(pos),
-        "color": torch.from_numpy(color),
-        "intensity": torch.from_numpy(intensity),
-        "gps_time": torch.from_numpy(gps_time),
-        "segment": torch.from_numpy(segment),
+        DataKeys.POS: torch.from_numpy(pos),
+        DataKeys.COLOR: torch.from_numpy(color),
+        DataKeys.INTENSITY: torch.from_numpy(intensity),
+        DataKeys.GPS_TIME: torch.from_numpy(gps_time),
+        DataKeys.SEGMENT: torch.from_numpy(segment),
     }
 
 
@@ -130,7 +131,7 @@ class Toronto3D(PointCloudDataset):
 
     data_url: str = "https://github.com/WeikaiTan/Toronto-3D"
 
-    #: Default file groupings — `L002.ply` is the canonical held-out test/val tile.
+    #: Default file groupings: `L002.ply` is the canonical held-out test/val tile.
     files_per_split: Dict[str, Tuple[str, ...]] = {
         "train": ("L001.ply", "L003.ply", "L004.ply"),
         "val": ("L002.ply",),

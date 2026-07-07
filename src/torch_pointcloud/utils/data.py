@@ -34,6 +34,7 @@ class DataKeys(StrEnum):
     SEMANTIC = "semantic"
     INSTANCE = "instance"
     INTENSITY = "intensity"
+    REFLECTANCE = "reflectance"
     CATEGORY = "category"
     LABEL = "label"
     BATCH = "batch"
@@ -46,6 +47,7 @@ class DataKeys(StrEnum):
     BBOX_HEIGHT = "bbox_height"
     FRAME = "frame"
     TIMESTAMP = "timestamp"
+    GPS_TIME = "gps_time"
     TOKEN = "token"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"

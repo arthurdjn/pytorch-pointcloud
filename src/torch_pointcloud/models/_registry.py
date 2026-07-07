@@ -90,6 +90,8 @@ def register_model(
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
 
     def decorator(fn: Callable) -> Callable:
+        if name in _REGISTERED_MODELS[task]:
+            warnings.warn(f"Model {name!r} is already registered for task {task!r}; overwriting the existing entry.")
         _REGISTERED_MODELS[task][name] = {
             "name": name,
             "transforms": transforms,
@@ -215,13 +217,7 @@ def create_model(name: str, task: Task, *, pretrained: bool = False, return_info
 
     weights_data = torch.load(local_path, weights_only=True)
     state_dict = weights_data["state_dict"] if "state_dict" in weights_data else weights_data
-    msg = model.load_state_dict(state_dict, strict=True)
-    if msg.missing_keys or msg.unexpected_keys:
-        warnings.warn(
-            f"Model {name!r} loaded with unexpected.\n"
-            f"Missing keys: {msg.missing_keys}\n"
-            f"Unexpected keys: {msg.unexpected_keys}"
-        )
+    model.load_state_dict(state_dict, strict=True)
 
     if return_info:
         return model, model_info

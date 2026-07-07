@@ -118,7 +118,7 @@ def knn_graph(
             self-edge is excluded from the result.
         batch: The batch tensor of shape $(N,)$.
         loop: Whether to include self-edges.
-        flow: Either `"source_to_target"` (PyG default — `edge_index = (src, dst)`
+        flow: Either `"source_to_target"` (PyG default, `edge_index = (src, dst)`
             where `src` is the neighbor and `dst` is the central point) or `"target_to_source"`.
         cosine: Whether to use cosine distance.
         num_workers: Forwarded to the `torch_cluster` fallback.

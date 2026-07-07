@@ -28,10 +28,11 @@ from torch_pointcloud.utils.imports import _FVDB_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
     from fvdb import ConvolutionPlan, GridBatch, JaggedTensor
+else:
+    ConvolutionPlan, _ = optional_import("fvdb", "ConvolutionPlan", url=_FVDB_GITHUB_URL)
+    GridBatch, _ = optional_import("fvdb", "GridBatch", url=_FVDB_GITHUB_URL)
+    JaggedTensor, _ = optional_import("fvdb", "JaggedTensor", url=_FVDB_GITHUB_URL)
 
-ConvolutionPlan, _ = optional_import("fvdb", "ConvolutionPlan", url=_FVDB_GITHUB_URL)
-GridBatch, _ = optional_import("fvdb", "GridBatch", url=_FVDB_GITHUB_URL)
-JaggedTensor, _ = optional_import("fvdb", "JaggedTensor", url=_FVDB_GITHUB_URL)
 fvnn, _FVDB_AVAILABLE = optional_import("fvdb.nn", url=_FVDB_GITHUB_URL)
 
 

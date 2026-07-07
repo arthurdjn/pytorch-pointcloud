@@ -266,11 +266,11 @@ def rescale(
         eps: Small constant added to the scale denominator for numerical stability.
         method:
 
-            * `"centroid"` — subtract the mean over points, then divide by
+            * `"centroid"`: subtract the mean over points, then divide by
               $\max(\max_i \|\mathbf{x}_i - \mathbf{\mu}\|_2, \epsilon)$ (max Euclidean distance
               from the centroid, clamped from below by `eps`).
 
-            * `"bbox"` — subtract the axis-aligned bounding-box midpoint (midrange center),
+            * `"bbox"`: subtract the axis-aligned bounding-box midpoint (midrange center),
               then divide by half the longest edge of that box plus $\epsilon$ (matches common
               ModelNet-style normalization):
 
@@ -280,7 +280,7 @@ def rescale(
               \mathbf{x} \leftarrow \frac{\mathbf{x} - \mathbf{c}}{r}
               $$
 
-            * `"linear"` — subtract the centroid then divide by the longest axis-aligned
+            * `"linear"`: subtract the centroid then divide by the longest axis-aligned
               span (matches Open3D-ML's `Augmentation.normalize` `linear` method, used
               by the published RandLA-Net Toronto-3D / Semantic3D checkpoints):
 
@@ -847,8 +847,8 @@ def relabel(
 
     `mapping` can be either:
 
-    - a sequence of source values (1:1) — each value at index $i$ is mapped to $i$;
-    - a `dict[int, int]` (general source → target) — supports N-to-1 merges
+    - a sequence of source values (1:1): each value at index $i$ is mapped to $i$;
+    - a `dict[int, int]` (general source → target): supports N-to-1 merges
       (e.g. SemanticKITTI's `moving-car` and `car` both → 0).
 
     Source values not listed in `mapping` are set to `default`.

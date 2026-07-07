@@ -22,6 +22,7 @@ from torch import Tensor
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -63,15 +64,15 @@ def load_semantic3d_data(path_txt: PathLike, /, path_labels: Optional[PathLike] 
     pos = arr[:, 0:3].astype(np.float32, copy=True)
     intensity = arr[:, 3:4].astype(np.float32, copy=True)
     color = arr[:, 4:7].astype(np.uint8, copy=True)
-    data = {
-        "pos": torch.from_numpy(pos),
-        "intensity": torch.from_numpy(intensity),
-        "color": torch.from_numpy(color),
+    data: Dict[str, Tensor] = {
+        DataKeys.POS: torch.from_numpy(pos),
+        DataKeys.INTENSITY: torch.from_numpy(intensity),
+        DataKeys.COLOR: torch.from_numpy(color),
     }
 
     if path_labels is not None and Path(path_labels).exists():
         segment = np.loadtxt(Path(path_labels).as_posix(), dtype=np.int64)
-        data["segment"] = torch.from_numpy(segment)
+        data[DataKeys.SEGMENT] = torch.from_numpy(segment)
 
     return data
 

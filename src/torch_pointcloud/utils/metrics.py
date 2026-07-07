@@ -312,7 +312,7 @@ def _average_precision3d(
 ) -> float:
     """Greedy VOC AP for one class: rank predictions by score, match each to an unused GT box by IoU.
 
-    A prediction that matches no GT but overlaps an ignore region (``scene_ignore``) above the
+    A prediction that matches no GT but overlaps an ignore region (`scene_ignore`) above the
     threshold is dropped (counted as neither a true nor a false positive).
     """
     gt_corners = [corners[labels == label] for corners, labels in scene_gts]

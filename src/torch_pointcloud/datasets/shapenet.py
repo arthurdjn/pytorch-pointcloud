@@ -35,8 +35,8 @@ from .pointcloud import PointCloudDataset
 
 if TYPE_CHECKING:
     from fvdb import GridBatch
-
-GridBatch, _ = optional_import("fvdb", "GridBatch", url=_FVDB_GITHUB_URL)
+else:
+    GridBatch, _ = optional_import("fvdb", "GridBatch", url=_FVDB_GITHUB_URL)
 
 TransformLike = Callable[[Dict[str, Any]], Dict[str, Any]]
 XCubeShapeNetCategory = Literal["Airplane", "Car", "Chair"]
@@ -58,6 +58,8 @@ class _XCubeUnpickler(pickle.Unpickler):
     def find_class(self, module: str, name: str) -> Any:
         if module.startswith("fvdb"):
             return type(name, (_StubState,), {})
+        if module.partition(".")[0] not in ("torch", "numpy", "collections"):
+            raise pickle.UnpicklingError(f"Unpickling {module}.{name} is not allowed in XCube shape files.")
         return super().find_class(module, name)
 
 

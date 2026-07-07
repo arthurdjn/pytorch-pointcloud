@@ -145,7 +145,7 @@ class SonataSegmentation(SegmentationModel):
         Args:
             x: Per-point features of shape $(N, C)$.
             pos_grid: Integer voxel-grid coordinates of shape $(N, 3)$ (used by the
-                encoder for Z-order / Hilbert serialisation — not float positions).
+                encoder for Z-order / Hilbert serialisation, not float positions).
             batch: Per-point batch index of shape $(N,)$.
         """
         x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
@@ -159,8 +159,8 @@ class SonataSegmentation(SegmentationModel):
     weights="hf://torch-pointcloud/sonata/sonata-base.pth",
     transforms=T.Compose(
         [
-            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
-            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
             # Voxelize POS in place so collate's default `batch_from="pos"` produces
@@ -212,8 +212,8 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
     weights="hf://torch-pointcloud/sonata/sonata-lp.scannet20.pth",
     transforms=T.Compose(
         [
-            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
-            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
             T.Voxelize(
