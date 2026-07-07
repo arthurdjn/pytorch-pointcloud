@@ -64,8 +64,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="point-mamba-base.modelnet40",
-        choices=["point-mamba-base.modelnet40"],
+        default="point-mamba-base.modelnet40.dingkang-liang",
+        choices=["point-mamba-base.modelnet40.dingkang-liang"],
     )
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--num-points", type=int, default=1024)

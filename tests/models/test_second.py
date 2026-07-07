@@ -48,7 +48,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_forward_shapes() -> None:
-    model = create_model("second-openpcdet.kitti", task="detection").to(DEVICE).eval()
+    model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, SECONDDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
@@ -68,7 +68,7 @@ def test_second_forward_shapes() -> None:
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_eval_is_deterministic() -> None:
-    model = create_model("second-openpcdet.kitti", task="detection").to(DEVICE).eval()
+    model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, SECONDDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
@@ -80,11 +80,11 @@ def test_second_eval_is_deterministic() -> None:
 
 
 def test_second_registered_variant() -> None:
-    assert "second-openpcdet.kitti" in list_models("second*", task="detection")
+    assert "second.kitti.openpcdet" in list_models("second*", task="detection")
 
 
 def test_second_create_model_hparams() -> None:
-    model = create_model("second-openpcdet.kitti", task="detection")
+    model = create_model("second.kitti.openpcdet", task="detection")
     assert isinstance(model, SECONDDetection)
     assert model.in_channels == 4
     assert model.num_classes == 3
@@ -116,7 +116,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_multihead_forward_shapes() -> None:
-    model = create_model("second-openpcdet-multihead.nuscenes", task="detection").to(DEVICE).eval()
+    model = create_model("second-multihead.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, SECONDMultiHeadDetection)
     data = _make_nuscenes_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 60000)
@@ -133,11 +133,11 @@ def test_second_multihead_forward_shapes() -> None:
 
 
 def test_second_multihead_create_model_hparams() -> None:
-    model = create_model("second-openpcdet-multihead.nuscenes", task="detection")
+    model = create_model("second-multihead.nuscenes.openpcdet", task="detection")
     assert isinstance(model, SECONDMultiHeadDetection)
     assert model.in_channels == 5
     assert model.num_classes == 10
     assert model.grid_size == (1024, 1024, 40)
     assert model.sparse_shape == [41, 1024, 1024]
     assert len(model.head.rpn_heads) == 6
-    assert "second-openpcdet-multihead.nuscenes" in list_models("second*", task="detection")
+    assert "second-multihead.nuscenes.openpcdet" in list_models("second*", task="detection")

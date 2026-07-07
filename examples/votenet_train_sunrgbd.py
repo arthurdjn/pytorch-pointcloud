@@ -38,7 +38,7 @@ def main() -> None:
     args = parse_args()
     L.seed_everything(args.seed)
 
-    model = create_model("votenet-fair-base.sunrgbd", task="detection")
+    model = create_model("votenet.sunrgbd.fair", task="detection")
     assert isinstance(model, VoteNetDetection)
     dataset = SunRGBD(
         root=args.root,
@@ -71,7 +71,7 @@ def main() -> None:
     )
 
     lit_model = LitDetectionModel(
-        name="votenet-fair-base.sunrgbd",
+        name="votenet.sunrgbd.fair",
         optimizer=partial(torch.optim.Adam, lr=args.lr),
         criterion=VoteNetLoss,
     )

@@ -16,7 +16,7 @@ The chair fine VAE ($512^3$) reaches struct acc 1.0000 / 0.9930 / 0.9850 and IoU
 reference on every reported digit.
 
 Usage:
-    uv run --no-sync python examples/xcube_benchmark_shapenet.py --model xcube-vae-coarse-nvidia.shapenet-chair
+    uv run --no-sync python examples/xcube_benchmark_shapenet.py --model xcube-vae-coarse.shapenet-chair.nvidia
 """
 
 from argparse import ArgumentParser, Namespace
@@ -85,7 +85,7 @@ def evaluate(model: XCubeVAE, loader: PointCloudDataLoader, device: str) -> Dict
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="XCube VAE ShapeNet reconstruction benchmark.")
-    parser.add_argument("--model", type=str, default="xcube-vae-coarse-nvidia.shapenet-chair")
+    parser.add_argument("--model", type=str, default="xcube-vae-coarse.shapenet-chair.nvidia")
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Parent directory containing XCubeShapeNet/.")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=4)

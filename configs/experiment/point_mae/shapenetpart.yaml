@@ -4,14 +4,14 @@
 #
 # | model.name                  | ins_mIoU | cls_mIoU |
 # | --------------------------- | -------- | -------- |
-# | point-mae-base.shapenetpart | 0.8593   | 0.8388   |
+# | point-mae-base.shapenetpart.yatian-pang | 0.8593   | 0.8388   |
 defaults:
   - override /datamodule: shapenetpart
   - override /model: segmentation
   - override /callbacks: part_segmentation
 
 model:
-  name: point-mae-base.shapenetpart
+  name: point-mae-base.shapenetpart.yatian-pang
   num_classes: 50
   input_keys: [x, pos, batch, category]
   target_key: segment

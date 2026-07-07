@@ -4,16 +4,16 @@
 #
 # | model.name                                | accuracy |
 # | ----------------------------------------- | -------- |
-# | pointgpt-cguangyan-s.scanobjectnn-objonly | 0.9071   |
-# | pointgpt-cguangyan-b.scanobjectnn-objonly | 0.9518   |
-# | pointgpt-cguangyan-l.scanobjectnn-objonly | 0.9690   |
+# | pointgpt-s.scanobjectnn-objonly.guangyan-chen | 0.9071   |
+# | pointgpt-b.scanobjectnn-objonly.guangyan-chen | 0.9518   |
+# | pointgpt-l.scanobjectnn-objonly.guangyan-chen | 0.9690   |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: pointgpt-cguangyan-s.scanobjectnn-objonly
+  name: pointgpt-s.scanobjectnn-objonly.guangyan-chen
   num_classes: 15
   input_keys: [x, pos, batch]
   criterion:

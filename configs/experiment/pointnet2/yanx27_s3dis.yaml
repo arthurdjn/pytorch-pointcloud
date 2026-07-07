@@ -5,7 +5,7 @@
 #
 # | model.name                   | mIoU   | accuracy |
 # | ---------------------------- | ------ | -------- |
-# | pointnet2-yanx27.s3dis-area5 | 0.3476 | 0.7505   |
+# | pointnet2.s3dis-area5.xu-yan | 0.3476 | 0.7505   |
 #
 # New reference after the registered-transform color fix; script and config paths are identical.
 defaults:
@@ -17,7 +17,7 @@ trainer:
   max_epochs: 100
 
 model:
-  name: pointnet2-yanx27.s3dis-area5
+  name: pointnet2.s3dis-area5.xu-yan
   num_classes: 13
   pretrained: false
   input_keys: [x, pos, batch]

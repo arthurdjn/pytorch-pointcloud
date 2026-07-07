@@ -4,15 +4,15 @@
 #
 # | model.name                   | accuracy |
 # | ---------------------------- | -------- |
-# | point-mae-base.modelnet40    | 0.9283   |
-# | point-mae-base.modelnet40-8k | 0.9335   |
+# | point-mae-base.modelnet40.yatian-pang    | 0.9283   |
+# | point-mae-base.modelnet40-8k.yatian-pang | 0.9335   |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: point-mae-base.modelnet40
+  name: point-mae-base.modelnet40.yatian-pang
   num_classes: 40
   input_keys: [x, pos, batch]
   criterion:

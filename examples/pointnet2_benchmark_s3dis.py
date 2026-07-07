@@ -1,4 +1,4 @@
-"""Evaluate `pointnet2-yanx27.s3dis-area5` on S3DIS Area-5 HDF5 blocks (per-block protocol).
+"""Evaluate `pointnet2.s3dis-area5.xu-yan` on S3DIS Area-5 HDF5 blocks (per-block protocol).
 
 Each pre-tiled $4096$-point block is classified in isolation, so the result is a lower bound on
 what the model can do. For the sliding-window protocol that recovers room-level context, see
@@ -6,7 +6,7 @@ what the model can do. For the sliding-window protocol that recovers room-level 
 
 | Model                          | Paper        | Per-block (here)         | Sliding-window |
 | ------------------------------ | ------------ | ------------------------ | -------------- |
-| `pointnet2-yanx27.s3dis-area5` | 53.5 % mIoU  | 25.4% mIoU / 62.7% OA    | 54.77% mIoU    |
+| `pointnet2.s3dis-area5.xu-yan` | 53.5 % mIoU  | 25.4% mIoU / 62.7% OA    | 54.77% mIoU    |
 
 Usage:
 
@@ -83,7 +83,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark PointNet++ semantic segmentation on S3DIS.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="pointnet2-yanx27.s3dis-area5")
+    parser.add_argument("--model", type=str, default="pointnet2.s3dis-area5.xu-yan")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--download", action="store_true", help="Download S3DIS-HDF5 if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

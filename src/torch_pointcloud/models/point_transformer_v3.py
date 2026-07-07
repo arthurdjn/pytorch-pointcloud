@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
@@ -20,7 +22,7 @@ from torch_pointcloud.layers.serialized_attention import (
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
 from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -1407,10 +1409,17 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
 
 
 @register_model(
-    "ptv3-base.scannet20",
+    "ptv3-base.scannet20.pointcept",
     task="segmentation",
-    weights="hf://torch-pointcloud/ptv3/ptv3-base.scannet20.pth",
-    transforms=_ptv3_seg_transforms(range(1, 21)),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3/ptv3-base.scannet20.pointcept.safetensors",
+        dataset="scannet20",
+        metrics={"mIoU": 76.04},
+        classes=SCANNET20_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(range(1, 21)),
     hparams=_ptv3_seg_hparams(20),
 )
 def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
@@ -1418,10 +1427,15 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
 
 
 @register_model(
-    "ptv3-base.scannet200",
+    "ptv3-base.scannet200.pointcept",
     task="segmentation",
-    weights="hf://torch-pointcloud/ptv3/ptv3-base.scannet200.pth",
-    transforms=_ptv3_seg_transforms(range(1, 201)),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3/ptv3-base.scannet200.pointcept.safetensors",
+        dataset="scannet200",
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(range(1, 201)),
     hparams=_ptv3_seg_hparams(200),
 )
 def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
@@ -1429,10 +1443,16 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
 
 
 @register_model(
-    "ptv3-base.s3dis-area5",
+    "ptv3-base.s3dis-area5.pointcept",
     task="segmentation",
-    weights="hf://torch-pointcloud/ptv3/ptv3-base.s3dis-area5.pth",
-    transforms=_ptv3_seg_transforms(None, estimate_normals=True),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3/ptv3-base.s3dis-area5.pointcept.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(None, estimate_normals=True),
     hparams=_ptv3_seg_hparams(13, attn_kind="rpe", patch_size=128),
 )
 def ptv3_base_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:

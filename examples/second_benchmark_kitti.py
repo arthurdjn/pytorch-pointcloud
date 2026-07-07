@@ -1,4 +1,4 @@
-"""Evaluate `second-openpcdet.kitti` on KITTI with per-class 3D AP.
+"""Evaluate `second.kitti.openpcdet` on KITTI with per-class 3D AP.
 
 `KITTI` -> `RelabelBoxes` -> `PointCloudDataLoader` -> model -> `model.decode` -> `nms3d` -> `average_precision3d`.
 
@@ -77,7 +77,7 @@ def main() -> None:
         split=args.split,
         split_file=args.split_file,
         fov=not args.no_fov,
-        transform=T.Compose([relabel, info["transforms"]]),
+        transform=T.Compose([relabel, info["transform"]]),
     )
     loader = PointCloudDataLoader(
         dataset,
@@ -131,7 +131,7 @@ def evaluate(model: DetectionModel, loader: PointCloudDataLoader, device: str) -
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="SECOND KITTI 3D detection AP benchmark.")
-    parser.add_argument("--model", type=str, default="second-openpcdet.kitti")
+    parser.add_argument("--model", type=str, default="second.kitti.openpcdet")
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Parent directory containing KITTI/.")
     parser.add_argument("--split", type=str, default="training")
     parser.add_argument("--split-file", type=str, default=None, help="Frame-id list (e.g. ImageSets/val.txt).")

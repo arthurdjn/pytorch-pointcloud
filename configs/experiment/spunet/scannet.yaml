@@ -5,7 +5,7 @@
 #
 # | model.name            | mIoU   |
 # | --------------------- | ------ |
-# | spunet-v1m1.scannet20 | 0.7002 |
+# | spunet-v1m1.scannet20.pointcept | 0.7002 |
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
@@ -17,7 +17,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: spunet-v1m1.scannet20
+  name: spunet-v1m1.scannet20.pointcept
   pretrained: false
   num_classes: 20
   input_keys: [x, pos, batch]

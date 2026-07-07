@@ -5,8 +5,8 @@
 #
 # | model.name                | accuracy |
 # | ------------------------- | -------- |
-# | pointmlp-base.modelnet40  | 0.9352   |
-# | pointmlp-elite.modelnet40 | 0.9246   |
+# | pointmlp-base.modelnet40.xu-ma  | 0.9352   |
+# | pointmlp-elite.modelnet40.xu-ma | 0.9246   |
 # (exact at precision=32-true datamodule.batch_size=16)
 defaults:
   - override /datamodule: modelnet40_normal_resampled
@@ -17,7 +17,7 @@ trainer:
   max_epochs: 200
 
 model:
-  name: pointmlp-base.modelnet40
+  name: pointmlp-base.modelnet40.xu-ma
   num_classes: 40
   pretrained: false
   input_keys: [x, pos, batch]

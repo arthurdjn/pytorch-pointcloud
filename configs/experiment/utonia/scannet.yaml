@@ -5,7 +5,7 @@
 #
 # | model.name          | mIoU   | accuracy |
 # | ------------------- | ------ | -------- |
-# | utonia-lp.scannet20 | 0.7111 | 0.8904   |
+# | utonia-lp.scannet20.pointcept | 0.7111 | 0.8904   |
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
@@ -17,7 +17,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: utonia-lp.scannet20
+  name: utonia-lp.scannet20.pointcept
   num_classes: 20
   pretrained: false
   input_keys: [x, pos, pos_grid, batch]

@@ -8,7 +8,7 @@ Results vs reference (ScanObjectNN hardest-variant overall accuracy; the model-z
 
     | Variant                   | reference | torch-pointcloud |
     | ------------------------- | --------- | ---------------- |
-    | pointnext-sm.scanobjectnn | 88.20     | 87.51            |
+    | pointnext-sm.scanobjectnn.openpoints | 88.20     | 87.51            |
 
 Usage:
     uv run --no-sync python examples/pointnext_benchmark_scanobjectnn.py --download
@@ -38,7 +38,7 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointnext-sm.scanobjectnn",
+    "pointnext-sm.scanobjectnn.openpoints",
 ]
 
 
@@ -93,7 +93,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointnext-sm.scanobjectnn",
+        default="pointnext-sm.scanobjectnn.openpoints",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")

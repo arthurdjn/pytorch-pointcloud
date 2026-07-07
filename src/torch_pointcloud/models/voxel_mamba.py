@@ -781,12 +781,12 @@ def _transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
 
 
 @register_model(
-    "voxel-mamba-gwenzhang.waymo",
+    "voxel-mamba.waymo",
     task="detection",
     # No public trained weights for Voxel Mamba: the Waymo checkpoint is license-gated and the nuScenes
     # model was never released, so the architecture is registered without pretrained weights.
     weights=None,
-    transforms=T.Compose([T.Cat(keys=[DataKeys.INTENSITY, "elongation"], dst_key=DataKeys.X, dim=1)]),
+    transform=T.Compose([T.Cat(keys=[DataKeys.INTENSITY, "elongation"], dst_key=DataKeys.X, dim=1)]),
     hparams=dict(
         in_channels=5,
         num_classes=3,

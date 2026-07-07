@@ -551,7 +551,7 @@ class SphereFormerSegmentation(SegmentationModel):
     Example:
         >>> import torch
         >>> from torch_pointcloud.models import create_model
-        >>> model = create_model("sphereformer-dvlab.semantickitti", task="segmentation").eval()  # doctest: +SKIP
+        >>> model = create_model("sphereformer.semantickitti", task="segmentation").eval()  # doctest: +SKIP
         >>> pos = torch.rand(1000, 3) * 10  # doctest: +SKIP
         >>> pos_grid = (pos / 0.05).floor().long()  # doctest: +SKIP
         >>> x = torch.cat([pos, torch.rand(1000, 1)], dim=1)  # doctest: +SKIP
@@ -666,12 +666,12 @@ class SphereFormerSegmentation(SegmentationModel):
 
 
 @register_model(
-    "sphereformer-dvlab.semantickitti",
+    "sphereformer.semantickitti",
     task="segmentation",
     # The original pretrained weights are no longer downloadable (the authors' CUHK OneDrive links are dead,
     # see dvlab-research/SphereFormer issue #78), so the architecture is registered without pretrained weights.
     weights=None,
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Relabel(
                 keys=DataKeys.SEGMENT,
@@ -738,10 +738,10 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
 
 
 @register_model(
-    "sphereformer-dvlab.nuscenes",
+    "sphereformer.nuscenes",
     task="segmentation",
     weights=None,
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Relabel(
                 keys=DataKeys.SEGMENT,

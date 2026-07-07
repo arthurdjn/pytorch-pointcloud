@@ -5,7 +5,7 @@
 #
 # | model.name                | accuracy |
 # | ------------------------- | -------- |
-# | octformer-base.modelnet40 | 0.8902   |
+# | octformer-base.modelnet40.octree-nn | 0.8902   |
 defaults:
   - override /datamodule: modelnet40
   - override /model: classification
@@ -17,7 +17,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: octformer-base.modelnet40
+  name: octformer-base.modelnet40.octree-nn
   num_classes: 40
   pretrained: false
   input_keys: [x, octree, octree.depth]

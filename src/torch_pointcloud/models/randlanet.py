@@ -20,6 +20,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
@@ -31,7 +32,7 @@ from torch_pointcloud.utils.ops import decimate_indices, softmax
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     from torch_scatter import scatter_add, scatter_max
@@ -824,10 +825,16 @@ class RandLANetSegmentation(SegmentationModel):
 
 
 @register_model(
-    "randlanet-tsunghanwu.semantickitti",
+    "randlanet.semantickitti.tsung-han-wu",
     task="segmentation",
-    weights="hf://torch-pointcloud/randlanet/randlanet-tsunghanwu.semantickitti.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet/randlanet.semantickitti.tsung-han-wu.safetensors",
+        dataset="semantickitti",
+        classes=SEMANTIC_KITTI_CLASSES,
+        author="tsung-han-wu",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.Relabel(
                 keys=DataKeys.SEGMENT,

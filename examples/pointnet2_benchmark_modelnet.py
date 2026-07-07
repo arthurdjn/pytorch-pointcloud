@@ -2,8 +2,8 @@
 
 Two registered variants:
 
-    `pointnet2-yanx27-ssg.modelnet40`   single-scale grouping (no normals)
-    `pointnet2-yanx27-msg.modelnet40`   multi-scale grouping (with normals)
+    `pointnet2-ssg.modelnet40.xu-yan`   single-scale grouping (no normals)
+    `pointnet2-msg.modelnet40.xu-yan`   multi-scale grouping (with normals)
 
 Both use the upstream pre-transform: FPS to 1024 points + center-and-rescale to the unit sphere.
 
@@ -11,13 +11,13 @@ Reproduced performance on ModelNet40 test split (seed=42, batch_size=32):
 
 | Model                             | Upstream (yanx27 README) | torch-pointcloud        |
 | --------------------------------- | ------------------------ | ----------------------- |
-| `pointnet2-yanx27-ssg.modelnet40` | 92.0% OA                 | 92.30% OA / 88.23% mAcc |
-| `pointnet2-yanx27-msg.modelnet40` | 92.8% OA                 | 92.67% OA / 90.60% mAcc |
+| `pointnet2-ssg.modelnet40.xu-yan` | 92.0% OA                 | 92.30% OA / 88.23% mAcc |
+| `pointnet2-msg.modelnet40.xu-yan` | 92.8% OA                 | 92.67% OA / 90.60% mAcc |
 
 Usage:
 
     uv run --no-sync python examples/pointnet2_benchmark_modelnet.py
-    uv run --no-sync python examples/pointnet2_benchmark_modelnet.py --model pointnet2-yanx27-msg.modelnet40
+    uv run --no-sync python examples/pointnet2_benchmark_modelnet.py --model pointnet2-msg.modelnet40.xu-yan
 """
 
 import os
@@ -93,11 +93,11 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointnet2-yanx27-ssg.modelnet40",
+        default="pointnet2-ssg.modelnet40.xu-yan",
         choices=[
-            "pointnet2-yanx27-ssg.modelnet40",
-            "pointnet2-yanx27-msg.modelnet40",
-            "pointnet2-openpoints.modelnet40",
+            "pointnet2-ssg.modelnet40.xu-yan",
+            "pointnet2-msg.modelnet40.xu-yan",
+            "pointnet2.modelnet40.openpoints",
         ],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")

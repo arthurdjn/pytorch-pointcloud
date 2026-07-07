@@ -4,14 +4,14 @@
 #
 # | model.name                         | accuracy |
 # | ---------------------------------- | -------- |
-# | point-m2ae-base.scanobjectnn-objbg | 0.9122   |
+# | point-m2ae-base.scanobjectnn-objbg.renrui-zhang | 0.9122   |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: point-m2ae-base.scanobjectnn-objbg
+  name: point-m2ae-base.scanobjectnn-objbg.renrui-zhang
   num_classes: 15
   input_keys: [x, pos, batch]
   criterion:

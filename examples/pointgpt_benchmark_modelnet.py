@@ -8,17 +8,17 @@ Results vs reference (ModelNet40 overall accuracy, single-pass; the paper uses m
 
     | Variant                            | paper | torch-pointcloud |
     | ---------------------------------- | ----- | ---------------- |
-    | pointgpt-cguangyan-s.modelnet40    | 94.0  | 93.31            |
-    | pointgpt-cguangyan-b.modelnet40    | 94.4  | 94.37            |
-    | pointgpt-cguangyan-l.modelnet40    | 94.7  | 93.88            |
-    | pointgpt-cguangyan-s.modelnet40-8k | 94.2  | 93.76            |
+    | pointgpt-s.modelnet40.guangyan-chen    | 94.0  | 93.31            |
+    | pointgpt-b.modelnet40.guangyan-chen    | 94.4  | 94.37            |
+    | pointgpt-l.modelnet40.guangyan-chen    | 94.7  | 93.88            |
+    | pointgpt-s.modelnet40-8k.guangyan-chen | 94.2  | 93.76            |
 
 The S/L gap (~0.7) is the FPS-tokenizer residual (reference CUDA FPS vs torch_cluster FPS resample a
 different subset) plus the paper's voting; B matches to 0.03 and the logits are bit-exact, so this is
 sampling variance, not an architecture difference.
 
 Usage:
-    uv run --no-sync python examples/pointgpt_benchmark_modelnet.py --model pointgpt-cguangyan-b.modelnet40
+    uv run --no-sync python examples/pointgpt_benchmark_modelnet.py --model pointgpt-b.modelnet40.guangyan-chen
 """
 
 import os
@@ -46,12 +46,12 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointgpt-cguangyan-s.modelnet40",
-    "pointgpt-cguangyan-s.modelnet40-8k",
-    "pointgpt-cguangyan-b.modelnet40",
-    "pointgpt-cguangyan-b.modelnet40-8k",
-    "pointgpt-cguangyan-l.modelnet40",
-    "pointgpt-cguangyan-l.modelnet40-8k",
+    "pointgpt-s.modelnet40.guangyan-chen",
+    "pointgpt-s.modelnet40-8k.guangyan-chen",
+    "pointgpt-b.modelnet40.guangyan-chen",
+    "pointgpt-b.modelnet40-8k.guangyan-chen",
+    "pointgpt-l.modelnet40.guangyan-chen",
+    "pointgpt-l.modelnet40-8k.guangyan-chen",
 ]
 
 
@@ -101,7 +101,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark PointGPT classification on ModelNet40 (normal-resampled).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="pointgpt-cguangyan-s.modelnet40", choices=MODEL_CHOICES)
+    parser.add_argument("--model", type=str, default="pointgpt-s.modelnet40.guangyan-chen", choices=MODEL_CHOICES)
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

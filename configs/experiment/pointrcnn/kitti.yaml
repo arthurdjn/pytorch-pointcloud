@@ -12,7 +12,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: pointrcnn-openpcdet.kitti
+  name: pointrcnn.kitti.openpcdet
   input_keys: [x, pos, batch]
   # The script runs class-agnostic NMS; the per-class NMS here keeps overlapping boxes of different classes.
   score_threshold: 0.1

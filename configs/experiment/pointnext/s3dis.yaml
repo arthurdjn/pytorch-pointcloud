@@ -5,10 +5,10 @@
 #
 # | model.name                 | mIoU   | accuracy |
 # | -------------------------- | ------ | -------- |
-# | pointnext-sm.s3dis-area5   | 0.6301 | 0.8710   |
-# | pointnext-base.s3dis-area5 | -      | -        |
-# | pointnext-lg.s3dis-area5   | -      | -        |
-# | pointnext-xl.s3dis-area5   | -      | -        |
+# | pointnext-sm.s3dis-area5.openpoints   | 0.6301 | 0.8710   |
+# | pointnext-base.s3dis-area5.openpoints | -      | -        |
+# | pointnext-lg.s3dis-area5.openpoints   | -      | -        |
+# | pointnext-xl.s3dis-area5.openpoints   | -      | -        |
 #
 # pointnext-sm: new deterministic-FPS reference; script and config paths are identical.
 defaults:
@@ -20,7 +20,7 @@ trainer:
   max_epochs: 100
 
 model:
-  name: pointnext-xl.s3dis-area5
+  name: pointnext-xl.s3dis-area5.openpoints
   num_classes: 13
   pretrained: false
   input_keys: [x, pos, batch]

@@ -18,6 +18,8 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.utils.cluster import fps, local_grid
@@ -27,7 +29,7 @@ from torch_pointcloud.utils.serialization import SerializationOrder, serialize_c
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     from mamba_ssm import Mamba
@@ -842,10 +844,17 @@ class PointMambaMAE(BaseModel):
 
 
 @register_model(
-    "point-mamba-base.modelnet40",
+    "point-mamba-base.modelnet40.dingkang-liang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.modelnet40.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mamba/point-mamba-base.modelnet40.dingkang-liang.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 93.64},
+        classes=MODELNET40_CLASSES,
+        author="dingkang-liang",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.Rescale(keys="pos"),
             T.FarthestPointSample(pos_key="pos", num_samples=1024, random_start=False),
@@ -880,10 +889,16 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
 
 
 @register_model(
-    "point-mamba-base.scanobjectnn",
+    "point-mamba-base.scanobjectnn.dingkang-liang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn.dingkang-liang.safetensors",
+        dataset="scanobjectnn",
+        classes=SCANOBJECTNN_CLASSES,
+        author="dingkang-liang",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
             T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False),
@@ -918,10 +933,16 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
 
 
 @register_model(
-    "point-mamba-base.scanobjectnn-nobg",
+    "point-mamba-base.scanobjectnn-nobg.dingkang-liang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-nobg.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-nobg.dingkang-liang.safetensors",
+        dataset="scanobjectnn-nobg",
+        classes=SCANOBJECTNN_CLASSES,
+        author="dingkang-liang",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
             T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False),
@@ -956,10 +977,17 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
 
 
 @register_model(
-    "point-mamba-base.scanobjectnn-augmentedrot-scale75",
+    "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-augmentedrot-scale75.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang.safetensors",
+        dataset="scanobjectnn-augmentedrot-scale75",
+        metrics={"OA": 89.28},
+        classes=SCANOBJECTNN_CLASSES,
+        author="dingkang-liang",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.RemoveNearOrigin(pos_key="pos", radius=RADIUS),
             T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False),
@@ -994,9 +1022,14 @@ def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> Poi
 
 
 @register_model(
-    "point-mamba-base.pretrain",
+    "point-mamba-base.pretrain.dingkang-liang",
     task="base",
-    weights="hf://torch-pointcloud/point-mamba/point-mamba-base.pretrain.pth",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mamba/point-mamba-base.pretrain.dingkang-liang.safetensors",
+        dataset="shapenet55",
+        author="dingkang-liang",
+        license="Apache-2.0",
+    ),
     hparams=dict(
         in_channels=0,
         embedding_dim=384,

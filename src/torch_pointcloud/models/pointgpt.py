@@ -6,12 +6,14 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import AdaptivePoolLike, PointPatchEmbed, create_adaptive_pool
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 def morton_sort(center: Tensor) -> Tensor:
@@ -717,62 +719,86 @@ def _pretrain_hparams(size: str) -> Dict[str, Any]:
     )
 
 
+_OA: Dict[str, Dict[str, float]] = {
+    "modelnet40": {"s": 93.31, "b": 94.37, "l": 93.88},
+    "modelnet40-8k": {"s": 93.76},
+    "scanobjectnn-hardest": {"s": 86.95, "b": 91.92, "l": 93.75},
+    "scanobjectnn-objbg": {"s": 91.57, "b": 97.07, "l": 98.45},
+    "scanobjectnn-objonly": {"s": 90.71, "b": 95.18, "l": 96.9},
+}
+
+
+def _weights(size: str, checkpoint: str, dataset: str, classes: Optional[Sequence[str]] = None) -> WeightsDict:
+    weights = WeightsDict(
+        url=f"hf://torch-pointcloud/pointgpt/pointgpt-{size}.{checkpoint}.guangyan-chen.safetensors",
+        dataset=dataset,
+        author="guangyan-chen",
+        license="MIT",
+    )
+    score = _OA.get(checkpoint, {}).get(size)
+    if score is not None:
+        weights["metrics"] = {"OA": score}
+    if classes is not None:
+        weights["classes"] = classes
+    return weights
+
+
 for _size in ("s", "b", "l"):
 
     @register_model(
-        f"pointgpt-cguangyan-{_size}.modelnet40",
+        f"pointgpt-{_size}.modelnet40.guangyan-chen",
         task="classification",
-        weights=f"hf://torch-pointcloud/pointgpt/pointgpt-cguangyan-{_size}.modelnet40.pt",
-        transforms=_modelnet_transforms(1024),
+        weights=_weights(_size, "modelnet40", dataset="modelnet40", classes=MODELNET40_CLASSES),
+        transform=_modelnet_transforms(1024),
         hparams=_cls_hparams(_size, 40, num_group=64),
     )
     def _pointgpt_modelnet40(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
 
     @register_model(
-        f"pointgpt-cguangyan-{_size}.modelnet40-8k",
+        f"pointgpt-{_size}.modelnet40-8k.guangyan-chen",
         task="classification",
-        weights=f"hf://torch-pointcloud/pointgpt/pointgpt-cguangyan-{_size}.modelnet40-8k.pt",
-        transforms=_modelnet_transforms(8192),
+        weights=_weights(_size, "modelnet40-8k", dataset="modelnet40", classes=MODELNET40_CLASSES),
+        transform=_modelnet_transforms(8192),
         hparams=_cls_hparams(_size, 40, num_group=512),
     )
     def _pointgpt_modelnet40_8k(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
 
     @register_model(
-        f"pointgpt-cguangyan-{_size}.scanobjectnn-hardest",
+        f"pointgpt-{_size}.scanobjectnn-hardest.guangyan-chen",
         task="classification",
-        weights=f"hf://torch-pointcloud/pointgpt/pointgpt-cguangyan-{_size}.scanobjectnn-hardest.pt",
-        transforms=_scanobjectnn_transforms(),
+        weights=_weights(_size, "scanobjectnn-hardest", dataset="scanobjectnn-hardest", classes=SCANOBJECTNN_CLASSES),
+        transform=_scanobjectnn_transforms(),
         hparams=_cls_hparams(_size, 15, num_group=128),
     )
     def _pointgpt_scanobjectnn_hardest(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
 
     @register_model(
-        f"pointgpt-cguangyan-{_size}.scanobjectnn-objbg",
+        f"pointgpt-{_size}.scanobjectnn-objbg.guangyan-chen",
         task="classification",
-        weights=f"hf://torch-pointcloud/pointgpt/pointgpt-cguangyan-{_size}.scanobjectnn-objbg.pt",
-        transforms=_scanobjectnn_transforms(),
+        weights=_weights(_size, "scanobjectnn-objbg", dataset="scanobjectnn-objbg", classes=SCANOBJECTNN_CLASSES),
+        transform=_scanobjectnn_transforms(),
         hparams=_cls_hparams(_size, 15, num_group=128),
     )
     def _pointgpt_scanobjectnn_objbg(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
 
     @register_model(
-        f"pointgpt-cguangyan-{_size}.scanobjectnn-objonly",
+        f"pointgpt-{_size}.scanobjectnn-objonly.guangyan-chen",
         task="classification",
-        weights=f"hf://torch-pointcloud/pointgpt/pointgpt-cguangyan-{_size}.scanobjectnn-objonly.pt",
-        transforms=_scanobjectnn_transforms(),
+        weights=_weights(_size, "scanobjectnn-objonly", dataset="scanobjectnn-objonly", classes=SCANOBJECTNN_CLASSES),
+        transform=_scanobjectnn_transforms(),
         hparams=_cls_hparams(_size, 15, num_group=128),
     )
     def _pointgpt_scanobjectnn_objonly(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
 
     @register_model(
-        f"pointgpt-cguangyan-{_size}.pretrain",
+        f"pointgpt-{_size}.pretrain.guangyan-chen",
         task="base",
-        weights=f"hf://torch-pointcloud/pointgpt/pointgpt-cguangyan-{_size}.pretrain.pt",
+        weights=_weights(_size, "pretrain", dataset="shapenet55"),
         hparams=_pretrain_hparams(_size),
     )
     def _pointgpt_pretrain(_size: str = _size, **kwargs: Any) -> PointGPTGenerativePretraining:

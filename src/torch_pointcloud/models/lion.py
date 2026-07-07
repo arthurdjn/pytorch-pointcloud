@@ -10,6 +10,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.data import DataKeys
@@ -17,7 +18,7 @@ from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -1218,10 +1219,16 @@ class LIONDetection(DetectionModel):
 
 
 @register_model(
-    "lion-mamba-happinesslz.nuscenes",
+    "lion-mamba.nuscenes.zhe-liu",
     task="detection",
-    weights="hf://torch-pointcloud/lion/lion-mamba-happinesslz.nuscenes.pt",
-    transforms=T.Compose([T.Cat(keys=[DataKeys.INTENSITY, DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1)]),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/lion/lion-mamba.nuscenes.zhe-liu.safetensors",
+        dataset="nuscenes",
+        classes=NUSCENES_DETECTION_CLASSES,
+        author="zhe-liu",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose([T.Cat(keys=[DataKeys.INTENSITY, DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1)]),
     hparams=dict(
         in_channels=5,
         num_classes=10,

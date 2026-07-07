@@ -7,7 +7,7 @@ Follows the upstream evaluation protocol:
 
 | Model                             | Paper        | This script                                 |
 | --------------------------------- | ------------ | ------------------------------------------- |
-| `pvcnn-mit-han-lab.s3dis-area5`   | 56.64 % mIoU | 57.51 % mIoU / 86.63 % OA (seed=42, 1 vote) |
+| `pvcnn.s3dis-area5.mit-han-lab`   | 56.64 % mIoU | 57.51 % mIoU / 86.63 % OA (seed=42, 1 vote) |
 
 Usage:
 
@@ -129,7 +129,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="mit-han-lab PVCNN S3DIS Area-5 reproduction (sliding-window).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR)
-    parser.add_argument("--model", type=str, default="pvcnn-mit-han-lab.s3dis-area5")
+    parser.add_argument("--model", type=str, default="pvcnn.s3dis-area5.mit-han-lab")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--block-size", type=float, default=1.5)
     parser.add_argument("--stride", type=float, default=0.75)

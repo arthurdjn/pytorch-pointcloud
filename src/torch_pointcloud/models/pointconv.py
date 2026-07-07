@@ -6,6 +6,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.layers import (
     FPS,
     PointConvDensityGlobalSetAbstraction,
@@ -17,7 +18,7 @@ from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
 
 from ._base import ClassificationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PointConvIntermediate(NamedTuple):
@@ -259,10 +260,16 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
 
 
 @register_model(
-    "pointconv-density-base.modelnet40",
+    "pointconv-density-base.modelnet40.wenxuan-wu",
     task="classification",
-    weights="hf://torch-pointcloud/pointconv/pointconv-density-base.modelnet40.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointconv/pointconv-density-base.modelnet40.wenxuan-wu.safetensors",
+        dataset="modelnet40",
+        classes=MODELNET40_CLASSES,
+        author="wenxuan-wu",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS),
             T.FarthestPointSample(

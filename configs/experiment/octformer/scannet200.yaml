@@ -5,7 +5,7 @@
 #
 # | model.name                | mIoU   |
 # | ------------------------- | ------ |
-# | octformer-base.scannet200 | 0.3171 |
+# | octformer-base.scannet200.octree-nn | 0.3171 |
 defaults:
   - override /datamodule: scannet200
   - override /model: segmentation
@@ -17,7 +17,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: octformer-base.scannet200
+  name: octformer-base.scannet200.octree-nn
   num_classes: 201
   pretrained: false
   input_keys: [x, octree, octree.depth, pos, batch]

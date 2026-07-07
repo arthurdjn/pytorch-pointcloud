@@ -1,4 +1,4 @@
-"""Evaluate `lion-mamba-happinesslz.nuscenes` on nuScenes mini with 3D mAP.
+"""Evaluate `lion-mamba.nuscenes.zhe-liu` on nuScenes mini with 3D mAP.
 
 | Source             | nuScenes val                                                   |
 | ------------------ | -------------------------------------------------------------- |
@@ -45,7 +45,7 @@ def main() -> None:
         root=args.root,
         version=args.version,
         max_sweeps=args.max_sweeps,
-        transform=info["transforms"],
+        transform=info["transform"],
     )
     loader = PointCloudDataLoader(
         dataset,
@@ -110,7 +110,7 @@ def evaluate(
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="LION nuScenes 3D detection mAP benchmark.")
-    parser.add_argument("--model", type=str, default="lion-mamba-happinesslz.nuscenes")
+    parser.add_argument("--model", type=str, default="lion-mamba.nuscenes.zhe-liu")
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Parent directory containing NuScenesMini/.")
     parser.add_argument("--version", type=str, default="v1.0-mini")
     parser.add_argument("--max-sweeps", type=int, default=10)

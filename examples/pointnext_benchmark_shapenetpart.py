@@ -7,15 +7,15 @@ Results vs reference (instance mIoU / class mIoU; reference is the model-zoo che
 
     | Variant                        | reference   | torch-pointcloud |
     | ------------------------------ | ----------- | ---------------- |
-    | pointnext-sm.shapenetpart      | 86.7 / 84.2 | 85.94 / 83.62    |
-    | pointnext-sm-c64.shapenetpart  | 86.9 / 85.2 | 85.79 / 84.26    |
-    | pointnext-sm-c160.shapenetpart | 87.1 / 85.4 | 86.24 / 84.58    |
+    | pointnext-sm.shapenetpart.openpoints      | 86.7 / 84.2 | 85.94 / 83.62    |
+    | pointnext-sm-c64.shapenetpart.openpoints  | 86.9 / 85.2 | 85.79 / 84.26    |
+    | pointnext-sm-c160.shapenetpart.openpoints | 87.1 / 85.4 | 86.24 / 84.58    |
 
 The model-zoo numbers use 10-vote logit averaging plus kNN part refinement; this script runs a single
 deterministic pass with global argmax.
 
 Usage:
-    uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm.shapenetpart
+    uv run --no-sync python examples/pointnext_benchmark_shapenetpart.py --model pointnext-sm.shapenetpart.openpoints
 """
 
 import os
@@ -45,9 +45,9 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointnext-sm.shapenetpart",
-    "pointnext-sm-c64.shapenetpart",
-    "pointnext-sm-c160.shapenetpart",
+    "pointnext-sm.shapenetpart.openpoints",
+    "pointnext-sm-c64.shapenetpart.openpoints",
+    "pointnext-sm-c160.shapenetpart.openpoints",
 ]
 
 
@@ -98,7 +98,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointnext-sm.shapenetpart",
+        default="pointnext-sm.shapenetpart.openpoints",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

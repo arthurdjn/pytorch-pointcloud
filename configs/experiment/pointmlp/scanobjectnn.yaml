@@ -5,8 +5,8 @@
 #
 # | model.name                  | accuracy |
 # | --------------------------- | -------- |
-# | pointmlp-base.scanobjectnn  | 0.7724   |
-# | pointmlp-elite.scanobjectnn | 0.7533   |
+# | pointmlp-base.scanobjectnn.xu-ma  | 0.7724   |
+# | pointmlp-elite.scanobjectnn.xu-ma | 0.7533   |
 # (exact at precision=32-true datamodule.batch_size=16)
 defaults:
   - override /datamodule: scanobjectnn
@@ -17,7 +17,7 @@ trainer:
   max_epochs: 250
 
 model:
-  name: pointmlp-base.scanobjectnn
+  name: pointmlp-base.scanobjectnn.xu-ma
   num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]

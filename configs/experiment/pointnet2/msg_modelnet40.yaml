@@ -5,7 +5,7 @@
 #
 # | model.name                      | accuracy |
 # | ------------------------------- | -------- |
-# | pointnet2-yanx27-msg.modelnet40 | 0.9267   |
+# | pointnet2-msg.modelnet40.xu-yan | 0.9267   |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 200
 
 model:
-  name: pointnet2-yanx27-msg.modelnet40
+  name: pointnet2-msg.modelnet40.xu-yan
   num_classes: 40
   pretrained: false
   input_keys: [normal, pos, batch]

@@ -7,11 +7,11 @@ Results vs reference (ScanObjectNN overall accuracy, paper Tab. 3):
 
     | Variant                              | reference | torch-pointcloud |
     | ------------------------------------ | --------- | ---------------- |
-    | point-m2ae-base.scanobjectnn-objbg   | 91.22     | 91.22            |
-    | point-m2ae-base.scanobjectnn-hardest | 86.43     | 86.54            |
+    | point-m2ae-base.scanobjectnn-objbg.renrui-zhang   | 91.22     | 91.22            |
+    | point-m2ae-base.scanobjectnn-hardest.renrui-zhang | 86.43     | 86.54            |
 
 Usage:
-    uv run --no-sync python examples/point_m2ae_benchmark_scanobjectnn.py --model point-m2ae-base.scanobjectnn-objbg
+    uv run --no-sync python examples/point_m2ae_benchmark_scanobjectnn.py --model point-m2ae-base.scanobjectnn-objbg.renrui-zhang
 """
 
 import os
@@ -39,17 +39,17 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "point-m2ae-base.scanobjectnn-objbg",
-    "point-m2ae-base.scanobjectnn-hardest",
+    "point-m2ae-base.scanobjectnn-objbg.renrui-zhang",
+    "point-m2ae-base.scanobjectnn-hardest.renrui-zhang",
 ]
 
 DATASET_CONFIG = {
-    "point-m2ae-base.scanobjectnn-objbg": dict(
+    "point-m2ae-base.scanobjectnn-objbg.renrui-zhang": dict(
         split="main",
         background=True,
         variant=None,
     ),
-    "point-m2ae-base.scanobjectnn-hardest": dict(
+    "point-m2ae-base.scanobjectnn-hardest.renrui-zhang": dict(
         split="main",
         background=True,
         variant="augmentedrot_scale75",
@@ -109,7 +109,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="point-m2ae-base.scanobjectnn-objbg",
+        default="point-m2ae-base.scanobjectnn-objbg.renrui-zhang",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")

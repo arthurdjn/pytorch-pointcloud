@@ -4,7 +4,7 @@
 #
 # | model.name                   | AP/Car | AP/Pedestrian | AP/Cyclist | mAP    |
 # | ---------------------------- | ------ | ------------- | ---------- | ------ |
-# | pointpillars-openpcdet.kitti | 0.7796 | 0.5027        | 0.6052     | 0.6292 |
+# | pointpillars.kitti.openpcdet | 0.7796 | 0.5027        | 0.6052     | 0.6292 |
 defaults:
   - override /datamodule: kitti
   - override /model: detection
@@ -15,7 +15,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: pointpillars-openpcdet.kitti
+  name: pointpillars.kitti.openpcdet
   input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
   score_threshold: 0.1
   nms_iou: 0.01

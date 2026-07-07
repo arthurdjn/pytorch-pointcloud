@@ -7,6 +7,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
@@ -15,7 +16,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PVConvBlock(nn.Module):
@@ -378,9 +379,15 @@ class PVCNNSegmentation(SegmentationModel):
 
 
 @register_model(
-    "pvcnn-mit-han-lab.s3dis-area5",
+    "pvcnn.s3dis-area5.mit-han-lab",
     task="segmentation",
-    weights="hf://torch-pointcloud/pvcnn/pvcnn-mit-han-lab.s3dis-area5.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn/pvcnn.s3dis-area5.mit-han-lab.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="mit-han-lab",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=9,
         num_classes=13,
@@ -395,7 +402,7 @@ class PVCNNSegmentation(SegmentationModel):
         head_dropout=0.3,
         act="relu",
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
         ]

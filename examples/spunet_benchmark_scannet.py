@@ -9,7 +9,7 @@ Results (ScanNet val, full resolution, single pass):
 
     | Variant               | reference | torch-pointcloud |
     | --------------------- | --------- | ---------------- |
-    | spunet-v1m1.scannet20 | 75.67     | 70.02            |
+    | spunet-v1m1.scannet20.pointcept | 75.67     | 70.02            |
 
 The reference is the checkpoint's 2023 training log (75.5 in the MSC paper). On currently processed
 ScanNet data the same checkpoint scores 71.81 in Pointcept's own pipeline, whose test protocol also
@@ -105,7 +105,7 @@ def evaluate(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SpUNet semantic segmentation on ScanNet.")
-    parser.add_argument("--model", default="spunet-v1m1.scannet20", help="Registered segmentation model name")
+    parser.add_argument("--model", default="spunet-v1m1.scannet20.pointcept", help="Registered segmentation model name")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])

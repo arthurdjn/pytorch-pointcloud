@@ -5,7 +5,7 @@
 #
 # | model.name                | accuracy |
 # | ------------------------- | -------- |
-# | pointnext-sm.scanobjectnn | 0.8751   |
+# | pointnext-sm.scanobjectnn.openpoints | 0.8751   |
 # (exact at precision=32-true datamodule.batch_size=16)
 defaults:
   - override /datamodule: scanobjectnn
@@ -16,7 +16,7 @@ trainer:
   max_epochs: 250
 
 model:
-  name: pointnext-sm.scanobjectnn
+  name: pointnext-sm.scanobjectnn.openpoints
   num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]
