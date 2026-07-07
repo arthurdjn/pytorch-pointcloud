@@ -10,6 +10,22 @@ name = "torch-pointcloud"
 version = "0.1.0"
 description = "PyTorch Point Cloud models, scripts, pretrained weights and more"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Arthur Dujardin", email = "arthurdujardin.dev@gmail.com" }]
+keywords = ["pytorch", "point cloud", "3d", "deep learning", "segmentation", "detection", "pretrained models"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 requires-python = ">=3.10"
 dependencies = [
     "h5py>=3.15.1",
@@ -24,6 +40,11 @@ dependencies = [
     "torch-geometric>=2.6.1",
     "tqdm>=4.67.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/arthurdjn/pytorch-pointcloud"
+Repository = "https://github.com/arthurdjn/pytorch-pointcloud"
+Issues = "https://github.com/arthurdjn/pytorch-pointcloud/issues"
 
 [project.optional-dependencies]
 lightning = ["lightning>=2.0.0,<2.6.0", "torchmetrics>=1.0.0"]
