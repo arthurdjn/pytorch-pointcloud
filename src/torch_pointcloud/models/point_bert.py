@@ -22,7 +22,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.layers import Conv2dBlock, PointPatchEmbed, TransformerBlock, create_act, create_norm
 from torch_pointcloud.utils.cluster import group, knn
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel
@@ -31,7 +31,7 @@ from ._registry import WeightsDict, register_model
 if TYPE_CHECKING:
     from torch_scatter import scatter
 
-scatter, _ = optional_import("torch_scatter", "scatter")
+scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PointBERTEncoder(nn.Module):

@@ -15,14 +15,14 @@ from torch_pointcloud import create_model
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, ShapeNetPart
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.random import seed_everything
 
 if TYPE_CHECKING:
     from ocnn.octree import Octree, Points
 
-Octree, _ = optional_import("ocnn.octree", "Octree")
-Points, _ = optional_import("ocnn.octree", "Points")
+Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
+Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 def main() -> None:

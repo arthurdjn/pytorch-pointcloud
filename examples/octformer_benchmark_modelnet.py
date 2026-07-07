@@ -11,14 +11,14 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40
 from torch_pointcloud.models._registry import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.metrics import confusion_matrix
 from torch_pointcloud.utils.random import seed_everything
 
 if TYPE_CHECKING:
     from ocnn.octree import Octree
 
-Octree, _ = optional_import("ocnn.octree", "Octree")
+Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()

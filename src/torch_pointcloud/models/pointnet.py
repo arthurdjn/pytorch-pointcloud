@@ -10,14 +10,14 @@ from torch_pointcloud.layers import (
     TNet,
     create_pool,
 )
-from torch_pointcloud.utils.imports import optional_import
+from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 
 from ._base import ClassificationModel, SegmentationModel
 
 if TYPE_CHECKING:
     from torch_scatter import scatter
 
-scatter, _ = optional_import("torch_scatter", "scatter")
+scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PointNetEncoder(nn.Module):

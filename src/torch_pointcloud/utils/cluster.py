@@ -6,15 +6,15 @@ from torch import Tensor
 
 from torch_pointcloud.config import FPS_RANDOM_START, KNN_DENSE_BUDGET
 
-from .imports import optional_import
+from .imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from .types import OptTensor
 
 if TYPE_CHECKING:
     import torch_cluster
     from torch_scatter import scatter_min
 
-scatter_min, _ = optional_import("torch_scatter", name="scatter_min")
-torch_cluster, _ = optional_import("torch_cluster")
+scatter_min, _ = optional_import("torch_scatter", name="scatter_min", url=_TORCH_SCATTER_GITHUB_URL)
+torch_cluster, _ = optional_import("torch_cluster", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 def knn(

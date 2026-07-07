@@ -169,12 +169,18 @@ def optional_import(
     return ModuleNotFoundProxy, False
 
 
+_DWCONV_GITHUB_URL = "https://github.com/octree-nn/dwconv"
 _FLASH_ATTN_GITHUB_URL = "https://github.com/Dao-AILab/flash-attention"
 _FVDB_GITHUB_URL = "https://github.com/voxel-foundation/fvdb"
+_LIGHTNING_GITHUB_URL = "https://github.com/Lightning-AI/pytorch-lightning"
+_MAMBA_SSM_GITHUB_URL = "https://github.com/state-spaces/mamba"
 _OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"
 _SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
+_SPTR_GITHUB_URL = "https://github.com/JIA-Lab-research/SparseTransformer"
 _TORCH_CLUSTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_cluster"
 _TORCH_SCATTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_scatter"
+_TORCH_SPARSE_GITHUB_URL = "https://github.com/rusty1s/pytorch_sparse"
+_TORCHMETRICS_GITHUB_URL = "https://github.com/Lightning-AI/torchmetrics"
 _TORCHSPARSE_GITHUB_URL = "https://github.com/mit-han-lab/torchsparse"
 
 _CUDA_AVAILABLE = torch.cuda.is_available()

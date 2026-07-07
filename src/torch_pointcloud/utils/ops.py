@@ -5,16 +5,16 @@ import torch
 from torch import Tensor
 
 from .conversion import ensure_option, ensure_tuple_size
-from .imports import optional_import
+from .imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from .types import OptTensor
 
 if TYPE_CHECKING:
     from torch_cluster import grid_cluster, knn
     from torch_scatter import scatter
 
-scatter, _ = optional_import("torch_scatter", name="scatter")
-grid_cluster, _ = optional_import("torch_cluster", name="grid_cluster")
-knn, _ = optional_import("torch_cluster", name="knn")
+scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
+grid_cluster, _ = optional_import("torch_cluster", name="grid_cluster", url=_TORCH_CLUSTER_GITHUB_URL)
+knn, _ = optional_import("torch_cluster", name="knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("nan")) -> Tensor:
