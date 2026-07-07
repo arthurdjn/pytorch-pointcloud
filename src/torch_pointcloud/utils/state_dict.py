@@ -4,6 +4,21 @@ from typing import Any, Callable, Dict, Optional, Set
 
 from torch import Tensor
 
+_PLACEHOLDER_RE = re.compile(r"^\s*(\w+)\s*(?:([+-])\s*(\d+))?\s*$")
+
+
+def _resolve_placeholder(expr: str, ctx: Dict[str, Any]) -> Any:
+    match = _PLACEHOLDER_RE.match(expr)
+    if match is None or match.group(1) not in ctx:
+        raise ValueError(f"Unsupported placeholder {{{expr}}}: expected a captured name, optionally with `+N`/`-N`.")
+
+    value = ctx[match.group(1)]
+    if match.group(2) is None:
+        return value
+
+    offset = int(match.group(3))
+    return value + offset if match.group(2) == "+" else value - offset
+
 
 def transform_state_dict(
     state_dict: Dict[str, Any],
@@ -75,8 +90,7 @@ def transform_state_dict(
                 # cast to int if possible to allow for arithmetic operations
                 # e.g. "param.{i}.weights" -> "param.{i+1}.weights"
                 ctx = {k: (int(v) if v.isdigit() else v) for k, v in match.groupdict().items()}
-                # evaluate the param using the context/template
-                return re.sub(r"\{([^}]+)\}", lambda m: str(eval(m.group(1), {}, ctx)), template)
+                return re.sub(r"\{([^}]+)\}", lambda m: str(_resolve_placeholder(m.group(1), ctx)), template)
         return key
 
     transformed_state_dict = [(key_transform(k), value_transform(v)) for k, v in state_dict.items()]
