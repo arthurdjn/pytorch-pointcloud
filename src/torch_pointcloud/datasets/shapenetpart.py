@@ -230,7 +230,7 @@ class ShapeNetPart(PointCloudDataset):
         np.save(split_dir / "category.npy", category)
 
     def _load_raw_file(self, file_name: str) -> Optional[Dict[str, Any]]:
-        file_path = Path(self.raw_dir, file_name.lstrip("shape_data/")).with_suffix(".txt")
+        file_path = Path(self.raw_dir, file_name.removeprefix("shape_data/")).with_suffix(".txt")
         data = load_shapenet_part_data(file_path)
         if not data:
             return None

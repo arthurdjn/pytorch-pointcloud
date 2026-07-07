@@ -272,7 +272,7 @@ class S3DIS(PointCloudDataset):
             already contain per-room alignment rotations.  When `aligned=True` (default)
             those coordinates are used as-is.  When `False` the *inverse* of each
             room's alignment angle is applied to recover the original V1.2
-            (non-aligned) coordinate frame — this is required when benchmarking
+            (non-aligned) coordinate frame: this is required when benchmarking
             pretrained weights that were trained on non-aligned data (e.g. the DGCNN
             reference weights whose HDF5 blocks use non-aligned coordinates).
             Aligned and unaligned data are stored in separate processed directories
@@ -727,7 +727,7 @@ class S3DISHdf5(PointCloudDataset):
             )
 
         with open(Path(self.raw_dir, "all_files.txt")) as f:
-            file_names = [line.strip().lstrip("indoor3d_sem_seg_hdf5_data/") for line in f]
+            file_names = [line.strip().removeprefix("indoor3d_sem_seg_hdf5_data/") for line in f]
         with open(Path(self.raw_dir, "room_filelist.txt")) as f:
             room_names = [line.strip() for line in f]
 

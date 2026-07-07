@@ -470,8 +470,8 @@ class SparseUNetSegmentation(SegmentationModel):
     weights="hf://torch-pointcloud/spunet/spunet-v1m1.scannet20.pth",
     transforms=T.Compose(
         [
-            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange (was CenterShift)
-            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z:  min
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
             T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),

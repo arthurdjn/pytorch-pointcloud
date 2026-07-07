@@ -124,7 +124,7 @@ def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
     else:
         idx_query = z._caches.idx_query[x.s]
 
-    # Points whose voxel isn't in `x` get clamped to 0 — they then receive the
+    # Points whose voxel isn't in `x` get clamped to 0: they then receive the
     # mean-aggregated feature of voxel 0 (rare, mostly affects boundaries).
     idx_query = idx_query.clamp_(0)
     sparse_feat = torch_scatter.scatter_mean(z.F, idx_query.long(), dim=0)
@@ -636,8 +636,8 @@ class SPVCNNClassification(ClassificationModel):
         *,
         spatial_dim: int = 3,
         stem_channels: int = 32,
-        encoder_channels: Sequence[int] = (32, 64, 128, 256, 256),
-        encoder_depths: Sequence[int] = (2, 2, 2, 2, 2),
+        encoder_channels: Sequence[int] = (32, 64, 128, 256),
+        encoder_depths: Sequence[int] = (2, 2, 2, 2),
         encoder_fusion_stages: Sequence[bool] = (False, False, False, True),
         kernel_size: int = 3,
         stride: int = 1,

@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Literal, Optional, Sequence, Union
 import h5py
 import numpy as np
 import torch
+from tqdm import tqdm
 from typing_extensions import get_args, override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
@@ -61,7 +62,7 @@ class ScanObjectNN(PointCloudDataset):
     by Mikaela Angelina Uy, Quang-Hieu Pham, Binh-Son Hua, Duc Thanh Nguyen, Sai-Kit Yeung (submitted on 2019).
     """
 
-    data_url = "http://hkust-vgd.ust.hk/scanobjectnn/"
+    data_url = "https://hkust-vgd.ust.hk/scanobjectnn/"
     resource = "h5_files.zip"
     md5 = "36876af479f9ad39abad5ebcd89038dd"
 
@@ -169,10 +170,6 @@ class ScanObjectNN(PointCloudDataset):
                 "Please agree to the terms of use at the following link: https://forms.gle/ZZRnnmaUdwfRucoy7."
             )
 
-        if show_progress:
-            file_name = Path(self.raw_file).absolute().relative_to(Path(self.root).absolute()).as_posix()
-            print(f"Processing {file_name}...", end=" ")
-
         with h5py.File(self.raw_file, "r") as f:
             pos = f["data"][:]
             labels = f["label"][:]
@@ -190,13 +187,7 @@ class ScanObjectNN(PointCloudDataset):
             label=labels.astype(np.int16),
         )
 
-        if show_progress:
-            print("Done!")
-
     def load(self, show_progress: bool = True) -> None:
-        if show_progress:
-            print(f"Loading {self.processed_file}...", end=" ")
-
         with np.load(self.processed_file) as f:
             pos = f["pos"]
             labels = f["label"]
@@ -225,11 +216,8 @@ class ScanObjectNN(PointCloudDataset):
                 DataKeys.POS: torch.from_numpy(pos[i].copy()).float(),
                 DataKeys.LABEL: torch.tensor(int(labels[i]), dtype=torch.long),
             }
-            for i in range(len(pos))
+            for i in tqdm(range(len(pos)), total=len(pos), desc="Loading", disable=not show_progress)
         ]
-
-        if show_progress:
-            print("Done!")
 
     @override
     def __getitem__(self, index: int) -> Any:

@@ -23,6 +23,7 @@ from torch import Tensor
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -73,14 +74,14 @@ def load_parislille3d_data(ply_path: PathLike, /) -> Dict[str, Tensor]:
 
     pos = np.ascontiguousarray(np.stack([v["x"], v["y"], v["z"]], axis=1)).astype(np.float32)
     reflectance = np.ascontiguousarray(v["reflectance"]).astype(np.uint8).reshape(-1, 1)
-    data = {
-        "pos": torch.from_numpy(pos),
-        "reflectance": torch.from_numpy(reflectance),
+    data: Dict[str, Tensor] = {
+        DataKeys.POS: torch.from_numpy(pos),
+        DataKeys.REFLECTANCE: torch.from_numpy(reflectance),
     }
 
     if "class" in fields:
         segment = np.ascontiguousarray(v["class"]).astype(np.int64)
-        data["segment"] = torch.from_numpy(segment)
+        data[DataKeys.SEGMENT] = torch.from_numpy(segment)
 
     return data
 

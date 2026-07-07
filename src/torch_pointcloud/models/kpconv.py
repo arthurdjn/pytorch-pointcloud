@@ -179,8 +179,6 @@ class KPConv(nn.Module):
         elif self.kp_influence == "linear":
             return torch.clamp(1 - torch.sqrt(sq_distances) / self.kp_sigma, min=0.0)
         elif self.kp_influence == "gaussian":
-            # TODO: kp_sigma should already be provided
-            # sigma = self.kp_extent * 0.3
             return torch.exp(-sq_distances / (2 * self.kp_sigma**2 + 1e-6))
         else:
             raise ValueError(f"Unknown influence type: {self.kp_influence}")
@@ -678,8 +676,8 @@ class KPFCNNClassification(ClassificationModel):
         :github: [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
 
     Args:
-        num_classes: Number of output classes.
         in_channels: Number of input channels.
+        num_classes: Number of output classes.
         spatial_dim: Spatial dimension of the input point cloud.
         stem_channels: Number of channels in the stem layer.
         stem_type: Type of stem layer to use.
@@ -926,8 +924,8 @@ class KPFCNNSegmentation(SegmentationModel):
         :github: [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric) library.
 
     Args:
-        num_classes: Number of output classes.
         in_channels: Number of input channels.
+        num_classes: Number of output classes.
         spatial_dim: Spatial dimension of the input point cloud.
         stem_channels: Number of channels in the stem layer.
         stem_type: Type of stem layer to use.
@@ -954,8 +952,8 @@ class KPFCNNSegmentation(SegmentationModel):
 
     def __init__(
         self,
-        num_classes: int,
         in_channels: int,
+        num_classes: int,
         *,
         spatial_dim: int = 3,
         stem_channels: Optional[int] = None,
