@@ -1,6 +1,5 @@
 import hashlib
 import shutil
-import ssl
 import tarfile
 import zipfile
 from pathlib import Path
@@ -112,9 +111,9 @@ def download_url(
     if file_path.exists() and overwrite == "incomplete" and file_path.stat().st_size == urlsize(url):
         return file_path.as_posix()
 
-    context = ssl._create_unverified_context()
-    with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), context=context) as response:
-        with open(file_path, "wb") as fh:
+    part_path = file_path.with_name(file_path.name + ".part")
+    with urlopen(Request(url, headers={"User-Agent": USER_AGENT})) as response:
+        with open(part_path, "wb") as fh:
             with tqdm(
                 total=response.length,
                 desc=description,
@@ -126,6 +125,7 @@ def download_url(
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
                     pbar.update(len(chunk))
+    part_path.replace(file_path)
 
     return file_path.as_posix()
 
