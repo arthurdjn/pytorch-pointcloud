@@ -668,7 +668,7 @@ class ScanNet(PointCloudDataset):
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
 
     Example:
-        Assuming you have downloaded the raw dataset from http://kaldir.vc.in.tum.de/scannet/,
+        Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/,
         and extracted it under `data/ScanNet/raw`, you can load the dataset as follows:
 
         ```python
@@ -701,7 +701,7 @@ class ScanNet(PointCloudDataset):
     unk_cls = "<unk>"
     unk_idx = 0
 
-    data_url = "http://kaldir.vc.in.tum.de/scannet/"
+    data_url = "https://kaldir.vc.in.tum.de/scannet/"
     meta_url = "https://raw.githubusercontent.com/facebookresearch/votenet/master/scannet/meta_data/"
     label_resources = [
         "v1/tasks/scannet-labels.combined.tsv",  # v1 raw labels

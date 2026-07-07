@@ -216,7 +216,7 @@ def test_modelnet_normal_resampled_dataset_process_split_forced(
     """Test that the dataset is processed correctly for different splits
     regardless of whether the processed data already exists"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
-    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/**/*")
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/**/*", symlinks=False)
 
     dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False, force_process=True)
     assert len(dataset) > 0

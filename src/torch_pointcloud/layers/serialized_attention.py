@@ -78,7 +78,7 @@ class SerializedAttention(nn.Module):
     r"""Vanilla serialized attention from
     :arxiv: [Point Transformer V3](https://arxiv.org/abs/2312.10035).
 
-    No positional information is added inside attention itself — relative
+    No positional information is added inside attention itself: relative
     structure comes from the conditional position embedding (CPE) applied
     around each block.
     """

@@ -493,9 +493,9 @@ class PointTransformerV3Encoder(nn.Module):
         use_flash_attn: Use Flash Attention.
         upcast_attn: Upcast attention to fp32.
         upcast_softmax: Upcast softmax to fp32.
-        pooling: Pooling strategy — `"serialized"` (code-space bit-shift) or
+        pooling: Pooling strategy: `"serialized"` (code-space bit-shift) or
             `"grid"` (grid-coordinate clustering).
-        stem_type: How to embed raw features — `"sparse_conv"` (SubMConv3d stem) or
+        stem_type: How to embed raw features: `"sparse_conv"` (SubMConv3d stem) or
             `"linear"` (linear projection).
         rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
         act_kwargs: Optional keyword arguments for the activation factory.

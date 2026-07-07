@@ -121,7 +121,7 @@ def test_kitti_dataset_reuses_cache(datasets_dir_factory: Callable[..., Path]) -
 
 def test_kitti_dataset_force_process(datasets_dir_factory: Callable[..., Path]) -> None:
     """force_process reprocesses the split even when a cache already exists."""
-    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    datasets_dir = datasets_dir_factory("KITTI/**/*", symlinks=False)
     _ = KITTI(root=datasets_dir, split="training", fov=False)
     with patch("torch_pointcloud.datasets.kitti.parallel_map") as mock_map:
         _ = KITTI(root=datasets_dir, split="training", fov=False, force_process=True)

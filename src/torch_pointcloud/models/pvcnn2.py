@@ -11,6 +11,8 @@ from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 
+from ._base import ClassificationModel, SegmentationModel
+
 
 def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -> Sequence[Any]:
     if len(value) != size:
@@ -301,7 +303,7 @@ class PVCNN2Decoder(nn.Module):
         return x, pos, batch
 
 
-class PVCNN2Classification(nn.Module):
+class PVCNN2Classification(ClassificationModel):
     def __init__(
         self,
         in_channels: int,
@@ -325,9 +327,7 @@ class PVCNN2Classification(nn.Module):
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.embedding_dim = encoder_channels[-1]
         sa_channels = ensure_msg_list(sa_channels)
 
@@ -396,7 +396,7 @@ class PVCNN2Classification(nn.Module):
         return self.forward_head(x, batch)
 
 
-class PVCNN2Segmentation(nn.Module):
+class PVCNN2Segmentation(SegmentationModel):
     def __init__(
         self,
         in_channels: int,
@@ -424,9 +424,7 @@ class PVCNN2Segmentation(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         dropout: float = 0.0,
     ):
-        super().__init__()
-        self.in_channels = in_channels or 3
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels or 3, num_classes=num_classes)
         sa_channels = ensure_msg_list(sa_channels)
 
         self.encoder = PVCNN2Encoder(

@@ -1,8 +1,8 @@
-from ._base import ClassificationModel, DetectionModel, SegmentationModel
-from ._registry import create_model, list_models, register_model
+from ._base import BaseModel, ClassificationModel, DetectionModel, SegmentationModel
+from ._registry import Task, create_model, list_models, register_model
 from .concerto import ConcertoSegmentation
 from .detr3d import DETR3DDetection
-from .dgcnn import DGCNNClassification, DGCNNSegmentation
+from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
@@ -25,7 +25,7 @@ from .pointgpt import PointGPTClassification, PointGPTGenerativePretraining
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
-from .pointnext import PointNeXtClassification, PointNeXtSegmentation
+from .pointnext import PointNeXtClassification, PointNeXtPartSegmentation, PointNeXtSegmentation
 from .pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
 from .pointrcnn import PointRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation

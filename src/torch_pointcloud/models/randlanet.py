@@ -258,7 +258,7 @@ class DilatedResidualBlock(nn.Module):
         )
         self.mlp1 = MLP(channel_list=[d_in, d_out // 2], plain_last=False, **mlp_kwargs)
         self.lfa = LocalFeatureAggregation(d_out, **mlp_kwargs)
-        # `mlp2` and `shortcut` use `act=None` (paper) — activation is applied once
+        # `mlp2` and `shortcut` use `act=None` (paper): activation is applied once
         # after the residual sum.
         self.mlp2 = MLP(
             channel_list=[d_out, 2 * d_out],
@@ -382,7 +382,7 @@ class RandLANetEncoder(nn.Module):
     ) -> Any:
         intermediates: List[RandLANetIntermediate] = []
         for i, block in enumerate(self.blocks):
-            assert isinstance(block, DilatedResidualBlock)  # For type checking
+            assert isinstance(block, DilatedResidualBlock)
             x, pos, batch = block(x, pos, batch)
             if return_intermediates and i == 0:
                 # Block 0's pre-decimation output is the only full-resolution skip;
@@ -651,7 +651,7 @@ class RandLANetSegmentation(SegmentationModel):
             (string passed to `create_act`, or a `Callable` / `nn.Module`).
         act_kwargs: Keyword arguments forwarded to the activation.
         act_first: If `True`, apply activation before normalization (PyG's MLP
-            `act_first` semantics) — `Linear → Act → Norm → Dropout` instead of the
+            `act_first` semantics): `Linear → Act → Norm → Dropout` instead of the
             default `Linear → Norm → Act → Dropout`.
         norm: Normalization type for the decoder FP MLPs and the head MLP.
         norm_kwargs: Keyword arguments forwarded to the normalization layers.
@@ -744,7 +744,7 @@ class RandLANetSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         # Per-point seg head: hidden layers carry `Linear(bias=`self.bias`)+norm+act+Dropout`,
-        # the final `plain_last` layer is a bare `Linear(bias=True)` — its bias is
+        # the final `plain_last` layer is a bare `Linear(bias=True)`: its bias is
         # meaningful since it sees no normalization.
         n_hidden = len(self.head_channels)
         return MLP(

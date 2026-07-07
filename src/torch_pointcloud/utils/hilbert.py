@@ -10,10 +10,6 @@ def right_shift(binary: Tensor, k: int = 1, axis: int = -1) -> Tensor:
     if binary.shape[axis] <= k:
         return torch.zeros_like(binary)
 
-    # Determine the padding pattern.
-    # padding = [(0,0)] * len(binary.shape)
-    # padding[axis] = (k,0)
-
     # Determine the slicing pattern to eliminate just the last one.
     slicing = [slice(None)] * len(binary.shape)
     slicing[axis] = slice(None, -k)
@@ -33,10 +29,10 @@ def binary2gray(binary: Tensor, axis: int = -1) -> Tensor:
 
 def gray2binary(gray: Tensor, axis: int = -1) -> Tensor:
     # Loop the log2(bits) number of times necessary, with shift and xor.
-    shift = 2 ** (torch.Tensor([gray.shape[axis]]).log2().ceil().int() - 1)
+    shift = int(2 ** (torch.tensor(gray.shape[axis], dtype=torch.float32).log2().ceil().int() - 1))
     while shift > 0:
         gray = torch.logical_xor(gray, right_shift(gray, shift))
-        shift = torch.div(shift, 2, rounding_mode="floor")
+        shift //= 2
     return gray
 
 
@@ -161,7 +157,6 @@ def decode(hilberts: Tensor, num_dims: int, num_bits: int) -> Tensor:
     locs_chopped = padded.flip(-1).reshape((-1, num_dims, 8, 8))
 
     # Take those blocks and turn them unto uint8s.
-    # from IPython import embed; embed()
     locs_uint8 = (locs_chopped * bitpack_mask).sum(3).squeeze().type(torch.uint8)
 
     # Finally, treat these as uint64s.

@@ -227,7 +227,7 @@ class SemanticKITTI(PointCloudDataset):
         sample = dataset[0]
         sample["pos"].shape         # torch.Size([N, 3])
         sample["intensity"].shape   # torch.Size([N, 1])
-        sample["segment"].shape     # torch.Size([N])  — raw label ids in [0, 259]
+        sample["segment"].shape     # torch.Size([N]) - raw label ids in [0, 259]
         ```
 
         To map raw labels onto the standard 19-class benchmark, compose a
