@@ -5,7 +5,7 @@
 #
 # | model.name                       | mIoU   | accuracy |
 # | -------------------------------- | ------ | -------- |
-# | pointnet2-openpoints.s3dis-area5 | 0.6247 | 0.8717   |
+# | pointnet2.s3dis-area5.openpoints | 0.6247 | 0.8717   |
 defaults:
   - override /datamodule: s3dis
   - override /model: segmentation
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 100
 
 model:
-  name: pointnet2-openpoints.s3dis-area5
+  name: pointnet2.s3dis-area5.openpoints
   num_classes: 13
   pretrained: false
   input_keys: [x, pos, batch]

@@ -49,7 +49,7 @@ class LitModel(LightningModule):
         model, info = create_model(name, task=task, return_info=True, **kwargs)
 
         self.model = model
-        self.transform = info["transforms"]
+        self.transform = info["transform"]
         self.criterion: Optional[nn.Module] = criterion if criterion is not None else nn.CrossEntropyLoss()
         self._optimizer = optimizer
         self._scheduler = scheduler
@@ -112,7 +112,7 @@ class LitClassificationModel(LitModel):
     """LightningModule for a point cloud classification model, built from the registry.
 
     Args:
-        name: Registered classification model name (e.g. `pointnet2-yanx27-ssg.modelnet40`); built via
+        name: Registered classification model name (e.g. `pointnet2-ssg.modelnet40.xu-yan`); built via
             `create_model(name, task="classification")`.
         optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.

@@ -16,12 +16,14 @@ from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class TransformerEncoder(nn.Module):
@@ -739,10 +741,17 @@ _MODELNET_TRANSFORM = T.Compose(
 
 
 @register_model(
-    "point-mae-base.modelnet40",
+    "point-mae-base.modelnet40.yatian-pang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.modelnet40.pth",
-    transforms=_MODELNET_TRANSFORM,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.modelnet40.yatian-pang.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 92.87},
+        classes=MODELNET40_CLASSES,
+        author="yatian-pang",
+        license="MIT",
+    ),
+    transform=_MODELNET_TRANSFORM,
     hparams=dict(
         in_channels=0,
         num_classes=40,
@@ -765,10 +774,17 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
 
 
 @register_model(
-    "point-mae-base.modelnet40-8k",
+    "point-mae-base.modelnet40-8k.yatian-pang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.modelnet40-8k.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.modelnet40-8k.yatian-pang.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 93.35},
+        classes=MODELNET40_CLASSES,
+        author="yatian-pang",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.FarthestPointSample(pos_key="pos", num_samples=8192, random_start=False),
             T.Rescale(keys="pos", method="centroid"),
@@ -796,10 +812,17 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
 
 
 @register_model(
-    "point-mae-base.scanobjectnn-objbg",
+    "point-mae-base.scanobjectnn-objbg.yatian-pang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-objbg.pth",
-    transforms=None,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-objbg.yatian-pang.safetensors",
+        dataset="scanobjectnn-objbg",
+        metrics={"OA": 90.19},
+        classes=SCANOBJECTNN_CLASSES,
+        author="yatian-pang",
+        license="MIT",
+    ),
+    transform=None,
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -822,10 +845,17 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
 
 
 @register_model(
-    "point-mae-base.scanobjectnn-objonly",
+    "point-mae-base.scanobjectnn-objonly.yatian-pang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-objonly.pth",
-    transforms=None,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-objonly.yatian-pang.safetensors",
+        dataset="scanobjectnn-objonly",
+        metrics={"OA": 88.3},
+        classes=SCANOBJECTNN_CLASSES,
+        author="yatian-pang",
+        license="MIT",
+    ),
+    transform=None,
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -848,10 +878,17 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
 
 
 @register_model(
-    "point-mae-base.scanobjectnn-hardest",
+    "point-mae-base.scanobjectnn-hardest.yatian-pang",
     task="classification",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-hardest.pth",
-    transforms=None,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-hardest.yatian-pang.safetensors",
+        dataset="scanobjectnn-hardest",
+        metrics={"OA": 85.05},
+        classes=SCANOBJECTNN_CLASSES,
+        author="yatian-pang",
+        license="MIT",
+    ),
+    transform=None,
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -874,10 +911,15 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
 
 
 @register_model(
-    "point-mae-base.shapenetpart",
+    "point-mae-base.shapenetpart.yatian-pang",
     task="segmentation",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.shapenetpart.pth",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.shapenetpart.yatian-pang.safetensors",
+        dataset="shapenetpart",
+        author="yatian-pang",
+        license="MIT",
+    ),
+    transform=T.Compose(
         [
             T.Rescale(keys="pos", method="centroid"),
             T.FarthestPointSample(pos_key="pos", keys=("segment",), num_samples=2048, random_start=False),
@@ -907,9 +949,14 @@ def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAESegmentation:
 
 
 @register_model(
-    "point-mae-base.pretrain",
+    "point-mae-base.pretrain.yatian-pang",
     task="base",
-    weights="hf://torch-pointcloud/point-mae/point-mae-base.pretrain.pth",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-mae/point-mae-base.pretrain.yatian-pang.safetensors",
+        dataset="shapenet55",
+        author="yatian-pang",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=0,
         embed_dim=384,

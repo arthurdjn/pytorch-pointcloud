@@ -8,7 +8,7 @@ paper mean 93.7 +- 0.3):
 
     | Variant                     | reference | torch-pointcloud |
     | --------------------------- | --------- | ---------------- |
-    | pointnext-sm-c64.modelnet40 | 94.0      | 92.10            |
+    | pointnext-sm-c64.modelnet40.openpoints | 94.0      | 92.10            |
 
 The gap comes from the eval data: the reference takes the first 1024 points of the
 `modelnet40_ply_hdf5_2048` clouds, while this script FPS-samples the normal-resampled dataset, and the
@@ -42,7 +42,7 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointnext-sm-c64.modelnet40",
+    "pointnext-sm-c64.modelnet40.openpoints",
 ]
 
 
@@ -95,7 +95,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointnext-sm-c64.modelnet40",
+        default="pointnext-sm-c64.modelnet40.openpoints",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")

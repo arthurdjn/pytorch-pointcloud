@@ -8,7 +8,7 @@ defaults:
   - override /callbacks: segmentation
 
 model:
-  name: dgcnn-antao.scannet20
+  name: dgcnn.scannet20.an-tao
   num_classes: 20
   input_keys: [x, norm_pos, batch]
   target_key: segment

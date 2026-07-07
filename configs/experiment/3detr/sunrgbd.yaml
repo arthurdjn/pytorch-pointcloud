@@ -8,7 +8,7 @@ defaults:
   - override /callbacks: detection
 
 model:
-  name: 3detr-fair.sunrgbd
+  name: 3detr.sunrgbd.fair
   input_keys: [x, pos, batch]
   score_threshold: 0.05
   nms_iou: 0.25

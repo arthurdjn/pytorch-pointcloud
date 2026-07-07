@@ -1,4 +1,4 @@
-r"""Reproduce `pointnet2-yanx27.s3dis-area5` numbers on S3DIS Area-5.
+r"""Reproduce `pointnet2.s3dis-area5.xu-yan` numbers on S3DIS Area-5.
 
 Follows the upstream evaluation protocol:
 
@@ -6,7 +6,7 @@ Follows the upstream evaluation protocol:
 
 | Model                          | Paper        | This script                                 |
 | ------------------------------ | ------------ | ------------------------------------------- |
-| `pointnet2-yanx27.s3dis-area5` | 53.5 % mIoU  | 54.77% mIoU / 83.51% OA (seed=42, 1 vote)   |
+| `pointnet2.s3dis-area5.xu-yan` | 53.5 % mIoU  | 54.77% mIoU / 83.51% OA (seed=42, 1 vote)   |
 
 Usage:
 
@@ -128,7 +128,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="yanx27 PointNet++ S3DIS Area-5 reproduction (sliding-window).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR)
-    parser.add_argument("--model", type=str, default="pointnet2-yanx27.s3dis-area5")
+    parser.add_argument("--model", type=str, default="pointnet2.s3dis-area5.xu-yan")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--block-size", type=float, default=1.0)
     parser.add_argument("--stride", type=float, default=0.5)

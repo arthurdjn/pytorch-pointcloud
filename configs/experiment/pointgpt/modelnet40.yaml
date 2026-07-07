@@ -4,19 +4,19 @@
 #
 # | model.name                         | accuracy |
 # | ---------------------------------- | -------- |
-# | pointgpt-cguangyan-s.modelnet40    | 0.9331   |
-# | pointgpt-cguangyan-b.modelnet40    | 0.9437   |
-# | pointgpt-cguangyan-l.modelnet40    | 0.9388   |
-# | pointgpt-cguangyan-s.modelnet40-8k | 0.9376   |
-# | pointgpt-cguangyan-b.modelnet40-8k | -        |
-# | pointgpt-cguangyan-l.modelnet40-8k | -        |
+# | pointgpt-s.modelnet40.guangyan-chen    | 0.9331   |
+# | pointgpt-b.modelnet40.guangyan-chen    | 0.9437   |
+# | pointgpt-l.modelnet40.guangyan-chen    | 0.9388   |
+# | pointgpt-s.modelnet40-8k.guangyan-chen | 0.9376   |
+# | pointgpt-b.modelnet40-8k.guangyan-chen | -        |
+# | pointgpt-l.modelnet40-8k.guangyan-chen | -        |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: pointgpt-cguangyan-s.modelnet40
+  name: pointgpt-s.modelnet40.guangyan-chen
   num_classes: 40
   input_keys: [x, pos, batch]
   criterion:

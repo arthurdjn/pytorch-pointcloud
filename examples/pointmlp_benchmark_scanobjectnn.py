@@ -7,8 +7,8 @@ Results vs reference (ScanObjectNN hardest-variant overall accuracy):
 
     | Variant                     | README | torch-pointcloud |
     | --------------------------- | ------ | ---------------- |
-    | pointmlp-base.scanobjectnn  | 86.1   | 77.24            |
-    | pointmlp-elite.scanobjectnn | 84.1   | 75.33            |
+    | pointmlp-base.scanobjectnn.xu-ma  | 86.1   | 77.24            |
+    | pointmlp-elite.scanobjectnn.xu-ma | 84.1   | 75.33            |
 
 The shipped checkpoints predate the PointMLP repo's std-normalization fix and re-evaluate at ~77 OA in
 the reference code as well; the README numbers require the post-fix checkpoints, whose download links
@@ -16,7 +16,7 @@ are dead.
 
 Usage:
     uv run --no-sync python examples/pointmlp_benchmark_scanobjectnn.py --download
-    uv run --no-sync python examples/pointmlp_benchmark_scanobjectnn.py --model pointmlp-elite.scanobjectnn
+    uv run --no-sync python examples/pointmlp_benchmark_scanobjectnn.py --model pointmlp-elite.scanobjectnn.xu-ma
 """
 
 import os
@@ -43,8 +43,8 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointmlp-base.scanobjectnn",
-    "pointmlp-elite.scanobjectnn",
+    "pointmlp-base.scanobjectnn.xu-ma",
+    "pointmlp-elite.scanobjectnn.xu-ma",
 ]
 
 
@@ -102,7 +102,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointmlp-base.scanobjectnn",
+        default="pointmlp-base.scanobjectnn.xu-ma",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--download", action="store_true", help="Download ScanObjectNN if missing.")

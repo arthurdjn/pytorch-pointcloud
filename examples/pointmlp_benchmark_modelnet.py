@@ -8,12 +8,12 @@ voting, with 94.5 / 94.0 reported with voting):
 
     | Variant                   | reference | torch-pointcloud |
     | ------------------------- | --------- | ---------------- |
-    | pointmlp-base.modelnet40  | 94.1      | 93.52            |
-    | pointmlp-elite.modelnet40 | 93.6      | 92.46            |
+    | pointmlp-base.modelnet40.xu-ma  | 94.1      | 93.52            |
+    | pointmlp-elite.modelnet40.xu-ma | 93.6      | 92.46            |
 
 Usage:
     uv run --no-sync python examples/pointmlp_benchmark_modelnet.py --download
-    uv run --no-sync python examples/pointmlp_benchmark_modelnet.py --model pointmlp-elite.modelnet40
+    uv run --no-sync python examples/pointmlp_benchmark_modelnet.py --model pointmlp-elite.modelnet40.xu-ma
 """
 
 import os
@@ -40,8 +40,8 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "pointmlp-base.modelnet40",
-    "pointmlp-elite.modelnet40",
+    "pointmlp-base.modelnet40.xu-ma",
+    "pointmlp-elite.modelnet40.xu-ma",
 ]
 
 
@@ -94,7 +94,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="pointmlp-base.modelnet40",
+        default="pointmlp-base.modelnet40.xu-ma",
         choices=MODEL_CHOICES,
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")

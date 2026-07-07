@@ -4,14 +4,14 @@
 #
 # | model.name                          | accuracy |
 # | ----------------------------------- | -------- |
-# | point-mae-base.scanobjectnn-objonly | 0.8830   |
+# | point-mae-base.scanobjectnn-objonly.yatian-pang | 0.8830   |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: point-mae-base.scanobjectnn-objonly
+  name: point-mae-base.scanobjectnn-objonly.yatian-pang
   num_classes: 15
   input_keys: [x, pos, batch]
   criterion:

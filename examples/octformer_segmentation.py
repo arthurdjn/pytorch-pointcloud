@@ -81,7 +81,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="shapenetpart", choices=["shapenetpart", "s3dis"])
-    parser.add_argument("--model", type=str, default="octformer-base.sm", choices=["octformer-base.sm"])
+    parser.add_argument("--model", type=str, default="octformer-sm", choices=["octformer-sm"])
     parser.add_argument("--num-classes", type=int, default=50)
     parser.add_argument("--categories", nargs="+", default=None)
     parser.add_argument("--batch-size", type=int, default=8)

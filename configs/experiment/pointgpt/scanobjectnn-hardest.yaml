@@ -4,16 +4,16 @@
 #
 # | model.name                                | accuracy |
 # | ----------------------------------------- | -------- |
-# | pointgpt-cguangyan-s.scanobjectnn-hardest | 0.8695   |
-# | pointgpt-cguangyan-b.scanobjectnn-hardest | 0.9195   |
-# | pointgpt-cguangyan-l.scanobjectnn-hardest | 0.9375   |
+# | pointgpt-s.scanobjectnn-hardest.guangyan-chen | 0.8695   |
+# | pointgpt-b.scanobjectnn-hardest.guangyan-chen | 0.9195   |
+# | pointgpt-l.scanobjectnn-hardest.guangyan-chen | 0.9375   |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
   - override /callbacks: classification
 
 model:
-  name: pointgpt-cguangyan-s.scanobjectnn-hardest
+  name: pointgpt-s.scanobjectnn-hardest.guangyan-chen
   num_classes: 15
   input_keys: [x, pos, batch]
   criterion:

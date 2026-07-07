@@ -7,6 +7,9 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
@@ -14,7 +17,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PointNet2Encoder(nn.Module):
@@ -691,9 +694,16 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
 
 
 @register_model(
-    "pointnet2-yanx27-ssg.modelnet40",
+    "pointnet2-ssg.modelnet40.xu-yan",
     task="classification",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-yanx27-ssg.modelnet40.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2-ssg.modelnet40.xu-yan.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 92.3},
+        classes=MODELNET40_CLASSES,
+        author="xu-yan",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=0,
         num_classes=40,
@@ -709,7 +719,7 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
         bias=True,
         dropout=0.4,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.FarthestPointSample(pos_key=DataKeys.POS, keys=[], num_samples=1024),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
@@ -724,9 +734,16 @@ def pointnet2_yanx27_ssg_modelnet40(**hparams: Any) -> PointNet2Classification:
 
 
 @register_model(
-    "pointnet2-yanx27-msg.modelnet40",
+    "pointnet2-msg.modelnet40.xu-yan",
     task="classification",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-yanx27-msg.modelnet40.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2-msg.modelnet40.xu-yan.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 92.67},
+        classes=MODELNET40_CLASSES,
+        author="xu-yan",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=3,
         num_classes=40,
@@ -745,7 +762,7 @@ def pointnet2_yanx27_ssg_modelnet40(**hparams: Any) -> PointNet2Classification:
         bias=True,
         dropout=0.4,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
@@ -760,9 +777,15 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
 
 
 @register_model(
-    "pointnet2-yanx27.s3dis-area5",
+    "pointnet2.s3dis-area5.xu-yan",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-yanx27.s3dis-area5.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area5.xu-yan.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="xu-yan",
+        license="MIT",
+    ),
     hparams=dict(
         in_channels=9,
         num_classes=13,
@@ -779,7 +802,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
         skip_input=False,
         fp_k=3,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
         ]
@@ -808,15 +831,21 @@ _OPENPOINTS_CLS_HPARAMS: Dict[str, Any] = dict(
 
 
 @register_model(
-    "pointnet2-openpoints.modelnet40",
+    "pointnet2.modelnet40.openpoints",
     task="classification",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.modelnet40.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.modelnet40.openpoints.safetensors",
+        dataset="modelnet40",
+        classes=MODELNET40_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(
         _OPENPOINTS_CLS_HPARAMS,
         in_channels=3,
         num_classes=40,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.Slice(keys=DataKeys.POS, stop=1024),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
@@ -828,15 +857,21 @@ def pointnet2_openpoints_modelnet40(**hparams: Any) -> PointNet2Classification:
 
 
 @register_model(
-    "pointnet2-openpoints.scanobjectnn",
+    "pointnet2.scanobjectnn.openpoints",
     task="classification",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.scanobjectnn.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.scanobjectnn.openpoints.safetensors",
+        dataset="scanobjectnn",
+        classes=SCANOBJECTNN_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(
         _OPENPOINTS_CLS_HPARAMS,
         in_channels=4,
         num_classes=15,
     ),
-    transforms=T.Compose(
+    transform=T.Compose(
         [
             T.FarthestPointSample(pos_key=DataKeys.POS, keys=[], num_samples=1024),
             T.Slice(keys=DataKeys.POS, start=1, stop=2, dim=1, dst_keys="height"),
@@ -894,66 +929,102 @@ def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
 
 
 @register_model(
-    "pointnet2-openpoints.s3dis-area1",
+    "pointnet2.s3dis-area1.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area1.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area1.openpoints.safetensors",
+        dataset="s3dis-area1",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+    transform=_OPENPOINTS_S3DIS_TRANSFORM,
 )
 def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)
 
 
 @register_model(
-    "pointnet2-openpoints.s3dis-area2",
+    "pointnet2.s3dis-area2.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area2.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area2.openpoints.safetensors",
+        dataset="s3dis-area2",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+    transform=_OPENPOINTS_S3DIS_TRANSFORM,
 )
 def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)
 
 
 @register_model(
-    "pointnet2-openpoints.s3dis-area3",
+    "pointnet2.s3dis-area3.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area3.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area3.openpoints.safetensors",
+        dataset="s3dis-area3",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+    transform=_OPENPOINTS_S3DIS_TRANSFORM,
 )
 def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)
 
 
 @register_model(
-    "pointnet2-openpoints.s3dis-area4",
+    "pointnet2.s3dis-area4.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area4.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area4.openpoints.safetensors",
+        dataset="s3dis-area4",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+    transform=_OPENPOINTS_S3DIS_TRANSFORM,
 )
 def pointnet2_openpoints_s3dis_area4(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)
 
 
 @register_model(
-    "pointnet2-openpoints.s3dis-area5",
+    "pointnet2.s3dis-area5.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area5.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area5.openpoints.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+    transform=_OPENPOINTS_S3DIS_TRANSFORM,
 )
 def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)
 
 
 @register_model(
-    "pointnet2-openpoints.s3dis-area6",
+    "pointnet2.s3dis-area6.openpoints",
     task="segmentation",
-    weights="hf://torch-pointcloud/pointnet2/pointnet2-openpoints.s3dis-area6.pt",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area6.openpoints.safetensors",
+        dataset="s3dis-area6",
+        classes=S3DIS_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
     hparams=dict(_OPENPOINTS_SEG_HPARAMS),
-    transforms=_OPENPOINTS_S3DIS_TRANSFORM,
+    transform=_OPENPOINTS_S3DIS_TRANSFORM,
 )
 def pointnet2_openpoints_s3dis_area6(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)

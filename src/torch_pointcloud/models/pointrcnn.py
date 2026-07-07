@@ -12,7 +12,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 from .pointnet2 import PointNet2Decoder, PointNet2Encoder
 
 
@@ -686,10 +686,16 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
 
 
 @register_model(
-    "pointrcnn-openpcdet.kitti",
+    "pointrcnn.kitti.openpcdet",
     task="detection",
-    weights="hf://torch-pointcloud/pointrcnn/pointrcnn-openpcdet.kitti.pt",
-    transforms=T.Compose(
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointrcnn/pointrcnn.kitti.openpcdet.safetensors",
+        dataset="kitti",
+        classes=("Car", "Pedestrian", "Cyclist"),
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
         [
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.BoxMask(keys=DataKeys.POS, bbox=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0), dst_keys="range_mask"),

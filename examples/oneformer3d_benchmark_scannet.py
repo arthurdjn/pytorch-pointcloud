@@ -162,17 +162,19 @@ def main() -> None:
     scans_root = Path(args.scans_root) if args.scans_root else root / "raw" / "v2" / "scans"
 
     model, model_info = create_model(
-        "oneformer3d-base.scannet20", task="segmentation", pretrained=True, return_info=True
+        "oneformer3d-base.scannet20.danila-rukhovich", task="segmentation", pretrained=True, return_info=True
     )
     assert isinstance(model, OneFormer3DSegmentation)
-    transform = model_info["transforms"]
+    transform = model_info["transform"]
     num_classes = int(model.num_semantic_classes)
 
     scene_files = sorted(processed_dir.glob("*.safetensors"))
     if args.limit is not None:
         scene_files = scene_files[: args.limit]
 
-    print(f"Benchmarking 'oneformer3d-base.scannet20' on ScanNet {args.split} ({len(scene_files)} scenes)")
+    print(
+        f"Benchmarking 'oneformer3d-base.scannet20.danila-rukhovich' on ScanNet {args.split} ({len(scene_files)} scenes)"
+    )
     print(f"Processed: {processed_dir}\nSuperpoints: {scans_root}")
     metrics = evaluate(model, scene_files, transform, scans_root, args.device, num_classes)
     print("\nResults:")

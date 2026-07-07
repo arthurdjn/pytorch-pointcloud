@@ -12,7 +12,7 @@ trainer:
   precision: "32-true"
 
 model:
-  name: sphereformer-dvlab.semantickitti
+  name: sphereformer.semantickitti
   num_classes: 19
   input_keys: [x, pos_grid, batch, pos]
   target_key: segment

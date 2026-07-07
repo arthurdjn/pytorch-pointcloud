@@ -32,17 +32,17 @@ def test_xcube_registered_variants() -> None:
     assert len(names) == 12
     for category in ("chair", "car", "plane"):
         for variant in ("vae-coarse", "vae-fine", "diffusion-coarse", "diffusion-fine"):
-            assert f"xcube-{variant}-nvidia.shapenet-{category}" in names
+            assert f"xcube-{variant}.shapenet-{category}.nvidia" in names
 
 
 @pytest.mark.skipif(not _FVDB_AVAILABLE, reason="fvdb is not installed")
 def test_xcube_vae_create_model_hparams() -> None:
-    model = create_model("xcube-vae-coarse-nvidia.shapenet-chair", task="base")
+    model = create_model("xcube-vae-coarse.shapenet-chair.nvidia", task="base")
     assert isinstance(model, XCubeVAE)
     assert model.latent_channels == 16
     assert model.num_levels == 4
     assert model.voxel_size == 0.01
-    fine = create_model("xcube-vae-fine-nvidia.shapenet-chair", task="base")
+    fine = create_model("xcube-vae-fine.shapenet-chair.nvidia", task="base")
     assert isinstance(fine, XCubeVAE)
     assert fine.latent_channels == 8
     assert fine.num_levels == 3
@@ -59,7 +59,7 @@ def _make_inputs(num_points: int = 2000, batch_size: int = 2) -> tuple[torch.Ten
 
 @pytest.mark.skipif(not _FULL_STACK, reason="fvdb or CUDA is not available")
 def test_xcube_vae_forward() -> None:
-    model = create_model("xcube-vae-coarse-nvidia.shapenet-chair", task="base").to(DEVICE).eval()
+    model = create_model("xcube-vae-coarse.shapenet-chair.nvidia", task="base").to(DEVICE).eval()
     pos, batch, normal = _make_inputs()
     with torch.no_grad():
         out = model(pos, batch, normal=normal)
@@ -74,7 +74,7 @@ def test_xcube_vae_forward() -> None:
 
 @pytest.mark.skipif(not _FULL_STACK, reason="fvdb or CUDA is not available")
 def test_xcube_vae_encode_decode_round_trip_shapes() -> None:
-    model = create_model("xcube-vae-fine-nvidia.shapenet-chair", task="base")
+    model = create_model("xcube-vae-fine.shapenet-chair.nvidia", task="base")
     assert isinstance(model, XCubeVAE)
     model = model.to(DEVICE).eval()
     pos, batch, normal = _make_inputs(num_points=500, batch_size=1)

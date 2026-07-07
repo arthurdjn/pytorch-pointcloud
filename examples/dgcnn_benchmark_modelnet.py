@@ -7,15 +7,15 @@ Results vs reference (ModelNet40 overall accuracy; antao97 repo eval of the rele
 
     | Variant                     | reference | torch-pointcloud |
     | --------------------------- | --------- | ---------------- |
-    | dgcnn-antao.modelnet40.1024 | 93.3      | 92.34            |
-    | dgcnn-antao.modelnet40.2048 | 93.6      | 92.46            |
+    | dgcnn.modelnet40-1024.an-tao | 93.3      | 92.34            |
+    | dgcnn.modelnet40-2048.an-tao | 93.6      | 92.46            |
 
 Both variants sit about a point below the reference because the eval data differs: antao97 takes the
 first $N$ points of the pre-shuffled HDF5 clouds, while this script FPS-samples the normal-resampled
 dataset.
 
 Usage:
-    uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn-antao.modelnet40.1024
+    uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn.modelnet40-1024.an-tao
 """
 
 import os
@@ -91,8 +91,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="dgcnn-antao.modelnet40.1024",
-        choices=["dgcnn-antao.modelnet40.1024", "dgcnn-antao.modelnet40.2048"],
+        default="dgcnn.modelnet40-1024.an-tao",
+        choices=["dgcnn.modelnet40-1024.an-tao", "dgcnn.modelnet40-2048.an-tao"],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)

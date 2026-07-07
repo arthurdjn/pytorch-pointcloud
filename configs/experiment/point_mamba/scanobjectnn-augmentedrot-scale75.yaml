@@ -5,7 +5,7 @@
 #
 # | model.name                                         | accuracy |
 # | --------------------------------------------------- | -------- |
-# | point-mamba-base.scanobjectnn-augmentedrot-scale75 | 0.8935   |
+# | point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang | 0.8935   |
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 250
 
 model:
-  name: point-mamba-base.scanobjectnn-augmentedrot-scale75
+  name: point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang
   num_classes: 15
   pretrained: false
   input_keys: [x, pos, batch]

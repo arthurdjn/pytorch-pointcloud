@@ -7,7 +7,7 @@ Results vs reference (instance mIoU; the antao97 repo publishes no class mIoU):
 
     | Variant                  | reference | torch-pointcloud  |
     | ------------------------ | --------- | ----------------- |
-    | dgcnn-antao.shapenetpart | 85.2      | 85.23 (cls 80.92) |
+    | dgcnn.shapenetpart.an-tao | 85.2      | 85.23 (cls 80.92) |
 
 Usage:
     uv run --no-sync python examples/dgcnn_benchmark_shapenetpart.py
@@ -83,7 +83,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark DGCNN part segmentation on ShapeNet.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="dgcnn-antao.shapenetpart", choices=["dgcnn-antao.shapenetpart"])
+    parser.add_argument("--model", type=str, default="dgcnn.shapenetpart.an-tao", choices=["dgcnn.shapenetpart.an-tao"])
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)
     parser.add_argument("--device", type=str, default=DEVICE)

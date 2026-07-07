@@ -203,13 +203,13 @@ def test_oneformer3d_predict_instance_and_semantic(tiny_model: OneFormer3DSegmen
 
 def test_oneformer3d_registered_variants() -> None:
     names = list_models("oneformer3d*", task="segmentation")
-    assert "oneformer3d-base.scannet20" in names
-    assert "oneformer3d-base.scannet200" in names
-    assert "oneformer3d-base.s3dis-area5" in names
+    assert "oneformer3d-base.scannet20.danila-rukhovich" in names
+    assert "oneformer3d-base.scannet200.danila-rukhovich" in names
+    assert "oneformer3d-base.s3dis-area5.danila-rukhovich" in names
 
 
 def test_oneformer3d_create_model_no_pretrained() -> None:
-    model = create_model("oneformer3d-base.scannet20", task="segmentation")
+    model = create_model("oneformer3d-base.scannet20.danila-rukhovich", task="segmentation")
     assert isinstance(model, OneFormer3DSegmentation)
     assert model.num_instance_classes == 18
     assert model.num_semantic_classes == 20

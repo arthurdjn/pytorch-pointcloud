@@ -22,7 +22,7 @@ pytestmark = [
 ]
 pytest.importorskip("sptr")
 
-_WEIGHTS = Path(MODELS_DIR, "sphereformer", "sphereformer-dvlab.semantickitti.pt")
+_WEIGHTS = Path(MODELS_DIR, "sphereformer", "sphereformer.semantickitti.pt")
 _SEMANTICKITTI = Path(DATA_DIR, "SemanticKITTI", "raw", "sequences", "08", "velodyne")
 
 
@@ -82,12 +82,10 @@ def test_sphereformer_semantickitti_smoke() -> None:
     from torch_pointcloud.models import create_model
     from torch_pointcloud.utils.data import DataKeys, collate
 
-    model, info = create_model(
-        "sphereformer-dvlab.semantickitti", task="segmentation", pretrained=True, return_info=True
-    )
+    model, info = create_model("sphereformer.semantickitti", task="segmentation", pretrained=True, return_info=True)
     model = model.cuda().eval()
 
-    dataset = SemanticKITTI(root=os.fspath(Path(DATA_DIR)), split="val", transform=info["transforms"])
+    dataset = SemanticKITTI(root=os.fspath(Path(DATA_DIR)), split="val", transform=info["transform"])
     sample = collate([dataset[0]])
 
     x = sample[DataKeys.X].cuda()

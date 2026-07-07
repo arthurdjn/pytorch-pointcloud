@@ -1,4 +1,4 @@
-r"""Evaluate `votenet-fair-base.sunrgbd` on SUN RGB-D val with mAP@0.25 / mAP@0.5.
+r"""Evaluate `votenet.sunrgbd.fair` on SUN RGB-D val with mAP@0.25 / mAP@0.5.
 
 The whole benchmark is `create_model` -> `model.predict` -> `mean_average_precision3d`: the `SunRGBD`
 dataset reconstructs the upright cloud and oriented boxes, the registered transform adds the
@@ -7,7 +7,7 @@ floor-relative height feature and samples to 20k points, the model decodes orien
 
 | Model                       | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
 | --------------------------- | ------------------------------ | ------------------------- |
-| `votenet-fair-base.sunrgbd` | 59.04 / 34.27                  | 57.7 / 32.0               |
+| `votenet.sunrgbd.fair` | 59.04 / 34.27                  | 57.7 / 32.0               |
 
 Usage:
     uv run --no-sync python examples/votenet_benchmark_sunrgbd.py --root /path/to/data
@@ -47,7 +47,7 @@ def main() -> None:
     assert isinstance(model, VoteNetDetection)
     model.to(args.device).eval()
 
-    dataset: Dataset = SunRGBD(root=args.root, split="val", transform=info["transforms"], download=args.download)
+    dataset: Dataset = SunRGBD(root=args.root, split="val", transform=info["transform"], download=args.download)
     if args.limit is not None:
         dataset = Subset(dataset, range(args.limit))
 
@@ -112,7 +112,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="VoteNet SUN RGB-D detection AP benchmark.")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="votenet-fair-base.sunrgbd")
+    parser.add_argument("--model", type=str, default="votenet.sunrgbd.fair")
     parser.add_argument("--download", action="store_true", help="Download SUN RGB-D if missing.")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

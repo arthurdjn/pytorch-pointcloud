@@ -65,7 +65,7 @@ def _assert_proposal_shapes(
 
 
 def test_votenet_scannet_forward_shapes() -> None:
-    model = create_model("votenet-fair-base.scannet", task="detection").to(DEVICE).eval()
+    model = create_model("votenet.scannet.fair", task="detection").to(DEVICE).eval()
     data = _make_inputs(in_channels=model.in_channels)
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
@@ -78,7 +78,7 @@ def test_votenet_scannet_forward_shapes() -> None:
 
 def test_votenet_sunrgbd_forward_shapes() -> None:
     # SUN RGB-D uses 12 heading bins, 10 classes and seed_fps sampling.
-    model = create_model("votenet-fair-base.sunrgbd", task="detection").to(DEVICE).eval()
+    model = create_model("votenet.sunrgbd.fair", task="detection").to(DEVICE).eval()
     data = _make_inputs(in_channels=model.in_channels)
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
@@ -86,7 +86,7 @@ def test_votenet_sunrgbd_forward_shapes() -> None:
 
 
 def test_votenet_eval_is_deterministic() -> None:
-    model = create_model("votenet-fair-base.scannet", task="detection").to(DEVICE).eval()
+    model = create_model("votenet.scannet.fair", task="detection").to(DEVICE).eval()
     data = _make_inputs()
     with torch.no_grad():
         a = model(data["x"], data["pos"], data["batch"])
@@ -101,7 +101,7 @@ def test_votenet_eval_is_deterministic() -> None:
 
 
 def test_votenet_reset_classifier() -> None:
-    model = create_model("votenet-fair-base.scannet", task="detection")
+    model = create_model("votenet.scannet.fair", task="detection")
     assert isinstance(model, VoteNetDetection)
     model.reset_classifier(num_classes=5)
     assert model.num_classes == 5
@@ -125,7 +125,7 @@ def test_votenet_bad_mean_sizes_shape() -> None:
 
 def test_votenet_mean_sizes_not_persisted() -> None:
     # The reference rebuilds mean_sizes on the fly, so it must stay out of the checkpoint.
-    model = create_model("votenet-fair-base.scannet", task="detection")
+    model = create_model("votenet.scannet.fair", task="detection")
     assert isinstance(model, VoteNetDetection)
     assert "mean_sizes" not in model.state_dict()
     # ...but it still moves with the module and drives size decoding.
@@ -171,12 +171,12 @@ def test_votenet_voting_module_residual() -> None:
 
 def test_votenet_registered_variants() -> None:
     names = list_models("votenet*", task="detection")
-    assert "votenet-fair-base.scannet" in names
-    assert "votenet-fair-base.sunrgbd" in names
+    assert "votenet.scannet.fair" in names
+    assert "votenet.sunrgbd.fair" in names
 
 
 def test_votenet_create_model_no_pretrained() -> None:
-    model = create_model("votenet-fair-base.sunrgbd", task="detection")
+    model = create_model("votenet.sunrgbd.fair", task="detection")
     assert isinstance(model, VoteNetDetection)
     assert model.num_classes == 10
     assert model.num_heading_bin == 12

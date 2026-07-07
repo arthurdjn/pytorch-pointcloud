@@ -17,9 +17,11 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.models._base import SegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.spformer_unet import SPFormerUNet
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import optional_import
@@ -793,10 +795,16 @@ _ONEFORMER3D_SCANNET_TRANSFORMS: Callable[..., Any] = T.Compose(
 
 
 @register_model(
-    "oneformer3d-base.scannet20",
+    "oneformer3d-base.scannet20.danila-rukhovich",
     task="segmentation",
-    weights="hf://torch-pointcloud/oneformer3d/oneformer3d-base.scannet20.pth",
-    transforms=_ONEFORMER3D_SCANNET_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.scannet20.danila-rukhovich.safetensors",
+        dataset="scannet20",
+        classes=SCANNET20_CLASSES,
+        author="danila-rukhovich",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_ONEFORMER3D_SCANNET_TRANSFORMS,
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -821,10 +829,15 @@ def oneformer3d_base_scannet20(**hparams: Any) -> OneFormer3DSegmentation:
 
 
 @register_model(
-    "oneformer3d-base.scannet200",
+    "oneformer3d-base.scannet200.danila-rukhovich",
     task="segmentation",
-    weights="hf://torch-pointcloud/oneformer3d/oneformer3d-base.scannet200.pth",
-    transforms=_ONEFORMER3D_SCANNET_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.scannet200.danila-rukhovich.safetensors",
+        dataset="scannet200",
+        author="danila-rukhovich",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_ONEFORMER3D_SCANNET_TRANSFORMS,
     hparams=dict(
         in_channels=6,
         num_classes=200,
@@ -875,10 +888,16 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
 
 
 @register_model(
-    "oneformer3d-base.s3dis-area5",
+    "oneformer3d-base.s3dis-area5.danila-rukhovich",
     task="segmentation",
-    weights="hf://torch-pointcloud/oneformer3d/oneformer3d-base.s3dis-area5.pth",
-    transforms=_ONEFORMER3D_S3DIS_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.s3dis-area5.danila-rukhovich.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="danila-rukhovich",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_ONEFORMER3D_S3DIS_TRANSFORMS,
     hparams=dict(
         in_channels=6,
         num_classes=13,

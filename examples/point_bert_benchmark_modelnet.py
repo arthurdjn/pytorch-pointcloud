@@ -8,12 +8,12 @@ the paper reports 93.2 / 93.4 / 93.8 with voting):
 
     | Variant                       | reference | torch-pointcloud |
     | ----------------------------- | --------- | ---------------- |
-    | point-bert-base.modelnet40    | 92.67     | 92.63            |
-    | point-bert-base.modelnet40-4k | 92.91     | 93.03            |
-    | point-bert-base.modelnet40-8k | 93.19     | 93.07            |
+    | point-bert-base.modelnet40.xumin-yu    | 92.67     | 92.63            |
+    | point-bert-base.modelnet40-4k.xumin-yu | 92.91     | 93.03            |
+    | point-bert-base.modelnet40-8k.xumin-yu | 93.19     | 93.07            |
 
 Usage:
-    uv run --no-sync python examples/point_bert_benchmark_modelnet.py --model point-bert-base.modelnet40
+    uv run --no-sync python examples/point_bert_benchmark_modelnet.py --model point-bert-base.modelnet40.xumin-yu
 """
 
 import os
@@ -41,9 +41,9 @@ BATCH_SIZE = 16
 SEED = 42
 
 MODEL_CHOICES = [
-    "point-bert-base.modelnet40",
-    "point-bert-base.modelnet40-4k",
-    "point-bert-base.modelnet40-8k",
+    "point-bert-base.modelnet40.xumin-yu",
+    "point-bert-base.modelnet40-4k.xumin-yu",
+    "point-bert-base.modelnet40-8k.xumin-yu",
 ]
 
 
@@ -88,7 +88,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark Point-BERT classification on ModelNet40 (normal-resampled).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--model", type=str, default="point-bert-base.modelnet40", choices=MODEL_CHOICES)
+    parser.add_argument("--model", type=str, default="point-bert-base.modelnet40.xumin-yu", choices=MODEL_CHOICES)
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)

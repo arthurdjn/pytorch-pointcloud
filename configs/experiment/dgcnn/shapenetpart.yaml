@@ -5,7 +5,7 @@
 #
 # | model.name               | ins_mIoU | cls_mIoU |
 # | ------------------------ | -------- | -------- |
-# | dgcnn-antao.shapenetpart | 0.8522   | 0.8092   |
+# | dgcnn.shapenetpart.an-tao | 0.8522   | 0.8092   |
 defaults:
   - override /datamodule: shapenetpart
   - override /model: segmentation
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 100
 
 model:
-  name: dgcnn-antao.shapenetpart
+  name: dgcnn.shapenetpart.an-tao
   pretrained: false
   num_classes: 50
   input_keys: [x, pos, batch, category]

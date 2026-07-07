@@ -5,7 +5,7 @@
 #
 # | model.name                  | accuracy |
 # | --------------------------- | -------- |
-# | point-mamba-base.modelnet40 | 0.9364   |
+# | point-mamba-base.modelnet40.dingkang-liang | 0.9364   |
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
@@ -15,7 +15,7 @@ trainer:
   max_epochs: 200
 
 model:
-  name: point-mamba-base.modelnet40
+  name: point-mamba-base.modelnet40.dingkang-liang
   num_classes: 40
   pretrained: false
   input_keys: [x, pos, batch]

@@ -18,16 +18,16 @@ RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
 
 _FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE and _TORCH_SCATTER_AVAILABLE
-_WEIGHTS = Path(MODELS_DIR, "lion", "lion-mamba-happinesslz.nuscenes.pt")
+_WEIGHTS = Path(MODELS_DIR, "lion", "lion-mamba.nuscenes.zhe-liu.pt")
 
 
 def test_lion_registered_variant() -> None:
-    assert "lion-mamba-happinesslz.nuscenes" in list_models("lion*", task="detection")
+    assert "lion-mamba.nuscenes.zhe-liu" in list_models("lion*", task="detection")
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 def test_lion_create_model_hparams() -> None:
-    model = create_model("lion-mamba-happinesslz.nuscenes", task="detection")
+    model = create_model("lion-mamba.nuscenes.zhe-liu", task="detection")
     assert isinstance(model, LIONDetection)
     assert model.in_channels == 5
     assert model.num_classes == 10
@@ -109,7 +109,7 @@ def _make_inputs(scene_sizes: Sequence[int] = (30000,)) -> tuple[torch.Tensor, t
 
 @pytest.mark.skipif(not _FULL_STACK, reason="LION forward needs CUDA + mamba_ssm + spconv + torch_scatter")
 def test_lion_forward_and_decode() -> None:
-    model = create_model("lion-mamba-happinesslz.nuscenes", task="detection").to(DEVICE).eval()
+    model = create_model("lion-mamba.nuscenes.zhe-liu", task="detection").to(DEVICE).eval()
     assert isinstance(model, LIONDetection)
     pos, x, batch = _make_inputs()
     with torch.no_grad():
@@ -135,7 +135,7 @@ def test_lion_forward_and_decode() -> None:
 @pytest.mark.skipif(not _WEIGHTS.exists(), reason="LION nuScenes weights not in local cache")
 def test_lion_pretrained_smoke() -> None:
     """Pretrained LION strict-loads and produces finite, in-range detections on a random scene."""
-    model = create_model("lion-mamba-happinesslz.nuscenes", task="detection", pretrained=True).to(DEVICE).eval()
+    model = create_model("lion-mamba.nuscenes.zhe-liu", task="detection", pretrained=True).to(DEVICE).eval()
     assert isinstance(model, LIONDetection)
     pos, x, batch = _make_inputs()
     with torch.no_grad():

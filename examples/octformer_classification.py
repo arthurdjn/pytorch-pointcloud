@@ -69,7 +69,12 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="modelnet10", choices=["modelnet10", "modelnet40"])
-    parser.add_argument("--model", type=str, default="octformer-base.modelnet40", choices=["octformer-base.modelnet40"])
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="octformer-base.modelnet40.octree-nn",
+        choices=["octformer-base.modelnet40.octree-nn"],
+    )
     parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument("--num-points", type=int, default=1024)
     parser.add_argument("--batch-size", type=int, default=32)

@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import AttentionKind, PointTransformerV3Encoder
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.serialization import SerializationOrder
@@ -221,10 +222,14 @@ def _concerto_encoder_hparams(
 
 
 @register_model(
-    "concerto-tiny",
+    "concerto-tiny.pointcept",
     task="base",
-    weights="hf://torch-pointcloud/concerto/concerto-tiny.pth",
-    transforms=_CONCERTO_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/concerto/concerto-tiny.pointcept.safetensors",
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
     hparams=_concerto_encoder_hparams(
         encoder_depths=(1, 1, 1, 3, 1),
         encoder_channels=(16, 32, 64, 128, 256),
@@ -236,10 +241,14 @@ def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-small",
+    "concerto-small.pointcept",
     task="base",
-    weights="hf://torch-pointcloud/concerto/concerto-small.pth",
-    transforms=_CONCERTO_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/concerto/concerto-small.pointcept.safetensors",
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
     hparams=_concerto_encoder_hparams(
         encoder_depths=(2, 2, 2, 6, 2),
         encoder_channels=(32, 64, 128, 256, 512),
@@ -251,10 +260,14 @@ def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-base",
+    "concerto-base.pointcept",
     task="base",
-    weights="hf://torch-pointcloud/concerto/concerto-base.pth",
-    transforms=_CONCERTO_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/concerto/concerto-base.pointcept.safetensors",
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
     hparams=_concerto_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(48, 96, 192, 384, 512),
@@ -266,10 +279,14 @@ def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-large",
+    "concerto-large.pointcept",
     task="base",
-    weights="hf://torch-pointcloud/concerto/concerto-large.pth",
-    transforms=_CONCERTO_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/concerto/concerto-large.pointcept.safetensors",
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
     hparams=_concerto_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(64, 128, 256, 512, 768),
@@ -281,10 +298,17 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-large-lp.scannet20",
+    "concerto-large-lp.scannet20.pointcept",
     task="segmentation",
-    weights="hf://torch-pointcloud/concerto/concerto-large-lp.scannet20.pth",
-    transforms=_CONCERTO_SEG_TRANSFORMS,
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/concerto/concerto-large-lp.scannet20.pointcept.safetensors",
+        dataset="scannet20",
+        metrics={"mIoU": 77.68},
+        classes=SCANNET20_CLASSES,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_SEG_TRANSFORMS,
     hparams=dict(
         num_classes=20,
         **_concerto_encoder_hparams(

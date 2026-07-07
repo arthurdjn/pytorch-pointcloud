@@ -4,9 +4,9 @@
 #
 # | model.name                     | ins_mIoU | cls_mIoU |
 # | ------------------------------ | -------- | -------- |
-# | pointnext-sm.shapenetpart      | 0.8587   | 0.8348   |
-# | pointnext-sm-c64.shapenetpart  | -        | -        |
-# | pointnext-sm-c160.shapenetpart | -        | -        |
+# | pointnext-sm.shapenetpart.openpoints      | 0.8587   | 0.8348   |
+# | pointnext-sm-c64.shapenetpart.openpoints  | -        | -        |
+# | pointnext-sm-c160.shapenetpart.openpoints | -        | -        |
 # Measured: deferred (c64 / c160 not re-measured under the ins_mIoU / cls_mIoU metric)
 defaults:
   - override /datamodule: shapenetpart
@@ -14,7 +14,7 @@ defaults:
   - override /callbacks: part_segmentation
 
 model:
-  name: pointnext-sm.shapenetpart
+  name: pointnext-sm.shapenetpart.openpoints
   num_classes: 50
   input_keys: [x, pos, batch, cls_onehot]
   target_key: segment
