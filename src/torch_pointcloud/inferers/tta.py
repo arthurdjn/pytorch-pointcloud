@@ -72,7 +72,7 @@ class TTAInferer(Inferer):
         probs = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
         ```
 
-        Enumerated 8-view TTA (Scannet ablation):
+        Enumerated 8-view TTA (ScanNet ablation):
 
         ```python
         views = [Compose([RandomRotate(keys="pos", angle_range=(a, a), axis=2, p=1.0)])

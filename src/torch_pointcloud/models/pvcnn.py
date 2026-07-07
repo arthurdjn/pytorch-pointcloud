@@ -14,7 +14,7 @@ from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import SegmentationModel
+from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
 
 
@@ -94,7 +94,7 @@ class PVConvBlock(nn.Module):
         return x
 
 
-class PVCNNClassification(nn.Module):
+class PVCNNClassification(ClassificationModel):
     def __init__(
         self,
         in_channels: int,
@@ -115,9 +115,7 @@ class PVCNNClassification(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
 
         self.depths = ensure_tuple(depths)
         self.channels = ensure_tuple_size([in_channels] + list(channels), size=len(self.depths) + 1)

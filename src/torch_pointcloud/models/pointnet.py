@@ -12,6 +12,8 @@ from torch_pointcloud.layers import (
 )
 from torch_pointcloud.utils.imports import optional_import
 
+from ._base import ClassificationModel, SegmentationModel
+
 if TYPE_CHECKING:
     from torch_scatter import scatter
 
@@ -184,7 +186,7 @@ class PointNetEncoder(nn.Module):
         return x
 
 
-class PointNetClassification(nn.Module):
+class PointNetClassification(ClassificationModel):
     r"""PointNet architecture for 3D point cloud classification tasks as described in the original PointNet paper
     :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
@@ -250,8 +252,7 @@ class PointNetClassification(nn.Module):
         tnet_norm: Union[str, Callable, None] = "batch_norm",
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        super().__init__()
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
 
         self.encoder = PointNetEncoder(
@@ -348,7 +349,7 @@ class PointNetClassification(nn.Module):
         return self.forward_head(x, batch)
 
 
-class PointNetSegmentation(nn.Module):
+class PointNetSegmentation(SegmentationModel):
     r"""PointNet architecture for point cloud segmentation tasks as described in the original PointNet paper
     :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
@@ -411,8 +412,7 @@ class PointNetSegmentation(nn.Module):
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
         seg_head_dims: Sequence[int] = (512, 256, 128),
     ) -> None:
-        super().__init__()
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
 
         self.encoder = PointNetEncoder(

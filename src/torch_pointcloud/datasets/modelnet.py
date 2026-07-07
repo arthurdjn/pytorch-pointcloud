@@ -11,6 +11,7 @@ from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import convert_to_numpy, convert_to_tensor, ensure_tuple
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.io import load_off
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
@@ -78,9 +79,9 @@ MODELNET40_CLASSES = (
 def load_modelnet_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
     pos, face = load_off(file_path)
     return {
-        "pos": torch.from_numpy(pos).float(),
-        "face": torch.from_numpy(face).long(),
-        "label": torch.tensor(target, dtype=torch.long),
+        DataKeys.POS: torch.from_numpy(pos).float(),
+        DataKeys.FACE: torch.from_numpy(face).long(),
+        DataKeys.LABEL: torch.tensor(target, dtype=torch.long),
     }
 
 
@@ -90,9 +91,9 @@ def load_modelnet_normal_resampled_data(file_path: PathLike, target: int) -> Dic
     # NOTE: we could directly return the data in numpy-format but for consistency
     # we convert it to tensors so that it is ready to be used in transforms.
     return {
-        "pos": torch.from_numpy(data[:, :3]).float(),
-        "normal": torch.from_numpy(data[:, 3:]).float(),
-        "label": torch.tensor(target, dtype=torch.long),
+        DataKeys.POS: torch.from_numpy(data[:, :3]).float(),
+        DataKeys.NORMAL: torch.from_numpy(data[:, 3:]).float(),
+        DataKeys.LABEL: torch.tensor(target, dtype=torch.long),
     }
 
 
@@ -219,7 +220,9 @@ class _ModelNet(PointCloudDataset):
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
         file_path = Path(self.processed_dir, f"{self.split}.pt")
-        return torch.load(file_path, weights_only=True)
+        # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
+        with torch.serialization.safe_globals([DataKeys]):
+            return torch.load(file_path, weights_only=True)
 
     def __getitem__(self, index: int) -> Any:
         data = self.data[index]
@@ -262,7 +265,7 @@ class ModelNet10(_ModelNet):
         ```
     """
 
-    data_url = "http://3dvision.princeton.edu/projects/2014/3DShapeNets"
+    data_url = "https://3dvision.princeton.edu/projects/2014/3DShapeNets"
     resource = "ModelNet10.zip"
     md5 = "18f4c73879802c35aa6178f8e773a99e"
 
@@ -300,7 +303,7 @@ class ModelNet40(_ModelNet):
         ```
     """
 
-    data_url = "http://modelnet.cs.princeton.edu"
+    data_url = "https://modelnet.cs.princeton.edu"
     resource = "ModelNet40.zip"
     md5 = "79bcee68fdf02f581938ba15f4cdca51"
 
