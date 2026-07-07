@@ -7,16 +7,15 @@ from torch import Tensor
 from torch_geometric.nn import MLP, global_max_pool, global_mean_pool
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, PointNeXtSetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, OptTensor
-
-from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
-from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model

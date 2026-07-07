@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
@@ -19,8 +21,6 @@ from torch_pointcloud.layers.serialized_attention import (
 )
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
 from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
-from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size

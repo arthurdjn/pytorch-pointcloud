@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder
 from torch_pointcloud.utils.data import DataKeys
