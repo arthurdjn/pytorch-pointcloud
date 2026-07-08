@@ -21,6 +21,39 @@ model:
   score_threshold: 0.0
   nms_iou: 0.175
   label_key: label
+  scheduler_interval: step
+  criterion:
+    _target_: torch_pointcloud.losses.TransFusionLoss
+    num_classes: 10
+    point_cloud_range: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+    voxel_size: [0.3, 0.3, 0.25]
+    feature_map_stride: 2
+    num_proposals: 200
+    gaussian_overlap: 0.1
+    min_radius: 2
+    hungarian_cls_cost: 0.15
+    hungarian_reg_cost: 0.25
+    hungarian_iou_cost: 0.25
+    # 8 box-code weights + 2 velocity weights (nuScenes GT has no velocity, so vel stays unsupervised).
+    code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
+    cls_weight: 1.0
+    bbox_weight: 0.25
+    hm_weight: 1.0
+    iou_weight: 0.5
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.01
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.001
+    total_steps: 100
+    pct_start: 0.4
+    div_factor: 10.0
+    base_momentum: 0.85
+    max_momentum: 0.95
 
 datamodule:
   batch_size: 1

@@ -1,3 +1,4 @@
+import math
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -7,7 +8,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.pointnet2_blocks import GlobalSAModule, SAModule
-from torch_pointcloud.utils.box3d import decode_box_residuals, nms3d
+from torch_pointcloud.utils.box3d import boxes_iou3d, decode_box_residuals, nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
@@ -136,28 +137,29 @@ class PointHeadBox(nn.Module):
             plain_last=True,
         )
 
-    def forward(self, x: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        r"""Predict per-point class scores and decoded proposal boxes.
+    def forward(self, x: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        r"""Predict per-point class scores, raw box residuals and decoded proposal boxes.
 
         Args:
             x: Per-point backbone features, shape $(N, C)$.
             pos: Per-point coordinates, shape $(N, 3)$.
 
         Returns:
-            A tuple `(point_scores, cls_preds, boxes)` of the sigmoid foreground score $(N,)$, the raw
-            class logits $(N, \text{num\_classes})$, and the decoded boxes $(N, 7)$.
+            A tuple `(point_scores, cls_preds, box_preds, boxes)` of the sigmoid foreground score $(N,)$,
+            the raw class logits $(N, \text{num\_classes})$, the raw box residuals $(N, 8)$ (the stage-1
+            regression targets are formed against these), and the decoded boxes $(N, 7)$.
 
         Shape:
             - x: $(N, C)$
             - pos: $(N, 3)$
-            - output: $(N,)$, $(N, \text{num\_classes})$, $(N, 7)$
+            - output: $(N,)$, $(N, \text{num\_classes})$, $(N, 8)$, $(N, 7)$
         """
         cls_preds = self.cls_layers(x)
         box_preds = self.box_layers(x)
         point_scores = torch.sigmoid(cls_preds.max(dim=-1).values)
         pred_classes = cls_preds.argmax(dim=-1) + 1
         boxes = decode_point_residuals(box_preds, pos, pred_classes, self.mean_sizes)
-        return point_scores, cls_preds, boxes
+        return point_scores, cls_preds, box_preds, boxes
 
 
 class PointRCNNRefinementHead(nn.Module):
@@ -355,8 +357,8 @@ class PointRCNNRefinementHead(nn.Module):
         batch: Tensor,
         rois: Tensor,
         roi_batch: Tensor,
-    ) -> Tuple[Tensor, Tensor]:
-        r"""Refine proposals into confidence logits and refined boxes.
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        r"""Refine proposals into confidence logits, raw box residuals and refined boxes.
 
         Args:
             pos: Per-point coordinates, shape $(N, 3)$.
@@ -367,13 +369,14 @@ class PointRCNNRefinementHead(nn.Module):
             roi_batch: Per-ROI scene index, shape $(M,)$.
 
         Returns:
-            A tuple `(rcnn_cls, refined_boxes)` of the confidence logit $(M, 1)$ and the refined boxes
-            $(M, 7)$ in the lidar frame.
+            A tuple `(rcnn_cls, rcnn_reg, refined_boxes)` of the confidence logit $(M, 1)$, the raw ROI box
+            residuals $(M, 7)$ (the stage-2 regression targets are formed against these) and the refined
+            boxes $(M, 7)$ in the lidar frame.
 
         Shape:
             - pos: $(N, 3)$, features: $(N, C)$, point_scores: $(N,)$
             - rois: $(M, 7)$
-            - output: $(M, 1)$, $(M, 7)$
+            - output: $(M, 1)$, $(M, 7)$, $(M, 7)$
         """
         depth = pos.norm(dim=1) / self.depth_normalizer - 0.5
         feat_all = torch.cat([point_scores[:, None], depth[:, None], features], dim=1)
@@ -402,7 +405,7 @@ class PointRCNNRefinementHead(nn.Module):
         rcnn_cls = self.cls_layers(shared)
         rcnn_reg = self.reg_layers(shared)
         refined = self._decode_rcnn(rois, rcnn_reg)
-        return rcnn_cls, refined
+        return rcnn_cls, rcnn_reg, refined
 
     def _densify(self, pos: Tensor, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Flatten per-ROI point sets into a packed batch (one ROI = one batch element).
@@ -485,8 +488,16 @@ class PointRCNNDetection(DetectionModel):
         pool_extra_width: Per-axis enlargement of the stage-2 pooling box.
         depth_normalizer: Divisor for the stage-2 point-depth feature.
         nms_pre_maxsize: Proposals kept before stage-1 NMS.
-        nms_post_maxsize: ROIs kept after stage-1 NMS (the stage-2 batch size per scene).
-        nms_thresh: Stage-1 proposal NMS IoU threshold.
+        nms_post_maxsize: ROIs kept after stage-1 NMS at inference (the stage-2 batch size per scene).
+        nms_thresh: Stage-1 proposal NMS IoU threshold at inference.
+        train_nms_post_maxsize: Proposals kept after stage-1 NMS during training (before ROI sampling).
+        train_nms_thresh: Stage-1 proposal NMS IoU threshold during training.
+        roi_per_image: ROIs sampled per scene for stage-2 training.
+        fg_ratio: Target fraction of foreground ROIs in the sampled set.
+        reg_fg_thresh: ROI-to-GT IoU at or above which a sampled ROI is foreground (box regression valid).
+        cls_fg_thresh: ROI-to-GT IoU used with `reg_fg_thresh` to define the foreground sampling threshold.
+        cls_bg_thresh_lo: ROI-to-GT IoU below which a ROI is easy background (else hard background).
+        hard_bg_ratio: Fraction of the sampled background ROIs drawn from hard (higher-IoU) background.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
@@ -521,6 +532,14 @@ class PointRCNNDetection(DetectionModel):
         nms_pre_maxsize: int = 9000,
         nms_post_maxsize: int = 100,
         nms_thresh: float = 0.85,
+        train_nms_post_maxsize: int = 512,
+        train_nms_thresh: float = 0.8,
+        roi_per_image: int = 128,
+        fg_ratio: float = 0.5,
+        reg_fg_thresh: float = 0.55,
+        cls_fg_thresh: float = 0.6,
+        cls_bg_thresh_lo: float = 0.1,
+        hard_bg_ratio: float = 0.8,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -530,6 +549,14 @@ class PointRCNNDetection(DetectionModel):
         self.nms_pre_maxsize = nms_pre_maxsize
         self.nms_post_maxsize = nms_post_maxsize
         self.nms_thresh = nms_thresh
+        self.train_nms_post_maxsize = train_nms_post_maxsize
+        self.train_nms_thresh = train_nms_thresh
+        self.roi_per_image = roi_per_image
+        self.fg_ratio = fg_ratio
+        self.reg_fg_thresh = reg_fg_thresh
+        self.cls_fg_thresh = cls_fg_thresh
+        self.cls_bg_thresh_lo = cls_bg_thresh_lo
+        self.hard_bg_ratio = hard_bg_ratio
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
         if mean.shape != (num_classes, 3):
@@ -590,11 +617,45 @@ class PointRCNNDetection(DetectionModel):
         x, pos, batch = self.decoder(x, pos_down, batch_down, intermediates)
         return x, pos, batch
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
+    def forward(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        gt_boxes: OptTensor = None,
+        gt_labels: OptTensor = None,
+        gt_batch: OptTensor = None,
+    ) -> Dict[str, Tensor]:
         x_point, pos_point, batch_point = self.forward_features(x, pos, batch)
-        point_scores, cls_preds, boxes = self.point_head(x_point, pos_point)
+        point_scores, cls_preds, box_preds, boxes = self.point_head(x_point, pos_point)
+
+        if self.training:
+            assert gt_boxes is not None and gt_labels is not None and gt_batch is not None, (
+                "PointRCNN training needs ground-truth boxes; pass `box` / `label` / `batch_box` via `input_keys`."
+            )
+            rois, _, roi_labels, roi_batch = self._propose(
+                boxes, cls_preds, batch_point, post_maxsize=self.train_nms_post_maxsize, thresh=self.train_nms_thresh
+            )
+            sampled = self._sample_proposals(rois, roi_labels, roi_batch, gt_boxes, gt_labels.long() + 1, gt_batch)
+            rcnn_cls, rcnn_reg, refined = self.roi_head(
+                pos_point, x_point, point_scores, batch_point, sampled["rois"], sampled["batch"]
+            )
+            return {
+                "point_cls_preds": cls_preds,
+                "point_box_preds": box_preds,
+                "point_coords": pos_point,
+                "point_batch": batch_point,
+                "rcnn_cls": rcnn_cls,
+                "rcnn_reg": rcnn_reg,
+                "rcnn_boxes": refined,
+                "rois": sampled["rois"],
+                "gt_of_rois": sampled["gt_of_rois"],
+                "gt_of_rois_src": sampled["gt_of_rois_src"],
+                "roi_ious": sampled["roi_ious"],
+            }
+
         rois, roi_scores, roi_labels, roi_batch = self._propose(boxes, cls_preds, batch_point)
-        rcnn_cls, refined = self.roi_head(pos_point, x_point, point_scores, batch_point, rois, roi_batch)
+        rcnn_cls, _, refined = self.roi_head(pos_point, x_point, point_scores, batch_point, rois, roi_batch)
         return {
             "rcnn_cls": rcnn_cls,
             "boxes": refined,
@@ -603,13 +664,23 @@ class PointRCNNDetection(DetectionModel):
             "batch": roi_batch,
         }
 
-    def _propose(self, boxes: Tensor, cls_preds: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def _propose(
+        self,
+        boxes: Tensor,
+        cls_preds: Tensor,
+        batch: Tensor,
+        *,
+        post_maxsize: Optional[int] = None,
+        thresh: Optional[float] = None,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""Class-agnostic NMS over per-point proposals to a fixed number of ROIs per scene.
 
         Args:
             boxes: Per-point decoded boxes, shape $(N, 7)$.
             cls_preds: Per-point class logits, shape $(N, \text{num\_classes})$.
             batch: Per-point scene index, shape $(N,)$.
+            post_maxsize: ROIs to keep per scene (defaults to the inference `nms_post_maxsize`).
+            thresh: NMS IoU threshold (defaults to the inference `nms_thresh`).
 
         Returns:
             A tuple `(rois, roi_scores, roi_labels, roi_batch)` of the kept boxes $(M, 7)$, their sigmoid
@@ -619,6 +690,8 @@ class PointRCNNDetection(DetectionModel):
             - boxes: $(N, 7)$, cls_preds: $(N, \text{num\_classes})$
             - output: $(M, 7)$, $(M,)$, $(M,)$, $(M,)$
         """
+        post = self.nms_post_maxsize if post_maxsize is None else post_maxsize
+        iou = self.nms_thresh if thresh is None else thresh
         scores = torch.sigmoid(cls_preds)
         roi_score, roi_label = scores.max(dim=1)
 
@@ -629,7 +702,7 @@ class PointRCNNDetection(DetectionModel):
             scene_boxes = boxes[mask]
             scene_scores = roi_score[mask]
             scene_labels = roi_label[mask]
-            keep = self._nms_single(scene_boxes, scene_scores)
+            keep = self._nms_single(scene_boxes, scene_scores, post, iou)
             rois_list.append(scene_boxes[keep])
             score_list.append(scene_scores[keep])
             label_list.append(scene_labels[keep] + 1)
@@ -641,22 +714,161 @@ class PointRCNNDetection(DetectionModel):
             torch.cat(batch_list),
         )
 
-    def _nms_single(self, boxes: Tensor, scores: Tensor) -> Tensor:
+    def _nms_single(self, boxes: Tensor, scores: Tensor, post_maxsize: int, thresh: float) -> Tensor:
         r"""Class-agnostic BEV NMS keeping the top proposals (`class_agnostic_nms`).
 
         Args:
             boxes: Boxes $(N, 7)$.
             scores: Per-box score $(N,)$.
+            post_maxsize: Maximum number of boxes to keep.
+            thresh: NMS IoU threshold.
 
         Returns:
-            Kept indices into `boxes`, shape $(K,)$ with $K \le$ `nms_post_maxsize`.
+            Kept indices into `boxes`, shape $(K,)$ with $K \le$ `post_maxsize`.
         """
         if boxes.numel() == 0:
             return boxes.new_zeros((0,), dtype=torch.long)
         topk = min(self.nms_pre_maxsize, scores.shape[0])
         top_scores, top_idx = torch.topk(scores, k=topk)
-        keep = nms3d(boxes[top_idx], top_scores, self.nms_thresh)
-        return top_idx[keep[: self.nms_post_maxsize]]
+        keep = nms3d(boxes[top_idx], top_scores, thresh)
+        return top_idx[keep[:post_maxsize]]
+
+    def _sample_proposals(
+        self,
+        rois: Tensor,
+        roi_labels: Tensor,
+        roi_batch: Tensor,
+        gt_boxes: Tensor,
+        gt_labels: Tensor,
+        gt_batch: Tensor,
+    ) -> Dict[str, Tensor]:
+        r"""Sample `roi_per_image` ROIs per scene and match each to a ground-truth box (ProposalTargetLayer).
+
+        Per scene the proposals are matched to same-class ground-truth boxes by 3D IoU
+        ([`boxes_iou3d`][torch_pointcloud.utils.box3d.boxes_iou3d]), a foreground / background subset is
+        sampled, and each sampled ROI's matched box is returned both in the lidar frame and canonically
+        transformed into the ROI frame (translated to the ROI center, rotated by $-\theta$, heading
+        wrapped to $[-\pi/2, \pi/2]$).
+
+        Args:
+            rois: Proposal boxes $(P, 7)$.
+            roi_labels: Per-proposal $1$-based class, shape $(P,)$.
+            roi_batch: Per-proposal scene index, shape $(P,)$.
+            gt_boxes: Ground-truth boxes $(K, 7)$.
+            gt_labels: Ground-truth $1$-based class, shape $(K,)$.
+            gt_batch: Per-box scene index, shape $(K,)$.
+
+        Returns:
+            A dict of the sampled `rois` $(M, 7)$, per-ROI scene index `batch` $(M,)$, ROI-canonical matched
+            box `gt_of_rois` $(M, 7)$, lidar-frame matched box `gt_of_rois_src` $(M, 7)$ and per-ROI max IoU
+            `roi_ious` $(M,)$, with $M = \text{roi\_per\_image} \cdot B$.
+        """
+        batch_size = int(roi_batch.max().item()) + 1 if roi_batch.numel() else 0
+        rois_list, batch_list, gt_ct_list, gt_src_list, iou_list = [], [], [], [], []
+        for b in range(batch_size):
+            roi_mask = roi_batch == b
+            cur_rois = rois[roi_mask]
+            cur_roi_labels = roi_labels[roi_mask]
+            box_mask = gt_batch == b
+            cur_gt = gt_boxes[box_mask]
+            cur_gt_labels = gt_labels[box_mask]
+            if cur_gt.shape[0] == 0:
+                cur_gt = cur_gt.new_zeros((1, cur_gt.shape[1]))
+                cur_gt_labels = cur_gt_labels.new_zeros(1)
+
+            max_overlaps, gt_assignment = self._roi_gt_iou(cur_rois, cur_roi_labels, cur_gt, cur_gt_labels)
+            sampled = self._subsample_rois(max_overlaps)
+
+            sampled_rois = cur_rois[sampled]
+            sampled_gt = cur_gt[gt_assignment[sampled]][:, 0:7]
+            rois_list.append(sampled_rois)
+            batch_list.append(torch.full((sampled.numel(),), b, dtype=torch.long, device=rois.device))
+            gt_ct_list.append(self._canonical_gt(sampled_rois, sampled_gt))
+            gt_src_list.append(sampled_gt)
+            iou_list.append(max_overlaps[sampled])
+
+        return {
+            "rois": torch.cat(rois_list),
+            "batch": torch.cat(batch_list),
+            "gt_of_rois": torch.cat(gt_ct_list),
+            "gt_of_rois_src": torch.cat(gt_src_list),
+            "roi_ious": torch.cat(iou_list),
+        }
+
+    def _roi_gt_iou(
+        self, rois: Tensor, roi_labels: Tensor, gt_boxes: Tensor, gt_labels: Tensor
+    ) -> Tuple[Tensor, Tensor]:
+        r"""Per-proposal max 3D IoU and matched-box index, restricted to same-class ROI / GT pairs."""
+        max_overlaps = rois.new_zeros(rois.shape[0])
+        gt_assignment = rois.new_zeros(rois.shape[0], dtype=torch.long)
+        for cls in torch.unique(gt_labels).tolist():
+            roi_mask = roi_labels == cls
+            gt_mask = gt_labels == cls
+            if roi_mask.any() and gt_mask.any():
+                gt_idx = gt_mask.nonzero(as_tuple=False).squeeze(1)
+                iou = boxes_iou3d(rois[roi_mask][:, 0:7], gt_boxes[gt_mask][:, 0:7])
+                cur_max, cur_arg = iou.max(dim=1)
+                max_overlaps[roi_mask] = cur_max
+                gt_assignment[roi_mask] = gt_idx[cur_arg]
+        return max_overlaps, gt_assignment
+
+    def _subsample_rois(self, max_overlaps: Tensor) -> Tensor:
+        r"""Sample foreground / hard-background / easy-background ROI indices to `roi_per_image` total."""
+        device = max_overlaps.device
+        fg_rois_per_image = int(round(self.fg_ratio * self.roi_per_image))
+        fg_thresh = min(self.reg_fg_thresh, self.cls_fg_thresh)
+
+        fg_inds = (max_overlaps >= fg_thresh).nonzero(as_tuple=False).view(-1)
+        easy_bg = (max_overlaps < self.cls_bg_thresh_lo).nonzero(as_tuple=False).view(-1)
+        hard_bg = (
+            ((max_overlaps < self.reg_fg_thresh) & (max_overlaps >= self.cls_bg_thresh_lo))
+            .nonzero(as_tuple=False)
+            .view(-1)
+        )
+        fg_num, bg_num = fg_inds.numel(), hard_bg.numel() + easy_bg.numel()
+
+        if fg_num > 0 and bg_num > 0:
+            fg_this = min(fg_rois_per_image, fg_num)
+            fg_inds = fg_inds[torch.randperm(fg_num, device=device)[:fg_this]]
+            bg_inds = self._sample_bg(hard_bg, easy_bg, self.roi_per_image - fg_this)
+        elif fg_num > 0:
+            fg_inds = fg_inds[torch.randint(0, fg_num, (self.roi_per_image,), device=device)]
+            bg_inds = fg_inds.new_empty(0)
+        elif bg_num > 0:
+            fg_inds = max_overlaps.new_empty(0, dtype=torch.long)
+            bg_inds = self._sample_bg(hard_bg, easy_bg, self.roi_per_image)
+        else:
+            return max_overlaps.new_zeros(self.roi_per_image, dtype=torch.long)
+        return torch.cat([fg_inds, bg_inds], dim=0)
+
+    def _sample_bg(self, hard_bg: Tensor, easy_bg: Tensor, num: int) -> Tensor:
+        r"""Draw `num` background indices, splitting between hard and easy background by `hard_bg_ratio`."""
+        device = hard_bg.device
+        if hard_bg.numel() > 0 and easy_bg.numel() > 0:
+            hard_num = min(int(num * self.hard_bg_ratio), hard_bg.numel())
+            hard = hard_bg[torch.randint(0, hard_bg.numel(), (hard_num,), device=device)]
+            easy = easy_bg[torch.randint(0, easy_bg.numel(), (num - hard_num,), device=device)]
+            return torch.cat([hard, easy])
+        if hard_bg.numel() > 0:
+            return hard_bg[torch.randint(0, hard_bg.numel(), (num,), device=device)]
+        return easy_bg[torch.randint(0, easy_bg.numel(), (num,), device=device)]
+
+    def _canonical_gt(self, rois: Tensor, gt_boxes: Tensor) -> Tensor:
+        r"""Transform each matched ground-truth box into its ROI-canonical frame with a wrapped heading."""
+        gt = gt_boxes.clone()
+        roi_center = rois[:, 0:3]
+        roi_ry = rois[:, 6] % (2 * math.pi)
+        gt[:, 0:3] = gt[:, 0:3] - roi_center
+        gt[:, 6] = gt[:, 6] - roi_ry
+        gt = rotate_points_along_z(gt[:, None, :], -roi_ry).squeeze(1)
+
+        heading = gt[:, 6] % (2 * math.pi)
+        opposite = (heading > math.pi * 0.5) & (heading < math.pi * 1.5)
+        heading[opposite] = (heading[opposite] + math.pi) % (2 * math.pi)
+        flag = heading > math.pi
+        heading[flag] = heading[flag] - 2 * math.pi
+        gt[:, 6] = heading.clamp(min=-math.pi / 2, max=math.pi / 2)
+        return gt
 
     @torch.no_grad()
     def decode(self, out: Dict[str, Tensor]) -> Detection3D:

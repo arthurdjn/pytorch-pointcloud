@@ -13,6 +13,31 @@ model:
   score_threshold: 0.05
   nms_iou: 0.25
   min_points: 5
+  criterion:
+    _target_: torch_pointcloud.losses.DETR3DLoss
+    num_classes: 10
+    num_angle_bin: 12
+    matcher_cls_cost: 1.0
+    matcher_giou_cost: 2.0
+    matcher_center_cost: 0.0
+    matcher_objectness_cost: 0.0
+    loss_giou_weight: 1.0
+    loss_sem_cls_weight: 1.0
+    loss_no_object_weight: 0.2
+    loss_angle_cls_weight: 0.1
+    loss_angle_reg_weight: 0.5
+    loss_center_weight: 5.0
+    loss_size_weight: 1.0
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.0005
+    weight_decay: 0.1
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: 720
+    eta_min: 1.0e-6
 
 datamodule:
   # Ragged GT boxes stay packed (emits batch_box).

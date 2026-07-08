@@ -21,6 +21,39 @@ model:
   nms_iou: 0.01
   label_key: label
   ignore_mask_key: ignore_mask
+  scheduler_interval: step
+  criterion:
+    _target_: torch_pointcloud.losses.AnchorLoss
+    num_classes: 3
+    voxel_size: [0.05, 0.05, 0.1]
+    point_cloud_range: [0.0, -40.0, -3.0, 70.4, 40.0, 1.0]
+    # Car, Pedestrian, Cyclist.
+    anchor_sizes: [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
+    anchor_bottom_heights: [-1.78, -0.6, -0.6]
+    feature_map_stride: 8
+    matched_thresholds: [0.6, 0.5, 0.5]
+    unmatched_thresholds: [0.45, 0.35, 0.35]
+    code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    cls_weight: 1.0
+    loc_weight: 2.0
+    dir_weight: 0.2
+    num_dir_bins: 2
+    dir_offset: 0.78539
+    dir_limit_offset: 0.0
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.003
+    weight_decay: 0.01
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.003
+    total_steps: 100
+    pct_start: 0.4
+    div_factor: 10.0
+    base_momentum: 0.85
+    max_momentum: 0.95
 
 # Official KITTI 3D IoU thresholds: Car @ 0.7, Pedestrian / Cyclist @ 0.5.
 callbacks:
