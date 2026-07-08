@@ -40,17 +40,17 @@ _REQUIRES_TORCH_SCATTER = pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reaso
 _KITTI_DUMMY_OVERRIDES = ("datamodule.val_dataset.split_file=null", "datamodule.val_dataset.fov=false")
 
 
-class ExperimentRun(NamedTuple):
+class Experiment(NamedTuple):
     """Runtime-test row for one experiment config.
 
-    `modes` declares which workflows the config supports on the dummy datasets: `"train"` fits 2 epochs
-    (requires an `optimizer` in the config), `"benchmark"` runs the eval-only `test.py` path.
-    An empty `modes` is an explicit opt-out and must say why in a comment on the row.
+    `train` fits 2 epochs on the dummy datasets (requires an `optimizer` in the config) and `test` runs the
+    eval-only `test.py` path. Both `False` is an explicit opt-out and must say why in a comment on the row.
     """
 
     experiment: str
     accelerator: str
-    modes: Tuple[str, ...]
+    train: bool
+    test: bool
     marks: Tuple[pytest.MarkDecorator, ...] = ()
     benchmark_overrides: Tuple[str, ...] = ()
 
@@ -63,121 +63,118 @@ _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_TORCH_CLUSTER, _REQUIRES_TORCH_SCATTER)
 
 EXPERIMENTS = (
-    ExperimentRun("3detr/scannet", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("3detr/sunrgbd", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("concerto/scannet", "auto", modes=("train", "benchmark"), marks=_GPU_SPCONV_SCATTER),
-    ExperimentRun("dgcnn/modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("dgcnn/modelnet40-2048", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("dgcnn/s3dis", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER),
-    ExperimentRun("dgcnn/scannet", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER),
-    ExperimentRun("dgcnn/shapenetpart", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("kpfcnn/s3dis", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("lion/nuscenes", "auto", modes=("benchmark",), marks=_GPU_MAMBA + (_REQUIRES_SPCONV,)),
-    ExperimentRun("octformer/modelnet40", "auto", modes=("train", "benchmark"), marks=_GPU_OCTREE),
-    ExperimentRun("octformer/scannet", "auto", modes=("train", "benchmark"), marks=_GPU_OCTREE),
+    Experiment("3detr/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("3detr/sunrgbd", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("concerto/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
+    Experiment("dgcnn/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("dgcnn/modelnet40-2048", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("dgcnn/s3dis", "cpu", train=False, test=True, marks=_CPU_CLUSTER),
+    Experiment("dgcnn/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER),
+    Experiment("dgcnn/shapenetpart", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("kpfcnn/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("lion/nuscenes", "auto", train=False, test=True, marks=_GPU_MAMBA + (_REQUIRES_SPCONV,)),
+    Experiment("octformer/modelnet40", "auto", train=True, test=True, marks=_GPU_OCTREE),
+    Experiment("octformer/scannet", "auto", train=True, test=True, marks=_GPU_OCTREE),
     # No scannet200 dummy dataset; compose-tested only.
-    ExperimentRun("octformer/scannet200", "auto", modes=(), marks=_GPU_OCTREE),
-    ExperimentRun("point_bert/modelnet40", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_bert/scanobjectnn-hardest", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_bert/scanobjectnn-objbg", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_bert/scanobjectnn-objonly", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_m2ae/modelnet40", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_m2ae/scanobjectnn-hardest", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_m2ae/scanobjectnn-objbg", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_m2ae/shapenetpart", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_mae/modelnet40", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_mae/scanobjectnn-hardest", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_mae/scanobjectnn-objbg", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_mae/scanobjectnn-objonly", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_mae/shapenetpart", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("point_mamba/modelnet40", "auto", modes=("train", "benchmark"), marks=_GPU_MAMBA),
-    ExperimentRun("point_mamba/scanobjectnn", "auto", modes=("train", "benchmark"), marks=_GPU_MAMBA),
-    ExperimentRun(
-        "point_mamba/scanobjectnn-augmentedrot-scale75", "auto", modes=("train", "benchmark"), marks=_GPU_MAMBA
-    ),
-    ExperimentRun("point_mamba/scanobjectnn-nobg", "auto", modes=("train", "benchmark"), marks=_GPU_MAMBA),
+    Experiment("octformer/scannet200", "auto", train=False, test=False, marks=_GPU_OCTREE),
+    Experiment("point_bert/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_bert/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_bert/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_bert/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_m2ae/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_m2ae/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_m2ae/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_m2ae/shapenetpart", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_mae/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_mae/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_mae/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_mae/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_mae/shapenetpart", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_mamba/modelnet40", "auto", train=True, test=True, marks=_GPU_MAMBA),
+    Experiment("point_mamba/scanobjectnn", "auto", train=True, test=True, marks=_GPU_MAMBA),
+    Experiment("point_mamba/scanobjectnn-augmentedrot-scale75", "auto", train=True, test=True, marks=_GPU_MAMBA),
+    Experiment("point_mamba/scanobjectnn-nobg", "auto", train=True, test=True, marks=_GPU_MAMBA),
     # pointcnn-base has no registered weights, so the pretrained benchmark is not a supported workflow;
     # the train recipe is the point of these configs.
-    ExperimentRun("pointcnn/modelnet40", "cpu", modes=("train",), marks=_CPU_CLUSTER),
-    ExperimentRun("pointcnn/shapenetpart", "cpu", modes=("train",), marks=_CPU_CLUSTER),
-    ExperimentRun("pointconv/modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointgpt/modelnet40", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointgpt/scanobjectnn-hardest", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointgpt/scanobjectnn-objbg", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointgpt/scanobjectnn-objonly", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointmlp/modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointmlp/scanobjectnn", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointnet2/modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("pointnet2/msg_modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("pointnet2/openpoints_modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("pointnet2/openpoints_s3dis", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("pointnet2/openpoints_scanobjectnn", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("pointnet2/yanx27_s3dis", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER),
-    ExperimentRun("pointnext/modelnet40", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointnext/s3dis", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointnext/scanobjectnn", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("pointnext/shapenetpart", "cpu", modes=("benchmark",), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun(
+    Experiment("pointcnn/modelnet40", "cpu", train=True, test=False, marks=_CPU_CLUSTER),
+    Experiment("pointcnn/shapenetpart", "cpu", train=True, test=False, marks=_CPU_CLUSTER),
+    Experiment("pointconv/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointgpt/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointgpt/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointgpt/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointgpt/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointmlp/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointmlp/scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointnet2/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("pointnet2/msg_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("pointnet2/openpoints_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("pointnet2/openpoints_s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("pointnet2/openpoints_scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("pointnet2/yanx27_s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
+    Experiment("pointnext/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointnext/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointnext/scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointnext/shapenetpart", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment(
         "pointpillars/kitti",
         "cpu",
-        modes=("benchmark",),
+        train=False,
+        test=True,
         marks=(_REQUIRES_TORCH_SCATTER,),
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
     ),
     # Random weights score ~0.5 on every dense nuScenes anchor; at the production score threshold the
     # pairwise per-class NMS over the full ~500k-anchor set exhausts host memory.
-    ExperimentRun(
+    Experiment(
         "pointpillars/nuscenes",
         "cpu",
-        modes=("benchmark",),
+        train=False,
+        test=True,
         marks=(_REQUIRES_TORCH_SCATTER,),
         benchmark_overrides=("model.score_threshold=0.99",),
     ),
-    ExperimentRun(
+    Experiment(
         "pointrcnn/kitti",
         "cpu",
-        modes=("benchmark",),
+        train=False,
+        test=True,
         marks=_CPU_CLUSTER_SCATTER,
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
     ),
-    ExperimentRun("point_transformer_v3/s3dis", "auto", modes=("train", "benchmark"), marks=_GPU_SPCONV_SCATTER),
-    ExperimentRun("point_transformer_v3/scannet", "auto", modes=("train", "benchmark"), marks=_GPU_SPCONV_SCATTER),
+    Experiment("point_transformer_v3/s3dis", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
+    Experiment("point_transformer_v3/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     # No scannet200 dummy dataset; compose-tested only.
-    ExperimentRun("point_transformer_v3/scannet200", "auto", modes=(), marks=_GPU_SPCONV_SCATTER),
-    ExperimentRun("pvcnn/s3dis", "cpu", modes=("train", "benchmark"), marks=(_REQUIRES_TORCH_SCATTER,)),
-    ExperimentRun("randlanet/semantickitti", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun(
+    Experiment("point_transformer_v3/scannet200", "auto", train=False, test=False, marks=_GPU_SPCONV_SCATTER),
+    Experiment("pvcnn/s3dis", "cpu", train=True, test=True, marks=(_REQUIRES_TORCH_SCATTER,)),
+    Experiment("randlanet/semantickitti", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment(
         "second/kitti",
         "auto",
-        modes=("benchmark",),
+        train=False,
+        test=True,
         marks=_GPU_SPCONV,
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
     ),
     # Same dense-anchor memory blow-up as pointpillars/nuscenes under random weights.
-    ExperimentRun(
+    Experiment(
         "second/nuscenes",
         "auto",
-        modes=("benchmark",),
+        train=False,
+        test=True,
         marks=_GPU_SPCONV,
         benchmark_overrides=("model.score_threshold=0.99",),
     ),
-    ExperimentRun("sonata/scannet", "auto", modes=("train", "benchmark"), marks=_GPU_SPCONV_SCATTER),
-    ExperimentRun("sphereformer/semantickitti", "auto", modes=("benchmark",), marks=_GPU_SPCONV + (_REQUIRES_SPTR,)),
-    ExperimentRun("spunet/scannet", "auto", modes=("train", "benchmark"), marks=_GPU_SPCONV),
-    ExperimentRun(
-        "spvcnn/semantickitti", "auto", modes=("train", "benchmark"), marks=(_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)
-    ),
-    ExperimentRun("utonia/scannet", "auto", modes=("train", "benchmark"), marks=_GPU_SPCONV_SCATTER),
-    ExperimentRun("votenet/sunrgbd", "cpu", modes=("train", "benchmark"), marks=_CPU_CLUSTER_SCATTER),
-    ExperimentRun("voxelnext/nuscenes", "auto", modes=("benchmark",), marks=_GPU_SPCONV),
+    Experiment("sonata/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
+    Experiment("sphereformer/semantickitti", "auto", train=False, test=True, marks=_GPU_SPCONV + (_REQUIRES_SPTR,)),
+    Experiment("spunet/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV),
+    Experiment("spvcnn/semantickitti", "auto", train=True, test=True, marks=(_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)),
+    Experiment("utonia/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
+    Experiment("votenet/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("voxelnext/nuscenes", "auto", train=False, test=True, marks=_GPU_SPCONV),
 )
 
-TRAIN_EXPERIMENTS = [
-    pytest.param(run, marks=list(run.marks), id=run.experiment) for run in EXPERIMENTS if "train" in run.modes
-]
-BENCHMARK_EXPERIMENTS = [
-    pytest.param(run, marks=list(run.marks), id=run.experiment) for run in EXPERIMENTS if "benchmark" in run.modes
-]
+TRAIN_EXPERIMENTS = [pytest.param(run, marks=list(run.marks), id=run.experiment) for run in EXPERIMENTS if run.train]
+BENCHMARK_EXPERIMENTS = [pytest.param(run, marks=list(run.marks), id=run.experiment) for run in EXPERIMENTS if run.test]
 
 
 def test_experiment_runs_cover_all_configs() -> None:
@@ -221,7 +218,7 @@ def _release_cuda_memory() -> Iterator[None]:
 @pytest.mark.experiment
 @pytest.mark.parametrize("run", TRAIN_EXPERIMENTS)
 def test_experiment_fit_two_epochs(
-    run: ExperimentRun,
+    run: Experiment,
     datasets_dir: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -269,7 +266,7 @@ def test_experiment_fit_two_epochs(
 @pytest.mark.experiment
 @pytest.mark.parametrize("run", BENCHMARK_EXPERIMENTS)
 def test_experiment_benchmark_mode(
-    run: ExperimentRun,
+    run: Experiment,
     datasets_dir: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
