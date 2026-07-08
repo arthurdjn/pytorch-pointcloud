@@ -10,10 +10,14 @@ from torch_geometric.typing import Adj, OptTensor, PairTensor, SparseTensor, tor
 from torch_geometric.utils import add_self_loops, remove_self_loops, scatter, softmax
 from typing_extensions import Unpack
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import MessagePassingParams
 
 
@@ -230,7 +234,7 @@ class PointTransformerBlock(torch.nn.Module):
 
         self.act = create_act(act, **act_kwargs) or nn.Identity()
         self.lin1 = nn.Linear(in_channels, in_channels)
-        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.norm1 = create_norm(norm, in_channels, **norm_kwargs) or nn.Identity()
         self.transformer = PointTransformerConv(
             in_channels,
             out_channels,
@@ -478,7 +482,7 @@ class PointTransformerEncoder(torch.nn.Module):
                 downsample = PointTransformerTransitionDown(
                     in_channels=channels[i - 1],
                     out_channels=channels[i],
-                    num_neighbors=num_neighbors[i - 1],
+                    num_neighbors=num_neighbors[i],
                     ratio=ratios[i - 1],
                     act=act,
                     act_kwargs=act_kwargs,
@@ -611,7 +615,40 @@ class PointTransformerDecoder(torch.nn.Module):
         return x, pos, batch
 
 
-class PointTransformerClassification(torch.nn.Module):
+class PointTransformerClassification(ClassificationModel):
+    r"""Point Transformer classification model from the paper
+    :arxiv: [Point Transformer](https://arxiv.org/abs/2012.09164)
+    by Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun.
+
+    A hierarchical encoder of vector-attention `PointTransformerBlock` stages interleaved with
+    `PointTransformerTransitionDown` downsampling, followed by global pooling and a linear head.
+
+    Args:
+        in_channels: Number of input feature channels. Pass $0$ to use the raw positions as features.
+        num_classes: Number of output classes.
+        encoder_channels: Feature width of each encoder stage.
+        encoder_depths: Number of `PointTransformerBlock` blocks per encoder stage.
+        encoder_num_groups: Number of shared-weight vector-attention groups per encoder stage.
+        encoder_num_neighbors: Number of neighbors in the $k$-NN graph of each encoder stage.
+        ratios: Farthest-point-sampling keep ratio for each downsampling transition (length one less than
+            the number of encoder stages).
+        spatial_dim: Dimensionality of the point coordinates.
+        add_self_loops: Whether to add self-loops to each neighborhood graph.
+        global_pool: Pooling used to aggregate point features into a per-cloud vector.
+        dropout: Dropout probability applied before the classification head.
+        act: Activation used across the network.
+        act_kwargs: Optional keyword arguments for the activation factory.
+        act_first: Whether to apply the activation before the normalization.
+        norm: Normalization used across the network.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
+
+    Shape:
+        - x: $(N, \text{in\_channels})$, or `None` to fall back to `pos`.
+        - pos: $(N, 3)$ point coordinates.
+        - batch: $(N,)$ per-point batch index.
+        - output: $(B, \text{num\_classes})$ class logits.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -632,14 +669,13 @@ class PointTransformerClassification(torch.nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
-        self.num_classes = num_classes
         self.embedding_dim = encoder_channels[-1]
         self.dropout = dropout
 
-        self.embeddings = MLP([in_channels, encoder_channels[0]], plain_last=False)
+        self.embeddings = MLP([self.in_channels, encoder_channels[0]], plain_last=False)
         self.encoder = PointTransformerEncoder(
             channels=encoder_channels,
             depths=encoder_depths,
@@ -663,7 +699,7 @@ class PointTransformerClassification(torch.nn.Module):
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -672,7 +708,7 @@ class PointTransformerClassification(torch.nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -680,7 +716,7 @@ class PointTransformerClassification(torch.nn.Module):
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -698,11 +734,48 @@ class PointTransformerClassification(torch.nn.Module):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: OptTensor = None) -> Tensor:
-        x, _, batch = self.forward_encoder(x, pos, batch)
+        x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
 
 
-class PointTransformerSegmentation(torch.nn.Module):
+class PointTransformerSegmentation(SegmentationModel):
+    r"""Point Transformer segmentation model from the paper
+    :arxiv: [Point Transformer](https://arxiv.org/abs/2012.09164)
+    by Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun.
+
+    An encoder-decoder with skip connections: vector-attention `PointTransformerBlock` stages with
+    `PointTransformerTransitionDown` downsampling, mirrored by `PointTransformerTransitionUp` upsampling,
+    followed by a per-point linear head.
+
+    Args:
+        in_channels: Number of input feature channels. Pass $0$ to use the raw positions as features.
+        num_classes: Number of output classes.
+        encoder_channels: Feature width of each encoder stage.
+        encoder_depths: Number of `PointTransformerBlock` blocks per encoder stage.
+        encoder_num_groups: Number of shared-weight vector-attention groups per encoder stage.
+        encoder_num_neighbors: Number of neighbors in the $k$-NN graph of each encoder stage.
+        decoder_channels: Feature width of each decoder stage (the last entry is the head width).
+        decoder_depths: Number of `PointTransformerBlock` blocks per decoder stage.
+        decoder_num_groups: Number of shared-weight vector-attention groups per decoder stage.
+        decoder_num_neighbors: Number of neighbors in the $k$-NN graph of each decoder stage.
+        ratios: Farthest-point-sampling keep ratio for each downsampling transition (length one less than
+            the number of encoder stages).
+        spatial_dim: Dimensionality of the point coordinates.
+        add_self_loops: Whether to add self-loops to each neighborhood graph.
+        dropout: Dropout probability applied to the per-point features before the head.
+        act: Activation used across the network.
+        act_kwargs: Optional keyword arguments for the activation factory.
+        act_first: Whether to apply the activation before the normalization.
+        norm: Normalization used across the network.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
+
+    Shape:
+        - x: $(N, \text{in\_channels})$, or `None` to fall back to `pos`.
+        - pos: $(N, 3)$ point coordinates.
+        - batch: $(N,)$ per-point batch index.
+        - output: $(N, \text{num\_classes})$ per-point class logits.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -726,10 +799,9 @@ class PointTransformerSegmentation(torch.nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
-        self.num_classes = num_classes
         self.embedding_dim = decoder_channels[-1]
         self.dropout = dropout
 
@@ -768,7 +840,7 @@ class PointTransformerSegmentation(torch.nn.Module):
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -777,7 +849,7 @@ class PointTransformerSegmentation(torch.nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -785,7 +857,7 @@ class PointTransformerSegmentation(torch.nn.Module):
         return_intermediates: Literal[False] = False,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
-    def forward_encoder(
+    def forward_features(
         self,
         x: OptTensor,
         pos: Tensor,
@@ -811,6 +883,115 @@ class PointTransformerSegmentation(torch.nn.Module):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: OptTensor = None) -> Tensor:
-        x, pos, batch, intermediates = self.forward_encoder(x, pos, batch, return_intermediates=True)
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, pos, batch, intermediates)
         return self.forward_head(x)
+
+
+def _point_transformer_seg_transforms(
+    feature_keys: Sequence[str],
+    relabel_labels: Optional[Sequence[int]] = None,
+    estimate_normals: bool = False,
+) -> T.Compose:
+    """Feature pipeline shared by the Point Transformer segmentation models.
+
+    `relabel_labels` shifts the dataset's $1..K$ class labels (0 reserved for unknown) down to $0..K-1$ and
+    sends everything else to the ignore index. Pass `None` when labels are already 0-based (S3DIS). Set
+    `estimate_normals=True` for datasets shipped without normals (S3DIS): normals are approximated by local PCA.
+    """
+    steps: List[Any] = [
+        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+        T.Divide(keys=DataKeys.COLOR, divisor=255),
+    ]
+    if estimate_normals:
+        steps.append(T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True))
+    steps += [
+        T.Cat(keys=list(feature_keys), dst_key=DataKeys.X, dim=1),
+        T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="first",
+            keys=[DataKeys.X, DataKeys.SEGMENT],
+            reduce=["first", "first"],
+            size=0.02,
+            method="fnv",
+        ),
+    ]
+    if relabel_labels is not None:
+        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
+    return T.Compose(steps)
+
+
+@register_model(
+    "point-transformer.s3dis-area5",
+    task="segmentation",
+    # No ported pretrained weights for Point Transformer yet.
+    weights=None,
+    transform=_point_transformer_seg_transforms([DataKeys.POS, DataKeys.COLOR], estimate_normals=True),
+    hparams=dict(
+        in_channels=6,
+        num_classes=13,
+        encoder_channels=(32, 64, 128, 256, 512),
+        encoder_depths=(1, 2, 3, 5, 2),
+        encoder_num_groups=(8, 8, 8, 8, 8),
+        encoder_num_neighbors=(8, 16, 16, 16, 16),
+        ratios=(0.25, 0.25, 0.25, 0.25),
+        decoder_channels=(256, 128, 64, 32),
+        decoder_depths=(1, 1, 1, 1),
+        decoder_num_groups=(8, 8, 8, 8),
+        decoder_num_neighbors=(16, 16, 16, 8),
+    ),
+)
+def point_transformer_s3dis_area5(**hparams: Any) -> PointTransformerSegmentation:
+    return PointTransformerSegmentation(**hparams)
+
+
+@register_model(
+    "point-transformer.scannet20",
+    task="segmentation",
+    # No ported pretrained weights for Point Transformer yet.
+    weights=None,
+    transform=_point_transformer_seg_transforms([DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], range(1, 21)),
+    hparams=dict(
+        in_channels=9,
+        num_classes=20,
+        encoder_channels=(32, 64, 128, 256, 512),
+        encoder_depths=(1, 2, 3, 5, 2),
+        encoder_num_groups=(8, 8, 8, 8, 8),
+        encoder_num_neighbors=(8, 16, 16, 16, 16),
+        ratios=(0.25, 0.25, 0.25, 0.25),
+        decoder_channels=(256, 128, 64, 32),
+        decoder_depths=(1, 1, 1, 1),
+        decoder_num_groups=(8, 8, 8, 8),
+        decoder_num_neighbors=(16, 16, 16, 8),
+    ),
+)
+def point_transformer_scannet20(**hparams: Any) -> PointTransformerSegmentation:
+    return PointTransformerSegmentation(**hparams)
+
+
+@register_model(
+    "point-transformer.modelnet40",
+    task="classification",
+    # No ported pretrained weights for Point Transformer yet.
+    weights=None,
+    transform=T.Compose(
+        [
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=40,
+        encoder_channels=(32, 64, 128, 256, 512),
+        encoder_depths=(1, 2, 3, 5, 2),
+        encoder_num_groups=(8, 8, 8, 8, 8),
+        encoder_num_neighbors=(8, 16, 16, 16, 16),
+        ratios=(0.25, 0.25, 0.25, 0.25),
+        global_pool="mean",
+    ),
+)
+def point_transformer_modelnet40(**hparams: Any) -> PointTransformerClassification:
+    return PointTransformerClassification(**hparams)

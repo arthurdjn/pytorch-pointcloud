@@ -1,0 +1,39 @@
+# @package _global_
+# PVCNN++ semantic segmentation on S3DIS Area 5 (per-block HDF5 protocol).
+# Train: uv run --no-sync python train.py experiment=pvcnn2/s3dis
+# Benchmark: uv run --no-sync python test.py experiment=pvcnn2/s3dis
+#
+# Measured: deferred (training campaign pending)
+defaults:
+  - override /datamodule: s3dis_hdf5
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 50
+  precision: "32-true"
+
+model:
+  name: pvcnn2.s3dis-area5
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.001
+    weight_decay: 1.0e-5
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: ${trainer.max_epochs}
+
+datamodule:
+  batch_size: 32
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

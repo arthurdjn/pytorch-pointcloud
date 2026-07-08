@@ -99,16 +99,16 @@ def test_point_transformer_clf_reset_classifier(
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
-def test_point_transformer_clf_forward_encoder(
+def test_point_transformer_clf_forward_features(
     model_clf: PointTransformerClassification,
     data: Dict[str, Tensor],
 ) -> None:
-    x, pos, batch = model_clf.forward_encoder(data["features"], data["pos"], data["batch"])
+    x, pos, batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
     assert x.dim() == 2
     assert pos.dim() == 2
     assert batch.dim() == 1
 
-    x, pos, batch, intermediates = model_clf.forward_encoder(
+    x, pos, batch, intermediates = model_clf.forward_features(
         data["features"],
         data["pos"],
         data["batch"],
@@ -121,11 +121,11 @@ def test_point_transformer_clf_forward_encoder(
         assert "batch" in intermediate
 
 
-def test_point_transformer_clf_forward_encoder_and_head(
+def test_point_transformer_clf_forward_features_and_head(
     model_clf: PointTransformerClassification,
     data: Dict[str, Tensor],
 ) -> None:
-    x, _, batch = model_clf.forward_encoder(data["features"], data["pos"], data["batch"])
+    x, _, batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
     logits = model_clf.forward_head(x, batch)
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
@@ -148,11 +148,11 @@ def test_point_transformer_seg_reset_classifier(
     assert logits.shape == (data["pos"].shape[0], new_num_classes)
 
 
-def test_point_transformer_seg_forward_encoder(
+def test_point_transformer_seg_forward_features(
     model_seg: PointTransformerSegmentation,
     data: Dict[str, Tensor],
 ) -> None:
-    x, pos, batch = model_seg.forward_encoder(data["features"], data["pos"], data["batch"])
+    x, pos, batch = model_seg.forward_features(data["features"], data["pos"], data["batch"])
     assert x.shape[0] == pos.shape[0] == batch.shape[0]
     assert x.dim() == 2
     assert pos.dim() == 2
@@ -163,7 +163,7 @@ def test_point_transformer_seg_forward_features_and_head(
     model_seg: PointTransformerSegmentation,
     data: Dict[str, Tensor],
 ) -> None:
-    x, pos, batch, intermediates = model_seg.forward_encoder(
+    x, pos, batch, intermediates = model_seg.forward_features(
         data["features"],
         data["pos"],
         data["batch"],

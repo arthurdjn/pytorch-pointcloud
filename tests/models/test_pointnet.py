@@ -41,6 +41,7 @@ def model_clf() -> PointNetClassification:
         tnet_mlp2_dims=(64, 32),
         tnet_act="relu",
         tnet_norm="batch_norm",
+        head_channels=(64, 32),
     )
 
 
@@ -99,3 +100,11 @@ def test_pointnet_segmentation_forward_features_and_head(
     assert x.shape[0] == point_features.shape[0] == data["pos"].shape[0]
     logits = model_seg.forward_head(x, point_features, data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_pointnet_classification_head_channels(model_clf: PointNetClassification) -> None:
+    assert model_clf.head.channel_list == [model_clf.num_features, 64, 32, model_clf.num_classes]
+
+
+def test_pointnet_segmentation_head_keeps_full_chain(model_seg: PointNetSegmentation) -> None:
+    assert model_seg.head.channel_list == [model_seg.num_features, 64, 32, model_seg.num_classes]

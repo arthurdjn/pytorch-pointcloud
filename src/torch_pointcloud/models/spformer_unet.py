@@ -17,11 +17,14 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -470,3 +473,42 @@ class SPFormerUNet(SegmentationModel):
         bottleneck, skips = self.forward_features(x, pos_grid, batch)
         sparse_x = self.forward_decoder(bottleneck, skips)
         return self.forward_head(sparse_x)
+
+
+@register_model(
+    "spformer-unet.scannet",
+    task="base",
+    # No ported pretrained weights for the standalone SPFormer U-Net yet: the released SPFormer checkpoint
+    # bundles an instance-segmentation query decoder, so the backbone is registered without weights.
+    weights=None,
+    transform=T.Compose(
+        [
+            T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
+            T.CopyItems(keys=DataKeys.POS, names="pos_centered"),
+            T.Shift(keys="pos_centered", method="centroid"),
+            T.Cat(keys=[DataKeys.COLOR, "pos_centered"], dst_key=DataKeys.X, dim=1),
+            T.Shift(keys=DataKeys.POS, method="min"),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="grid",
+                keys=[DataKeys.X],
+                reduce=["mean"],
+                size=0.02,
+                method="fnv",
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=0,
+        channels=[32, 64, 96, 128, 160],
+        layers=2,
+        stem_kernel_size=3,
+        norm_kwargs=dict(eps=1e-4, momentum=0.1),
+        spatial_padding=96,
+    ),
+)
+def spformer_unet_scannet(**hparams: Any) -> SPFormerUNet:
+    return SPFormerUNet(**hparams)
