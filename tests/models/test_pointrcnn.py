@@ -166,7 +166,7 @@ def test_pointrcnn_mean_sizes_not_persisted() -> None:
     assert model.mean_sizes.shape == (3, 3)
 
 
-def test_point_head_box_returns_scores_logits_boxes() -> None:
+def test_point_head_box_returns_scores_logits_residuals_boxes() -> None:
     head = (
         PointHeadBox(64, 3, cls_channels=[32], reg_channels=[32], mean_sizes=torch.tensor(KITTI_MEAN_SIZES))
         .to(DEVICE)
@@ -175,9 +175,10 @@ def test_point_head_box_returns_scores_logits_boxes() -> None:
     x = torch.randn(100, 64, device=DEVICE)
     pos = torch.randn(100, 3, device=DEVICE)
     with torch.no_grad():
-        scores, logits, boxes = head(x, pos)
+        scores, logits, residuals, boxes = head(x, pos)
     assert scores.shape == (100,)
     assert logits.shape == (100, 3)
+    assert residuals.shape == (100, 8)
     assert boxes.shape == (100, 7)
     assert (scores >= 0).all() and (scores <= 1).all()
 
