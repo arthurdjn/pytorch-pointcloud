@@ -2,17 +2,19 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch_geometric.nn import MLP
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import (
     PoolLike,
     TNet,
     create_pool,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 
 from ._base import ClassificationModel, SegmentationModel
+from ._registry import register_model
 
 if TYPE_CHECKING:
     from torch_scatter import scatter
@@ -163,12 +165,12 @@ class PointNetEncoder(nn.Module):
             return_point_features: Whether to return per-point features.
 
         Returns:
-            (Tensor): If `return_point_features=False`, returns global features of shape $(N, C_1)$
-                where $N$ is the batch size and $C_1$ is the last dimension of the first MLP.
-            (Tuple[Tensor, Tensor]): If `return_point_features=True`, returns a tuple of:
+            (Tensor): If `return_point_features=False`, per-point features of shape $(N, C_2)$
+                where $N$ is the number of points and $C_2$ is the last dimension of the second MLP.
+            (Tuple[Tensor, Tensor]): If `return_point_features=True`, a tuple of:
 
-                - $\mathbf{x}_{\text{global}}$ is of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
-                - $\mathbf{x}$ is of shape $(N, C_2)$ where $C_2$ is the last dimension of the second MLP.
+                - $\mathbf{x}$ of shape $(N, C_2)$ where $C_2$ is the last dimension of the second MLP.
+                - $\mathbf{point\_features}$ of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
         """
 
         xp = self.stnet(pos, batch)
@@ -210,7 +212,7 @@ class PointNetClassification(ClassificationModel):
         num_classes: Number of output classes.
         spatial_dim: Dimension of point coordinates.
         in_channels: Dimension of additional point features.
-        dropout: Dropout rate applied before classification head.
+        dropout: Dropout rate applied within the classification head.
         global_pool: Pooling method to aggregate point features (`"max"` or `"mean"`).
         mlp1_dims: Dimensions of encoder's first MLP.
         mlp2_dims: Dimensions of encoder's second MLP.
@@ -225,6 +227,7 @@ class PointNetClassification(ClassificationModel):
         tnet_act_kwargs: Keyword arguments for the T-Net activation function.
         tnet_norm: Normalization for T-Net.
         tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
+        head_channels: Hidden dimensions of the classification head MLP.
 
     Shape:
         - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape $(N, \text{spatial\_dim})$
@@ -251,6 +254,7 @@ class PointNetClassification(ClassificationModel):
         tnet_act_kwargs: Optional[Dict[str, Any]] = None,
         tnet_norm: Union[str, Callable, None] = "batch_norm",
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
+        head_channels: Sequence[int] = (512, 256),
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
@@ -275,8 +279,28 @@ class PointNetClassification(ClassificationModel):
 
         self.num_features = mlp2_dims[-1]
 
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.head_channels = list(head_channels)
+
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.num_features, num_classes)
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return MLP(
+            [self.num_features, *self.head_channels, self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            dropout=self.dropout,
+            act_first=True,
+            plain_last=True,
+        )
 
     def reset_classifier(
         self,
@@ -293,7 +317,7 @@ class PointNetClassification(ClassificationModel):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+        self.head = self.configure_head()
 
     def forward_features(
         self,
@@ -325,8 +349,6 @@ class PointNetClassification(ClassificationModel):
             Classification logits of shape $(B, num_classes)$.
         """
         x = self.global_pool(x, batch)
-        if self.dropout:
-            x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
     def forward(
@@ -368,7 +390,7 @@ class PointNetSegmentation(SegmentationModel):
         num_classes: Number of segmentation classes.
         spatial_dim: Dimension of point coordinates.
         in_channels: Dimension of additional point features.
-        dropout: Dropout rate applied before segmentation head.
+        dropout: Dropout rate applied within the segmentation head.
         mlp1_dims: Dimensions of encoder's first MLP.
         mlp2_dims: Dimensions of encoder's second MLP.
         act: Activation function to use.
@@ -450,9 +472,8 @@ class PointNetSegmentation(SegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        dims = [self.num_features, *self.seg_head_dims]
         return MLP(
-            [*dims[:-1], self.num_classes],
+            [self.num_features, *self.seg_head_dims, self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -526,9 +547,6 @@ class PointNetSegmentation(SegmentationModel):
         x_global = x_global[batch]
 
         x = torch.cat([point_features, x_global], dim=1)
-
-        if self.dropout:
-            x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
     def forward(
@@ -549,3 +567,48 @@ class PointNetSegmentation(SegmentationModel):
         """
         x, point_features = self.forward_features(x, pos, batch)
         return self.forward_head(x, point_features, batch)
+
+
+@register_model(
+    "pointnet.modelnet40",
+    task="classification",
+    # No ported pretrained weights for PointNet v1 yet.
+    weights=None,
+    hparams=dict(in_channels=0, num_classes=40, dropout=0.3),
+    transform=T.Compose(
+        [
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[], num_samples=1024),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+        ]
+    ),
+)
+def pointnet_modelnet40(**hparams: Any) -> PointNetClassification:
+    return PointNetClassification(**hparams)
+
+
+@register_model(
+    "pointnet.s3dis-area5",
+    task="segmentation",
+    # No ported pretrained weights for PointNet v1 yet.
+    weights=None,
+    hparams=dict(in_channels=9, num_classes=13),
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
+        ]
+    ),
+)
+def pointnet_s3dis_area5(**hparams: Any) -> PointNetSegmentation:
+    return PointNetSegmentation(**hparams)
+
+
+@register_model(
+    "pointnet.shapenetpart",
+    task="segmentation",
+    # No ported pretrained weights for PointNet v1 yet.
+    weights=None,
+    hparams=dict(in_channels=0, num_classes=50),
+    transform=T.Rescale(keys=DataKeys.POS),
+)
+def pointnet_shapenetpart(**hparams: Any) -> PointNetSegmentation:
+    return PointNetSegmentation(**hparams)

@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import (
     PoolLike,
     create_pool,
@@ -12,7 +13,10 @@ from torch_pointcloud.layers import (
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import softmax, voxel_grid
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
@@ -448,13 +452,14 @@ def create_encoder_blocks(
     num_neighbors = ensure_tuple_size(num_neighbors, size=n, extra_msg="Encoder length `num_neighbors` != `depths`.")
     grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
 
-    # Pre-compute the drop paths for each encoder block.
-    # For example, if the drop path is 0.3, and the depths are (2, 3, 4),
-    # then the drop paths for each block, at each stage, are:
-    # - block 0: [0.0000, 0.0375]
-    # - block 1: [0.0750, 0.1125, 0.1500]
-    # - block 2: [0.1875, 0.2250, 0.2625, 0.3000]
-    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
+    # Stage 0 is the patch embedding and gets no drop path; the schedule ramps linearly across the
+    # downsampled stages. For example, drop path 0.3 with depths (1, 2, 3, 4) yields:
+    # - stage 0: [0.0000]
+    # - stage 1: [0.0000, 0.0375]
+    # - stage 2: [0.0750, 0.1125, 0.1500]
+    # - stage 3: [0.1875, 0.2250, 0.2625, 0.3000]
+    stage_drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths[1:])), list(depths[1:]))
+    drop_paths = [torch.zeros(depths[0]), *stage_drop_paths]
 
     blocks = nn.ModuleList()
     for i in range(n):
@@ -556,16 +561,14 @@ def create_decoder_blocks(
     return blocks
 
 
-class PointTransformerV2Classification(nn.Module):
+class PointTransformerV2Classification(ClassificationModel):
     r"""Implementation of the Point Transformer V2 model for classification as described in the paper
     :arxiv: [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
 
-    This implementation is based on the original implementation from :github: [Pointcept](https://github.com/Pointcept/Pointcept).
-
     Note:
-        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
-        and :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) and
+        :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
 
     Args:
         in_channels: Number of input channels.
@@ -590,7 +593,7 @@ class PointTransformerV2Classification(nn.Module):
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
-        Logits tensor of shape $(N, \text{num_classes})$.
+        Logits tensor of shape $(B, \text{num_classes})$.
     """
 
     def __init__(
@@ -614,9 +617,7 @@ class PointTransformerV2Classification(nn.Module):
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
     ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
 
         self.embedding = MLP(
             [in_channels, encoder_channels[0]],
@@ -759,16 +760,14 @@ class PointTransformerV2Classification(nn.Module):
         return self.forward_head(x, batch)
 
 
-class PointTransformerV2Segmentation(nn.Module):
+class PointTransformerV2Segmentation(SegmentationModel):
     r"""Implementation of the Point Transformer V2 model for semantic segmentation as described in the paper
     :arxiv: [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
 
-    This implementation is based on the original implementation from :github: [Pointcept](https://github.com/Pointcept/Pointcept).
-
     Note:
-        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) to be installed.
-        and :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) and
+        :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
 
     Args:
         in_channels: Number of input channels.
@@ -824,9 +823,7 @@ class PointTransformerV2Segmentation(nn.Module):
         drop_path: float = 0.0,
         dropout: float = 0.0,
     ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
 
         self.embedding = MLP(
             [in_channels, encoder_channels[0]],
@@ -866,6 +863,7 @@ class PointTransformerV2Segmentation(nn.Module):
             pe_multiplier=pe_multiplier,
             pe_bias=pe_bias,
             attn_drop=attn_drop,
+            drop_path=drop_path,
             norm=norm,
             act=act,
             act_kwargs=act_kwargs,
@@ -873,11 +871,15 @@ class PointTransformerV2Segmentation(nn.Module):
         )
 
         self.dropout = dropout
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(decoder_channels[-1], self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
 
     @property
     def embedding_dim(self) -> int:
         return self.encoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+
+    @property
+    def out_channels(self) -> int:
+        return self.decoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
 
     def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
         return create_encoder_blocks(*args, **kwargs)
@@ -885,7 +887,7 @@ class PointTransformerV2Segmentation(nn.Module):
     def configure_decoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
         return create_decoder_blocks(*args, **kwargs)
 
-    def reset_head(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         """Resets the head with new class parameters.
 
         Note:
@@ -893,10 +895,10 @@ class PointTransformerV2Segmentation(nn.Module):
 
         Args:
             num_classes: Number of output classes.
-            **kwargs: Additional keyword arguments to pass to the classification head.
+            **kwargs: Additional keyword arguments to pass to the segmentation head.
         """
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
 
     @overload
     def forward_features(
@@ -992,3 +994,91 @@ class PointTransformerV2Segmentation(nn.Module):
         x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, intermediates)
         return self.forward_head(x)
+
+
+@register_model(
+    "ptv2-base.scannet20",
+    task="segmentation",
+    weights=None,
+    transform=T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            T.Divide(keys=DataKeys.COLOR, divisor=255),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                keys=[DataKeys.X, DataKeys.SEGMENT],
+                reduce=["first", "first"],
+                size=0.02,
+                method="fnv",
+            ),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+        ],
+    ),
+    hparams=dict(
+        in_channels=9,
+        num_classes=20,
+        grid_sizes=(0.06, 0.15, 0.375, 0.9375),
+        encoder_depths=(1, 2, 2, 6, 2),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_groups=(6, 12, 24, 48, 64),
+        encoder_num_neighbors=(8, 16, 16, 16, 16),
+        decoder_depths=(1, 1, 1, 1),
+        decoder_channels=(384, 192, 96, 48),
+        decoder_num_groups=(48, 24, 12, 6),
+        decoder_num_neighbors=(16, 16, 16, 16),
+        qkv_bias=True,
+        pe_multiplier=False,
+        pe_bias=True,
+        attn_drop=0.0,
+        drop_path=0.3,
+    ),
+)
+def ptv2_base_scannet20(**hparams: Any) -> PointTransformerV2Segmentation:
+    return PointTransformerV2Segmentation(**hparams)
+
+
+@register_model(
+    "ptv2-base.scannet200",
+    task="segmentation",
+    weights=None,
+    transform=T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            T.Divide(keys=DataKeys.COLOR, divisor=255),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                keys=[DataKeys.X, DataKeys.SEGMENT],
+                reduce=["first", "first"],
+                size=0.02,
+                method="fnv",
+            ),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 201), default=-1),
+        ],
+    ),
+    hparams=dict(
+        in_channels=9,
+        num_classes=200,
+        grid_sizes=(0.06, 0.15, 0.375, 0.9375),
+        encoder_depths=(1, 2, 2, 6, 2),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_groups=(6, 12, 24, 48, 64),
+        encoder_num_neighbors=(8, 16, 16, 16, 16),
+        decoder_depths=(1, 1, 1, 1),
+        decoder_channels=(384, 192, 96, 48),
+        decoder_num_groups=(48, 24, 12, 6),
+        decoder_num_neighbors=(16, 16, 16, 16),
+        qkv_bias=True,
+        pe_multiplier=False,
+        pe_bias=True,
+        attn_drop=0.0,
+        drop_path=0.3,
+    ),
+)
+def ptv2_base_scannet200(**hparams: Any) -> PointTransformerV2Segmentation:
+    return PointTransformerV2Segmentation(**hparams)

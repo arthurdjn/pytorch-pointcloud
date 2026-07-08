@@ -4,6 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.models import create_model
 from torch_pointcloud.models.point_transformer_v2 import (
     PointTransformerV2Classification,
     PointTransformerV2Segmentation,
@@ -94,6 +95,14 @@ def test_pt_v2_segmentation_forward(model_seg: PointTransformerV2Segmentation, d
     assert logits.dtype == data["x"].dtype
 
 
+def test_pt_v2_segmentation_reset_classifier(
+    model_seg: PointTransformerV2Segmentation, data: Dict[str, Tensor]
+) -> None:
+    model_seg.reset_classifier(num_classes=5)
+    logits = model_seg(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], 5)
+
+
 def test_pt_v2_classification_forward_features_and_head(
     model_clf: PointTransformerV2Classification, data: Dict[str, Tensor]
 ) -> None:
@@ -114,3 +123,15 @@ def test_pt_v2_segmentation_forward_features_decoder_head(
     assert x.shape[0] == data["pos"].shape[0]
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+@pytest.mark.parametrize("name", ["ptv2-base.scannet20", "ptv2-base.scannet200"])
+def test_pt_v2_registered_forward(name: str) -> None:
+    model = create_model(name, task="segmentation", in_channels=3, num_classes=10)
+    torch.manual_seed(0)
+    lengths = torch.tensor([256, 384])
+    pos = torch.randn(int(lengths.sum()), 3)
+    x = torch.randn(int(lengths.sum()), 3)
+    batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
+    logits = model(x, pos, batch)
+    assert logits.shape == (int(lengths.sum()), 10)
