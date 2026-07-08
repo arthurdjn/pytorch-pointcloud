@@ -23,7 +23,13 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
-from torch_pointcloud.utils.box3d import decode_box_residuals, limit_period
+from torch_pointcloud.utils.box3d import (
+    boxes_iou3d,
+    boxes_iou_bev,
+    decode_box_residuals,
+    encode_box_residuals,
+    limit_period,
+)
 from torch_pointcloud.utils.types import Detection3D
 
 
@@ -89,6 +95,109 @@ def generate_anchors(
     # lift anchor bottom heights to box-center heights
     anchors[..., 2] += anchors[..., 5] / 2
     return anchors
+
+
+class AnchorTargets(TypedDict):
+    r"""Per-anchor training targets from [`assign_anchor_targets`][torch_pointcloud.layers.anchors.assign_anchor_targets]."""
+
+    cls_labels: Tensor
+    box_reg_targets: Tensor
+    reg_weights: Tensor
+    cls_weights: Tensor
+
+
+def assign_anchor_targets(
+    anchors: Tensor,
+    gt_boxes: Tensor,
+    gt_labels: Tensor,
+    *,
+    matched_threshold: float,
+    unmatched_threshold: float,
+    match_height: bool = False,
+) -> AnchorTargets:
+    r"""Assign classification and box-regression targets to a single class group of axis-aligned anchors.
+
+    Each anchor is matched to the ground-truth box of highest IoU: IoU $\ge$ `matched_threshold` makes it a
+    positive carrying that box's label, IoU $<$ `unmatched_threshold` makes it background, and anything in
+    between is ignored. Each ground-truth box additionally force-matches its single highest-IoU anchor, so a
+    box with no anchor above threshold still receives one positive. Positive anchors' regression targets are
+    the residual encoding of their matched box against the anchor (the inverse of
+    [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals]). `reg_weights` and
+    `cls_weights` are normalized by the positive count so a scene's loss is invariant to how many anchors
+    matched.
+
+    Callers with several class groups (one anchor set per class) invoke this once per group with that class's
+    anchors, ground truth, and thresholds, then concatenate the results.
+
+    Args:
+        anchors: Anchors $(x, y, z, d_x, d_y, d_z, \theta)$ for one class group, shape $(A, 7)$.
+        gt_boxes: Ground-truth boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(G, 7)$.
+        gt_labels: Ground-truth class labels ($1$-based foreground indices), shape $(G,)$.
+        matched_threshold: IoU at or above which an anchor becomes a positive.
+        unmatched_threshold: IoU below which an anchor becomes background.
+        match_height: Match by 3D IoU when `True`, otherwise bird's-eye IoU.
+
+    Returns:
+        A `TypedDict` with `cls_labels` $(A,)$ ($-1$ ignore, $0$ background, $\ge 1$ foreground class),
+        `box_reg_targets` $(A, 7)$ (residual encodings, zero for non-positive anchors), and
+        `reg_weights` / `cls_weights` $(A,)$.
+
+    Shape:
+        - anchors: $(A, 7)$
+        - gt_boxes: $(G, 7)$
+        - gt_labels: $(G,)$
+        - cls_labels: $(A,)$
+        - box_reg_targets: $(A, 7)$
+        - reg_weights: $(A,)$
+        - cls_weights: $(A,)$
+
+    Example:
+        >>> anchors = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0], [20.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+        >>> gt_boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+        >>> gt_labels = torch.tensor([1])
+        >>> out = assign_anchor_targets(anchors, gt_boxes, gt_labels, matched_threshold=0.6, unmatched_threshold=0.45)
+        >>> out["cls_labels"].tolist()
+        [1, 0]
+    """
+    num_anchors = anchors.shape[0]
+    num_gt = gt_boxes.shape[0]
+    labels = anchors.new_full((num_anchors,), -1, dtype=torch.long)
+    box_reg_targets = anchors.new_zeros((num_anchors, 7))
+
+    if num_gt > 0 and num_anchors > 0:
+        overlap = boxes_iou3d(anchors, gt_boxes) if match_height else boxes_iou_bev(anchors, gt_boxes)
+
+        anchor_to_gt_argmax = overlap.argmax(dim=1)
+        anchor_to_gt_max = overlap[torch.arange(num_anchors, device=anchors.device), anchor_to_gt_argmax]
+
+        gt_to_anchor_argmax = overlap.argmax(dim=0)
+        gt_to_anchor_max = overlap[gt_to_anchor_argmax, torch.arange(num_gt, device=anchors.device)]
+        gt_to_anchor_max[gt_to_anchor_max == 0] = -1
+        anchors_with_max_overlap = (overlap == gt_to_anchor_max).nonzero()[:, 0]
+        gt_inds_force = anchor_to_gt_argmax[anchors_with_max_overlap]
+
+        pos_inds = anchor_to_gt_max >= matched_threshold
+        labels[pos_inds] = gt_labels[anchor_to_gt_argmax[pos_inds]]
+        bg_inds = anchor_to_gt_max < unmatched_threshold
+        labels[bg_inds] = 0
+        labels[anchors_with_max_overlap] = gt_labels[gt_inds_force]
+
+        fg_inds = (labels > 0).nonzero()[:, 0]
+        box_reg_targets[fg_inds] = encode_box_residuals(gt_boxes[anchor_to_gt_argmax[fg_inds]], anchors[fg_inds])
+    else:
+        labels[:] = 0
+
+    positives = labels > 0
+    pos_normalizer = positives.sum().clamp(min=1.0).to(anchors.dtype)
+    reg_weights = positives.to(anchors.dtype) / pos_normalizer
+    cls_weights = (labels >= 0).to(anchors.dtype) / pos_normalizer
+
+    return {
+        "cls_labels": labels,
+        "box_reg_targets": box_reg_targets,
+        "reg_weights": reg_weights,
+        "cls_weights": cls_weights,
+    }
 
 
 class AnchorHeadSingle(nn.Module):
