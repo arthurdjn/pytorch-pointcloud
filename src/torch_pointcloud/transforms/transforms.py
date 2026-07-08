@@ -11,7 +11,19 @@ inside the dict are not cloned unless the transform's documentation says so.
 
 import math
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, Literal, Optional, Sequence, Tuple, Union, get_args
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    get_args,
+)
 
 import numpy as np
 import torch
@@ -73,9 +85,12 @@ __all__ = [
     "HardVoxelize",
     "InstanceToBox",
     "KeepItems",
+    "LaserMix",
+    "Mix3D",
     "Normalize",
     "OneHot",
     "OnesLike",
+    "PolarMix",
     "RandomColorAutoContrast",
     "RandomColorDrop",
     "RandomColorGrayScale",
@@ -3347,4 +3362,219 @@ class EncodeVoteNetTargets(DictTransform):
         d[self.size_residual_key] = size_residual
         d[self.sem_cls_key] = sem_cls
         d[self.box_mask_key] = box_mask
+        return d
+
+
+class Mix3D(Transform):
+    r"""Concatenate two scenes into one, offsetting the second scene's instance ids.
+
+    :arxiv: [Mix3D: Out-of-Context Data Augmentation for 3D Scenes](https://arxiv.org/abs/2110.02210)
+
+    Every point-aligned key in `keys` is concatenated along the point dimension, so the mixed scene
+    holds all points of both inputs. When `instance_key` is present in both scenes, the second
+    scene's instance ids are shifted past the first scene's maximum id so the merged instances stay
+    disjoint; points labelled `ignore_index` keep that label and are excluded from the offset.
+
+    Unlike the other pairwise mixes, `Mix3D` keeps all points of both scenes, so the mixed scene has
+    roughly twice as many points as either input.
+
+    Args:
+        keys: Point-aligned keys concatenated jointly (e.g. `pos`, `color`, `normal`, `segment`).
+        instance_key: Key of per-point instance ids to offset, or `None` to skip instance handling.
+        ignore_index: Instance id treated as "no instance" (kept as-is, ignored by the offset).
+        p: Probability of applying the mix; below it the first scene is returned unchanged.
+        generator: Optional `torch.Generator` for the probability draw.
+
+    Shape:
+        - each key in `keys`: $(N, \ldots)$ and $(M, \ldots)$ inputs, $(N + M, \ldots)$ output.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+
+        a = {"pos": torch.randn(100, 3), "segment": torch.randint(0, 10, (100,))}
+        b = {"pos": torch.randn(120, 3), "segment": torch.randint(0, 10, (120,))}
+        mix = T.Mix3D(keys=("pos", "segment"), instance_key=None)
+        out = mix(a, b)
+        print(out["pos"].shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        instance_key: Optional[str] = "instance",
+        ignore_index: int = -1,
+        p: float = 1.0,
+        generator: Optional[torch.Generator] = None,
+    ) -> None:
+        self.keys = ensure_tuple(keys)
+        self.instance_key = instance_key
+        self.ignore_index = ignore_index
+        self.p = p
+        self.generator = generator
+
+    def _merge_instances(self, instance: Tensor, other_instance: Tensor) -> Tensor:
+        valid = instance != self.ignore_index
+        offset = int(instance[valid].max()) + 1 if valid.any() else 0
+        other = other_instance.clone()
+        other_valid = other != self.ignore_index
+        other[other_valid] = other[other_valid] + offset
+        return torch.cat([instance, other], dim=0)
+
+    def transform(self, data: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return d
+        for key in self.keys:
+            d[key] = torch.cat([data[key], other[key]], dim=0)
+        ik = self.instance_key
+        if ik is not None and ik in data and ik in other:
+            d[ik] = self._merge_instances(data[ik], other[ik])
+        return d
+
+
+class LaserMix(Transform):
+    r"""Mix two LiDAR scans by swapping alternating inclination (pitch) bands.
+
+    :arxiv: [LaserMix for Semi-Supervised LiDAR Semantic Segmentation](https://arxiv.org/abs/2207.00026)
+
+    Both scans are partitioned into `num_areas` inclination bands (one count is drawn per call), and
+    alternating bands are taken from each scan so the mixed scene tiles the full field of view. Every
+    key in `keys` is masked with the same per-scan selection, keeping per-point correspondence.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.laser_mix_masks`
+
+    Args:
+        keys: Point-aligned keys masked jointly (must include `pos_key`).
+        num_areas: Candidate band counts; one is sampled uniformly per call.
+        pitch_range: Inclination range `(min, max)` in degrees.
+        pos_key: Key of the coordinates used to compute inclination bands.
+        p: Probability of applying the mix; below it the first scene is returned unchanged.
+        generator: Optional `torch.Generator` for the band count, parity, and probability draws.
+
+    Shape:
+        - each key in `keys`: $(N, \ldots)$ and $(M, \ldots)$ inputs, $(N' + M', \ldots)$ output.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+
+        a = {"pos": torch.randn(100, 3), "segment": torch.randint(0, 10, (100,))}
+        b = {"pos": torch.randn(120, 3), "segment": torch.randint(0, 10, (120,))}
+        mix = T.LaserMix(keys=("pos", "segment"), num_areas=(3, 4, 5, 6), pitch_range=(-25.0, 3.0))
+        out = mix(a, b)
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        num_areas: Sequence[int],
+        pitch_range: Tuple[float, float],
+        pos_key: str = "pos",
+        p: float = 1.0,
+        generator: Optional[torch.Generator] = None,
+    ) -> None:
+        self.keys = ensure_tuple(keys)
+        self.num_areas = tuple(num_areas)
+        self.pitch_range = pitch_range
+        self.pos_key = pos_key
+        self.p = p
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return d
+        index = int(torch.randint(len(self.num_areas), (1,), generator=self.generator).item())
+        num_areas = self.num_areas[index]
+        mask, other_mask = F.laser_mix_masks(
+            data[self.pos_key], other[self.pos_key], num_areas, self.pitch_range, generator=self.generator
+        )
+        for key in self.keys:
+            d[key] = torch.cat([data[key][mask], other[key][other_mask]], dim=0)
+        return d
+
+
+class PolarMix(Transform):
+    r"""Mix two LiDAR scans by swapping an azimuth sector and rotate-pasting instance-class points.
+
+    :arxiv: [PolarMix: A General Data Augmentation Technique for LiDAR Point Clouds](https://arxiv.org/abs/2208.00223)
+
+    Two independent sub-augmentations run per call. With probability `swap_ratio`, a random azimuth
+    half-sector of the first scan is replaced by the same sector of the second scan. With probability
+    `rotate_paste_ratio`, points of the second scan whose `segment_key` label is in `instance_classes`
+    are rotated by a random angle about the up axis and appended. Only `pos_key` is rotated for the
+    pasted points; the other keys are copied unchanged.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.polar_mix_masks`
+
+    Args:
+        keys: Point-aligned keys masked and concatenated jointly (must include `pos_key`).
+        instance_classes: Semantic labels whose points are rotate-pasted from the second scan.
+        swap_ratio: Probability of swapping the azimuth sector.
+        rotate_paste_ratio: Probability of rotate-pasting the instance-class points.
+        pos_key: Key of the coordinates used to compute azimuth sectors and to rotate pasted points.
+        segment_key: Key of per-point semantic labels used to select the instance classes.
+        p: Probability of applying the mix; below it the first scene is returned unchanged.
+        generator: Optional `torch.Generator` for the sector, rotation, and probability draws.
+
+    Shape:
+        - each key in `keys`: $(N, \ldots)$ and $(M, \ldots)$ inputs, $(K, \ldots)$ output.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+
+        a = {"pos": torch.randn(100, 3), "segment": torch.randint(0, 10, (100,))}
+        b = {"pos": torch.randn(120, 3), "segment": torch.randint(0, 10, (120,))}
+        mix = T.PolarMix(keys=("pos", "segment"), instance_classes=(1, 2, 3))
+        out = mix(a, b)
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        instance_classes: Sequence[int],
+        swap_ratio: float = 0.5,
+        rotate_paste_ratio: float = 1.0,
+        pos_key: str = "pos",
+        segment_key: str = "segment",
+        p: float = 1.0,
+        generator: Optional[torch.Generator] = None,
+    ) -> None:
+        self.keys = ensure_tuple(keys)
+        self.instance_classes = tuple(instance_classes)
+        self.swap_ratio = swap_ratio
+        self.rotate_paste_ratio = rotate_paste_ratio
+        self.pos_key = pos_key
+        self.segment_key = segment_key
+        self.p = p
+        self.generator = generator
+
+    def transform(self, data: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            return d
+        if torch.rand(1, generator=self.generator).item() < self.swap_ratio:
+            mask, other_mask = F.polar_mix_masks(data[self.pos_key], other[self.pos_key], generator=self.generator)
+            for key in self.keys:
+                d[key] = torch.cat([data[key][mask], other[key][other_mask]], dim=0)
+        if torch.rand(1, generator=self.generator).item() < self.rotate_paste_ratio:
+            segment = other[self.segment_key]
+            paste = torch.isin(segment, segment.new_tensor(self.instance_classes))
+            angle = torch.empty(1).uniform_(-math.pi, math.pi, generator=self.generator).item()
+            rotation = F.rotation_matrix(angle, axis=2)
+            for key in self.keys:
+                pasted = other[key][paste]
+                if key == self.pos_key:
+                    pasted = F.rotate_vectors(pasted, rotation)
+                d[key] = torch.cat([d[key], pasted], dim=0)
         return d

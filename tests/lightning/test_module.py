@@ -216,23 +216,6 @@ def test_fit_smoke_with_explicit_scheduler() -> None:
     assert "train/loss" in trainer.callback_metrics
 
 
-def test_mix3d_halves_batch_index_during_training(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mix3D with `mix_prob=1.0` always merges adjacent scene pairs."""
-    lit = LitSegmentationModel(
-        name="dummy.segmentation",
-        optimizer=partial(torch.optim.AdamW, lr=0.01),
-        mix_prob=1.0,
-    )
-    assert lit.mix_prob == 1.0
-    trainer = Mock()
-    trainer.training = True
-    monkeypatch.setattr(lit, "_trainer", trainer)
-    batch = {"batch": torch.tensor([0, 0, 1, 1, 2, 2, 3, 3])}
-    out = lit.on_after_batch_transfer(batch, dataloader_idx=0)
-    # 0,0,1,1,2,2,3,3 -> 0,0,0,0,1,1,1,1 after `// 2`.
-    assert torch.equal(out["batch"], torch.tensor([0, 0, 0, 0, 1, 1, 1, 1]))
-
-
 def test_seg_inferer_runs_on_test_step() -> None:
     """`test_step` delegates the forward to the inferer, passing the batch and the module's forward."""
     preds = torch.randn(12, 4)

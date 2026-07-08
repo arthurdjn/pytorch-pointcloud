@@ -1,0 +1,27 @@
+# ScanNet20 datamodule whose train split is wrapped in `MixDataset` for scene-level Mix3D mixing.
+# Transforms are model-specific and live in the experiment configs (configs/experiment/), which
+# override `train_dataset.dataset.transform` and `val_dataset.transform`.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 12
+num_workers: 8
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.MixDataset
+  dataset:
+    _target_: torch_pointcloud.datasets.ScanNet20
+    root: ${paths.data_dir}
+    split: train
+    use_axis_alignment: false
+    transform: null
+  mix:
+    _target_: torch_pointcloud.transforms.Mix3D
+    keys: [pos, color, normal, segment]
+    instance_key: null
+    p: 0.8
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.ScanNet20
+  root: ${paths.data_dir}
+  split: val
+  use_axis_alignment: false
+  transform: null
