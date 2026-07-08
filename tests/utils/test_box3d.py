@@ -3,11 +3,31 @@ from typing import List
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
+from torch_pointcloud.utils.box3d import boxes_iou3d, boxes_iou_bev, count_points_in_boxes, nms3d
 
 
 def _boxes(rows: List[List[float]]) -> Tensor:
     return torch.tensor(rows, dtype=torch.float32)
+
+
+def test_boxes_iou_bev_half_offset_unit_boxes() -> None:
+    a = _boxes([[0.0, 0, 0, 1, 1, 1, 0]])
+    b = _boxes([[0.5, 0, 0, 1, 1, 1, 0]])
+    assert torch.allclose(boxes_iou_bev(a, b), torch.tensor([[1.0 / 3.0]]), atol=1e-6)
+
+
+def test_boxes_iou3d_half_offset_unit_boxes() -> None:
+    a = _boxes([[0.0, 0, 0, 1, 1, 1, 0]])
+    b = _boxes([[0.5, 0, 0, 1, 1, 1, 0]])
+    assert torch.allclose(boxes_iou3d(a, b), torch.tensor([[1.0 / 3.0]]), atol=1e-6)
+
+
+def test_boxes_iou_self_diag_is_one() -> None:
+    boxes = _boxes([[1.0, 2, 3, 2, 3, 1, 0.5], [-4.0, 0, 1, 1, 1, 2, -1.2], [0.0, 0, 0, 3, 2, 2, 0.7853981633974483]])
+    diag_bev = torch.diag(boxes_iou_bev(boxes, boxes))
+    diag_3d = torch.diag(boxes_iou3d(boxes, boxes))
+    assert torch.allclose(diag_bev, torch.ones(3), atol=1e-5)
+    assert torch.allclose(diag_3d, torch.ones(3), atol=1e-5)
 
 
 def test_nms3d_class_aware_suppresses_same_class_overlap() -> None:
