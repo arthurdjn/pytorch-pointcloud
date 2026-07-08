@@ -267,6 +267,29 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
     return result  # type: ignore[return-value]
 
 
+def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -> Sequence[Any]:
+    """Validate the length of a sequence, then nest it for Multi-Scale Grouping (MSG) compatibility.
+
+    Args:
+        value: Sequence of per-block channel specifications.
+        size: Expected number of elements in `value`.
+        extra_msg: Extra context appended to the error message.
+
+    Returns:
+        The value converted to a list of lists of lists (one inner list per grouping scale).
+
+    Raises:
+        ValueError: If `value` does not have exactly `size` elements.
+
+    Example:
+        >>> ensure_msg_list_size([[32, 64], [64, 128]], size=2)
+        [[[32, 64]], [[64, 128]]]
+    """
+    if len(value) != size:
+        raise ValueError(f"Expected a list of size {size}, got {len(value)}. {extra_msg}")
+    return ensure_msg_list(value, extra_msg=extra_msg)
+
+
 class PointNet2Conv(MessagePassing):
     def __init__(self, local_nn: nn.Module, add_self_loops: bool = True, **kwargs: Unpack[MessagePassingParams]):
         kwargs.setdefault("aggr", "max")

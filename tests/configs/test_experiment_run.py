@@ -105,6 +105,11 @@ EXPERIMENTS = (
     Experiment("pointgpt/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
     Experiment("pointmlp/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
     Experiment("pointmlp/scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    # PointNet v1 has no registered weights, so the pretrained benchmark is not a supported workflow;
+    # the train recipe is the point of these configs.
+    Experiment("pointnet/modelnet40", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("pointnet/s3dis", "cpu", train=True, test=False, marks=(_REQUIRES_TORCH_SCATTER,)),
+    Experiment("pointnet/shapenetpart", "cpu", train=True, test=False, marks=(_REQUIRES_TORCH_SCATTER,)),
     Experiment("pointnet2/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
     Experiment("pointnet2/msg_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
     Experiment("pointnet2/openpoints_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
@@ -141,11 +146,20 @@ EXPERIMENTS = (
         marks=_CPU_CLUSTER_SCATTER,
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
     ),
+    # Point Transformer v1/v2 have no registered weights; the train recipe is the point of these configs.
+    Experiment("point_transformer/modelnet40", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_transformer/s3dis", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_transformer/scannet", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("point_transformer_v2/scannet", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
+    # No scannet200 dummy dataset; compose-tested only.
+    Experiment("point_transformer_v2/scannet200", "cpu", train=False, test=False, marks=_CPU_CLUSTER_SCATTER),
     Experiment("point_transformer_v3/s3dis", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     Experiment("point_transformer_v3/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     # No scannet200 dummy dataset; compose-tested only.
     Experiment("point_transformer_v3/scannet200", "auto", train=False, test=False, marks=_GPU_SPCONV_SCATTER),
     Experiment("pvcnn/s3dis", "cpu", train=True, test=True, marks=(_REQUIRES_TORCH_SCATTER,)),
+    # PVCNN++ has no registered weights; the train recipe is the point of this config.
+    Experiment("pvcnn2/s3dis", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
     Experiment("randlanet/semantickitti", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
     Experiment(
         "second/kitti",
