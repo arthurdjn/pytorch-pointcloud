@@ -38,6 +38,12 @@ _REQUIRES_TORCH_SCATTER = pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reaso
 # Shorthands for the KITTI rows: the dummy tree ships no ImageSets/ frame lists and no image_2/, so the
 # split-file selection and the front-camera FOV filter are disabled for the smoke run.
 _KITTI_DUMMY_OVERRIDES = ("datamodule.val_dataset.split_file=null", "datamodule.val_dataset.fov=false")
+# The fit path builds the train split too, so it also needs the train dataset fixups.
+_KITTI_DUMMY_TRAIN_OVERRIDES = (
+    "datamodule.train_dataset.split_file=null",
+    "datamodule.train_dataset.fov=false",
+    *_KITTI_DUMMY_OVERRIDES,
+)
 
 
 class Experiment(NamedTuple):
@@ -53,6 +59,7 @@ class Experiment(NamedTuple):
     test: bool
     marks: Tuple[pytest.MarkDecorator, ...] = ()
     benchmark_overrides: Tuple[str, ...] = ()
+    train_overrides: Tuple[str, ...] = ()
 
 
 _CPU_CLUSTER = (_REQUIRES_TORCH_CLUSTER,)
@@ -63,8 +70,8 @@ _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_TORCH_CLUSTER, _REQUIRES_TORCH_SCATTER)
 
 EXPERIMENTS = (
-    Experiment("3detr/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("3detr/sunrgbd", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("3detr/scannet", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment("3detr/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
     Experiment("concerto/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     Experiment("dgcnn/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
     Experiment("dgcnn/modelnet40-2048", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
@@ -72,7 +79,15 @@ EXPERIMENTS = (
     Experiment("dgcnn/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER),
     Experiment("dgcnn/shapenetpart", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
     Experiment("kpfcnn/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("lion/nuscenes", "auto", train=False, test=True, marks=_GPU_MAMBA + (_REQUIRES_SPCONV,)),
+    Experiment(
+        "lion/nuscenes",
+        "auto",
+        train=True,
+        test=True,
+        marks=_GPU_MAMBA + (_REQUIRES_SPCONV,),
+        benchmark_overrides=("model.score_threshold=0.99",),
+        train_overrides=("model.score_threshold=0.99",),
+    ),
     Experiment("octformer/modelnet40", "auto", train=True, test=True, marks=_GPU_OCTREE),
     Experiment("octformer/scannet", "auto", train=True, test=True, marks=_GPU_OCTREE),
     # No scannet200 dummy dataset; compose-tested only.
@@ -123,28 +138,31 @@ EXPERIMENTS = (
     Experiment(
         "pointpillars/kitti",
         "cpu",
-        train=False,
+        train=True,
         test=True,
         marks=(_REQUIRES_TORCH_SCATTER,),
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
+        train_overrides=_KITTI_DUMMY_TRAIN_OVERRIDES,
     ),
     # Random weights score ~0.5 on every dense nuScenes anchor; at the production score threshold the
     # pairwise per-class NMS over the full ~500k-anchor set exhausts host memory.
     Experiment(
         "pointpillars/nuscenes",
         "cpu",
-        train=False,
+        train=True,
         test=True,
         marks=(_REQUIRES_TORCH_SCATTER,),
         benchmark_overrides=("model.score_threshold=0.99",),
+        train_overrides=("model.score_threshold=0.99",),
     ),
     Experiment(
         "pointrcnn/kitti",
         "cpu",
-        train=False,
+        train=True,
         test=True,
         marks=_CPU_CLUSTER_SCATTER,
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
+        train_overrides=_KITTI_DUMMY_TRAIN_OVERRIDES,
     ),
     # Point Transformer v1/v2 have no registered weights; the train recipe is the point of these configs.
     Experiment("point_transformer/modelnet40", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
@@ -164,19 +182,21 @@ EXPERIMENTS = (
     Experiment(
         "second/kitti",
         "auto",
-        train=False,
+        train=True,
         test=True,
         marks=_GPU_SPCONV,
         benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
+        train_overrides=_KITTI_DUMMY_TRAIN_OVERRIDES,
     ),
     # Same dense-anchor memory blow-up as pointpillars/nuscenes under random weights.
     Experiment(
         "second/nuscenes",
         "auto",
-        train=False,
+        train=True,
         test=True,
         marks=_GPU_SPCONV,
         benchmark_overrides=("model.score_threshold=0.99",),
+        train_overrides=("model.score_threshold=0.99",),
     ),
     Experiment("sonata/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     Experiment("sphereformer/semantickitti", "auto", train=False, test=True, marks=_GPU_SPCONV + (_REQUIRES_SPTR,)),
@@ -184,7 +204,7 @@ EXPERIMENTS = (
     Experiment("spvcnn/semantickitti", "auto", train=True, test=True, marks=(_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)),
     Experiment("utonia/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     Experiment("votenet/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("voxelnext/nuscenes", "auto", train=False, test=True, marks=_GPU_SPCONV),
+    Experiment("voxelnext/nuscenes", "auto", train=True, test=True, marks=_GPU_SPCONV),
 )
 
 TRAIN_EXPERIMENTS = [pytest.param(run, marks=list(run.marks), id=run.experiment) for run in EXPERIMENTS if run.train]
@@ -262,6 +282,7 @@ def test_experiment_fit_two_epochs(
         "datamodule.num_workers=0",
         "+datamodule.drop_last=false",
         f"hydra.run.dir={tmp_path / 'run'}",
+        *run.train_overrides,
     ]
 
     with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
