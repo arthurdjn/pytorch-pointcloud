@@ -5,5 +5,6 @@
 _target_: torch_pointcloud.lightning.LitDetectionModel
 name: ???
 input_keys: ???
+pretrained: false
 optimizer: null
 criterion: null
