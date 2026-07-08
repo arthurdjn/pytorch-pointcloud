@@ -23,8 +23,10 @@ def test_pdnorm_decoupled_key_layout() -> None:
 
 def test_pdnorm_condition_selects_inner_norm() -> None:
     norm = PDNorm(16, conditions=["A", "B"], norm=nn.BatchNorm1d)
-    assert norm.norm[0] is norm.norm[norm.conditions.index("A")]
-    assert norm.norm[1] is norm.norm[norm.conditions.index("B")]
+    inner = norm.norm
+    assert isinstance(inner, nn.ModuleList)
+    assert inner[0] is inner[norm.conditions.index("A")]
+    assert inner[1] is inner[norm.conditions.index("B")]
 
     norm.train()
     x_a = torch.randn(64, 16) * 5.0 + 3.0
@@ -32,9 +34,10 @@ def test_pdnorm_condition_selects_inner_norm() -> None:
     norm(x_a, condition="A")
     norm(x_b, condition="B")
 
-    mean_a = norm.norm[0].running_mean
-    mean_b = norm.norm[1].running_mean
-    assert not torch.allclose(mean_a, mean_b)
+    norm_a, norm_b = inner[0], inner[1]
+    assert isinstance(norm_a, nn.BatchNorm1d) and isinstance(norm_b, nn.BatchNorm1d)
+    assert norm_a.running_mean is not None and norm_b.running_mean is not None
+    assert not torch.allclose(norm_a.running_mean, norm_b.running_mean)
 
 
 def test_pdnorm_shared_key_layout() -> None:
