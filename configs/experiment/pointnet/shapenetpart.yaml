@@ -1,0 +1,45 @@
+# @package _global_
+# PointNet part segmentation on ShapeNetPart.
+# Train: uv run --no-sync python train.py experiment=pointnet/shapenetpart
+# Benchmark: uv run --no-sync python test.py experiment=pointnet/shapenetpart
+#
+# Measured: deferred (training campaign pending)
+defaults:
+  - override /datamodule: shapenetpart
+  - override /model: segmentation
+  - override /callbacks: part_segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: pointnet.shapenetpart
+  pretrained: false
+  num_classes: 50
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+    _partial_: true
+    T_max: 100
+
+datamodule:
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, normal, segment]
+          num_samples: 2048
+          replace: true
+  val_dataset:
+    transform: null

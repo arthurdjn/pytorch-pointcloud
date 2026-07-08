@@ -1,0 +1,34 @@
+# @package _global_
+# Point Transformer semantic segmentation on S3DIS Area 5.
+# Train: uv run --no-sync python train.py experiment=point_transformer/s3dis
+# Benchmark: uv run --no-sync python test.py experiment=point_transformer/s3dis
+# Measured: deferred (training campaign pending)
+defaults:
+  - override /datamodule: s3dis
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+
+model:
+  name: point-transformer.s3dis-area5
+  num_classes: 13
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  # Full-resolution rooms are memory-heavy; evaluate one scene at a time.
+  eval_batch_size: 1
+  train_dataset:
+    transform: null
+  val_dataset:
+    transform: null

@@ -1,0 +1,38 @@
+# @package _global_
+# Point Transformer V2 semantic segmentation on ScanNet200.
+# Train: uv run --no-sync python train.py experiment=point_transformer_v2/scannet200
+# Benchmark: uv run --no-sync python test.py experiment=point_transformer_v2/scannet200
+#
+# Measured: deferred (training campaign pending)
+defaults:
+  - override /datamodule: scannet200
+  - override /model: segmentation
+  - override /callbacks: segmentation
+
+trainer:
+  max_epochs: 100
+  # Keep fp32: grouped vector attention aggregates over neighbor edges with scatter-sum/softmax.
+  precision: "32-true"
+
+model:
+  name: ptv2-base.scannet200
+  num_classes: 200
+  pretrained: false
+  input_keys: [x, pos, batch]
+  target_key: segment
+  criterion:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: -1
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.006
+    weight_decay: 0.05
+
+datamodule:
+  train_dataset:
+    transform: null
+  val_dataset:
+    # The benchmark script evaluates the aligned frame.
+    use_axis_alignment: true
+    transform: null

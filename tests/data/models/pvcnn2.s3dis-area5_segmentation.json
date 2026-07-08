@@ -1,0 +1,1300 @@
+{
+  "num_params": 13700266,
+  "state_dict": {
+    "encoder.blocks.0.layers.0.voxel_layers.0.conv.weight": [
+      32,
+      3,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.0.conv.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.0.norm.weight": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.0.norm.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.0.norm.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.0.norm.running_var": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.0.layers.0.voxel_layers.1.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.1.conv.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.1.norm.weight": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.1.norm.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.1.norm.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.1.norm.running_var": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.0.layers.0.voxel_layers.2.squeeze.weight": [
+      4,
+      32
+    ],
+    "encoder.blocks.0.layers.0.voxel_layers.2.excitation.weight": [
+      32,
+      4
+    ],
+    "encoder.blocks.0.layers.0.mlp.lins.0.weight": [
+      32,
+      3
+    ],
+    "encoder.blocks.0.layers.0.mlp.lins.0.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.mlp.norms.0.module.weight": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.mlp.norms.0.module.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.mlp.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.mlp.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.blocks.0.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.0.layers.1.voxel_layers.0.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.0.conv.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.0.norm.weight": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.0.norm.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.0.norm.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.0.norm.running_var": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.0.layers.1.voxel_layers.1.conv.weight": [
+      32,
+      32,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.1.conv.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.1.norm.weight": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.1.norm.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.1.norm.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.1.norm.running_var": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.0.layers.1.voxel_layers.2.squeeze.weight": [
+      4,
+      32
+    ],
+    "encoder.blocks.0.layers.1.voxel_layers.2.excitation.weight": [
+      32,
+      4
+    ],
+    "encoder.blocks.0.layers.1.mlp.lins.0.weight": [
+      32,
+      32
+    ],
+    "encoder.blocks.0.layers.1.mlp.lins.0.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.mlp.norms.0.module.weight": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.mlp.norms.0.module.bias": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.mlp.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.mlp.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.blocks.0.layers.1.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.1.sa_module.mlps.0.lins.0.weight": [
+      32,
+      35
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.lins.1.weight": [
+      64,
+      32
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.0.module.weight": [
+      32
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.0.module.bias": [
+      32
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.1.sa_module.mlps.0.norms.1.module.weight": [
+      64
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.1.module.bias": [
+      64
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.1.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.1.module.running_var": [
+      64
+    ],
+    "encoder.blocks.1.sa_module.mlps.0.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.1.layers.0.voxel_layers.0.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.0.conv.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.0.norm.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.0.norm.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.0.norm.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.0.norm.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.1.layers.0.voxel_layers.1.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.1.conv.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.1.norm.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.1.norm.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.1.norm.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.1.norm.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.1.layers.0.voxel_layers.2.squeeze.weight": [
+      8,
+      64
+    ],
+    "encoder.blocks.1.layers.0.voxel_layers.2.excitation.weight": [
+      64,
+      8
+    ],
+    "encoder.blocks.1.layers.0.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "encoder.blocks.1.layers.0.mlp.lins.0.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.mlp.norms.0.module.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.mlp.norms.0.module.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.1.layers.1.voxel_layers.0.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.0.conv.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.0.norm.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.0.norm.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.0.norm.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.0.norm.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.1.layers.1.voxel_layers.1.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.1.conv.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.1.norm.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.1.norm.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.1.norm.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.1.norm.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.1.layers.1.voxel_layers.2.squeeze.weight": [
+      8,
+      64
+    ],
+    "encoder.blocks.1.layers.1.voxel_layers.2.excitation.weight": [
+      64,
+      8
+    ],
+    "encoder.blocks.1.layers.1.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "encoder.blocks.1.layers.1.mlp.lins.0.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.mlp.norms.0.module.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.mlp.norms.0.module.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.1.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.1.layers.2.voxel_layers.0.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.0.conv.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.0.norm.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.0.norm.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.0.norm.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.0.norm.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.1.layers.2.voxel_layers.1.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.1.conv.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.1.norm.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.1.norm.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.1.norm.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.1.norm.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.1.layers.2.voxel_layers.2.squeeze.weight": [
+      8,
+      64
+    ],
+    "encoder.blocks.1.layers.2.voxel_layers.2.excitation.weight": [
+      64,
+      8
+    ],
+    "encoder.blocks.1.layers.2.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "encoder.blocks.1.layers.2.mlp.lins.0.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.mlp.norms.0.module.weight": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.mlp.norms.0.module.bias": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.blocks.1.layers.2.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.2.sa_module.mlps.0.lins.0.weight": [
+      64,
+      67
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.lins.1.weight": [
+      128,
+      64
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.0.module.weight": [
+      64
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.0.module.bias": [
+      64
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.2.sa_module.mlps.0.norms.1.module.weight": [
+      128
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.1.module.bias": [
+      128
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.1.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.1.module.running_var": [
+      128
+    ],
+    "encoder.blocks.2.sa_module.mlps.0.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.2.layers.0.voxel_layers.0.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.0.conv.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.0.norm.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.0.norm.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.0.norm.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.0.norm.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.2.layers.0.voxel_layers.1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.1.conv.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.1.norm.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.1.norm.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.1.norm.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.1.norm.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.2.layers.0.voxel_layers.2.squeeze.weight": [
+      16,
+      128
+    ],
+    "encoder.blocks.2.layers.0.voxel_layers.2.excitation.weight": [
+      128,
+      16
+    ],
+    "encoder.blocks.2.layers.0.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "encoder.blocks.2.layers.0.mlp.lins.0.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.mlp.norms.0.module.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.mlp.norms.0.module.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.2.layers.1.voxel_layers.0.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.0.conv.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.0.norm.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.0.norm.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.0.norm.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.0.norm.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.2.layers.1.voxel_layers.1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.1.conv.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.1.norm.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.1.norm.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.1.norm.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.1.norm.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.2.layers.1.voxel_layers.2.squeeze.weight": [
+      16,
+      128
+    ],
+    "encoder.blocks.2.layers.1.voxel_layers.2.excitation.weight": [
+      128,
+      16
+    ],
+    "encoder.blocks.2.layers.1.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "encoder.blocks.2.layers.1.mlp.lins.0.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.mlp.norms.0.module.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.mlp.norms.0.module.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.1.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.2.layers.2.voxel_layers.0.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.0.conv.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.0.norm.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.0.norm.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.0.norm.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.0.norm.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.0.norm.num_batches_tracked": [],
+    "encoder.blocks.2.layers.2.voxel_layers.1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.1.conv.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.1.norm.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.1.norm.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.1.norm.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.1.norm.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.1.norm.num_batches_tracked": [],
+    "encoder.blocks.2.layers.2.voxel_layers.2.squeeze.weight": [
+      16,
+      128
+    ],
+    "encoder.blocks.2.layers.2.voxel_layers.2.excitation.weight": [
+      128,
+      16
+    ],
+    "encoder.blocks.2.layers.2.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "encoder.blocks.2.layers.2.mlp.lins.0.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.mlp.norms.0.module.weight": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.mlp.norms.0.module.bias": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.blocks.2.layers.2.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.3.sa_module.mlps.0.lins.0.weight": [
+      128,
+      131
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.lins.1.weight": [
+      256,
+      128
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.0.module.weight": [
+      128
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.0.module.bias": [
+      128
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.3.sa_module.mlps.0.norms.1.module.weight": [
+      256
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.1.module.bias": [
+      256
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.1.module.running_mean": [
+      256
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.1.module.running_var": [
+      256
+    ],
+    "encoder.blocks.3.sa_module.mlps.0.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.4.sa_module.mlps.0.lins.0.weight": [
+      256,
+      259
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.lins.1.weight": [
+      256,
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.lins.2.weight": [
+      512,
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.0.module.weight": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.0.module.bias": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.0.module.running_mean": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.0.module.running_var": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.0.module.num_batches_tracked": [],
+    "encoder.blocks.4.sa_module.mlps.0.norms.1.module.weight": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.1.module.bias": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.1.module.running_mean": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.1.module.running_var": [
+      256
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.1.module.num_batches_tracked": [],
+    "encoder.blocks.4.sa_module.mlps.0.norms.2.module.weight": [
+      512
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.2.module.bias": [
+      512
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.2.module.running_mean": [
+      512
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.2.module.running_var": [
+      512
+    ],
+    "encoder.blocks.4.sa_module.mlps.0.norms.2.module.num_batches_tracked": [],
+    "decoder.blocks.0.fp_module.mlp.lins.0.weight": [
+      256,
+      768
+    ],
+    "decoder.blocks.0.fp_module.mlp.lins.1.weight": [
+      256,
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.0.module.weight": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.0.module.bias": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.0.fp_module.mlp.norms.1.module.weight": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.1.module.bias": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.1.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.1.module.running_var": [
+      256
+    ],
+    "decoder.blocks.0.fp_module.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.0.layers.0.voxel_layers.0.conv.weight": [
+      256,
+      256,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.0.conv.bias": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.0.norm.weight": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.0.norm.bias": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.0.norm.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.0.norm.running_var": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "decoder.blocks.0.layers.0.voxel_layers.1.conv.weight": [
+      256,
+      256,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.1.conv.bias": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.1.norm.weight": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.1.norm.bias": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.1.norm.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.1.norm.running_var": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "decoder.blocks.0.layers.0.voxel_layers.2.squeeze.weight": [
+      32,
+      256
+    ],
+    "decoder.blocks.0.layers.0.voxel_layers.2.excitation.weight": [
+      256,
+      32
+    ],
+    "decoder.blocks.0.layers.0.mlp.lins.0.weight": [
+      256,
+      256
+    ],
+    "decoder.blocks.0.layers.0.mlp.lins.0.bias": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.mlp.norms.0.module.weight": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.mlp.norms.0.module.bias": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "decoder.blocks.0.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.1.fp_module.mlp.lins.0.weight": [
+      256,
+      384
+    ],
+    "decoder.blocks.1.fp_module.mlp.lins.1.weight": [
+      256,
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.0.module.weight": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.0.module.bias": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.1.fp_module.mlp.norms.1.module.weight": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.1.module.bias": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.1.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.1.module.running_var": [
+      256
+    ],
+    "decoder.blocks.1.fp_module.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.1.layers.0.voxel_layers.0.conv.weight": [
+      256,
+      256,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.0.conv.bias": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.0.norm.weight": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.0.norm.bias": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.0.norm.running_mean": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.0.norm.running_var": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "decoder.blocks.1.layers.0.voxel_layers.1.conv.weight": [
+      256,
+      256,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.1.conv.bias": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.1.norm.weight": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.1.norm.bias": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.1.norm.running_mean": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.1.norm.running_var": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "decoder.blocks.1.layers.0.voxel_layers.2.squeeze.weight": [
+      32,
+      256
+    ],
+    "decoder.blocks.1.layers.0.voxel_layers.2.excitation.weight": [
+      256,
+      32
+    ],
+    "decoder.blocks.1.layers.0.mlp.lins.0.weight": [
+      256,
+      256
+    ],
+    "decoder.blocks.1.layers.0.mlp.lins.0.bias": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.mlp.norms.0.module.weight": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.mlp.norms.0.module.bias": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "decoder.blocks.1.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.2.fp_module.mlp.lins.0.weight": [
+      256,
+      320
+    ],
+    "decoder.blocks.2.fp_module.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.0.module.weight": [
+      256
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.0.module.bias": [
+      256
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.2.fp_module.mlp.norms.1.module.weight": [
+      128
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.1.module.bias": [
+      128
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.1.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.1.module.running_var": [
+      128
+    ],
+    "decoder.blocks.2.fp_module.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.2.layers.0.voxel_layers.0.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.0.conv.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.0.norm.weight": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.0.norm.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.0.norm.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.0.norm.running_var": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "decoder.blocks.2.layers.0.voxel_layers.1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.1.conv.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.1.norm.weight": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.1.norm.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.1.norm.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.1.norm.running_var": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "decoder.blocks.2.layers.0.voxel_layers.2.squeeze.weight": [
+      16,
+      128
+    ],
+    "decoder.blocks.2.layers.0.voxel_layers.2.excitation.weight": [
+      128,
+      16
+    ],
+    "decoder.blocks.2.layers.0.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "decoder.blocks.2.layers.0.mlp.lins.0.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.mlp.norms.0.module.weight": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.mlp.norms.0.module.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "decoder.blocks.2.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.2.layers.1.voxel_layers.0.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.0.conv.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.0.norm.weight": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.0.norm.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.0.norm.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.0.norm.running_var": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.0.norm.num_batches_tracked": [],
+    "decoder.blocks.2.layers.1.voxel_layers.1.conv.weight": [
+      128,
+      128,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.1.conv.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.1.norm.weight": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.1.norm.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.1.norm.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.1.norm.running_var": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.1.norm.num_batches_tracked": [],
+    "decoder.blocks.2.layers.1.voxel_layers.2.squeeze.weight": [
+      16,
+      128
+    ],
+    "decoder.blocks.2.layers.1.voxel_layers.2.excitation.weight": [
+      128,
+      16
+    ],
+    "decoder.blocks.2.layers.1.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "decoder.blocks.2.layers.1.mlp.lins.0.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.mlp.norms.0.module.weight": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.mlp.norms.0.module.bias": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "decoder.blocks.2.layers.1.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.3.fp_module.mlp.lins.0.weight": [
+      128,
+      131
+    ],
+    "decoder.blocks.3.fp_module.mlp.lins.1.weight": [
+      128,
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.lins.2.weight": [
+      64,
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.0.module.weight": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.0.module.bias": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.blocks.3.fp_module.mlp.norms.1.module.weight": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.1.module.bias": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.1.module.running_mean": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.1.module.running_var": [
+      128
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.blocks.3.fp_module.mlp.norms.2.module.weight": [
+      64
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.2.module.bias": [
+      64
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.2.module.running_mean": [
+      64
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.2.module.running_var": [
+      64
+    ],
+    "decoder.blocks.3.fp_module.mlp.norms.2.module.num_batches_tracked": [],
+    "decoder.blocks.3.layers.0.voxel_layers.0.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.0.conv.bias": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.0.norm.weight": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.0.norm.bias": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.0.norm.running_mean": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.0.norm.running_var": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.0.norm.num_batches_tracked": [],
+    "decoder.blocks.3.layers.0.voxel_layers.1.conv.weight": [
+      64,
+      64,
+      3,
+      3,
+      3
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.1.conv.bias": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.1.norm.weight": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.1.norm.bias": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.1.norm.running_mean": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.1.norm.running_var": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.1.norm.num_batches_tracked": [],
+    "decoder.blocks.3.layers.0.voxel_layers.2.squeeze.weight": [
+      8,
+      64
+    ],
+    "decoder.blocks.3.layers.0.voxel_layers.2.excitation.weight": [
+      64,
+      8
+    ],
+    "decoder.blocks.3.layers.0.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "decoder.blocks.3.layers.0.mlp.lins.0.bias": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.mlp.norms.0.module.weight": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.mlp.norms.0.module.bias": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "decoder.blocks.3.layers.0.mlp.norms.0.module.num_batches_tracked": [],
+    "head.lins.0.weight": [
+      128,
+      64
+    ],
+    "head.lins.0.bias": [
+      128
+    ],
+    "head.lins.1.weight": [
+      10,
+      128
+    ],
+    "head.lins.1.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      128
+    ],
+    "head.norms.0.module.bias": [
+      128
+    ],
+    "head.norms.0.module.running_mean": [
+      128
+    ],
+    "head.norms.0.module.running_var": [
+      128
+    ],
+    "head.norms.0.module.num_batches_tracked": []
+  }
+}

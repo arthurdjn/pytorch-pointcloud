@@ -3,7 +3,9 @@ from typing import Dict
 import pytest
 import torch
 from torch import Tensor
+from torch_geometric.nn import MLP
 
+from torch_pointcloud.models import create_model
 from torch_pointcloud.models.pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
@@ -116,3 +118,72 @@ def test_pvcnn2_segmentation_forward_features_decoder_head(
     assert x.shape[0] == data["pos"].shape[0]
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_pvcnn2_segmentation_reset_head(model_seg: PVCNN2Segmentation, data: Dict[str, Tensor]) -> None:
+    model_seg.reset_head(num_classes=42)
+    logits = model_seg(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_pvcnn2_segmentation_asymmetric_decoder(data: Dict[str, Tensor]) -> None:
+    model = PVCNN2Segmentation(
+        in_channels=6,
+        num_classes=10,
+        ratios=[0.5, 0.5, 0.5],
+        radii=[0.2, 0.4, 0.4],
+        num_neighbors=[8, 8, 8],
+        sa_channels=[[16, 32], [32, 64], [32, 64]],
+        encoder_channels=[6, 16, 32, 64],
+        encoder_depths=[1, 1, 0],
+        encoder_resolutions=[4, 4, 0],
+        encoder_kernel_sizes=[3, 3, 0],
+        fp_channels=[[32, 32], [32, 16]],
+        decoder_channels=[32, 16],
+        decoder_depths=[1, 1],
+        decoder_resolutions=[4, 4],
+        decoder_kernel_sizes=[3, 3],
+    )
+    assert model.decoder.skip_channels == (32, 6)
+    logits = model(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], 10)
+
+
+def test_pvcnn2_segmentation_too_many_decoder_blocks() -> None:
+    with pytest.raises(ValueError, match="decoder blocks"):
+        PVCNN2Segmentation(
+            in_channels=6,
+            num_classes=10,
+            ratios=[0.5, 0.5],
+            radii=[0.2, 0.4],
+            num_neighbors=[8, 8],
+            sa_channels=[[16, 32], [32, 64]],
+            encoder_channels=[6, 16, 32],
+            encoder_depths=[1, 1],
+            encoder_resolutions=[4, 4],
+            encoder_kernel_sizes=[3, 3],
+            fp_channels=[[32, 32], [32, 16], [16, 16]],
+            decoder_channels=[32, 16, 16],
+            decoder_depths=[1, 1, 1],
+            decoder_resolutions=[4, 4, 4],
+            decoder_kernel_sizes=[3, 3, 3],
+        )
+
+
+def test_pvcnn2_segmentation_reference_hparams() -> None:
+    torch.manual_seed(42)
+    model = create_model("pvcnn2.s3dis-area5", task="segmentation")
+    assert isinstance(model, PVCNN2Segmentation)
+    assert isinstance(model.head, MLP)
+    assert model.decoder.skip_channels == (256, 128, 64, 9)
+
+    lengths = torch.tensor([512, 768])
+    num_points = int(lengths.sum())
+    x = torch.randn(num_points, 9)
+    pos = torch.randn(num_points, 3)
+    batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
+
+    model.eval()
+    with torch.no_grad():
+        logits = model(x, pos, batch)
+    assert logits.shape == (num_points, 13)

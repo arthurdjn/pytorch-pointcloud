@@ -48,6 +48,7 @@ CLASSIFICATION_MODELS = [
     "point-mamba-base.scanobjectnn.dingkang-liang",
     "point-mamba-base.scanobjectnn-nobg.dingkang-liang",
     "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang",
+    "point-transformer.modelnet40",
     "pointgpt-s.modelnet40.guangyan-chen",
     "pointgpt-s.modelnet40-8k.guangyan-chen",
     "pointgpt-s.scanobjectnn-hardest.guangyan-chen",
@@ -69,6 +70,7 @@ CLASSIFICATION_MODELS = [
     "pointmlp-elite",
     "pointmlp-elite.modelnet40.xu-ma",
     "pointmlp-elite.scanobjectnn.xu-ma",
+    "pointnet.modelnet40",
     "pointnet2.modelnet40.openpoints",
     "pointnet2.scanobjectnn.openpoints",
     "pointnet2-msg.modelnet40.xu-yan",
@@ -94,6 +96,7 @@ BASE_MODELS = [
     "pointgpt-b.pretrain.guangyan-chen",
     "pointgpt-l.pretrain.guangyan-chen",
     "sonata-base.fair",
+    "spformer-unet.scannet",
     "utonia.pointcept",
     "xcube-vae-coarse.shapenet-chair.nvidia",
     "xcube-vae-fine.shapenet-chair.nvidia",
@@ -132,9 +135,13 @@ SEGMENTATION_MODELS = [
     "oneformer3d-base.scannet200.danila-rukhovich",
     "point-mae-base.shapenetpart.yatian-pang",
     "point-m2ae-base.shapenetpart.renrui-zhang",
+    "point-transformer.s3dis-area5",
+    "point-transformer.scannet20",
     "pointcnn-base",
     "pointmlp-base",
     "pointmlp-elite",
+    "pointnet.s3dis-area5",
+    "pointnet.shapenetpart",
     "pointnet2.s3dis-area1.openpoints",
     "pointnet2.s3dis-area2.openpoints",
     "pointnet2.s3dis-area3.openpoints",
@@ -142,10 +149,13 @@ SEGMENTATION_MODELS = [
     "pointnet2.s3dis-area5.openpoints",
     "pointnet2.s3dis-area6.openpoints",
     "pointnet2.s3dis-area5.xu-yan",
+    "ptv2-base.scannet20",
+    "ptv2-base.scannet200",
     "ptv3-base.scannet20.pointcept",
     "ptv3-base.scannet200.pointcept",
     "ptv3-base.s3dis-area5.pointcept",
     "pvcnn.s3dis-area5.mit-han-lab",
+    "pvcnn2.s3dis-area5",
     "pointnext-base",
     "pointnext-base.s3dis-area1.openpoints",
     "pointnext-base.s3dis-area2.openpoints",
@@ -212,7 +222,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "oneformer3d")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "oneformer3d", "spformer")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("oneformer3d") and not _TORCH_SCATTER_AVAILABLE:
         pytest.skip("torch_scatter is not installed")
@@ -592,7 +602,7 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
     sig = inspect.signature(model.forward)
-    kwargs = {a: data[a] for a in sig.parameters if a != "self"}
+    kwargs = {a: data[a] for a in sig.parameters if a != "self" and a in data}
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
     model = model.to(device)
 
