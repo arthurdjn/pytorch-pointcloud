@@ -149,9 +149,13 @@ class Block(nn.Module):
             indice_key=cpe_indice_key,
         )
         self.cpe_proj = nn.Linear(channels, channels)
-        self.cpe_norm = create_norm("layer_norm", channels, mode="node") or nn.Identity()
-
-        self.norm1 = create_norm("layer_norm", channels, mode="node") or nn.Identity()
+        # PTv3 blocks always use graph LayerNorm, so only the condition list rides `norm_kwargs`.
+        conditions = norm_kwargs.get("conditions")
+        self.cpe_norm: nn.Module = (
+            create_norm("layer_norm", channels, conditions=conditions, mode="node") or nn.Identity()
+        )
+        self.norm1: nn.Module = create_norm("layer_norm", channels, conditions=conditions, mode="node") or nn.Identity()
+        self.norm2: nn.Module = create_norm("layer_norm", channels, conditions=conditions, mode="node") or nn.Identity()
         self.attn = _build_attention(
             attn_kind,
             channels=channels,
@@ -167,7 +171,6 @@ class Block(nn.Module):
             rope_base=rope_base,
         )
 
-        self.norm2 = create_norm("layer_norm", channels, mode="node") or nn.Identity()
         self.mlp = nn.Sequential(
             nn.Linear(channels, int(channels * mlp_ratio)),
             create_act(act, **act_kwargs) or nn.Identity(),
@@ -186,15 +189,17 @@ class Block(nn.Module):
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Any]:
+        norm_kwargs = {} if condition is None else {"condition": condition}
         shortcut = x
         x_sparse = self.cpe_conv(x_sparse)
         x = self.cpe_proj(x_sparse.features)
-        x = self.cpe_norm(x)
+        x = self.cpe_norm(x, **norm_kwargs)
         x = shortcut = shortcut + x
 
         # Attention branch
-        x = self.norm1(x)
+        x = self.norm1(x, **norm_kwargs)
         x = self.attn(
             x,
             pos_grid,
@@ -208,7 +213,7 @@ class Block(nn.Module):
 
         # MLP branch
         shortcut = x
-        x = self.norm2(x)
+        x = self.norm2(x, **norm_kwargs)
         x = self.mlp(x)
         x = self.drop_path(x)
         x_sparse = x_sparse.replace_feature(x if self.legacy else shortcut + x)
@@ -289,6 +294,7 @@ class EncoderBlock(nn.Module):
         serialized_inverse: Tensor,
         return_inverse: Literal[True] = True,
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, OptTensor]: ...
 
     @overload
@@ -302,6 +308,7 @@ class EncoderBlock(nn.Module):
         serialized_inverse: Tensor,
         return_inverse: Literal[False] = False,
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, OptTensor]: ...
 
     def forward(
@@ -314,6 +321,7 @@ class EncoderBlock(nn.Module):
         serialized_inverse: Tensor,
         return_inverse: bool = False,
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Any:
         if not serialized_code.shape == serialized_order.shape == serialized_inverse.shape:
             raise ValueError(
@@ -328,7 +336,7 @@ class EncoderBlock(nn.Module):
         if self.downsample is not None:
             if isinstance(self.downsample, GridPool):
                 assert self.serialization_orders is not None, "serialization_orders must be provided for grid pooling"
-                x, pos_grid, batch, inverse, pos = self.downsample(x, pos_grid, batch, pos=pos)
+                x, pos_grid, batch, inverse, pos = self.downsample(x, pos_grid, batch, pos=pos, condition=condition)
                 serialized_code, serialized_order, serialized_inverse = serialize(
                     pos_grid,
                     batch,
@@ -342,6 +350,7 @@ class EncoderBlock(nn.Module):
                     batch,
                     serialized_code,
                     return_inverse=True,
+                    condition=condition,
                 )
                 serialized_order = torch.argsort(serialized_code, dim=1)
                 serialized_inverse = torch.argsort(serialized_order, dim=1)
@@ -358,6 +367,7 @@ class EncoderBlock(nn.Module):
                 serialized_order=serialized_order[order_idx],
                 serialized_inverse=serialized_inverse[order_idx],
                 pos=pos,
+                condition=condition,
             )
 
         if return_inverse:
@@ -431,6 +441,7 @@ class DecoderBlock(nn.Module):
         serialized_order_skip: Tensor,
         serialized_inverse_skip: Tensor,
         inverse: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if not serialized_order_skip.shape == serialized_inverse_skip.shape:
             raise ValueError(
@@ -448,7 +459,7 @@ class DecoderBlock(nn.Module):
 
             # Reproduce Pointcept's SerializedUnpooling: the next block's xCPE convolves only the projected
             # skip branch. Present in every release, so it is unconditional (unlike the block write-back).
-            x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True)
+            x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True, condition=condition)
 
         x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
         for i, block in enumerate(self.blocks):
@@ -460,6 +471,7 @@ class DecoderBlock(nn.Module):
                 batch_skip,
                 serialized_order=serialized_order_skip[order_idx],
                 serialized_inverse=serialized_inverse_skip[order_idx],
+                condition=condition,
             )
 
         return x, pos_grid_skip, batch_skip
@@ -720,6 +732,7 @@ class PointTransformerV3Encoder(nn.Module):
         batch: Tensor,
         return_intermediates: Literal[True],
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
@@ -730,6 +743,7 @@ class PointTransformerV3Encoder(nn.Module):
         batch: Tensor,
         return_intermediates: Literal[False] = False,
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
@@ -739,6 +753,7 @@ class PointTransformerV3Encoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
         pos: OptTensor = None,
+        condition: Optional[str] = None,
     ) -> Any:
         x = x if x is not None else pos_grid.float()
 
@@ -749,7 +764,7 @@ class PointTransformerV3Encoder(nn.Module):
             shuffle=self.shuffle_serialization_orders and self.training,
         )
 
-        x = self.stem(x, pos_grid, batch)
+        x = self.stem(x, pos_grid, batch, condition=condition)
 
         intermediates = []
         for i, block in enumerate(self.blocks):
@@ -780,6 +795,7 @@ class PointTransformerV3Encoder(nn.Module):
                 serialized_inverse=serialized_inverse,
                 return_inverse=True,
                 pos=pos,
+                condition=condition,
             )
 
             if i > 0:
@@ -954,11 +970,13 @@ class PointTransformerV3Decoder(nn.Module):
             blocks.append(block)
         return blocks
 
-    def forward(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(
+        self, x: Tensor, intermediates: List[Dict[str, Tensor]], condition: Optional[str] = None
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         for block, intermediate in zip(self.blocks, reversed(intermediates)):
             intermediate.pop("serialized_code", None)
             intermediate = {f"{k}_skip" if k != "inverse" else k: v for k, v in intermediate.items()}
-            x, pos_grid, batch = block(x, **intermediate)
+            x, pos_grid, batch = block(x, **intermediate, condition=condition)
         return x, pos_grid, batch
 
 
@@ -1044,8 +1062,14 @@ class PointTransformerV3Classification(ClassificationModel):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         legacy: bool = False,
+        pdnorm_conditions: Optional[Sequence[str]] = None,
+        condition: Optional[str] = None,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.condition = condition
+        norm_kwargs = norm_kwargs or {}
+        if pdnorm_conditions is not None:
+            norm_kwargs = {**norm_kwargs, "conditions": pdnorm_conditions}
         self.encoder = PointTransformerV3Encoder(
             in_channels=in_channels,
             serialization_orders=serialization_orders,
@@ -1104,6 +1128,7 @@ class PointTransformerV3Classification(ClassificationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
@@ -1113,6 +1138,7 @@ class PointTransformerV3Classification(ClassificationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1121,10 +1147,11 @@ class PointTransformerV3Classification(ClassificationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
+        condition: Optional[str] = None,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
-        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, condition=condition)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, condition=condition)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         """Forward pass of the classification head from pre-pooling features.
@@ -1142,7 +1169,27 @@ class PointTransformerV3Classification(ClassificationModel):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
+    def resolve_condition(self, condition: Union[str, Sequence[str], None]) -> Optional[str]:
+        """Reduce a per-batch condition to a single name, falling back to the constructor default.
+
+        Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
+        same string; take its first entry. A `None` argument falls back to the `condition` set at
+        construction.
+
+        Args:
+            condition: A single condition name, a per-sample sequence of names, or `None`.
+
+        Returns:
+            The resolved condition name, or `None` when neither an argument nor a default is set.
+        """
+        condition = condition if condition is not None else self.condition
+        if condition is None or isinstance(condition, str):
+            return condition
+        return condition[0]
+
+    def forward(
+        self, x: OptTensor, pos_grid: Tensor, batch: Tensor, condition: Union[str, Sequence[str], None] = None
+    ) -> Tensor:
         """Forward pass of the PointNet classification network.
 
         Args:
@@ -1151,11 +1198,12 @@ class PointTransformerV3Classification(ClassificationModel):
                 these to derive the Z-order / Hilbert serialisation index, so they
                 must be voxel indices, not float positions.
             batch: Batch indices for each point of shape $(N,)$.
+            condition: Optional per-batch condition selecting the PDNorm inner norms.
 
         Returns:
             Classification logits of shape $(B, num\\_classes)$.
         """
-        x, _pos_grid, batch = self.forward_features(x, pos_grid, batch)
+        x, _pos_grid, batch = self.forward_features(x, pos_grid, batch, condition=self.resolve_condition(condition))
         return self.forward_head(x, batch)
 
 
@@ -1235,8 +1283,14 @@ class PointTransformerV3Segmentation(SegmentationModel):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         legacy: bool = False,
+        pdnorm_conditions: Optional[Sequence[str]] = None,
+        condition: Optional[str] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.condition = condition
+        norm_kwargs = norm_kwargs or {}
+        if pdnorm_conditions is not None:
+            norm_kwargs = {**norm_kwargs, "conditions": pdnorm_conditions}
         self.encoder = PointTransformerV3Encoder(
             in_channels=in_channels,
             serialization_orders=serialization_orders,
@@ -1291,6 +1345,24 @@ class PointTransformerV3Segmentation(SegmentationModel):
         self.dropout = dropout
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
 
+    def resolve_condition(self, condition: Union[str, Sequence[str], None]) -> Optional[str]:
+        """Reduce a per-batch condition to a single name, falling back to the constructor default.
+
+        Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
+        same string; take its first entry. A `None` argument falls back to the `condition` set at
+        construction (single-dataset fine-tune or benchmark).
+
+        Args:
+            condition: A single condition name, a per-sample sequence of names, or `None`.
+
+        Returns:
+            The resolved condition name, or `None` when neither an argument nor a default is set.
+        """
+        condition = condition if condition is not None else self.condition
+        if condition is None or isinstance(condition, str):
+            return condition
+        return condition[0]
+
     @property
     def embedding_dim(self) -> int:
         return self.encoder.embedding_dim
@@ -1306,6 +1378,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
     @overload
@@ -1315,6 +1388,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1323,22 +1397,30 @@ class PointTransformerV3Segmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
+        condition: Optional[str] = None,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
-        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, condition=condition)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, condition=condition)
 
-    def forward_decoder(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
-        return self.decoder.forward(x, intermediates)
+    def forward_decoder(
+        self, x: Tensor, intermediates: List[Dict[str, Tensor]], condition: Optional[str] = None
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        return self.decoder.forward(x, intermediates, condition=condition)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
-        x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
-        x, _, _ = self.forward_decoder(x, intermediates)
+    def forward(
+        self, x: Tensor, pos_grid: Tensor, batch: Tensor, condition: Union[str, Sequence[str], None] = None
+    ) -> Tensor:
+        condition = self.resolve_condition(condition)
+        x, _, _, intermediates = self.forward_features(
+            x, pos_grid, batch, return_intermediates=True, condition=condition
+        )
+        x, _, _ = self.forward_decoder(x, intermediates, condition=condition)
         return self.forward_head(x)
 
 
