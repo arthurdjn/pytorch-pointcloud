@@ -63,7 +63,7 @@ class GridPool(nn.Module):
         self.reduce = reduce
         self.act_first = act_first
         self.proj = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = create_norm(norm, out_channels, **norm_kwargs)
+        self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **norm_kwargs)
         self.act = create_act(act, **act_kwargs)
 
     def forward(
@@ -72,6 +72,7 @@ class GridPool(nn.Module):
         pos_grid: Tensor,
         batch: Tensor,
         pos: Optional[Tensor] = None,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Optional[Tensor]]:
         """Downsample points by grid quantization.
 
@@ -81,6 +82,7 @@ class GridPool(nn.Module):
             batch: Batch indices of shape $(N,)$.
             pos: Optional real-valued positions of shape $(N, 3)$ to mean-pool
                 alongside the features (e.g. for downstream rotary position embedding).
+            condition: Optional condition name selecting the inner norm when the norm is a `PDNorm`.
 
         Returns:
             Tuple of `(x_pooled, pos_grid_pooled, batch_pooled, pooling_inverse, pos_pooled)`.
@@ -100,14 +102,15 @@ class GridPool(nn.Module):
         batch_pooled = batch[head_indices]
         pos_pooled = torch_scatter.segment_csr(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
 
+        norm_kwargs = {} if condition is None else {"condition": condition}
         if self.act_first:
             if self.act is not None:
                 x_pooled = self.act(x_pooled)
             if self.norm is not None:
-                x_pooled = self.norm(x_pooled)
+                x_pooled = self.norm(x_pooled, **norm_kwargs)
         else:
             if self.norm is not None:
-                x_pooled = self.norm(x_pooled)
+                x_pooled = self.norm(x_pooled, **norm_kwargs)
             if self.act is not None:
                 x_pooled = self.act(x_pooled)
 

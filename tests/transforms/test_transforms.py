@@ -305,6 +305,17 @@ def test_set_value() -> None:
     assert result["a"] == 42
     assert result["b"] == 99
     assert result["other"] is sentinel.other
+    assert data == {"a": 1, "other": sentinel.other}
+
+
+def test_set_value_broadcast_constant() -> None:
+    data = {"other": sentinel.other}
+    transform = T.SetValue(keys=["condition", "extra"], values="ScanNet")
+    result = transform(data)
+
+    assert result["condition"] == "ScanNet"
+    assert result["extra"] == "ScanNet"
+    assert "condition" not in data
 
 
 def test_scale() -> None:

@@ -80,6 +80,7 @@ EXPERIMENTS = (
     "point_transformer_v3/s3dis",
     "point_transformer_v3/scannet",
     "point_transformer_v3/scannet200",
+    "point_transformer_v3/scannet_s3dis_joint",
     "pvcnn/s3dis",
     "pvcnn2/s3dis",
     "randlanet/semantickitti",
