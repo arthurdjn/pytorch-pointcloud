@@ -10,15 +10,49 @@ defaults:
 trainer:
   # the reference protocol evaluates in fp32 (PointNet++ grouping is fp16-fragile)
   precision: "32-true"
+  gradient_clip_val: 10.0
 
 model:
   name: pointrcnn.kitti.openpcdet
-  input_keys: [x, pos, batch]
+  # Training threads the packed ground truth into the model forward so the stage-2 ROI sampler can match
+  # proposals to boxes; at eval the extra keys are ignored (the inference proposal path runs instead).
+  input_keys: [x, pos, batch, box, label, batch_box]
   # The script runs class-agnostic NMS; the per-class NMS here keeps overlapping boxes of different classes.
   score_threshold: 0.1
   nms_iou: 0.1
   label_key: label
   ignore_mask_key: ignore_mask
+  scheduler_interval: step
+  criterion:
+    _target_: torch_pointcloud.losses.PointRCNNLoss
+    num_classes: 3
+    # Car, Pedestrian, Cyclist.
+    mean_sizes: [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
+    gt_extra_width: [0.2, 0.2, 0.2]
+    point_cls_weight: 1.0
+    point_box_weight: 1.0
+    point_code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    reg_fg_thresh: 0.55
+    cls_fg_thresh: 0.6
+    cls_bg_thresh: 0.45
+    rcnn_cls_weight: 1.0
+    rcnn_reg_weight: 1.0
+    rcnn_corner_weight: 1.0
+    rcnn_code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.01
+    weight_decay: 0.01
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    _partial_: true
+    max_lr: 0.01
+    total_steps: 100
+    pct_start: 0.4
+    div_factor: 10.0
+    base_momentum: 0.85
+    max_momentum: 0.95
 
 # Official KITTI 3D IoU thresholds: Car @ 0.7, Pedestrian / Cyclist @ 0.5.
 callbacks:
@@ -30,6 +64,34 @@ callbacks:
 datamodule:
   batch_size: 2
   cat_keys: [box]
+
+  train_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.RelabelBoxes
+          keys: [box, label, truncation, occlusion, bbox_height]
+          mapping: {0: 0, 3: 1, 5: 2}
+          ignore_labels: [1, 4]
+          ignore_fields:
+            occlusion: [null, 1]
+            truncation: [null, 0.3]
+            bbox_height: [25, null]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [intensity]
+          dst_key: x
+          dim: 1
+        - _target_: torch_pointcloud.transforms.BoxMask
+          keys: pos
+          bbox: [0.0, -40.0, -3.0, 70.4, 40.0, 1.0]
+          dst_keys: range_mask
+        - _target_: torch_pointcloud.transforms.ApplyMask
+          keys: [pos, x]
+          mask_key: range_mask
+        - _target_: torch_pointcloud.transforms.RandomSample
+          keys: [pos, x]
+          num_samples: 16384
+          replace: false
 
   val_dataset:
     transform:
