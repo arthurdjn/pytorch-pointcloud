@@ -47,20 +47,27 @@ class LinearBlock(nn.Module):
         super().__init__()
         self.act_first = act_first
         self.stem = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = create_norm(norm, out_channels, **(norm_kwargs or {}))
+        self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **(norm_kwargs or {}))
         self.act = create_act(act, **(act_kwargs or {}))
 
     # TODO: Rename stem to lin, and remove pos and batch arguments as they are not used.
-    def forward(self, x: Tensor, pos: OptTensor = None, batch: OptTensor = None) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        pos: OptTensor = None,
+        batch: OptTensor = None,
+        condition: Optional[str] = None,
+    ) -> Tensor:
+        norm_kwargs = {} if condition is None else {"condition": condition}
         x = self.stem(x)
         if self.act_first:
             if self.act is not None:
                 x = self.act(x)
             if self.norm is not None:
-                x = self.norm(x)
+                x = self.norm(x, **norm_kwargs)
         else:
             if self.norm is not None:
-                x = self.norm(x)
+                x = self.norm(x, **norm_kwargs)
             if self.act is not None:
                 x = self.act(x)
         return x

@@ -41,7 +41,7 @@ class SerializedPool(nn.Module):
         self.stride = stride
         self.reduce = reduce
         self.proj = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = create_norm(norm, out_channels, **norm_kwargs)
+        self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **norm_kwargs)
         self.act = create_act(act, **act_kwargs)
 
     @overload
@@ -52,6 +52,7 @@ class SerializedPool(nn.Module):
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: Literal[True] = True,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
 
     @overload
@@ -62,6 +63,7 @@ class SerializedPool(nn.Module):
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: Literal[False] = False,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
@@ -71,6 +73,7 @@ class SerializedPool(nn.Module):
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: bool = False,
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, ...]:
         pooling_depth = (math.ceil(self.stride) - 1).bit_length()
         pooled_code = serialized_code >> (pooling_depth * 3)
@@ -87,8 +90,9 @@ class SerializedPool(nn.Module):
         batch = batch[head_indices]
         pooled_code = pooled_code[:, head_indices]
 
-        if self.norm:
-            x = self.norm(x)
+        norm_kwargs = {} if condition is None else {"condition": condition}
+        if self.norm is not None:
+            x = self.norm(x, **norm_kwargs)
         if self.act:
             x = self.act(x)
 
@@ -121,32 +125,50 @@ class SerializedUpsample(nn.Module):
         self.proj = nn.Linear(self.in_channels, self.out_channels, bias=self.bias)
         self.proj_skip = nn.Linear(self.skip_channels, self.out_channels, bias=self.bias)
 
-        self.norm = create_norm(norm, self.out_channels, **norm_kwargs)
-        self.norm_skip = create_norm(norm, self.out_channels, **norm_kwargs)
+        self.norm: Optional[nn.Module] = create_norm(norm, self.out_channels, **norm_kwargs)
+        self.norm_skip: Optional[nn.Module] = create_norm(norm, self.out_channels, **norm_kwargs)
 
         self.act = create_act(act, **act_kwargs)
         self.act_skip = create_act(act, **act_kwargs)
 
     @overload
     def forward(
-        self, x: Tensor, x_skip: Tensor, inverse: Tensor, return_intermediate: Literal[False] = False
+        self,
+        x: Tensor,
+        x_skip: Tensor,
+        inverse: Tensor,
+        return_intermediate: Literal[False] = False,
+        condition: Optional[str] = None,
     ) -> Tensor: ...
 
     @overload
     def forward(
-        self, x: Tensor, x_skip: Tensor, inverse: Tensor, return_intermediate: Literal[True]
+        self,
+        x: Tensor,
+        x_skip: Tensor,
+        inverse: Tensor,
+        return_intermediate: Literal[True],
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor]: ...
 
-    def forward(self, x: Tensor, x_skip: Tensor, inverse: Tensor, return_intermediate: bool = False) -> Any:
+    def forward(
+        self,
+        x: Tensor,
+        x_skip: Tensor,
+        inverse: Tensor,
+        return_intermediate: bool = False,
+        condition: Optional[str] = None,
+    ) -> Any:
+        norm_kwargs = {} if condition is None else {"condition": condition}
         x = self.proj(x)
         if self.norm is not None:
-            x = self.norm(x)
+            x = self.norm(x, **norm_kwargs)
         if self.act is not None:
             x = self.act(x)
 
         x_skip = self.proj_skip(x_skip)
         if self.norm_skip is not None:
-            x_skip = self.norm_skip(x_skip)
+            x_skip = self.norm_skip(x_skip, **norm_kwargs)
         if self.act_skip is not None:
             x_skip = self.act_skip(x_skip)
 

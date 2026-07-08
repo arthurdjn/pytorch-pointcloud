@@ -175,6 +175,8 @@ EXPERIMENTS = (
     Experiment("point_transformer_v3/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
     # No scannet200 dummy dataset; compose-tested only.
     Experiment("point_transformer_v3/scannet200", "auto", train=False, test=False, marks=_GPU_SPCONV_SCATTER),
+    # Joint ScanNet20 + S3DIS training with PDNorm; the multi-dataset train recipe is the point (no benchmark).
+    Experiment("point_transformer_v3/scannet_s3dis_joint", "auto", train=True, test=False, marks=_GPU_SPCONV_SCATTER),
     Experiment("pvcnn/s3dis", "cpu", train=True, test=True, marks=(_REQUIRES_TORCH_SCATTER,)),
     # PVCNN++ has no registered weights; the train recipe is the point of this config.
     Experiment("pvcnn2/s3dis", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),

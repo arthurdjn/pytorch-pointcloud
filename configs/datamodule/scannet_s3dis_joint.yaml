@@ -1,0 +1,60 @@
+# Joint ScanNet20 + S3DIS datamodule for multi-dataset training (e.g. prompt-driven normalization).
+# The train set is a `ConcatDataset` of both datasets, each carrying its own transform that ends by
+# stamping its `condition` string and remapping to its native label space. `train_ratios: [2, 1]`
+# draws single-dataset batches interleaved 2:1 (ScanNet is the main dataset and drives the epoch),
+# so every batch stays single-domain. Each child sets its own transform, so the datamodule's
+# eval-transform push leaves them untouched.
+#
+# `condition` is stamped with `torch_pointcloud.transforms.SetValue` (a constant-injection transform);
+# ensure it is importable before running this config.
+_target_: torch_pointcloud.lightning.PointCloudDataModule
+batch_size: 4
+num_workers: 8
+train_ratios: [2, 1]
+
+train_dataset:
+  _target_: torch_pointcloud.datasets.ConcatDataset
+  datasets:
+    - _target_: torch_pointcloud.datasets.ScanNet20
+      root: ${paths.data_dir}
+      split: train
+      use_axis_alignment: false
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Relabel
+            keys: segment
+            labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+            default: -1
+          - _target_: torch_pointcloud.transforms.SetValue
+            keys: condition
+            values: ScanNet
+    - _target_: torch_pointcloud.datasets.S3DIS
+      root: ${paths.data_dir}
+      areas: [Area_1, Area_2, Area_3, Area_4, Area_6]
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Relabel
+            keys: segment
+            labels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+            default: -1
+          - _target_: torch_pointcloud.transforms.SetValue
+            keys: condition
+            values: S3DIS
+
+val_dataset:
+  _target_: torch_pointcloud.datasets.ScanNet20
+  root: ${paths.data_dir}
+  split: val
+  use_axis_alignment: false
+  transform:
+    _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.Relabel
+        keys: segment
+        labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        default: -1
+      - _target_: torch_pointcloud.transforms.SetValue
+        keys: condition
+        values: ScanNet

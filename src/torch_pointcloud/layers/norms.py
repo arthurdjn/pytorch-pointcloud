@@ -7,7 +7,7 @@ matching `nn.*Nd` class for the common families when `dim > 1`, and defers to
 PyG's resolver otherwise.
 """
 
-from typing import Any, Callable, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Type, Union
 
 import torch.nn as nn
 from torch_geometric.nn.resolver import normalization_resolver
@@ -29,6 +29,7 @@ def create_norm(
     channels: int,
     *,
     dim: int = 1,
+    conditions: Optional[Sequence[str]] = None,
     **norm_kwargs: Any,
 ) -> Optional[nn.Module]:
     r"""Resolve a normalization layer with a spatial dimensionality hint.
@@ -36,7 +37,8 @@ def create_norm(
     For `dim == 1`, defers to PyG's `normalization_resolver` (graph-aware norms
     plus `BatchNorm1d`). For `dim` $\in \{2, 3\}$, maps common norm names to
     the matching `nn.*Nd` variant. Pass a class or an existing instance to
-    bypass string resolution.
+    bypass string resolution. When `conditions` is given, the resolved norm is
+    wrapped in a per-condition `PDNorm` for multi-dataset (prompt-driven) training.
 
     Args:
         norm: Norm name (`"batch_norm"`, `"instance_norm"`, `"group_norm"`,
@@ -44,6 +46,8 @@ def create_norm(
         channels: Number of feature channels.
         dim: Spatial dimensionality of the feature map. $1$ for packed / graph
             tensors $(N, C)$, $2$ for $(B, C, H, W)$, $3$ for $(B, C, H, W, D)$.
+        conditions: Ordered dataset condition names. When set (and `norm` is not
+            `None`), returns a `PDNorm` holding one inner `norm` per condition.
         **norm_kwargs: Forwarded to the norm constructor.
 
     Returns:
@@ -51,6 +55,11 @@ def create_norm(
     """
     if norm is None:
         return None
+    if conditions is not None:
+        # NOTE: import pdnorm here to avoid circular import
+        from .pdnorm import PDNorm
+
+        return PDNorm(channels, conditions=conditions, norm=norm, dim=dim, **norm_kwargs)
     if isinstance(norm, nn.Module):
         return norm
     if isinstance(norm, str):

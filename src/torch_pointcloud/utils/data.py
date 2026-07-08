@@ -49,6 +49,7 @@ class DataKeys(StrEnum):
     TIMESTAMP = "timestamp"
     GPS_TIME = "gps_time"
     TOKEN = "token"
+    CONDITION = "condition"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
     POINTS = "points"
