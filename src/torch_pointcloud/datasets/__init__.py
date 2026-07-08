@@ -1,4 +1,5 @@
 from .kitti import KITTI
+from .mix import MixDataset
 from .modelnet import ModelNet10, ModelNet40, ModelNetNormalResampled
 from .nuscenes import NuScenesMini
 from .parislille3d import ParisLille3D
