@@ -1486,3 +1486,111 @@ def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor)
         The recovered full edge lengths of shape $(K, 3)$.
     """
     return mean_sizes.to(size_residual)[size_class.long()] + size_residual
+
+
+def laser_mix_masks(
+    pos: Tensor,
+    other_pos: Tensor,
+    num_areas: int,
+    pitch_range: Tuple[float, float],
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tensor, Tensor]:
+    r"""Return keep-masks that swap alternating inclination (pitch) bands between two LiDAR scans.
+
+    Each point's inclination is $\phi = \arctan2(z, \sqrt{x^2 + y^2})$ in degrees. The range
+    `pitch_range` is split into `num_areas` equal bands; a random parity picks whether the even or
+    odd bands are kept from the first scan, with the complementary bands kept from the second. The
+    mixed scene is `torch.cat([pos[mask], other_pos[other_mask]])`, so the two masks tile the sky.
+
+    Args:
+        pos: Coordinates of the first scan of shape $(N, 3)$.
+        other_pos: Coordinates of the second scan of shape $(M, 3)$.
+        num_areas: Number of inclination bands to split `pitch_range` into.
+        pitch_range: Inclination range `(min, max)` in degrees.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        A tuple `(mask, other_mask)` of boolean tensors of shape $(N,)$ and $(M,)$ that select the
+        points kept from `pos` and from `other_pos` respectively.
+
+    Shape:
+        - `pos`: $(N, 3)$
+        - `other_pos`: $(M, 3)$
+        - output: $(N,)$ and $(M,)$
+
+    Raises:
+        ValueError: If `num_areas` is not positive.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms.functional import laser_mix_masks
+
+        pos = torch.randn(100, 3)
+        other = torch.randn(120, 3)
+        g = torch.Generator().manual_seed(0)
+        mask, other_mask = laser_mix_masks(pos, other, num_areas=4, pitch_range=(-25.0, 3.0), generator=g)
+        mixed = torch.cat([pos[mask], other[other_mask]], dim=0)
+        ```
+    """
+    if num_areas <= 0:
+        raise ValueError(f"num_areas must be positive; got {num_areas}.")
+    lo, hi = pitch_range
+    edges = torch.linspace(lo, hi, num_areas + 1, device=pos.device)[1:-1]
+
+    def bands(p: Tensor) -> Tensor:
+        rho = torch.sqrt(p[:, 0] ** 2 + p[:, 1] ** 2)
+        pitch = torch.rad2deg(torch.atan2(p[:, 2], rho))
+        return torch.bucketize(pitch, edges.to(pitch))
+
+    start = int(torch.randint(2, (1,), generator=generator).item())
+    mask = (bands(pos) % 2) == start
+    other_mask = (bands(other_pos) % 2) != start
+    return mask, other_mask
+
+
+def polar_mix_masks(
+    pos: Tensor,
+    other_pos: Tensor,
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tensor, Tensor]:
+    r"""Return keep-masks that swap a random azimuth half-sector between two LiDAR scans.
+
+    Each point's azimuth is $\theta = \arctan2(y, x)$. A random start angle in $[-\pi, \pi)$ defines a
+    half-circle sector $[\theta_0, \theta_0 + \pi)$. Points of the first scan outside the sector are
+    kept, and points of the second scan inside the sector are added, so the mixed scene is
+    `torch.cat([pos[mask], other_pos[other_mask]])`.
+
+    Args:
+        pos: Coordinates of the first scan of shape $(N, 3)$.
+        other_pos: Coordinates of the second scan of shape $(M, 3)$.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        A tuple `(mask, other_mask)` of boolean tensors of shape $(N,)$ and $(M,)$ that select the
+        points kept from `pos` and pasted from `other_pos` respectively.
+
+    Shape:
+        - `pos`: $(N, 3)$
+        - `other_pos`: $(M, 3)$
+        - output: $(N,)$ and $(M,)$
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms.functional import polar_mix_masks
+
+        pos = torch.randn(100, 3)
+        other = torch.randn(120, 3)
+        g = torch.Generator().manual_seed(0)
+        mask, other_mask = polar_mix_masks(pos, other, generator=g)
+        mixed = torch.cat([pos[mask], other[other_mask]], dim=0)
+        ```
+    """
+    start = (torch.rand(1, generator=generator).item() * 2.0 - 1.0) * math.pi
+    end = start + math.pi
+    yaw = torch.atan2(pos[:, 1], pos[:, 0])
+    other_yaw = torch.atan2(other_pos[:, 1], other_pos[:, 0])
+    inside = (yaw >= start) & (yaw < end)
+    other_inside = (other_yaw >= start) & (other_yaw < end)
+    return ~inside, other_inside
