@@ -135,7 +135,6 @@ class LitSegmentationModel(LitModel):
 
     Args:
         name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
-        mix_prob: Probability of applying Mix3D (merging scene pairs) on each training batch.
         inferer: Optional test-time inference strategy (e.g. `SlidingWindowInferer`, `TTAInferer`) run in
             place of the plain forward on test batches; training and validation are unaffected. The inferer
             may return probabilities instead of logits (torchmetrics handles both), so no `test/loss` is
@@ -152,24 +151,15 @@ class LitSegmentationModel(LitModel):
     def __init__(
         self,
         name: str,
-        mix_prob: float = 0.0,
         inferer: Optional[Inferer] = None,
         inverse_key: Optional[str] = None,
         origin_target_key: str = "origin_segment",
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="segmentation", **kwargs)
-        self.mix_prob = mix_prob
         self.inferer = inferer
         self.inverse_key = inverse_key
         self.origin_target_key = origin_target_key
-
-    def on_after_batch_transfer(self, batch: Dict[str, Any], dataloader_idx: int) -> Dict[str, Any]:
-        """Mix3D: on training batches, merge adjacent scene pairs by halving the packed `batch` index."""
-        if self.mix_prob > 0 and self.trainer.training and torch.rand(1).item() < self.mix_prob:
-            batch["batch"] = batch["batch"] // 2
-
-        return batch
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
         if self.inferer is not None and stage == "test":

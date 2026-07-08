@@ -1158,3 +1158,43 @@ def test_random_elastic_distortion_wrong_shape_raises() -> None:
     pos = torch.randn(10, 2)
     with pytest.raises(ValueError, match=r"\(N, 3\)"):
         F.random_elastic_distortion(pos, granularity=0.2, magnitude=0.4)
+
+
+def test_laser_mix_masks_shapes_and_dtype() -> None:
+    g = torch.Generator().manual_seed(0)
+    pos = torch.randn(200, 3, generator=g)
+    other = torch.randn(150, 3, generator=g)
+    mask, other_mask = F.laser_mix_masks(pos, other, num_areas=4, pitch_range=(-25.0, 3.0), generator=g)
+    assert mask.shape == (200,) and other_mask.shape == (150,)
+    assert mask.dtype == torch.bool and other_mask.dtype == torch.bool
+
+
+def test_laser_mix_masks_bands_are_complementary() -> None:
+    """A point in the same pitch band of both scans is kept from exactly one of them."""
+    g = torch.Generator().manual_seed(0)
+    pos = torch.randn(300, 3, generator=g)
+    mask, other_mask = F.laser_mix_masks(pos, pos, num_areas=6, pitch_range=(-25.0, 3.0), generator=g)
+    assert torch.equal(mask, ~other_mask)
+
+
+def test_laser_mix_masks_invalid_num_areas() -> None:
+    pos = torch.randn(10, 3)
+    with pytest.raises(ValueError, match="num_areas"):
+        F.laser_mix_masks(pos, pos, num_areas=0, pitch_range=(-25.0, 3.0))
+
+
+def test_polar_mix_masks_shapes_and_dtype() -> None:
+    g = torch.Generator().manual_seed(0)
+    pos = torch.randn(200, 3, generator=g)
+    other = torch.randn(150, 3, generator=g)
+    mask, other_mask = F.polar_mix_masks(pos, other, generator=g)
+    assert mask.shape == (200,) and other_mask.shape == (150,)
+    assert mask.dtype == torch.bool and other_mask.dtype == torch.bool
+
+
+def test_polar_mix_masks_sector_is_complementary() -> None:
+    """The first-scan keep-mask and second-scan paste-mask select opposite sides of the sector."""
+    g = torch.Generator().manual_seed(1)
+    pos = torch.randn(300, 3, generator=g)
+    mask, other_mask = F.polar_mix_masks(pos, pos, generator=g)
+    assert torch.equal(mask, ~other_mask)
