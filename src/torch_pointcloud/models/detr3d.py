@@ -55,6 +55,20 @@ class DETR3DOutput(TypedDict):
     sem_cls_prob: Tensor
 
 
+class DETR3DTrainOutput(DETR3DOutput, total=False):
+    r"""Training-mode 3DETR output: the eval `DETR3DOutput` plus the per-decoder-layer head outputs.
+
+    `aux_outputs` holds one dict per decoder layer (the last entry mirrors the top-level eval fields),
+    each carrying the normalized and unnormalized head quantities the set-prediction loss consumes, and
+    `point_cloud_dims` is the per-scene $(\text{lo}, \text{hi})$ min-max extent used to normalize centers
+    and sizes. These extra keys are present only when the model is in training mode; the eval forward
+    returns exactly the `DETR3DOutput` keys.
+    """
+
+    aux_outputs: List[Dict[str, Tensor]]
+    point_cloud_dims: Tuple[Tensor, Tensor]
+
+
 class PointnetSAModuleVotes(nn.Module):
     r"""Set-abstraction tokenizer mirroring 3DETR's `PointnetSAModuleVotes` (single-scale, max pool).
 
@@ -762,6 +776,48 @@ class DETR3DDetection(DetectionModel):
         box_features = self.decoder(tgt, enc_features, pos=enc_pos, query_pos=query_embed)
         return self._decode_heads(query_xyz, point_cloud_dims, box_features)
 
+    def _decode_layer(
+        self,
+        query_xyz: Tensor,
+        point_cloud_dims: Tuple[Tensor, Tensor],
+        cls_logits: Tensor,
+        center_offset: Tensor,
+        size_normalized: Tensor,
+        angle_logits: Tensor,
+        angle_residual_normalized: Tensor,
+    ) -> Dict[str, Tensor]:
+        r"""Decode one decoder layer's raw head tensors into the full set of box quantities.
+
+        Builds both the normalized frame (center / size in the per-scene min-max box, consumed by the
+        set-prediction loss) and the unnormalized frame (metric boxes, consumed by `decode`). The eval
+        forward keeps only the `DETR3DOutput` subset of the last layer; the extra normalized fields are
+        used by the training loss.
+        """
+        angle_residual = angle_residual_normalized * (math.pi / angle_residual_normalized.shape[-1])
+        lo, hi = point_cloud_dims
+        scene_scale = (hi - lo).clamp(min=1e-1)
+        center_unnormalized = query_xyz + center_offset
+        center_normalized = (center_unnormalized - lo.unsqueeze(1)) / (hi - lo).unsqueeze(1)
+        size_unnormalized = size_normalized * scene_scale.unsqueeze(1)
+        angle_continuous = self._angle_from_logits(angle_logits, angle_residual)
+
+        cls_prob = cls_logits.softmax(dim=-1)
+        objectness_prob = 1 - cls_prob[..., -1]
+
+        return {
+            "sem_cls_logits": cls_logits,
+            "center_normalized": center_normalized,
+            "center_unnormalized": center_unnormalized,
+            "size_normalized": size_normalized,
+            "size_unnormalized": size_unnormalized,
+            "angle_logits": angle_logits,
+            "angle_residual": angle_residual,
+            "angle_residual_normalized": angle_residual_normalized,
+            "angle_continuous": angle_continuous,
+            "objectness_prob": objectness_prob,
+            "sem_cls_prob": cls_prob[..., :-1],
+        }
+
     def _decode_heads(
         self,
         query_xyz: Tensor,
@@ -771,38 +827,74 @@ class DETR3DDetection(DetectionModel):
         num_layers, num_queries, batch_size = box_features.shape[:3]
         feats = box_features.permute(0, 2, 3, 1).reshape(num_layers * batch_size, self.decoder_embed_dim, num_queries)
 
-        cls_logits = self.mlp_heads["sem_cls_head"](feats).transpose(1, 2)
-        center_offset = self.mlp_heads["center_head"](feats).sigmoid().transpose(1, 2) - 0.5
-        size_normalized = self.mlp_heads["size_head"](feats).sigmoid().transpose(1, 2)
-        angle_logits = self.mlp_heads["angle_cls_head"](feats).transpose(1, 2)
-        angle_residual_normalized = self.mlp_heads["angle_residual_head"](feats).transpose(1, 2)
+        cls_logits = (
+            self.mlp_heads["sem_cls_head"](feats).transpose(1, 2).reshape(num_layers, batch_size, num_queries, -1)
+        )
+        center_offset = (self.mlp_heads["center_head"](feats).sigmoid().transpose(1, 2) - 0.5).reshape(
+            num_layers, batch_size, num_queries, -1
+        )
+        size_normalized = (
+            self.mlp_heads["size_head"](feats)
+            .sigmoid()
+            .transpose(1, 2)
+            .reshape(num_layers, batch_size, num_queries, -1)
+        )
+        angle_logits = (
+            self.mlp_heads["angle_cls_head"](feats).transpose(1, 2).reshape(num_layers, batch_size, num_queries, -1)
+        )
+        angle_residual_normalized = (
+            self.mlp_heads["angle_residual_head"](feats)
+            .transpose(1, 2)
+            .reshape(num_layers, batch_size, num_queries, -1)
+        )
 
-        cls_logits = cls_logits.reshape(num_layers, batch_size, num_queries, -1)[-1]
-        center_offset = center_offset.reshape(num_layers, batch_size, num_queries, -1)[-1]
-        size_normalized = size_normalized.reshape(num_layers, batch_size, num_queries, -1)[-1]
-        angle_logits = angle_logits.reshape(num_layers, batch_size, num_queries, -1)[-1]
-        angle_residual_normalized = angle_residual_normalized.reshape(num_layers, batch_size, num_queries, -1)[-1]
-        angle_residual = angle_residual_normalized * (math.pi / angle_residual_normalized.shape[-1])
-
-        lo, hi = point_cloud_dims
-        scene_scale = (hi - lo).clamp(min=1e-1)
-        center_unnormalized = query_xyz + center_offset
-        size_unnormalized = size_normalized * scene_scale.unsqueeze(1)
-        angle_continuous = self._angle_from_logits(angle_logits, angle_residual)
-
-        cls_prob = cls_logits.softmax(dim=-1)
-        objectness_prob = 1 - cls_prob[..., -1]
-
-        return {
-            "sem_cls_logits": cls_logits,
-            "center_unnormalized": center_unnormalized,
-            "size_unnormalized": size_unnormalized,
-            "angle_logits": angle_logits,
-            "angle_residual": angle_residual,
-            "angle_continuous": angle_continuous,
-            "objectness_prob": objectness_prob,
-            "sem_cls_prob": cls_prob[..., :-1],
+        last = self._decode_layer(
+            query_xyz,
+            point_cloud_dims,
+            cls_logits[-1],
+            center_offset[-1],
+            size_normalized[-1],
+            angle_logits[-1],
+            angle_residual_normalized[-1],
+        )
+        output: DETR3DOutput = {
+            "sem_cls_logits": last["sem_cls_logits"],
+            "center_unnormalized": last["center_unnormalized"],
+            "size_unnormalized": last["size_unnormalized"],
+            "angle_logits": last["angle_logits"],
+            "angle_residual": last["angle_residual"],
+            "angle_continuous": last["angle_continuous"],
+            "objectness_prob": last["objectness_prob"],
+            "sem_cls_prob": last["sem_cls_prob"],
         }
+        if not self.training:
+            return output
+
+        aux_outputs = [
+            self._decode_layer(
+                query_xyz,
+                point_cloud_dims,
+                cls_logits[layer],
+                center_offset[layer],
+                size_normalized[layer],
+                angle_logits[layer],
+                angle_residual_normalized[layer],
+            )
+            for layer in range(num_layers)
+        ]
+        train_output: DETR3DTrainOutput = {
+            "sem_cls_logits": output["sem_cls_logits"],
+            "center_unnormalized": output["center_unnormalized"],
+            "size_unnormalized": output["size_unnormalized"],
+            "angle_logits": output["angle_logits"],
+            "angle_residual": output["angle_residual"],
+            "angle_continuous": output["angle_continuous"],
+            "objectness_prob": output["objectness_prob"],
+            "sem_cls_prob": output["sem_cls_prob"],
+            "aux_outputs": aux_outputs,
+            "point_cloud_dims": point_cloud_dims,
+        }
+        return train_output
 
     def _angle_from_logits(self, angle_logits: Tensor, angle_residual: Tensor) -> Tensor:
         if self.num_angle_bin == 1:
