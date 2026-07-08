@@ -47,7 +47,7 @@ class SubMConv3dBlock(nn.Module):
             bias=bias,
             indice_key=stem_indice_key,
         )
-        self.norm = create_norm(norm, out_channels, **norm_kwargs)
+        self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **norm_kwargs)
         self.act = create_act(act, **act_kwargs)
 
     def forward(
@@ -55,13 +55,15 @@ class SubMConv3dBlock(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
+        condition: Optional[str] = None,
     ) -> Tensor:
+        norm_kwargs = {} if condition is None else {"condition": condition}
         x_spconv = convert_to_spconv_tensor(x, pos, batch)
         x_spconv = self.stem(x_spconv)
 
         x = x_spconv.features
         if self.norm is not None:
-            x = self.norm(x)
+            x = self.norm(x, **norm_kwargs)
         if self.act is not None:
             x = self.act(x)
 

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from torch.utils.data import DataLoader, Dataset, Sampler
 
+from torch_pointcloud.datasets.concat import SingleDatasetBatchSampler
 from torch_pointcloud.utils.data import PointCloudDataLoader
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 
@@ -26,6 +27,10 @@ class PointCloudDataModule(LightningDataModule):
 
     Args:
         train_dataset: Dataset for the training loop.
+        train_ratios: One positive integer sampling weight per child dataset of a `ConcatDataset` train
+            set. When set, the train loader draws single-dataset batches interleaved by these ratios via
+            `torch_pointcloud.datasets.SingleDatasetBatchSampler`, so every batch stays single-domain
+            (required by per-dataset normalization such as PDNorm). Leave `None` for a single dataset.
         val_dataset: Dataset for the validation loop.
         test_dataset: Dataset for the test loop.
         stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
@@ -50,6 +55,7 @@ class PointCloudDataModule(LightningDataModule):
         val_dataset: Optional[Dataset] = None,
         test_dataset: Optional[Dataset] = None,
         *,
+        train_ratios: Optional[Sequence[int]] = None,
         stack_keys: Optional[Sequence[str]] = None,
         cat_keys: Optional[Sequence[str]] = None,
         batch_size: int = 1,
@@ -67,6 +73,7 @@ class PointCloudDataModule(LightningDataModule):
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
 
+        self.train_ratios = train_ratios
         self.stack_keys = stack_keys
         self.cat_keys = cat_keys
         self.batch_size = batch_size
@@ -111,6 +118,13 @@ class PointCloudDataModule(LightningDataModule):
         # `sampler` and `shuffle` are mutually exclusive in torch.utils.data.DataLoader.
         effective_shuffle = False if sampler is not None or batch_sampler is not None else shuffle
 
+        # A `batch_sampler` already yields whole batches, so DataLoader requires batch_size 1,
+        # no separate sampler, and drop_last off.
+        if batch_sampler is not None:
+            batch_size = 1
+            drop_last = False
+            sampler = None
+
         return PointCloudDataLoader(
             dataset,
             stack_keys=self.stack_keys,
@@ -129,7 +143,17 @@ class PointCloudDataModule(LightningDataModule):
         )
 
     def train_dataloader(self) -> DataLoader:
-        return self.configure_dataloader(self.train_dataset, shuffle=True, drop_last=self.drop_last)
+        batch_sampler: Optional[SingleDatasetBatchSampler] = None
+        if self.train_ratios is not None:
+            sizes = getattr(self.train_dataset, "sizes", None)
+            if sizes is None:
+                raise ValueError("train_ratios requires train_dataset to be a ConcatDataset exposing `sizes`.")
+            batch_sampler = SingleDatasetBatchSampler(
+                sizes, ratios=self.train_ratios, batch_size=self.batch_size, shuffle=True, drop_last=self.drop_last
+            )
+        return self.configure_dataloader(
+            self.train_dataset, shuffle=True, drop_last=self.drop_last, batch_sampler=batch_sampler
+        )
 
     def val_dataloader(self) -> DataLoader:
         return self.configure_dataloader(

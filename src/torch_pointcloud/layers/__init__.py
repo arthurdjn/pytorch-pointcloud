@@ -12,7 +12,9 @@ from .anchors import (
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
     AnchorHeadSingle,
+    AnchorTargets,
     MultiGroupSingleHead,
+    assign_anchor_targets,
     generate_anchors,
     separate_branch,
 )
@@ -34,6 +36,7 @@ from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import RPE, OctreeAttention, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .pointconv import PointConv, PointConvDensity
 from .pointconv_sa import (
