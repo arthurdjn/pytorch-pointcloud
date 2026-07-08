@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 
 import torch
 from torch import Tensor, nn
@@ -213,25 +213,32 @@ class LitDetectionModel(LitModel):
     overrides them and reuses the base for everything else (model construction, `forward`, optimizer
     wiring, `training_step`):
 
-    - the loss is a factory completed at build time with the model's head-geometry params
-      (`num_heading_bin`, `num_size_cluster`, `num_classes`, `mean_sizes`) rather than duplicating them in
-      config; without a `criterion` the module is evaluation-only (no loss is logged, training raises);
-    - `step` feeds the whole forward output and the batch to the loss, which returns a dict of named
-      components (each logged), and reports the total `loss`;
-    - the eval steps run the model's raw `decode`, postprocess it (optional `min_points` filter, drop boxes
-      below `score_threshold`, per-class 3D `nms3d` at `nms_iou`, and the indoor per-class expansion when
-      `decode` emits `class_probs`), and pair the result with the ground-truth boxes for a
-      `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`).
+    - the loss is either a ready-built `nn.Module` (the general case: an anchor / center / set-matching loss
+      whose geometry params are set explicitly in config) or a factory completed at build time with the
+      model's head-geometry params (the `VoteNetLoss` carve-out, which reads `num_heading_bin`,
+      `num_size_cluster`, `num_classes`, `mean_sizes` off the model); without a `criterion` the module is
+      evaluation-only (no loss is logged, training raises);
+    - `step` (training only) feeds the whole forward output and the batch to the loss, which returns a dict
+      of named components (each logged), and reports the total `loss`;
+    - the eval steps are metric-driven, not loss-driven: they run the model's raw `decode`, postprocess it
+      (optional `min_points` filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou`,
+      and the indoor per-class expansion when `decode` emits `class_probs`), and pair the result with the
+      ground-truth boxes for a `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`). No
+      loss is computed at validation, so a two-stage detector whose inference forward differs from its
+      training forward (its eval output carries decoded proposals, not loss targets) validates cleanly.
 
     A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
     from `decode(output)`, and (for training) is paired with a `criterion(output, batch)`.
 
     Args:
         name: Registered detection model name; built via `create_model(name, task="detection")`.
-        criterion: An optional loss factory completed with the model's head-geometry params, i.e. called as
-            `criterion(num_heading_bin=..., num_size_cluster=..., num_classes=..., mean_sizes=...)` (e.g.
-            `VoteNetLoss`); its `forward(output, batch)` returns a dict whose `loss` entry is the total to
-            optimize. Leave `None` to benchmark a detector whose training loss is not ported.
+        criterion: The training loss, in one of two forms. A ready-built `nn.Module` is used as-is (the
+            general case: instantiate it in config with its geometry params, e.g. `AnchorLoss`). A callable
+            factory is completed with the model's head-geometry params, i.e. called as
+            `criterion(num_heading_bin=..., num_size_cluster=..., num_classes=..., mean_sizes=...)` (the
+            `VoteNetLoss` carve-out). Either way its `forward(output, batch)` returns a dict whose `loss`
+            entry is the total to optimize. Leave `None` to benchmark a detector whose training loss is not
+            ported.
         score_threshold: Minimum score to keep a decoded box in the eval postprocess.
         nms_iou: IoU threshold of the per-class 3D NMS in the eval postprocess.
         min_points: Optional minimum number of points inside a decoded box for it to be kept (the
@@ -249,7 +256,7 @@ class LitDetectionModel(LitModel):
         self,
         name: str,
         *,
-        criterion: Optional[Callable[..., nn.Module]] = None,
+        criterion: Union[nn.Module, Callable[..., nn.Module], None] = None,
         score_threshold: float = 0.05,
         nms_iou: float = 0.25,
         min_points: Optional[int] = None,
@@ -258,11 +265,13 @@ class LitDetectionModel(LitModel):
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="detection", **kwargs)
-        # The base registered a placeholder loss; drop it so the factory result (completed with the model's
-        # head-geometry params) can take its place, including `None` or a non-Module test double.
+        # The base registered a placeholder loss; drop it so the configured criterion can take its place,
+        # including `None` or a non-Module test double.
         del self.criterion
         if criterion is None:
             self.criterion = None
+        elif isinstance(criterion, nn.Module):
+            self.criterion = criterion
         else:
             self.criterion = criterion(
                 num_heading_bin=self.model.num_heading_bin,
@@ -292,7 +301,7 @@ class LitDetectionModel(LitModel):
         return {"output": output, "loss": losses["loss"]}
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
-        output = self.step(batch, stage)["output"]
+        output = self.forward(batch)
         det = self.model.decode(output)
         keep = det["scores"] > self.score_threshold
         if self.min_points is not None:
