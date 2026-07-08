@@ -355,6 +355,13 @@ def test_detection_criterion_completed_with_model_params() -> None:
     assert kwargs["mean_sizes"] is lit.model.mean_sizes
 
 
+def test_detection_criterion_prebuilt_module_used_as_is() -> None:
+    """A ready-built `nn.Module` criterion is used as-is, not called as a head-geometry factory."""
+    criterion = nn.Identity()
+    lit = LitDetectionModel(name="dummy.detection", optimizer=partial(torch.optim.AdamW, lr=0.01), criterion=criterion)
+    assert lit.criterion is criterion
+
+
 def test_detection_criterion_none_skips_head_geometry_completion() -> None:
     """Without a `criterion` the head-geometry params are never read, so a model may not expose them."""
 
@@ -465,9 +472,9 @@ def test_detection_validation_step_decodes_filters_and_targets(monkeypatch: pyte
         "labels": torch.tensor([2, 5]),
         "batch": torch.tensor([0, 1]),
     }
-    step = Mock(return_value={"output": output, "loss": torch.tensor(1.0)})
+    forward = Mock(return_value=output)
     decode = Mock(return_value=decoded)
-    monkeypatch.setattr(module, "step", step)
+    monkeypatch.setattr(module, "forward", forward)
     monkeypatch.setattr(module.model, "decode", decode)
     batch = {
         "pos": torch.zeros(4, 3),
@@ -476,7 +483,7 @@ def test_detection_validation_step_decodes_filters_and_targets(monkeypatch: pyte
         "batch_box": torch.tensor([0]),
     }
     out = module.validation_step(batch, batch_idx=0)
-    step.assert_called_once_with(batch, "val")
+    forward.assert_called_once_with(batch)
     assert decode.call_args.args[0] is output
     # the 0.01-score box is below the default 0.05 threshold (dropped); the 0.9 box survives NMS.
     assert out["preds"]["labels"].tolist() == [2]
@@ -502,7 +509,7 @@ def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch
         "labels": torch.tensor([1]),
         "batch": torch.tensor([0]),
     }
-    monkeypatch.setattr(module, "step", Mock(return_value={"output": output, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module, "forward", Mock(return_value=output))
     monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
     batch = {
         "pos": torch.zeros(2, 3),
@@ -528,7 +535,7 @@ def test_detection_min_points_filters_boxes_without_points(monkeypatch: pytest.M
         "labels": torch.tensor([1, 2]),
         "batch": torch.tensor([0, 0]),
     }
-    monkeypatch.setattr(module, "step", Mock(return_value={"output": {}, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module, "forward", Mock(return_value={}))
     monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
     batch = {
         "pos": torch.zeros(4, 3),
@@ -553,7 +560,7 @@ def test_detection_class_probs_expands_boxes_per_class(monkeypatch: pytest.Monke
         "batch": torch.tensor([0, 1]),
         "class_probs": probs,
     }
-    monkeypatch.setattr(module, "step", Mock(return_value={"output": {}, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module, "forward", Mock(return_value={}))
     monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
     batch = {
         "pos": torch.zeros(4, 3),
@@ -584,7 +591,7 @@ def test_detection_label_key_passes_full_extent_target_through(monkeypatch: pyte
         "labels": torch.tensor([0]),
         "batch": torch.tensor([0]),
     }
-    monkeypatch.setattr(module, "step", Mock(return_value={"output": {}, "loss": torch.tensor(1.0)}))
+    monkeypatch.setattr(module, "forward", Mock(return_value={}))
     monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
     batch = {
         "pos": torch.zeros(2, 3),

@@ -4,3 +4,8 @@ defaults:
   - default
   - val_map
   - _self_
+
+# Detection selects checkpoints on the validation metric, not a loss (eval is metric-driven).
+model_checkpoint:
+  monitor: "val/mAP@0.25"
+  mode: max
