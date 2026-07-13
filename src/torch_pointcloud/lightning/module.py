@@ -29,6 +29,20 @@ class LitModel(LightningModule):
     loop. `input_keys`, `target_key` and `scheduler_interval` are read from `self.hparams`, which the
     subclass populates via `save_hyperparameters`. Without an `optimizer` the module is evaluation-only
     (benchmark mode): `Trainer.test` works and `Trainer.fit` raises.
+
+    Args:
+        name: Registered model name; built via `create_model(name, task=...)`.
+        task: Which task head to build (`"classification"`, `"segmentation"`, `"detection"`); set by the subclass.
+        optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
+        scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
+        criterion: The loss module; defaults to `CrossEntropyLoss`.
+        input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
+            (e.g. `octree.depth`) resolves an attribute.
+        target_key: Batch-dict key for the per-cloud label.
+        scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
+        param_groups: Optional dict of kwargs forwarded to
+            `torch_pointcloud.utils.optim.generate_param_groups`.
+        **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
     def __init__(
@@ -114,16 +128,8 @@ class LitClassificationModel(LitModel):
     Args:
         name: Registered classification model name (e.g. `pointnet2-ssg.modelnet40.xu-yan`); built via
             `create_model(name, task="classification")`.
-        optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
-        scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
-        criterion: The loss module; defaults to `CrossEntropyLoss`.
-        input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
-            (e.g. `octree.depth`) resolves an attribute.
-        target_key: Batch-dict key for the per-cloud label.
-        scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
-        param_groups: Optional dict of kwargs forwarded to
-            `torch_pointcloud.utils.optim.generate_param_groups`.
-        **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+        **kwargs: Forwarded to the base `LitModel` (e.g. `optimizer`, `scheduler`, `criterion`) and
+            `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
     def __init__(self, name: str, **kwargs: Any) -> None:
