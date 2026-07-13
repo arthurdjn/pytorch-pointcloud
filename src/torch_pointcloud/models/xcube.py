@@ -92,10 +92,7 @@ class SparseGroupNorm(nn.GroupNorm):
     r"""Group normalization over the voxels of each grid in a batch.
 
     Normalizes each batch element independently over all of its voxels, matching `fvdb.nn.GroupNorm`.
-
-    Args:
-        num_groups: Number of channel groups.
-        num_channels: Number of feature channels.
+    Takes the standard `nn.GroupNorm` constructor arguments (`num_groups`, `num_channels`).
 
     Shape:
         - `x`: $(N, C)$ flat voxel features.
