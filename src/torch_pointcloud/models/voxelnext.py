@@ -29,7 +29,7 @@ class VoxelNeXtHeadOutput(TypedDict):
     Each entry is a list with one tensor per class group. `voxel_indices` are the sparse positions
     $(\text{batch}, y, x)$ of the BEV feature map that every prediction row is anchored to.
 
-    Args:
+    Attributes:
         hm: Per-group classification logits, each of shape $(V, n_g)$ for $n_g$ classes in the group.
         center: Per-group BEV center offset, each $(V, 2)$.
         center_z: Per-group absolute box height, each $(V, 1)$.
