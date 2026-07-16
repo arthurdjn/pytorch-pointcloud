@@ -14,6 +14,7 @@ from torch_pointcloud.lightning import (
 )
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
+from torch_pointcloud.utils.types import Detection3D
 
 pytest.importorskip("lightning.pytorch")
 
@@ -50,8 +51,20 @@ class DummyDetectionModel(DetectionModel):
         self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
         self.fc = nn.Linear(in_channels, num_classes)
 
+    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        return x
+
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
         return {"objectness_scores": self.fc(x)}
+
+    def decode(self, output: Dict[str, Tensor]) -> Detection3D:
+        scores = output["objectness_scores"]
+        return {
+            "boxes": scores.new_zeros(0, 7),
+            "scores": scores.new_zeros(0),
+            "labels": scores.new_zeros(0, dtype=torch.long),
+            "batch": scores.new_zeros(0, dtype=torch.long),
+        }
 
 
 def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:

@@ -17,6 +17,7 @@ from torch_pointcloud.lightning import (
 )
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
+from torch_pointcloud.utils.types import Detection3D
 
 pytest.importorskip("lightning.pytorch")
 
@@ -52,8 +53,20 @@ class DummyDetectionModel(DetectionModel):
         self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
         self.fc = nn.Linear(in_channels, num_classes)
 
+    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        return x
+
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
         return {"objectness_scores": self.fc(x)}
+
+    def decode(self, output: Dict[str, Tensor]) -> Detection3D:
+        scores = output["objectness_scores"]
+        return {
+            "boxes": scores.new_zeros(0, 7),
+            "scores": scores.new_zeros(0),
+            "labels": scores.new_zeros(0, dtype=torch.long),
+            "batch": scores.new_zeros(0, dtype=torch.long),
+        }
 
 
 def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
@@ -378,8 +391,9 @@ def test_detection_criterion_none_eval_step_returns_preds_without_loss(monkeypat
         "x": torch.rand(4, 1),
         "pos": torch.zeros(4, 3),
         "batch": torch.zeros(4, dtype=torch.long),
-        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 3.0]]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
+        "class": torch.tensor([3]),
     }
     out = module.test_step(batch, batch_idx=0)
     log.assert_not_called()
@@ -462,8 +476,9 @@ def test_detection_validation_step_decodes_filters_and_targets(monkeypatch: pyte
     batch = {
         "pos": torch.zeros(4, 3),
         "batch": torch.tensor([0, 0, 1, 1]),
-        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 3.0]]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
+        "class": torch.tensor([3]),
     }
     out = module.validation_step(batch, batch_idx=0)
     forward.assert_called_once_with(batch)
@@ -497,8 +512,9 @@ def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch
     batch = {
         "pos": torch.zeros(2, 3),
         "batch": torch.tensor([0, 0]),
-        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0]]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
+        "class": torch.tensor([1]),
     }
     out = module.validation_step(batch, batch_idx=0)
     # the 0.3-score box is below score_threshold=0.5, so nothing is kept.
@@ -523,8 +539,9 @@ def test_detection_min_points_filters_boxes_without_points(monkeypatch: pytest.M
     batch = {
         "pos": torch.zeros(4, 3),
         "batch": torch.zeros(4, dtype=torch.long),
-        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0]]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
+        "class": torch.tensor([1]),
     }
     out = module.validation_step(batch, batch_idx=0)
     # all 4 points fall in the first box; the far-away box holds 0 < min_points=2 and is dropped.
@@ -548,8 +565,9 @@ def test_detection_class_probs_expands_boxes_per_class(monkeypatch: pytest.Monke
     batch = {
         "pos": torch.zeros(4, 3),
         "batch": torch.tensor([0, 0, 1, 1]),
-        "box": torch.tensor([[0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0]]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
+        "class": torch.tensor([1]),
     }
     out = module.validation_step(batch, batch_idx=0)
     assert out["preds"]["boxes"].shape == (6, 7)
@@ -560,7 +578,7 @@ def test_detection_class_probs_expands_boxes_per_class(monkeypatch: pytest.Monke
 
 
 def test_detection_label_key_passes_full_extent_target_through(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With `label_key`, the GT boxes are $(K, 7)$ full-extent rows passed through unmodified."""
+    """`label_key` overrides the per-box class key; the $(K, 7)$ boxes and ignore mask pass through unmodified."""
     module = LitDetectionModel(
         name="dummy.detection",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
