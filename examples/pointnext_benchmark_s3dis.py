@@ -46,7 +46,7 @@ def main() -> None:
 
     model, info = create_model(args.model, task="segmentation", pretrained=args.pretrained, return_info=True)
     num_classes: int = int(model.num_classes)
-    transform = info.get("transforms")
+    transform = info.get("transform")
 
     test_dataset: Dataset = S3DIS(
         root=args.root,

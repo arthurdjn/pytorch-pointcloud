@@ -67,7 +67,7 @@ def main() -> None:
     model, model_info = create_model(args.model, task="classification", pretrained=True, return_info=True)
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transforms")
+    transform = model_info.get("transform")
     ds_cfg = DATASET_CONFIG[args.model]
 
     print(f"Loading ScanObjectNN test dataset (bg={ds_cfg['background']}, variant={ds_cfg['variant']})!")

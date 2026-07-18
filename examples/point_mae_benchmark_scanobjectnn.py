@@ -68,7 +68,7 @@ def main() -> None:
     )
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transforms")
+    transform = model_info.get("transform")
     ds_cfg = DATASET_CONFIG[args.model]
 
     print(f"Loading ScanObjectNN test dataset (bg={ds_cfg['background']}, variant={ds_cfg['variant']})!")
