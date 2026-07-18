@@ -211,6 +211,17 @@ def test_shapenet_dataset_categories(datasets_dir_factory: Callable[..., Path], 
     assert all(category in dataset.categories for category in categories)
 
 
+def test_shapenet_dataset_seg_to_id(datasets_dir_factory: Callable[..., Path]) -> None:
+    """seg_to_id maps the selected categories' global segment ids to contiguous local ids."""
+    datasets_dir = datasets_dir_factory("ShapeNetPart/processed/**/*")
+
+    dataset = ShapeNetPart(root=datasets_dir, split="train", categories=["Bag", "Chair"], show_progress=False)
+    assert dataset.seg_to_id == {4: 0, 5: 1, 12: 2, 13: 3, 14: 4, 15: 5}
+
+    dataset = ShapeNetPart(root=datasets_dir, split="train", show_progress=False)
+    assert dataset.seg_to_id == {seg: seg for seg in range(50)}
+
+
 def test_shapenet_dataset_invalid_category(datasets_dir_factory: Callable[..., Path]) -> None:
     """Raises an error if the category is invalid or not supported"""
     datasets_dir = datasets_dir_factory("ShapeNetPart/raw/**/*")

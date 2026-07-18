@@ -1,6 +1,7 @@
 from collections import Counter
 from typing import Any, Dict
 
+import pytest
 import torch
 from torch.utils.data import Dataset
 
@@ -39,13 +40,24 @@ def test_concat_maps_flat_index_to_child() -> None:
 def test_concat_negative_index() -> None:
     dataset = ConcatDataset([_DomainDataset(0, 7), _DomainDataset(1, 3)])
     assert dataset[-1] == {"domain": 1, "index": 2}
+    assert dataset[-10] == {"domain": 0, "index": 0}
+
+
+def test_concat_out_of_range_index_raises() -> None:
+    dataset = ConcatDataset([_DomainDataset(0, 7), _DomainDataset(1, 3)])
+    with pytest.raises(IndexError):
+        _ = dataset[10]
+    with pytest.raises(IndexError):
+        _ = dataset[-11]
 
 
 def test_sampler_batches_are_single_dataset() -> None:
     sizes = [40, 20]
     sampler = SingleDatasetBatchSampler(sizes, ratios=[2, 1], batch_size=4)
     offsets = [0, 40]
-    for batch in sampler:
+    batches = list(sampler)
+    assert len(batches) > 0
+    for batch in batches:
         assert len(batch) == 4
         which = [0 if i < offsets[1] else 1 for i in batch]
         assert len(set(which)) == 1

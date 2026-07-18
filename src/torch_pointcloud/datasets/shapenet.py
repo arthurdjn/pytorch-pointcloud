@@ -54,11 +54,15 @@ class _StubState:
         self.state = state
 
 
+_XCUBE_STUB_CLASSES = {("fvdb._Cpp", "GridBatch"), ("fvdb._Cpp", "JaggedTensor")}
+_XCUBE_ALLOWED_GLOBALS = {("torch._utils", "_rebuild_tensor_v2"), ("collections", "OrderedDict")}
+
+
 class _XCubeUnpickler(pickle.Unpickler):
     def find_class(self, module: str, name: str) -> Any:
-        if module.startswith("fvdb"):
+        if (module, name) in _XCUBE_STUB_CLASSES:
             return type(name, (_StubState,), {})
-        if module.partition(".")[0] not in ("torch", "numpy", "collections"):
+        if (module, name) not in _XCUBE_ALLOWED_GLOBALS:
             raise pickle.UnpicklingError(f"Unpickling {module}.{name} is not allowed in XCube shape files.")
         return super().find_class(module, name)
 

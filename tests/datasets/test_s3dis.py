@@ -1,13 +1,13 @@
 # mypy: disable-error-code="arg-type,call-overload,attr-defined"
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Iterator
 from unittest.mock import Mock, patch
 
 import pytest
 import torch
 
 from torch_pointcloud.datasets import S3DIS, S3DISHdf5
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, S3DIS_UNK_IDX, load_s3dis_room
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, load_s3dis_room
 
 
 def test_load_s3dis_room(datasets_dir: Path) -> None:
@@ -23,6 +23,24 @@ def test_load_s3dis_room(datasets_dir: Path) -> None:
     assert data["color"].shape[1] == 3
     assert data["instance"].ndim == 1
     assert data["segment"].ndim == 1
+
+
+def test_load_s3dis_room_order_independent(datasets_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Instance ids and per-point labels do not depend on the filesystem ordering of annotation files"""
+    room_dir = datasets_dir / "S3DIS" / "raw" / "Area_1" / "conferenceRoom_1"
+    data = load_s3dis_room(room_dir)
+
+    original_rglob = Path.rglob
+
+    def reversed_rglob(self: Path, pattern: str) -> Iterator[Path]:
+        return reversed(list(original_rglob(self, pattern)))
+
+    monkeypatch.setattr(Path, "rglob", reversed_rglob)
+    data_reversed = load_s3dis_room(room_dir)
+
+    assert torch.equal(data["pos"], data_reversed["pos"])
+    assert torch.equal(data["segment"], data_reversed["segment"])
+    assert torch.equal(data["instance"], data_reversed["instance"])
 
 
 def test_s3dis_dataset_not_found() -> None:
@@ -135,10 +153,37 @@ def test_s3dis_dataset_classes(datasets_dir_factory: Callable[..., Path], classe
     assert len(dataset) > 0
     assert all(cls in dataset.classes for cls in classes)
 
-    class_ids = set([*dataset.class_to_idx.values(), S3DIS_UNK_IDX])
+    class_ids = set([*dataset.class_to_idx.values(), -1])
     for data in dataset:
         labels = data["segment"].unique().tolist()
         assert set(labels).issubset(class_ids)
+
+
+def test_s3dis_dataset_class_subset_without_clutter_uses_ignore_index(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """Unselected classes map to the ignore index -1 when 'clutter' is not selected"""
+    datasets_dir = datasets_dir_factory("S3DIS/raw/**/*")
+
+    dataset = S3DIS(root=datasets_dir, classes=["wall", "floor"], show_progress=False)
+    labels = torch.cat([data["segment"] for data in dataset])
+    assert set(labels.unique().tolist()) <= {-1, 0, 1}
+    assert (labels == -1).any()
+
+
+def test_s3dis_dataset_class_subset_with_clutter_uses_clutter_index(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """Unselected classes map to the new index of 'clutter' when it is selected"""
+    datasets_dir = datasets_dir_factory("S3DIS/raw/**/*")
+
+    dataset = S3DIS(root=datasets_dir, classes=["wall", "clutter"], show_progress=False)
+    clutter_idx = dataset.class_to_idx["clutter"]
+    assert clutter_idx == 1
+
+    labels = torch.cat([data["segment"] for data in dataset])
+    assert set(labels.unique().tolist()) <= {0, clutter_idx}
+    assert (labels == clutter_idx).any()
 
 
 def test_s3dis_dataset_all_classes(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -207,6 +252,48 @@ def test_s3dis_tile_blocks_preserves_cache(datasets_dir_factory: Callable[..., P
     assert dataset_a.processed_files_exist()
     assert dataset_b.processed_files_exist()
     assert len(dataset_a) != len(dataset_b) or dataset_a[0]["pos"].shape != dataset_b[0]["pos"].shape
+
+
+def test_s3dis_download_retries_corrupt_archive_with_overwrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A corrupt archive is re-downloaded with `overwrite=True` and a second MD5 mismatch raises"""
+    calls: list[tuple[str, Any]] = []
+
+    def fake_download(url: str, file_path: Any = "", **kwargs: Any) -> str:
+        calls.append((Path(file_path).name, kwargs.get("overwrite", False)))
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(file_path).write_bytes(b"corrupt")
+        return str(file_path)
+
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", fake_download)
+
+    archive = tmp_path / "S3DIS" / "raw" / "Stanford3dDataset_v1.2_Aligned_Version.zip"
+    archive.parent.mkdir(parents=True)
+    archive.write_bytes(b"corrupt")
+
+    with pytest.raises(RuntimeError, match="MD5"):
+        _ = S3DIS(root=tmp_path, download=True, show_progress=False)
+
+    assert ("Stanford3dDataset_v1.2_Aligned_Version.zip", True) in calls
+
+
+def test_s3dis_hdf5_download_retries_corrupt_archive_with_overwrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A corrupt HDF5 archive is re-downloaded with `overwrite=True` and a second MD5 mismatch raises"""
+    calls: list[tuple[str, Any]] = []
+
+    def fake_download(url: str, file_path: Any = "", **kwargs: Any) -> str:
+        calls.append((Path(file_path).name, kwargs.get("overwrite", False)))
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(file_path).write_bytes(b"corrupt")
+        return str(file_path)
+
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", fake_download)
+
+    with pytest.raises(RuntimeError, match="MD5"):
+        _ = S3DISHdf5(root=tmp_path, download=True, show_progress=False)
+
+    assert ("indoor3d_sem_seg_hdf5_data.zip", True) in calls
 
 
 HDF5_GLOB = "S3DIS/indoor3d_sem_seg_hdf5_data/**/*"
