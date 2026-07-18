@@ -5,7 +5,6 @@ from torch import Tensor, nn
 from torch.optim import Optimizer
 
 from torch_pointcloud.inferers import Inferer
-from torch_pointcloud.lightning.metrics import boxes_from_packed
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
@@ -80,12 +79,13 @@ class LitModel(LightningModule):
             }
         )
 
-    def forward(self, batch: Dict[str, Any]) -> Tensor:
+    def forward(self, batch: Dict[str, Any]) -> Union[Tensor, Dict[str, Tensor]]:
         inputs = (deep_getattr(batch, key) for key in self.hparams["input_keys"])
         return self.model(*inputs)
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:
         logits = self.forward(batch)
+        assert isinstance(logits, Tensor)
         target = batch[self.hparams["target_key"]].long()
 
         assert self.criterion is not None
@@ -167,6 +167,11 @@ class LitSegmentationModel(LitModel):
         self.inverse_key = inverse_key
         self.origin_target_key = origin_target_key
 
+    def forward(self, batch: Dict[str, Any]) -> Tensor:
+        out = super().forward(batch)
+        assert isinstance(out, Tensor)
+        return out
+
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
         if self.inferer is not None and stage == "test":
             preds = self.inferer(batch, predictor=self.forward)
@@ -219,9 +224,11 @@ class LitDetectionModel(LitModel):
     - the eval steps are metric-driven, not loss-driven: they run the model's raw `decode`, postprocess it
       (optional `min_points` filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou`,
       and the indoor per-class expansion when `decode` emits `class_probs`), and pair the result with the
-      ground-truth boxes for a `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`). No
-      loss is computed at validation, so a two-stage detector whose inference forward differs from its
-      training forward (its eval output carries decoded proposals, not loss targets) validates cleanly.
+      ground truth for a `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`); the
+      ground-truth boxes are `DataKeys.BOX` packed as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$
+      (full extents, counter-clockwise heading $\theta$), with per-box classes under `label_key`. No loss is
+      computed at validation, so a two-stage detector whose inference forward differs from its training
+      forward (its eval output carries decoded proposals, not loss targets) validates cleanly.
 
     A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
     from `decode(output)`, and (for training) is paired with a `criterion(output, batch)`.
@@ -239,12 +246,9 @@ class LitDetectionModel(LitModel):
         nms_iou: IoU threshold of the per-class 3D NMS in the eval postprocess.
         min_points: Optional minimum number of points inside a decoded box for it to be kept (the
             VoteNet / 3DETR indoor protocol uses $5$).
-        label_key: Optional batch-dict key of per-box ground-truth class labels. When set, ground-truth
-            boxes are read as $(K, 7)$ full-extent rows paired with these labels (the KITTI / nuScenes
-            convention); when `None`, they are $(K, 8)$ half-extent rows with the class in the last column
-            (the SUN RGB-D / ScanNet convention).
+        label_key: Batch-dict key of the per-box ground-truth class labels (defaults to `DataKeys.CLASS`).
         ignore_mask_key: Optional batch-dict key of a per-box ignore mask forwarded to the metric with the
-            ground truth (used with `label_key` for KITTI-style ignore regions).
+            ground truth (KITTI-style ignore regions).
         **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`).
     """
 
@@ -256,7 +260,7 @@ class LitDetectionModel(LitModel):
         score_threshold: float = 0.05,
         nms_iou: float = 0.25,
         min_points: Optional[int] = None,
-        label_key: Optional[str] = None,
+        label_key: str = DataKeys.CLASS,
         ignore_mask_key: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
@@ -328,11 +332,11 @@ class LitDetectionModel(LitModel):
                 "labels": torch.arange(num_classes, device=probs.device).repeat(idx.numel()),
                 "batch": det_batch[idx].repeat_interleave(num_classes),
             }
-        box = batch[DataKeys.BOX]
-        if self.label_key is not None:
-            target: Boxes3D = {"boxes": box, "labels": batch[self.label_key].long(), "batch": batch[DataKeys.BATCH_BOX]}
-            if self.ignore_mask_key is not None:
-                target["ignore_mask"] = batch[self.ignore_mask_key]
-        else:
-            target = boxes_from_packed(box, batch[DataKeys.BATCH_BOX])
+        target: Boxes3D = {
+            "boxes": batch[DataKeys.BOX],
+            "labels": batch[self.label_key].long(),
+            "batch": batch[DataKeys.BATCH_BOX],
+        }
+        if self.ignore_mask_key is not None:
+            target["ignore_mask"] = batch[self.ignore_mask_key]
         return {"preds": preds, "target": target}

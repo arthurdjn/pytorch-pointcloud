@@ -14,23 +14,6 @@ else:
     Metric, _ = optional_import("torchmetrics", "Metric", url=_TORCHMETRICS_GITHUB_URL)
 
 
-def boxes_from_packed(box: Tensor, batch: Tensor) -> Boxes3D:
-    r"""Repo detection ground truth `box` to a `Boxes3D` with full edge lengths.
-
-    Reads the SUN RGB-D layout: rows $[c_x, c_y, c_z, d_x, d_y, d_z, \text{heading}, \text{cls}]$ of shape
-    $(K, 8)$ with half-extents $d$, doubled to the full edge lengths `mean_average_precision3d` expects.
-
-    Args:
-        box: Packed ground-truth boxes, shape $(K, 8)$.
-        batch: Per-box scene index, shape $(K,)$ (the collate's `batch_box`, not the per-point `batch`).
-
-    Returns:
-        Packed `Boxes3D` with boxes of shape $(K, 7)$ as $(c_x, c_y, c_z, d_x, d_y, d_z, \text{heading})$.
-    """
-    boxes = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
-    return {"boxes": boxes, "labels": box[:, 7].long(), "batch": batch}
-
-
 class MeanAveragePrecision3D(Metric):
     r"""Packed 3D-detection mean average precision as a `torchmetrics` metric.
 
