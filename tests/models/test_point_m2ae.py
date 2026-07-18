@@ -139,6 +139,28 @@ def test_point_m2ae_segmentation_basic() -> None:
     assert out.shape == (2 * 2048, 50)
 
 
+def test_point_m2ae_segmentation_forward_head_pre_logits() -> None:
+    model = PointM2AESegmentation(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        group_sizes=(16, 8, 8),
+        num_groups=(512, 256, 64),
+        encoder_depths=(5, 5, 5),
+        encoder_dims=(96, 192, 384),
+        local_radius=(0.32, 0.64, 1.28),
+        num_heads=6,
+    ).cuda()
+    model.eval()
+    pos, batch = _packed(2, 2048)
+    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float().cuda()
+    with torch.no_grad():
+        x_vis_list, centers = model.forward_features(None, pos, batch)
+        feat = model.forward_decoder(x_vis_list, centers, pos, batch)
+        pre = model.forward_head(feat, category, pre_logits=True)
+    assert pre.shape == (2 * 2048, 3 * 1024 * 2 + 64)
+
+
 def test_point_m2ae_mae_basic() -> None:
     model = PointM2AEMaskedAutoEncoder(
         in_channels=0,

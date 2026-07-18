@@ -466,8 +466,8 @@ class SPFormerUNet(SegmentationModel):
     ) -> "SparseConvTensor":
         return self.decoder(x, skips)
 
-    def forward_head(self, x: "SparseConvTensor") -> Tensor:
-        return self.head(x).features
+    def forward_head(self, x: "SparseConvTensor", pre_logits: bool = False) -> Tensor:
+        return x.features if pre_logits else self.head(x).features
 
     def forward(self, x: OptTensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
         bottleneck, skips = self.forward_features(x, pos_grid, batch)

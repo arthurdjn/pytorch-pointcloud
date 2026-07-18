@@ -149,6 +149,47 @@ def test_rotate_points_along_z_round_trip() -> None:
     assert torch.allclose(restored, pts, atol=1e-5)
 
 
+def test_pointrcnn_train_forward_detaches_proposals_from_stage_one() -> None:
+    """Stage-2 targets must carry no gradient: only the pooled feature paths reach stage 1."""
+    torch.manual_seed(0)
+    model = _make_pointrcnn(train_nms_post_maxsize=64, roi_per_image=32).to(DEVICE).train()
+    data = _make_inputs(n_per_scene=4096, batch_size=1)
+    gt_boxes = torch.tensor([[10.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.3]], device=DEVICE)
+    gt_labels = torch.zeros(1, dtype=torch.long, device=DEVICE)
+    gt_batch = torch.zeros(1, dtype=torch.long, device=DEVICE)
+
+    out = model(data["x"], data["pos"], data["batch"], gt_boxes, gt_labels, gt_batch)
+    assert out["rois"].requires_grad is False
+    assert out["gt_of_rois"].requires_grad is False
+    assert out["rcnn_cls"].requires_grad and out["rcnn_reg"].requires_grad
+
+    # A stage-2-only objective must not leak gradient into the stage-1 box branch (its only route to
+    # stage 2 is through the proposal boxes), while the pooled-feature path keeps the backbone alive.
+    (out["rcnn_boxes"].sum() + out["rcnn_cls"].sum()).backward()
+    box_branch_grad = sum(
+        float(p.grad.abs().sum()) for p in model.point_head.box_layers.parameters() if p.grad is not None
+    )
+    encoder_grad = sum(float(p.grad.abs().sum()) for p in model.encoder.parameters() if p.grad is not None)
+    assert box_branch_grad == 0.0
+    assert encoder_grad > 0.0
+
+
+def test_pointrcnn_sample_proposals_skips_empty_scene() -> None:
+    """A scene with zero proposals yields an empty sample instead of indexing into an empty ROI set."""
+    model = _make_pointrcnn(roi_per_image=8)
+    assert model._subsample_rois(torch.zeros(0)).numel() == 0
+
+    rois = torch.rand(20, 7) + 0.5
+    roi_labels = torch.ones(20, dtype=torch.long)
+    roi_batch = torch.ones(20, dtype=torch.long)  # scene 0 has no proposals
+    gt_boxes = torch.tensor([[0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0.0]])
+    sampled = model._sample_proposals(
+        rois, roi_labels, roi_batch, gt_boxes, torch.ones(1, dtype=torch.long), torch.ones(1, dtype=torch.long)
+    )
+    assert sampled["rois"].shape == (model.roi_per_image, 7)
+    assert (sampled["batch"] == 1).all()
+
+
 def test_pointrcnn_reset_classifier_unsupported() -> None:
     model = _make_pointrcnn()
     with pytest.raises(NotImplementedError):

@@ -1,5 +1,5 @@
 import math
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
 import torch.nn as nn
@@ -15,6 +15,54 @@ from torch_pointcloud.utils.types import Detection3D, OptTensor
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
 from .pointnet2 import PointNet2Decoder, PointNet2Encoder
+
+
+class PointRCNNOutput(TypedDict):
+    r"""Inference-mode PointRCNN output: refined boxes with stage-2 confidences (packed layout).
+
+    Attributes:
+        rcnn_cls: Stage-2 confidence logit per ROI, shape $(M, 1)$.
+        boxes: Refined boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(M, 7)$.
+        roi_labels: Stage-1 ROI class per box ($1$-based), shape $(M,)$.
+        roi_scores: Stage-1 sigmoid proposal score per box, shape $(M,)$.
+        batch: Per-ROI scene index, shape $(M,)$.
+    """
+
+    rcnn_cls: Tensor
+    boxes: Tensor
+    roi_labels: Tensor
+    roi_scores: Tensor
+    batch: Tensor
+
+
+class PointRCNNTrainOutput(TypedDict):
+    r"""Training-mode PointRCNN output: stage-1 point predictions plus sampled-ROI stage-2 tensors.
+
+    Attributes:
+        point_cls_preds: Stage-1 per-point class logits, shape $(N, \text{num\_classes})$.
+        point_box_preds: Stage-1 per-point box residuals, shape $(N, 8)$.
+        point_coords: Per-point coordinates, shape $(N, 3)$.
+        point_batch: Per-point scene index, shape $(N,)$.
+        rcnn_cls: Stage-2 confidence logit per sampled ROI, shape $(M, 1)$.
+        rcnn_reg: Stage-2 raw ROI box residuals, shape $(M, 7)$.
+        rcnn_boxes: Stage-2 refined boxes in the lidar frame, shape $(M, 7)$.
+        rois: Sampled proposal boxes (generated without gradient), shape $(M, 7)$.
+        gt_of_rois: ROI-canonical matched ground-truth box, shape $(M, 7)$.
+        gt_of_rois_src: Lidar-frame matched ground-truth box, shape $(M, 7)$.
+        roi_ious: Per-ROI max IoU with the matched box, shape $(M,)$.
+    """
+
+    point_cls_preds: Tensor
+    point_box_preds: Tensor
+    point_coords: Tensor
+    point_batch: Tensor
+    rcnn_cls: Tensor
+    rcnn_reg: Tensor
+    rcnn_boxes: Tensor
+    rois: Tensor
+    gt_of_rois: Tensor
+    gt_of_rois_src: Tensor
+    roi_ious: Tensor
 
 
 def rotate_points_along_z(points: Tensor, angle: Tensor) -> Tensor:
@@ -625,7 +673,30 @@ class PointRCNNDetection(DetectionModel):
         gt_boxes: OptTensor = None,
         gt_labels: OptTensor = None,
         gt_batch: OptTensor = None,
-    ) -> Dict[str, Tensor]:
+    ) -> Union[PointRCNNTrainOutput, PointRCNNOutput]:
+        r"""Run both stages; in train mode the ground truth drives the stage-2 ROI sampling.
+
+        Stage-2 training samples its ROIs by matching stage-1 proposals to ground-truth boxes at forward
+        time, so train mode requires the packed ground truth. The GT arguments default to `None` and are
+        omitted at inference (a training pipeline passes `box` / `label` / `batch_box` after the point
+        inputs, e.g. via `input_keys`).
+
+        Args:
+            x: Per-point features including reflectance, shape $(N, \text{in\_channels} - 3)$.
+            pos: Per-point coordinates, shape $(N, 3)$.
+            batch: Per-point scene index, shape $(N,)$.
+            gt_boxes: Ground-truth boxes $(K, 7)$, required in train mode.
+            gt_labels: Ground-truth $0$-based classes, shape $(K,)$, required in train mode.
+            gt_batch: Per-box scene index, shape $(K,)$, required in train mode.
+
+        Returns:
+            A `PointRCNNTrainOutput` in train mode (stage-1 point predictions plus sampled-ROI stage-2
+            tensors for the loss), otherwise a `PointRCNNOutput` (refined boxes with confidences).
+
+        Shape:
+            - x: $(N, \text{in\_channels} - 3)$, pos: $(N, 3)$, batch: $(N,)$
+            - gt_boxes: $(K, 7)$, gt_labels / gt_batch: $(K,)$
+        """
         x_point, pos_point, batch_point = self.forward_features(x, pos, batch)
         point_scores, cls_preds, box_preds, boxes = self.point_head(x_point, pos_point)
 
@@ -664,6 +735,7 @@ class PointRCNNDetection(DetectionModel):
             "batch": roi_batch,
         }
 
+    @torch.no_grad()
     def _propose(
         self,
         boxes: Tensor,
@@ -674,6 +746,10 @@ class PointRCNNDetection(DetectionModel):
         thresh: Optional[float] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""Class-agnostic NMS over per-point proposals to a fixed number of ROIs per scene.
+
+        Proposal generation carries no gradient: the ROI boxes are detached so the stage-2 loss cannot
+        backprop into stage 1 through its own regression targets; stage 2 still receives gradient through
+        the pooled backbone features and point scores.
 
         Args:
             boxes: Per-point decoded boxes, shape $(N, 7)$.
@@ -813,7 +889,11 @@ class PointRCNNDetection(DetectionModel):
         return max_overlaps, gt_assignment
 
     def _subsample_rois(self, max_overlaps: Tensor) -> Tensor:
-        r"""Sample foreground / hard-background / easy-background ROI indices to `roi_per_image` total."""
+        r"""Sample foreground / hard-background / easy-background ROI indices to `roi_per_image` total.
+
+        A scene with no proposals at all yields an empty index tensor rather than indices into an empty
+        ROI set.
+        """
         device = max_overlaps.device
         fg_rois_per_image = int(round(self.fg_ratio * self.roi_per_image))
         fg_thresh = min(self.reg_fg_thresh, self.cls_fg_thresh)
@@ -838,7 +918,7 @@ class PointRCNNDetection(DetectionModel):
             fg_inds = max_overlaps.new_empty(0, dtype=torch.long)
             bg_inds = self._sample_bg(hard_bg, easy_bg, self.roi_per_image)
         else:
-            return max_overlaps.new_zeros(self.roi_per_image, dtype=torch.long)
+            return max_overlaps.new_zeros(0, dtype=torch.long)
         return torch.cat([fg_inds, bg_inds], dim=0)
 
     def _sample_bg(self, hard_bg: Tensor, easy_bg: Tensor, num: int) -> Tensor:
@@ -871,7 +951,7 @@ class PointRCNNDetection(DetectionModel):
         return gt
 
     @torch.no_grad()
-    def decode(self, out: Dict[str, Tensor]) -> Detection3D:
+    def decode(self, out: PointRCNNOutput) -> Detection3D:
         r"""Decode a forward output into raw per-ROI detections (no score threshold or NMS).
 
         Scores each refined box by its stage-2 confidence (sigmoid of `rcnn_cls`) and labels it by the

@@ -696,7 +696,7 @@ class PointM2AESegmentation(SegmentationModel):
             feats.append(f.reshape(batch_size, num_points, -1).transpose(1, 2))
         return torch.cat(feats, dim=1)
 
-    def forward_head(self, x: Tensor, category: Tensor) -> Tensor:
+    def forward_head(self, x: Tensor, category: Tensor, pre_logits: bool = False) -> Tensor:
         B = x.size(0)
         N = x.size(2)
         x_max = torch.max(x, 2)[0]
@@ -707,7 +707,10 @@ class PointM2AESegmentation(SegmentationModel):
         x_global_feature = torch.cat((x_max_feature + x_avg_feature, cls_label_feature), 1)
 
         x = torch.cat((x_global_feature, x), 1)
-        x = self.head(x.transpose(1, 2).reshape(B * N, -1))
+        x = x.transpose(1, 2).reshape(B * N, -1)
+        if pre_logits:
+            return x
+        x = self.head(x)
         return x.reshape(B, N, -1).transpose(1, 2)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:

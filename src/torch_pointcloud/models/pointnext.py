@@ -370,7 +370,7 @@ class PointNeXtPartDecoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        cls_onehot: Tensor,
+        category: Tensor,
         intermediates: List[PointNeXtIntermediate],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # Global features from the bottleneck and deepest skip
@@ -391,12 +391,11 @@ class PointNeXtPartDecoder(nn.Module):
 
         # Expand global features to match the shallowest skip resolution
         skip_x, skip_pos, skip_batch = intermediates[-1]
-        cls_one_hot = cls_onehot  # (B, num_categories)
 
         # Scatter-expand: (B, C) -> (N, C) using skip_batch
         emb1_exp = emb1[skip_batch]  # (N, 64)
         emb2_exp = emb2[skip_batch]  # (N, 128)
-        cls_exp = cls_one_hot[skip_batch]  # (N, num_categories)
+        cls_exp = category[skip_batch]  # (N, num_categories)
 
         aug_skip_x = torch.cat([skip_x, emb1_exp, emb2_exp, cls_exp], dim=1)
         aug_intermediate = PointNeXtIntermediate(aug_skip_x, skip_pos, skip_batch)
@@ -546,15 +545,15 @@ class PointNeXtPartSegmentation(SegmentationModel):
         self.num_classes = num_classes
         self.head = nn.Linear(self.embedding_dim * 3, num_classes)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, cls_onehot: Tensor) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x = x if x is not None else pos
         if self.stem is not None:
             x = self.stem(x)
 
         x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
-        x, pos, batch = self.decoder(x, pos, batch, cls_onehot, intermediates)
+        x, pos, batch = self.decoder(x, pos, batch, category, intermediates)
 
-        if self.dropout:
+        if self.dropout and not isinstance(self.head, MLP):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
 
         # Append global max + avg pooled features
@@ -958,7 +957,7 @@ class PointNeXtSegmentation(SegmentationModel):
         return self.decoder(x, pos, batch, intermediates)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-        if self.dropout:
+        if self.dropout and not isinstance(self.head, MLP):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
@@ -1793,7 +1792,7 @@ _SHAPENETPART_TRANSFORMS = T.Compose(
         T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
         T.Rescale(keys=[DataKeys.POS], method="centroid"),
         T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL, "height"], dst_key=DataKeys.X),
-        T.OneHot(keys=DataKeys.CATEGORY, num_classes=16, dst_keys="cls_onehot"),
+        T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
     ]
 )
 

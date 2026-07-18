@@ -11,7 +11,6 @@ from typing import (
 )
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
@@ -370,6 +369,8 @@ class PointMAEClassification(ClassificationModel):
         self.reset_parameters()
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         return MLP(
             [self.embed_dim * 2, 256, 256, self.num_classes],
             act="relu",
@@ -449,7 +450,7 @@ class PointMAESegmentation(SegmentationModel):
 
     Shape:
         - Input: $(N, 3)$, $(N,)$, and a category one-hot $(B, \text{num\_categories})$.
-        - Output: $(N, C)$ log-probabilities where $C$ is `num_classes`.
+        - Output: $(N, C)$ logits where $C$ is `num_classes`.
     """
 
     fetch_idx: Tuple[int, int, int] = (3, 7, 11)
@@ -588,9 +589,7 @@ class PointMAESegmentation(SegmentationModel):
         if pre_logits:
             return x
         x = self.head(x)
-        x = x.reshape(B, N, -1).transpose(1, 2)
-        x = F.log_softmax(x, dim=1)
-        return x
+        return x.reshape(B, N, -1).transpose(1, 2)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x_feat, center, batch = self.forward_features(x, pos, batch)

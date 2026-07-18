@@ -21,6 +21,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers.affine import Affine
+from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.utils.cluster import fps, local_grid
 from torch_pointcloud.utils.conversion import ensure_list
@@ -62,25 +63,25 @@ class PointMambaBlock(nn.Module):
         This implementation is adapted from the official repository :github: [LMD0311/PointMamba](https://github.com/LMD0311/PointMamba).
         """
         r"""
-        The `PointMambaBlock` is a residual block that consists of a normalization layer, 
-        a Mamba block, and a dropout layer:
-        
+        The `PointMambaBlock` is a residual block that consists of a normalization layer,
+        a Mamba block, and a stochastic-depth (drop-path) layer:
+
         ```txt
-        x -> Norm -> Mamba -> Dropout -> y
-        |                                ^
-        +--------------------------------+
+        x -> Norm -> Mamba -> DropPath -> y
+        |                                 ^
+        +---------------------------------+
         ```
-        
+
         Important:
             This module requires the `mamba_ssm` package to be installed.
-            
+
         Args:
             channels: The number of input and output channels.
             d_state: The number of state channels.
             d_conv: The number of convolution channels.
             expand: The expansion factor for the hidden channels.
-            dropout: The dropout rate to use. If `None`, no dropout is applied.
-            
+            drop_path: The stochastic-depth rate for the residual branch.
+
         Shapes:
             - Input: $(N, P, C)$ where $N$ is the number of batches, $P$ is the number of patches, and $C$ is the number of channels.
             - Output: $(N, P, C)$ where $N$ is the number of batches, $P$ is the number of patches, and $C$ is the number of channels.
@@ -93,20 +94,18 @@ class PointMambaBlock(nn.Module):
         d_state: int = 16,
         d_conv: int = 4,
         expand: int = 2,
-        dropout: float = 0.0,
+        drop_path: float = 0.0,
     ):
         super().__init__()
         self.norm = nn.LayerNorm(channels)
         self.mamba = Mamba(d_model=channels, d_state=d_state, d_conv=d_conv, expand=expand, use_fast_path=True)
-        self.dropout = dropout
+        self.drop_path = DropPath(drop_path)
 
     def forward(self, x: Tensor) -> Tensor:
         residual = x
         x = self.norm(x)
         x = self.mamba(x)
-        if self.dropout is not None:
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        return x + residual
+        return residual + self.drop_path(x)
 
 
 class PointPatchEmbedding(nn.Module):
@@ -309,7 +308,7 @@ class PointMambaEncoder(nn.Module):
         self.order_th = Affine(self.embedding_dim)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
-        self.blocks = nn.ModuleList([PointMambaBlock(self.embedding_dim, dropout=dpr[i]) for i in range(depth)])
+        self.blocks = nn.ModuleList([PointMambaBlock(self.embedding_dim, drop_path=dpr[i]) for i in range(depth)])
         self.norm_f = nn.LayerNorm(self.embedding_dim)
 
         if use_cls_token:
@@ -453,7 +452,7 @@ class PointMambaEncoderMAE(nn.Module):
         self.order_th = Affine(self.embedding_dim)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
-        self.blocks = nn.ModuleList([PointMambaBlock(self.embedding_dim, dropout=dpr[i]) for i in range(depth)])
+        self.blocks = nn.ModuleList([PointMambaBlock(self.embedding_dim, drop_path=dpr[i]) for i in range(depth)])
         self.norm_f = nn.LayerNorm(self.embedding_dim)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Any]:
@@ -526,8 +525,9 @@ class PointMambaDecoderMAE(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embedding_dim))
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
-        self.blocks = nn.ModuleList([PointMambaBlock(embedding_dim, dropout=dpr[i]) for i in range(depth)])
+        self.blocks = nn.ModuleList([PointMambaBlock(embedding_dim, drop_path=dpr[i]) for i in range(depth)])
         self.norm_f = nn.LayerNorm(embedding_dim)
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.mask_token, std=0.02)

@@ -95,6 +95,27 @@ def test_pointcnn_segmentation_reset_classifier(model_seg: PointCNNSegmentation,
     assert logits.shape == (data["pos"].shape[0], 42)
 
 
+def test_pointcnn_segmentation_first_stage_downsample(data: Dict[str, Tensor]) -> None:
+    model = PointCNNSegmentation(
+        in_channels=6,
+        num_classes=10,
+        spatial_dim=3,
+        channels=[32, 64],
+        hidden_channels=[16, 32],
+        kernel_sizes=[8, 8],
+        dilations=[1, 1],
+        ratios=[0.5, 0.5],
+        act="relu",
+        norm="batch_norm",
+        bias=True,
+        dropout=0.0,
+        head_channels=[16],
+    )
+    assert model.decoder.skip_channels[-1] == model.in_channels
+    logits = model(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], model.num_classes)
+
+
 def test_pointcnn_classification_forward_features_and_head(
     model_clf: PointCNNClassification, data: Dict[str, Tensor]
 ) -> None:

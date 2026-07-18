@@ -60,9 +60,24 @@ def model_seg() -> SphereFormerSegmentation:
 
 def test_sphereformer_segmentation_forward(model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.eval()
-    logits = model_seg(data["x"], data["pos_grid"], data["batch"], data["pos"])
+    logits = model_seg(data["x"], data["pos"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
     assert torch.isfinite(logits).all()
+
+
+def test_sphereformer_forward_keyword_order(model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]) -> None:
+    model_seg.eval()
+    logits = model_seg(x=data["x"], pos=data["pos"], pos_grid=data["pos_grid"], batch=data["batch"])
+    assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
+
+
+def test_sphereformer_forward_head_pre_logits(model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]) -> None:
+    model_seg.eval()
+    sparse_x = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"], data["pos"])
+    sparse_x = model_seg.forward_decoder(sparse_x)
+    feats = model_seg.forward_head(sparse_x, pre_logits=True)
+    assert torch.equal(feats, sparse_x.features)
+    assert feats.shape == (data["pos_grid"].shape[0], model_seg.base_channels)
 
 
 def test_sphereformer_segmentation_reset_classifier(
@@ -70,7 +85,7 @@ def test_sphereformer_segmentation_reset_classifier(
 ) -> None:
     model_seg.reset_classifier(num_classes=7)
     model_seg.cuda().eval()
-    logits = model_seg(data["x"], data["pos_grid"], data["batch"], data["pos"])
+    logits = model_seg(data["x"], data["pos"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 7)
 
 
@@ -94,7 +109,7 @@ def test_sphereformer_semantickitti_smoke() -> None:
     batch = sample[DataKeys.BATCH].cuda()
 
     with torch.inference_mode():
-        logits = model(x, pos_grid, batch, pos)
+        logits = model(x, pos, pos_grid, batch)
 
     assert logits.shape == (x.shape[0], model.num_classes)
     assert torch.isfinite(logits).all()

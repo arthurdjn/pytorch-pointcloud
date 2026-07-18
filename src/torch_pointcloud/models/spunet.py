@@ -439,6 +439,7 @@ class SparseUNetSegmentation(SegmentationModel):
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
         self.head = self._make_head(num_classes)
+        self.head.apply(_init_spunet_weights)
 
     def forward_features(
         self,
@@ -455,7 +456,9 @@ class SparseUNetSegmentation(SegmentationModel):
     ) -> "SparseConvTensor":
         return self.decoder(x, skips)
 
-    def forward_head(self, x: "SparseConvTensor") -> Tensor:
+    def forward_head(self, x: "SparseConvTensor", pre_logits: bool = False) -> Tensor:
+        if pre_logits:
+            return x.features
         out = self.head(x)
         return out.features if hasattr(out, "features") else out
 

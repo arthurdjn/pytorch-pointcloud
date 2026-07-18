@@ -71,6 +71,14 @@ def test_spformer_unet_forward_features_decoder_head(model: SPFormerUNet, data: 
     assert logits.shape == (data["pos_grid"].shape[0], model.num_classes)
 
 
+def test_spformer_unet_forward_head_pre_logits(model: SPFormerUNet, data: Dict[str, Tensor]) -> None:
+    bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"])
+    sparse_x = model.forward_decoder(bottleneck, skips)
+    feats = model.forward_head(sparse_x, pre_logits=True)
+    assert torch.equal(feats, sparse_x.features)
+    assert feats.shape[1] == CHANNELS[0]
+
+
 def test_spformer_unet_encoder_decoder_roundtrip(data: Dict[str, Tensor]) -> None:
     encoder = SPFormerUNetEncoder(6, CHANNELS, LAYERS, spatial_padding=64).cuda()
     decoder = SPFormerUNetDecoder(CHANNELS, LAYERS).cuda()

@@ -4,11 +4,13 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
     TypedDict,
     Union,
+    overload,
 )
 
 import torch
@@ -558,7 +560,15 @@ class OneFormer3DSegmentation(SegmentationModel):
         batch_size = int(batch.max().item()) + 1 if batch.numel() > 0 else 0
         return [feats[batch == i] for i in range(batch_size)]
 
-    def forward_head(self, sources: List[Tensor]) -> OneFormer3DOutput:
+    @overload
+    def forward_head(self, sources: List[Tensor], pre_logits: Literal[False] = False) -> OneFormer3DOutput: ...
+
+    @overload
+    def forward_head(self, sources: List[Tensor], pre_logits: Literal[True]) -> List[Tensor]: ...
+
+    def forward_head(self, sources: List[Tensor], pre_logits: bool = False) -> Union[OneFormer3DOutput, List[Tensor]]:
+        if pre_logits:
+            return sources
         # With learned instance queries (S3DIS), the decoder ignores the source
         # features as queries; otherwise (ScanNet) the superpoint features seed them.
         queries = sources if self.num_instance_queries == 0 else None

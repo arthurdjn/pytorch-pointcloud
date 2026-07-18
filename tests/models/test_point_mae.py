@@ -66,6 +66,45 @@ def test_point_mae_segmentation_basic() -> None:
     assert out.shape == (4096, 50)
 
 
+def test_point_mae_segmentation_returns_raw_logits() -> None:
+    model = PointMAESegmentation(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        num_group=128,
+        group_size=32,
+    )
+    model.cuda()
+    model.eval()
+    pos = torch.randn(4096, 3).cuda()
+    batch = torch.cat([torch.zeros(2048), torch.ones(2048)]).long().cuda()
+    category = torch.nn.functional.one_hot(torch.tensor([3, 7]), 16).float().cuda()
+
+    out = model(None, pos, batch, category)
+    prob_mass = out.exp().sum(dim=-1)
+    assert not torch.allclose(prob_mass, torch.ones_like(prob_mass), atol=1e-3)
+
+
+def test_point_mae_classification_num_classes_zero_returns_features() -> None:
+    model = PointMAEClassification(
+        in_channels=0,
+        num_classes=0,
+        embed_dim=96,
+        depth=2,
+        num_heads=2,
+        num_group=16,
+        group_size=8,
+    ).cuda()
+    assert isinstance(model.head, torch.nn.Identity)
+    pos = torch.randn(2048, 3).cuda()
+    batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long().cuda()
+    out = model(None, pos, batch)
+    assert out.shape == (2, 2 * model.embed_dim)
+
+
 def test_point_mae_masked_autoencoder_basic() -> None:
     model = PointMAEMaskedAutoEncoder(
         in_channels=0,
