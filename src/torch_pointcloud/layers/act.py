@@ -26,4 +26,6 @@ def create_act(act: Union[str, Callable, None], **act_kwargs: Any) -> Optional[n
     """
     if act is None:
         return None
+    if isinstance(act, type) and issubclass(act, nn.Module):
+        return act(**act_kwargs)
     return activation_resolver(act, **act_kwargs)

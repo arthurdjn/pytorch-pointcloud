@@ -48,6 +48,12 @@ class RelativePositionalEncoding(nn.Module):
         return f"patch_size={self.patch_size}, num_heads={self.num_heads}"
 
 
+def _clamped_patch_size(batch: Tensor, patch_size: int) -> int:
+    """Clamp `patch_size` to the smallest batch size, tolerating non-consecutive batch ids."""
+    counts = torch.unique_consecutive(batch, return_counts=True)[1]
+    return min(int(counts.min().item()), patch_size)
+
+
 def _flash_attend_qkv(
     qkv_packed: Tensor,
     padded_batch: Tensor,
@@ -131,9 +137,7 @@ class SerializedAttention(nn.Module):
         pos: OptTensor = None,
     ) -> Tensor:
         H, C = self.num_heads, self.channels
-        patch_size = (
-            self.patch_size if self.use_flash_attn else min(int(torch.bincount(batch).min().item()), self.patch_size)
-        )
+        patch_size = self.patch_size if self.use_flash_attn else _clamped_patch_size(batch, self.patch_size)
 
         padded_indices, unpadded_indices, padded_batch = divisible_pad(
             batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
@@ -215,7 +219,7 @@ class SerializedAttentionRPE(nn.Module):
             raise ValueError("`pos_grid` must be provided for SerializedAttentionRPE.")
 
         H, C = self.num_heads, self.channels
-        patch_size = min(int(torch.bincount(batch).min().item()), self.patch_size)
+        patch_size = _clamped_patch_size(batch, self.patch_size)
 
         padded_indices, unpadded_indices, _ = divisible_pad(
             batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
@@ -309,9 +313,7 @@ class SerializedAttentionRoPE(nn.Module):
             raise ValueError("`pos` must be provided for SerializedAttentionRoPE.")
 
         H, C = self.num_heads, self.channels
-        patch_size = (
-            self.patch_size if self.use_flash_attn else min(int(torch.bincount(batch).min().item()), self.patch_size)
-        )
+        patch_size = self.patch_size if self.use_flash_attn else _clamped_patch_size(batch, self.patch_size)
 
         padded_indices, unpadded_indices, padded_batch = divisible_pad(
             batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
@@ -319,7 +321,7 @@ class SerializedAttentionRoPE(nn.Module):
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
         qkv = self.qkv(x)[order]
-        pos_ordered = pos[padded_indices][order]
+        pos_ordered = pos[order]
 
         q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
         q, k = self.rope(q, k, pos_ordered)

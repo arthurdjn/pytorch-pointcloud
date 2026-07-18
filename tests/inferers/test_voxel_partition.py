@@ -90,6 +90,49 @@ def test_voxel_partition_with_transform_applies_per_subcloud() -> None:
     assert out[:, 0].min().item() >= 0.0
 
 
+def test_voxel_partition_batched_matches_per_scene() -> None:
+    """A B=2 batch yields exactly the same predictions as running the two scenes separately.
+
+    The predictor subtracts each batch element's max x, so any cross-scene leakage (merged voxel
+    buckets or merged collated graphs) changes the output.
+    """
+    torch.manual_seed(0)
+    pos_a = torch.rand(20, 3)
+    pos_b = torch.rand(30, 3) * 0.8 + 5.0
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        pos = window[DataKeys.POS][:, :1]
+        batch = window[DataKeys.BATCH]
+        out = pos.clone()
+        for b in batch.unique():
+            mask = batch == b
+            out[mask] = pos[mask] - pos[mask].max()
+        return out
+
+    def run(pos: Tensor, batch: Tensor) -> Tensor:
+        data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: batch}
+        return VoxelPartitionInferer(voxel_size=0.25, sub_batch_size=2, seed=0)(data, predictor=predictor)
+
+    out_joint = run(torch.cat([pos_a, pos_b]), torch.cat([torch.zeros(20), torch.ones(30)]).long())
+    out_a = run(pos_a, torch.zeros(20, dtype=torch.long))
+    out_b = run(pos_b, torch.zeros(30, dtype=torch.long))
+    assert torch.equal(out_joint[:20], out_a)
+    assert torch.equal(out_joint[20:], out_b)
+
+
+def test_voxel_partition_row_altering_transform_raises() -> None:
+    """A `transform` that changes the sub-cloud row count is rejected with a clear error."""
+    data = _make_grid(n_per_voxel=2, n_voxels=3, voxel_size=1.0)
+
+    def drop_last(sample: Dict[str, Any]) -> Dict[str, Any]:
+        return {k: v[:-1] if torch.is_tensor(v) else v for k, v in sample.items()}
+
+    with pytest.raises(ValueError, match="row count"):
+        VoxelPartitionInferer(voxel_size=1.0, transform=drop_last, seed=0)(
+            data, predictor=lambda d: torch.zeros(d[DataKeys.POS].size(0), 2)
+        )
+
+
 def test_voxel_partition_validates_args() -> None:
     """Constructor rejects `voxel_size <= 0` and `sub_batch_size < 1`."""
     with pytest.raises(ValueError, match="voxel_size"):
@@ -101,3 +144,8 @@ def test_voxel_partition_validates_args() -> None:
 def test_voxel_partition_missing_pos_key_raises() -> None:
     with pytest.raises(KeyError, match="pos"):
         VoxelPartitionInferer(voxel_size=1.0)({}, predictor=lambda d: torch.zeros(0, 1))
+
+
+def test_voxel_partition_missing_batch_key_raises() -> None:
+    with pytest.raises(KeyError, match="batch"):
+        VoxelPartitionInferer(voxel_size=1.0)({DataKeys.POS: torch.rand(4, 3)}, predictor=lambda d: torch.zeros(4, 1))

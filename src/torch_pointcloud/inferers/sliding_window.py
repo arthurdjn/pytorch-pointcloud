@@ -55,11 +55,10 @@ def _assign_point_blocks(
     is the intersection of the tiled-axis blocks with the entire untiled extent
     of `pos`.
 
-    With `padding > 0` each block's membership extends by `padding` (in the
-    units of `pos`) past its nominal extent on every tiled axis, so points
-    within a thin margin of a boundary fall into the neighboring block too.
-    At `padding = 0` membership matches the half-open partition implied by the
-    grid and is exact.
+    Membership is containment: a point belongs to a block when it lies inside
+    the block's extent, extended by `padding` (in the units of `pos`) on every
+    tiled axis. With `padding > 0` points within a thin margin of a boundary
+    fall into the neighboring block too.
 
     Args:
         pos: Point positions for a single batch element, shape $(N, D)$.
@@ -67,7 +66,7 @@ def _assign_point_blocks(
         overlap: Fraction of `block_size` shared between adjacent blocks, in $[0, 1)$.
         mode: Per-point weight scheme. `"constant"` weights every point equally;
             `"gaussian"` weights by $\exp(-d^2 / 2\sigma^2)$ on the distance $d$ to
-            the block center (computed across all of `pos`'s dimensions).
+            the block center (computed across the tiled axes).
         sigma_scale: Gaussian sigma scale factor (only used when `mode="gaussian"`).
         dims: Axes (indices into `pos`'s last dim) to tile. `None` tiles every axis (current behavior).
         padding: Extra margin (in `pos` units) added to each block's extent on every
@@ -96,7 +95,7 @@ def _assign_point_blocks(
         raise ValueError("`dims` must contain at least one axis.")
 
     pos_tiled = pos[:, tile_axes]
-    sigma = float(sigma_scale * half * (n_dim**0.5))
+    sigma = float(sigma_scale * half * (n_tiled**0.5))
 
     lo_full = pos.amin(dim=0)
     hi_full = pos.amax(dim=0)
@@ -125,12 +124,11 @@ def _assign_point_blocks(
         valid = (i <= i_hi).all(dim=1)
         if not valid.any():
             continue
-        if padding > 0.0:
-            block_lo = lo + i.to(pos.dtype) * step
-            in_padded = ((pos_tiled >= block_lo - padding) & (pos_tiled <= block_lo + block_size + padding)).all(dim=1)
-            valid = valid & in_padded
-            if not valid.any():
-                continue
+        block_lo = lo + i.to(pos.dtype) * step
+        inside = ((pos_tiled >= block_lo - padding) & (pos_tiled <= block_lo + block_size + padding)).all(dim=1)
+        valid = valid & inside
+        if not valid.any():
+            continue
         i_v = i[valid]
         if mode == "gaussian":
             centres_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)
@@ -223,8 +221,9 @@ def sliding_window_inference(
         mode: Per-point weight within each block. `"constant"` gives equal
             weight to all points in the block. `"gaussian"` weights by
             $\exp(-d^2 / 2\sigma^2)$ where $d$ is the distance to the block
-            center and $\sigma = \text{sigma\_scale} \cdot \text{block\_size}
-            \cdot \sqrt{D} / 2$.
+            center across the tiled axes and $\sigma = \text{sigma\_scale}
+            \cdot \text{block\_size} \cdot \sqrt{D_\text{tiled}} / 2$ with
+            $D_\text{tiled}$ the number of tiled axes.
         sigma_scale: Gaussian sigma scale factor. Only used when
             `mode="gaussian"`.
         roi_num_points: Optional cap on points per `predictor` call. Blocks
