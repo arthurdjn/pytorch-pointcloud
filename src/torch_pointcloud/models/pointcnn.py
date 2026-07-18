@@ -235,7 +235,6 @@ class PointCNNDecoder(nn.Module):
         spatial_dim: int,
         hidden_channels: Optional[Union[int, Sequence[int]]] = None,
         dilations: Union[int, Sequence[int]] = 1,
-        depth_multipliers: Union[int, Sequence[int]] = 1,
         bias: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -255,11 +254,6 @@ class PointCNNDecoder(nn.Module):
             extra_msg=msg.format(param="hidden_channels"),
         )
         self.dilations = ensure_list_size(dilations, size=depth, extra_msg=msg.format(param="dilations"))
-        self.depth_multipliers = ensure_list_size(
-            depth_multipliers,
-            size=depth,
-            extra_msg=msg.format(param="depth_multipliers"),
-        )
 
         self.blocks = nn.ModuleList()
         for i in range(depth):
@@ -497,7 +491,7 @@ class PointCNNSegmentation(SegmentationModel):
                 continue
 
             channels.append(self.channels[i])
-            skip_channels.append(self.channels[i - 1])
+            skip_channels.append(self.channels[i - 1] if i > 0 else self.in_channels)
             kernel_sizes.append(self.kernel_sizes[i])
             hidden_channels.append(self.hidden_channels[i])
             dilations.append(self.dilations[i])
@@ -509,7 +503,6 @@ class PointCNNSegmentation(SegmentationModel):
             spatial_dim=self.spatial_dim,
             hidden_channels=hidden_channels[::-1],
             dilations=dilations[::-1],
-            depth_multipliers=1,
             bias=self.bias,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -534,9 +527,8 @@ class PointCNNSegmentation(SegmentationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload

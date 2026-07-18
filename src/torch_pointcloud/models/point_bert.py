@@ -133,17 +133,19 @@ class PointBERTEncoder(nn.Module):
         self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
                     embed_dim,
                     num_heads=num_heads,
+                    drop_path=dpr[i],
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
                     norm_kwargs=norm_kwargs,
                 )
-                for _ in range(depth)
+                for i in range(depth)
             ]
         )
         self.norm = nn.LayerNorm(embed_dim)
@@ -307,6 +309,8 @@ class PointBERTClassification(ClassificationModel):
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         head_channels = ensure_list(self.head_channels, none_as_empty=True)
         return MLP(
             [self.embed_dim * 2, *head_channels, self.num_classes],
@@ -356,10 +360,13 @@ class PointBERTMaskedTransformer(BaseModel):
     Cloud Transformers with Masked Point Modeling](https://arxiv.org/abs/2111.14819), adapted from
     :github: [lulutang0608/Point-BERT](https://github.com/lulutang0608/Point-BERT).
 
-    It embeds patches, masks a fraction of the patch tokens with a learned mask token, runs the
-    transformer, and exposes a token-classification head (`lm_head`, predicting dVAE codebook ids)
-    and a contrastive class head (`cls_head`). The MoCo / cutmix machinery of the full pretraining
-    objective is omitted; this module is the reusable encoder that downstream finetuning loads.
+    It embeds patches and, in training mode, replaces a contiguous block of patch tokens (a ratio
+    drawn uniformly from `mask_ratio`, centered on a random patch) with a learned mask token while
+    keeping their positional embeddings. It then runs the transformer and exposes a
+    token-classification head (`lm_head`, predicting dVAE codebook ids) and a contrastive class
+    head (`cls_head`). In eval mode no tokens are masked. The MoCo / cutmix machinery of the full
+    pretraining objective is omitted; this module is the reusable encoder that downstream
+    finetuning loads.
 
     Args:
         in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
@@ -459,22 +466,35 @@ class PointBERTMaskedTransformer(BaseModel):
         self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
                     embed_dim,
                     num_heads=num_heads,
+                    drop_path=dpr[i],
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
                     norm_kwargs=norm_kwargs,
                 )
-                for _ in range(depth)
+                for i in range(depth)
             ]
         )
         self.norm = nn.LayerNorm(embed_dim)
         self.lm_head = nn.Linear(embed_dim, num_tokens)
         self.cls_head = MLP([embed_dim, cls_dim, cls_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True)
+
+    def _mask_center_block(self, center: Tensor) -> Tensor:
+        B, G, _ = center.shape
+        seed_idx = torch.randint(G, (B,), device=center.device)
+        seed = center.gather(1, seed_idx.view(B, 1, 1).expand(-1, -1, center.size(-1)))
+        ranks = torch.argsort(torch.norm(center - seed, dim=-1), dim=-1)
+        low, high = self.mask_ratio
+        ratio = low + torch.rand(B, device=center.device) * (high - low)
+        num_mask = (ratio * G).long()
+        sorted_mask = torch.arange(G, device=center.device).expand(B, G) < num_mask.unsqueeze(1)
+        return torch.zeros(B, G, dtype=torch.bool, device=center.device).scatter_(1, ranks, sorted_mask)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
         if x is None:
@@ -489,6 +509,9 @@ class PointBERTMaskedTransformer(BaseModel):
         tokens = self.reduce_dim(tokens)
 
         B = tokens.size(0)
+        if self.training:
+            mask = self._mask_center_block(center).unsqueeze(-1).type_as(tokens)
+            tokens = tokens * (1 - mask) + self.mask_token.expand(B, tokens.size(1), -1) * mask
         cls_tokens = self.cls_token.expand(B, -1, -1)
         cls_pos = self.cls_pos.expand(B, -1, -1)
         pos_embed = self.pos_embed(center)

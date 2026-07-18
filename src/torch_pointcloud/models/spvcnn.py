@@ -125,10 +125,11 @@ def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
     else:
         idx_query = z._caches.idx_query[x.s]
 
-    # Points whose voxel isn't in `x` get clamped to 0: they then receive the
-    # mean-aggregated feature of voxel 0 (rare, mostly affects boundaries).
-    idx_query = idx_query.clamp_(0)
-    sparse_feat = torch_scatter.scatter_mean(z.F, idx_query.long(), dim=0)
+    # Points whose voxel isn't in `x` (idx -1, rare boundary cases) are excluded from the mean.
+    # Masking keeps the cached idx_query intact; an in-place clamp would destroy the -1 sentinel.
+    idx_query = idx_query.reshape(-1)
+    valid = idx_query >= 0
+    sparse_feat = torch_scatter.scatter_mean(z.F[valid], idx_query[valid].long(), dim=0, dim_size=x.C.shape[0])
     new_tensor = SparseTensor(sparse_feat, x.C, x.s)
     new_tensor._caches = x._caches
     return new_tensor
@@ -393,6 +394,10 @@ class SPVCNNDecoderBlock(nn.Module):
         stride: int = 1,
         dilation: int = 1,
         dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
         fusion: Optional[nn.Module] = None,
         upsample: Optional[nn.Module] = None,
     ):
@@ -403,7 +408,17 @@ class SPVCNNDecoderBlock(nn.Module):
 
         self.blocks = nn.ModuleList()
         for _ in range(depth):
-            block = ResidualBlock(channels, channels, kernel_size=kernel_size, stride=stride, dilation=dilation)
+            block = ResidualBlock(
+                channels,
+                channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                dilation=dilation,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+            )
             self.blocks.append(block)
 
     @overload
@@ -612,6 +627,11 @@ class SPVCNNDecoder(nn.Module):
                 kernel_size=kernel_size,
                 stride=stride,
                 dilation=dilation,
+                dropout=dropout,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
                 fusion=fusion,
                 upsample=upsample,
             )

@@ -733,7 +733,7 @@ class PointTransformerClassification(ClassificationModel):
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: OptTensor = None) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
 
@@ -882,7 +882,7 @@ class PointTransformerSegmentation(SegmentationModel):
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: OptTensor = None) -> Tensor:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, pos, batch, intermediates)
         return self.forward_head(x)

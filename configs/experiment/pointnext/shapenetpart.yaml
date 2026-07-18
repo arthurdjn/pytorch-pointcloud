@@ -16,7 +16,7 @@ defaults:
 model:
   name: pointnext-sm.shapenetpart.openpoints
   num_classes: 50
-  input_keys: [x, pos, batch, cls_onehot]
+  input_keys: [x, pos, batch, category]
   target_key: segment
   criterion:
     _target_: torch.nn.CrossEntropyLoss

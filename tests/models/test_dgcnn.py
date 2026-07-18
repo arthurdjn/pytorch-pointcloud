@@ -93,6 +93,22 @@ def test_dgcnn_segmentation_reset_classifier(model_seg: DGCNNSegmentation, data:
     assert logits.shape == (data["pos"].shape[0], 42)
 
 
+def test_dgcnn_classification_num_classes_zero_returns_features(
+    model_clf: DGCNNClassification, data: Dict[str, Tensor]
+) -> None:
+    model_clf.reset_classifier(num_classes=0)
+    assert isinstance(model_clf.head, torch.nn.Identity)
+    out = model_clf(data["x"], data["pos"], data["batch"])
+    assert out.shape == (int(data["batch"].max()) + 1, model_clf.embedding_dim)
+
+
+def test_dgcnn_segmentation_forward_head_pre_logits(model_seg: DGCNNSegmentation, data: Dict[str, Tensor]) -> None:
+    x, _, batch = model_seg.forward_features(data["x"], data["pos"], data["batch"])
+    feats = model_seg.forward_head(x, batch, pre_logits=True)
+    assert torch.equal(feats, x)
+    assert feats.shape[1] == model_seg.embedding_dim
+
+
 def test_dgcnn_classification_forward_features_and_head(
     model_clf: DGCNNClassification, data: Dict[str, Tensor]
 ) -> None:
@@ -164,3 +180,12 @@ def test_dgcnn_part_segmentation_forward_features_and_head(
     assert x.shape[0] == data["pos"].shape[0]
     logits = model_partseg.forward_head(x, batch)
     assert logits.shape == (data["pos"].shape[0], model_partseg.num_classes)
+
+
+def test_dgcnn_part_segmentation_forward_head_pre_logits(
+    model_partseg: DGCNNPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+) -> None:
+    x, _, batch = model_partseg.forward_features(data["x"], data["pos"], data["batch"], partseg_category)
+    feats = model_partseg.forward_head(x, batch, pre_logits=True)
+    assert torch.equal(feats, x)
+    assert feats.shape[1] == model_partseg.embedding_dim

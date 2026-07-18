@@ -12,6 +12,7 @@ pytestmark = [
     pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
     pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed"),
 ]
+spconv = pytest.importorskip("spconv.pytorch")
 
 
 @pytest.fixture
@@ -58,6 +59,15 @@ def test_spunet_segmentation_reset_classifier(model_seg: SparseUNetSegmentation,
     assert logits.shape == (data["pos_grid"].shape[0], 42)
 
 
+def test_spunet_reset_classifier_initializes_head(model_seg: SparseUNetSegmentation) -> None:
+    model_seg.reset_classifier(num_classes=42)
+    head = model_seg.head
+    assert isinstance(head, spconv.SubMConv3d)
+    assert head.bias is not None
+    assert torch.all(head.bias == 0)
+    assert head.weight.std().item() < 0.05
+
+
 def test_spunet_segmentation_forward_features_decoder_head(
     model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]
 ) -> None:
@@ -66,3 +76,11 @@ def test_spunet_segmentation_forward_features_decoder_head(
     sparse_x = model_seg.forward_decoder(sparse_x, skips)
     logits = model_seg.forward_head(sparse_x)
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
+
+
+def test_spunet_forward_head_pre_logits(model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]) -> None:
+    sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"])
+    sparse_x = model_seg.forward_decoder(sparse_x, skips)
+    feats = model_seg.forward_head(sparse_x, pre_logits=True)
+    assert torch.equal(feats, sparse_x.features)
+    assert feats.shape[1] == model_seg.channels[-1]

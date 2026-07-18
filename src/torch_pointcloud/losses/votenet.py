@@ -90,7 +90,8 @@ class VoteNetLoss(nn.Module):
             batch: Ground truth (`center_label`, `heading_class_label`, `heading_residual_label`,
                 `size_class_label`, `size_residual_label`, `sem_cls_label`, `box_label_mask` as
                 $(B, M, \cdot)$, per-point `vote_label` $(B, N, 9)$, `vote_label_mask` $(B, N)$, and the
-                per-point `batch` index).
+                per-point `batch` index). The heading labels are binned from counter-clockwise headings
+                and re-binned internally into the model's native (negated) heading space.
 
         Returns:
             A dict with the scalar `loss` (to backprop) and detached `vote_loss`, `objectness_loss`,
@@ -180,6 +181,29 @@ class VoteNetLoss(nn.Module):
         loss: Tensor = (ce * objectness_mask).sum() / (objectness_mask.sum() + _EPS)
         return loss, objectness_label, objectness_mask, idx1
 
+    def _heading_to_native(self, heading_class: Tensor, heading_residual: Tensor) -> Tuple[Tensor, Tensor]:
+        r"""Re-bin counter-clockwise heading labels into the model's native (negated) heading space.
+
+        The ground-truth bins encode the library heading convention (counter-clockwise about $+z$), while
+        the heading head predicts the negated angle; the continuous angle is reconstructed from the bins,
+        negated, and re-binned, which is exact (binning loses no information). With a single bin
+        (axis-aligned boxes, zero headings) the conversion is the identity.
+
+        Args:
+            heading_class: Heading bin indices (long), shape $(B, K)$.
+            heading_residual: In-bin residual angles, shape $(B, K)$.
+
+        Returns:
+            The `(heading_class, heading_residual)` pair re-binned in the native heading space.
+        """
+        two_pi = 2 * math.pi
+        angle_per_class = two_pi / self.num_heading_bin
+        angle = heading_class.to(heading_residual.dtype) * angle_per_class + heading_residual
+        shifted = ((-angle) % two_pi + angle_per_class / 2) % two_pi
+        native_class = (shifted / angle_per_class).floor().long().clamp(max=self.num_heading_bin - 1)
+        native_residual = shifted - (native_class.to(shifted.dtype) * angle_per_class + angle_per_class / 2)
+        return native_class, native_residual
+
     def _box_and_sem_loss(
         self, output: Dict[str, Tensor], batch: Dict[str, Any], objectness_label: Tensor, assignment: Tensor
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
@@ -194,10 +218,13 @@ class VoteNetLoss(nn.Module):
         center_loss = (dist1 * obj).sum() / denom + (dist2 * box_label_mask).sum() / (box_label_mask.sum() + _EPS)
 
         heading_class_label = torch.gather(batch["heading_class_label"], 1, assignment)
+        heading_residual_label = torch.gather(batch["heading_residual_label"], 1, assignment)
+        heading_class_label, heading_residual_label = self._heading_to_native(
+            heading_class_label, heading_residual_label
+        )
         heading_cls = F.cross_entropy(output["heading_scores"].transpose(1, 2), heading_class_label, reduction="none")
         heading_cls = (heading_cls * obj).sum() / denom
 
-        heading_residual_label = torch.gather(batch["heading_residual_label"], 1, assignment)
         heading_res_norm_label = heading_residual_label / (math.pi / nh)
         heading_one_hot = F.one_hot(heading_class_label, nh).float()
         pred_heading_res = (output["heading_residuals_normalized"] * heading_one_hot).sum(dim=-1)

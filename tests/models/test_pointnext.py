@@ -199,22 +199,94 @@ def model_partseg() -> PointNeXtPartSegmentation:
 
 
 @pytest.fixture
-def partseg_cls_onehot(data: Dict[str, Tensor]) -> Tensor:
+def partseg_category(data: Dict[str, Tensor]) -> Tensor:
     num_batches = int(data["batch"].max()) + 1
     return torch.nn.functional.one_hot(torch.arange(num_batches) % 4, num_classes=4).float()
 
 
 def test_pointnext_part_segmentation_forward(
-    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_cls_onehot: Tensor
+    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
 ) -> None:
-    logits = model_partseg(data["features"], data["pos"], data["batch"], partseg_cls_onehot)
+    logits = model_partseg(data["features"], data["pos"], data["batch"], category=partseg_category)
     assert logits.shape == (data["pos"].shape[0], model_partseg.num_classes)
     assert logits.dtype == data["features"].dtype
 
 
 def test_pointnext_part_segmentation_reset_classifier(
-    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_cls_onehot: Tensor
+    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
 ) -> None:
     model_partseg.reset_classifier(num_classes=42)
-    logits = model_partseg(data["features"], data["pos"], data["batch"], partseg_cls_onehot)
+    logits = model_partseg(data["features"], data["pos"], data["batch"], partseg_category)
     assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_pointnext_segmentation_single_dropout_with_mlp_head() -> None:
+    model = PointNeXtSegmentation(
+        in_channels=6,
+        num_classes=10,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+        dropout=0.9,
+    )
+    model.train()
+    x = torch.randn(64, model.embedding_dim)
+    assert torch.equal(model.forward_head(x, pre_logits=True), x)
+
+    linear_head = PointNeXtSegmentation(
+        in_channels=6,
+        num_classes=10,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        dropout=0.9,
+    )
+    linear_head.train()
+    torch.manual_seed(0)
+    assert not torch.equal(linear_head.forward_head(x, pre_logits=True), x)
+
+
+def test_pointnext_part_segmentation_single_dropout_with_mlp_head(
+    data: Dict[str, Tensor], partseg_category: Tensor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = PointNeXtPartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        sa_layers=1,
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+        dropout=0.5,
+    )
+    model.train()
+
+    original = torch.nn.functional.dropout
+    widths: list[int] = []
+
+    def recording_dropout(x: Tensor, p: float = 0.5, training: bool = True, inplace: bool = False) -> Tensor:
+        if p > 0:
+            widths.append(x.shape[-1])
+        return original(x, p=p, training=training, inplace=inplace)
+
+    monkeypatch.setattr(torch.nn.functional, "dropout", recording_dropout)
+    model(data["features"], data["pos"], data["batch"], partseg_category)
+    assert widths
+    assert all(width != model.embedding_dim for width in widths)

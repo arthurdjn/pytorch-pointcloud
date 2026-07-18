@@ -128,11 +128,13 @@ class KPConv(nn.Module):
         self.offset_conv, offset_bias = self.configure_offsets() if deformable else (None, None)
         self.register_parameter("offset_bias", offset_bias)
 
-        # Track running statistics (mostly for regularization)
+        # Track running statistics (mostly for regularization).
+        # Plain attributes, not buffers: these hold per-forward activations, so registering them
+        # would bloat checkpoints, retain autograd graphs and break DDP buffer broadcasts.
         self.track_running_stats = track_running_stats
-        self.register_buffer("running_min_d2", None)
-        self.register_buffer("running_deformed_kernel", None)
-        self.register_buffer("running_offset_features", None)
+        self.running_min_d2: OptTensor = None
+        self.running_deformed_kernel: OptTensor = None
+        self.running_offset_features: OptTensor = None
 
     @property
     def deformable(self) -> bool:

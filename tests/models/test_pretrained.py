@@ -141,20 +141,20 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("point-bert-base.modelnet40-4k.xumin-yu", "classification", "modelnet_resampled"),
     ("point-bert-base.modelnet40-8k.xumin-yu", "classification", "modelnet_resampled"),
     ("point-m2ae-base.modelnet40.renrui-zhang", "classification", "modelnet_resampled"),
-    *[(f"pointgpt-cguangyan-{s}.modelnet40", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
-    *[(f"pointgpt-cguangyan-{s}.modelnet40-8k", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
+    *[(f"pointgpt-{s}.modelnet40.guangyan-chen", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
+    *[(f"pointgpt-{s}.modelnet40-8k.guangyan-chen", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
     # S3DIS based models
     ("kpfcnn-base.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
     ("kpfcnn-base-sm.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
     ("kpfcnn-base-deform.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
     ("kpfcnn-base-sm-deform.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
-    *[(f"pointnext-sm.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    *[(f"pointnext-base.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    *[(f"pointnext-lg.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    *[(f"pointnext-xl.s3dis-area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 6)],
-    *[(f"dgcnn-antao.s3dis.area{i}", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-sm.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-base.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-lg.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-xl.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 6)],
+    *[(f"dgcnn.s3dis-area{i}.an-tao", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
     ("pointnet2.s3dis-area5.xu-yan", "segmentation", "s3dis_hdf5"),
-    *[(f"pointnet2-openpoints.s3dis-area{i}", "segmentation", "s3dis") for i in range(1, 7)],
+    *[(f"pointnet2.s3dis-area{i}.openpoints", "segmentation", "s3dis") for i in range(1, 7)],
     ("pvcnn.s3dis-area5.mit-han-lab", "segmentation", "s3dis_hdf5"),
     ("ptv3-base.s3dis-area5.pointcept", "segmentation", "s3dis"),
     # ShapenetPart based models
@@ -181,7 +181,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("point-m2ae-base.scanobjectnn-hardest.renrui-zhang", "classification", "scanobjectnn"),
     ("point-m2ae-base.scanobjectnn-objbg.renrui-zhang", "classification", "scanobjectnn"),
     *[
-        (f"pointgpt-cguangyan-{s}.scanobjectnn-{v}", "classification", "scanobjectnn")
+        (f"pointgpt-{s}.scanobjectnn-{v}.guangyan-chen", "classification", "scanobjectnn")
         for s in ("s", "b", "l")
         for v in ("hardest", "objbg", "objonly")
     ],

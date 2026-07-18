@@ -116,9 +116,10 @@ class DETR3DLoss(nn.Module):
     - **Cardinality:** the $L_1$ error between the count of non-background queries and the object count
       (logged only, never optimized).
 
-    Ground truth is read packed from the batch (half-extent $(K, 8)$ boxes with the class in the last
-    column) and densified per scene; the normalization uses the model's `point_cloud_dims`, so the loss
-    holds no reference to the model.
+    Ground truth is read packed from the batch (full-extent $(K, 7)$ boxes with counter-clockwise
+    headings, plus per-box classes) and densified per scene; the headings are negated into the model's
+    native heading space before binning. The normalization uses the model's `point_cloud_dims`, so the
+    loss holds no reference to the model.
 
     Args:
         num_classes: Number of semantic classes (the class head predicts one extra background slot).
@@ -181,8 +182,9 @@ class DETR3DLoss(nn.Module):
                 dicts with `sem_cls_logits`, `sem_cls_prob`, `objectness_prob`, `center_normalized`,
                 `center_unnormalized`, `size_normalized`, `size_unnormalized`, `angle_logits`,
                 `angle_residual_normalized`, `angle_continuous`) and `point_cloud_dims`.
-            batch: Packed ground truth: `DataKeys.BOX` $(K, 8)$ half-extent boxes with the class in the
-                last column and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
+            batch: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise
+                headings, `DataKeys.CLASS` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box
+                scene index.
 
         Returns:
             A dict with the scalar `loss` (summed over decoder layers) and detached `loss_sem_cls`,
@@ -219,15 +221,21 @@ class DETR3DLoss(nn.Module):
         return result
 
     def _densify(self, batch: Dict[str, Any], point_cloud_dims: Tuple[Tensor, Tensor]) -> _Targets:
-        r"""Split the packed half-extent GT into per-scene padded tensors in normalized and metric frames."""
+        r"""Split the packed GT into per-scene padded tensors in normalized and metric frames.
+
+        The packed boxes are full-extent $(K, 7)$ rows with counter-clockwise headings; the headings are
+        negated into the model's native heading space before binning, so the pretrained heading head keeps
+        its meaning.
+        """
         box: Tensor = batch[DataKeys.BOX]
+        cls: Tensor = batch[DataKeys.CLASS].long()
         box_batch: Tensor = batch[DataKeys.BATCH_BOX]
         lo, hi = point_cloud_dims
         batch_size = lo.shape[0]
         device = lo.device
 
-        per_scene = [box[box_batch == b] for b in range(batch_size)]
-        max_obj = max((scene.shape[0] for scene in per_scene), default=0)
+        per_scene = [(box[box_batch == b], cls[box_batch == b]) for b in range(batch_size)]
+        max_obj = max((scene.shape[0] for scene, _ in per_scene), default=0)
         max_obj = max(max_obj, 1)
 
         center = box.new_zeros(batch_size, max_obj, 3)
@@ -235,14 +243,14 @@ class DETR3DLoss(nn.Module):
         angle = box.new_zeros(batch_size, max_obj)
         label = torch.zeros(batch_size, max_obj, dtype=torch.long, device=device)
         present = box.new_zeros(batch_size, max_obj)
-        for b, scene in enumerate(per_scene):
+        for b, (scene, scene_cls) in enumerate(per_scene):
             k = scene.shape[0]
             if k == 0:
                 continue
             center[b, :k] = scene[:, :3]
-            size[b, :k] = scene[:, 3:6] * 2.0
-            angle[b, :k] = scene[:, 6]
-            label[b, :k] = scene[:, 7].long()
+            size[b, :k] = scene[:, 3:6]
+            angle[b, :k] = -scene[:, 6]
+            label[b, :k] = scene_cls
             present[b, :k] = 1.0
 
         scene_scale = (hi - lo).clamp(min=1e-1)
@@ -453,11 +461,16 @@ class DETR3DLoss(nn.Module):
 
     @staticmethod
     def _giou_from_volumes(inter: Tensor, enclosing: Tensor, vol1: Tensor, vol2: Tensor) -> Tensor:
-        r"""Assemble the generalized IoU from intersection, enclosing and per-box volumes."""
+        r"""Assemble the generalized IoU from intersection, enclosing and per-box volumes.
+
+        The enclosing volume is clamped before the division: a degenerate pair (both boxes collapsed on a
+        shared plane) has `enclosing == 0`, and the unclamped `inf` would survive the `good` masking as
+        `NaN` and poison the Hungarian matcher.
+        """
         sum_vols = vol1 + vol2
         good = (enclosing > 2 * _EPS) & (sum_vols > 4 * _EPS)
         union = (sum_vols - inter).clamp(min=_EPS)
-        giou = inter / union - (1 - union / enclosing)
+        giou = inter / union - (1 - union / enclosing.clamp(min=_EPS))
         return giou * good
 
 

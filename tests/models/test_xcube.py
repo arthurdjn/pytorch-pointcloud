@@ -2,7 +2,13 @@ import pytest
 import torch
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.xcube import XCubeDiffusion, XCubeVAE, fourier_encode, timestep_encoding
+from torch_pointcloud.models.xcube import (
+    XCubeDiffusion,
+    XCubeVAE,
+    _cached_submanifold_plan,
+    fourier_encode,
+    timestep_encoding,
+)
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _FVDB_AVAILABLE
 
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
@@ -55,6 +61,25 @@ def _make_inputs(num_points: int = 2000, batch_size: int = 2) -> tuple[torch.Ten
     batch = torch.repeat_interleave(torch.arange(batch_size), num_points)
     normal = torch.nn.functional.normalize(torch.randn(num_points * batch_size, 3), dim=1)
     return pos.to(DEVICE), batch.to(DEVICE), normal.to(DEVICE)
+
+
+@pytest.mark.skipif(not _FULL_STACK, reason="fvdb or CUDA is not available")
+def test_xcube_plan_cache_survives_grid_id_recycling() -> None:
+    import fvdb
+
+    from torch_pointcloud.models.xcube import ConvolutionPlan, GridBatch
+
+    plans: dict[int, tuple[GridBatch, ConvolutionPlan]] = {}
+    seen: list[ConvolutionPlan] = []
+    for i in range(8):
+        ijk = torch.randint(0, 10 + i, (16 + i, 3), dtype=torch.int32, device=DEVICE)
+        grid = fvdb.GridBatch.from_ijk(fvdb.JaggedTensor([ijk]))
+        plan = _cached_submanifold_plan(grid, plans)
+        assert _cached_submanifold_plan(grid, plans) is plan
+        assert all(plan is not previous for previous in seen)
+        seen.append(plan)
+        del grid, plan
+    assert len(plans) == 8
 
 
 @pytest.mark.skipif(not _FULL_STACK, reason="fvdb or CUDA is not available")
