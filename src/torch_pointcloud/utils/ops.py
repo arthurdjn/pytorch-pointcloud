@@ -335,7 +335,7 @@ def decimate_indices(
         except that this function uses the `batch` tensor instead of the `ptr` tensor representation.
 
     Args:
-        batch: The packed batch index tensor of consecutive integers (starting from 0).
+        batch: The packed batch index tensor.
         factor: The factor to decimate the indices by.
         generator: The generator to use for the random permutation.
 
@@ -352,11 +352,10 @@ def decimate_indices(
             f"The argument `factor` should be higher than (or equal to) 1 for downsampling, but got {factor}"
         )
 
-    batch_size = int(batch.max().item() + 1)
     decim_indices = []
     decim_batch = []
 
-    for i in range(batch_size):
+    for i in torch.unique(batch).tolist():
         mask_i = batch == i
         size_i = int(mask_i.sum().item())
 
