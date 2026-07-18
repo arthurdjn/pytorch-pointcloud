@@ -51,13 +51,19 @@ def compute_intersection_union(
         preds: Predicted class indices, shape $(N,)$.
         target: Ground truth class indices, shape $(N,)$.
         num_classes: Total number of classes.
+        batch: Optional per-point batch index for per-sample counts. One row is emitted per sample
+            (even for samples whose points are all ignored, which count as zero).
         ignore_index: Class index to exclude. Points where
             `target == ignore_index` are dropped, and the returned
             intersection/union at this index are $0$.
 
     Returns:
-        Tuple $(\text{intersection}, \text{union})$, each of shape $(\text{num_classes},)$.
+        Tuple $(\text{intersection}, \text{union})$, each of shape $(\text{num_classes},)$
+        or $(\text{batch_size}, \text{num_classes})$ if `batch` is provided.
     """
+    if batch is not None:
+        batch = batch.long()
+        batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
 
     if ignore_index is not None:
         mask = target != ignore_index
@@ -77,8 +83,6 @@ def compute_intersection_union(
     else:
         # Compute per-class intersection and union counts as (batch_size, num_classes) tensors
         # such that it can be used to compute the mean IoU per batch (micro/macro IoU)
-        batch = batch.long()
-        batch_size = int(batch.max().item()) + 1
         flat = batch_size * num_classes
         preds_key = batch * num_classes + preds
         target_key = batch * num_classes + target

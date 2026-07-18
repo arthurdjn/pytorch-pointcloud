@@ -1,7 +1,8 @@
 r"""Generic 3D oriented-box geometry shared by detection models and their evaluation.
 
 Boxes are parameterized as $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$: gravity-aligned center, full
-extents, and heading $\theta$ (radians) about the up axis $z$. Axis-aligned boxes set $\theta = 0$.
+extents, and heading $\theta$ (radians) counter-clockwise about $+z$ from $+x$. Axis-aligned boxes set
+$\theta = 0$.
 Corners are $(\ldots, 8, 3)$ with the top face (max $z$) first; IoU is frame-invariant so these work
 in any right-handed frame.
 """
@@ -24,6 +25,9 @@ _CORNER_Z = torch.tensor([1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0])
 
 def box_corners(boxes: Tensor) -> Tensor:
     r"""Convert parameterized boxes to their 8 corners.
+
+    The heading is counter-clockwise about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$
+    with full extents.
 
     Args:
         boxes: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(\ldots, 7)$.
@@ -235,7 +239,7 @@ def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
             height = max(0.0, min(ztop1, corners2[j][0, 2]) - max(zbot1, corners2[j][4, 2]))
             inter_vol = area * height
             inter[i, j] = inter_vol
-            iou[i, j] = inter_vol / (vol1 + _box_volume(corners2[j]) - inter_vol)
+            iou[i, j] = inter_vol / max(vol1 + _box_volume(corners2[j]) - inter_vol, 1e-8)
 
     return torch.from_numpy(inter), torch.from_numpy(iou)
 
@@ -384,7 +388,9 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
 
     The BEV intersection area (rotated rectangles, ignoring $z$) is multiplied by the vertical overlap of
     the height intervals $[c_z - d_z/2, c_z + d_z/2]$ to give the intersection volume, then divided by the
-    union. Runs entirely in torch (CUDA-capable, no custom extension); the cost is $O(N \cdot M)$.
+    union. The heading is counter-clockwise about $+z$ from $+x$; boxes are
+    $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents. Runs entirely in torch (CUDA-capable, no
+    custom extension); the cost is $O(N \cdot M)$.
 
     Args:
         boxes_a: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(N, 7)$.
@@ -450,7 +456,8 @@ def nms3d(
 
     Keeps the highest-scoring box of each overlapping cluster. Pass `labels` to restrict suppression to
     boxes of the same class, and `batch` (PyG-style per-box scene index) to run NMS independently per
-    scene and return a single index tensor over the concatenated input.
+    scene and return a single index tensor over the concatenated input. The heading is counter-clockwise
+    about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
 
     Args:
         boxes: Boxes $(N, 7)$ (see `box_corners`).
@@ -485,7 +492,9 @@ def count_points_in_boxes(
     r"""Count how many points fall inside each oriented box.
 
     Pass `pos_batch` and `box_batch` (PyG-style per-point / per-box scene indices) to restrict each box's
-    count to points from its own scene, so boxes of different scenes never share points.
+    count to points from its own scene, so boxes of different scenes never share points. The heading is
+    counter-clockwise about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full
+    extents.
 
     Args:
         pos: Point coordinates, shape $(N, 3)$.

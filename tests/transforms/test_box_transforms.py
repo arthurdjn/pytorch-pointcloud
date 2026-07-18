@@ -6,11 +6,16 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.utils.box3d import box_corners
 from torch_pointcloud.utils.data import DataKeys
 
 
-def _box(heading: float = 0.0, cls: float = 1.0) -> Tensor:
-    return torch.tensor([[1.0, 0.5, 0.3, 0.4, 0.3, 0.2, heading, cls]])
+def _box(heading: float = 0.0) -> Tensor:
+    return torch.tensor([[1.0, 0.5, 0.3, 0.8, 0.6, 0.4, heading]])
+
+
+def _half_extent(box: Tensor) -> Tensor:
+    return torch.cat([box[0:3], box[3:6] / 2, box[6:7]])
 
 
 def test_flip_boxes_yz_plane() -> None:
@@ -28,12 +33,13 @@ def test_flip_boxes_xz_plane() -> None:
     assert torch.allclose(flipped[:, 6], -box[:, 6])
 
 
-def test_rotate_boxes_decrements_heading() -> None:
+def test_rotate_boxes_increments_heading() -> None:
     box = _box(heading=0.2)
     rotation = F.rotation_matrix(0.5, axis=2)
     rotated = F.rotate_boxes(box, rotation, 0.5)
-    assert torch.allclose(rotated[:, 6], box[:, 6] - 0.5)
+    assert torch.allclose(rotated[:, 6], box[:, 6] + 0.5)
     assert torch.allclose(rotated[:, 3:6], box[:, 3:6])
+    assert torch.allclose(rotated[:, 0:3], box[:, 0:3] @ rotation.T)
 
 
 def test_scale_boxes_centers_and_sizes() -> None:
@@ -44,45 +50,64 @@ def test_scale_boxes_centers_and_sizes() -> None:
 
 
 def test_points_in_oriented_box_axis_aligned() -> None:
-    box = _box(heading=0.0)
+    box = torch.tensor([1.0, 0.5, 0.3, 0.4, 0.3, 0.2, 0.0])  # half extents
     pts = torch.tensor([[1.0, 0.5, 0.3], [1.4, 0.5, 0.3], [2.0, 0.5, 0.3]])
-    mask = F.points_in_oriented_box(pts, box[0])
+    mask = F.points_in_oriented_box(pts, box)
     assert mask.tolist() == [True, True, False]
 
 
 def test_points_in_oriented_box_yaw_aware() -> None:
-    box = _box(heading=math.pi / 2)
+    box = torch.tensor([1.0, 0.5, 0.3, 0.4, 0.3, 0.2, math.pi / 2])  # half extents
     corner = torch.tensor([[1.0 + 0.3, 0.5 + 0.4, 0.3]])
     outside = torch.tensor([[1.0 + 0.4, 0.5, 0.3]])
-    assert F.points_in_oriented_box(corner, box[0]).tolist() == [True]
-    assert F.points_in_oriented_box(outside, box[0]).tolist() == [False]
+    assert F.points_in_oriented_box(corner, box).tolist() == [True]
+    assert F.points_in_oriented_box(outside, box).tolist() == [False]
 
 
 def test_random_flip_boxes_preserves_membership() -> None:
     gen = torch.Generator().manual_seed(0)
-    box = _box(heading=0.2, cls=2.0)
+    box = _box(heading=0.2)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
     out = T.RandomFlip(keys="pos", box_key="box", axes=(0,), p=1.0, generator=gen)(data)
-    assert F.points_in_oriented_box(out["pos"], out["box"][0]).item()
+    assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
 
 
 def test_random_rotate_boxes_preserves_membership() -> None:
     gen = torch.Generator().manual_seed(0)
-    box = _box(heading=0.2, cls=2.0)
+    box = _box(heading=0.2)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
     out = T.RandomRotate(keys="pos", box_key="box", angle_range=(25.0, 25.0), p=1.0, generator=gen)(data)
-    assert F.points_in_oriented_box(out["pos"], out["box"][0]).item()
+    assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
+
+
+def test_random_rotate_boxes_containment_is_exact() -> None:
+    """Rotating points and boxes jointly preserves containment for every point of an oriented box."""
+    gen = torch.Generator().manual_seed(0)
+    center = torch.tensor([1.0, -2.0, 0.5])
+    dims = torch.tensor([1.2, 0.8, 0.6])
+    heading = 0.7
+    box = torch.cat([center, dims, torch.tensor([heading])]).unsqueeze(0)
+    local = (torch.rand(500, 3, generator=gen) - 0.5) * dims * 0.99
+    pos = local @ F.rotation_matrix(heading, axis=2).T + center
+    assert F.points_in_oriented_box(pos, _half_extent(box[0])).all()
+
+    data = {"pos": pos, "box": box.clone()}
+    out = T.RandomRotate(keys="pos", box_key="box", angle_range=(140.0, 140.0), p=1.0, generator=gen)(data)
+    assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).all()
+
+    rotation = F.rotation_matrix(math.radians(140.0), axis=2)
+    assert torch.allclose(box_corners(out["box"]), box_corners(box) @ rotation.T, atol=1e-5)
 
 
 def test_random_scale_boxes_preserves_membership() -> None:
     gen = torch.Generator().manual_seed(0)
-    box = _box(heading=0.2, cls=2.0)
+    box = _box(heading=0.2)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
     out = T.RandomScale(keys="pos", box_key="box", scale_range=(1.3, 1.3), p=1.0, generator=gen)(data)
-    assert F.points_in_oriented_box(out["pos"], out["box"][0]).item()
+    assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
 
 
 def test_random_rotate_boxes_p_zero_is_noop() -> None:
@@ -92,6 +117,34 @@ def test_random_rotate_boxes_p_zero_is_noop() -> None:
     out = T.RandomRotate(keys="pos", box_key="box", p=0.0)(data)
     assert torch.allclose(out["box"], box)
     assert torch.allclose(out["pos"], pos)
+
+
+def test_generate_vote_labels_overlapping_boxes_get_distinct_votes() -> None:
+    boxes = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
+            [0.25, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
+        ]
+    )
+    pos = torch.tensor([[0.1, 0.0, 0.0], [-0.4, 0.0, 0.0], [5.0, 5.0, 5.0]])
+    out = T.GenerateVoteLabels(oriented=False)({"pos": pos, "box": boxes})
+    votes = out["vote_label"]
+    # Inside both boxes: slot 0 votes for box 0, slot 1 for box 1, slot 2 repeats the first vote.
+    assert torch.allclose(votes[0, 0:3], boxes[0, 0:3] - pos[0])
+    assert torch.allclose(votes[0, 3:6], boxes[1, 0:3] - pos[0])
+    assert torch.allclose(votes[0, 6:9], votes[0, 0:3])
+    # Inside box 0 only: its offset is tiled into all three slots.
+    assert torch.allclose(votes[1], (boxes[0, 0:3] - pos[1]).repeat(3))
+    assert out["vote_label_mask"].tolist() == [1, 1, 0]
+
+
+def test_generate_vote_labels_oriented_containment_is_counterclockwise() -> None:
+    heading = math.pi / 4
+    rotation = F.rotation_matrix(heading, axis=2)
+    box = torch.tensor([[0.0, 0.0, 0.0, 2.0, 0.5, 1.0, heading]])
+    pos = torch.tensor([[0.9, 0.2, 0.0]]) @ rotation.T  # inside only if the heading rotates counterclockwise
+    out = T.GenerateVoteLabels(oriented=True)({"pos": pos, "box": box})
+    assert out["vote_label_mask"].tolist() == [1]
 
 
 def test_random_rotate_boxes_votes_stay_consistent() -> None:
@@ -106,6 +159,7 @@ def test_random_rotate_boxes_votes_stay_consistent() -> None:
     expected = out["box"][:, 0:3] - out["pos"]
     assert torch.allclose(out["vote_label"][:, 0:3], expected, atol=1e-5)
     assert torch.allclose(out["vote_label"][:, 3:6], expected, atol=1e-5)
+    assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
 
 
 def test_random_scale_boxes_votes_stay_consistent() -> None:
@@ -145,8 +199,8 @@ def test_generate_vote_labels_oriented_vs_axis_aligned() -> None:
 
 def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
     mean = torch.ones(10, 3) * 0.5
-    box = _box(heading=0.6, cls=2.0)
-    data = {"box": box.clone()}
+    box = _box(heading=0.6)
+    data = {"box": box.clone(), "class": torch.tensor([2])}
     out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
     assert out["center_label"].shape == (64, 3)
     assert out["heading_class_label"].shape == (64,)
@@ -160,13 +214,13 @@ def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
     assert out["sem_cls_label"][0].item() == 2
     assert torch.allclose(out["center_label"][0], box[0, 0:3])
     recovered = F.class_to_size(out["size_class_label"][:1], out["size_residual_label"][:1], mean)
-    assert torch.allclose(recovered[0], box[0, 3:6] * 2, atol=1e-5)
+    assert torch.allclose(recovered[0], box[0, 3:6], atol=1e-5)
 
 
 def test_encode_votenet_targets_truncates_to_max_num_obj() -> None:
     mean = torch.ones(10, 3) * 0.5
-    boxes = _box(heading=0.0, cls=1.0).repeat(5, 1)
-    data = {"box": boxes}
+    boxes = _box(heading=0.0).repeat(5, 1)
+    data = {"box": boxes, "class": torch.ones(5, dtype=torch.long)}
     out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=3)(data)
     assert out["center_label"].shape == (3, 3)
     assert out["box_label_mask"].sum().item() == 3
@@ -177,11 +231,11 @@ def test_vote_then_encode_keeps_boxes_and_writes_all_labels() -> None:
     pos = torch.rand(2048, 3) * 4
     boxes = torch.tensor(
         [
-            [1.0, 1.0, 1.0, 0.5, 0.4, 0.3, 0.2, 3.0],
-            [2.0, 2.0, 1.0, 0.6, 0.5, 0.4, 0.0, 1.0],
+            [1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.2],
+            [2.0, 2.0, 1.0, 1.2, 1.0, 0.8, 0.0],
         ]
     )
-    data = {"pos": pos.clone(), "box": boxes.clone(), "class": boxes[:, 7].long()}
+    data = {"pos": pos.clone(), "box": boxes.clone(), "class": torch.tensor([3, 1])}
     data = T.GenerateVoteLabels(pos_key="pos", box_key="box")(data)
     out = T.EncodeVoteNetTargets(box_key="box", num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
 
@@ -257,15 +311,29 @@ def test_instance_to_box_extents_class_and_drop() -> None:
     data = {"pos": pos, "instance": torch.tensor([0, 0, 1, 1, 2]), "segment": torch.tensor([2, 2, 5, 5, -1])}
     out = T.InstanceToBox()(data)
     box = out["box"]
-    assert box.shape == (2, 8)
-    assert torch.allclose(box[0], torch.tensor([1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 0.0, 2.0]))
-    assert torch.allclose(box[1], torch.tensor([5.0, 5.5, 5.0, 0.0, 0.5, 0.0, 0.0, 5.0]))
+    assert box.shape == (2, 7)
+    assert torch.allclose(box[0], torch.tensor([1.0, 0.5, 0.5, 2.0, 1.0, 1.0, 0.0]))
+    assert torch.allclose(box[1], torch.tensor([5.0, 5.5, 5.0, 0.0, 1.0, 0.0, 0.0]))
+    assert out["class"].tolist() == [2, 5]
+    assert out["class"].dtype == torch.long
+
+
+def test_instance_to_box_excludes_negative_instance_ids() -> None:
+    # Unlabeled points (instance -1) span the scene; they must not form a giant box.
+    pos = torch.tensor([[0.0, 0.0, 0.0], [10.0, 10.0, 10.0], [1.0, 1.0, 1.0], [2.0, 1.0, 1.0]])
+    data = {"pos": pos, "instance": torch.tensor([-1, -1, 0, 0]), "segment": torch.tensor([3, 3, 2, 2])}
+    out = T.InstanceToBox()(data)
+    assert out["box"].shape == (1, 7)
+    assert torch.allclose(out["box"][0], torch.tensor([1.5, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]))
+    assert out["class"].tolist() == [2]
 
 
 def test_instance_to_box_all_ignored_is_empty() -> None:
     data = {"pos": torch.rand(4, 3), "instance": torch.tensor([0, 0, 1, 1]), "segment": torch.tensor([-1, -1, -1, -1])}
     out = T.InstanceToBox()(data)
-    assert out["box"].shape == (0, 8)
+    assert out["box"].shape == (0, 7)
+    assert out["class"].shape == (0,)
+    assert out["class"].dtype == torch.long
 
 
 def test_relabel_boxes_maps_drops_and_ignores() -> None:

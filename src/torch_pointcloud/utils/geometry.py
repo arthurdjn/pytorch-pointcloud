@@ -473,6 +473,6 @@ def spherical_points_lloyd(
             kernel_points[0] = torch.zeros(3)
         elif fixed_position == "vertical":
             kernel_points[0] = torch.zeros(3)
-            kernel_points[1:, :-1] = torch.zeros_like(kernel_points[1:, :-1])
+            kernel_points[1:3, :-1] = torch.zeros_like(kernel_points[1:3, :-1])
 
     return kernel_points * radius
