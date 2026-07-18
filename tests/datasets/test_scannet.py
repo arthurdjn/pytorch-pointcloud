@@ -1,13 +1,23 @@
 # mypy: disable-error-code="arg-type,call-overload,attr-defined"
+import io
+import json
+import shutil
 from pathlib import Path
 from typing import Callable
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
+import numpy as np
 import pytest
 import torch
 
-from torch_pointcloud.datasets import ScanNet
-from torch_pointcloud.datasets.scannet import load_scannet_scene
+from torch_pointcloud.datasets import ScanNet, ScanNet20, ScanNet200
+from torch_pointcloud.datasets.scannet import (
+    SCANNET20_CLASSES,
+    SCANNET20_LABELS,
+    SCANNET200_LABELS,
+    SCANNET_UNK_CLS,
+    load_scannet_scene,
+)
 
 
 def test_load_scannet_scene(datasets_dir: Path) -> None:
@@ -246,3 +256,164 @@ def test_scannet_dataset_label_columns(
 
     dataset = ScanNet(root=datasets_dir, label_name=label_name, label_id=label_id, show_progress=False)
     assert len(dataset) > 0
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_segment_ids_match_class_to_idx(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Stored segment ids follow the positional `class_to_idx` mapping for a non-default `label_name`"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    dataset = ScanNet(root=datasets_dir, split="train", label_name="raw_category", label_id="id", show_progress=False)
+    scene = next(data for data in dataset.data if data["scene"] == "scene0191_00")
+    assert scene["segment"].max() < len(dataset.classes)
+
+    aggregation_path = datasets_dir / "ScanNet" / "raw" / "v2" / "scans" / "scene0191_00"
+    aggregation = json.loads((aggregation_path / "scene0191_00.aggregation.json").read_text())
+    checked = 0
+    for group in aggregation["segGroups"]:
+        mask = scene["instance"] == group["objectId"]
+        if not mask.any():
+            continue
+        expected = dataset.class_to_idx[group["label"]]
+        assert scene["segment"][mask].unique().tolist() == [expected]
+        checked += 1
+    assert checked > 0
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_process_writes_completion_marker(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing a split ends with an atomic `meta.json` completion marker"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    meta_path = Path(dataset.processed_dir) / "train" / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    assert meta["format_version"] == 1
+    assert meta["label_name"] == "nyu40class"
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_legacy_cache_without_marker_loads(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A complete cache without a completion marker (legacy layout) still loads"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    (Path(dataset.processed_dir) / "train" / "meta.json").unlink()
+
+    reloaded = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    assert len(reloaded) == len(dataset)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_interrupted_cache_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unmarked cache with a torn scene raises instead of loading it as unlabeled"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    (Path(dataset.processed_dir) / "train" / "meta.json").unlink()
+    (Path(dataset.processed_dir) / "train" / dataset.data[0]["scene"] / "normal.npy").unlink()
+
+    with pytest.raises(RuntimeError, match="force_process"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+    reprocessed = ScanNet(root=datasets_dir, split="train", show_progress=False, force_process=True)
+    assert len(reprocessed) == len(dataset)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_missing_scene_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unmarked cache missing a scene listed in the split file raises"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    (Path(dataset.processed_dir) / "train" / "meta.json").unlink()
+    shutil.rmtree(Path(dataset.processed_dir) / "train" / dataset.data[0]["scene"])
+
+    with pytest.raises(RuntimeError, match="force_process"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+
+def test_scannet_dataset_download_rejects_malicious_scan_id(
+    datasets_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A remote scan id with path separators is rejected before any write"""
+    datasets_dir = datasets_dir_factory("ScanNet/processed/**/*")
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", Mock())
+    urlopen_mock = MagicMock()
+    urlopen_mock.return_value.__enter__.return_value = io.BytesIO(b"../../x\n")
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.urlopen", urlopen_mock)
+
+    with pytest.raises(RuntimeError, match="Invalid scan id"):
+        dataset.download(force=True)
+
+
+def test_scannet20_classes_align_with_remapped_labels(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`ScanNet20.classes[i]` names the remapped segmentation label `i`"""
+    datasets_dir = datasets_dir_factory("ScanNet/processed_20/**/*")
+
+    dataset = ScanNet20(root=datasets_dir, split="train", show_progress=False)
+    assert len(dataset.classes) == len(SCANNET20_LABELS)
+    assert dataset.classes == [SCANNET_UNK_CLS, *SCANNET20_CLASSES]
+    assert dataset.class_to_idx["wall"] == SCANNET20_LABELS.index(1)  # nyu40id 1
+    assert dataset.class_to_idx["otherfurniture"] == SCANNET20_LABELS.index(39)  # nyu40id 39
+
+    for data in dataset:
+        assert data["segment"].max() < len(dataset.classes)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet200_classes_from_fixture(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`ScanNet200.classes` resolves the TSV names in remap order (regression: `label_name='raw'` raised)"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    dataset = ScanNet200(root=datasets_dir, split="train", show_progress=False)
+    assert len(dataset.classes) == len(SCANNET200_LABELS)
+    assert dataset.classes[0] == SCANNET_UNK_CLS
+    assert dataset.classes[1] == "wall"  # TSV id 1
+    assert dataset.classes[2] == "chair"  # TSV id 2
+    assert dataset.classes[3] == "floor"  # TSV id 3
+    assert dataset.classes[-1] == "mattress"  # TSV id 1191
+    assert dataset.class_to_idx["chair"] == SCANNET200_LABELS.index(2)
+
+    for data in dataset:
+        assert data["segment"].max() < len(dataset.classes)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet200_legacy_cache_relabels_raw_ids(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache without a marker holds raw TSV ids and is relabelled with the raw-id table"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    split_file = datasets_dir / "ScanNet" / "raw" / "metadata" / "scannetv2_train.txt"
+    scene_ids = sorted(line.strip() for line in split_file.read_text().splitlines() if line.strip())
+    raw_ids = np.array([0, 1, 2, 1163], dtype=np.int32)
+    for scene_id in scene_ids:
+        scene_dir = datasets_dir / "ScanNet" / "processed_200" / "train" / scene_id
+        scene_dir.mkdir(parents=True)
+        np.save(scene_dir / "pos.npy", np.zeros((4, 3), dtype=np.float32))
+        np.save(scene_dir / "color.npy", np.zeros((4, 3), dtype=np.float32))
+        np.save(scene_dir / "normal.npy", np.zeros((4, 3), dtype=np.float32))
+        np.save(scene_dir / "segment.npy", raw_ids)
+
+    dataset = ScanNet200(root=datasets_dir, split="train", show_progress=False)
+    expected = [0, SCANNET200_LABELS.index(1), SCANNET200_LABELS.index(2), SCANNET200_LABELS.index(1163)]
+    assert dataset.data[0]["segment"].tolist() == expected
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet20_load_matches_relabelled_base_segments(datasets_dir_factory: Callable[..., Path]) -> None:
+    """The shared `load` + remap table reproduces the 20-class relabelling of the base segments"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+
+    base = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    dataset = ScanNet20(root=datasets_dir, split="train", show_progress=False)
+    assert len(dataset) == len(base)
+
+    lookup = {label: idx for idx, label in enumerate(SCANNET20_LABELS)}
+    for base_scene, scene in zip(base.data, dataset.data):
+        assert scene["scene"] == base_scene["scene"]
+        expected = torch.tensor([lookup.get(int(label), 0) for label in base_scene["segment"]])
+        assert torch.equal(scene["segment"], expected)

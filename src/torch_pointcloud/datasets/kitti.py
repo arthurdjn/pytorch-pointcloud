@@ -1,3 +1,5 @@
+import json
+import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
 
@@ -350,7 +352,36 @@ class KITTI(PointCloudDataset):
 
     @override
     def processed_files_exist(self) -> bool:
-        return any(self.processed_split_dir.glob(f"*/{DataKeys.POS}.npy"))
+        if (self.processed_split_dir / "meta.json").exists():
+            return True
+
+        frame_paths = self.processed_split_dir.glob(f"*/{DataKeys.POS}.npy")
+        frame_dirs = sorted(p.parent for p in frame_paths if not p.parent.name.endswith(".tmp"))
+        if not frame_dirs:
+            return False
+
+        file_names = (
+            "pos.npy",
+            "intensity.npy",
+            "boxes.npy",
+            "labels.npy",
+            "truncation.npy",
+            "occlusion.npy",
+            "bbox_height.npy",
+        )
+        incomplete = [d.name for d in frame_dirs if not all((d / name).exists() for name in file_names)]
+        missing: List[str] = []
+        if self.raw_files_exist():
+            expected = {p.stem for p in (self.raw_split_dir / "velodyne").glob("*.bin")}
+            missing = sorted(expected - {d.name for d in frame_dirs})
+
+        if incomplete or missing:
+            raise RuntimeError(
+                f"Incomplete processed cache at {self.processed_split_dir.as_posix()!r}: {len(missing)} missing "
+                f"frame(s) {missing[:5]}, {len(incomplete)} incomplete frame(s) {incomplete[:5]}. "
+                "Pass `force_process=True` to reprocess the raw data."
+            )
+        return True
 
     def download(self, force: bool = False) -> None:
         r"""Raise: KITTI must be downloaded manually after accepting its license.
@@ -372,7 +403,7 @@ class KITTI(PointCloudDataset):
             num_workers: Worker processes, or `None` for sequential processing.
             show_progress: Show a progress bar while processing.
         """
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
         if not self.raw_files_exist():
             raise RuntimeError(
@@ -382,6 +413,12 @@ class KITTI(PointCloudDataset):
 
         frames = sorted(p.stem for p in (self.raw_split_dir / "velodyne").glob("*.bin"))
         self.processed_split_dir.mkdir(parents=True, exist_ok=True)
+        for stale in self.processed_split_dir.glob("*.tmp"):
+            if stale.is_dir():
+                shutil.rmtree(stale)
+            else:
+                stale.unlink()
+
         parallel_map(
             self.process_frame,
             frames,
@@ -390,6 +427,11 @@ class KITTI(PointCloudDataset):
             desc=f"Processing {self.split}",
             show_progress=show_progress,
         )
+
+        meta_path = self.processed_split_dir / "meta.json"
+        tmp_path = self.processed_split_dir / "meta.json.tmp"
+        tmp_path.write_text(json.dumps({"format_version": 1, "fov": self.fov}))
+        tmp_path.replace(meta_path)
 
     def process_frame(self, frame: str) -> None:
         r"""Read one raw frame (optionally FOV-filtered) and write its `.npy` cache.
@@ -407,27 +449,41 @@ class KITTI(PointCloudDataset):
 
         annotations = load_kitti_boxes(self.raw_split_dir / "label_2" / f"{frame}.txt", calib)
         frame_dir = self.processed_split_dir / frame
-        frame_dir.mkdir(parents=True, exist_ok=True)
-        np.save(frame_dir / "pos.npy", points[:, :3])
-        np.save(frame_dir / "intensity.npy", points[:, 3:4])
-        np.save(frame_dir / "boxes.npy", annotations[DataKeys.BOX])
-        np.save(frame_dir / "labels.npy", annotations[DataKeys.LABEL])
-        np.save(frame_dir / "truncation.npy", annotations[DataKeys.TRUNCATION])
-        np.save(frame_dir / "occlusion.npy", annotations[DataKeys.OCCLUSION])
-        np.save(frame_dir / "bbox_height.npy", annotations[DataKeys.BBOX_HEIGHT])
+        tmp_dir = self.processed_split_dir / f"{frame}.tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        np.save(tmp_dir / "pos.npy", points[:, :3])
+        np.save(tmp_dir / "intensity.npy", points[:, 3:4])
+        np.save(tmp_dir / "boxes.npy", annotations[DataKeys.BOX])
+        np.save(tmp_dir / "labels.npy", annotations[DataKeys.LABEL])
+        np.save(tmp_dir / "truncation.npy", annotations[DataKeys.TRUNCATION])
+        np.save(tmp_dir / "occlusion.npy", annotations[DataKeys.OCCLUSION])
+        np.save(tmp_dir / "bbox_height.npy", annotations[DataKeys.BBOX_HEIGHT])
+        if frame_dir.exists():
+            shutil.rmtree(frame_dir)
+        tmp_dir.replace(frame_dir)
 
     def load(self) -> None:
-        r"""Enumerate the cached frames to load, honoring `split_file` when given."""
+        r"""Enumerate the cached frames to load, honoring `split_file` when given.
+
+        Raises a `RuntimeError` listing the missing frame ids when `split_file` references frames
+        absent from the processed cache.
+        """
         if self.split_file is not None:
             frame_ids = [line.strip() for line in Path(self.split_file).read_text().splitlines() if line.strip()]
+            missing = [
+                frame for frame in frame_ids if not (self.processed_split_dir / frame / f"{DataKeys.POS}.npy").exists()
+            ]
+            if missing:
+                raise RuntimeError(
+                    f"{len(missing)} frame(s) listed in {Path(self.split_file).as_posix()!r} are missing from the "
+                    f"processed cache at {self.processed_split_dir.as_posix()!r}: {missing[:10]}. "
+                    "Pass `force_process=True` to reprocess the raw data."
+                )
         else:
-            frame_ids = sorted(p.parent.name for p in self.processed_split_dir.glob(f"*/{DataKeys.POS}.npy"))
+            frame_paths = self.processed_split_dir.glob(f"*/{DataKeys.POS}.npy")
+            frame_ids = sorted(p.parent.name for p in frame_paths if not p.parent.name.endswith(".tmp"))
 
-        self.frames: List[Tuple[Path, str]] = [
-            (self.processed_split_dir / frame, frame)
-            for frame in frame_ids
-            if (self.processed_split_dir / frame / f"{DataKeys.POS}.npy").exists()
-        ]
+        self.frames: List[Tuple[Path, str]] = [(self.processed_split_dir / frame, frame) for frame in frame_ids]
         if not self.frames:
             raise RuntimeError(f"No processed frames found under {self.processed_split_dir.as_posix()!r}.")
 
