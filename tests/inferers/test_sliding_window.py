@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -8,6 +8,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.inferers import SlidingWindowInferer, sliding_window_inference
+from torch_pointcloud.inferers.sliding_window import _assign_point_blocks
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
@@ -204,6 +205,47 @@ def test_sliding_window_gaussian_pulls_shared_points_toward_nearer_block() -> No
     assert out_const[2, 0].item() == pytest.approx(1.75)
     assert 0.5 <= out_gauss[1, 0].item() < out_const[1, 0].item()
     assert 1.5 <= out_gauss[2, 0].item() < out_const[2, 0].item()
+
+
+def test_sliding_window_overlap_without_padding_blocks_contain_their_points() -> None:
+    """With overlap>0 and padding=0, every point handed to a block lies inside that block's bbox, and
+    every point is still covered by at least one block (constant predictions average back to the constant)."""
+    torch.manual_seed(0)
+    n = 500
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.rand(n, 3) * 4.0,
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+    seen: List[Tuple[Tensor, Tensor]] = []
+
+    def spy(window: Dict[str, Any]) -> Dict[str, Any]:
+        seen.append((window[DataKeys.POS].clone(), window["block_bbox"].clone()))
+        return window
+
+    pred = _constant_predictor(1.0, num_classes=2)
+    out = sliding_window_inference(
+        data, predictor=pred, block_size=2.0, overlap=0.3, padding=0.0, transform=spy, softmax=False
+    )
+
+    assert len(seen) > 0
+    for pos_block, bbox in seen:
+        lo, hi = bbox[:3], bbox[3:]
+        assert (pos_block >= lo).all() and (pos_block <= hi).all(), "point assigned to a non-containing block"
+    assert torch.allclose(out, torch.ones_like(out)), "some points are not covered by any block"
+
+
+def test_sliding_window_gaussian_sigma_scales_with_tiled_dims_only() -> None:
+    r"""The gaussian sigma derives from the tiled axes, not all of `pos`'s dimensions: with `dims=(0,)`,
+    $\sigma = \text{sigma\_scale} \cdot \text{block\_size} / 2$ and the weights peak at the block center."""
+    pos = torch.tensor([[0.5, 5.0, -3.0], [1.0, -2.0, 7.0], [1.5, 0.0, 0.0]])
+    point_groups, weight_groups, _ = _assign_point_blocks(
+        pos, block_size=2.0, overlap=0.0, mode="gaussian", sigma_scale=0.125, dims=(0,), padding=0.0
+    )
+    assert len(point_groups) == 1
+    distance = (pos[point_groups[0], 0] - 1.5).abs()  # block center x = lo + block_size / 2 = 1.5
+    expected = torch.exp(-0.5 * (distance / 0.125) ** 2)  # sigma = sigma_scale * (block_size / 2) * sqrt(1)
+    torch.testing.assert_close(weight_groups[0], expected)
+    assert int(weight_groups[0].argmax()) == int(distance.argmin())
 
 
 def test_sliding_window_covers_all_points() -> None:

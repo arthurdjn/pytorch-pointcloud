@@ -148,6 +148,22 @@ def test_knn_window_inference_validates_args() -> None:
         knn_window_inference(data, predictor=fake, aggregate="ema", ema_smoothing=1.5)
 
 
+def test_knn_window_gaussian_with_ema_raises() -> None:
+    """Gaussian distance weights do not apply to EMA updates, so the combination is rejected."""
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.zeros(4, 3),
+        DataKeys.BATCH: torch.zeros(4, dtype=torch.long),
+    }
+
+    def fake(_window: Dict[str, Any]) -> Tensor:
+        return torch.zeros(4, 2)
+
+    with pytest.raises(ValueError, match="gaussian"):
+        knn_window_inference(data, predictor=fake, mode="gaussian", aggregate="ema")
+    with pytest.raises(ValueError, match="gaussian"):
+        KNNWindowInferer(mode="gaussian", aggregate="ema")(data, predictor=fake)
+
+
 def test_knn_window_inferer_class_matches_function() -> None:
     """The `KNNWindowInferer` class is a thin wrapper around `knn_window_inference`.
     Same seed and parameters must give bit-for-bit identical outputs."""

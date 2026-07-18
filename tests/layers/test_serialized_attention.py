@@ -1,5 +1,8 @@
+from typing import Dict, Tuple
+
 import pytest
 import torch
+from torch import Tensor
 
 from torch_pointcloud.layers.serialized_attention import (
     RelativePositionalEncoding,
@@ -7,6 +10,7 @@ from torch_pointcloud.layers.serialized_attention import (
     SerializedAttentionRoPE,
     SerializedAttentionRPE,
 )
+from torch_pointcloud.transforms.functional import divisible_pad
 
 
 def test_relative_positional_encoding_forward() -> None:
@@ -98,3 +102,64 @@ def test_serialized_attention_rope_requires_pos() -> None:
     batch = torch.zeros(8, dtype=torch.long)
     with pytest.raises(ValueError, match="pos"):
         attn(x, None, batch, pos=None)
+
+
+def test_serialized_attention_rope_pos_follows_feature_permutation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With B=2 and padding, RoPE must see `pos` gathered by the same permutation as the qkv rows."""
+    torch.manual_seed(0)
+    patch_size = 4
+    attn = SerializedAttentionRoPE(channels=12, num_heads=2, patch_size=patch_size, use_flash_attn=False)
+    n1, n2 = 6, 4
+    x = torch.randn(n1 + n2, 12)
+    pos = torch.randn(n1 + n2, 3)
+    batch = torch.cat([torch.zeros(n1), torch.ones(n2)]).long()
+
+    captured: Dict[str, Tensor] = {}
+    rope_forward = attn.rope.forward
+
+    def capture(q: Tensor, k: Tensor, p: Tensor) -> Tuple[Tensor, Tensor]:
+        captured["pos"] = p
+        return rope_forward(q, k, p)
+
+    monkeypatch.setattr(attn.rope, "forward", capture)
+    attn(x, None, batch, pos=pos)
+
+    padded_indices, _, _ = divisible_pad(batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True)
+    assert padded_indices.numel() > batch.numel()  # the config must introduce padding
+    torch.testing.assert_close(captured["pos"], pos[padded_indices])
+
+
+def test_serialized_attention_rope_batched_matches_per_scene() -> None:
+    """A padded B=2 forward matches running each scene separately (RoPE positions follow the padding)."""
+    torch.manual_seed(0)
+    attn = SerializedAttentionRoPE(channels=12, num_heads=2, patch_size=4, use_flash_attn=False)
+    n1, n2 = 6, 4
+    x = torch.randn(n1 + n2, 12)
+    pos = torch.randn(n1 + n2, 3)
+    batch = torch.cat([torch.zeros(n1), torch.ones(n2)]).long()
+
+    out = attn(x, None, batch, pos=pos)
+    out1 = attn(x[:n1], None, torch.zeros(n1, dtype=torch.long), pos=pos[:n1])
+    out2 = attn(x[n1:], None, torch.zeros(n2, dtype=torch.long), pos=pos[n1:])
+    torch.testing.assert_close(out[:n1], out1)
+    torch.testing.assert_close(out[n1:], out2)
+
+
+def test_serialized_attention_variants_accept_non_consecutive_batch_ids() -> None:
+    """Batch ids {0, 2} behave exactly like {0, 1}; bincount over raw ids used to yield a zero patch size."""
+    torch.manual_seed(0)
+    n = 12
+    x = torch.randn(n, 12)
+    pos = torch.randn(n, 3)
+    pos_grid = torch.randint(0, 8, (n, 3))
+    consecutive = torch.cat([torch.zeros(6), torch.ones(6)]).long()
+    gapped = torch.cat([torch.zeros(6), torch.full((6,), 2)]).long()
+
+    attns = [
+        SerializedAttention(channels=12, num_heads=2, patch_size=8, use_flash_attn=False),
+        SerializedAttentionRPE(channels=12, num_heads=2, patch_size=8),
+        SerializedAttentionRoPE(channels=12, num_heads=2, patch_size=8, use_flash_attn=False),
+    ]
+    for attn in attns:
+        out_gapped = attn(x, pos_grid, gapped, pos=pos)
+        assert torch.equal(out_gapped, attn(x, pos_grid, consecutive, pos=pos))

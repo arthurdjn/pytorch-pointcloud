@@ -15,8 +15,11 @@ def test_point3d_rope_forward() -> None:
 
 
 def test_point3d_rope_head_dim_not_divisible_raises() -> None:
-    with pytest.raises(ValueError, match="divisible by 3"):
+    with pytest.raises(ValueError, match="divisible by 6"):
         Point3DRoPE(head_dim=10)
+    # head_dim=9 passes the divisible-by-3 split but leaves odd per-axis chunks that cannot rotate in pairs.
+    with pytest.raises(ValueError, match="divisible by 6"):
+        Point3DRoPE(head_dim=9)
 
 
 def test_point3d_rope_preserves_norm() -> None:

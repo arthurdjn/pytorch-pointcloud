@@ -15,12 +15,12 @@ from .inferer import Inferer
 class VoxelPartitionInferer(Inferer):
     r"""$K$-pass voxel-partition inferer with scatter-back aggregation.
 
-    Partitions input points into FNV voxel buckets at `voxel_size` and runs the predictor on
-    $K = \max_v c_v$ sub-clouds, where sub-cloud $i$ picks the $(i \bmod c_v)$-th point of every
-    bucket. Per-sub-cloud logits are scatter-summed to original-point indices and divided by
-    per-point participation counts; each point is picked $\lfloor K / c_v \rfloor$ or
-    $\lfloor K / c_v \rfloor + 1$ times across the $K$ passes, so every original point gets at
-    least one prediction.
+    Partitions each batch element's points into FNV voxel buckets at `voxel_size` and runs the
+    predictor on $K = \max_v c_v$ sub-clouds per element, where sub-cloud $i$ picks the
+    $(i \bmod c_v)$-th point of every bucket. Per-sub-cloud logits are scatter-summed to
+    original-point indices and divided by per-point participation counts; each point is picked
+    $\lfloor K / c_v \rfloor$ or $\lfloor K / c_v \rfloor + 1$ times across the $K$ passes, so
+    every original point gets at least one prediction.
 
     For test-time augmentation, wrap in `TTAInferer`: each TTA pass triggers a fresh $K$-pass
     voxel partition under that augmentation.
@@ -28,11 +28,14 @@ class VoxelPartitionInferer(Inferer):
     Args:
         voxel_size: Side length of the FNV voxel partition (in the units of `pos`).
         transform: Optional per-sub-cloud callable applied after slicing each sub-cloud out of
-            `data`. Typical use: the model's registered preprocessing transform.
+            `data`. Typical use: the model's registered preprocessing transform. The transform
+            must preserve the sub-cloud's row count; row-altering pipelines (pad, voxelize, ...)
+            are only supported by `SlidingWindowInferer` via `inverse_key`.
         sub_batch_size: Number of sub-clouds packed into one predictor call via `collate`.
             `>1` amortises FPS / radius costs on the GPU.
         softmax: If `True`, softmax each predictor output before scatter-summing.
         pos_key: Dict key for the position tensor.
+        batch_key: Dict key for the per-point batch index.
         seed: Optional RNG seed for the per-pass index shuffle.
 
     Example:
@@ -51,6 +54,7 @@ class VoxelPartitionInferer(Inferer):
         sub_batch_size: int = 1,
         softmax: bool = False,
         pos_key: str = DataKeys.POS,
+        batch_key: str = DataKeys.BATCH,
         seed: Optional[int] = None,
     ) -> None:
         if voxel_size <= 0.0:
@@ -62,6 +66,7 @@ class VoxelPartitionInferer(Inferer):
         self.sub_batch_size = sub_batch_size
         self.softmax = softmax
         self.pos_key = pos_key
+        self.batch_key = batch_key
         self.seed = seed
 
     @torch.no_grad()
@@ -72,40 +77,58 @@ class VoxelPartitionInferer(Inferer):
     ) -> Tensor:
         if self.pos_key not in data:
             raise KeyError(f"`data` is missing the required key {self.pos_key!r}.")
+        if self.batch_key not in data:
+            raise KeyError(f"`data` is missing the required key {self.batch_key!r}.")
 
         pos = data[self.pos_key]
+        batch = data[self.batch_key]
         n = pos.size(0)
 
-        _, inverse, count = voxel_grid_fnv(pos, self.voxel_size, return_inverse=True, return_counts=True)
-        idx_sort = torch.argsort(inverse, stable=True)
-        starts = torch.cumsum(count, dim=0) - count
-        k = int(count.max())
-        v = int(count.numel())
-
         rng = torch.Generator() if self.seed is None else torch.Generator().manual_seed(int(self.seed))
-        sub_indices: List[Tensor] = [idx_sort[starts + (i % count)][torch.randperm(v, generator=rng)] for i in range(k)]
 
         logits_sum: Optional[Tensor] = None
         counts: Optional[Tensor] = None
 
-        for start in range(0, k, self.sub_batch_size):
-            chunk = sub_indices[start : start + self.sub_batch_size]
-            samples = [index_select_dict(data, idx, n) for idx in chunk]
-            if self.transform is not None:
-                samples = [self.transform(s) for s in samples]
-            packed = collate(samples)
-            packed_orig = torch.cat(chunk)
+        for b in torch.unique(batch).tolist():
+            idx_b = torch.where(batch == b)[0]
+            n_b = int(idx_b.numel())
+            data_b = index_select_dict(data, idx_b, n)
 
-            logits = predictor(packed)
-            if self.softmax:
-                logits = torch.softmax(logits, dim=-1)
-            if logits_sum is None:
-                logits_sum = torch.zeros(n, int(logits.size(-1)), dtype=torch.float64, device=logits.device)
-                counts = torch.zeros(n, dtype=torch.long, device=logits.device)
-            assert counts is not None
-            packed_orig = packed_orig.to(logits.device)
-            logits_sum.index_add_(0, packed_orig, logits.double())
-            counts.index_add_(0, packed_orig, torch.ones_like(packed_orig))
+            _, inverse, count = voxel_grid_fnv(pos[idx_b], self.voxel_size, return_inverse=True, return_counts=True)
+            idx_sort = torch.argsort(inverse, stable=True)
+            starts = torch.cumsum(count, dim=0) - count
+            k = int(count.max())
+            v = int(count.numel())
+
+            sub_indices: List[Tensor] = [
+                idx_sort[starts + (i % count)][torch.randperm(v, generator=rng)] for i in range(k)
+            ]
+
+            for start in range(0, k, self.sub_batch_size):
+                chunk = sub_indices[start : start + self.sub_batch_size]
+                samples = [index_select_dict(data_b, idx, n_b) for idx in chunk]
+                if self.transform is not None:
+                    samples = [self.transform(s) for s in samples]
+                    for sample, idx in zip(samples, chunk):
+                        if int(sample[self.pos_key].size(0)) != int(idx.numel()):
+                            raise ValueError(
+                                f"`transform` must preserve each sub-cloud's row count; got {int(idx.numel())} -> "
+                                f"{int(sample[self.pos_key].size(0))} rows. Use `SlidingWindowInferer` with "
+                                "`inverse_key` for row-altering transforms."
+                            )
+                packed = collate(samples, batch_from=self.pos_key, batch_key=self.batch_key)
+                packed_orig = idx_b[torch.cat(chunk)]
+
+                logits = predictor(packed)
+                if self.softmax:
+                    logits = torch.softmax(logits, dim=-1)
+                if logits_sum is None:
+                    logits_sum = torch.zeros(n, int(logits.size(-1)), dtype=torch.float64, device=logits.device)
+                    counts = torch.zeros(n, dtype=torch.long, device=logits.device)
+                assert counts is not None
+                packed_orig = packed_orig.to(logits.device)
+                logits_sum.index_add_(0, packed_orig, logits.double())
+                counts.index_add_(0, packed_orig, torch.ones_like(packed_orig))
 
         if logits_sum is None or counts is None:
             return pos.new_zeros((0, 0))
