@@ -37,7 +37,6 @@ class PointConvDensityEncoder(nn.Module):
         ratios: Sequence[float],
         weight_channels: Union[Sequence[int]] = (8, 8),
         density_channels: Union[Sequence[int]] = (16, 8),
-        expansion: int = 16,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -130,7 +129,6 @@ class PointConvDensityClassification(ClassificationModel):
         ratios: Sequence[float] = (0.5, 0.25, 0.0),
         density_channels: Sequence[int] = (16, 8),
         weight_channels: Sequence[int] = (8, 8),
-        expansion: int = 16,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -148,7 +146,6 @@ class PointConvDensityClassification(ClassificationModel):
         self.ratios = ensure_list(ratios)
         self.density_channels = ensure_list(density_channels)
         self.weight_channels = ensure_list(weight_channels)
-        self.expansion = expansion
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
@@ -175,7 +172,6 @@ class PointConvDensityClassification(ClassificationModel):
             ratios=self.ratios,
             density_channels=self.density_channels,
             weight_channels=self.weight_channels,
-            expansion=self.expansion,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,

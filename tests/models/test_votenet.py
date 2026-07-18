@@ -7,7 +7,8 @@ from torch import Tensor
 from torch_pointcloud.layers.pointnet2_blocks import SAModule
 from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.votenet import VoteNetDetection, VotingModule
+from torch_pointcloud.models.votenet import VoteNetDetection, VoteNetOutput, VotingModule
+from torch_pointcloud.transforms.functional import class_to_angle, class_to_size
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -182,6 +183,43 @@ def test_votenet_create_model_no_pretrained() -> None:
     assert model.num_heading_bin == 12
     assert model.num_size_cluster == 10
     assert model.sampling == "seed_fps"
+
+
+def test_votenet_decode_negates_native_heading() -> None:
+    """`decode` returns counter-clockwise headings: the negated bin-decoded angle; all else is unchanged."""
+    torch.manual_seed(0)
+    model = _create_votenet(num_heading_bin=12, num_classes=10, num_size_cluster=10, mean_sizes=[[1.0, 1.0, 1.0]] * 10)
+    b, k, nh, ns = 2, model.num_proposal, 12, 10
+    out: VoteNetOutput = {
+        "objectness_scores": torch.randn(b, k, 2),
+        "center": torch.randn(b, k, 3),
+        "heading_scores": torch.randn(b, k, nh),
+        "heading_residuals_normalized": torch.randn(b, k, nh),
+        "heading_residuals": torch.randn(b, k, nh) * 0.2,
+        "size_scores": torch.randn(b, k, ns),
+        "size_residuals_normalized": torch.randn(b, k, ns, 3),
+        "size_residuals": torch.randn(b, k, ns, 3) * 0.1,
+        "sem_cls_scores": torch.randn(b, k, 10),
+        "pos_vote_aggr": torch.randn(b, k, 3),
+        "pos_seed": torch.randn(b * 4, 3),
+        "batch_seed": torch.arange(b).repeat_interleave(4),
+        "seed_indices": torch.zeros(b * 4, dtype=torch.long),
+        "pos_vote": torch.randn(b * 4, 3),
+        "batch_vote": torch.arange(b).repeat_interleave(4),
+    }
+    det = model.decode(out)
+
+    heading_class = out["heading_scores"].argmax(dim=-1)
+    heading_residual = out["heading_residuals"].gather(2, heading_class.unsqueeze(-1)).squeeze(-1)
+    native = class_to_angle(heading_class, heading_residual, nh)
+    size_class = out["size_scores"].argmax(dim=-1)
+    size_residual = out["size_residuals"].gather(2, size_class.view(b, k, 1, 1).expand(-1, -1, 1, 3)).squeeze(2)
+    size = class_to_size(size_class.reshape(-1), size_residual.reshape(-1, 3), model.mean_sizes)
+
+    assert torch.allclose(det["boxes"][:, 6], -native.reshape(-1))
+    assert torch.equal(det["boxes"][:, :3], out["center"].reshape(-1, 3))
+    assert torch.allclose(det["boxes"][:, 3:6], size)
+    assert torch.equal(det["labels"], out["sem_cls_scores"].softmax(-1).argmax(-1).reshape(-1))
 
 
 def test_votenet_output_feeds_loss_directly() -> None:

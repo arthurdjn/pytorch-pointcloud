@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, TypedDict
 
 import numpy as np
 import torch
@@ -670,6 +670,34 @@ class LION3DBackbone(nn.Module):
         return self.linear_out(x4)
 
 
+class TransFusionHeadOutput(TypedDict):
+    r"""Raw per-query TransFusion head predictions plus the dense heatmap.
+
+    Attributes:
+        center: BEV center in feature-map cells, shape $(B, 2, Q)$.
+        height: Absolute box height, shape $(B, 1, Q)$.
+        dim: Log box size, shape $(B, 3, Q)$.
+        rot: $(\sin\theta, \cos\theta)$, shape $(B, 2, Q)$.
+        vel: BEV velocity, shape $(B, 2, Q)$.
+        iou: IoU-rectification prediction in $[-1, 1]$, shape $(B, 1, Q)$.
+        heatmap: Per-query class logits, shape $(B, C, Q)$.
+        query_heatmap_score: Dense-heatmap score gathered at each query cell, shape $(B, C, Q)$.
+        query_labels: Initial class of each query, shape $(B, Q)$.
+        dense_heatmap: Dense BEV class logits, shape $(B, C, W, H)$.
+    """
+
+    center: Tensor
+    height: Tensor
+    dim: Tensor
+    rot: Tensor
+    vel: Tensor
+    iou: Tensor
+    heatmap: Tensor
+    query_heatmap_score: Tensor
+    query_labels: Tensor
+    dense_heatmap: Tensor
+
+
 class SeparateHeadTransfusion(nn.Module):
     r"""Per-attribute prediction head of TransFusion (`SeparateHead_Transfusion`).
 
@@ -943,7 +971,7 @@ class TransFusionHead(nn.Module):
         bev_pos = torch.cat([(bx + 0.5)[None], (by + 0.5)[None]], dim=0)[None]
         self.register_buffer("bev_pos", bev_pos.view(1, 2, -1).permute(0, 2, 1), persistent=False)
 
-    def predict(self, inputs: Tensor) -> Dict[str, Tensor]:
+    def predict(self, inputs: Tensor) -> TransFusionHeadOutput:
         batch_size = inputs.shape[0]
         lidar_feat = self.shared_conv(inputs)
         lidar_feat_flatten = lidar_feat.view(batch_size, lidar_feat.shape[1], -1)
@@ -975,13 +1003,15 @@ class TransFusionHead(nn.Module):
             index=top_proposals_index[:, None, :].permute(0, 2, 1).expand(-1, -1, bev_pos.shape[-1]), dim=1
         )
 
-        top_proposals_x = top_proposals_index // x_grid
+        # The flat BEV index is x-major (x * y_grid + y), so the decomposition and the neighbour-key
+        # reconstruction must both use y_grid; x_grid only bounds the total cell count.
+        top_proposals_x = top_proposals_index // y_grid
         top_proposals_y = top_proposals_index % y_grid
         top_proposals_key_x = top_proposals_x[:, :, None, None] + self.query_offset_x[None, None]
         top_proposals_key_y = top_proposals_y[:, :, None, None] + self.query_offset_y[None, None]
         top_proposals_key_index = top_proposals_key_x.view(
             batch_size, top_proposals_key_x.shape[1], -1
-        ) * x_grid + top_proposals_key_y.view(batch_size, top_proposals_key_y.shape[1], -1)
+        ) * y_grid + top_proposals_key_y.view(batch_size, top_proposals_key_y.shape[1], -1)
         key_mask = (top_proposals_key_index < 0) + (top_proposals_key_index >= (x_grid * y_grid))
         top_proposals_key_index = torch.clamp(top_proposals_key_index, min=0, max=x_grid * y_grid - 1)
         num_proposals = top_proposals_key_index.shape[1]
@@ -1004,15 +1034,22 @@ class TransFusionHead(nn.Module):
         query_feat = query_feat_t.reshape(batch_size, num_proposals, -1).permute(0, 2, 1)
 
         res_layer = self.prediction_head(query_feat)
-        res_layer["center"] = res_layer["center"] + query_pos.permute(0, 2, 1)
-        res_layer["query_heatmap_score"] = heatmap.gather(
-            index=top_proposals_index[:, None, :].expand(-1, self.num_classes, -1), dim=-1
-        )
-        res_layer["query_labels"] = top_proposals_class
-        res_layer["dense_heatmap"] = dense_heatmap
-        return res_layer
+        return {
+            "center": res_layer["center"] + query_pos.permute(0, 2, 1),
+            "height": res_layer["height"],
+            "dim": res_layer["dim"],
+            "rot": res_layer["rot"],
+            "vel": res_layer["vel"],
+            "iou": res_layer["iou"],
+            "heatmap": res_layer["heatmap"],
+            "query_heatmap_score": heatmap.gather(
+                index=top_proposals_index[:, None, :].expand(-1, self.num_classes, -1), dim=-1
+            ),
+            "query_labels": top_proposals_class,
+            "dense_heatmap": dense_heatmap,
+        }
 
-    def forward(self, spatial_features_2d: Tensor) -> Dict[str, Tensor]:
+    def forward(self, spatial_features_2d: Tensor) -> TransFusionHeadOutput:
         feats = spatial_features_2d.permute(0, 1, 3, 2).contiguous()
         return self.predict(feats)
 
@@ -1054,7 +1091,7 @@ class TransFusionHead(nn.Module):
         return preds
 
     @torch.no_grad()
-    def decode(self, preds_dicts: Dict[str, Tensor]) -> Detection3D:
+    def decode(self, preds_dicts: TransFusionHeadOutput) -> Detection3D:
         r"""Decode raw head predictions into raw candidate detections (no NMS).
 
         Multiplies the sigmoid query scores by the gathered dense-heatmap score, recovers oriented
@@ -1216,11 +1253,11 @@ class LIONDetection(DetectionModel):
         bev = dense.view(b, c * d, h, w)
         return self.backbone(bev)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> TransFusionHeadOutput:
         return self.head(self.forward_features(x, pos, batch))
 
     @torch.no_grad()
-    def decode(self, out: Dict[str, Tensor]) -> Detection3D:
+    def decode(self, out: TransFusionHeadOutput) -> Detection3D:
         r"""Decode a forward output into raw candidate detections (see `TransFusionHead.decode`)."""
         return self.head.decode(out)
 

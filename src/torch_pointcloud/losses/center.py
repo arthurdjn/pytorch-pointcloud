@@ -77,9 +77,9 @@ def _densify_gt(
 ) -> Tuple[List[Tensor], List[Tensor]]:
     r"""Split the packed GT boxes / labels into per-scene lists with a fixed $7 + \text{num\_extra}$ box width.
 
-    The packed batch carries `DataKeys.BOX` $(K, D)$, one-based `DataKeys.LABEL` $(K,)$ and the per-box
+    The packed batch carries `DataKeys.BOX` $(K, D)$, zero-based `DataKeys.LABEL` $(K,)$ and the per-box
     scene index `DataKeys.BATCH_BOX` $(K,)$. Each scene's boxes are sliced (or zero-padded) to seven
-    geometry columns plus `num_extra` trailing columns (e.g. velocity); labels are shifted to zero-based.
+    geometry columns plus `num_extra` trailing columns (e.g. velocity); labels pass through unchanged.
 
     Args:
         batch: Packed ground-truth dict.
@@ -255,7 +255,10 @@ class CenterLoss(nn.Module):
             ys = (pys[b][keep].float() + box[:, 1]) * self.feature_map_stride * vy + self.point_cloud_range[1]
             angle = torch.atan2(box[:, 7], box[:, 6])
             decoded = torch.stack([xs, ys, box[:, 2], *box[:, 3:6].exp().unbind(-1), angle], dim=-1)
-            gt = boxes_per_scene[b][: box.shape[0], :7]
+            # Target slot k maps to GT row k, but skipped (degenerate / out-of-range) boxes leave holes in
+            # the mask, so the kept predictions must be paired with the kept GT rows, not the first rows.
+            gt_idx = keep.nonzero(as_tuple=False).squeeze(1)
+            gt = boxes_per_scene[b][gt_idx][:, :7]
             iou_target = boxes_iou3d(decoded, gt).diagonal() * 2 - 1
             total = total + F.l1_loss(gathered_iou[b][keep].view(-1), iou_target, reduction="sum")
             count = count + keep.sum()

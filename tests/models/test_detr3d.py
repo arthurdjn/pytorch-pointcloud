@@ -93,6 +93,29 @@ def test_detr3d_decode_packed_detections() -> None:
     assert det["labels"].max() < model.num_classes if n else True
 
 
+def test_detr3d_decode_negates_native_heading() -> None:
+    """`decode` returns counter-clockwise headings: the negated `angle_continuous`; all else is unchanged."""
+    torch.manual_seed(0)
+    model = _small_detr3d(num_angle_bin=12).eval()
+    b, q, nb = 2, 16, 12
+    out: DETR3DOutput = {
+        "sem_cls_logits": torch.randn(b, q, 6),
+        "center_unnormalized": torch.randn(b, q, 3),
+        "size_unnormalized": torch.rand(b, q, 3) + 0.5,
+        "angle_logits": torch.randn(b, q, nb),
+        "angle_residual": torch.randn(b, q, nb) * 0.2,
+        "angle_continuous": torch.rand(b, q) * 6 - 3,
+        "objectness_prob": torch.rand(b, q),
+        "sem_cls_prob": torch.rand(b, q, 5),
+    }
+    det = model.decode(out)
+    assert torch.equal(det["boxes"][:, 6], -out["angle_continuous"].reshape(-1))
+    assert torch.equal(det["boxes"][:, :3], out["center_unnormalized"].reshape(-1, 3))
+    assert torch.equal(det["boxes"][:, 3:6], out["size_unnormalized"].reshape(-1, 3))
+    assert torch.equal(det["scores"], out["objectness_prob"].reshape(-1))
+    assert torch.equal(det["labels"], out["sem_cls_prob"].argmax(-1).reshape(-1))
+
+
 def test_detr3d_reset_classifier() -> None:
     model = _small_detr3d().eval()
     model.reset_classifier(num_classes=9)

@@ -3,6 +3,7 @@ import torch
 
 from torch_pointcloud.models.pointgpt import (
     PointGPTClassification,
+    PointGPTExtractor,
     PointGPTGenerativePretraining,
     morton_sort,
 )
@@ -65,6 +66,54 @@ def test_pointgpt_generative_pretraining_basic() -> None:
     assert pred.ndim == target.ndim == 3
     assert pred.shape == target.shape
     assert pred.shape[1:] == (model.group_size, 3)
+
+
+def test_pointgpt_classification_num_classes_zero_returns_features() -> None:
+    model = PointGPTClassification(
+        in_channels=0,
+        num_classes=0,
+        embed_dim=96,
+        depth=2,
+        num_heads=2,
+        num_group=16,
+        group_size=8,
+        act="gelu",
+    ).cuda()
+    assert isinstance(model.head, torch.nn.Identity)
+    pos, batch = _packed_batch()
+    out = model(None, pos, batch)
+    assert out.shape == (2, 2 * model.embed_dim)
+
+
+def test_pointgpt_generative_pretraining_duplicate_centers_finite() -> None:
+    model = PointGPTGenerativePretraining(
+        in_channels=0,
+        embed_dim=96,
+        depth=2,
+        decoder_depth=1,
+        num_heads=2,
+        num_group=8,
+        group_size=4,
+        mask_ratio=0.5,
+        keep_attend=2,
+        act="gelu",
+    ).cuda()
+    model.eval()
+    pos = torch.zeros(512, 3).cuda()
+    batch = torch.cat([torch.zeros(256), torch.ones(256)]).long().cuda()
+    pred, target = model(None, pos, batch)
+    assert torch.isfinite(pred).all()
+    assert torch.isfinite(target).all()
+
+
+def test_pointgpt_extractor_half_precision() -> None:
+    extractor = PointGPTExtractor(embed_dim=32, num_heads=2, depth=1).cuda().half()
+    tokens = torch.randn(2, 5, 32).cuda().half()
+    pos = torch.randn(2, 6, 32).cuda().half()
+    mask = torch.triu(torch.ones(6, 6, dtype=torch.bool, device="cuda"), diagonal=1)
+    out = extractor(tokens, pos, mask)
+    assert out.dtype == torch.float16
+    assert out.shape == (2, 6, 32)
 
 
 def test_pointgpt_morton_sort_is_permutation() -> None:

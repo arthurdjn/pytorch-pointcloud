@@ -103,12 +103,16 @@ def test_voxel_mamba_decode() -> None:
     pos, x, batch = _make_inputs()
     with torch.no_grad():
         out = model(x, pos, batch)
-        det = model.decode(out, score_threshold=0.1, k=100)
+        det = model.decode(out, score_threshold=0.1, top_k=100)
+        raw = model.decode(out, top_k=100)
         idx = nms3d(det["boxes"], det["scores"], 0.7, labels=det["labels"], batch=det["batch"])
     assert det["boxes"].shape[1] == 7
     assert det["scores"].shape[0] == det["boxes"].shape[0] == det["labels"].shape[0] == det["batch"].shape[0]
     assert idx.numel() <= det["boxes"].shape[0]
     assert torch.isfinite(det["boxes"]).all()
+    # The default decode is non-filtering: it returns every gathered peak (the eval layer thresholds).
+    assert raw["boxes"].shape[0] == 100
+    assert raw["boxes"].shape[0] >= det["boxes"].shape[0]
 
 
 @pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")

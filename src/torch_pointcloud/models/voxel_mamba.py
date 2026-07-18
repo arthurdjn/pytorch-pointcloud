@@ -1,5 +1,5 @@
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
 import torch.nn as nn
@@ -492,6 +492,26 @@ class VoxelMambaBackbone(nn.Module):
         return voxel_features, voxel_indices
 
 
+class CenterHeadOutput(TypedDict):
+    r"""Raw dense center-head maps over the BEV feature grid.
+
+    Attributes:
+        center: Sub-cell BEV center offset, shape $(B, 2, H, W)$.
+        center_z: Absolute box height, shape $(B, 1, H, W)$.
+        dim: Log box size, shape $(B, 3, H, W)$.
+        rot: $(\cos\theta, \sin\theta)$, shape $(B, 2, H, W)$.
+        iou: IoU-rectification prediction in $[-1, 1]$, shape $(B, 1, H, W)$.
+        heatmap: Per-class center logits, shape $(B, C, H, W)$.
+    """
+
+    center: Tensor
+    center_z: Tensor
+    dim: Tensor
+    rot: Tensor
+    iou: Tensor
+    heatmap: Tensor
+
+
 class SeparateHead(nn.Module):
     r"""Per-attribute conv head of the center head.
 
@@ -543,7 +563,7 @@ class SeparateHead(nn.Module):
         self.iou = separate_branch(in_channels, 1, **branch_kwargs)
         self.heatmap = separate_branch(in_channels, num_classes, **branch_kwargs)
 
-    def forward(self, x: Tensor) -> Dict[str, Tensor]:
+    def forward(self, x: Tensor) -> CenterHeadOutput:
         return {
             "center": self.center(x),
             "center_z": self.center_z(x),
@@ -607,7 +627,7 @@ class CenterHead(nn.Module):
             bias=bias,
         )
 
-    def forward(self, spatial_features_2d: Tensor) -> Dict[str, Tensor]:
+    def forward(self, spatial_features_2d: Tensor) -> CenterHeadOutput:
         return self.prediction_head(self.shared_conv(spatial_features_2d))
 
 
@@ -706,30 +726,31 @@ class VoxelMambaDetection(DetectionModel):
             bev[b, :, flat[mask]] = features[mask].t()
         return bev.view(batch_size, self.bev_channels, ny, nx)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> CenterHeadOutput:
         return self.head(self.forward_features(x, pos, batch))
 
     @torch.no_grad()
     def decode(
         self,
-        out: Dict[str, Tensor],
+        out: CenterHeadOutput,
         *,
-        score_threshold: float = 0.1,
-        k: int = 500,
+        score_threshold: float = 0.0,
+        top_k: int = 500,
         iou_rectifier: Sequence[float] = (0.68, 0.71, 0.65),
     ) -> Detection3D:
         r"""Decode center-head predictions into raw candidate detections (no NMS).
 
         Peaks of the (sigmoid) heatmap give candidate centers; box attributes are gathered at those
-        peaks, mapped to world coordinates, thresholded by score, and rescored by the predicted IoU
+        peaks, mapped to world coordinates, and rescored by the predicted IoU
         ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference). The
-        full candidate set is returned; the evaluation pipeline applies per-class 3D NMS via the
-        `torch_pointcloud.utils.box3d` utilities.
+        full candidate set is returned; the evaluation pipeline applies score thresholding and per-class
+        3D NMS via the `torch_pointcloud.utils.box3d` utilities.
 
         Args:
-            out: The dict returned by `forward`.
-            score_threshold: Minimum (pre-rectification) heatmap score to keep a peak.
-            k: Number of heatmap peaks gathered per scene.
+            out: A `CenterHeadOutput` from `forward`.
+            score_threshold: Minimum (pre-rectification) heatmap score to keep a peak; the non-filtering
+                $0$ default returns every peak (the reference protocol filters at $0.1$).
+            top_k: Number of heatmap peaks gathered per scene.
             iou_rectifier: Per-class IoU-rectification exponent (the reference Waymo values).
 
         Returns:
@@ -739,7 +760,7 @@ class VoxelMambaDetection(DetectionModel):
         heatmap = out["heatmap"].sigmoid()
         batch_size, _, h, w = heatmap.shape
         # One global top-k over the flat heatmap equals the reference's per-class-then-global two-stage top-k.
-        scores, inds = torch.topk(heatmap.flatten(1), k)
+        scores, inds = torch.topk(heatmap.flatten(1), top_k)
         classes = torch.div(inds, h * w, rounding_mode="floor")
         inds = inds % (h * w)
         xs = (inds % w).float()

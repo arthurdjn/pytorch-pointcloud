@@ -914,9 +914,10 @@ class DETR3DDetection(DetectionModel):
     def decode(self, out: DETR3DOutput) -> Detection3D:
         r"""Decode a forward output into raw per-query detections (no NMS, threshold, or filtering).
 
-        Builds one oriented box per query (the heading is `angle_continuous` directly, matching the dataset
-        / metric $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ convention), scores it by objectness, and labels it
-        by the argmax semantic class. The result is the full unfiltered query set; the evaluation pipeline
+        Builds one oriented box per query, scores it by objectness, and labels it by the argmax semantic
+        class. The angle head predicts negated angles, so the decoded heading is the negated
+        `angle_continuous`, matching the dataset / metric $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$
+        counter-clockwise convention. The result is the full unfiltered query set; the evaluation pipeline
         applies point-count filtering, NMS, score thresholding, and the indoor per-class expansion (driven
         by the returned `class_probs`) via the `torch_pointcloud.utils.box3d` utilities, reproducing 3DETR's
         `APCalculator` test protocol (`exact_eval=True`).
@@ -936,7 +937,7 @@ class DETR3DDetection(DetectionModel):
         """
         batch_size, num_queries = out["center_unnormalized"].shape[:2]
         boxes = torch.cat(
-            [out["center_unnormalized"], out["size_unnormalized"], out["angle_continuous"].unsqueeze(-1)], dim=-1
+            [out["center_unnormalized"], out["size_unnormalized"], -out["angle_continuous"].unsqueeze(-1)], dim=-1
         )
         objectness = out["objectness_prob"]
         class_probs = out["sem_cls_prob"]

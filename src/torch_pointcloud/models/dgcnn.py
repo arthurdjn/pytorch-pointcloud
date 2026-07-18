@@ -243,6 +243,8 @@ class DGCNNClassification(ClassificationModel):
         return base
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
@@ -447,7 +449,7 @@ class DGCNNSegmentation(SegmentationModel):
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        return self.head(x)
+        return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, _, batch = self.forward_features(x, pos, batch)
@@ -627,7 +629,7 @@ class DGCNNPartSegmentation(SegmentationModel):
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        return self.head(x)
+        return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x, _, batch = self.forward_features(x, pos, batch, category)

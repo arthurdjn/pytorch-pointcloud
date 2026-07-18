@@ -22,6 +22,8 @@ from torch_pointcloud.utils.imports import (
 )
 from torch_pointcloud.utils.octree import build_octree
 
+SNAPSHOTS_DIR = Path(__file__).resolve().parents[1] / "data" / "models"
+
 CLASSIFICATION_MODELS = [
     "dgcnn.modelnet40-1024.an-tao",
     "dgcnn.modelnet40-2048.an-tao",
@@ -346,9 +348,10 @@ def _check_architecture_or_regen(
 
     expected_path = models_dir / f"{model_name}_{task}.json"
     if force_regen or not expected_path.exists():
-        expected_path.parent.mkdir(parents=True, exist_ok=True)
-        expected_path.write_text(json.dumps(metadata, indent=2) + "\n")
-        pytest.fail(f"Regenerated {expected_path.as_posix()!r}")
+        snapshot_path = SNAPSHOTS_DIR / f"{model_name}_{task}.json"
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_text(json.dumps(metadata, indent=2) + "\n")
+        pytest.fail(f"Regenerated {snapshot_path.as_posix()!r}")
 
     expected = json.loads(expected_path.read_text())
 
@@ -611,6 +614,78 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
 
     if device == "cuda":
         torch.cuda.empty_cache()
+
+
+def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int = 256) -> Dict[str, Any]:
+    """Two tiny packed scenes: indoor-scale positions by default, KITTI-range positions for PointRCNN
+    (whose `in_channels` counts the three coordinate channels, so features carry `in_channels - 3`)."""
+    torch.manual_seed(42)
+    n = 2 * n_per_scene
+    batch = torch.arange(2).repeat_interleave(n_per_scene)
+    if model_name.startswith("pointrcnn"):
+        low = torch.tensor([0.0, -40.0, -3.0])
+        high = torch.tensor([70.4, 40.0, 1.0])
+        pos = torch.rand(n, 3) * (high - low) + low
+        x = torch.rand(n, in_channels - 3)
+        return {"x": x, "pos": pos, "batch": batch}
+    pos = torch.rand(n, 3) * 4.0
+    return {"x": torch.rand(n, in_channels) if in_channels > 0 else None, "pos": pos, "batch": batch}
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize(
+    "model_name,model_kwargs",
+    [
+        pytest.param(
+            "votenet.scannet.fair", dict(sa_npoints=[128, 64, 32, 16], num_proposal=32), id="votenet.scannet.fair"
+        ),
+        pytest.param(
+            "votenet.sunrgbd.fair", dict(sa_npoints=[128, 64, 32, 16], num_proposal=32), id="votenet.sunrgbd.fair"
+        ),
+        pytest.param("3detr.scannet.fair", dict(preenc_npoints=128, num_queries=32), id="3detr.scannet.fair"),
+        pytest.param("3detr-m.scannet.fair", dict(preenc_npoints=128, num_queries=32), id="3detr-m.scannet.fair"),
+        pytest.param("3detr.sunrgbd.fair", dict(preenc_npoints=128, num_queries=32), id="3detr.sunrgbd.fair"),
+        pytest.param(
+            "pointrcnn.kitti.openpcdet",
+            dict(sa_npoints=[128, 64, 32, 16], num_sampled_points=64, nms_post_maxsize=16),
+            id="pointrcnn.kitti.openpcdet",
+        ),
+    ],
+)
+def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) -> None:
+    """CPU forward + decode smoke for the point-based detectors.
+
+    `model_kwargs` only shrinks sampling sizes (`sa_npoints`, `num_proposal`, `preenc_npoints`, ...), which
+    keeps the state-dict structure identical to the registered configuration while the forward stays fast
+    on a few hundred CPU points. The grid-based detectors (pointpillars, second, voxelnext, voxel-mamba,
+    lion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
+    """
+    _skip_if_model_deps_missing(model_name)
+    model = create_model(model_name, task="detection", **model_kwargs).eval()
+    data = _make_detection_inputs(model_name, in_channels=model.in_channels)
+
+    with torch.no_grad():
+        output = model(data["x"], data["pos"], data["batch"])
+        detections = model.decode(output)
+
+    assert isinstance(output, dict) and output, f"{model_name}: expected a non-empty output dict"
+    for key, value in output.items():
+        assert isinstance(value, torch.Tensor), f"{model_name}: output[{key!r}] is not a Tensor"
+        assert torch.isfinite(value).all().item(), f"{model_name}: output[{key!r}] contains NaN or Inf"
+
+    num_boxes = detections["boxes"].shape[0]
+    assert detections["boxes"].shape == (num_boxes, 7)
+    assert detections["scores"].shape == (num_boxes,)
+    assert detections["labels"].shape == (num_boxes,)
+    assert detections["batch"].shape == (num_boxes,)
+    if num_boxes:
+        assert detections["labels"].min().item() >= 0
+        assert detections["labels"].max().item() < model.num_classes
+        assert detections["batch"].min().item() >= 0
+        assert detections["batch"].max().item() <= 1
 
 
 def test_registered_weights_classes_match_num_classes() -> None:

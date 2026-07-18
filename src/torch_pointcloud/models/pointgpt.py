@@ -244,7 +244,7 @@ class PointGPTExtractor(nn.Module):
         x = x.transpose(0, 1)
         pos = pos.transpose(0, 1)
 
-        sos = torch.ones(1, batch, self.embed_dim, device=x.device) * self.sos
+        sos = x.new_ones(1, batch, self.embed_dim) * self.sos
         if shift:
             x = torch.cat([sos, x[:-1]], dim=0)
         else:
@@ -433,6 +433,8 @@ class PointGPTClassification(ClassificationModel):
         self.reset_parameters()
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         return MLP(
             [self.embed_dim * 2, 256, 256, self.num_classes],
             act=self.head_act,
@@ -633,7 +635,9 @@ class PointGPTGenerativePretraining(BaseModel):
         B, G, _ = tokens.shape
 
         relative = center[:, 1:, :] - center[:, :-1, :]
-        relative = relative / relative.norm(dim=-1, keepdim=True)
+        # Duplicate centers give a zero norm; clamp to the smallest normal number so the
+        # degenerate direction becomes 0 instead of NaN while normal inputs are untouched.
+        relative = relative / relative.norm(dim=-1, keepdim=True).clamp_min(torch.finfo(relative.dtype).tiny)
         position = torch.cat([center[:, :1, :], relative], dim=1)
 
         pos_relative = self.pos_embed(position)
