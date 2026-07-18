@@ -1,3 +1,5 @@
+import io
+import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
@@ -6,7 +8,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from torch_pointcloud.datasets.utils import download_url, extract_zip, is_hash_valid, urltailname
+from torch_pointcloud.datasets.utils import (
+    compute_hash,
+    download_url,
+    extract_tar,
+    extract_zip,
+    is_hash_valid,
+    urltailname,
+)
 
 
 def create_zip(out_dir: Path, nested: bool = False) -> Path:
@@ -20,6 +29,23 @@ def create_zip(out_dir: Path, nested: bool = False) -> Path:
             zip_file.write(file_path, out_path)
 
     return zip_path
+
+
+def create_tar(out_dir: Path, symlink: bool = False) -> Path:
+    tar_path = out_dir / "test.tar.gz"
+    with tarfile.open(tar_path, "w:gz") as tar_file:
+        info = tarfile.TarInfo("files/file.txt")
+        content = b"content"
+        info.size = len(content)
+        tar_file.addfile(info, io.BytesIO(content))
+
+        if symlink:
+            link = tarfile.TarInfo("files/link.txt")
+            link.type = tarfile.SYMTYPE
+            link.linkname = "missing-target.txt"
+            tar_file.addfile(link)
+
+    return tar_path
 
 
 @pytest.fixture
@@ -59,6 +85,26 @@ def test_download_url_custom_path(mock_urlopen: Mock, tmp_path: Path) -> None:
     path = download_url("https://example.com/file.txt", tmp_path / "custom.txt", show_progress=False)
     assert path == str(tmp_path / "custom.txt")
     assert Path(path).exists()
+    assert Path(path).read_text() == "content"
+
+
+def test_download_url_existing_file_is_kept(mock_urlopen: Mock, tmp_path: Path) -> None:
+    """Test that an existing file is returned as-is when overwrite is not requested."""
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("old content")
+
+    path = download_url("https://example.com/file.txt", file_path, show_progress=False)
+    assert not mock_urlopen.called
+    assert Path(path).read_text() == "old content"
+
+
+def test_download_url_overwrite_existing_file(mock_urlopen: Mock, tmp_path: Path) -> None:
+    """Test that an existing file is re-downloaded when overwrite is requested."""
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("old content")
+
+    path = download_url("https://example.com/file.txt", file_path, show_progress=False, overwrite=True)
+    assert mock_urlopen.called
     assert Path(path).read_text() == "content"
 
 
@@ -110,11 +156,50 @@ def test_extract_zip_with_progress(tmp_path: Path, capsys: pytest.CaptureFixture
     assert "Extracting" in captured.err
 
 
+def test_extract_tar(tmp_path: Path) -> None:
+    """Test that the tar file is extracted to the correct directory."""
+    tar_path = create_tar(tmp_path)
+    result = extract_tar(tar_path, tmp_path / "out", show_progress=False)
+    assert Path(result, "files", "file.txt").read_text() == "content"
+
+
+def test_extract_tar_relative_to(tmp_path: Path) -> None:
+    """Test that the tar file is extracted relative to a specific directory."""
+    tar_path = create_tar(tmp_path)
+    result = extract_tar(tar_path, tmp_path / "out", relative_to="files", show_progress=False)
+    assert Path(result, "file.txt").read_text() == "content"
+
+
+def test_extract_tar_skips_non_regular_members(tmp_path: Path) -> None:
+    """Test that symlink members (which have no extractable file object) are skipped instead of crashing."""
+    tar_path = create_tar(tmp_path, symlink=True)
+    result = extract_tar(tar_path, tmp_path / "out", show_progress=False)
+    assert Path(result, "files", "file.txt").read_text() == "content"
+    assert not Path(result, "files", "link.txt").exists()
+
+
 @pytest.fixture
 def test_content_file(tmp_path: Path) -> Path:
     test_file = tmp_path / "test.txt"
     test_file.write_text("test content")
     return test_file
+
+
+@pytest.mark.parametrize(
+    "hash_type, expected_hash",
+    [
+        ("md5", "9473fdd0d880a43c21b7778d34872157"),
+        ("sha1", "1eebdf4fdc9fc7bf283031b93f9aef3338de9052"),
+        ("sha256", "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"),
+        (
+            "sha512",
+            "0cbf4caef38047bba9a24e621a961484e5d2a92176a859e7eb27df343dd34eb98d538a6c5f4da1ce302ec250b821cc001e46cc97a704988297185a4df7e99602",
+        ),
+    ],
+)
+def test_compute_hash(test_content_file: Path, hash_type: str, expected_hash: str) -> None:
+    """Test that the file hash is computed correctly for every supported hash type."""
+    assert compute_hash(test_content_file, hash_type) == expected_hash  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,6 @@
 # mypy: disable-error-code="arg-type,call-overload"
+import json
+import shutil
 from pathlib import Path
 from typing import Callable
 from unittest.mock import Mock, patch
@@ -94,11 +96,12 @@ def test_kitti_dataset_raw_boxes_and_fields(datasets_dir_factory: Callable[..., 
 
 
 def test_kitti_dataset_caches_npy(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Processing writes a per-frame .npy cache under processed/<split>/<frame>/."""
+    """Processing writes a per-frame .npy cache under processed/<split>/<frame>/ plus a completion marker."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
     _ = KITTI(root=datasets_dir, split="training", fov=False)
     processed = datasets_dir / "KITTI" / "processed" / "training"
-    assert sorted(p.name for p in processed.glob("*")) == ["000000", "000001", "000002"]
+    assert sorted(p.name for p in processed.glob("*")) == ["000000", "000001", "000002", "meta.json"]
+    assert json.loads((processed / "meta.json").read_text())["format_version"] == 1
     assert {p.name for p in (processed / "000000").glob("*.npy")} == {
         "pos.npy",
         "intensity.npy",
@@ -108,6 +111,42 @@ def test_kitti_dataset_caches_npy(datasets_dir_factory: Callable[..., Path]) -> 
         "occlusion.npy",
         "bbox_height.npy",
     }
+
+
+def test_kitti_dataset_legacy_cache_without_marker_loads(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A complete cache without a completion marker (legacy layout) still loads without reprocessing."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    _ = KITTI(root=datasets_dir, split="training", fov=False)
+    (datasets_dir / "KITTI" / "processed" / "training" / "meta.json").unlink()
+    with patch("torch_pointcloud.datasets.kitti.parallel_map") as mock_map:
+        dataset = KITTI(root=datasets_dir, split="training", fov=False)
+    mock_map.assert_not_called()
+    assert len(dataset) == 3
+
+
+def test_kitti_dataset_interrupted_cache_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unmarked cache with a torn frame raises instead of silently loading."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, split="training", fov=False)
+    (dataset.processed_split_dir / "meta.json").unlink()
+    (dataset.processed_split_dir / "000001" / "labels.npy").unlink()
+
+    with pytest.raises(RuntimeError, match="force_process"):
+        _ = KITTI(root=datasets_dir, split="training", fov=False)
+
+    reprocessed = KITTI(root=datasets_dir, split="training", fov=False, force_process=True)
+    assert len(reprocessed) == 3
+
+
+def test_kitti_dataset_missing_frame_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unmarked cache missing a raw frame raises instead of silently loading a partial split."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, split="training", fov=False)
+    (dataset.processed_split_dir / "meta.json").unlink()
+    shutil.rmtree(dataset.processed_split_dir / "000002")
+
+    with pytest.raises(RuntimeError, match="000002"):
+        _ = KITTI(root=datasets_dir, split="training", fov=False)
 
 
 def test_kitti_dataset_reuses_cache(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -148,6 +187,15 @@ def test_kitti_dataset_split_file(datasets_dir_factory: Callable[..., Path]) -> 
     split_file.write_text("000000\n000002\n")
     dataset = KITTI(root=datasets_dir, split="training", split_file=split_file, fov=False)
     assert [dataset[i]["frame"] for i in range(len(dataset))] == ["000000", "000002"]
+
+
+def test_kitti_dataset_split_file_missing_frames_raise(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A split file referencing frames absent from the cache raises listing the missing ids."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    split_file = datasets_dir / "val.txt"
+    split_file.write_text("000000\n000099\n")
+    with pytest.raises(RuntimeError, match="000099"):
+        _ = KITTI(root=datasets_dir, split="training", split_file=split_file, fov=False)
 
 
 def test_kitti_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> None:

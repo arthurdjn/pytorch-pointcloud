@@ -97,7 +97,7 @@ def load_s3dis_room(room_dir: PathLike, alignment_angle: float | None = None) ->
     """
     room = defaultdict(list)
 
-    for obj_idx, obj_path in enumerate(Path(room_dir).rglob("./Annotations/*.txt")):
+    for obj_idx, obj_path in enumerate(sorted(Path(room_dir).rglob("./Annotations/*.txt"))):
         class_name, *_ = obj_path.stem.split("_")
         class_idx = S3DIS_CLASS_TO_IDX.get(class_name, S3DIS_UNK_IDX)
 
@@ -267,16 +267,15 @@ class S3DIS(PointCloudDataset):
         root: The root directory of the dataset, where the raw and processed data will be stored.
         areas: The areas to load, either a list of area names or "all".
         classes: The classes to load, either a list of class names or "all".
-        aligned: Whether to return aligned (axis-aligned) coordinates.  The raw
-            download is `Stanford3dDataset_v1.2_Aligned_Version` whose coordinates
-            already contain per-room alignment rotations.  When `aligned=True` (default)
-            those coordinates are used as-is.  When `False` the *inverse* of each
-            room's alignment angle is applied to recover the original V1.2
-            (non-aligned) coordinate frame: this is required when benchmarking
-            pretrained weights that were trained on non-aligned data (e.g. the DGCNN
-            reference weights whose HDF5 blocks use non-aligned coordinates).
-            Aligned and unaligned data are stored in separate processed directories
-            so they can coexist.
+        aligned: Whether to apply each room's global alignment rotation during processing.
+            The raw `Stanford3dDataset_v1.2_Aligned_Version` download ships the same
+            (non-aligned) coordinates as V1.2 plus per-room `Area_{i}_alignmentAngle.txt`
+            files. When `aligned=True` (default) the rotation is applied so the stored
+            coordinates are globally aligned. When `False` the original V1.2 coordinate
+            frame is kept: this is required when benchmarking pretrained weights that were
+            trained on non-aligned data (e.g. the DGCNN reference weights whose HDF5 blocks
+            use non-aligned coordinates). Aligned and unaligned data are stored in separate
+            processed directories so they can coexist.
         block_size: If set, each room is split into ground-plane blocks of this size (meters) at
             load time. Changing this only affects loading, not on-disk processed data.
         block_stride: Stride between blocks when `block_size` is set.
@@ -412,23 +411,35 @@ class S3DIS(PointCloudDataset):
                 readme_path,
                 description=f"Downloading {readme_path.name}",
                 show_progress=self.show_progress,
+                overwrite=force,
             )
 
         # Download the dataset
         resource_url = urljoin(self.data_url, self.resources[1])
         resource_path = Path(self.raw_dir, self.resources[1])
 
-        if (
-            not resource_path.exists()
-            or not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
-            or force
-        ):
+        if not resource_path.exists() or force:
             download_url(
                 resource_url,
                 resource_path,
                 description=f"Downloading {resource_path.name}",
                 show_progress=self.show_progress,
+                overwrite=force,
             )
+
+        # A corrupted archive is only replaced when the download is allowed to overwrite it.
+        if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
+            download_url(
+                resource_url,
+                resource_path,
+                description=f"Downloading {resource_path.name}",
+                show_progress=self.show_progress,
+                overwrite=True,
+            )
+            if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
+                raise RuntimeError(
+                    f"File corrupted: MD5 hash mismatch for {resource_path.as_posix()!r} after re-download."
+                )
 
         # Extract the dataset
         extract_zip(
@@ -542,11 +553,13 @@ class S3DIS(PointCloudDataset):
             min_num_nodes: Minimum number of raw nodes for a block to be kept.
             show_progress: Whether to show a progress bar during loading.
         """
-        # Build the mapping between original classes and selected classes,
-        # i.e. an array of shape $(C,)$ where $C$ is the number of classes and ignored classes are mapped to `unk_idx`.
+        # Build the mapping between original classes and selected classes, i.e. an array of shape $(C,)$ where $C$ is
+        # the number of classes. Unselected classes fall back to the new index of 'clutter' when it is selected,
+        # else to the ignore index -1 (the old index of 'clutter' would lie outside the new label space).
         remap: np.ndarray | None = None
         if tuple(self.classes) != tuple(S3DIS_CLASSES):
-            remap = np.full(len(S3DIS_CLASSES), S3DIS_UNK_IDX, dtype=np.int64)
+            fill = self.class_to_idx.get(S3DIS_UNK_CLS, -1)
+            remap = np.full(len(S3DIS_CLASSES), fill, dtype=np.int64)
             for new_id, cls_name in enumerate(self.classes):
                 remap[S3DIS_CLASS_TO_IDX[cls_name]] = new_id
 
@@ -701,17 +714,28 @@ class S3DISHdf5(PointCloudDataset):
         resource_path = Path(self.data_dir, self.resource)
         resource_url = urljoin(self.data_url, self.resource)
 
-        if (
-            not resource_path.exists()
-            or not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
-            or force
-        ):
+        if not resource_path.exists() or force:
             download_url(
                 resource_url,
                 resource_path,
                 description=f"Downloading {self.resource}",
                 show_progress=show_progress,
+                overwrite=force,
             )
+
+        # A corrupted archive is only replaced when the download is allowed to overwrite it.
+        if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
+            download_url(
+                resource_url,
+                resource_path,
+                description=f"Downloading {self.resource}",
+                show_progress=show_progress,
+                overwrite=True,
+            )
+            if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
+                raise RuntimeError(
+                    f"File corrupted: MD5 hash mismatch for {resource_path.as_posix()!r} after re-download."
+                )
 
         extract_zip(resource_path, self.raw_dir, show_progress=show_progress)
 

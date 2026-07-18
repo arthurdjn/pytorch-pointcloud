@@ -44,6 +44,8 @@ class ConcatDataset(Dataset):
         return self.cumulative_sizes[-1]
 
     def __getitem__(self, index: int) -> Any:
+        if not -len(self) <= index < len(self):
+            raise IndexError(f"Index {index} is out of range for a dataset of length {len(self)}.")
         if index < 0:
             index += len(self)
         dataset_index = bisect_right(self.cumulative_sizes, index)

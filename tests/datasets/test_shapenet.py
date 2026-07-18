@@ -1,14 +1,58 @@
 # mypy: disable-error-code="arg-type"
+import io
+import pickle
+from collections import OrderedDict
 from pathlib import Path
 from typing import Callable
 
+import numpy as np
 import pytest
 import torch
+import torch._utils
 
 from torch_pointcloud.datasets import XCubeShapeNet
-from torch_pointcloud.datasets.shapenet import load_xcube_shape
+from torch_pointcloud.datasets.shapenet import _StubState, _XCubeUnpickler, _read_xcube_pickle, load_xcube_shape
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _FVDB_AVAILABLE
+
+
+def test_read_xcube_pickle_release_format(datasets_dir_factory: Callable[..., Path]) -> None:
+    """The restricted unpickler still reads the release-format pickles (this step does not need fvdb)."""
+    datasets_dir = datasets_dir_factory("XCubeShapeNet/raw/**/*")
+    file_path = datasets_dir / "XCubeShapeNet" / "raw" / "128" / "03001627" / "dummy0.pkl"
+    grid_buffer, normal = _read_xcube_pickle(file_path)
+
+    assert isinstance(grid_buffer, np.ndarray)
+    assert isinstance(normal, np.ndarray)
+    assert normal.ndim == 2 and normal.shape[1] == 3
+
+
+def test_xcube_unpickler_accepts_exact_release_globals() -> None:
+    unpickler = _XCubeUnpickler(io.BytesIO(b""))
+    assert unpickler.find_class("collections", "OrderedDict") is OrderedDict
+    assert unpickler.find_class("torch._utils", "_rebuild_tensor_v2") is torch._utils._rebuild_tensor_v2
+    for name in ("GridBatch", "JaggedTensor"):
+        stub = unpickler.find_class("fvdb._Cpp", name)
+        assert issubclass(stub, _StubState)
+
+
+@pytest.mark.parametrize(
+    "module,name",
+    [
+        ("os", "system"),
+        ("builtins", "eval"),
+        ("torch.serialization", "load"),
+        ("numpy", "ndarray"),
+        ("collections", "Counter"),
+        ("fvdb", "GridBatch"),
+        ("fvdb_evil", "GridBatch"),
+        ("fvdb._Cpp", "SparseGrid"),
+    ],
+)
+def test_xcube_unpickler_rejects_disallowed_globals(module: str, name: str) -> None:
+    unpickler = _XCubeUnpickler(io.BytesIO(b""))
+    with pytest.raises(pickle.UnpicklingError, match="not allowed"):
+        unpickler.find_class(module, name)
 
 
 @pytest.mark.skipif(not _FVDB_AVAILABLE, reason="fvdb is not installed")

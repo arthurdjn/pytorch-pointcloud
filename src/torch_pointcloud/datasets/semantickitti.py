@@ -329,12 +329,7 @@ class SemanticKITTI(PointCloudDataset):
         if not sequences_dir.is_dir():
             return False
 
-        # Accept a partial download: the raw data exists as long as at least one of the requested
-        # sequences has velodyne scans. `load()` enumerates whichever sequences are actually present.
-        return any(
-            (sequences_dir / seq / "velodyne").is_dir() and any((sequences_dir / seq / "velodyne").glob("*.bin"))
-            for seq in self.sequences
-        )
+        return all(any((sequences_dir / seq / "velodyne").glob("*.bin")) for seq in self.sequences)
 
     @override
     def processed_files_exist(self) -> bool:
@@ -345,15 +340,24 @@ class SemanticKITTI(PointCloudDataset):
 
         This populates `self.scans` with `(sequence, frame, bin_path, label_path)` tuples,
         where `label_path` is `None` when no `.label` file is present (e.g. test split).
+        Raises a `RuntimeError` listing the missing sequences when only part of the requested
+        sequences has velodyne scans on disk.
         """
-        if not self.raw_files_exist():
+        sequences_dir = Path(self.sequences_dir)
+        if not sequences_dir.is_dir():
             raise RuntimeError(
                 f"Dataset not found at {self.sequences_dir!r}. "
                 "You can download the raw dataset from https://www.semantic-kitti.org/dataset.html "
                 f"and extract it under {self.raw_dir!r}."
             )
 
-        sequences_dir = Path(self.sequences_dir)
+        missing = [seq for seq in self.sequences if not any((sequences_dir / seq / "velodyne").glob("*.bin"))]
+        if missing:
+            raise RuntimeError(
+                f"Missing sequence(s) {', '.join(missing)} under {self.sequences_dir!r}. "
+                "Download the full split from https://www.semantic-kitti.org/dataset.html, "
+                "or pass `sequences=(...)` restricted to the sequences on disk."
+            )
         scans: List[tuple[str, str, Path, Optional[Path]]] = []
         for seq in self.sequences:
             velodyne_dir = sequences_dir / seq / "velodyne"
@@ -376,9 +380,9 @@ class SemanticKITTI(PointCloudDataset):
         pos, intensity = load_semantickitti_scan(bin_path)
         data: Dict[str, Any] = {
             DataKeys.POS: pos,
-            "intensity": intensity,
+            DataKeys.INTENSITY: intensity,
             "sequence": seq,
-            "frame": frame,
+            DataKeys.FRAME: frame,
         }
 
         if label_path is not None:

@@ -1,5 +1,6 @@
-import pickle
+import json
 import shutil
+import zipfile
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -10,14 +11,14 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
-from torch_pointcloud.utils.conversion import convert_to_numpy, convert_to_tensor, ensure_tuple
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.io import load_off
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url, extract_tar, extract_zip, is_hash_valid
+from .utils import compute_hash, download_url, extract_tar, extract_zip, is_hash_valid
 
 MODELNET10_CLASSES = (
     "bathtub",
@@ -97,6 +98,37 @@ def load_modelnet_normal_resampled_data(file_path: PathLike, target: int) -> Dic
     }
 
 
+def _transform_name(transform: Optional[Callable[..., Any]]) -> Optional[str]:
+    if transform is None:
+        return None
+    return f"{type(transform).__module__}.{type(transform).__qualname__}"
+
+
+def _cache_meta(
+    classes: Sequence[str],
+    pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]],
+    pre_filter: Optional[Callable[[Dict[str, Any]], bool]],
+) -> Dict[str, Any]:
+    """Snapshot of the constructor parameters the processed cache content depends on."""
+    return {
+        "classes": list(classes),
+        "pre_transform": _transform_name(pre_transform),
+        "pre_filter": _transform_name(pre_filter),
+    }
+
+
+def _check_cache_meta(meta_path: Path, meta: Dict[str, Any]) -> None:
+    """Raise if the cache metadata records different parameters; a missing meta (legacy cache) is accepted."""
+    if not meta_path.exists():
+        return
+    cached_meta = json.loads(meta_path.read_text())
+    if cached_meta != meta:
+        raise RuntimeError(
+            f"Processed cache at {meta_path.parent.as_posix()!r} was created with different parameters "
+            f"(cached: {cached_meta}, requested: {meta}). Pass force_process=True to regenerate it."
+        )
+
+
 class _ModelNet(PointCloudDataset):
     data_url: str
     resource: str
@@ -161,11 +193,17 @@ class _ModelNet(PointCloudDataset):
         resource_path = Path(self.raw_dir, self.resource)
 
         if (
-            not resource_path.exists()
+            force
+            or not resource_path.exists()
             or not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
-            or force
         ):
-            download_url(url, resource_path, show_progress=self.show_progress)
+            download_url(url, resource_path, show_progress=self.show_progress, overwrite=True)
+
+        if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
+            raise RuntimeError(
+                f"File corrupted: MD5 hash mismatch for {resource_path.as_posix()!r} "
+                f"(expected {self.md5}, got {compute_hash(resource_path)})."
+            )
 
         extract_zip(resource_path, self.raw_dir, relative_to=resource_path.stem, show_progress=self.show_progress)
 
@@ -201,6 +239,8 @@ class _ModelNet(PointCloudDataset):
         dst_path = Path(self.processed_dir, f"{self.split}.pt")
         dst_path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(data_list, dst_path)
+        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
+        dst_path.with_suffix(".meta.json").write_text(json.dumps(meta))
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.parent.name
@@ -220,6 +260,8 @@ class _ModelNet(PointCloudDataset):
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
         file_path = Path(self.processed_dir, f"{self.split}.pt")
+        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
+        _check_cache_meta(file_path.with_suffix(".meta.json"), meta)
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)
@@ -385,19 +427,20 @@ class ModelNetNormalResampled(PointCloudDataset):
         resource_path = Path(self.raw_dir, self.resource)
 
         if (
-            not resource_path.exists()
+            force
+            or not resource_path.exists()
             or not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
-            or force
         ):
-            download_url(url, resource_path, show_progress=self.show_progress)
+            download_url(url, resource_path, show_progress=self.show_progress, overwrite=True)
 
         if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
             raise RuntimeError(
-                f"File corrupted: MD5 hash mismatch for {resource_path!r}. "
-                "HINT: Make sure the file was downloaded correctly."
+                f"File corrupted: MD5 hash mismatch for {resource_path.as_posix()!r} "
+                f"(expected {self.md5}, got {compute_hash(resource_path)})."
             )
 
-        extract_tar(resource_path, self.raw_dir, relative_to=resource_path.stem, show_progress=self.show_progress)
+        archive_stem = resource_path.name.removesuffix(".tar.gz").removesuffix(".tgz").removesuffix(".tar")
+        extract_tar(resource_path, self.raw_dir, relative_to=archive_stem, show_progress=self.show_progress)
 
         # Remove the downloaded resource
         resource_path.unlink()
@@ -427,8 +470,9 @@ class ModelNetNormalResampled(PointCloudDataset):
 
         dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
         dst_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(dst_path, "wb") as f:
-            pickle.dump(data_list, f)
+        torch.save(data_list, dst_path)
+        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
+        dst_path.with_suffix(".meta.json").write_text(json.dumps(meta))
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.name
@@ -444,15 +488,20 @@ class ModelNetNormalResampled(PointCloudDataset):
         if self.pre_transform is not None:
             data = self.pre_transform(data)
 
-        # Ensure to convert the processed data to numpy-compatible format
-        # so that it is optimized for pickle serialization.
-        return convert_to_numpy(data, strict=False)
+        return data
 
     def _load_processed_data(self) -> List[Dict[str, Any]]:
         file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
-        with open(file_path, "rb") as f:
-            data_list = pickle.load(f)
-            return [convert_to_tensor(data, strict=False) for data in data_list]
+        if not zipfile.is_zipfile(file_path):
+            raise RuntimeError(
+                f"Stale processed cache at {file_path.as_posix()!r}: it was written with pickle by an older "
+                "version of this dataset. Pass force_process=True to regenerate it."
+            )
+        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
+        _check_cache_meta(file_path.with_suffix(".meta.json"), meta)
+        # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
+        with torch.serialization.safe_globals([DataKeys]):
+            return torch.load(file_path, weights_only=True)
 
     def __getitem__(self, index: int) -> Any:
         data = self.data[index]
