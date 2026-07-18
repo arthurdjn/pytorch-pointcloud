@@ -11,7 +11,7 @@ import torch
 import torch._utils
 
 from torch_pointcloud.datasets import XCubeShapeNet
-from torch_pointcloud.datasets.shapenet import _StubState, _XCubeUnpickler, _read_xcube_pickle, load_xcube_shape
+from torch_pointcloud.datasets.shapenet import _read_xcube_pickle, _StubState, _XCubeUnpickler, load_xcube_shape
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _FVDB_AVAILABLE
 
