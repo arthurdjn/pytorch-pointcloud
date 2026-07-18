@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, _TORCH_CLUSTER_AVAILABLE
 from torch_pointcloud.utils.voxelization import (
     _point_to_voxel_generator,
     dense_voxelize,
@@ -63,6 +63,7 @@ def test_trilinear_devoxelize_inverts_dense_voxelize_at_grid_points() -> None:
     assert out[:, 0].tolist() == [2.0, 2.0, 5.0]
 
 
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
 def test_sparse_voxelize_mean_known_values() -> None:
     # Exact binary fractions: the first two points share the voxel at grid (0, 0, 0), the third is at (2, 0, 0).
     x = torch.tensor([[2.0], [4.0], [10.0]])
@@ -79,6 +80,7 @@ def test_sparse_voxelize_mean_known_values() -> None:
     assert pos_voxel[order].tolist() == [[0, 0, 0], [2, 0, 0]]
 
 
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
 def test_sparse_voxelize_separates_batches() -> None:
     x = torch.tensor([[1.0], [5.0]])
     pos = torch.zeros(2, 3)
