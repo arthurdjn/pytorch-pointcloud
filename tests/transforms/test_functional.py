@@ -1,3 +1,4 @@
+import math
 from typing import Tuple
 from unittest.mock import MagicMock, Mock, patch
 
@@ -1198,3 +1199,18 @@ def test_polar_mix_masks_sector_is_complementary() -> None:
     pos = torch.randn(300, 3, generator=g)
     mask, other_mask = F.polar_mix_masks(pos, pos, generator=g)
     assert torch.equal(mask, ~other_mask)
+
+
+def test_polar_mix_masks_sector_wraps_at_pi() -> None:
+    """The swap sector keeps its half-circle width when the start angle lands near +pi."""
+    seed = 155
+    start = (torch.rand(1, generator=torch.Generator().manual_seed(seed)).item() * 2.0 - 1.0) * math.pi
+    assert start > 3.0, "seed must draw a start angle near +pi so the sector crosses the seam"
+    theta = torch.linspace(-math.pi, math.pi, 4001)[:-1]
+    pos = torch.stack([torch.cos(theta), torch.sin(theta), torch.zeros_like(theta)], dim=1)
+    _, other_mask = F.polar_mix_masks(pos, pos, generator=torch.Generator().manual_seed(seed))
+    assert abs(other_mask.float().mean().item() - 0.5) < 0.01
+    # A point just past the +pi seam falls inside the wrapped sector.
+    seam = torch.tensor([[math.cos(-3.1), math.sin(-3.1), 0.0]])
+    _, seam_mask = F.polar_mix_masks(seam, seam, generator=torch.Generator().manual_seed(seed))
+    assert seam_mask.tolist() == [True]

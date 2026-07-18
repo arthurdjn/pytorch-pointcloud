@@ -1,7 +1,11 @@
 from collections import OrderedDict
 from unittest.mock import Mock, call, sentinel
 
-from torch_pointcloud.utils.state_dict import transform_state_dict
+import pytest
+import torch
+from torch import nn
+
+from torch_pointcloud.utils.state_dict import load_state_dict, transform_state_dict
 
 
 def test_state_dict_empty() -> None:
@@ -141,3 +145,36 @@ def test_state_dict_placeholder_spanning_multiple_segments_ignored() -> None:
     result = transform_state_dict(state_dict, mapping)
 
     assert list(result.keys()) == ["layer.foo.bar"]
+
+
+def test_state_dict_collision_raises_when_strict() -> None:
+    """Two source keys mapping to the same destination raise instead of silently overwriting."""
+    state_dict = {"a.weight": sentinel.a, "b.weight": sentinel.b}
+    mapping = {"a.weight": "c.weight", "b.weight": "c.weight"}
+
+    with pytest.raises(ValueError, match="Colliding keys"):
+        transform_state_dict(state_dict, mapping, strict=True)
+
+
+def test_state_dict_collision_warns_when_not_strict() -> None:
+    """Without strict, a collision warns and the last source value wins."""
+    state_dict = {"a.weight": sentinel.a, "b.weight": sentinel.b}
+    mapping = {"a.weight": "c.weight", "b.weight": "c.weight"}
+
+    with pytest.warns(UserWarning, match="Colliding keys"):
+        result = transform_state_dict(state_dict, mapping)
+
+    assert list(result.keys()) == ["c.weight"]
+    assert result["c.weight"] is sentinel.b
+
+
+def test_load_state_dict_supports_lazy_parameters() -> None:
+    """Uninitialized lazy parameters are skipped by the shape check and materialize on load."""
+    source = nn.LazyLinear(4)
+    source(torch.randn(2, 3))
+    target = nn.LazyLinear(4)
+
+    load_state_dict(target, dict(source.state_dict()), source="lazy.ckpt")
+
+    assert torch.equal(target.weight, source.weight)
+    assert target(torch.randn(2, 3)).shape == (2, 4)

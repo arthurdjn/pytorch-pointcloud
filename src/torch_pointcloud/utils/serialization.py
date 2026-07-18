@@ -82,6 +82,12 @@ def serialize_coords(
         serialized_code = _hilbert_encode(grid_coords[:, [1, 0, 2]], depth=depth)
 
     if batch_idx is not None:
+        max_batch = int(batch_idx.max().item()) if batch_idx.numel() else 0
+        if depth * 3 + max_batch.bit_length() > MAX_CODE_BITS:
+            raise ValueError(
+                f"Batch index {max_batch} needs {max_batch.bit_length()} bits above the {depth * 3} coordinate "
+                f"bits, exceeding the {MAX_CODE_BITS}-bit code capacity. Reduce `depth` or the batch size."
+            )
         serialized_code = batch_idx << depth * 3 | serialized_code
 
     return serialized_code

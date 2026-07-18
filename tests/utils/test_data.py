@@ -74,6 +74,17 @@ def test_collate_non_tensor_non_scalar_kept_as_list() -> None:
     assert out["name"] == ["scene_a", "scene_b"]
 
 
+def test_collate_strings_are_atomic_in_batch_bookkeeping() -> None:
+    # A string is one scalar per sample, not a sequence of characters.
+    samples = [
+        {"pos": torch.randn(2, 3), "name": "scene_a"},
+        {"pos": torch.randn(3, 3), "name": "scene_b"},
+    ]
+    out = collate(samples, cat_keys=("name",))
+    assert out["name"] == ["scene_a", "scene_b"]
+    assert out["batch_name"].tolist() == [0, 1]
+
+
 def test_collate_creates_batch_tensor_from_pos() -> None:
     samples = [{"pos": torch.randn(n, 3)} for n in [2, 3, 5]]
     out = collate(samples)
@@ -110,14 +121,23 @@ def test_collate_batch_from_scalar_uses_length_one() -> None:
     assert torch.equal(out["batch"], torch.arange(4, dtype=torch.long))
 
 
-def test_collate_uses_first_sample_keys() -> None:
-    # Only keys from the first sample are collated (no union behavior).
+def test_collate_raises_on_key_missing_from_first_sample() -> None:
+    # A key only later samples carry must raise, not be silently dropped.
     samples = [
-        {"pos": torch.randn(2, 3), "color": torch.randn(2, 3)},
-        {"pos": torch.randn(2, 3), "color": torch.randn(2, 3), "extra": torch.randn(2, 1)},
+        {"pos": torch.randn(2, 3)},
+        {"pos": torch.randn(2, 3), "extra": torch.randn(2, 1)},
     ]
-    out = collate(samples)
-    assert set(out.keys()) == {"pos", "color", "batch"}
+    with pytest.raises(ValueError, match="'extra'.*sample 0"):
+        collate(samples)
+
+
+def test_collate_raises_on_key_missing_from_later_sample() -> None:
+    samples = [
+        {"pos": torch.randn(2, 3), "extra": torch.randn(2, 1)},
+        {"pos": torch.randn(2, 3)},
+    ]
+    with pytest.raises(ValueError, match="'extra'.*sample 1"):
+        collate(samples)
 
 
 def _detection_sample(num_points: int, num_boxes: int) -> dict[str, torch.Tensor]:

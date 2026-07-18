@@ -1,6 +1,6 @@
 import torch
 
-from torch_pointcloud.utils.ops import voxel_grid_fnv
+from torch_pointcloud.utils.ops import decimate_indices, voxel_grid_fnv
 
 
 def _two_voxel_cloud() -> torch.Tensor:
@@ -53,3 +53,20 @@ def test_voxel_grid_fnv_inverse_and_counts_return_triple() -> None:
     assert hashed.shape == (6,) and inverse.shape == (6,) and count.shape == (2,)
     # `count[v]` must match how often `inverse` references voxel `v`.
     assert torch.equal(torch.bincount(inverse), count)
+
+
+def test_decimate_indices_consecutive_batch_ids() -> None:
+    batch = torch.tensor([0, 0, 1, 1, 1, 1])
+    indices, decim_batch = decimate_indices(batch, 2, generator=torch.Generator().manual_seed(0))
+    assert indices.shape == decim_batch.shape
+    assert decim_batch.tolist() == [0, 1, 1]
+    assert torch.equal(decim_batch, batch[indices])
+
+
+def test_decimate_indices_non_consecutive_batch_ids() -> None:
+    """Batch ids with gaps (e.g. after filtering a scene) must stay aligned with the returned indices."""
+    batch = torch.tensor([0, 0, 0, 0, 2, 2])
+    indices, decim_batch = decimate_indices(batch, 2, generator=torch.Generator().manual_seed(0))
+    assert indices.shape == decim_batch.shape
+    assert decim_batch.tolist() == [0, 0, 2]
+    assert torch.equal(decim_batch, batch[indices])

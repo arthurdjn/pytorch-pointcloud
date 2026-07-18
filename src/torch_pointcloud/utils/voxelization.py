@@ -160,7 +160,7 @@ def sparse_voxelize(
     return x_voxel, pos_voxel, batch_voxel
 
 
-@functools.lru_cache(maxsize=None)
+@functools.lru_cache(maxsize=8)
 def _point_to_voxel_generator(
     voxel_size: Tuple[float, ...],
     point_cloud_range: Tuple[float, ...],
@@ -208,6 +208,12 @@ def hard_voxelize(
         `coords` is $(V, 4)$ with columns $(\text{batch}, z, y, x)$ and `num_points` is $(V,)$.
     """
     batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
+    if batch_size == 0:
+        voxels = points.new_zeros((0, max_num_points, points.shape[1]))
+        coords = torch.zeros((0, 4), dtype=torch.int32, device=points.device)
+        num_points = torch.zeros((0,), dtype=torch.int32, device=points.device)
+        return voxels, coords, num_points
+
     generator = _point_to_voxel_generator(
         tuple(voxel_size),
         tuple(point_cloud_range),
