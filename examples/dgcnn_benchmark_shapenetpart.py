@@ -57,7 +57,7 @@ def main() -> None:
     test_dataset = ShapeNetPart(
         root=args.root,
         split="test",
-        transform=model_info.get("transforms"),
+        transform=model_info.get("transform"),
     )
     test_dataloader = DataLoader(
         test_dataset,
