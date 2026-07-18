@@ -68,12 +68,23 @@ def test_semantickitti_dataset_raw_files_exist(datasets_dir_factory: Callable[..
     assert len(dataset) > 0
 
 
-def test_semantickitti_dataset_partial_sequences(datasets_dir_factory: Callable[..., Path]) -> None:
-    """A partial download is accepted: `split='train'` expects seqs 00-10 but the fixture ships only
-    seq 00, so the dataset loads that one sequence instead of raising `Dataset not found`."""
+def test_semantickitti_dataset_missing_sequences_raise(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A partial download is rejected: `split='train'` expects seqs 00-10 but the fixture ships only
+    seq 00, so the dataset raises listing the missing sequences instead of silently loading a subset."""
     datasets_dir = datasets_dir_factory("SemanticKITTI/raw/sequences/00/**/*")
 
-    dataset = SemanticKITTI(root=datasets_dir, split="train")
+    with pytest.raises(RuntimeError, match="Missing sequence"):
+        _ = SemanticKITTI(root=datasets_dir, split="train")
+
+    with pytest.raises(RuntimeError, match="01, 02, 03, 04, 05, 06, 07, 09, 10"):
+        _ = SemanticKITTI(root=datasets_dir, split="train")
+
+
+def test_semantickitti_dataset_explicit_sequence_subset_loads(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Explicitly restricting `sequences` to what is on disk loads the subset."""
+    datasets_dir = datasets_dir_factory("SemanticKITTI/raw/sequences/00/**/*")
+
+    dataset = SemanticKITTI(root=datasets_dir, split="train", sequences=("00",))
     assert dataset.raw_files_exist()
     assert len(dataset) > 0
     assert {seq for seq, *_ in dataset.scans} == {"00"}

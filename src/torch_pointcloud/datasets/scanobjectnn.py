@@ -12,7 +12,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url, extract_zip, is_hash_valid
+from .utils import compute_hash, download_url, extract_zip, is_hash_valid
 
 ScanObjectNNSplit = Literal["main", "split1", "split2", "split3", "split4"]
 SCANOBJECTNN_SPLITS = get_args(ScanObjectNNSplit)
@@ -142,16 +142,16 @@ class ScanObjectNN(PointCloudDataset):
         resource_path = Path(self.raw_dir, self.resource)
 
         if (
-            not resource_path.exists()
+            force
+            or not resource_path.exists()
             or not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5")
-            or force
         ):
-            download_url(url, resource_path, show_progress=show_progress)
+            download_url(url, resource_path, show_progress=show_progress, overwrite=True)
 
         if not is_hash_valid(resource_path, expected_hash=self.md5, hash_type="md5"):
             raise RuntimeError(
-                f"File corrupted: MD5 hash mismatch for {resource_path!r}. "
-                "HINT: Make sure the file was downloaded correctly."
+                f"File corrupted: MD5 hash mismatch for {resource_path.as_posix()!r} "
+                f"(expected {self.md5}, got {compute_hash(resource_path)})."
             )
 
         extract_zip(resource_path, self.raw_dir, relative_to=resource_path.stem, show_progress=show_progress)

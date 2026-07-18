@@ -198,7 +198,7 @@ def extract_tar(
         members = tar_ref.getmembers()
 
         for member in tqdm(members, total=len(members), desc="Extracting", disable=not show_progress):
-            if member.isdir():
+            if not member.isfile():
                 continue
 
             member_path = Path(member.name)
@@ -214,6 +214,29 @@ def extract_tar(
                 shutil.copyfileobj(src, dst)
 
     return dst_dir.as_posix()
+
+
+def compute_hash(file_path: PathLike, hash_type: HashType = "md5") -> str:
+    """Compute the hash of a file.
+
+    Args:
+        file_path: The path to the file to hash.
+        hash_type: The type of hash to compute.
+
+    Returns:
+        The hex digest of the file's hash.
+
+    Examples:
+        >>> compute_hash("file.zip")  # doctest: +SKIP
+        '9473fdd0d880a43c21b7778d34872157'
+    """
+    file_hash = SUPPORTED_HASH_TYPES[hash_type]()
+
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            file_hash.update(chunk)
+
+    return str(file_hash.hexdigest())
 
 
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py
@@ -238,19 +261,10 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
     if expected_hash is None:
         return True
 
-    hash_fn = SUPPORTED_HASH_TYPES.get(hash_type)
-    if hash_fn is None:
+    if hash_type not in SUPPORTED_HASH_TYPES:
         return False
-
-    actual_hash = hash_fn()
 
     try:
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                actual_hash.update(chunk)
+        return compute_hash(file_path, hash_type) == expected_hash
     except Exception:
         return False
-
-    calculated_hash = actual_hash.hexdigest()
-
-    return calculated_hash == expected_hash

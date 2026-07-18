@@ -166,8 +166,9 @@ class ShapeNetPart(PointCloudDataset):
         return {cat: i for i, cat in enumerate(self.categories)}
 
     @property
-    def seg_to_id(self) -> Dict[str, int]:
-        return {seg: i for i, seg in enumerate(self.seg_ids)}
+    def seg_to_id(self) -> Dict[int, int]:
+        segments = [seg for category in self.categories for seg in self.seg_ids[category]]
+        return {seg: i for i, seg in enumerate(segments)}
 
     @override
     def raw_files_exist(self) -> bool:

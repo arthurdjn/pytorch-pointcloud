@@ -4,7 +4,10 @@ The ScanNet dataset as described in the paper
 
 """
 
+import json
 import math
+import re
+import shutil
 import warnings
 from collections import defaultdict
 from functools import cached_property
@@ -33,6 +36,8 @@ from .utils import download_url
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
+
+_SCAN_ID_PATTERN = re.compile(r"^scene\d{4}_\d{2}$")
 
 SCANNET20_LABELS = [SCANNET_UNK_IDX, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
 
@@ -812,19 +817,22 @@ class ScanNet(PointCloudDataset):
         return load_scannet_labels(labels_path)
 
     @cached_property
-    def classes(self) -> List[str]:
-        if self.labels is None:
-            classes = []
-        else:
-            df = self.labels.sort_values(self.label_id)
-            classes = df[self.label_name].unique().tolist()
+    def _column_classes(self) -> List[str]:
+        df = self.labels.sort_values(self.label_id, kind="stable")
+        classes: List[str] = df[self.label_name].unique().tolist()
+        return [self.unk_cls, *classes]
 
-        classes.insert(0, self.unk_cls)
-        return classes
+    @cached_property
+    def classes(self) -> List[str]:
+        return list(self._column_classes)
 
     @cached_property
     def class_to_idx(self) -> Dict[str, int]:
         return {cls: idx for idx, cls in enumerate(self.classes)}
+
+    @cached_property
+    def relabel(self) -> Optional[T.Relabel]:
+        return None
 
     def raw_files_exist(self) -> bool:
         # Check that the labels file exists
@@ -855,10 +863,34 @@ class ScanNet(PointCloudDataset):
 
     @property
     def processed_files(self) -> List[Path]:
-        return sorted(p.parent for p in Path(self.processed_dir, self.split).glob("*/pos.npy"))
+        scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
+        return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
     def processed_files_exist(self) -> bool:
-        return len(self.processed_files) > 0
+        split_dir = Path(self.processed_dir, self.split)
+        if (split_dir / "meta.json").exists():
+            return True
+
+        scene_dirs = self.processed_files
+        if not scene_dirs:
+            return False
+
+        file_names = ("pos.npy", "color.npy", "normal.npy")
+        incomplete = [d.name for d in scene_dirs if not all((d / name).exists() for name in file_names)]
+        missing: List[str] = []
+        split_file = Path(self.raw_dir, "metadata", f"scannetv2_{self.split}.txt")
+        if split_file.exists():
+            with open(split_file) as f:
+                expected = {line.strip() for line in f if line.strip()}
+            missing = sorted(expected - {d.name for d in scene_dirs})
+
+        if incomplete or missing:
+            raise RuntimeError(
+                f"Incomplete processed cache at {split_dir.as_posix()!r}: {len(missing)} missing scene(s) "
+                f"{missing[:5]}, {len(incomplete)} incomplete scene(s) {incomplete[:5]}. "
+                "Pass `force_process=True` to reprocess the raw data."
+            )
+        return True
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -899,13 +931,21 @@ class ScanNet(PointCloudDataset):
         with urlopen(url) as f:
             scan_ids = [line.decode("utf-8").strip() for line in f]
 
+        # Scan ids come from a remote list and are interpolated into local write paths.
+        for scan_id in scan_ids:
+            if not _SCAN_ID_PATTERN.match(scan_id):
+                raise RuntimeError(f"Invalid scan id {scan_id!r} in the remote scan list.")
+
         # Download all resources per scan
+        raw_dir = Path(self.raw_dir).resolve()
         resources = self.scan_resources if is_train_val else self.test_scan_resources
         for i, scan_id in enumerate(scan_ids):
             for resource_path in resources:
                 resource_path = resource_path.format(version=self.version, scan_id=scan_id)
                 url = urljoin(self.data_url, resource_path)
                 out_path = Path(self.raw_dir, resource_path)
+                if not out_path.resolve().is_relative_to(raw_dir):
+                    raise RuntimeError(f"Scan id {scan_id!r} resolves outside the raw directory: {out_path}.")
                 file_name = Path(resource_path).name
                 download_url(
                     url,
@@ -916,7 +956,7 @@ class ScanNet(PointCloudDataset):
                 )
 
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
         if not self.raw_files_exist():
             raise RuntimeError(
@@ -934,7 +974,8 @@ class ScanNet(PointCloudDataset):
         # A direct raw_category lookup in class_to_idx is wrong when label_name != label_col
         # (e.g. label_name="nyu40class"): "couch" would miss "sofa", "fridge" would miss
         # "refrigerator", etc. Iterating the TSV rows provides the correct intermediate mapping.
-        label_to_idx = dict(zip(self.labels[raw_col].values, self.labels[self.label_id].values))
+        name_to_idx = {name: idx for idx, name in enumerate(self._column_classes)}
+        label_to_idx = {raw: name_to_idx[name] for raw, name in zip(self.labels[raw_col], self.labels[self.label_name])}
         label_to_idx[self.unk_cls] = self.unk_idx
 
         # Look for the associated scene IDs for the specified split
@@ -943,6 +984,14 @@ class ScanNet(PointCloudDataset):
         split_file = raw_dir / "metadata" / f"scannetv2_{self.split}.txt"
         with open(split_file) as f:
             scene_ids = sorted([line.strip() for line in f])
+
+        split_dir = Path(self.processed_dir, self.split)
+        split_dir.mkdir(parents=True, exist_ok=True)
+        for stale in split_dir.glob("*.tmp"):
+            if stale.is_dir():
+                shutil.rmtree(stale)
+            else:
+                stale.unlink()
 
         def process_scene(scene_id: str) -> None:
             meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"), None)
@@ -972,15 +1021,19 @@ class ScanNet(PointCloudDataset):
                 warnings.warn(f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning)
                 return
 
-            scene_dir = Path(self.processed_dir, self.split, scene_id)
-            scene_dir.mkdir(parents=True, exist_ok=True)
-            np.save(scene_dir / "pos.npy", data["pos"].numpy())
-            np.save(scene_dir / "color.npy", data["color"].numpy())
-            np.save(scene_dir / "normal.npy", data["normal"].numpy())
+            scene_dir = split_dir / scene_id
+            tmp_dir = split_dir / f"{scene_id}.tmp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            np.save(tmp_dir / "pos.npy", data["pos"].numpy())
+            np.save(tmp_dir / "color.npy", data["color"].numpy())
+            np.save(tmp_dir / "normal.npy", data["normal"].numpy())
             if "segment" in data:
-                np.save(scene_dir / "segment.npy", data["segment"].numpy())
+                np.save(tmp_dir / "segment.npy", data["segment"].numpy())
             if "instance" in data:
-                np.save(scene_dir / "instance.npy", data["instance"].numpy())
+                np.save(tmp_dir / "instance.npy", data["instance"].numpy())
+            if scene_dir.exists():
+                shutil.rmtree(scene_dir)
+            tmp_dir.replace(scene_dir)
 
         parallel_map(
             process_scene,
@@ -990,6 +1043,12 @@ class ScanNet(PointCloudDataset):
             desc="Processing",
             show_progress=show_progress,
         )
+
+        meta = {"format_version": 1, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
+        meta_path = split_dir / "meta.json"
+        tmp_path = split_dir / "meta.json.tmp"
+        tmp_path.write_text(json.dumps(meta))
+        tmp_path.replace(meta_path)
 
     def load(
         self,
@@ -1008,15 +1067,17 @@ class ScanNet(PointCloudDataset):
             disable=not show_progress,
         ):
             scene: Dict[str, Any] = {
-                "pos": torch.from_numpy(np.load(path / "pos.npy")),
-                "color": torch.from_numpy(np.load(path / "color.npy")),
-                "normal": torch.from_numpy(np.load(path / "normal.npy")),
+                DataKeys.POS: torch.from_numpy(np.load(path / "pos.npy")),
+                DataKeys.COLOR: torch.from_numpy(np.load(path / "color.npy")),
+                DataKeys.NORMAL: torch.from_numpy(np.load(path / "normal.npy")),
                 "scene": path.name,
             }
             if (path / "segment.npy").exists():
-                scene["segment"] = torch.from_numpy(np.load(path / "segment.npy"))
+                scene[DataKeys.SEGMENT] = torch.from_numpy(np.load(path / "segment.npy"))
             if (path / "instance.npy").exists():
-                scene["instance"] = torch.from_numpy(np.load(path / "instance.npy"))
+                scene[DataKeys.INSTANCE] = torch.from_numpy(np.load(path / "instance.npy"))
+            if self.relabel is not None:
+                scene = self.relabel(scene)
             if block_size is not None and block_size > 0:
                 blocks = tile_scannet_scene(
                     scene,
@@ -1061,7 +1122,6 @@ class ScanNet20(ScanNet):
         show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
-        self.relabel = T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
         super().__init__(
             root=root,
             version=version,
@@ -1092,46 +1152,14 @@ class ScanNet20(ScanNet):
         return super().processed_dir + "_20"
 
     @override
-    def load(
-        self,
-        block_size: Optional[float] = None,
-        block_stride: float = 0.75,
-        num_nodes: int = 8192,
-        min_num_nodes: int = 100,
-        show_progress: bool = True,
-    ) -> None:
-        self.data: List[Dict[str, Any]] = []
-        self.scene_boundaries: List[int] = []
-        for scene_idx, path in tqdm(
-            enumerate(self.processed_files),
-            desc="Loading",
-            total=len(self.processed_files),
-            disable=not show_progress,
-        ):
-            scene: Dict[str, Any] = {
-                "pos": torch.from_numpy(np.load(path / "pos.npy")),
-                "color": torch.from_numpy(np.load(path / "color.npy")),
-                "normal": torch.from_numpy(np.load(path / "normal.npy")),
-                "scene": path.name,
-            }
-            if (path / "segment.npy").exists():
-                scene["segment"] = torch.from_numpy(np.load(path / "segment.npy"))
-            if (path / "instance.npy").exists():
-                scene["instance"] = torch.from_numpy(np.load(path / "instance.npy"))
-            scene = self.relabel(scene)
-            if block_size is not None and block_size > 0:
-                blocks = tile_scannet_scene(
-                    scene,
-                    block_size=block_size,
-                    block_stride=block_stride,
-                    num_nodes=num_nodes,
-                    min_num_nodes=min_num_nodes,
-                    scene_index=scene_idx,
-                )
-                self.data.extend(blocks)
-            else:
-                self.data.append(scene)
-            self.scene_boundaries.append(len(self.data))
+    @cached_property
+    def classes(self) -> List[str]:
+        return [self.unk_cls, *SCANNET20_CLASSES]
+
+    @override
+    @cached_property
+    def relabel(self) -> T.Relabel:
+        return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
 
 
 class ScanNet200(ScanNet):
@@ -1152,12 +1180,11 @@ class ScanNet200(ScanNet):
         show_progress: bool = True,
         num_workers: Optional[int] = None,
     ) -> None:
-        self.relabel = T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
         super().__init__(
             root=root,
             version=version,
             split=split,
-            label_name="raw",
+            label_name="raw_category",
             label_id="id",
             use_axis_alignment=use_axis_alignment,
             block_size=block_size,
@@ -1183,43 +1210,24 @@ class ScanNet200(ScanNet):
         return super().processed_dir + "_200"
 
     @override
-    def load(
-        self,
-        block_size: Optional[float] = None,
-        block_stride: float = 0.75,
-        num_nodes: int = 8192,
-        min_num_nodes: int = 100,
-        show_progress: bool = True,
-    ) -> None:
-        self.data: List[Dict[str, Any]] = []
-        self.scene_boundaries: List[int] = []
-        for scene_idx, path in tqdm(
-            enumerate(self.processed_files),
-            desc="Loading",
-            total=len(self.processed_files),
-            disable=not show_progress,
-        ):
-            scene: Dict[str, Any] = {
-                "pos": torch.from_numpy(np.load(path / "pos.npy")),
-                "color": torch.from_numpy(np.load(path / "color.npy")),
-                "normal": torch.from_numpy(np.load(path / "normal.npy")),
-                "scene": path.name,
-            }
-            if (path / "segment.npy").exists():
-                scene["segment"] = torch.from_numpy(np.load(path / "segment.npy"))
-            if (path / "instance.npy").exists():
-                scene["instance"] = torch.from_numpy(np.load(path / "instance.npy"))
-            scene = self.relabel(scene)
-            if block_size is not None and block_size > 0:
-                blocks = tile_scannet_scene(
-                    scene,
-                    block_size=block_size,
-                    block_stride=block_stride,
-                    num_nodes=num_nodes,
-                    min_num_nodes=min_num_nodes,
-                    scene_index=scene_idx,
-                )
-                self.data.extend(blocks)
-            else:
-                self.data.append(scene)
-            self.scene_boundaries.append(len(self.data))
+    @cached_property
+    def classes(self) -> List[str]:
+        # The TSV `category` column is constant per `id` and names it (e.g. rows `books` and `book`
+        # both carry id 22 / category `book`), so it yields one canonical name per benchmark id.
+        id_to_name = {int(label): str(name) for label, name in zip(self.labels[self.label_id], self.labels["category"])}
+        return [self.unk_cls, *(id_to_name[label] for label in SCANNET200_LABELS[1:])]
+
+    @override
+    @cached_property
+    def relabel(self) -> T.Relabel:
+        # Caches without `meta.json` predate the positional segment ids and store raw TSV ids.
+        if not Path(self.processed_dir, self.split, "meta.json").exists():
+            return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
+
+        name_to_idx = {name: idx for idx, name in enumerate(self._column_classes)}
+        targets = {label: idx for idx, label in enumerate(SCANNET200_LABELS)}
+        labels: Dict[int, int] = {}
+        for name, label in zip(self.labels[self.label_name], self.labels[self.label_id]):
+            if int(label) in targets:
+                labels[name_to_idx[str(name)]] = targets[int(label)]
+        return T.Relabel(keys=DataKeys.SEGMENT, labels=labels)

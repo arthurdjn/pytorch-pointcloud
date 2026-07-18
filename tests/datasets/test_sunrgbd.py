@@ -1,5 +1,7 @@
 # mypy: disable-error-code="arg-type,call-overload"
+import json
 import math
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable
@@ -261,7 +263,7 @@ def test_sunrgbd_dataset_loads_processed(datasets_dir_factory: Callable[..., Pat
     sample = dataset[0]
     assert sample[DataKeys.POS].shape[1] == 3
     assert sample[DataKeys.POS].dtype == torch.float32
-    assert sample[DataKeys.BOX].shape[1] == 8
+    assert sample[DataKeys.BOX].shape[1] == 7
     assert sample[DataKeys.CLASS].shape[0] == sample[DataKeys.BOX].shape[0]
     assert sample[DataKeys.CLASS].dtype == torch.long
     assert sample[DataKeys.COLOR].shape == sample[DataKeys.POS].shape
@@ -277,6 +279,65 @@ def test_sunrgbd_dataset_processes_from_raw(datasets_dir_factory: Callable[..., 
     sample = dataset[0]
     assert sample[DataKeys.POS].shape[1] == 3
     assert sample[DataKeys.POS].shape[0] > 2048
-    assert sample[DataKeys.BOX].shape[1] == 8
+    assert sample[DataKeys.BOX].shape[1] == 7
     assert sample[DataKeys.BOX].shape[0] == sample[DataKeys.CLASS].shape[0]
     assert sample[DataKeys.BOX].shape[0] >= 1
+
+
+def test_sunrgbd_dataset_box_contract(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Emitted boxes are $(K, 7)$: cached half extents doubled and the clockwise heading negated"""
+    datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
+
+    dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+    checked = 0
+    for scene_dir, sample in zip(dataset.processed_files, dataset.data):
+        cached = np.load(scene_dir / f"{DataKeys.BOX}.npy")
+        box = sample[DataKeys.BOX]
+        assert box.shape == (cached.shape[0], 7)
+        np.testing.assert_allclose(box[:, :3].numpy(), cached[:, :3])
+        np.testing.assert_allclose(box[:, 3:6].numpy(), cached[:, 3:6] * 2)
+        np.testing.assert_allclose(box[:, 6].numpy(), -cached[:, 6])
+        checked += cached.shape[0]
+    assert checked > 0
+
+
+def test_sunrgbd_dataset_process_writes_completion_marker(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing a split ends with an atomic `meta.json` completion marker"""
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+
+    dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+    meta_path = Path(dataset.processed_dir) / "val" / "meta.json"
+    assert json.loads(meta_path.read_text())["format_version"] == 1
+
+
+def test_sunrgbd_dataset_legacy_cache_without_marker_loads(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A complete cache without a completion marker (legacy layout) still loads"""
+    datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
+
+    dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+    assert not (Path(dataset.processed_dir) / "val" / "meta.json").exists()
+    assert len(dataset) == 3
+
+
+def test_sunrgbd_dataset_interrupted_cache_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unmarked cache with a torn scene raises instead of silently loading"""
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+
+    dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+    (Path(dataset.processed_dir) / "val" / "meta.json").unlink()
+    (dataset.processed_files[0] / f"{DataKeys.CLASS}.npy").unlink()
+
+    with pytest.raises(RuntimeError, match="force_process"):
+        _ = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+
+
+def test_sunrgbd_dataset_missing_scene_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unmarked cache missing a scene from the split raises"""
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+
+    dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+    (Path(dataset.processed_dir) / "val" / "meta.json").unlink()
+    shutil.rmtree(dataset.processed_files[0])
+
+    with pytest.raises(RuntimeError, match="force_process"):
+        _ = SunRGBD(root=datasets_dir, split="val", show_progress=False)
