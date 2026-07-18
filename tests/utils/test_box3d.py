@@ -3,7 +3,14 @@ from typing import List
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.box3d import boxes_iou3d, boxes_iou_bev, count_points_in_boxes, nms3d
+from torch_pointcloud.utils.box3d import (
+    box3d_overlap,
+    box_corners,
+    boxes_iou3d,
+    boxes_iou_bev,
+    count_points_in_boxes,
+    nms3d,
+)
 
 
 def _boxes(rows: List[List[float]]) -> Tensor:
@@ -28,6 +35,15 @@ def test_boxes_iou_self_diag_is_one() -> None:
     diag_3d = torch.diag(boxes_iou3d(boxes, boxes))
     assert torch.allclose(diag_bev, torch.ones(3), atol=1e-5)
     assert torch.allclose(diag_3d, torch.ones(3), atol=1e-5)
+
+
+def test_box3d_overlap_degenerate_boxes_finite_zero_iou() -> None:
+    # Zero-volume boxes must give IoU 0, not NaN or a division error.
+    corners = box_corners(_boxes([[0.0, 0, 0, 0, 0, 0, 0]]))
+    inter, iou = box3d_overlap(corners, corners)
+    assert torch.isfinite(iou).all()
+    assert iou.item() == 0.0
+    assert inter.item() == 0.0
 
 
 def test_nms3d_class_aware_suppresses_same_class_overlap() -> None:

@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Optional, Set
 import torch
 from safetensors.torch import load_file
 from torch import Tensor, nn
+from torch.nn.parameter import is_lazy
 
 from .types import PathLike
 
@@ -71,7 +72,9 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str) -
     model_state = model.state_dict()
     unexpected = sorted(key for key in state_dict if key not in model_state)
     mismatched = sorted(
-        key for key in state_dict if key in model_state and state_dict[key].shape != model_state[key].shape
+        key
+        for key in state_dict
+        if key in model_state and not is_lazy(model_state[key]) and state_dict[key].shape != model_state[key].shape
     )
     missing = sorted(key for key in model_state if key not in state_dict)
     if missing:
@@ -115,6 +118,9 @@ def transform_state_dict(
         state_dict: The state dict to transform.
         mapping: A dictionary mapping the old keys to the new keys.
         value_transform: A function to transform the values.
+        strict: Raise a `ValueError` on mapping patterns that match no key and on source keys colliding
+            onto the same destination key. When `False`, unused patterns are ignored and collisions only
+            emit a warning.
 
     Returns:
         The transformed state dict.
@@ -186,5 +192,22 @@ def transform_state_dict(
             "These patterns did not match any keys in the provided state_dict. "
             "You can disable this behavior by setting `strict=False`."
         )
+
+    first_source: Dict[str, str] = {}
+    collisions = []
+    for src_key, (dst_key, _) in zip(state_dict, transformed_state_dict):
+        if dst_key in first_source:
+            collisions.append(f"{first_source[dst_key]!r} and {src_key!r} -> {dst_key!r}")
+        else:
+            first_source[dst_key] = src_key
+
+    if collisions:
+        message = (
+            f"Colliding keys found in mapping: {'; '.join(collisions)}.\n"
+            "Multiple source keys map to the same destination key, so all but the last value are lost."
+        )
+        if strict:
+            raise ValueError(message)
+        warnings.warn(message)
 
     return OrderedDict(transformed_state_dict)

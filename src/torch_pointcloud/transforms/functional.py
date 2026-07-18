@@ -259,10 +259,13 @@ def rescale(
     r"""Center a point set and rescale it to a unit extent.
 
     Operates along the point dimension `dim=-2`. Pairs a centering step with a
-    scale-by-extent step that share the same statistics.
+    scale-by-extent step that share the same statistics. The scale denominator is a
+    single statistic over **all** leading dimensions, so the input is treated as one
+    point cloud: rescale packed batches per sample (pre-collate), never on
+    concatenated clouds.
 
     Args:
-        points: Tensor of shape `(..., N, C)` with $C \geq 1$; min/max and means are over $N$.
+        points: Tensor of shape $(\ldots, N, C)$ with $C \geq 1$; min/max and means are over $N$.
         eps: Small constant added to the scale denominator for numerical stability.
         method:
 
@@ -1313,17 +1316,17 @@ def random_elastic_distortion(
 def flip_boxes(boxes: Tensor, axis: int) -> Tensor:
     r"""Flip oriented 3D boxes along a spatial axis.
 
-    Boxes are stored as $(K, 8)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta, \text{cls}]$ with half-extents
-    and heading measured from $+x$ toward $-y$. A flip negates the center component along `axis`. A flip along
-    `axis` $0$ (the $yz$ plane) maps the heading to $\pi - \theta$; a flip along `axis` $1$ (the $xz$ plane)
-    maps the heading to $-\theta$. Sizes and class are unchanged.
+    Boxes are stored as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ with full extents and heading
+    in radians counterclockwise about $+z$ from $+x$. A flip negates the center component along `axis`. A
+    flip along `axis` $0$ (the $yz$ plane) maps the heading to $\pi - \theta$; a flip along `axis` $1$ (the
+    $xz$ plane) maps the heading to $-\theta$. Sizes are unchanged.
 
     Args:
-        boxes: Box tensor of shape $(K, 8)$.
+        boxes: Box tensor of shape $(K, 7)$.
         axis: Center axis index to negate (0=X, 1=Y).
 
     Returns:
-        The flipped box tensor of shape $(K, 8)$.
+        The flipped box tensor of shape $(K, 7)$.
     """
     boxes = boxes.clone()
     boxes[:, axis] = -boxes[:, axis]
@@ -1338,34 +1341,34 @@ def rotate_boxes(boxes: Tensor, rotation: Tensor, angle: float) -> Tensor:
     r"""Rotate oriented 3D boxes about the up axis.
 
     Box centers are rotated by `rotation` (`centers @ rotation.transpose(-1, -2)`) and the heading is
-    decremented by `angle` to match a counterclockwise rotation about $+z$. Sizes and class are unchanged.
+    incremented by `angle`, so a counterclockwise rotation about $+z$ keeps the counterclockwise heading
+    aligned with the jointly rotated points. Sizes are unchanged.
 
     Args:
-        boxes: Box tensor of shape $(K, 8)$.
-        rotation: A $3 \times 3$ rotation matrix about the $z$ axis.
-        angle: Rotation angle in **radians**, subtracted from the heading.
+        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$.
+        rotation: A $3 \times 3$ rotation matrix rotating by `angle` counterclockwise about the $z$ axis.
+        angle: Rotation angle in **radians**, added to the heading.
 
     Returns:
-        The rotated box tensor of shape $(K, 8)$.
+        The rotated box tensor of shape $(K, 7)$.
     """
     boxes = boxes.clone()
     boxes[:, 0:3] = boxes[:, 0:3] @ rotation.to(boxes).transpose(-1, -2)
-    boxes[:, 6] = boxes[:, 6] - angle
+    boxes[:, 6] = boxes[:, 6] + angle
     return boxes
 
 
 def scale_boxes(boxes: Tensor, scale: Union[float, Tensor]) -> Tensor:
     r"""Scale oriented 3D boxes by an isotropic factor.
 
-    Both centers and half-extents (columns $0$ to $6$) are multiplied by `scale`. Heading and class are
-    unchanged.
+    Both centers and extents (columns $0$ to $6$) are multiplied by `scale`. Heading is unchanged.
 
     Args:
-        boxes: Box tensor of shape $(K, 8)$.
+        boxes: Box tensor of shape $(K, 7)$.
         scale: Isotropic scalar factor applied to centers and sizes.
 
     Returns:
-        The scaled box tensor of shape $(K, 8)$.
+        The scaled box tensor of shape $(K, 7)$.
     """
     boxes = boxes.clone()
     factor = scale.to(boxes) if isinstance(scale, Tensor) else scale
@@ -1415,12 +1418,13 @@ def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:
     r"""Test which points lie inside a single oriented 3D box.
 
     The point offsets relative to the box center are rotated into the box frame by $-\theta$ about $+z$, then
-    compared against the half-extents with an axis-aligned bounding-box test. For a box with zero heading this
-    reduces to a plain axis-aligned test.
+    compared against the half-extents with an axis-aligned bounding-box test. The heading $\theta$ is in
+    radians counterclockwise about $+z$. For a box with zero heading this reduces to a plain axis-aligned
+    test.
 
     Args:
         pos: Coordinate tensor of shape $(N, 3)$.
-        box: A single box of shape $(8,)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta, \text{cls}]$.
+        box: A single box of shape $(7,)$ as $[c_x, c_y, c_z, h_x, h_y, h_z, \theta]$ with **half**-extents.
 
     Returns:
         A boolean mask of shape $(N,)$ that is `True` for points inside the box.
@@ -1557,8 +1561,9 @@ def polar_mix_masks(
     r"""Return keep-masks that swap a random azimuth half-sector between two LiDAR scans.
 
     Each point's azimuth is $\theta = \arctan2(y, x)$. A random start angle in $[-\pi, \pi)$ defines a
-    half-circle sector $[\theta_0, \theta_0 + \pi)$. Points of the first scan outside the sector are
-    kept, and points of the second scan inside the sector are added, so the mixed scene is
+    half-circle sector $[\theta_0, \theta_0 + \pi)$ that wraps around the $\pm\pi$ seam, so half of the
+    azimuth range is swapped regardless of the start angle. Points of the first scan outside the sector
+    are kept, and points of the second scan inside the sector are added, so the mixed scene is
     `torch.cat([pos[mask], other_pos[other_mask]])`.
 
     Args:
@@ -1588,9 +1593,8 @@ def polar_mix_masks(
         ```
     """
     start = (torch.rand(1, generator=generator).item() * 2.0 - 1.0) * math.pi
-    end = start + math.pi
     yaw = torch.atan2(pos[:, 1], pos[:, 0])
     other_yaw = torch.atan2(other_pos[:, 1], other_pos[:, 0])
-    inside = (yaw >= start) & (yaw < end)
-    other_inside = (other_yaw >= start) & (other_yaw < end)
+    inside = (yaw - start) % (2 * math.pi) < math.pi
+    other_inside = (other_yaw - start) % (2 * math.pi) < math.pi
     return ~inside, other_inside

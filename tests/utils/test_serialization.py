@@ -79,3 +79,21 @@ def test_hilbert_trans_encoding(mock_hilbert: Mock, grid_coords: Tensor, batch: 
 def test_invalid_order(grid_coords: Tensor, batch: Tensor, depth: int) -> None:
     with pytest.raises(ValueError, match="Unsupported serialization order"):
         serialize_coords(grid_coords, batch, depth, order="invalid")  # type: ignore[arg-type]
+
+
+def test_batch_shift_overflow_raises(grid_coords: Tensor, batch: Tensor) -> None:
+    # depth 21 uses all 63 code bits for coordinates, leaving no room for a nonzero batch index.
+    with pytest.raises(ValueError, match="63-bit code capacity"):
+        serialize_coords(grid_coords, batch, depth=21, order="hilbert")
+
+
+def test_batch_shift_max_valid_depth(grid_coords: Tensor, batch: Tensor) -> None:
+    code = serialize_coords(grid_coords, batch, depth=20, order="hilbert")
+    assert bool((code >= 0).all())
+    assert int(code[1].item()) >> 60 == 1
+
+
+def test_batch_shift_zero_batch_supports_full_depth(grid_coords: Tensor) -> None:
+    batch = torch.zeros(2, dtype=torch.long)
+    code = serialize_coords(grid_coords, batch, depth=21, order="hilbert")
+    assert bool((code >= 0).all())

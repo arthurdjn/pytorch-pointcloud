@@ -6,7 +6,7 @@ import pytest
 import torch
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 
 @pytest.fixture
@@ -720,6 +720,39 @@ def test_voxel_grid_grid_pos_reduce() -> None:
     assert result["pos"].dtype == torch.long
 
 
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_default_reduce_works_and_keeps_integer_dtype() -> None:
+    """`reduce=None` (the default) averages float keys and picks a representative for integer keys."""
+    pos = torch.tensor([[0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [1.9, 1.9, 1.9]])
+    segment = torch.tensor([4, 4, 7])
+    color = torch.tensor([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [0.25, 0.25, 0.25]])
+    result = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys=["segment", "color"])(
+        {"pos": pos, "segment": segment, "color": color}
+    )
+    assert result["segment"].dtype == torch.long
+    assert sorted(result["segment"].tolist()) == [4, 7]
+    assert result["color"].dtype == torch.float32
+    row = result["segment"].tolist().index(4)
+    assert torch.allclose(result["color"][row], torch.tensor([0.5, 0.5, 0.5]))
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_integer_key_non_first_reduce_stays_integer() -> None:
+    pos = torch.tensor([[0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [1.9, 1.9, 1.9]])
+    segment = torch.tensor([4, 6, 7])
+    result = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys=["segment"], reduce="max")(
+        {"pos": pos, "segment": segment}
+    )
+    assert result["segment"].dtype == torch.long
+    assert sorted(result["segment"].tolist()) == [6, 7]
+
+
 def test_compose_empty_is_passthrough() -> None:
     data = {"pos": torch.tensor([1.0, 2.0])}
     result = T.Compose([])(data)
@@ -1156,6 +1189,15 @@ def test_random_color_shift_int_dtype_preserved() -> None:
     assert out["color"].dtype == torch.uint8
 
 
+def test_random_color_shift_same_shift_across_keys() -> None:
+    """The shift is sampled once per call, so every listed key moves by the same offset."""
+    g = torch.Generator().manual_seed(0)
+    data = {"c1": torch.full((4, 3), 0.5), "c2": torch.full((4, 3), 0.5)}
+    out = T.RandomColorShift(keys=("c1", "c2"), shift_range=(-0.2, 0.2), generator=g)(data)
+    assert torch.equal(out["c1"], out["c2"])
+    assert not torch.equal(out["c1"], data["c1"])
+
+
 def test_random_elastic_distortion_changes_positions() -> None:
     pos = torch.randn(200, 3)
     g = torch.Generator().manual_seed(0)
@@ -1382,3 +1424,57 @@ def test_polar_mix_p_zero_is_noop() -> None:
     a, b = _mix_pair()
     out = T.PolarMix(keys=("pos", "segment"), instance_classes=(1, 2, 3), p=0.0)(a, b)
     assert torch.equal(out["pos"], a["pos"])
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_hard_voxelize_stacks_points_per_voxel() -> None:
+    pos = torch.tensor([[0.5, 0.5, 0.5], [0.6, 0.6, 0.6], [5.5, 5.5, 0.5]])
+    x = torch.tensor([[1.0], [2.0], [3.0]])
+    out = T.HardVoxelize(
+        pos_key="pos",
+        feat_key="x",
+        voxel_size=(1.0, 1.0, 1.0),
+        point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+        max_num_points=2,
+        max_num_voxels=10,
+    )({"pos": pos, "x": x})
+    assert out["voxel"].shape == (2, 2, 4)
+    assert out["voxel_num_points"].tolist() == [2, 1]
+    assert out["pos_voxel"].tolist() == [[0, 0, 0], [0, 5, 5]]  # (z, y, x) grid indices
+    assert torch.allclose(out["voxel"][0, 0], torch.tensor([0.5, 0.5, 0.5, 1.0]))
+    assert torch.allclose(out["voxel"][0, 1], torch.tensor([0.6, 0.6, 0.6, 2.0]))
+    assert torch.allclose(out["voxel"][1, 0], torch.tensor([5.5, 5.5, 0.5, 3.0]))
+    assert torch.allclose(out["voxel"][1, 1], torch.zeros(4))  # padding past the voxel's point count
+    assert torch.equal(out["pos"], pos)
+
+
+def test_bbox_center_midpoint() -> None:
+    data = {"bbox": torch.tensor([0.0, 2.0, -1.0, 4.0, 6.0, 3.0])}
+    out = T.BBoxCenter(keys="bbox", dst_keys="center")(data)
+    assert torch.allclose(out["center"], torch.tensor([2.0, 4.0, 1.0]))
+    assert torch.equal(out["bbox"], data["bbox"])
+
+
+def test_bbox_center_odd_length_raises() -> None:
+    with pytest.raises(ValueError, match="even"):
+        T.BBoxCenter(keys="bbox")({"bbox": torch.zeros(5)})
+
+
+def test_slice_rows() -> None:
+    data = {"pos": torch.arange(12.0).reshape(4, 3)}
+    out = T.Slice(keys="pos", stop=2)(data)
+    assert torch.equal(out["pos"], torch.arange(6.0).reshape(2, 3))
+
+
+def test_slice_column_to_new_key() -> None:
+    data = {"pos": torch.arange(12.0).reshape(4, 3)}
+    out = T.Slice(keys="pos", start=2, stop=3, dim=1, dst_keys="height")(data)
+    assert out["height"].shape == (4, 1)
+    assert torch.equal(out["height"][:, 0], torch.tensor([2.0, 5.0, 8.0, 11.0]))
+    assert out["pos"].shape == (4, 3)
+
+
+def test_slice_step() -> None:
+    data = {"x": torch.arange(10)}
+    out = T.Slice(keys="x", step=2)(data)
+    assert out["x"].tolist() == [0, 2, 4, 6, 8]

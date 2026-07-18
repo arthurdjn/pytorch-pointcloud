@@ -91,6 +91,8 @@ def _collate_value(values: List[Any]) -> Any:
 def _leading_size(value: Any) -> int:
     if isinstance(value, Tensor):
         return value.shape[0] if value.ndim >= 1 else 1
+    if isinstance(value, (str, bytes)):
+        return 1
     if hasattr(value, "__len__"):
         return len(value)
     return 1
@@ -115,7 +117,8 @@ def collate(
     - `cat_keys`: keep these packed (cat) but additionally emit a `batch_<key>` scene index mirroring
       `batch_key`. Used for ragged per-scene ground truth such as `box` $(K, 8)$ -> `batch_box` $(K,)$.
 
-    Only keys present in every sample are stacked or indexed; others fall back to the default collation.
+    Every key must be present in every sample; a key missing from a sample raises a `ValueError`.
+    `stack_keys` / `cat_keys` entries absent from all samples are ignored.
 
     Args:
         data_list: List of sample dicts.
@@ -133,8 +136,12 @@ def collate(
         return {}
 
     stacked = [k for k in stack_keys if all(k in d for d in data_list)]
+    keys = list(dict.fromkeys(k for d in data_list for k in d))
     out: Dict[str, Any] = {}
-    for k in data_list[0].keys():
+    for k in keys:
+        for i, d in enumerate(data_list):
+            if k not in d:
+                raise ValueError(f"Cannot collate key {k!r}: missing from sample {i}.")
         values = [d[k] for d in data_list]
         out[k] = torch.stack(values, dim=0) if k in stacked else _collate_value(values)
 

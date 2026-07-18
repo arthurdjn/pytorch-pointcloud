@@ -115,6 +115,31 @@ def test_intersection_union_per_batch_shape() -> None:
     assert torch.equal(inter[1], torch.tensor([1, 0, 1]))
 
 
+def test_intersection_union_per_batch_trailing_ignored_sample_keeps_row() -> None:
+    # Sample 1 is fully ignored: it must still get a row of zeros, like an empty or all-wrong sample.
+    target = torch.tensor([0, 1, 255, 255])
+    preds = torch.tensor([0, 1, 0, 0])
+    batch = torch.tensor([0, 0, 1, 1])
+    inter, union = compute_intersection_union(preds, target, num_classes=2, batch=batch, ignore_index=255)
+    assert inter.shape == (2, 2)
+    assert union.shape == (2, 2)
+    assert torch.equal(inter[0], torch.tensor([1, 1]))
+    assert torch.equal(union[0], torch.tensor([1, 1]))
+    assert torch.equal(inter[1], torch.zeros(2, dtype=torch.long))
+    assert torch.equal(union[1], torch.zeros(2, dtype=torch.long))
+
+
+def test_intersection_union_per_batch_all_ignored_returns_zeros() -> None:
+    target = torch.tensor([255, 255])
+    preds = torch.tensor([0, 1])
+    batch = torch.tensor([0, 0])
+    inter, union = compute_intersection_union(preds, target, num_classes=2, batch=batch, ignore_index=255)
+    assert inter.shape == (1, 2)
+    assert union.shape == (1, 2)
+    assert inter.sum().item() == 0
+    assert union.sum().item() == 0
+
+
 def test_iou_perfect_is_one(perfect_preds: tuple[Tensor, Tensor]) -> None:
     preds, target = perfect_preds
     iou = compute_iou(preds, target, num_classes=3)

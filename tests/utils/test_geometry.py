@@ -367,6 +367,8 @@ def test_spherical_points_lloyd_fixed_position_vertical() -> None:
     # Second and third points only have z component
     assert torch.allclose(points[1, :2], torch.zeros(2))
     assert torch.allclose(points[2, :2], torch.zeros(2))
+    # Free points keep a nonzero XY spread; only the fixed points are constrained to the axis
+    assert points[3:, :2].abs().max() > 0.1
     # Second point above center, third point below
     assert points[1, 2] > 0
     assert points[2, 2] < 0
