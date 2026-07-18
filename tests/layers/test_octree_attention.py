@@ -46,6 +46,11 @@ def test_rpe_forward() -> None:
     assert out.shape == (2, 2, 4, 4)
 
 
+def test_rpe_table_initialized_nonzero() -> None:
+    rpe = RPE(patch_size=4, num_heads=2, dilation=1)
+    assert bool(rpe.rpe_table.abs().sum() > 0)
+
+
 def test_octree_attention_forward() -> None:
     octree_t = _make_octree_t(depth=4, patch_size=4, dilation=1)
     depth = octree_t.depth

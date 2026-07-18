@@ -204,6 +204,7 @@ class RPE(nn.Module):
         self.pos_bnd = int(0.8 * patch_size * dilation**0.5)
         self.rpe_num = 2 * self.pos_bnd + 1
         self.rpe_table = nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads))
+        self.reset_parameters()
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.rpe_table, std=0.02)

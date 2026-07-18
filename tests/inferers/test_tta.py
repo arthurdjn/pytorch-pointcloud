@@ -53,7 +53,8 @@ def test_tta_mean_of_identical_passes_equals_one_pass() -> None:
 
 
 def test_tta_enumerated_sequence_uses_each_view_once() -> None:
-    """With a sequence of Composes, `num_passes` is overridden by the sequence length."""
+    """With a sequence of Composes, `num_passes` is overridden by the sequence length and the aggregate
+    equals the mean of the per-view predictions (each view is deterministic, so they can be replayed)."""
     data = _toy_data(seed=2)
     base = SimpleInferer()
     predictor = _pos_logits(3)
@@ -68,6 +69,9 @@ def test_tta_enumerated_sequence_uses_each_view_once() -> None:
     out = inferer(data, predictor=predictor)
     assert out.shape == (data[DataKeys.POS].size(0), 3)
     assert torch.isfinite(out).all()
+
+    per_view = torch.stack([base(view(dict(data)), predictor=predictor) for view in views])
+    assert torch.allclose(out, per_view.mean(dim=0), atol=1e-6)
 
 
 def test_tta_flip_changes_predictions_but_preserves_shape() -> None:
