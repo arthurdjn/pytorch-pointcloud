@@ -61,7 +61,7 @@ def main() -> None:
     test_dataset = S3DISHdf5(
         root=args.root,
         areas=area,  # type: ignore[arg-type]
-        transform=model_info.get("transforms"),
+        transform=model_info.get("transform"),
         download=False,
     )
     test_dataloader = DataLoader(

@@ -56,7 +56,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        cat_keys=[DataKeys.BOX],
+        cat_keys=[DataKeys.BOX, DataKeys.CLASS],
     )
     print(f"Test set: {len(dataset)} scenes")  # type: ignore[arg-type]
     metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.ap_iou)
@@ -81,6 +81,7 @@ def evaluate(
         x = data[DataKeys.X].to(device)
         pos = data[DataKeys.POS].to(device)
         box = data[DataKeys.BOX].to(device)
+        gt_labels = data[DataKeys.CLASS].to(device)
         batch = data[DataKeys.BATCH].to(device)
         batch_box = data[DataKeys.BATCH_BOX].to(device)
 
@@ -101,9 +102,7 @@ def evaluate(
                 "batch": det_batch[keep].repeat_interleave(model.num_classes),
             }
         )
-        # The dataset stores half extents; the metric expects full edge lengths.
-        full = torch.cat([box[:, :3], 2 * box[:, 3:6], box[:, 6:7]], dim=1)
-        all_targets.append({"boxes": full, "labels": box[:, 7].long(), "batch": batch_box})
+        all_targets.append({"boxes": box, "labels": gt_labels, "batch": batch_box})
 
     return mean_average_precision3d(all_preds, all_targets, iou_thresholds=iou_thresholds)
 

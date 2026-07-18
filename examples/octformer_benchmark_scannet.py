@@ -39,7 +39,7 @@ def main() -> None:
     model, info = create_model(args.model, task="segmentation", pretrained=args.pretrained, return_info=True)
     num_classes: int = int(model.num_classes)
 
-    transform = info.get("transforms")
+    transform = info.get("transform")
     if transform is None:
         raise ValueError(
             f"Model {args.model!r} has no registered `transforms`. "

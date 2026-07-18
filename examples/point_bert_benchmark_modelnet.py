@@ -57,7 +57,7 @@ def main() -> None:
     model, model_info = create_model(args.model, task="classification", pretrained=True, return_info=True)
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transforms")
+    transform = model_info.get("transform")
 
     print("Loading ModelNet40 (normal-resampled) test dataset!")
     test_dataset = ModelNetNormalResampled(

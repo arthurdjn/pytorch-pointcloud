@@ -81,7 +81,7 @@ def main() -> None:
         block_size=args.block_size,
         block_stride=args.block_size * args.stride_rate,
         num_nodes=args.npoint,
-        transform=model_info.get("transforms"),
+        transform=model_info.get("transform"),
         show_progress=True,
         force_process=args.force_process,
         num_workers=args.num_workers,
