@@ -105,7 +105,8 @@ def knn_window_inference(
             more thorough coverage at the cost of more iterations.
         mode: Distance weighting for each window. `"constant"` gives equal weight
             to every point; `"gaussian"` weights by $\exp(-d^2 / 2\sigma^2)$ with
-            $\sigma = \text{sigma\_scale} \cdot \max_i d_i$.
+            $\sigma = \text{sigma\_scale} \cdot \max_i d_i$. `"gaussian"` requires
+            `aggregate="weighted_mean"`; EMA updates ignore distance weights.
         sigma_scale: Gaussian sigma scale factor (only used when `mode="gaussian"`).
         aggregate: How predictions from overlapping windows are combined.
             `"weighted_mean"`: weighted-average logits (divide by total weight at end).
@@ -139,6 +140,11 @@ def knn_window_inference(
         raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
     if not 0.0 <= ema_smoothing < 1.0:
         raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
+    if aggregate == "ema" and mode == "gaussian":
+        raise ValueError(
+            "`mode='gaussian'` is incompatible with `aggregate='ema'`: EMA updates blend by `ema_smoothing`, not "
+            "by per-point distance weights. Use `aggregate='weighted_mean'` or `mode='constant'`."
+        )
     if aggregate == "ema" and sw_batch_size > 1:
         warnings.warn(
             "`aggregate='ema'` with `sw_batch_size > 1` applies per-window EMA updates sequentially; "

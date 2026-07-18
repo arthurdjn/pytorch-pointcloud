@@ -18,7 +18,8 @@ class Point3DRoPE(nn.Module):
     r"""3D Rotary Position Embedding for point cloud attention.
 
     Args:
-        head_dim: Channel dimension of a single attention head. Must be divisible by 3.
+        head_dim: Channel dimension of a single attention head. Must be divisible by 6: the head splits
+            into three axis chunks, each of which needs an even size for the half-rotation.
         base: RoPE frequency base ($\theta$). Smaller values encode finer spatial detail.
 
     Inputs:
@@ -33,8 +34,11 @@ class Point3DRoPE(nn.Module):
     inv_freq: Tensor
 
     def __init__(self, head_dim: int, base: float = 10.0) -> None:
-        if head_dim % 3 != 0:
-            raise ValueError(f"head_dim must be divisible by 3 for 3D RoPE, got {head_dim}.")
+        if head_dim % 6 != 0:
+            raise ValueError(
+                f"head_dim must be divisible by 6 for 3D RoPE (three axis chunks, each even-sized so channels "
+                f"rotate in pairs), got {head_dim}."
+            )
         super().__init__()
         self.head_dim = head_dim
         self.chunk_dim = head_dim // 3
