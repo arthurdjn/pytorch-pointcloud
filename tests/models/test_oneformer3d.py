@@ -104,6 +104,16 @@ def test_oneformer3d_query_decoder_forward() -> None:
     assert out["scores"][0].shape == (20, 1)
 
 
+def test_oneformer3d_forward_head_pre_logits(tiny_model: OneFormer3DSegmentation) -> None:
+    data = _make_inputs(num_voxels_per_scene=32, batch_size=2, grid_size=16)
+    tiny_model.eval()
+    with torch.no_grad():
+        feats = tiny_model.forward_features(data["x"], data["pos_grid"], data["batch"])
+        sources = tiny_model.forward_decoder(feats, data["batch"], data["superpoint"], data["inverse"])
+        pre = tiny_model.forward_head(sources, pre_logits=True)
+    assert pre is sources
+
+
 def test_oneformer3d_forward_shapes(tiny_model: OneFormer3DSegmentation) -> None:
     data = _make_inputs(num_voxels_per_scene=32, batch_size=2, grid_size=16)
     tiny_model.eval()

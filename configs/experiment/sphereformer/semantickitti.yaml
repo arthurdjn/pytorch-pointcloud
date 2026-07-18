@@ -14,7 +14,7 @@ trainer:
 model:
   name: sphereformer.semantickitti
   num_classes: 19
-  input_keys: [x, pos_grid, batch, pos]
+  input_keys: [x, pos, pos_grid, batch]
   target_key: segment
   criterion:
     _target_: torch.nn.CrossEntropyLoss

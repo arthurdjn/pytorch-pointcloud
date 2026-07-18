@@ -1,12 +1,14 @@
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
 import pytest
 import torch
+import torch.nn as nn
+from torch import Tensor
 
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.lion import LIONDetection, TransFusionHead
+from torch_pointcloud.models.lion import LIONDetection, TransFusionHead, TransFusionHeadOutput
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
@@ -43,7 +45,7 @@ def test_lion_head_decode_packs_detections() -> None:
     head = TransFusionHead(384, 10, (360, 360, 32), RANGE, (0.3, 0.3, 0.25)).eval()
     num_proposals = head.num_proposals
     batch_size = 2
-    out = {
+    out: TransFusionHeadOutput = {
         "center": torch.rand(batch_size, 2, num_proposals),
         "height": torch.rand(batch_size, 1, num_proposals),
         "dim": torch.rand(batch_size, 3, num_proposals),
@@ -53,6 +55,7 @@ def test_lion_head_decode_packs_detections() -> None:
         "heatmap": torch.randn(batch_size, 10, num_proposals),
         "query_heatmap_score": torch.rand(batch_size, 10, num_proposals),
         "query_labels": torch.randint(0, 10, (batch_size, num_proposals)),
+        "dense_heatmap": torch.randn(batch_size, 10, 180, 180),
     }
     det = head.decode(out)
     assert det["boxes"].shape[1] == 7
@@ -71,6 +74,37 @@ def test_lion_head_predict_supports_non_nuscenes_num_classes() -> None:
     assert int(out["query_labels"].max()) < 3
 
 
+class DummyDecoder(nn.Module):
+    def forward(
+        self, query: Tensor, key: Tensor, query_pos: Tensor, key_pos: Tensor, key_padding_mask: Optional[Tensor] = None
+    ) -> Tensor:
+        self.query_pos = query_pos
+        self.key_pos = key_pos
+        self.key_padding_mask = key_padding_mask
+        return query
+
+
+def test_lion_head_predict_key_indices_on_non_square_grid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The BEV flat index is x-major (x * y_size + y): each query's (0, 0)-offset key must be its own cell."""
+    torch.manual_seed(0)
+    radius = 2
+    head = TransFusionHead(16, 3, (32, 64, 1), RANGE, (0.3, 0.3, 0.25), num_proposals=10, query_radius=radius).eval()
+    capture = DummyDecoder()
+    monkeypatch.setattr(head, "decoder", capture)
+    x_size = head.grid_size[0] // head.feature_map_stride
+    y_size = head.grid_size[1] // head.feature_map_stride
+    assert x_size != y_size
+
+    with torch.no_grad():
+        out = head.predict(torch.randn(2, 16, x_size, y_size))
+
+    center = (2 * radius + 1) * radius + radius
+    assert capture.key_padding_mask is not None
+    assert not capture.key_padding_mask[:, center].any()
+    assert torch.allclose(capture.key_pos[:, center, :], capture.query_pos[:, 0, :])
+    assert torch.isfinite(out["heatmap"]).all()
+
+
 def test_lion_head_local_max_classes_decode() -> None:
     """`decode` is class-count agnostic: a 3-class head with `local_max_classes` set still packs raw detections."""
     torch.manual_seed(0)
@@ -78,7 +112,7 @@ def test_lion_head_local_max_classes_decode() -> None:
     assert head.local_max_classes == (1, 2)
     num_proposals = head.num_proposals
     batch_size = 2
-    out = {
+    out: TransFusionHeadOutput = {
         "center": torch.rand(batch_size, 2, num_proposals),
         "height": torch.rand(batch_size, 1, num_proposals),
         "dim": torch.rand(batch_size, 3, num_proposals),
@@ -88,6 +122,7 @@ def test_lion_head_local_max_classes_decode() -> None:
         "heatmap": torch.randn(batch_size, 3, num_proposals),
         "query_heatmap_score": torch.rand(batch_size, 3, num_proposals),
         "query_labels": torch.randint(0, 3, (batch_size, num_proposals)),
+        "dense_heatmap": torch.randn(batch_size, 3, 180, 180),
     }
     det = head.decode(out)
     assert det["boxes"].shape[1] == 7

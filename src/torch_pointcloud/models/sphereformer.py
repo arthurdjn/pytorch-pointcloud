@@ -561,7 +561,7 @@ class SphereFormerSegmentation(SegmentationModel):
         >>> pos_grid = (pos / 0.05).floor().long()  # doctest: +SKIP
         >>> x = torch.cat([pos, torch.rand(1000, 1)], dim=1)  # doctest: +SKIP
         >>> batch = torch.zeros(1000, dtype=torch.long)  # doctest: +SKIP
-        >>> logits = model(x, pos_grid, batch, pos)  # doctest: +SKIP
+        >>> logits = model(x, pos, pos_grid, batch)  # doctest: +SKIP
         >>> logits.shape  # doctest: +SKIP
         torch.Size([1000, 19])
     """
@@ -661,10 +661,10 @@ class SphereFormerSegmentation(SegmentationModel):
     def forward_decoder(self, x: "SparseConvTensor") -> "SparseConvTensor":
         return self.output_layer(x)
 
-    def forward_head(self, x: "SparseConvTensor") -> Tensor:
-        return self.head(x.features)
+    def forward_head(self, x: "SparseConvTensor", pre_logits: bool = False) -> Tensor:
+        return x.features if pre_logits else self.head(x.features)
 
-    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor, pos: Tensor) -> Tensor:
+    def forward(self, x: Tensor, pos: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
         sparse_x = self.forward_features(x, pos_grid, batch, pos)
         sparse_x = self.forward_decoder(sparse_x)
         return self.forward_head(sparse_x)

@@ -115,6 +115,15 @@ def test_octformer_classification_reset_classifier(model_clf: OctFormerClassific
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
 
 
+def test_octformer_classification_num_classes_zero_returns_features(
+    model_clf: OctFormerClassification, data: Dict[str, Any]
+) -> None:
+    model_clf.reset_classifier(num_classes=0)
+    assert isinstance(model_clf.head, torch.nn.Identity)
+    out = model_clf(data["x"], data["octree"], data["depth"])
+    assert out.shape == (int(data["batch"].max()) + 1, model_clf.embedding_dim)
+
+
 def test_octformer_segmentation_forward(model_seg: OctFormerSegmentation, data: Dict[str, Any]) -> None:
     logits = model_seg(data["x"], data["octree"], data["depth"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

@@ -1,7 +1,14 @@
 import pytest
 import torch
 
-from torch_pointcloud.models.point_mamba import PointMambaClassification, PointMambaEncoder, PointMambaMAE
+from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.models.point_mamba import (
+    PointMambaBlock,
+    PointMambaClassification,
+    PointMambaDecoderMAE,
+    PointMambaEncoder,
+    PointMambaMAE,
+)
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
@@ -16,6 +23,31 @@ pytestmark = [
     pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
     pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
 ]
+
+
+def test_point_mamba_block_uses_stochastic_depth() -> None:
+    block = PointMambaBlock(16, drop_path=0.5).cuda()
+    assert isinstance(block.drop_path, DropPath)
+
+    block.train()
+    x = torch.randn(64, 4, 16).cuda()
+    torch.manual_seed(0)
+    delta = (block(x) - x).flatten(1)
+    dropped = (delta == 0).all(dim=1)
+    kept = (delta != 0).all(dim=1)
+    assert (dropped | kept).all()
+    assert dropped.any() and kept.any()
+
+    block.eval()
+    out_a = block(x)
+    out_b = block(x)
+    assert torch.equal(out_a, out_b)
+    assert not torch.equal(out_a, x)
+
+
+def test_point_mamba_decoder_mask_token_initialized() -> None:
+    decoder = PointMambaDecoderMAE(embedding_dim=64, depth=1, drop_path_rate=0.0)
+    assert not torch.all(decoder.mask_token == 0)
 
 
 def test_point_mamba_encoder_basic() -> None:

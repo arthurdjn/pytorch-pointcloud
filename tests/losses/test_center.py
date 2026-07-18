@@ -71,6 +71,54 @@ def _sparse_data(
     return output, batch
 
 
+def _perfect_dense_output(box: Tensor, size: int = 24) -> Dict[str, Tensor]:
+    """Constant maps that decode exactly to `box` at its peak cell (its center sits mid-cell)."""
+    return {
+        "heatmap": torch.zeros(1, 1, size, size),
+        "center": torch.full((1, 2, size, size), 0.5),
+        "center_z": torch.full((1, 1, size, size), float(box[2])),
+        "dim": torch.log(box[3:6]).view(1, 3, 1, 1).expand(1, 3, size, size).clone(),
+        "rot": torch.stack([torch.cos(box[6]).expand(size, size), torch.sin(box[6]).expand(size, size)]).unsqueeze(0),
+        "iou": torch.ones(1, 1, size, size),  # matches the rescaled target 2 * iou3d - 1 = 1 of a perfect box
+    }
+
+
+def test_center_loss_perfect_predictions_regression_terms_zero() -> None:
+    loss_fn = CenterLoss(
+        1, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8, iou_weight=1.0
+    )
+    box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.4])
+    batch: Dict[str, Any] = {
+        DataKeys.BOX: box.unsqueeze(0),
+        DataKeys.LABEL: torch.tensor([0]),
+        DataKeys.BATCH_BOX: torch.tensor([0]),
+    }
+    output = _perfect_dense_output(box)
+    out = loss_fn(output, batch)
+    assert out["loc_loss"] < 1e-5
+    assert out["iou_loss"] < 1e-5
+
+    output["center"] = output["center"] + 0.25
+    perturbed = loss_fn(output, batch)
+    assert perturbed["loc_loss"] > out["loc_loss"] + 0.01
+
+
+def test_center_loss_iou_targets_skip_degenerate_boxes() -> None:
+    """A degenerate first GT box (skipped by the target assigner) must not shift later IoU targets."""
+    loss_fn = CenterLoss(
+        1, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8, iou_weight=1.0
+    )
+    box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.0])
+    degenerate = torch.tensor([0.0, 0.0, 0.0, 0.0, 2.0, 1.5, 0.0])
+    batch: Dict[str, Any] = {
+        DataKeys.BOX: torch.stack([degenerate, box]),
+        DataKeys.LABEL: torch.tensor([0, 0]),
+        DataKeys.BATCH_BOX: torch.tensor([0, 0]),
+    }
+    out = loss_fn(_perfect_dense_output(box), batch)
+    assert out["iou_loss"] < 1e-5  # the prediction decodes exactly to the kept box, so its target is 1
+
+
 def test_center_loss_returns_scalar_dict() -> None:
     loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
     output, batch = _dense_data()

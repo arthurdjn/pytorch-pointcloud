@@ -76,6 +76,25 @@ def test_kpconv_module(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
+def test_kpconv_running_stats_are_not_buffers(data: Dict[str, Tensor]) -> None:
+    conv = KPConv(
+        spatial_dim=3,
+        in_channels=3,
+        out_channels=32,
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+        deformable=True,
+        modulated=True,
+    )
+    conv(data["features"], data["pos"], data["pos"], data["edge_index"])
+
+    running_names = ("running_min_d2", "running_deformed_kernel", "running_offset_features")
+    assert all(name not in conv.state_dict() for name in running_names)
+    assert all(name not in dict(conv.named_buffers()) for name in running_names)
+    assert all(getattr(conv, name) is not None for name in running_names)
+
+
 def test_kpconv_block_layer(data: Dict[str, Tensor]) -> None:
     block = KPConvBlock(
         spatial_dim=3,

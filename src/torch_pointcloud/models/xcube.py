@@ -88,6 +88,29 @@ def _submanifold_plan(grid: "GridBatch") -> "ConvolutionPlan":
     return ConvolutionPlan.from_grid_batch(3, 1, grid, target_grid=grid)
 
 
+def _cached_submanifold_plan(
+    grid: "GridBatch",
+    plans: Dict[int, Tuple["GridBatch", "ConvolutionPlan"]],
+) -> "ConvolutionPlan":
+    r"""Get or build the submanifold convolution plan for `grid`, memoized in `plans`.
+
+    The cache is keyed by `id(grid)`, so each entry stores the grid alongside its plan: a cached
+    grid stays alive for the lifetime of the cache and its id cannot be recycled by a new grid,
+    which would otherwise be served a stale plan.
+
+    Args:
+        grid: The grid to build the plan for.
+        plans: The per-forward plan cache, keyed by `id(grid)`.
+
+    Returns:
+        The kernel-size $3$, stride $1$ convolution plan mapping `grid` onto itself.
+    """
+    key = id(grid)
+    if key not in plans:
+        plans[key] = (grid, _submanifold_plan(grid))
+    return plans[key][1]
+
+
 class SparseGroupNorm(nn.GroupNorm):
     r"""Group normalization over the voxels of each grid in a batch.
 
@@ -710,11 +733,10 @@ class SparseResBlock(nn.Module):
         x: Tensor,
         grid: "GridBatch",
         emb: Tensor,
-        plans: Dict[int, "ConvolutionPlan"],
+        plans: Dict[int, Tuple["GridBatch", "ConvolutionPlan"]],
         target_grid: Optional["GridBatch"] = None,
     ) -> Tuple[Tensor, "GridBatch"]:
-        if id(grid) not in plans:
-            plans[id(grid)] = _submanifold_plan(grid)
+        plan = _cached_submanifold_plan(grid, plans)
         h = self.in_norm(x, grid.ijk.joffsets)
         if self.in_act is not None:
             h = self.in_act(h)
@@ -722,9 +744,7 @@ class SparseResBlock(nn.Module):
             h, new_grid = self._resample(h, grid, target_grid)
             x, _ = self._resample(x, grid, new_grid)
             grid = new_grid
-            if id(grid) not in plans:
-                plans[id(grid)] = _submanifold_plan(grid)
-        plan = plans[id(grid)]
+            plan = _cached_submanifold_plan(grid, plans)
         h = self.in_conv(grid.ijk.jagged_like(h), plan).jdata
 
         emb_out = self.emb_layers(emb)
@@ -887,7 +907,7 @@ class XCubeSparseUNet(nn.Module):
         x: Tensor,
         grid: "GridBatch",
         emb: Tensor,
-        plans: Dict[int, "ConvolutionPlan"],
+        plans: Dict[int, Tuple["GridBatch", "ConvolutionPlan"]],
         target_grid: Optional["GridBatch"] = None,
     ) -> Tuple[Tensor, "GridBatch"]:
         for layer in layers:
@@ -896,9 +916,7 @@ class XCubeSparseUNet(nn.Module):
             elif isinstance(layer, SparseAttentionBlock):
                 x = layer(x, grid.ijk.joffsets)
             else:
-                if id(grid) not in plans:
-                    plans[id(grid)] = _submanifold_plan(grid)
-                x = layer(grid.ijk.jagged_like(x), plans[id(grid)]).jdata
+                x = layer(grid.ijk.jagged_like(x), _cached_submanifold_plan(grid, plans)).jdata
         return x, grid
 
     def forward(self, x: Tensor, grid: "GridBatch", timesteps: Tensor) -> Tensor:
@@ -920,7 +938,7 @@ class XCubeSparseUNet(nn.Module):
             timesteps = timesteps.expand(grid.grid_count).to(grid.device)
         emb = self.time_emb(timestep_encoding(timesteps, self.model_channels))
 
-        plans: Dict[int, "ConvolutionPlan"] = {}
+        plans: Dict[int, Tuple["GridBatch", "ConvolutionPlan"]] = {}
         hs: List[Tuple[Tensor, "GridBatch"]] = []
         for block in self.encoder_blocks:
             assert isinstance(block, nn.ModuleList)
@@ -937,9 +955,7 @@ class XCubeSparseUNet(nn.Module):
         x = self.out_norm(x, grid.ijk.joffsets)
         if self.out_act is not None:
             x = self.out_act(x)
-        if id(grid) not in plans:
-            plans[id(grid)] = _submanifold_plan(grid)
-        return self.out_conv(grid.ijk.jagged_like(x), plans[id(grid)]).jdata
+        return self.out_conv(grid.ijk.jagged_like(x), _cached_submanifold_plan(grid, plans)).jdata
 
 
 class DenseResBlock(nn.Module):

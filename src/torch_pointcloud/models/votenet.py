@@ -495,9 +495,11 @@ class VoteNetDetection(DetectionModel):
         r"""Decode a forward output into raw per-proposal detections (no NMS, threshold, or filtering).
 
         Builds one oriented box per proposal from the predicted heading/size bins, scores it by objectness,
-        and labels it by the argmax semantic class. The result is the full unfiltered proposal set; the
-        evaluation pipeline applies point-count filtering, NMS, score thresholding, and the indoor per-class
-        expansion (driven by the returned `class_probs`) via the `torch_pointcloud.utils.box3d` utilities.
+        and labels it by the argmax semantic class. The heading head predicts negated angles, so the decoded
+        heading is negated to return counter-clockwise headings (the library box convention). The result is
+        the full unfiltered proposal set; the evaluation pipeline applies point-count filtering, NMS, score
+        thresholding, and the indoor per-class expansion (driven by the returned `class_probs`) via the
+        `torch_pointcloud.utils.box3d` utilities.
 
         Args:
             out: A `VoteNetOutput` from `forward`.
@@ -516,7 +518,7 @@ class VoteNetDetection(DetectionModel):
 
         heading_class = out["heading_scores"].argmax(dim=-1)
         heading_residual = out["heading_residuals"].gather(2, heading_class.unsqueeze(-1)).squeeze(-1)
-        angle = F.class_to_angle(heading_class, heading_residual, self.num_heading_bin)
+        angle = -F.class_to_angle(heading_class, heading_residual, self.num_heading_bin)
 
         size_class = out["size_scores"].argmax(dim=-1)
         size_gather = size_class.view(batch_size, num_proposal, 1, 1).expand(-1, -1, 1, 3)
