@@ -1,7 +1,7 @@
 """Evaluate the PointNeXt ShapeNetPart part-segmentation models (single-pass, no voting).
 
 `ShapeNetPart` -> `DataLoader` -> model -> argmax -> per-shape IoU averaged into instance / class mIoU.
-The category one-hot conditioning is written by the registered transform to `cls_onehot`.
+The category one-hot conditioning is built from the dataset's `category` labels in the eval loop.
 
 Results vs reference (instance mIoU / class mIoU; reference is the model-zoo checkpoint eval):
 
@@ -69,7 +69,7 @@ def main() -> None:
     test_dataset = ShapeNetPart(
         root=args.root,
         split="test",
-        transform=model_info.get("transforms"),
+        transform=model_info.get("transform"),
     )
     test_dataloader = DataLoader(
         test_dataset,

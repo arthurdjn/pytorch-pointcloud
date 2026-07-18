@@ -114,7 +114,7 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
-    transform = model_info.get("transforms")
+    transform = model_info.get("transform")
 
     dataset_cls = ScanNet200 if "scannet200" in args.model else ScanNet20
     dataset: Dataset = dataset_cls(

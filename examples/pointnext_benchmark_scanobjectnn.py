@@ -57,7 +57,7 @@ def main() -> None:
     )
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transforms")
+    transform = model_info.get("transform")
 
     print("Loading ScanObjectNN test dataset!")
     test_dataset = ScanObjectNN(

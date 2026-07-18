@@ -120,7 +120,7 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on S3DIS (areas={args.areas})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
-    transform = model_info.get("transforms")
+    transform = model_info.get("transform")
 
     dataset: Dataset = S3DIS(
         root=args.root,
