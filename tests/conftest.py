@@ -9,8 +9,10 @@ DATASETS_DIR = DATA_DIR / "datasets"
 MODELS_DIR = DATA_DIR / "models"
 
 
-def _create_dir_factory(source: Path, dest: Path) -> Callable[..., Path]:
-    def factory(pattern: str = "*", symlinks: bool = True) -> Path:
+def _create_dir_factory(source: Path, dest: Path, symlinks: bool = False) -> Callable[..., Path]:
+    default_symlinks = symlinks
+
+    def factory(pattern: str = "*", symlinks: bool = default_symlinks) -> Path:
         for file_path in source.rglob(pattern):
             if not file_path.is_file():
                 continue
@@ -31,7 +33,8 @@ def _create_dir_factory(source: Path, dest: Path) -> Callable[..., Path]:
 def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
     """Utility fixture to mock the test `data` directory.
     This fixture is used to add data files within the test temporary directory `tmp_path`.
-    For convenience, the copied data is symlinked to the `data` directory within the test temporary directory.
+    Files are real copies by default, so in-place writes cannot leak into the committed data directory;
+    pass `symlinks=True` to symlink instead when a test only reads large files.
 
     The purpose of this function is to allow data modification in an isolated folder,
     without affecting the actual data directory.
@@ -40,7 +43,7 @@ def data_dir_factory(tmp_path: Path) -> Callable[..., Path]:
 
     Args:
         pattern: The pattern to match the data files to be copied.
-        symlinks: Whether to create symlinks to the data files.
+        symlinks: Whether to symlink the data files instead of copying them.
 
     Returns:
         The path to the test `data` directory.
@@ -89,8 +92,12 @@ def datasets_dir(datasets_dir_factory: Callable[..., Path]) -> Path:
 
 @pytest.fixture
 def models_dir_factory(tmp_path: Path) -> Callable[..., Path]:
-    """Utility fixture to create a directory factory for the models directory"""
-    return _create_dir_factory(MODELS_DIR, tmp_path / "models")
+    """Utility fixture to create a directory factory for the models directory.
+
+    Defaults to symlinks: the model snapshots weigh hundreds of MB and every consumer only reads them
+    (snapshot regeneration writes to the source directory directly, never through the returned paths).
+    """
+    return _create_dir_factory(MODELS_DIR, tmp_path / "models", symlinks=True)
 
 
 @pytest.fixture
