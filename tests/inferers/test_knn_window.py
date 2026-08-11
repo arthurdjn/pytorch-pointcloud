@@ -138,6 +138,8 @@ def test_knn_window_inference_validates_args() -> None:
         knn_window_inference({DataKeys.POS: pos}, predictor=fake)
     with pytest.raises(ValueError, match="`overlap`"):
         knn_window_inference(data, predictor=fake, overlap=1.5)
+    with pytest.raises(ValueError, match="`overlap`"):
+        knn_window_inference(data, predictor=fake, overlap=0.0)
     with pytest.raises(ValueError, match="`mode`"):
         knn_window_inference(data, predictor=fake, mode="other")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="`aggregate`"):
@@ -146,6 +148,47 @@ def test_knn_window_inference_validates_args() -> None:
         knn_window_inference(data, predictor=fake, sw_batch_size=0)
     with pytest.raises(ValueError, match="`ema_smoothing`"):
         knn_window_inference(data, predictor=fake, aggregate="ema", ema_smoothing=1.5)
+
+
+def test_knn_window_overlap_zero_raises_before_predicting() -> None:
+    """A zero coverage threshold would end the loop before the first window, so it is rejected."""
+    torch.manual_seed(0)
+    n = 100
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(n, 3),
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return torch.zeros(window[DataKeys.POS].size(0), 2)
+
+    with pytest.raises(ValueError, match="`overlap`"):
+        KNNWindowInferer(roi_num_points=32, overlap=0.0)(data, predictor=predictor)
+
+
+def test_knn_window_gaussian_small_sigma_divides_by_true_weight() -> None:
+    """The gaussian weighted mean divides by the true accumulated weight, so a constant predictor
+    is recovered exactly at every point even when edge-of-window float32 gaussian weights underflow
+    under a sharp `sigma_scale`."""
+    torch.manual_seed(0)
+    n = 1024
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(n, 3) * 5,
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+    pred, target = _identity_predictor(num_classes=4)
+    out = knn_window_inference(
+        data,
+        predictor=pred,
+        roi_num_points=128,
+        sw_batch_size=2,
+        mode="gaussian",
+        sigma_scale=0.05,
+        aggregate="weighted_mean",
+        overlap=0.3,
+        seed=7,
+    )
+    assert torch.allclose(out, target.expand(n, 4), atol=1e-4, rtol=1e-4)
 
 
 def test_knn_window_gaussian_with_ema_raises() -> None:
@@ -184,3 +227,35 @@ def test_knn_window_inferer_class_matches_function() -> None:
     out_fn = knn_window_inference(data, predictor=predictor, **kwargs)
     out_cls = KNNWindowInferer(**kwargs)(data, predictor=predictor)
     assert torch.equal(out_fn, out_cls)
+
+
+def test_knn_window_softmax_averages_probabilities() -> None:
+    """`softmax=True` converts each window's logits to probabilities before the weighted mean,
+    so output rows sum to 1 regardless of the logit scale."""
+    torch.manual_seed(0)
+    n = 256
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(n, 3) * 3,
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return torch.randn(window[DataKeys.POS].size(0), 4) * 10.0
+
+    out = knn_window_inference(data, predictor=predictor, roi_num_points=64, overlap=0.3, softmax=True, seed=1)
+    sums = out.sum(dim=1)
+    assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
+
+
+def test_knn_window_empty_scene_returns_zero_by_zero() -> None:
+    """With $N = 0$ the predictor is never called and the output is a $(0, 0)$ tensor."""
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.zeros(0, 3),
+        DataKeys.BATCH: torch.zeros(0, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        raise AssertionError("predictor must not be called for an empty scene")
+
+    out = knn_window_inference(data, predictor=predictor, roi_num_points=8)
+    assert out.shape == (0, 0)

@@ -28,6 +28,22 @@ class Inferer(metaclass=ABCMeta):
     $(N, C_\text{out})$. Inferers are stateless with respect to the scene, so
     one instance can be reused across scenes and wrapped by another inferer.
 
+    Every concrete inferer exposes a knob controlling whether partial predictions are
+    converted to softmax probabilities before aggregation. The defaults differ:
+
+    | Inferer                 | Parameter     | Default | Aggregated quantity                                          |
+    | ----------------------- | ------------- | ------- | ------------------------------------------------------------ |
+    | `SimpleInferer`         | `softmax`     | `False` | predictor output as-is                                       |
+    | `SlidingWindowInferer`  | `softmax`     | `True`  | softmax probabilities per block                              |
+    | `KNNWindowInferer`      | `softmax`     | `False` | raw logits (`"weighted_mean"`); always probabilities (`"ema"`) |
+    | `VoxelPartitionInferer` | `softmax`     | `False` | raw logits per pass                                          |
+    | `TTAInferer`            | `ema_softmax` | `True`  | base output as-is (`"mean"`); softmax of base output (`"ema"`) |
+
+    When the input scene is empty ($N = 0$), inferers that never call the predictor
+    return a $(0, 0)$ tensor (the channel count cannot be inferred without a predictor
+    call); `SimpleInferer` and `TTAInferer` return whatever the predictor / base
+    inferer produces for the empty input.
+
     To add a custom strategy, subclass `Inferer` and implement `forward`:
 
     ```python
