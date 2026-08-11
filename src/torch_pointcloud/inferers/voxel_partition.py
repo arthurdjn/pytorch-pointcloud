@@ -25,6 +25,10 @@ class VoxelPartitionInferer(Inferer):
     For test-time augmentation, wrap in `TTAInferer`: each TTA pass triggers a fresh $K$-pass
     voxel partition under that augmentation.
 
+    Predictions are scatter-summed in float64 for stable averaging across passes; the returned
+    tensor is cast back to the predictor's output dtype. An empty scene ($N = 0$) returns a
+    $(0, 0)$ tensor: the predictor is never called, so the channel count cannot be inferred.
+
     Args:
         voxel_size: Side length of the FNV voxel partition (in the units of `pos`).
         transform: Optional per-sub-cloud callable applied after slicing each sub-cloud out of
@@ -88,6 +92,7 @@ class VoxelPartitionInferer(Inferer):
 
         logits_sum: Optional[Tensor] = None
         counts: Optional[Tensor] = None
+        out_dtype: Optional[torch.dtype] = None
 
         for b in torch.unique(batch).tolist():
             idx_b = torch.where(batch == b)[0]
@@ -123,6 +128,7 @@ class VoxelPartitionInferer(Inferer):
                 if self.softmax:
                     logits = torch.softmax(logits, dim=-1)
                 if logits_sum is None:
+                    out_dtype = logits.dtype
                     logits_sum = torch.zeros(n, int(logits.size(-1)), dtype=torch.float64, device=logits.device)
                     counts = torch.zeros(n, dtype=torch.long, device=logits.device)
                 assert counts is not None
@@ -130,6 +136,6 @@ class VoxelPartitionInferer(Inferer):
                 logits_sum.index_add_(0, packed_orig, logits.double())
                 counts.index_add_(0, packed_orig, torch.ones_like(packed_orig))
 
-        if logits_sum is None or counts is None:
+        if logits_sum is None or counts is None or out_dtype is None:
             return pos.new_zeros((0, 0))
-        return logits_sum / counts.clamp_min(1).unsqueeze(-1)
+        return (logits_sum / counts.clamp_min(1).unsqueeze(-1)).to(out_dtype)

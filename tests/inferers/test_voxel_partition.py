@@ -71,7 +71,29 @@ def test_voxel_partition_softmax_yields_probabilities() -> None:
         return torch.full((window[DataKeys.POS].size(0), 3), 10.0)
 
     out = VoxelPartitionInferer(voxel_size=1.0, softmax=True, seed=0)(data, predictor=predictor)
-    assert torch.allclose(out.sum(dim=-1), torch.ones(out.size(0)).double())
+    assert torch.allclose(out.sum(dim=-1), torch.ones(out.size(0)))
+
+
+def test_voxel_partition_output_dtype_matches_predictor() -> None:
+    """Accumulation runs in float64, but the returned tensor is cast back to the predictor's dtype."""
+    data = _make_grid(n_per_voxel=2, n_voxels=3, voxel_size=1.0)
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS][:, :2].clone()
+
+    out = VoxelPartitionInferer(voxel_size=1.0, seed=0)(data, predictor=predictor)
+    assert out.dtype == torch.float32
+
+
+def test_voxel_partition_empty_scene_returns_zero_by_zero() -> None:
+    """With $N = 0$ the predictor is never called and the output is a $(0, 0)$ tensor."""
+    data: Dict[str, Any] = {DataKeys.POS: torch.zeros(0, 3), DataKeys.BATCH: torch.zeros(0, dtype=torch.long)}
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        raise AssertionError("predictor must not be called for an empty scene")
+
+    out = VoxelPartitionInferer(voxel_size=1.0)(data, predictor=predictor)
+    assert out.shape == (0, 0)
 
 
 @pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch-scatter not installed")

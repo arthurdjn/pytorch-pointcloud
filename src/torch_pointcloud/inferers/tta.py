@@ -56,7 +56,7 @@ class TTAInferer(Inferer):
         pos_key: Dict key for the position tensor (used for the empty-output fallback).
 
     Example:
-        Pointcept-style 4-pass TTA over random Z rotations and X/Y flips:
+        A 4-pass TTA over random Z rotations and X/Y flips:
 
         ```python
         from torch_pointcloud.inferers import TTAInferer, SlidingWindowInferer
