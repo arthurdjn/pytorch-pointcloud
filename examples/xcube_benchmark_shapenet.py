@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Dict, List, Literal
 import torch
 from tqdm import tqdm
 
-import torch_pointcloud.models.xcube  # noqa: F401
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import XCubeShapeNet
 from torch_pointcloud.datasets.shapenet import XCubeShapeNetCategory
