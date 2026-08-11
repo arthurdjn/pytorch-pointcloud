@@ -163,19 +163,19 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     train_dataset: Dataset
     test_dataset: Dataset
     if args.dataset.lower() == "modelnet10":
-        train_dataset = ModelNet10(args.root, "train", transform=transform, download=True)
-        test_dataset = ModelNet10(args.root, "test", transform=transform, download=True)
+        train_dataset = ModelNet10(args.root, train=True, transform=transform, download=True)
+        test_dataset = ModelNet10(args.root, train=False, transform=transform, download=True)
     elif args.dataset.lower() == "modelnet40":
         train_dataset = ModelNet40(
             args.root,
-            "train",
+            train=True,
             transform=transform,
             download=True,
             num_workers=args.num_workers,
         )
         test_dataset = ModelNet40(
             args.root,
-            "test",
+            train=False,
             transform=transform,
             download=True,
             num_workers=args.num_workers,

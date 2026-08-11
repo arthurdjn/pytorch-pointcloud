@@ -99,7 +99,7 @@ def main() -> None:
     )
     dataset = KITTI(
         root=args.root,
-        split=args.split,
+        train=not args.testing,
         split_file=args.split_file,
         fov=not args.no_fov,
         transform=T.Compose([relabel, info["transform"]]),
@@ -178,7 +178,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="PointPillars KITTI 3D detection AP benchmark.")
     parser.add_argument("--model", type=str, default="pointpillars.kitti.openpcdet")
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Parent directory containing KITTI/.")
-    parser.add_argument("--split", type=str, default="training")
+    parser.add_argument("--testing", action="store_true", help="Use the unlabeled testing split instead of training.")
     parser.add_argument("--split-file", type=str, default=None, help="Frame-id list (e.g. ImageSets/val.txt).")
     parser.add_argument("--no-fov", action="store_true", help="Disable the front-camera FOV filter.")
     parser.add_argument("--batch-size", type=int, default=4)

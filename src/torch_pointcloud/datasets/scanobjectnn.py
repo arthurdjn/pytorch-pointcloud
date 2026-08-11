@@ -40,11 +40,6 @@ ScanObjectNNClasses = Literal[
 SCANOBJECTNN_CLASSES = get_args(ScanObjectNNClasses)
 
 
-def _check_split(split: str) -> None:
-    if split not in ("train", "test"):
-        raise ValueError(f"Invalid split {split!r}, expected one of 'train' or 'test'.")
-
-
 def _check_partition(partition: str) -> None:
     if partition not in SCANOBJECTNN_PARTITIONS:
         raise ValueError(f"Invalid partition {partition!r}, expected one of {', '.join(SCANOBJECTNN_PARTITIONS)}.")
@@ -76,7 +71,7 @@ class ScanObjectNN(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        split: Literal["train", "test"] = "train",
+        train: bool = True,
         partition: ScanObjectNNPartition = "main",
         background: bool = False,
         variant: Optional[ScanObjectNNVariant] = None,
@@ -88,14 +83,13 @@ class ScanObjectNN(PointCloudDataset):
         show_progress: bool = True,
     ) -> None:
         super().__init__(root)
-        self.split = split
+        self.train = train
         self.partition = partition
         self.background = background
         self.variant = variant
         self.classes = tuple(self.original_classes if classes == "all" else ensure_tuple(classes))
         self.transform = transform
 
-        _check_split(self.split)
         _check_partition(self.partition)
         _check_variant(self.variant)
         _check_classes(self.classes)
@@ -118,7 +112,7 @@ class ScanObjectNN(PointCloudDataset):
         if not self.background:
             dir_name += "_nobg"
 
-        file_name_parts = ["training" if self.split == "train" else "test", "objectdataset"]
+        file_name_parts = ["training" if self.train else "test", "objectdataset"]
         if self.variant:
             file_name_parts.append(self.variant)
 

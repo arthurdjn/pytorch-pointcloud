@@ -63,7 +63,7 @@ def main() -> None:
     test_dataset = ModelNetNormalResampled(
         root=args.root,
         variant="40",
-        split="test",
+        train=False,
         download=args.download,
         transform=transform,
     )

@@ -11,7 +11,7 @@ import shutil
 import zipfile
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import scipy.io as sio
@@ -221,7 +221,7 @@ class SunRGBD(PointCloudDataset):
 
     Args:
         root: Root directory where the dataset is stored or will be downloaded.
-        split: The split to load, one of `train` or `val`.
+        train: If `True`, loads the train split; if `False`, loads the val split.
         transform: A callable that transforms the data when retrieved from the dataset.
         download: Whether to download missing raw inputs if not present.
         force_download: Whether to force the download of the raw data.
@@ -243,7 +243,7 @@ class SunRGBD(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import SunRGBD
 
-        dataset = SunRGBD(root="data", split="val")
+        dataset = SunRGBD(root="data", train=False)
         sample = dataset[0]
         sample["pos"].shape  # (N, 3)
         sample["box"].shape  # (K, 7)
@@ -263,7 +263,7 @@ class SunRGBD(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Literal["train", "val"] = "train",
+        train: bool = True,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
@@ -272,10 +272,8 @@ class SunRGBD(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        if split not in ["train", "val"]:
-            raise ValueError(f"Invalid split {split!r}, expected one of 'train' or 'val'.")
-
-        self.split = split
+        self.train = train
+        self._split = "train" if train else "val"
         self.transform = transform
         self.show_progress = show_progress
 
@@ -303,12 +301,12 @@ class SunRGBD(PointCloudDataset):
 
     @property
     def processed_files(self) -> List[Path]:
-        scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
+        scene_paths = Path(self.processed_dir, self._split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
     @override
     def processed_files_exist(self) -> bool:
-        split_dir = Path(self.processed_dir, self.split)
+        split_dir = Path(self.processed_dir, self._split)
         if (split_dir / "meta.json").exists():
             return True
 
@@ -367,7 +365,7 @@ class SunRGBD(PointCloudDataset):
         with zipfile.ZipFile(self.toolbox_zip_path) as z:
             split = sio.loadmat(io.BytesIO(z.read(TOOLBOX_SPLIT_MEMBER)), struct_as_record=False, squeeze_me=True)
 
-        if self.split == "train":
+        if self.train:
             return [rebase_sequence(str(p)) for p in split["alltrain"]]
         return [rebase_sequence(str(p)) for p in split["alltest"]]
 
@@ -386,7 +384,7 @@ class SunRGBD(PointCloudDataset):
                 f"and place {SUNRGBD_RELEASE_ZIP!r} and {SUNRGBD_TOOLBOX_ZIP!r} under {self.raw_dir!r}."
             )
 
-        split_dir = Path(self.processed_dir, self.split)
+        split_dir = Path(self.processed_dir, self._split)
         split_dir.mkdir(parents=True, exist_ok=True)
         for stale in split_dir.glob("*.tmp"):
             if stale.is_dir():
@@ -403,7 +401,7 @@ class SunRGBD(PointCloudDataset):
             records,
             num_workers=num_workers,
             total=len(records),
-            desc=f"Processing {self.split}",
+            desc=f"Processing {self._split}",
             show_progress=show_progress,
         )
 

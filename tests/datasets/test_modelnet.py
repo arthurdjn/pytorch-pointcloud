@@ -110,66 +110,59 @@ def test_modelnet_dataset_not_found(tmp_path: Path, dataset_cls: Type[ModelNetDa
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-def test_modelnet_dataset_invalid_split(dataset_cls: Type[ModelNetDataset]) -> None:
-    """Raises an error if the split is invalid or not supported"""
-    with pytest.raises(ValueError, match="Invalid split"):
-        _ = dataset_cls(root="not-found", split="bogus", show_progress=False)
-
-
-@pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 def test_modelnet_dataset_raw_files_exist(
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the raw files exist"""
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert dataset.raw_files_exist()
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
-def test_modelnet_dataset_raw_files_not_exist(dataset_cls: Type[ModelNetDataset], split: str) -> None:
+@pytest.mark.parametrize("train", [True, False])
+def test_modelnet_dataset_raw_files_not_exist(dataset_cls: Type[ModelNetDataset], train: bool) -> None:
     """Test that the raw files do not exist"""
     with pytest.raises(RuntimeError, match="Dataset not found"):
-        _ = dataset_cls(root="not-found", split=split, show_progress=False)
+        _ = dataset_cls(root="not-found", train=train, show_progress=False)
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 def test_modelnet_dataset_processed_files_exist(
-    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset], split: str
+    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset], train: bool
 ) -> None:
     """Test that the processed files exist"""
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert dataset.processed_files_exist()
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
-def test_modelnet_dataset_processed_files_not_exist(dataset_cls: Type[ModelNetDataset], split: str) -> None:
+@pytest.mark.parametrize("train", [True, False])
+def test_modelnet_dataset_processed_files_not_exist(dataset_cls: Type[ModelNetDataset], train: bool) -> None:
     """Test that the processed files do not exist"""
     with pytest.raises(RuntimeError, match="Dataset not found"):
-        _ = dataset_cls(root="not-found", split=split, show_progress=False)
+        _ = dataset_cls(root="not-found", train=train, show_progress=False)
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_data")
 def test_modelnet_dataset_already_processed(
     mock_load: Mock,
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the dataset is loaded correctly for different splits"""
     mock_load.side_effect = load_modelnet_data
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
 
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -177,19 +170,19 @@ def test_modelnet_dataset_already_processed(
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_normal_resampled_data")
 def test_modelnet_normal_resampled_dataset_already_processed(
     mock_load: Mock,
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the dataset is loaded correctly for different splits"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/processed/**/*")
 
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -197,20 +190,20 @@ def test_modelnet_normal_resampled_dataset_already_processed(
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_data")
 def test_modelnet_dataset_process_split(
     mock_load: Mock,
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     when the processed data does not already exist"""
     mock_load.side_effect = load_modelnet_data
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -218,20 +211,20 @@ def test_modelnet_dataset_process_split(
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_normal_resampled_data")
 def test_modelnet_normal_resampled_dataset_process_split(
     mock_load: Mock,
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     when the processed data does not already exist"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -239,20 +232,20 @@ def test_modelnet_normal_resampled_dataset_process_split(
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_data")
 def test_modelnet_dataset_process_split_forced(
     mock_load: Mock,
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     regardless of whether the processed data already exists"""
     mock_load.side_effect = load_modelnet_data
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/**/*", symlinks=False)
 
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False, force_process=True)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False, force_process=True)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -260,20 +253,20 @@ def test_modelnet_dataset_process_split_forced(
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10NormalResampled, ModelNet40NormalResampled])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 @patch("torch_pointcloud.datasets.modelnet.load_modelnet_normal_resampled_data")
 def test_modelnet_normal_resampled_dataset_process_split_forced(
     mock_load: Mock,
     datasets_dir_factory: Callable[..., Path],
     dataset_cls: Type[ModelNetDataset],
-    split: str,
+    train: bool,
 ) -> None:
     """Test that the dataset is processed correctly for different splits
     regardless of whether the processed data already exists"""
     mock_load.side_effect = load_modelnet_normal_resampled_data
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/**/*", symlinks=False)
 
-    dataset = dataset_cls(root=datasets_dir, split=split, show_progress=False, force_process=True)
+    dataset = dataset_cls(root=datasets_dir, train=train, show_progress=False, force_process=True)
     assert len(dataset) > 0
     _ = list(dataset)
 
@@ -416,7 +409,7 @@ def test_modelnet_normal_resampled_stale_pickle_cache_raises(
     cache_path.write_bytes(pickle.dumps(_MarkerPayload(f"touch {marker}")))
 
     with pytest.raises(RuntimeError, match="force_process=True"):
-        _ = ModelNet10NormalResampled(root=datasets_dir, split="test", show_progress=False)
+        _ = ModelNet10NormalResampled(root=datasets_dir, train=False, show_progress=False)
 
     assert not marker.exists()
 
@@ -424,8 +417,8 @@ def test_modelnet_normal_resampled_stale_pickle_cache_raises(
 def test_modelnet_normal_resampled_processed_cache_roundtrip(datasets_dir_factory: Callable[..., Path]) -> None:
     """The cache written by process() reloads under weights_only with identical tensors."""
     datasets_dir = datasets_dir_factory("ModelNetNormalResampled/raw/**/*")
-    processed = ModelNet10NormalResampled(root=datasets_dir, split="train", show_progress=False)
-    reloaded = ModelNet10NormalResampled(root=datasets_dir, split="train", show_progress=False)
+    processed = ModelNet10NormalResampled(root=datasets_dir, train=True, show_progress=False)
+    reloaded = ModelNet10NormalResampled(root=datasets_dir, train=True, show_progress=False)
 
     assert len(reloaded) == len(processed) > 0
     for sample, resample in zip(processed.data, reloaded.data):
@@ -781,22 +774,15 @@ def test_modelnet40_hdf5_dataset_not_found() -> None:
         _ = ModelNet40Hdf5(root="not-found", show_progress=False)
 
 
-def test_modelnet40_hdf5_dataset_invalid_split(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Raises an error if the split is invalid or not supported"""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
-    with pytest.raises(ValueError, match="Invalid split"):
-        _ = ModelNet40Hdf5(root=datasets_dir, split="bogus", show_progress=False)
-
-
-@pytest.mark.parametrize("split,expected_labels", [("train", [0, 1, 2]), ("test", [3, 4])])
+@pytest.mark.parametrize("train,expected_labels", [(True, [0, 1, 2]), (False, [3, 4])])
 def test_modelnet40_hdf5_dataset_loads_shards_in_list_order(
-    datasets_dir_factory: Callable[..., Path], split: str, expected_labels: list[int]
+    datasets_dir_factory: Callable[..., Path], train: bool, expected_labels: list[int]
 ) -> None:
     """Shards are concatenated in the split file-list order, with the release's `(N, 1)` labels squeezed."""
     datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
 
-    dataset = ModelNet40Hdf5(root=datasets_dir, split=split, show_progress=False)
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=train, show_progress=False)
     assert len(dataset) == len(expected_labels)
     assert [dataset[i]["label"].item() for i in range(len(dataset))] == expected_labels
 
@@ -812,7 +798,7 @@ def test_modelnet40_hdf5_dataset_transform_called(datasets_dir_factory: Callable
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
 
     transform = Mock(side_effect=lambda data: data)
-    dataset = ModelNet40Hdf5(root=datasets_dir, split="test", transform=transform, show_progress=False)
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=False, transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
 
@@ -822,7 +808,7 @@ def test_modelnet40_hdf5_getitem_returns_detached_copy(datasets_dir_factory: Cal
     datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
 
-    dataset = ModelNet40Hdf5(root=datasets_dir, split="test", show_progress=False)
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=False, show_progress=False)
     sample = dataset[0]
     original = sample["pos"].clone()
     sample["pos"] += 1.0
@@ -838,7 +824,7 @@ def test_modelnet40_hdf5_download_extracts_archive(
     monkeypatch.setattr(ModelNet40Hdf5, "md5", hashlib.md5(archive).hexdigest())
 
     with _serve_download(archive) as mock_urlopen:
-        dataset = ModelNet40Hdf5(root=datasets_dir, split="train", download=True, show_progress=False)
+        dataset = ModelNet40Hdf5(root=datasets_dir, train=True, download=True, show_progress=False)
 
     assert mock_urlopen.called
     assert len(dataset) == 3
@@ -853,7 +839,7 @@ def test_modelnet40_hdf5_download_raises_when_redownload_still_corrupt(
     """If the re-downloaded archive still fails the checksum, download() raises with both hashes."""
     datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
-    dataset = ModelNet40Hdf5(root=datasets_dir, split="train", show_progress=False)
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=True, show_progress=False)
     resource_path = Path(dataset.raw_dir, dataset.resource)
     resource_path.write_bytes(b"corrupt")
 

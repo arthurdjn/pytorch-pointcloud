@@ -72,7 +72,7 @@ def main() -> None:
     # (with background, the most challenging variant).
     test_dataset = ScanObjectNN(
         root=args.root,
-        split="test",
+        train=False,
         partition="main",
         background=True,
         variant="augmentedrot_scale75",

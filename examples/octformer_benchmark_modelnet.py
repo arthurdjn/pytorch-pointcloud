@@ -106,7 +106,8 @@ class FrozenEvalDataset(Dataset):
 
 
 def load_frozen_eval_data(dataset: ModelNet40, force: bool = False) -> List[Dict[str, Any]]:
-    cache_path = Path(dataset.processed_dir, f"{dataset.split}_sampled_{NUM_SAMPLES}.pt")
+    split = "train" if dataset.train else "test"
+    cache_path = Path(dataset.processed_dir, f"{split}_sampled_{NUM_SAMPLES}.pt")
     if cache_path.exists() and not force:
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(cache_path, weights_only=True)
@@ -150,7 +151,7 @@ def main() -> None:
     if args.fresh_sampling:
         test_dataset = ModelNet40(
             root=args.root,
-            split="test",
+            train=False,
             download=args.download,
             force_process=args.force_process,
             transform=model_info.get("transform"),
@@ -158,7 +159,7 @@ def main() -> None:
     else:
         mesh_dataset = ModelNet40(
             root=args.root,
-            split="test",
+            train=False,
             download=args.download,
             force_process=args.force_process,
         )

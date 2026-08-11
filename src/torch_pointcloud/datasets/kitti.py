@@ -1,7 +1,7 @@
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
 import torch
@@ -273,7 +273,7 @@ class KITTI(PointCloudDataset):
 
     Args:
         root: Dataset root; raw data is read from `<root>/KITTI/raw/<split>/`.
-        split: KITTI object split directory (`"training"` or `"testing"`).
+        train: If `True`, reads the `training` split directory, otherwise `testing`.
         split_file: Optional text file of frame ids (one per line) selecting which cached frames to load;
             defaults to every processed frame.
         fov: Restrict points to the front-camera field of view (requires `image_2/`). Baked into the cache.
@@ -290,7 +290,7 @@ class KITTI(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import KITTI
 
-        dataset = KITTI(root="data", split="training")
+        dataset = KITTI(root="data", train=True)
         sample = dataset[0]
         sample["pos"].shape  # (N, 3)
         sample["box"].shape  # (K, 7)
@@ -303,7 +303,7 @@ class KITTI(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Literal["training", "testing"] = "training",
+        train: bool = True,
         split_file: Optional[PathLike] = None,
         fov: bool = True,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -314,10 +314,8 @@ class KITTI(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        if split not in ["training", "testing"]:
-            raise ValueError(f"Invalid split {split!r}, expected one of 'training' or 'testing'.")
-
-        self.split = split
+        self.train = train
+        self._split = "training" if train else "testing"
         self.split_file = split_file
         self.fov = fov
         self.transform = transform
@@ -338,11 +336,11 @@ class KITTI(PointCloudDataset):
 
     @property
     def raw_split_dir(self) -> Path:
-        return Path(self.raw_dir, self.split)
+        return Path(self.raw_dir, self._split)
 
     @property
     def processed_split_dir(self) -> Path:
-        return Path(self.processed_dir, self.split)
+        return Path(self.processed_dir, self._split)
 
     @property
     def frame_ids(self) -> List[str]:
@@ -429,7 +427,7 @@ class KITTI(PointCloudDataset):
             frames,
             num_workers=num_workers,
             total=len(frames),
-            desc=f"Processing {self.split}",
+            desc=f"Processing {self._split}",
             show_progress=show_progress,
         )
 

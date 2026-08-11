@@ -69,7 +69,7 @@ def main() -> None:
     print("Loading ModelNet40 (HDF5) test dataset!")
     test_dataset = ModelNet40Hdf5(
         root=args.root,
-        split="test",
+        train=False,
         download=args.download,
         transform=transform,
     )

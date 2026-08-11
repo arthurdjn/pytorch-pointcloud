@@ -9,11 +9,11 @@ num_workers: 8
 train_dataset:
   _target_: torch_pointcloud.datasets.ModelNet40Hdf5
   root: ${paths.data_dir}
-  split: train
+  train: true
   transform: null
 
 val_dataset:
   _target_: torch_pointcloud.datasets.ModelNet40Hdf5
   root: ${paths.data_dir}
-  split: test
+  train: false
   transform: null

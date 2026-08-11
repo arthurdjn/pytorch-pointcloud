@@ -9,7 +9,7 @@ train_dataset:
   root: ${paths.data_dir}
   background: true
   variant: augmentedrot_scale75
-  split: train
+  train: true
   transform: null
 
 val_dataset:
@@ -17,5 +17,5 @@ val_dataset:
   root: ${paths.data_dir}
   background: true
   variant: augmentedrot_scale75
-  split: test
+  train: false
   transform: null

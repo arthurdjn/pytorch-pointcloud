@@ -160,10 +160,10 @@ def generate_processed(args: Namespace) -> None:
     for partition in SCANOBJECTNN_PARTITIONS:
         for variant in list(SCANOBJECTNN_VARIANTS) + [None]:
             for background in (True, False):
-                for split in ("train", "test"):
+                for train in (True, False):
                     _ = ScanObjectNN(
                         root=root,
-                        split=split,
+                        train=train,
                         partition=partition,
                         variant=variant,
                         background=background,

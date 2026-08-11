@@ -63,7 +63,7 @@ def main() -> None:
     print("Loading ScanObjectNN test dataset!")
     test_dataset = ScanObjectNN(
         root=args.root,
-        split="test",
+        train=False,
         partition="main",
         background=True,
         variant="augmentedrot_scale75",

@@ -133,7 +133,7 @@ class _ModelNet(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        split: Literal["train", "test"] = "train",
+        train: bool = True,
         classes: Union[str, Sequence[str]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -145,11 +145,9 @@ class _ModelNet(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        if split not in ["train", "test"]:
-            raise ValueError(f"Invalid split {split!r}, expected one of 'train' or 'test'.")
-
         classes = self.original_classes if classes == "all" else ensure_tuple(classes)
-        self.split = split
+        self.train = train
+        self._split = "train" if train else "test"
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.pre_transform = pre_transform
@@ -178,7 +176,7 @@ class _ModelNet(PointCloudDataset):
 
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"{self.split}.pt").exists():
+        if not Path(self.processed_dir, f"{self._split}.pt").exists():
             return False
         return True
 
@@ -226,14 +224,14 @@ class _ModelNet(PointCloudDataset):
                 f"and extract it under {self.raw_dir!r}."
             )
 
-        file_paths = sorted(list(Path(self.raw_dir).rglob(f"**/{self.split}/*.off")))
+        file_paths = sorted(list(Path(self.raw_dir).rglob(f"**/{self._split}/*.off")))
 
         pbar = tqdm(file_paths, desc="Processing", disable=not self.show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
         data_list = parallel_map(func, pbar, num_workers=self.num_workers)
         data_list = [data for data in data_list if data is not None]
 
-        dst_path = Path(self.processed_dir, f"{self.split}.pt")
+        dst_path = Path(self.processed_dir, f"{self._split}.pt")
         dst_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
@@ -261,7 +259,7 @@ class _ModelNet(PointCloudDataset):
         return data
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
-        file_path = Path(self.processed_dir, f"{self.split}.pt")
+        file_path = Path(self.processed_dir, f"{self._split}.pt")
         meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
         check_cache_meta(file_path.with_suffix(".meta.json"), meta)
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
@@ -289,7 +287,7 @@ class ModelNet10(_ModelNet):
 
     Args:
         root: Root directory where the dataset should be stored.
-        split: The split to load, one of `train` or `test`.
+        train: If `True`, loads the training set, otherwise the test set.
         classes: The class names to include in the dataset. If `"all"`, all classes are included.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
         pre_transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
@@ -304,8 +302,8 @@ class ModelNet10(_ModelNet):
         ```python
         from torch_pointcloud.datasets import ModelNet10
 
-        train_dataset = ModelNet10(root="data", split="train", download=True)
-        test_dataset = ModelNet10(root="data", split="test", download=True)
+        train_dataset = ModelNet10(root="data", train=True, download=True)
+        test_dataset = ModelNet10(root="data", train=False, download=True)
         ```
     """
 
@@ -327,7 +325,7 @@ class ModelNet40(_ModelNet):
 
     Args:
         root: Root directory where the dataset should be stored.
-        split: The split to load, one of `train` or `test`.
+        train: If `True`, loads the training set, otherwise the test set.
         classes: The class names to include in the dataset. If `"all"`, all classes are included.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
         pre_transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
@@ -342,8 +340,8 @@ class ModelNet40(_ModelNet):
         ```python
         from torch_pointcloud.datasets import ModelNet40
 
-        train_dataset = ModelNet40(root="data", split="train", download=True)
-        test_dataset = ModelNet40(root="data", split="test", download=True)
+        train_dataset = ModelNet40(root="data", train=True, download=True)
+        test_dataset = ModelNet40(root="data", train=False, download=True)
         ```
     """
 
@@ -368,7 +366,7 @@ class ModelNetNormalResampled(PointCloudDataset):
     Args:
         root: Root directory where the dataset should be stored.
         variant: The label set to load, `"10"` (ModelNet10 classes) or `"40"` (ModelNet40 classes).
-        split: The split to load, one of `train` or `test`.
+        train: If `True`, loads the training set, otherwise the test set.
         classes: The class names to include in the dataset. If `"all"`, all classes are included.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
         pre_transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
@@ -388,8 +386,8 @@ class ModelNetNormalResampled(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import ModelNetNormalResampled
 
-        train_dataset = ModelNetNormalResampled(root="data", variant="40", split="train", download=True)
-        test_dataset = ModelNetNormalResampled(root="data", variant="40", split="test", download=True)
+        train_dataset = ModelNetNormalResampled(root="data", variant="40", train=True, download=True)
+        test_dataset = ModelNetNormalResampled(root="data", variant="40", train=False, download=True)
         ```
     """
 
@@ -401,7 +399,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         self,
         root: PathLike,
         variant: Literal["10", "40"],
-        split: Literal["train", "test"] = "train",
+        train: bool = True,
         classes: Union[str, Sequence[str]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -416,11 +414,9 @@ class ModelNetNormalResampled(PointCloudDataset):
             raise ValueError(f"Invalid variant {variant!r} for {self.__class__.__name__}. Must be '10' or '40'.")
 
         super().__init__(root)
-        if split not in ["train", "test"]:
-            raise ValueError(f"Invalid split {split!r}, expected one of 'train' or 'test'.")
-
         self.variant = variant
-        self.split = split
+        self.train = train
+        self._split = "train" if train else "test"
         classes = self.original_classes if classes == "all" else ensure_tuple(classes)
         self.classes = tuple(sorted(classes))
         self.transform = transform
@@ -454,7 +450,7 @@ class ModelNetNormalResampled(PointCloudDataset):
 
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat").exists():
+        if not Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat").exists():
             return False
         return True
 
@@ -494,7 +490,7 @@ class ModelNetNormalResampled(PointCloudDataset):
                 f"and extract it under {self.raw_dir!r}."
             )
 
-        split_path = Path(self.raw_dir, f"modelnet{self.variant}_{self.split}.txt")
+        split_path = Path(self.raw_dir, f"modelnet{self.variant}_{self._split}.txt")
         file_ids = split_path.read_text().splitlines()
         file_paths = [
             Path(self.raw_dir, "_".join(file_id.split("_")[:-1]), f"{file_id}.txt")  # fmt: skip
@@ -507,7 +503,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         # Ignore None data (could have been discarded, filtered, etc. with `pre_transform` or `pre_filter`)
         data_list = [data for data in data_list if data is not None]
 
-        dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
+        dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
         dst_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
@@ -535,7 +531,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         return data
 
     def _load_processed_data(self) -> List[Dict[str, Any]]:
-        file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self.split}.dat")
+        file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
         if not zipfile.is_zipfile(file_path):
             raise RuntimeError(
                 f"Stale processed cache at {file_path.as_posix()!r}: it was written with pickle by an older "
@@ -582,7 +578,7 @@ class ModelNet40Hdf5(PointCloudDataset):
 
     Args:
         root: Root directory where the dataset should be stored.
-        split: The split to load, one of `train` or `test`.
+        train: If `True`, loads the training set, otherwise the test set.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
         download: If `True`, downloads the dataset from the internet and puts it in `root`.
         force_download: If `True`, forces to download the dataset from the internet, even if it is already downloaded.
@@ -593,8 +589,8 @@ class ModelNet40Hdf5(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import ModelNet40Hdf5
 
-        train_dataset = ModelNet40Hdf5(root="data", split="train", download=True)
-        test_dataset = ModelNet40Hdf5(root="data", split="test", download=True)
+        train_dataset = ModelNet40Hdf5(root="data", train=True, download=True)
+        test_dataset = ModelNet40Hdf5(root="data", train=False, download=True)
         ```
     """
 
@@ -607,7 +603,7 @@ class ModelNet40Hdf5(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        split: Literal["train", "test"] = "train",
+        train: bool = True,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,
         force_download: bool = False,
@@ -615,10 +611,8 @@ class ModelNet40Hdf5(PointCloudDataset):
         show_progress: bool = True,
     ) -> None:
         super().__init__(root)
-        if split not in ["train", "test"]:
-            raise ValueError(f"Invalid split {split!r}, expected one of 'train' or 'test'.")
-
-        self.split = split
+        self.train = train
+        self._split = "train" if train else "test"
         self.transform = transform
         self.show_progress = show_progress
 
@@ -629,7 +623,7 @@ class ModelNet40Hdf5(PointCloudDataset):
 
     @property
     def split_file(self) -> str:
-        return Path(self.raw_dir, f"{self.split}_files.txt").as_posix()
+        return Path(self.raw_dir, f"{self._split}_files.txt").as_posix()
 
     def _shard_paths(self) -> List[Path]:
         # The file lists carry the release's own directory prefix (`data/modelnet40_ply_hdf5_2048/...`);

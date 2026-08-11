@@ -49,7 +49,7 @@ def main() -> None:
     assert isinstance(model, DETR3DDetection)
     model.to(args.device).eval()
 
-    dataset: Dataset = SunRGBD(root=args.root, split="val", transform=info["transform"], download=args.download)
+    dataset: Dataset = SunRGBD(root=args.root, train=False, transform=info["transform"], download=args.download)
     if args.limit is not None:
         dataset = Subset(dataset, range(args.limit))
 

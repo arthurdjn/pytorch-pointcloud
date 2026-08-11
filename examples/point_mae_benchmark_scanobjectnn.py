@@ -75,7 +75,7 @@ def main() -> None:
     print(f"Loading ScanObjectNN test dataset (bg={ds_cfg['background']}, variant={ds_cfg['variant']})!")
     test_dataset = ScanObjectNN(
         root=args.root,
-        split="test",
+        train=False,
         partition=ds_cfg["partition"],  # type: ignore[arg-type]
         background=ds_cfg["background"],  # type: ignore[arg-type]
         variant=ds_cfg["variant"],  # type: ignore[arg-type]

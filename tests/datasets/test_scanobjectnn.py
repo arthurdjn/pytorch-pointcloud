@@ -35,13 +35,13 @@ def _serve_download(content: bytes) -> Iterator[Mock]:
     "variant", [None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 )
 @pytest.mark.parametrize("background", [True, False])
-@pytest.mark.parametrize("split", ["train", "test"])
-def test_scanobjectnn_dataset_not_found(partition: str, variant: str, background: bool, split: str) -> None:
+@pytest.mark.parametrize("train", [True, False])
+def test_scanobjectnn_dataset_not_found(partition: str, variant: str, background: bool, train: bool) -> None:
     """Raises an error if the dataset is not found"""
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = ScanObjectNN(
             root="not-found",
-            split=split,
+            train=train,
             partition=partition,
             variant=variant,
             background=background,
@@ -54,16 +54,16 @@ def test_scanobjectnn_dataset_not_found(partition: str, variant: str, background
     "variant", [None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 )
 @pytest.mark.parametrize("background", [True, False])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_raw_files_exist(
-    datasets_dir_factory: Callable[..., Path], partition: str, variant: str, background: bool, split: str
+    datasets_dir_factory: Callable[..., Path], partition: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the raw files exist"""
     datasets_dir = datasets_dir_factory("ScanObjectNN/raw/**/*")
 
     dataset = ScanObjectNN(
         root=datasets_dir,
-        split=split,
+        train=train,
         partition=partition,
         variant=variant,
         background=background,
@@ -78,14 +78,14 @@ def test_scanobjectnn_dataset_raw_files_exist(
     "variant", [None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 )
 @pytest.mark.parametrize("background", [True, False])
-@pytest.mark.parametrize("split", ["train", "test"])
-def test_scanobjectnn_dataset_raw_files_not_exist(partition: str, variant: str, background: bool, split: str) -> None:
+@pytest.mark.parametrize("train", [True, False])
+def test_scanobjectnn_dataset_raw_files_not_exist(partition: str, variant: str, background: bool, train: bool) -> None:
     """Test that the raw files do not exist"""
 
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = ScanObjectNN(
             root="not-found",
-            split=split,
+            train=train,
             partition=partition,
             variant=variant,
             background=background,
@@ -98,16 +98,16 @@ def test_scanobjectnn_dataset_raw_files_not_exist(partition: str, variant: str, 
     "variant", [None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 )
 @pytest.mark.parametrize("background", [True, False])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_processed_files_exist(
-    datasets_dir_factory: Callable[..., Path], partition: str, variant: str, background: bool, split: str
+    datasets_dir_factory: Callable[..., Path], partition: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the processed files exist"""
     datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
 
     dataset = ScanObjectNN(
         root=datasets_dir,
-        split=split,
+        train=train,
         partition=partition,
         variant=variant,
         background=background,
@@ -122,15 +122,15 @@ def test_scanobjectnn_dataset_processed_files_exist(
     "variant", [None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 )
 @pytest.mark.parametrize("background", [True, False])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_processed_files_not_exist(
-    partition: str, variant: str, background: bool, split: str
+    partition: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the processed files do not exist"""
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = ScanObjectNN(
             root="not-found",
-            split=split,
+            train=train,
             partition=partition,
             variant=variant,
             background=background,
@@ -143,16 +143,16 @@ def test_scanobjectnn_dataset_processed_files_not_exist(
     "variant", [None, "augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 )
 @pytest.mark.parametrize("background", [True, False])
-@pytest.mark.parametrize("split", ["train", "test"])
+@pytest.mark.parametrize("train", [True, False])
 def test_scanobjectnn_dataset_force_process(
-    datasets_dir_factory: Callable[..., Path], partition: str, variant: str, background: bool, split: str
+    datasets_dir_factory: Callable[..., Path], partition: str, variant: str, background: bool, train: bool
 ) -> None:
     """Test that the dataset is processed correctly for different splits regardless of whether the processed data already exists"""
     datasets_dir = datasets_dir_factory("ScanObjectNN/**/*", symlinks=False)
 
     dataset = ScanObjectNN(
         root=datasets_dir,
-        split=split,
+        train=train,
         partition=partition,
         variant=variant,
         background=background,
@@ -221,7 +221,6 @@ def test_scanobjectnn_force_download_overwrites_valid_resource(
 @pytest.mark.parametrize(
     "kwargs",
     [
-        pytest.param({"split": "invalid"}, id="split"),
         pytest.param({"partition": "invalid"}, id="partition"),
         pytest.param({"variant": "invalid"}, id="variant"),
     ],
@@ -229,7 +228,7 @@ def test_scanobjectnn_force_download_overwrites_valid_resource(
 def test_scanobjectnn_dataset_invalid_argument(
     datasets_dir_factory: Callable[..., Path], kwargs: dict[str, str]
 ) -> None:
-    """Raises an error if the split, partition or variant is invalid or not supported"""
+    """Raises an error if the partition or variant is invalid or not supported"""
     datasets_dir = datasets_dir_factory("ScanObjectNN/**/*")
 
     with pytest.raises(ValueError):
@@ -241,7 +240,7 @@ def test_scanobjectnn_dataset_labels(datasets_dir_factory: Callable[..., Path], 
     """Test that the dataset is loaded correctly for a specific category"""
     datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
 
-    dataset = ScanObjectNN(root=datasets_dir, split="test", partition="main", classes=[label], show_progress=False)  # type: ignore[list-item]
+    dataset = ScanObjectNN(root=datasets_dir, train=False, partition="main", classes=[label], show_progress=False)  # type: ignore[list-item]
     assert len(dataset) > 0
     assert len(dataset.classes) == 1
     assert dataset.classes[0] == label
@@ -253,7 +252,7 @@ def test_scanobjectnn_dataset_transform_called(datasets_dir_factory: Callable[..
     datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
 
     transform = Mock(side_effect=lambda data: data)
-    dataset = ScanObjectNN(root=datasets_dir, split="test", partition="main", transform=transform, show_progress=False)
+    dataset = ScanObjectNN(root=datasets_dir, train=False, partition="main", transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
 
