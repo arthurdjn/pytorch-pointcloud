@@ -49,10 +49,10 @@ from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
 from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
 from .act import create_act
-from .pointnet2_blocks import PointNet2SetAbstraction
 
 
 class _PlainLastActMLP(MLP):
@@ -113,6 +113,18 @@ class _PlainLastActMLP(MLP):
 
 
 class PointNeXtConv(MessagePassing):
+    r"""PointNeXt grouping convolution on top of PyG's `MessagePassing`.
+
+    Each message concatenates the relative position with the neighbor features
+    (`cat([pos_j - pos_i, x_j])`) and applies `local_nn`; when a `pos_divisor` is given the relative
+    positions are normalized by it (PointNeXt normalizes by the ball-query radius).
+
+    Args:
+        local_nn: Network applied to each message of shape $(E, D + C)$.
+        add_self_loops: Whether to add self-loops to the edge index.
+        **kwargs: Additional `MessagePassing` arguments (`aggr` defaults to `"max"`).
+    """
+
     def __init__(self, local_nn: nn.Module, add_self_loops: bool = True, **kwargs: Unpack[MessagePassingParams]):
         kwargs.setdefault("aggr", "max")
         super().__init__(**kwargs)
@@ -168,54 +180,119 @@ class PointNeXtConv(MessagePassing):
         return f"{self.__class__.__name__}({self.extra_repr()})"
 
 
-class PointNeXtSetAbstraction(PointNet2SetAbstraction):
-    def __init__(self, *args: Any, use_res: bool = True, **kwargs: Any):
+class PointNeXtSetAbstraction(nn.Module):
+    r"""PointNeXt set-abstraction block: FPS centroids, radius-normalized grouping, and optional
+    residual skip connections.
+
+    Farthest point sampling selects the centroids, a ball query gathers the neighbors of each
+    centroid per scale (Multi-Scale Grouping when `channels` is a nested sequence), and the relative
+    positions are normalized by the query radius before the grouping convolution.
+
+    Args:
+        spatial_dim: Dimension of point coordinates.
+        in_channels: Number of input feature channels.
+        channels: Per-scale MLP channel sizes; a nested sequence enables Multi-Scale Grouping.
+        ratio: Fractional farthest-point-sampling rate.
+        radius: Ball-query radius per scale, also used to normalize the relative positions.
+        num_neighbors: Maximum number of neighbors per scale.
+        dropout: Dropout rate inside the per-scale MLPs.
+        add_self_loops: Whether to add self-loops to the grouping edge index.
+        aggr: Message aggregation used by the convolutions.
+        use_res: Whether each scale adds a residual skip connection from the sampled centroid
+            features (with a linear projection when the channel counts differ).
+    """
+
+    def __init__(
+        self,
+        spatial_dim: int,
+        in_channels: int,
+        channels: Sequence[Union[int, Sequence[int]]],
+        ratio: float,
+        radius: Union[float, Sequence[float]],
+        num_neighbors: Union[int, Sequence[int]],
+        dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_first: bool = False,
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: Union[bool, List[bool]] = True,
+        add_self_loops: bool = False,
+        aggr: AggrType = "max",
+        use_res: bool = True,
+    ) -> None:
+        super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+
+        self.spatial_dim = spatial_dim
+        self.in_channels = in_channels
+        self.dropout = dropout
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
+        self.ratio = ratio
+        self.add_self_loops = add_self_loops
+        self.aggr = aggr
         self.use_res = use_res
-        super().__init__(*args, **kwargs)
+
+        channels = ensure_list(channels, recursive=True)
+        if len(channels) == 0:
+            raise ValueError("The parameter `channels` must be a non-empty sequence.")
+
+        self.channels = [channels] if not isinstance(channels[0], list) else channels
+
+        if not all(isinstance(c, list) for c in self.channels):
+            raise ValueError(
+                f"All elements in channels must be lists of int to support "
+                f"Multi-Scale Grouping (MSG) mode, got: {self.channels}"
+            )
+
+        sizes = [len(channels) for channels in self.channels]
+        extra_msg = (
+            "The parameter `{param}` must be a sequence matching the number of scales "
+            f"({self.channels} channels have {len(sizes)} scales)."
+        )
+        self.radius = ensure_tuple_size(radius, size=len(sizes), extra_msg=extra_msg.format(param="radius"))
+        self.num_neighbors = ensure_tuple_size(
+            num_neighbors,
+            size=len(sizes),
+            extra_msg=extra_msg.format(param="num_neighbors"),
+        )
+
+        mlp_cls = _PlainLastActMLP if use_res else MLP
+        self.convs = nn.ModuleList()
+        for scale_channels in self.channels:
+            local_nn = mlp_cls(
+                [in_channels + spatial_dim] + list(scale_channels),
+                act=self.act,
+                act_first=act_first,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                dropout=dropout,
+                plain_last=False,
+            )
+            self.convs.append(PointNeXtConv(local_nn=local_nn, add_self_loops=add_self_loops, aggr=self.aggr))
 
         self.skip_convs = nn.ModuleList()
-        if self.use_res:
-            for i, channels in enumerate(self.channels):
-                out_channels = channels[-1]
-                skip_conv = self.configure_skip_conv(out_channels, i)
-                self.skip_convs.append(skip_conv)
-
-    def configure_conv(self, channels: Sequence[Any], index: int) -> MessagePassing:
-        in_channels = self.in_channels + self.spatial_dim
-        mlp_cls = _PlainLastActMLP if self.use_res else MLP
-        local_nn = mlp_cls(
-            [in_channels] + list(channels),
-            act=self.act,
-            act_first=self.act_first,
-            act_kwargs=self.act_kwargs,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            dropout=self.dropout,
-            plain_last=False,
-        )
-
-        return PointNeXtConv(
-            local_nn=local_nn,
-            add_self_loops=self.add_self_loops,
-            aggr=self.aggr,
-        )
-
-    def configure_skip_conv(self, out_channels: int, index: int) -> nn.Module:
-        if out_channels == self.in_channels:
-            return nn.Identity()
-
-        return MLP(
-            [self.in_channels, out_channels],
-            act=self.act,
-            act_first=self.act_first,
-            act_kwargs=self.act_kwargs,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            dropout=self.dropout,
-            plain_last=True,
-        )
+        if use_res:
+            for scale_channels in self.channels:
+                out_channels = scale_channels[-1]
+                if out_channels == in_channels:
+                    self.skip_convs.append(nn.Identity())
+                else:
+                    skip_conv = MLP(
+                        [in_channels, out_channels],
+                        act=self.act,
+                        act_first=act_first,
+                        act_kwargs=act_kwargs,
+                        norm=norm,
+                        norm_kwargs=norm_kwargs,
+                        bias=bias,
+                        dropout=dropout,
+                        plain_last=True,
+                    )
+                    self.skip_convs.append(skip_conv)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         # In eval mode pin the FPS start to make predictions reproducible across runs.
@@ -241,12 +318,27 @@ class PointNeXtSetAbstraction(PointNet2SetAbstraction):
 
 
 class PointNeXtResidualBlock(nn.Module):
+    r"""PointNeXt inverted-residual MLP block (InvResMLP).
+
+    A radius-graph grouping convolution followed by an inverted-bottleneck MLP
+    (`channels -> channels * expansion -> channels`), wrapped in a single residual connection.
+    The resolution is unchanged; downsampling happens in `PointNeXtSetAbstraction`.
+
+    Args:
+        spatial_dim: Dimension of point coordinates.
+        channels: Number of input and output feature channels.
+        expansion: Expansion factor of the bottleneck MLP.
+        radius: Radius of the grouping graph, also used to normalize the relative positions.
+        num_neighbors: Maximum number of neighbors in the grouping graph.
+        add_self_loops: Whether to add self-loops to the grouping edge index.
+        aggr: Message aggregation used by the convolution.
+    """
+
     def __init__(
         self,
         spatial_dim: int,
         channels: int,
         expansion: int,
-        ratio: float,
         radius: float,
         num_neighbors: int,
         act: Union[str, Callable, None] = "relu",
@@ -263,7 +355,6 @@ class PointNeXtResidualBlock(nn.Module):
         norm_kwargs = norm_kwargs or {}
 
         self.spatial_dim = spatial_dim
-        self.ratio = ratio
         self.radius = radius
         self.num_neighbors = num_neighbors
         self.act = create_act(act, **act_kwargs) or nn.Identity()

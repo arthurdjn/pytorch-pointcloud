@@ -5,16 +5,16 @@ Tiny nuScenes-mini 3D object-detection fixture obtained by subsampling real keyf
 clouds are subsampled; every metadata record is copied verbatim.
 
 The metadata tables the loader reads are kept as a consistent slice: the chosen keyframes, the prior
-sweeps reachable along their `prev` chains, and the ego poses, sensor calibration, annotations,
-instances and categories those records reference. Keyframes are chosen with the fewest annotations
-(so the fixture stays tiny) among those with a full sweep chain and at least one detection-class
-object.
+sweeps reachable along their `prev` chains, and the ego poses, sensor calibration, annotations (plus
+their `prev` / `next` neighbors, so velocities resolve), samples, attributes, instances and
+categories those records reference. Keyframes are chosen with the fewest annotations (so the fixture
+stays tiny) among those with a full sweep chain and at least one detection-class object.
 
 The on-disk layout matches the extracted `v1.0-mini`:
 
 ```text
-raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance,
-                                  # sample_annotation, sample_data (consistent subset, verbatim)
+raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance, attribute,
+                                  # sample, sample_annotation, sample_data (consistent subset, verbatim)
 raw/samples/LIDAR_TOP/*.pcd.bin   # float32 (N, 5) = (x, y, z, intensity, ring) keyframes
 raw/sweeps/LIDAR_TOP/*.pcd.bin    # float32 (N, 5) prior sweeps
 ```

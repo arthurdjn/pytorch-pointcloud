@@ -188,3 +188,11 @@ def test_semantickitti_dataset_load_is_lazy(datasets_dir_factory: Callable[..., 
     assert transform.call_count == 0  # construction shouldn't trigger reads
     _ = dataset[0]
     assert transform.call_count == 1
+
+
+def test_semantickitti_dataset_download_unsupported(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`download()` raises because SemanticKITTI must be downloaded manually."""
+    datasets_dir = datasets_dir_factory("SemanticKITTI/raw/**/*")
+    dataset = SemanticKITTI(root=datasets_dir, split="train", sequences=("00",))
+    with pytest.raises(RuntimeError, match="does not support automatic download"):
+        dataset.download()

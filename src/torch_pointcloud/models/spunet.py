@@ -300,7 +300,7 @@ class SparseUNetDecoder(nn.Module):
         self.up = nn.ModuleList()
         self.dec = nn.ModuleList()
 
-        # `channels` is given in BUILD order, matching Pointcept's `full_channels[num_stages..]`
+        # `channels` is given in BUILD order, matching the reference `full_channels[num_stages..]`
         # slice convention. With this convention the build-time `s`-th decoder stage outputs
         # `channels[num_stages - 1 - s]` (i.e., `channels` is read back-to-front during build).
         # At RUNTIME the stages are iterated reversed, so `dec[num_stages-1]` (deepest) runs first.
@@ -422,15 +422,15 @@ class SparseUNetSegmentation(SegmentationModel):
             norm_kwargs=norm_kwargs,
         )
 
-        self.head: nn.Module = self._make_head(num_classes)
+        self.head: nn.Module = self.configure_head()
         self.apply(_init_spunet_weights)
 
-    def _make_head(self, num_classes: int) -> nn.Module:
-        if num_classes <= 0:
+    def configure_head(self) -> nn.Module:
+        if self.num_classes <= 0:
             return nn.Identity()
         return spconv.SubMConv3d(
             self.channels[-1],
-            num_classes,
+            self.num_classes,
             kernel_size=1,
             padding=1,
             bias=True,
@@ -438,7 +438,7 @@ class SparseUNetSegmentation(SegmentationModel):
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
-        self.head = self._make_head(num_classes)
+        self.head = self.configure_head()
         self.head.apply(_init_spunet_weights)
 
     def forward_features(

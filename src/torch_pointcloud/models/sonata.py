@@ -22,6 +22,11 @@ class SonataSegmentation(SegmentationModel):
     :github: [facebookresearch/sonata](https://github.com/facebookresearch/sonata): the
     encoder features are unpooled through the saved pooling inverses, concatenated
     with each parent stage, then projected by a linear segmentation head.
+
+    Note:
+        The default (and registered) configuration enables flash attention (`use_flash_attn=True`),
+        which requires the `flash-attn` package and a CUDA device; pass `use_flash_attn=False` to
+        run without it (e.g. on CPU).
     """
 
     def __init__(
@@ -33,7 +38,7 @@ class SonataSegmentation(SegmentationModel):
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (3, 3, 3, 12, 3),
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
-        encoder_num_head: Sequence[int] = (3, 6, 12, 24, 32),
+        encoder_num_heads: Sequence[int] = (3, 6, 12, 24, 32),
         encoder_patch_size: Sequence[int] = (1024, 1024, 1024, 1024, 1024),
         norm: Union[str, Callable] = "layer_norm",
         act: Union[str, Callable] = "gelu",
@@ -55,6 +60,10 @@ class SonataSegmentation(SegmentationModel):
         legacy: bool = False,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        # PyG's LayerNorm defaults to graph mode, which normalizes across the whole packed batch and
+        # leaks features between samples; node mode matches nn.LayerNorm semantics.
+        if norm == "layer_norm":
+            norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
         self.encoder_channels = encoder_channels
         self.encoder = PointTransformerV3Encoder(
             in_channels=in_channels,
@@ -63,7 +72,7 @@ class SonataSegmentation(SegmentationModel):
             strides=strides,
             encoder_depths=encoder_depths,
             encoder_channels=encoder_channels,
-            encoder_num_head=encoder_num_head,
+            encoder_num_heads=encoder_num_heads,
             encoder_patch_size=encoder_patch_size,
             norm=norm,
             act=act,
@@ -84,15 +93,18 @@ class SonataSegmentation(SegmentationModel):
             legacy=legacy,
         )
         self.dropout = dropout
-        self.head = nn.Linear(self.embedding_dim, num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return sum(self.encoder_channels)
 
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
-        self.head = nn.Linear(self.embedding_dim, num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -155,10 +167,10 @@ class SonataSegmentation(SegmentationModel):
 
 
 @register_model(
-    "sonata-base.fair",
+    "sonata-base.pretrain.fair",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/sonata/sonata-base.fair.safetensors", author="fair", license="CC-BY-NC-4.0"
+        url="hf://torch-pointcloud/sonata/sonata-base.pretrain.fair.safetensors", author="fair", license="CC-BY-NC-4.0"
     ),
     transform=T.Compose(
         [
@@ -187,7 +199,7 @@ class SonataSegmentation(SegmentationModel):
         strides=(2, 2, 2, 2),
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_head=(3, 6, 12, 24, 32),
+        encoder_num_heads=(3, 6, 12, 24, 32),
         encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
         norm="layer_norm",
         act="gelu",
@@ -246,7 +258,7 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
         strides=(2, 2, 2, 2),
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_head=(3, 6, 12, 24, 32),
+        encoder_num_heads=(3, 6, 12, 24, 32),
         encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
         norm="layer_norm",
         act="gelu",

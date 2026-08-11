@@ -2,16 +2,17 @@
 
 The output mirrors the extracted `v1.0-mini`:
 
-    raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance,
-                                      # sample_annotation, sample_data (consistent subset, verbatim)
+    raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance, attribute,
+                                      # sample, sample_annotation, sample_data (consistent subset, verbatim)
     raw/samples/LIDAR_TOP/*.pcd.bin   # float32 (N, 5) = (x, y, z, intensity, ring) keyframes
     raw/sweeps/LIDAR_TOP/*.pcd.bin    # float32 (N, 5) prior sweeps
 
 The metadata tables the loader reads are subset to a consistent slice: a few LIDAR keyframes, the
-prior sweeps reachable along their `prev` chains, and the ego poses, sensor calibration, annotations,
-instances and categories those records reference. Only the point clouds are subsampled; every record
-is copied verbatim. Keyframes are chosen with the fewest annotations (so the fixture stays tiny)
-among those with a full enough sweep chain and at least one detection-class object.
+prior sweeps reachable along their `prev` chains, and the ego poses, sensor calibration, annotations
+(plus their `prev` / `next` neighbors, so velocities resolve), samples, attributes, instances and
+categories those records reference. Only the point clouds are subsampled; every record is copied
+verbatim. Keyframes are chosen with the fewest annotations (so the fixture stays tiny) among those
+with a full enough sweep chain and at least one detection-class object.
 
 The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/NuScenesMini`.
 
@@ -58,8 +59,11 @@ def generate(args: Namespace) -> None:
     ego_by_token = {r["token"]: r for r in _load(src_meta, "ego_pose")}
     cal_by_token = {r["token"]: r for r in _load(src_meta, "calibrated_sensor")}
     annotations = _load(src_meta, "sample_annotation")
+    ann_by_token = {r["token"]: r for r in annotations}
     inst_by_token = {r["token"]: r for r in _load(src_meta, "instance")}
     cat_by_token = {r["token"]: r for r in _load(src_meta, "category")}
+    sample_by_token = {r["token"]: r for r in _load(src_meta, "sample")}
+    attributes = _load(src_meta, "attribute")
 
     anns_by_sample: Dict[str, List[Dict[str, Any]]] = {}
     for ann in annotations:
@@ -93,8 +97,12 @@ def generate(args: Namespace) -> None:
     kept_files = {r["filename"] for r in kept_sd.values()}
     sample_tokens = {kf["sample_token"] for kf in chosen}
     kept_anns = [a for a in annotations if a["sample_token"] in sample_tokens]
+    kept_ann_tokens = {a["token"] for a in kept_anns}
+    neighbor_tokens = {t for a in kept_anns for t in (a["prev"], a["next"]) if t and t not in kept_ann_tokens}
+    kept_anns = kept_anns + [ann_by_token[t] for t in sorted(neighbor_tokens)]
     kept_inst = {a["instance_token"] for a in kept_anns}
     kept_cat = {inst_by_token[t]["category_token"] for t in kept_inst}
+    kept_samples = {a["sample_token"] for a in kept_anns} | sample_tokens
 
     dst_raw = Path(args.dst_dir) / "raw"
     dst_meta = dst_raw / args.version
@@ -104,6 +112,8 @@ def generate(args: Namespace) -> None:
         "calibrated_sensor": [cal_by_token[t] for t in sorted(kept_cal)],
         "category": [cat_by_token[t] for t in sorted(kept_cat)],
         "instance": [inst_by_token[t] for t in sorted(kept_inst)],
+        "attribute": attributes,
+        "sample": [sample_by_token[t] for t in sorted(kept_samples)],
         "sample_annotation": kept_anns,
         "sample_data": list(kept_sd.values()),
     }

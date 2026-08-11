@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 else:
     LightningModule, _ = optional_import("lightning.pytorch", "LightningModule", url=_LIGHTNING_GITHUB_URL)
 
+_MISSING = object()
+
 
 class LitModel(LightningModule):
     """Shared base for the task-specific Lightning wrappers.
@@ -36,7 +38,8 @@ class LitModel(LightningModule):
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.
         input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
-            (e.g. `octree.depth`) resolves an attribute.
+            (e.g. `octree.depth`) resolves an attribute. A key missing from the batch raises, except
+            `x`: a batch without point features resolves it to `None` (models accept `x=None`).
         target_key: Batch-dict key for the per-cloud label.
         scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
         param_groups: Optional dict of kwargs forwarded to
@@ -80,7 +83,17 @@ class LitModel(LightningModule):
         )
 
     def forward(self, batch: Dict[str, Any]) -> Union[Tensor, Dict[str, Tensor]]:
-        inputs = (deep_getattr(batch, key) for key in self.hparams["input_keys"])
+        inputs = []
+        for key in self.hparams["input_keys"]:
+            value = deep_getattr(batch, key, default=_MISSING)
+            if value is _MISSING:
+                if key != "x":
+                    raise KeyError(
+                        f"Input key {key!r} not found in the batch (available keys: {sorted(batch)}); "
+                        "check the module's `input_keys`."
+                    )
+                value = None
+            inputs.append(value)
         return self.model(*inputs)
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:
@@ -91,7 +104,7 @@ class LitModel(LightningModule):
         assert self.criterion is not None
         loss = self.criterion(logits, target)
         batch_size = int(batch[DataKeys.BATCH][-1]) + 1
-        self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=batch_size)
+        self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=batch_size, sync_dist=stage != "train")
         return {"preds": logits, "target": target, "loss": loss}
 
     def training_step(self, batch: Dict[str, Any], batch_idx: int) -> Tensor:
@@ -151,6 +164,7 @@ class LitSegmentationModel(LitModel):
             resolution against `target_key`. Multi-scene batches need the key in the loader's `cat_keys`
             so the per-scene maps can be offset into the packed layout.
         origin_target_key: Batch-dict key of the raw-resolution labels used with `inverse_key`.
+        target_key: Batch-dict key of the per-point labels.
         **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
@@ -160,9 +174,12 @@ class LitSegmentationModel(LitModel):
         inferer: Optional[Inferer] = None,
         inverse_key: Optional[str] = None,
         origin_target_key: str = "origin_segment",
+        target_key: str = "segment",
         **kwargs: Any,
     ) -> None:
-        super().__init__(name, task="segmentation", **kwargs)
+        super().__init__(name, task="segmentation", target_key=target_key, **kwargs)
+        # `inferer` is a module-like object, not a serializable hyperparameter (like `criterion` in the base).
+        self.save_hyperparameters({"inverse_key": inverse_key, "origin_target_key": origin_target_key})
         self.inferer = inferer
         self.inverse_key = inverse_key
         self.origin_target_key = origin_target_key
@@ -246,7 +263,7 @@ class LitDetectionModel(LitModel):
         nms_iou: IoU threshold of the per-class 3D NMS in the eval postprocess.
         min_points: Optional minimum number of points inside a decoded box for it to be kept (the
             VoteNet / 3DETR indoor protocol uses $5$).
-        label_key: Batch-dict key of the per-box ground-truth class labels (defaults to `DataKeys.CLASS`).
+        label_key: Batch-dict key of the per-box ground-truth class labels (defaults to `DataKeys.LABEL`).
         ignore_mask_key: Optional batch-dict key of a per-box ignore mask forwarded to the metric with the
             ground truth (KITTI-style ignore regions).
         **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`).
@@ -260,11 +277,20 @@ class LitDetectionModel(LitModel):
         score_threshold: float = 0.05,
         nms_iou: float = 0.25,
         min_points: Optional[int] = None,
-        label_key: str = DataKeys.CLASS,
+        label_key: str = DataKeys.LABEL,
         ignore_mask_key: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="detection", **kwargs)
+        self.save_hyperparameters(
+            {
+                "score_threshold": score_threshold,
+                "nms_iou": nms_iou,
+                "min_points": min_points,
+                "label_key": label_key,
+                "ignore_mask_key": ignore_mask_key,
+            }
+        )
         # The base registered a placeholder loss; drop it so the configured criterion can take its place,
         # including `None` or a non-Module test double.
         del self.criterion
@@ -297,7 +323,7 @@ class LitDetectionModel(LitModel):
         losses = self.criterion(output, batch)
         batch_size = int(batch[DataKeys.BATCH][-1]) + 1
         for key, value in losses.items():
-            self.log(f"{stage}/{key}", value, prog_bar=True, batch_size=batch_size)
+            self.log(f"{stage}/{key}", value, prog_bar=True, batch_size=batch_size, sync_dist=stage != "train")
         return {"output": output, "loss": losses["loss"]}
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:

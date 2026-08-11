@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
@@ -38,11 +39,11 @@ def main() -> None:
         strides=(2, 2, 2, 2),
         encoder_depths=(2, 2, 2, 6, 2),
         encoder_channels=(32, 64, 128, 256, 512),
-        encoder_num_head=(2, 4, 8, 16, 32),
+        encoder_num_heads=(2, 4, 8, 16, 32),
         encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
         decoder_depths=(2, 2, 2, 2),
         decoder_channels=(64, 64, 128, 256),
-        decoder_num_head=(4, 4, 8, 16),
+        decoder_num_heads=(4, 4, 8, 16),
         decoder_patch_size=(1024, 1024, 1024, 1024),
         mlp_ratio=4,
         qkv_bias=True,
@@ -70,10 +71,9 @@ def main() -> None:
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, train_dataloader, device=args.device)
+        train_metrics = train_one_epoch(model, optimizer, scheduler, train_dataloader, device=args.device)
         val_metrics = eval_one_epoch(model, test_dataloader, num_classes=args.num_classes, device=args.device)
         metrics = {**train_metrics, **val_metrics}
-        scheduler.step()
 
         print("Scores:", end=" ")
         print(" | ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
@@ -99,6 +99,7 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
+    scheduler: LRScheduler,
     dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
@@ -120,6 +121,7 @@ def train_one_epoch(
 
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         total_loss += loss.item()
 

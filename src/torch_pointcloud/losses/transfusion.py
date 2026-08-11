@@ -6,18 +6,13 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from torch import Tensor, nn
 
+from torch_pointcloud.losses._utils import _clamp_sigmoid
 from torch_pointcloud.losses.anchor import sigmoid_focal_loss
 from torch_pointcloud.utils.box3d import boxes_iou3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.heatmap import draw_heatmap_targets
 
-_EPS = 1e-4
 _LOG_EPS = 1e-12
-
-
-def _clip_sigmoid(x: Tensor) -> Tensor:
-    r"""Sigmoid clamped to $[\varepsilon, 1 - \varepsilon]$ so the focal $\log$ terms stay finite."""
-    return torch.clamp(x.sigmoid(), min=_EPS, max=1 - _EPS)
 
 
 def _gaussian_focal_loss(pred: Tensor, target: Tensor) -> Tensor:
@@ -56,7 +51,8 @@ class TransFusionLoss(nn.Module):
       per-query class logits are then trained by sigmoid focal loss over one-hot targets (background for
       unmatched queries), normalized by the positive count.
     - **Box regression:** code-weighted $L_1$ over the $10$-dim box code
-      $(x, y, z, \log d_x, \log d_y, \log d_z, \sin\theta, \cos\theta, v_x, v_y)$ at the matched queries.
+      $(x, y, z + d_z / 2, \log d_x, \log d_y, \log d_z, \sin\theta, \cos\theta, v_x, v_y)$ at the
+      matched queries.
     - **IoU rescore:** an $L_1$ term regressing the per-query `iou` branch toward $2 \cdot \text{IoU}_{3D} - 1$
       between each matched query's decoded box and its ground-truth box.
 
@@ -173,7 +169,7 @@ class TransFusionLoss(nn.Module):
                 for b in range(batch_size)
             ]
         )
-        heatmap_loss = _gaussian_focal_loss(_clip_sigmoid(output["dense_heatmap"]), hm_target) * self.hm_weight
+        heatmap_loss = _gaussian_focal_loss(_clamp_sigmoid(output["dense_heatmap"]), hm_target) * self.hm_weight
 
         labels = center.new_full((batch_size, num_queries), self.num_classes, dtype=torch.long)
         bbox_targets = center.new_zeros((batch_size, num_queries, 10))
@@ -233,7 +229,7 @@ class TransFusionLoss(nn.Module):
         rot = output["rot"][b]
         x = center[0] * stride * vs[0] + pcr[0]
         y = center[1] * stride * vs[1] + pcr[1]
-        z = output["height"][b][0]
+        z = output["height"][b][0] - dim[2] * 0.5
         angle = torch.atan2(rot[0], rot[1])
         return torch.stack([x, y, z, dim[0], dim[1], dim[2], angle], dim=-1)
 
@@ -263,12 +259,16 @@ class TransFusionLoss(nn.Module):
         )
 
     def _encode(self, boxes: Tensor) -> Tensor:
-        r"""Encode matched ground-truth boxes into the $10$-dim query box code (grid center, log size, sincos)."""
+        r"""Encode matched ground-truth boxes into the $10$-dim query box code (grid center, box-top $z$, log size, sincos).
+
+        The height code is $z + d_z / 2$: the head's decode recovers the gravity center as
+        $\text{height} - d_z / 2$ after exponentiating the size code.
+        """
         vs, pcr, stride = self.voxel_size, self.point_cloud_range, self.feature_map_stride
         targets = boxes.new_zeros((boxes.shape[0], 10))
         targets[:, 0] = (boxes[:, 0] - pcr[0]) / (stride * vs[0])
         targets[:, 1] = (boxes[:, 1] - pcr[1]) / (stride * vs[1])
-        targets[:, 2] = boxes[:, 2]
+        targets[:, 2] = boxes[:, 2] + 0.5 * boxes[:, 5]
         targets[:, 3:6] = boxes[:, 3:6].log()
         targets[:, 6] = torch.sin(boxes[:, 6])
         targets[:, 7] = torch.cos(boxes[:, 6])

@@ -98,6 +98,23 @@ def test_votenet_loss_bad_mean_size_shape() -> None:
         VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=torch.rand(5, 3))
 
 
+def test_votenet_loss_ragged_batch_raises() -> None:
+    """The dense reshape assumes a uniform per-scene point count; a ragged batch must raise, not misassign."""
+    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    output, batch = _create_data()
+    batch["batch"] = torch.cat([torch.zeros(96, dtype=torch.long), torch.ones(32, dtype=torch.long)])
+    with pytest.raises(ValueError, match="same number of points"):
+        loss_fn(output, batch)
+
+
+def test_votenet_loss_empty_batch_raises() -> None:
+    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    output, batch = _create_data()
+    batch["batch"] = torch.zeros(0, dtype=torch.long)
+    with pytest.raises(ValueError, match="non-empty"):
+        loss_fn(output, batch)
+
+
 def test_votenet_loss_heading_to_native_inverts_ccw_binning() -> None:
     """Re-binning the bins of the negated angle recovers the bins of the angle itself, exactly."""
     loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())

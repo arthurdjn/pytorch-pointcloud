@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, Union
 
@@ -188,6 +189,19 @@ class ShapeNetPart(PointCloudDataset):
         file_names = ["pos.npy", "normal.npy", "segment.npy", "offset.npy", "category.npy"]
         return all((split_dir / name).exists() for name in file_names)
 
+    def download(self, force: bool = False) -> None:
+        """ShapeNetPart must be downloaded manually (registration is required).
+
+        Args:
+            force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
+        """
+        raise RuntimeError(
+            f"{self.__class__.__name__} does not support automatic download. Register and download the ShapeNetPart "
+            f"benchmark data from {self.data_url!r} and extract it under {self.raw_dir!r}."
+        )
+
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if self.processed_files_exist() and not force:
             return
@@ -215,7 +229,10 @@ class ShapeNetPart(PointCloudDataset):
             raise RuntimeError(f"Found no samples in split {self.split!r}.")
 
         split_dir = Path(self.processed_dir, self.split)
-        split_dir.mkdir(parents=True, exist_ok=True)
+        tmp_dir = Path(self.processed_dir, f"{self.split}.tmp")
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir)
+        tmp_dir.mkdir(parents=True)
 
         sizes = np.array([s["pos"].shape[0] for s in samples], dtype=np.int64)  # type: ignore[index]
         offsets = np.concatenate(([0], np.cumsum(sizes))).astype(np.int64)
@@ -224,11 +241,14 @@ class ShapeNetPart(PointCloudDataset):
         segment = np.concatenate([s["segment"] for s in samples], dtype=np.int16)  # type: ignore[index]
         category = np.asarray([s["category"] for s in samples], dtype=np.int16)  # type: ignore[index]
 
-        np.save(split_dir / "pos.npy", pos)
-        np.save(split_dir / "normal.npy", normal)
-        np.save(split_dir / "segment.npy", segment)
-        np.save(split_dir / "offset.npy", offsets)
-        np.save(split_dir / "category.npy", category)
+        np.save(tmp_dir / "pos.npy", pos)
+        np.save(tmp_dir / "normal.npy", normal)
+        np.save(tmp_dir / "segment.npy", segment)
+        np.save(tmp_dir / "offset.npy", offsets)
+        np.save(tmp_dir / "category.npy", category)
+        if split_dir.exists():
+            shutil.rmtree(split_dir)
+        tmp_dir.replace(split_dir)
 
     def _load_raw_file(self, file_name: str) -> Optional[Dict[str, Any]]:
         file_path = Path(self.raw_dir, file_name.removeprefix("shape_data/")).with_suffix(".txt")
@@ -279,7 +299,7 @@ class ShapeNetPart(PointCloudDataset):
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        data: dict = self.samples[index]
+        data: dict = dict(self.samples[index])
         if self.transform is not None:
             data = self.transform(data)
         return data

@@ -11,7 +11,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
-from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock, _disable_triton
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _DWCONV_GITHUB_URL, _OCNN_GITHUB_URL, optional_import
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     import ocnn
     from ocnn.octree import Octree, Points
 
-dwconv, _DWCONV_AVAILABLE = optional_import("dwconv", url=_DWCONV_GITHUB_URL)
+dwconv, _ = optional_import("dwconv", url=_DWCONV_GITHUB_URL)
 ocnn, _ = optional_import("ocnn", url=_OCNN_GITHUB_URL)
 Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
 Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
@@ -53,6 +53,7 @@ class CPE(nn.Module):
                 use_bias=bias,
             )
         else:
+            _disable_triton()
             self.conv = ocnn.nn.OctreeGroupConv(
                 in_channels,
                 in_channels,
@@ -306,8 +307,6 @@ class OctFormerEncoder(nn.Module):
 
 
 class OctFormerDecoder(nn.Module):
-    layer_name = "layer"
-
     def __init__(
         self,
         channels: Sequence[int],
@@ -753,6 +752,8 @@ class OctFormerSegmentation(SegmentationModel):
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         channels = [self.embedding_dim, *self.head_channels, self.num_classes]
         return MLP(
             channels,
@@ -1029,8 +1030,6 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
     ),
 )
 def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
-    # On the scannet20 NOT ALIGNED version
-    # test/mIoU: 0.7478 | test/oa: 0.0.9090
     return _octformer_base_seg(**hparams)
 
 
@@ -1133,7 +1132,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
         dropout=0.5,
     ),
 )
-def octformer_base_lg_seg(**hparams: Any) -> OctFormerSegmentation:
+def octformer_lg_seg(**hparams: Any) -> OctFormerSegmentation:
     return _octformer_base_seg(**hparams)
 
 
@@ -1168,5 +1167,5 @@ def octformer_base_lg_seg(**hparams: Any) -> OctFormerSegmentation:
         dropout=0.5,
     ),
 )
-def octformer_base_sm_seg(**hparams: Any) -> OctFormerSegmentation:
+def octformer_sm_seg(**hparams: Any) -> OctFormerSegmentation:
     return _octformer_base_seg(**hparams)

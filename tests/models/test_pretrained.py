@@ -104,9 +104,9 @@ DATASET_REGISTRY: Dict[str, Callable[..., Dataset]] = {
     "scanobjectnn": partial(
         ScanObjectNN,
         root=DATASETS_DIR,
-        split="split1",
-        background=False,
         train=False,
+        partition="split1",
+        background=False,
         show_progress=False,
     ),
     "scannet20": partial(

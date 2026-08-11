@@ -403,7 +403,7 @@ class PVCNN2Decoder(nn.Module):
             fp_module = FPModule(
                 in_channels=fp_in_channels + self.skip_channels[i],
                 channels=self.fp_channels[i],
-                k=1 if i == 0 else 3,  # TODO: replace with spatial_dim
+                k=3,  # TODO: replace with spatial_dim
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -541,11 +541,14 @@ class PVCNN2Classification(ClassificationModel):
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
-    def reset_head(self, num_classes: int, **kwargs: Any) -> None:
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -594,8 +597,9 @@ class PVCNN2Segmentation(SegmentationModel):
     A U-shaped PVCNN++: the encoder alternates set-abstraction downsampling with point-voxel
     conv refinement, and the decoder upsamples back with feature-propagation blocks followed by
     point-voxel convs. Decoder skips are consumed deepest-first, and the last decoder block uses
-    the raw input features as its skip, so the encoder may have more blocks than the decoder
-    (the leftover shallow intermediates are skipped).
+    the extra input features (the input without its 3 leading coordinate channels) as its skip,
+    so the encoder may have more blocks than the decoder (the leftover shallow intermediates are
+    skipped).
 
     Args:
         in_channels: Number of input feature channels. Takes precedence over
@@ -703,7 +707,7 @@ class PVCNN2Segmentation(SegmentationModel):
             )
 
         skip_channels = [int(self.encoder.channels[num_blocks - 1 - i]) for i in range(num_decoder_blocks - 1)]
-        skip_channels.append(self.in_channels)
+        skip_channels.append(self.in_channels - 3)
 
         self.decoder = PVCNN2Decoder(
             in_channels=int(self.encoder.channels[-1]),
@@ -753,7 +757,7 @@ class PVCNN2Segmentation(SegmentationModel):
             plain_last=True,
         )
 
-    def reset_head(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.head = self.configure_head()
 
@@ -792,7 +796,11 @@ class PVCNN2Segmentation(SegmentationModel):
         batch: Tensor,
         intermediates: List[Dict[str, Tensor]],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        return self.decoder(x, pos, batch, intermediates)
+        # The full-resolution skip is the extra-features slice: the reference feeds inputs[:, 3:]
+        # (features without the 3 leading coordinate channels) as the final skip.
+        first = dict(intermediates[0])
+        first["features"] = first["features"][:, 3:]
+        return self.decoder(x, pos, batch, [first, *intermediates[1:]])
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout and not self.head_channels:
@@ -835,7 +843,7 @@ class PVCNN2Segmentation(SegmentationModel):
     ),
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
         ]
     ),
 )

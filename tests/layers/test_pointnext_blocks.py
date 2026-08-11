@@ -124,7 +124,6 @@ def test_pointnext_residual_block_basic(data: Dict[str, Tensor]) -> None:
         spatial_dim=3,
         channels=3,
         expansion=4,
-        ratio=0.5,
         radius=0.1,
         num_neighbors=16,
     )

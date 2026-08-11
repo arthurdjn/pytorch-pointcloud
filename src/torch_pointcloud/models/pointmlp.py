@@ -1,5 +1,4 @@
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -28,22 +27,13 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._registry import WeightsDict, register_model
+from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-
-if TYPE_CHECKING:
-    from torch_cluster import fps, knn, scatter_mean, scatter_std
-
-
-fps, _ = optional_import("torch_cluster", "fps", url=_TORCH_CLUSTER_GITHUB_URL)
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
-scatter_std, _ = optional_import("torch_scatter", "scatter_std", url=_TORCH_SCATTER_GITHUB_URL)
-knn, _ = optional_import("torch_cluster", "knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 class PointMLPIntermediate(NamedTuple):
@@ -279,7 +269,7 @@ class PointMLPEncoder(nn.Module):
         bias: bool = True,
         add_self_loops: bool = False,
         use_pos: bool = True,
-        fps_random_start: bool = True,
+        fps_random_start: Optional[bool] = None,
         aggr: str = "max",
     ):
         super().__init__()
@@ -320,7 +310,7 @@ class PointMLPEncoder(nn.Module):
     def configure_block(self, index: int) -> nn.Module:
         downsample: Optional[nn.Module] = None
         if self.ratios[index]:
-            downsample = FPS(ratio=self.ratios[index])
+            downsample = FPS(ratio=self.ratios[index], random_start=self.fps_random_start)
 
         return PointMLPEncoderBlock(
             in_channels=self.channels[index],
@@ -444,6 +434,16 @@ class PointMLPDecoder(nn.Module):
 
 
 class PointMLPClassification(ClassificationModel):
+    r"""PointMLP classification model from
+    :arxiv: [Rethinking Network Design and Local Geometry in Point Cloud: A Simple Residual MLP Framework](https://arxiv.org/abs/2202.07123)
+    by Xu Ma, Can Qin, Haoxuan You, Haoxi Ran, Yun Fu.
+
+    A pure residual MLP network: each encoder stage samples centroids with farthest point sampling,
+    normalizes each $k$-NN neighborhood with a geometric affine module, and applies residual MLP
+    blocks before and after the neighborhood aggregation. Point features are pooled globally after
+    the encoder for classification.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -534,6 +534,8 @@ class PointMLPClassification(ClassificationModel):
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         if not self.head_channels:
             return nn.Linear(self.embedding_dim, self.num_classes)
         return MLP(
@@ -594,6 +596,14 @@ class PointMLPClassification(ClassificationModel):
 
 
 class PointMLPSegmentation(SegmentationModel):
+    r"""PointMLP segmentation model from
+    :arxiv: [Rethinking Network Design and Local Geometry in Point Cloud: A Simple Residual MLP Framework](https://arxiv.org/abs/2202.07123)
+    by Xu Ma, Can Qin, Haoxuan You, Haoxi Ran, Yun Fu.
+
+    The PointMLP encoder is followed by a decoder of residual feature-propagation blocks with skip
+    connections and a per-point linear head.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -697,6 +707,8 @@ class PointMLPSegmentation(SegmentationModel):
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         return nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:

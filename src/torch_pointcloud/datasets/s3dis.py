@@ -235,7 +235,7 @@ def tile_s3dis_room(
                     block[key] = val
 
             # Store the room maximum coordinates for normalization (might be used in transforms)
-            block["room_max"] = room_max
+            block[DataKeys.ROOM_MAX] = room_max
             blocks.append(block)
 
     return blocks
@@ -253,8 +253,7 @@ class S3DIS(PointCloudDataset):
     (e.g. wall, floor, ceiling, etc.) with instance-level annotations.
 
     The dataset will be processed automatically and saved in the `S3DIS/processed` directory.
-    Each room is stored as its own folder, mirroring
-    [Pointcept's preprocessing layout](https://github.com/Pointcept/Pointcept/blob/main/pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py):
+    Each room is stored as its own folder:
     `<processed_dir>/<Area_i>/<room_name>/{coord,color,segment,instance}.npy`. If the processed
     data already exists, it will be loaded from the `S3DIS/processed` directory and processing
     will be skipped.
@@ -377,6 +376,13 @@ class S3DIS(PointCloudDataset):
 
     @override
     def raw_files_exist(self) -> bool:
+        # `download()` keeps the archive and marks the end of extraction with `.extraction_complete`,
+        # so an archive without the marker means the extraction was interrupted (a manually extracted
+        # tree has no archive under `raw/` and passes the per-area checks below).
+        archive_path = Path(self.raw_dir, self.resources[1])
+        if archive_path.exists() and not Path(self.raw_dir, ".extraction_complete").exists():
+            return False
+
         for area in self.areas:
             if not Path(self.raw_dir, area).is_dir():
                 return False
@@ -442,6 +448,7 @@ class S3DIS(PointCloudDataset):
                 )
 
         # Extract the dataset
+        Path(self.raw_dir, ".extraction_complete").unlink(missing_ok=True)
         extract_zip(
             resource_path,
             self.raw_dir,
@@ -470,6 +477,8 @@ class S3DIS(PointCloudDataset):
         with open(file_path, "w") as f:
             f.writelines(lines)
 
+        Path(self.raw_dir, ".extraction_complete").touch()
+
     def process(
         self,
         force: bool = False,
@@ -479,9 +488,9 @@ class S3DIS(PointCloudDataset):
         """Process the raw dataset for easier loading.
 
         When `aligned=True`, applies the per-room alignment rotation so that
-        the stored coordinates are in the globally-aligned frame (matching the
-        OpenPoints *s3disfull* convention).  When `aligned=False`, coordinates
-        are kept in the raw scan frame.
+        the stored coordinates are in the globally-aligned frame (the *s3disfull*
+        convention).  When `aligned=False`, coordinates are kept in the raw
+        scan frame.
         """
         if self.processed_files_exist() and not force:
             return
@@ -603,7 +612,7 @@ class S3DIS(PointCloudDataset):
 
     @override
     def __getitem__(self, index: int) -> dict[str, Any]:
-        data = self.data[index]
+        data = dict(self.data[index])
         if self.transform is not None:
             data = self.transform(data)
         return data
@@ -633,7 +642,10 @@ class S3DISHdf5(PointCloudDataset):
     Args:
         root: Root directory where `S3DIS/indoor3d_sem_seg_hdf5_data/` is stored.
         areas: Areas to load, either a sequence of area names or `"all"`.
-        classes: Classes to load, either a sequence of class names or `"all"`.
+        classes: Classes to load, either a sequence of class names or `"all"`. When a subset is
+            selected, labels are remapped to contiguous indices in the given order; unselected
+            classes fall back to the new index of `clutter` when it is selected, else to the
+            ignore index -1 (matching `S3DIS`).
         transform: Optional callable applied to each sample dict at `__getitem__` time.
         download: Whether to download the HDF5 archive if not already present.
         force_download: Whether to re-download even if the archive already exists.
@@ -667,7 +679,7 @@ class S3DISHdf5(PointCloudDataset):
         areas: Union[Sequence[S3DISArea], Literal["all"]] = "all",
         classes: Union[ValueCollection[S3DISClass], Literal["all"]] = "all",
         transform: Optional[Callable] = None,
-        download: bool = True,
+        download: bool = False,
         force_download: bool = False,
         force_process: bool = False,
         show_progress: bool = True,
@@ -679,8 +691,9 @@ class S3DISHdf5(PointCloudDataset):
         self.show_progress = show_progress
 
         _check_areas(self.areas)
+        _check_classes(self.classes)
 
-        if download:
+        if download or force_download:
             self.download(force=force_download, show_progress=show_progress)
 
         self.load(show_progress=show_progress)
@@ -688,6 +701,10 @@ class S3DISHdf5(PointCloudDataset):
     @property
     def name(self) -> str:
         return "S3DIS"
+
+    @cached_property
+    def class_to_idx(self) -> dict[str, int]:
+        return {cls: idx for idx, cls in enumerate(self.classes)}
 
     @property
     def raw_dir(self) -> str:
@@ -780,6 +797,15 @@ class S3DISHdf5(PointCloudDataset):
         if labels.ndim == 2 and labels.shape[1] == 1:
             labels = labels.squeeze(1)
 
+        # Remap the stored 13-class labels onto the selected class subset. Unselected classes fall back to
+        # the new index of 'clutter' when it is selected, else to the ignore index -1 (matching `S3DIS`).
+        if tuple(self.classes) != tuple(S3DIS_CLASSES):
+            fill = self.class_to_idx.get(S3DIS_UNK_CLS, -1)
+            remap = np.full(len(S3DIS_CLASSES), fill, dtype=np.int64)
+            for new_id, cls_name in enumerate(self.classes):
+                remap[S3DIS_CLASS_TO_IDX[cls_name]] = new_id
+            labels = remap[labels]
+
         self.data = data
         self.labels = labels
 
@@ -792,11 +818,13 @@ class S3DISHdf5(PointCloudDataset):
         block = self.data[index]
         label = self.labels[index]
 
+        # Copies detach the returned tensors from the cached numpy block, so in-place user edits
+        # cannot corrupt the dataset across epochs.
         data: dict[str, Any] = {
-            DataKeys.POS: torch.from_numpy(block[:, 0:3]),
-            DataKeys.COLOR: torch.from_numpy(block[:, 3:6]),
-            "norm_pos": torch.from_numpy(block[:, 6:9]),
-            DataKeys.SEGMENT: torch.from_numpy(label),
+            DataKeys.POS: torch.from_numpy(block[:, 0:3].copy()),
+            DataKeys.COLOR: torch.from_numpy(block[:, 3:6].copy()),
+            DataKeys.NORM_POS: torch.from_numpy(block[:, 6:9].copy()),
+            DataKeys.SEGMENT: torch.from_numpy(label.copy()),
         }
 
         if self.transform is not None:

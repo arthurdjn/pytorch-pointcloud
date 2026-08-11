@@ -132,8 +132,15 @@ class VoteNetLoss(nn.Module):
         scene's offset so the per-scene `vote_label` can be gathered onto seeds.
         """
         batch_idx: Tensor = batch["batch"]
-        batch_size = int(batch_idx[-1]) + 1
-        num_points = batch_idx.shape[0] // batch_size
+        if batch_idx.numel() == 0:
+            raise ValueError("`VoteNetLoss` requires a non-empty batch of points.")
+        counts = batch_idx.bincount()
+        if bool((counts != counts[0]).any()):
+            raise ValueError(
+                f"`VoteNetLoss` requires the same number of points per scene, got counts {counts.tolist()}."
+            )
+        batch_size = counts.numel()
+        num_points = int(counts[0])
         dense = dict(output)
         for key in ("pos_seed", "pos_vote", "seed_indices", "batch_seed", "batch_vote"):
             tensor = output[key]

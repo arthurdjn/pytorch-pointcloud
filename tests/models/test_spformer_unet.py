@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
+from torch_pointcloud.models.spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder, SPFormerUNetSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 pytestmark = [
@@ -27,8 +27,8 @@ def data() -> Dict[str, Tensor]:
 
 
 @pytest.fixture
-def model() -> SPFormerUNet:
-    return SPFormerUNet(
+def model() -> SPFormerUNetSegmentation:
+    return SPFormerUNetSegmentation(
         in_channels=6,
         num_classes=10,
         channels=CHANNELS,
@@ -37,13 +37,13 @@ def model() -> SPFormerUNet:
     ).cuda()
 
 
-def test_spformer_unet_forward(model: SPFormerUNet, data: Dict[str, Tensor]) -> None:
+def test_spformer_unet_forward(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:
     logits = model(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], model.num_classes)
 
 
 def test_spformer_unet_identity_head_returns_features(data: Dict[str, Tensor]) -> None:
-    model = SPFormerUNet(
+    model = SPFormerUNetSegmentation(
         in_channels=6,
         num_classes=0,
         channels=CHANNELS,
@@ -54,14 +54,14 @@ def test_spformer_unet_identity_head_returns_features(data: Dict[str, Tensor]) -
     assert feats.shape == (data["pos_grid"].shape[0], CHANNELS[0])
 
 
-def test_spformer_unet_reset_classifier(model: SPFormerUNet, data: Dict[str, Tensor]) -> None:
+def test_spformer_unet_reset_classifier(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:
     model.reset_classifier(num_classes=42)
     model.cuda()
     logits = model(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 42)
 
 
-def test_spformer_unet_forward_features_decoder_head(model: SPFormerUNet, data: Dict[str, Tensor]) -> None:
+def test_spformer_unet_forward_features_decoder_head(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:
     bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"])
     assert len(skips) == len(CHANNELS) - 1
     assert bottleneck.features.shape[1] == CHANNELS[-1]
@@ -71,7 +71,7 @@ def test_spformer_unet_forward_features_decoder_head(model: SPFormerUNet, data: 
     assert logits.shape == (data["pos_grid"].shape[0], model.num_classes)
 
 
-def test_spformer_unet_forward_head_pre_logits(model: SPFormerUNet, data: Dict[str, Tensor]) -> None:
+def test_spformer_unet_forward_head_pre_logits(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:
     bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"])
     sparse_x = model.forward_decoder(bottleneck, skips)
     feats = model.forward_head(sparse_x, pre_logits=True)

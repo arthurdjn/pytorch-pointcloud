@@ -1,6 +1,6 @@
 """Generate a tiny ScanObjectNN fixture by subsampling real `.h5` archives.
 
-For each (split, background, train, variant) combination, we keep one real example
+For each (partition, background, split, variant) combination, we keep one real example
 per class (15 classes) and randomly subsample its points down to `--num-points`.
 
 The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/ScanObjectNN/raw`.
@@ -20,25 +20,25 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanObjectNN
 from torch_pointcloud.datasets.scanobjectnn import (
     SCANOBJECTNN_CLASSES,
-    SCANOBJECTNN_SPLITS,
+    SCANOBJECTNN_PARTITIONS,
     SCANOBJECTNN_VARIANTS,
 )
 
 NUM_CLASSES = len(SCANOBJECTNN_CLASSES)
 
 SPLIT_DIRS: list[str] = []
-for _split in SCANOBJECTNN_SPLITS:
+for _partition in SCANOBJECTNN_PARTITIONS:
     for _bg in (True, False):
-        name = _split
-        if _split == "main":
+        name = _partition
+        if _partition == "main":
             name += "_split"
         if not _bg:
             name += "_nobg"
         SPLIT_DIRS.append(name)
 
 FILE_STEMS: list[str] = []
-for _train in (True, False):
-    prefix = "training" if _train else "test"
+for _split in ("train", "test"):
+    prefix = "training" if _split == "train" else "test"
     FILE_STEMS.append(f"{prefix}_objectdataset")
     for _variant in SCANOBJECTNN_VARIANTS:
         FILE_STEMS.append(f"{prefix}_objectdataset_{_variant}")
@@ -157,16 +157,16 @@ def generate_processed(args: Namespace) -> None:
     raw_dir = Path(args.raw_dir)
     root = raw_dir.resolve().parent.parent.as_posix()
 
-    for split in SCANOBJECTNN_SPLITS:
+    for partition in SCANOBJECTNN_PARTITIONS:
         for variant in list(SCANOBJECTNN_VARIANTS) + [None]:
             for background in (True, False):
                 for train in (True, False):
                     _ = ScanObjectNN(
                         root=root,
-                        split=split,
+                        train=train,
+                        partition=partition,
                         variant=variant,
                         background=background,
-                        train=train,
                         force_process=True,
                     )
 

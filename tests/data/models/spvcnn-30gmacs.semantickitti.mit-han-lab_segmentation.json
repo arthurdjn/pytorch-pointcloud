@@ -1,5 +1,5 @@
 {
-  "num_params": 5434842,
+  "num_params": 5448394,
   "state_dict": {
     "stem.0.conv.kernel": [
       27,
@@ -359,6 +359,13 @@
       64
     ],
     "encoder.block3.downsample.norm.module.num_batches_tracked": [],
+    "encoder.block3.fusion.lin.weight": [
+      128,
+      16
+    ],
+    "encoder.block3.fusion.lin.bias": [
+      128
+    ],
     "encoder.block3.fusion.norm.module.weight": [
       128
     ],
@@ -639,6 +646,13 @@
       64
     ],
     "decoder.block1.upsample.residual.norm_skip.module.num_batches_tracked": [],
+    "decoder.block1.fusion.lin.weight": [
+      64,
+      128
+    ],
+    "decoder.block1.fusion.lin.bias": [
+      64
+    ],
     "decoder.block1.fusion.norm.module.weight": [
       64
     ],
@@ -866,6 +880,13 @@
       48
     ],
     "decoder.block3.upsample.residual.norm_skip.module.num_batches_tracked": [],
+    "decoder.block3.fusion.lin.weight": [
+      48,
+      64
+    ],
+    "decoder.block3.fusion.lin.bias": [
+      48
+    ],
     "decoder.block3.fusion.norm.module.weight": [
       48
     ],

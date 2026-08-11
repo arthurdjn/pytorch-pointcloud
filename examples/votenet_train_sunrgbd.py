@@ -42,7 +42,7 @@ def main() -> None:
     assert isinstance(model, VoteNetDetection)
     dataset = SunRGBD(
         root=args.root,
-        split="train",
+        train=True,
         transform=T.Compose(
             [
                 T.AxisMinOffset(keys="pos", axis=2, quantile=0.0099, dst_keys="height"),

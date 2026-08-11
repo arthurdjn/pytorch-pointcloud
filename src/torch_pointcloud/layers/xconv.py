@@ -46,6 +46,12 @@ class XConv(nn.Module):
 
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels or self.in_channels // 4
+        if self.hidden_channels <= 0:
+            raise ValueError(
+                f"XConv requires `hidden_channels > 0`, got {self.hidden_channels} "
+                f"(the default `in_channels // 4` is 0 for in_channels={in_channels}; "
+                "pass `hidden_channels` explicitly)."
+            )
         self.out_channels = out_channels
         self.spatial_dim = spatial_dim
         self.kernel_size = kernel_size
@@ -115,6 +121,14 @@ class XConv(nn.Module):
             edge_index, _ = remove_self_loops(edge_index)
             edge_index, _ = add_self_loops(edge_index, num_nodes=min(pos[0].size(0), pos[1].size(0)))
             # TODO: @adu add supports for sparse tensors
+
+        num_expected = pos[1].size(0) * self.kernel_size * self.dilation
+        if edge_index.size(1) != num_expected:
+            raise ValueError(
+                f"XConv expects exactly `kernel_size * dilation` = {self.kernel_size * self.dilation} neighbors "
+                f"per output point ({num_expected} edges for {pos[1].size(0)} points), got {edge_index.size(1)}. "
+                "This typically means a point cloud in the batch has fewer than `kernel_size * dilation` points."
+            )
 
         if self.dilation > 1:
             edge_index = edge_index[:, :: self.dilation]

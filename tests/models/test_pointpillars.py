@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
+from torch_pointcloud.models.pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection, scatter_to_bev
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 from torch_pointcloud.utils.voxelization import hard_voxelize
 
@@ -143,3 +143,10 @@ def test_pp_multihead_create_model_hparams() -> None:
     assert model.grid_size == (512, 512, 1)
     assert len(model.head.rpn_heads) == 6
     assert "pointpillars-multihead.nuscenes.openpcdet" in list_models("pointpillars*", task="detection")
+
+
+def test_scatter_to_bev_multiple_height_bins_raises() -> None:
+    pillar_features = torch.randn(4, 8)
+    voxel_indices = torch.zeros(4, 4, dtype=torch.long)
+    with pytest.raises(ValueError, match="height bin"):
+        scatter_to_bev(pillar_features, voxel_indices, batch_size=1, grid_size=(8, 8, 2))

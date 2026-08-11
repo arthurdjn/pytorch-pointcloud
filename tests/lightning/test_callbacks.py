@@ -7,6 +7,7 @@ import torch
 from torch import Tensor, nn
 
 from torch_pointcloud.lightning import (
+    BNMomentumScheduler,
     LitClassificationModel,
     LitDetectionModel,
     MeanAveragePrecision3D,
@@ -202,3 +203,70 @@ def test_metric_callback_logs_detection_map(trainer: L.Trainer, monkeypatch: pyt
     logged = {call.args[0]: call.args[1] for call in log.call_args_list}
     assert logged["val/mAP@0.25"] == pytest.approx(1.0)
     assert logged["val/mAP@0.5"] == pytest.approx(1.0)
+
+
+def test_metric_callback_raises_on_non_dict_step_output(trainer: L.Trainer) -> None:
+    """A `*_step` returning a bare tensor would silently skip the metric update; it must fail loudly."""
+    module = _cls_module(num_classes=3)
+    callback = MetricCallback(metric=Accuracy(task="multiclass", num_classes=3), name="accuracy", stages=("val",))
+
+    with pytest.raises(TypeError, match="step output"):
+        callback.on_validation_batch_end(trainer, module, torch.randn(2, 3), {}, 0)
+
+
+def test_metric_callback_logs_on_test_stage(trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With `stages=("test",)` the test hooks accumulate and log the metric as `test/{name}`."""
+    module = _cls_module(num_classes=3)
+    log = Mock()
+    monkeypatch.setattr(module, "log", log)
+    callback = MetricCallback(metric=Accuracy(task="multiclass", num_classes=3), name="accuracy", stages=("test",))
+    preds = torch.tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]])
+    target = torch.tensor([0, 0])
+
+    callback.on_test_epoch_start(trainer, module)
+    callback.on_test_batch_end(trainer, module, {"preds": preds, "target": target}, {}, 0)
+    callback.on_test_epoch_end(trainer, module)
+
+    logged = {call.args[0]: call.args[1] for call in log.call_args_list}
+    assert logged["test/accuracy"].item() == pytest.approx(0.5)
+
+
+def test_metric_callback_test_stage_ignores_validation_hooks(
+    trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _cls_module(num_classes=3)
+    log = Mock()
+    monkeypatch.setattr(module, "log", log)
+    metric = Mock()
+    callback = MetricCallback(metric=metric, name="accuracy", stages=("test",))
+
+    callback.on_validation_epoch_start(trainer, module)
+    callback.on_validation_batch_end(
+        trainer, module, {"preds": torch.randn(2, 3), "target": torch.tensor([0, 1])}, {}, 0
+    )
+    callback.on_validation_epoch_end(trainer, module)
+
+    metric.update.assert_not_called()
+    log.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("epoch", "expected"),
+    [
+        pytest.param(0, 0.5, id="epoch-0"),
+        pytest.param(19, 0.5, id="before-first-decay"),
+        pytest.param(20, 0.25, id="first-decay"),
+        pytest.param(45, 0.125, id="second-decay"),
+        pytest.param(1000, 0.001, id="clipped-at-floor"),
+    ],
+)
+def test_bn_momentum_scheduler_decays_batchnorm_momentum(epoch: int, expected: float) -> None:
+    callback = BNMomentumScheduler(bn_momentum_init=0.5, bn_decay_rate=0.5, bn_decay_step=20, bn_momentum_clip=0.001)
+    model = nn.Sequential(nn.Linear(3, 4), nn.BatchNorm1d(4), nn.BatchNorm2d(4), nn.BatchNorm3d(4))
+    pl_module = Mock(model=model)
+
+    callback.on_train_epoch_start(Mock(current_epoch=epoch), pl_module)
+
+    assert model[1].momentum == pytest.approx(expected)
+    assert model[2].momentum == pytest.approx(expected)
+    assert model[3].momentum == pytest.approx(expected)

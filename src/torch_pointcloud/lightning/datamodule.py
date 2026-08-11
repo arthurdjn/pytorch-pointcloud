@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Union
 
 from torch.utils.data import DataLoader, Dataset, Sampler
 
@@ -15,7 +15,7 @@ else:
 class PointCloudDataModule(LightningDataModule):
     """LightningDataModule wrapping point cloud datasets with the packed-batch collate.
 
-    Each dataset is passed through as-is. To lengthen an epoch (Pointcept's `loop`),
+    Each dataset is passed through as-is. To lengthen an epoch,
     wrap the training dataset with `torch_pointcloud.datasets.RepeatDataset(dataset, loop=k)`
     before passing it in.
 
@@ -23,7 +23,8 @@ class PointCloudDataModule(LightningDataModule):
     packed-batch `torch_pointcloud.utils.data.collate`. Collation specs are never read off the dataset
     (transforms rewrite keys downstream); pass `stack_keys` / `cat_keys` to control how per-scene ground
     truth is batched (e.g. `cat_keys=("box",)` for a detection dataset). `shuffle` is forced to `True`
-    for train and `False` for val/test.
+    for train and `False` for val/test. Without a `val_dataset`, `val_dataloader` returns an empty list
+    so `Trainer.fit` runs train-only.
 
     Args:
         train_dataset: Dataset for the training loop.
@@ -155,7 +156,10 @@ class PointCloudDataModule(LightningDataModule):
             self.train_dataset, shuffle=True, drop_last=self.drop_last, batch_sampler=batch_sampler
         )
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+        # An empty list tells Lightning to skip validation, so a train-only experiment fits cleanly.
+        if self.val_dataset is None:
+            return []
         return self.configure_dataloader(
             self.val_dataset, shuffle=False, drop_last=False, batch_size=self.eval_batch_size
         )

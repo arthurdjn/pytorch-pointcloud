@@ -10,6 +10,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import AdaptivePoolLike, PointPatchEmbed, create_adaptive_pool
 from torch_pointcloud.utils.cluster import group
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel
@@ -427,7 +428,7 @@ class PointGPTClassification(ClassificationModel):
             act=act,
             act_kwargs=act_kwargs,
         )
-        self.norm = nn.LayerNorm(embed_dim)
+        self.norm = nn.LayerNorm(embed_dim)  # unused in forward; kept for weight compatibility
         self.cls_norm = nn.LayerNorm(embed_dim)
         self.head = self.configure_head()
         self.reset_parameters()
@@ -448,9 +449,10 @@ class PointGPTClassification(ClassificationModel):
         nn.init.trunc_normal_(self.cls_token, std=0.02)
         nn.init.trunc_normal_(self.cls_pos, std=0.02)
 
-    def reset_classifier(self, num_classes: int, global_pool: AdaptivePoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[AdaptivePoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_adaptive_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_adaptive_pool(global_pool)
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -517,7 +519,8 @@ class PointGPTGenerativePretraining(BaseModel):
     fed to a causally-masked GPT extractor with an additional column mask that randomly hides patches
     beyond the first `keep_attend` tokens (the dual-masking strategy). The generator then predicts the
     next patch from the extractor features and a relative positional embedding. `forward` returns the
-    predicted and target patch coordinates suitable for a Chamfer reconstruction loss.
+    predicted and target patch coordinates for a set-to-set reconstruction objective such as
+    `chamfer_distance` from `torch_pointcloud.losses`.
 
     Args:
         in_channels: The number of input channels ($0$, coordinates only).
@@ -605,7 +608,7 @@ class PointGPTGenerativePretraining(BaseModel):
             act=act,
             act_kwargs=act_kwargs,
         )
-        self.norm = nn.LayerNorm(embed_dim)
+        self.norm = nn.LayerNorm(embed_dim)  # unused in forward; kept for weight compatibility
 
     def _column_mask(self, device: torch.device) -> Tensor:
         maskable = torch.cat(
@@ -658,14 +661,14 @@ class PointGPTGenerativePretraining(BaseModel):
 def _modelnet_transforms(num_samples: int) -> Callable:
     return T.Compose(
         [
-            T.Rescale(keys="pos", method="centroid"),
-            T.FarthestPointSample(pos_key="pos", num_samples=num_samples, random_start=False),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=num_samples, random_start=False),
         ]
     )
 
 
 def _scanobjectnn_transforms() -> Callable:
-    return T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)])
+    return T.Compose([T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False)])
 
 
 _SIZE_HPARAMS: Dict[str, Dict[str, Any]] = {

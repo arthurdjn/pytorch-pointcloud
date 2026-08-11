@@ -10,9 +10,7 @@ in any right-handed frame.
 import math
 from typing import Tuple
 
-import numpy as np
 import torch
-from scipy.spatial import ConvexHull
 from torch import Tensor
 
 import torch_pointcloud.transforms.functional as F
@@ -148,70 +146,71 @@ def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> T
     return val - torch.floor(val / period + offset) * period
 
 
-def _polygon_clip(subject: np.ndarray, clip: np.ndarray) -> np.ndarray:
-    """Sutherland-Hodgman clip of `subject` (2D, CCW) by the convex polygon `clip`."""
-
-    def inside(p: np.ndarray) -> bool:
-        return (cp2[0] - cp1[0]) * (p[1] - cp1[1]) > (cp2[1] - cp1[1]) * (p[0] - cp1[0])
-
-    def intersection() -> np.ndarray:
-        dc = cp1 - cp2
-        dp = s - e
-        n1 = cp1[0] * cp2[1] - cp1[1] * cp2[0]
-        n2 = s[0] * e[1] - s[1] * e[0]
-        denom = dc[0] * dp[1] - dc[1] * dp[0]
-        return np.array([(n1 * dp[0] - n2 * dc[0]) / denom, (n1 * dp[1] - n2 * dc[1]) / denom])
-
-    output = list(subject)
-    cp1 = clip[-1]
-    for cp2 in clip:
-        if not output:
-            break
-        ring, output = output, []
-        s = ring[-1]
-        for e in ring:
-            if inside(e):
-                if not inside(s):
-                    output.append(intersection())
-                output.append(e)
-            elif inside(s):
-                output.append(intersection())
-            s = e
-        cp1 = cp2
-    return np.asarray(output)
+def _sort_ring_ccw(ring: Tensor) -> Tensor:
+    """Order convex rings of shape $(\\ldots, V, 2)$ counter-clockwise about their centroid."""
+    rel = ring - ring.mean(dim=-2, keepdim=True)
+    order = torch.atan2(rel[..., 1], rel[..., 0]).argsort(dim=-1)
+    return ring.gather(-2, order[..., None].expand_as(ring))
 
 
-def _sort_ccw(poly: np.ndarray) -> np.ndarray:
-    """Order a convex polygon's vertices counter-clockwise (required by `_polygon_clip`)."""
-    centroid = poly.mean(axis=0)
-    angles = np.arctan2(poly[:, 1] - centroid[1], poly[:, 0] - centroid[0])
-    return poly[np.argsort(angles)]
+def _ring_area(ring: Tensor) -> Tensor:
+    """Shoelace area of counter-clockwise rings of shape $(\\ldots, V, 2)$."""
+    nxt = ring.roll(-1, dims=-2)
+    return 0.5 * (ring[..., 0] * nxt[..., 1] - ring[..., 1] * nxt[..., 0]).sum(dim=-1).abs()
 
 
-def _bev_intersection_area(rect1: np.ndarray, rect2: np.ndarray) -> float:
-    """Area of the intersection of two convex BEV polygons given as $(4, 2)$ corner rings."""
-    inter = _polygon_clip(_sort_ccw(rect1), _sort_ccw(rect2))
-    if inter.shape[0] < 3 or not np.isfinite(inter).all():
-        return 0.0
-    try:
-        return float(ConvexHull(inter).volume)
-    except Exception:
-        return 0.0
+def _convex_quad_intersection_area(quads_a: Tensor, quads_b: Tensor, eps: float = 1e-6) -> Tensor:
+    """Pairwise intersection area of counter-clockwise convex quads $(M, 4, 2)$ and $(N, 4, 2)$."""
+    a = quads_a[:, None]  # (M, 1, 4, 2)
+    b = quads_b[None, :]  # (1, N, 4, 2)
+    edge_a, edge_b = a.roll(-1, dims=-2) - a, b.roll(-1, dims=-2) - b
 
+    # Candidate vertices of the intersection polygon: each quad's corners inside the other quad
+    # (cross-product half-plane test against every CCW edge) plus all pairwise edge crossings.
+    rel_ab = a.unsqueeze(-2) - b.unsqueeze(-3)  # (M, N, 4 verts, 4 edges, 2)
+    cross_ab = edge_b.unsqueeze(-3)[..., 0] * rel_ab[..., 1] - edge_b.unsqueeze(-3)[..., 1] * rel_ab[..., 0]
+    a_in_b = (cross_ab >= -eps).all(dim=-1)  # (M, N, 4)
+    rel_ba = b.unsqueeze(-2) - a.unsqueeze(-3)
+    cross_ba = edge_a.unsqueeze(-3)[..., 0] * rel_ba[..., 1] - edge_a.unsqueeze(-3)[..., 1] * rel_ba[..., 0]
+    b_in_a = (cross_ba >= -eps).all(dim=-1)  # (M, N, 4)
 
-def _box_volume(corners: np.ndarray) -> float:
-    dx = np.linalg.norm(corners[0] - corners[1])
-    dy = np.linalg.norm(corners[1] - corners[2])
-    dz = np.linalg.norm(corners[0] - corners[4])
-    return float(dx * dy * dz)
+    p, r = a.unsqueeze(-2), edge_a.unsqueeze(-2)  # segments of A vs segments of B: (M, N, 4, 1, 2)
+    q, s = b.unsqueeze(-3), edge_b.unsqueeze(-3)  # (M, N, 1, 4, 2)
+    denom = r[..., 0] * s[..., 1] - r[..., 1] * s[..., 0]  # (M, N, 4, 4)
+    qp = q - p
+    t = (qp[..., 0] * s[..., 1] - qp[..., 1] * s[..., 0]) / denom.where(denom.abs() > eps, torch.ones_like(denom))
+    u = (qp[..., 0] * r[..., 1] - qp[..., 1] * r[..., 0]) / denom.where(denom.abs() > eps, torch.ones_like(denom))
+    crossing = (denom.abs() > eps) & (t >= -eps) & (t <= 1 + eps) & (u >= -eps) & (u <= 1 + eps)
+    crossing_points = p + t.unsqueeze(-1) * r  # (M, N, 4, 4, 2)
+
+    m, n = quads_a.shape[0], quads_b.shape[0]
+    candidates = torch.cat(
+        [a.expand(m, n, 4, 2), b.expand(m, n, 4, 2), crossing_points.reshape(m, n, 16, 2)], dim=2
+    )  # (M, N, 24, 2)
+    valid = torch.cat([a_in_b, b_in_a, crossing.reshape(m, n, 16)], dim=2)  # (M, N, 24)
+    count = valid.sum(dim=-1)  # (M, N)
+
+    # Sort the valid candidates counter-clockwise about their centroid (invalid ones to the end), then
+    # take the shoelace sum over the first `count` entries with a per-pair wrap-around.
+    centroid = (candidates * valid[..., None]).sum(dim=2) / count.clamp(min=1)[..., None]
+    rel = candidates - centroid.unsqueeze(2)
+    angles = torch.atan2(rel[..., 1], rel[..., 0]).where(valid, candidates.new_tensor(math.inf))
+    order = angles.argsort(dim=-1)
+    ring = candidates.gather(2, order[..., None].expand(m, n, 24, 2))
+    index = torch.arange(24, device=candidates.device).expand(m, n, 24)
+    wrapped = torch.where(index + 1 < count[..., None], index + 1, torch.zeros_like(index))
+    nxt = ring.gather(2, wrapped[..., None].expand(m, n, 24, 2))
+    terms = (ring[..., 0] * nxt[..., 1] - ring[..., 1] * nxt[..., 0]) * (index < count[..., None])
+    return torch.where(count >= 3, 0.5 * terms.sum(dim=-1).abs(), terms.new_zeros(m, n))
 
 
 def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Pairwise 3D intersection volume and IoU of two sets of boxes given as corners.
 
     Signature-compatible with `pytorch3d.ops.box3d_overlap`, so the exact CUDA implementation can be
-    swapped in behind this interface. This fallback intersects the bird's-eye polygons (convex-hull
-    clip) and multiplies by the vertical overlap.
+    swapped in behind this interface. Boxes are assumed gravity-aligned (as produced by `box_corners`):
+    the bird's-eye polygons are intersected exactly (corner containment plus edge crossings) and scaled
+    by the vertical overlap, entirely on the input device.
 
     Args:
         boxes1: Corners of the first set, shape $(M, 8, 3)$ (see `box_corners`).
@@ -225,23 +224,23 @@ def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
         - boxes2: $(N, 8, 3)$
         - output: $(M, N)$, $(M, N)$
     """
-    corners1 = boxes1.detach().cpu().numpy()
-    corners2 = boxes2.detach().cpu().numpy()
-    m, n = corners1.shape[0], corners2.shape[0]
-    inter = np.zeros((m, n), dtype=np.float64)
-    iou = np.zeros((m, n), dtype=np.float64)
+    m, n = boxes1.shape[0], boxes2.shape[0]
+    if m == 0 or n == 0:
+        return boxes1.new_zeros(m, n), boxes1.new_zeros(m, n)
 
-    for i in range(m):
-        vol1, rect1 = _box_volume(corners1[i]), corners1[i][:4, :2]
-        ztop1, zbot1 = corners1[i][0, 2], corners1[i][4, 2]
-        for j in range(n):
-            area = _bev_intersection_area(rect1, corners2[j][:4, :2])
-            height = max(0.0, min(ztop1, corners2[j][0, 2]) - max(zbot1, corners2[j][4, 2]))
-            inter_vol = area * height
-            inter[i, j] = inter_vol
-            iou[i, j] = inter_vol / max(vol1 + _box_volume(corners2[j]) - inter_vol, 1e-8)
+    ring1 = _sort_ring_ccw(boxes1[:, :4, :2])
+    ring2 = _sort_ring_ccw(boxes2[:, :4, :2])
+    area1, area2 = _ring_area(ring1), _ring_area(ring2)
+    top1, bot1 = boxes1[..., 2].amax(dim=-1), boxes1[..., 2].amin(dim=-1)
+    top2, bot2 = boxes2[..., 2].amax(dim=-1), boxes2[..., 2].amin(dim=-1)
 
-    return torch.from_numpy(inter), torch.from_numpy(iou)
+    bev = _convex_quad_intersection_area(ring1, ring2)
+    height = (torch.minimum(top1[:, None], top2[None, :]) - torch.maximum(bot1[:, None], bot2[None, :])).clamp_min(0)
+    inter = bev * height
+    vol1 = area1 * (top1 - bot1)
+    vol2 = area2 * (top2 - bot2)
+    iou = inter / (vol1[:, None] + vol2[None, :] - inter).clamp_min(1e-8)
+    return inter, iou
 
 
 def _bev_corners(boxes: Tensor) -> Tensor:
@@ -426,7 +425,10 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
     """Greedy axis-aligned 3D NMS within a single scene; see `nms3d`."""
     corners = box_corners(boxes)
     lo, hi = corners.amin(dim=1), corners.amax(dim=1)
-    volume = (hi - lo).clamp_min(0).prod(dim=-1)
+    # Floor degenerate (zero-extent) sides so flat boxes still produce a nonzero self-overlap and
+    # coincident duplicates suppress instead of comparing NaN/0-volume IoUs.
+    hi = torch.maximum(hi, lo + 1e-6)
+    volume = (hi - lo).prod(dim=-1)
     order = scores.argsort(descending=True)
     keep = []
     while order.numel() > 0:
@@ -436,7 +438,7 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
         inter_lo = torch.maximum(lo[i], lo[rest])
         inter_hi = torch.minimum(hi[i], hi[rest])
         inter = (inter_hi - inter_lo).clamp_min(0).prod(dim=-1)
-        iou = inter / (volume[i] + volume[rest] - inter)
+        iou = inter / (volume[i] + volume[rest] - inter).clamp_min(1e-6)
         suppress = iou > iou_threshold
         if labels is not None:
             suppress = suppress & (labels[rest] == labels[i])
@@ -516,6 +518,8 @@ def count_points_in_boxes(
         >>> count_points_in_boxes(pos, boxes).tolist()
         [1]
     """
+    if (pos_batch is None) != (box_batch is None):
+        raise ValueError("`pos_batch` and `box_batch` must be given together; got exactly one of them.")
     counts = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
     for k in range(boxes.shape[0]):
         scene_pos = pos if pos_batch is None or box_batch is None else pos[pos_batch == box_batch[k]]

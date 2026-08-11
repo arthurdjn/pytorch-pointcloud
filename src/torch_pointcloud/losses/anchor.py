@@ -325,7 +325,8 @@ class MultiHeadAnchorLoss(nn.Module):
     Args:
         num_classes: Number of foreground classes (10 for nuScenes).
         class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`), matching the head's
-            `head_class_groups`; the classes in each group share one head.
+            `head_class_groups`; the classes in each group share one head, and the flattened groups must
+            enumerate the classes $0 \ldots C - 1$ in ascending order (the anchor / head layout).
         voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
@@ -381,6 +382,13 @@ class MultiHeadAnchorLoss(nn.Module):
         code_size = len(code_weights)
         if code_size < 8:
             raise ValueError("`code_weights` must cover at least the 6 center/size and 2 sincos-angle codes.")
+        # The anchors and the head's per-head outputs are both laid out class 0..C-1; any other grouping
+        # would silently misalign the per-head one-hot / target slices.
+        if [c for group in class_groups for c in group] != list(range(num_classes)):
+            raise ValueError(
+                f"`class_groups` must cover classes 0..{num_classes - 1} exactly once, in ascending order, "
+                f"got {[list(g) for g in class_groups]}."
+            )
 
         self.num_classes = num_classes
         self.class_groups = [list(g) for g in class_groups]

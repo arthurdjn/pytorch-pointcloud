@@ -276,6 +276,47 @@ def test_s3dis_download_retries_corrupt_archive_with_overwrite(tmp_path: Path, m
     assert ("Stanford3dDataset_v1.2_Aligned_Version.zip", True) in calls
 
 
+def test_s3dis_dataset_leftover_archive_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An archive without the extraction marker means an interrupted extraction, so the raw tree is rejected"""
+    datasets_dir = datasets_dir_factory("S3DIS/raw/**/*")
+    archive_path = datasets_dir / "S3DIS" / "raw" / "Stanford3dDataset_v1.2_Aligned_Version.zip"
+    archive_path.write_bytes(b"partial")
+
+    with pytest.raises(RuntimeError, match="Dataset not found"):
+        _ = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
+
+    (datasets_dir / "S3DIS" / "raw" / ".extraction_complete").touch()
+    dataset = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
+    assert len(dataset) > 0
+
+
+def test_s3dis_download_marks_extraction_complete(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A successful download() ends by writing the extraction marker next to the kept archive"""
+
+    def fake_download(url: str, file_path: Any = "", **kwargs: Any) -> str:
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(file_path).write_bytes(b"archive")
+        return str(file_path)
+
+    def fake_extract(zip_path: Any, out_dir: Any, **kwargs: Any) -> str:
+        ceiling_path = Path(out_dir, "Area_5", "hallway_6", "Annotations", "ceiling_1.txt")
+        ceiling_path.parent.mkdir(parents=True, exist_ok=True)
+        ceiling_path.write_text("0.0 0.0 0.0 0 0 0\n")
+        return str(out_dir)
+
+    datasets_dir = datasets_dir_factory("S3DIS/processed_aligned/**/*")
+    dataset = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", fake_download)
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.extract_zip", fake_extract)
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.is_hash_valid", lambda *args, **kwargs: True)
+
+    dataset.download()
+
+    assert (Path(dataset.raw_dir) / ".extraction_complete").exists()
+
+
 def test_s3dis_hdf5_download_retries_corrupt_archive_with_overwrite(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -299,10 +340,25 @@ def test_s3dis_hdf5_download_retries_corrupt_archive_with_overwrite(
 HDF5_GLOB = "S3DIS/indoor3d_sem_seg_hdf5_data/**/*"
 
 
-def test_s3dis_hdf5_not_found() -> None:
-    """Raises an error if the dataset is not found"""
+def test_s3dis_hdf5_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A missing dataset raises without attempting a download (the default is `download=False`)"""
+    download_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", download_mock)
     with pytest.raises(RuntimeError, match="Dataset not found"):
-        _ = S3DISHdf5(root="not-found", download=False, show_progress=False)
+        _ = S3DISHdf5(root="not-found", show_progress=False)
+    download_mock.assert_not_called()
+
+
+def test_s3dis_hdf5_force_download_implies_download(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`force_download=True` triggers the download even when `download` is left False"""
+    datasets_dir = datasets_dir_factory(HDF5_GLOB)
+    mock = Mock()
+    monkeypatch.setattr(S3DISHdf5, "download", mock)
+
+    _ = S3DISHdf5(root=datasets_dir, force_download=True, show_progress=False)
+    mock.assert_called_once_with(force=True, show_progress=False)
 
 
 def test_s3dis_hdf5_load(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -372,3 +428,77 @@ def test_s3dis_hdf5_tensor_dtypes(datasets_dir_factory: Callable[..., Path]) -> 
     assert sample["color"].dtype == torch.float32
     assert sample["norm_pos"].dtype == torch.float32
     assert sample["segment"].dtype == torch.int64
+
+
+def test_s3dis_hdf5_class_subset_without_clutter_uses_ignore_index(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """Unselected classes map to the ignore index -1 when 'clutter' is not selected"""
+    datasets_dir = datasets_dir_factory(HDF5_GLOB)
+
+    dataset = S3DISHdf5(root=datasets_dir, classes=["wall", "floor"], download=False, show_progress=False)
+    assert dataset.class_to_idx == {"wall": 0, "floor": 1}
+
+    labels = torch.cat([sample["segment"] for sample in dataset])
+    assert set(labels.unique().tolist()) <= {-1, 0, 1}
+    assert (labels == -1).any()
+
+
+def test_s3dis_hdf5_class_subset_with_clutter_uses_clutter_index(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """Unselected classes map to the new index of 'clutter' when it is selected"""
+    datasets_dir = datasets_dir_factory(HDF5_GLOB)
+
+    dataset = S3DISHdf5(root=datasets_dir, classes=["wall", "clutter"], download=False, show_progress=False)
+    clutter_idx = dataset.class_to_idx["clutter"]
+    assert clutter_idx == 1
+
+    labels = torch.cat([sample["segment"] for sample in dataset])
+    assert set(labels.unique().tolist()) <= {0, clutter_idx}
+    assert (labels == clutter_idx).any()
+
+
+def test_s3dis_hdf5_class_subset_matches_full_labels(datasets_dir_factory: Callable[..., Path]) -> None:
+    """The remapped subset labels agree point-wise with the full 13-class labels"""
+    datasets_dir = datasets_dir_factory(HDF5_GLOB)
+
+    dataset_all = S3DISHdf5(root=datasets_dir, download=False, show_progress=False)
+    dataset_sub = S3DISHdf5(root=datasets_dir, classes=["floor", "wall"], download=False, show_progress=False)
+
+    full = dataset_all[0]["segment"]
+    sub = dataset_sub[0]["segment"]
+    floor_idx = S3DIS_CLASSES.index("floor")
+    wall_idx = S3DIS_CLASSES.index("wall")
+    assert torch.equal(sub == 0, full == floor_idx)
+    assert torch.equal(sub == 1, full == wall_idx)
+    assert torch.equal(sub == -1, (full != floor_idx) & (full != wall_idx))
+
+
+def test_s3dis_hdf5_invalid_class_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unknown class name raises instead of being silently ignored"""
+    datasets_dir = datasets_dir_factory(HDF5_GLOB)
+
+    with pytest.raises(ValueError, match="Unknown class"):
+        _ = S3DISHdf5(root=datasets_dir, classes=["wall", "spaceship"], download=False, show_progress=False)  # type: ignore[list-item]
+
+
+def test_s3dis_hdf5_getitem_tensors_own_their_memory(datasets_dir_factory: Callable[..., Path]) -> None:
+    """In-place edits on a returned sample never reach the cached numpy block"""
+    datasets_dir = datasets_dir_factory(HDF5_GLOB)
+
+    dataset = S3DISHdf5(root=datasets_dir, download=False, show_progress=False)
+    original = dataset[0]["pos"].clone()
+    dataset[0]["pos"].fill_(123.0)
+    assert torch.equal(dataset[0]["pos"], original)
+
+
+def test_s3dis_dataset_getitem_returns_shallow_copy(datasets_dir_factory: Callable[..., Path]) -> None:
+    """User edits on a returned sample dict never reach the in-memory cache"""
+    datasets_dir = datasets_dir_factory("S3DIS/processed_aligned/**/*")
+
+    dataset = S3DIS(root=datasets_dir, show_progress=False)
+    sample = dataset[0]
+    assert sample is not dataset.data[0]
+    sample["extra"] = 1
+    assert "extra" not in dataset[0]

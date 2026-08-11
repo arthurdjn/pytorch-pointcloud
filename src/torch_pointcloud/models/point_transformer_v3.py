@@ -112,6 +112,46 @@ def serialize(
     return serialized_code, serialized_order, serialized_inverse
 
 
+def _resolve_condition(
+    condition: Union[str, Sequence[str], None],
+    default: Optional[str],
+    conditions: Optional[Sequence[str]],
+) -> Optional[str]:
+    """Reduce a per-batch condition to a single name, falling back to `default`.
+
+    Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
+    same string; take its first entry. A `None` argument falls back to the model's constructor
+    `condition` (single-dataset fine-tune or benchmark).
+
+    Args:
+        condition: A single condition name, a per-sample sequence of names, or `None`.
+        default: Fallback condition name used when `condition` is `None`.
+        conditions: Condition names the model was built with (`pdnorm_conditions`), or `None` when
+            the model uses plain norms.
+
+    Returns:
+        The resolved condition name, or `None` when the model was built without conditions.
+
+    Raises:
+        ValueError: If a condition is given but the model was built without `pdnorm_conditions`, or
+            if the model was built with `pdnorm_conditions` and no condition resolves.
+    """
+    resolved = condition if condition is not None else default
+    if resolved is not None and not isinstance(resolved, str):
+        resolved = resolved[0]
+    if resolved is not None and conditions is None:
+        raise ValueError(
+            f"Got condition={resolved!r} but the model was built without conditional norms; "
+            "construct it with `pdnorm_conditions=[...]` to enable per-dataset conditions."
+        )
+    if resolved is None and conditions is not None:
+        raise ValueError(
+            f"The model was built with pdnorm_conditions={list(conditions)!r}; pass `condition=` at "
+            "forward time or set the constructor `condition` default."
+        )
+    return resolved
+
+
 class Block(nn.Module):
     def __init__(
         self,
@@ -124,7 +164,6 @@ class Block(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: float = 0.0,
-        norm: Union[str, Callable] = "layer_norm",
         act: Union[str, Callable] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
@@ -235,7 +274,6 @@ class EncoderBlock(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        norm: Union[str, Callable] = "layer_norm",
         act: Union[str, Callable] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
@@ -269,7 +307,6 @@ class EncoderBlock(nn.Module):
                     attn_drop=attn_drop,
                     proj_drop=proj_drop,
                     drop_path=drop_path[i],
-                    norm=norm,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm_kwargs=norm_kwargs,
@@ -344,12 +381,13 @@ class EncoderBlock(nn.Module):
                     shuffle=self.shuffle_serialization_orders and self.training,
                 )
             else:
-                x, pos_grid, batch, serialized_code, inverse = self.downsample(
+                x, pos_grid, batch, serialized_code, inverse, pos = self.downsample(
                     x,
                     pos_grid,
                     batch,
                     serialized_code,
                     return_inverse=True,
+                    pos=pos,
                     condition=condition,
                 )
                 serialized_order = torch.argsort(serialized_code, dim=1)
@@ -388,7 +426,6 @@ class DecoderBlock(nn.Module):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
@@ -418,7 +455,6 @@ class DecoderBlock(nn.Module):
                     attn_drop=attn_drop,
                     proj_drop=proj_drop,
                     drop_path=drop_path[i],
-                    norm=norm,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm_kwargs=norm_kwargs,
@@ -441,6 +477,7 @@ class DecoderBlock(nn.Module):
         serialized_order_skip: Tensor,
         serialized_inverse_skip: Tensor,
         inverse: OptTensor = None,
+        pos_skip: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if not serialized_order_skip.shape == serialized_inverse_skip.shape:
@@ -457,8 +494,8 @@ class DecoderBlock(nn.Module):
             if inverse is None:
                 raise ValueError("`inverse` must be provided when `upsample` module is set.")
 
-            # Reproduce Pointcept's SerializedUnpooling: the next block's xCPE convolves only the projected
-            # skip branch. Present in every release, so it is unconditional (unlike the block write-back).
+            # The next block's xCPE convolves only the projected skip branch. The reference does this in
+            # every release, so it is unconditional (unlike the block write-back).
             x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True, condition=condition)
 
         x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
@@ -471,6 +508,7 @@ class DecoderBlock(nn.Module):
                 batch_skip,
                 serialized_order=serialized_order_skip[order_idx],
                 serialized_inverse=serialized_inverse_skip[order_idx],
+                pos=pos_skip,
                 condition=condition,
             )
 
@@ -491,7 +529,7 @@ class PointTransformerV3Encoder(nn.Module):
         strides: Downsampling strides between encoder stages.
         encoder_depths: Number of blocks per encoder stage.
         encoder_channels: Feature channels per encoder stage.
-        encoder_num_head: Attention heads per encoder stage.
+        encoder_num_heads: Attention heads per encoder stage.
         encoder_patch_size: Patch size per encoder stage.
         norm: Normalization layer type.
         act: Activation function type.
@@ -503,8 +541,11 @@ class PointTransformerV3Encoder(nn.Module):
         drop_path: Drop path rate.
         attn_kind: Attention variant: `"default"` (vanilla, PT-V3 / Sonata / Concerto),
             `"rpe"` (PT-V3 with learned relative position bias), or `"rope"`
-            (Utonia, 3D rotary position embedding on `Q`, `K`).
-        use_flash_attn: Use Flash Attention.
+            (Utonia, 3D rotary position embedding on `Q`, `K`). The `"rope"` variant requires the
+            real-valued `pos` argument at forward time.
+        use_flash_attn: Use Flash Attention. The registered configurations construct with
+            `use_flash_attn=True`, which requires `flash-attn` and a CUDA device; pass
+            `use_flash_attn=False` to run without it (e.g. on CPU).
         upcast_attn: Upcast attention to fp32.
         upcast_softmax: Upcast softmax to fp32.
         pooling: Pooling strategy: `"serialized"` (code-space bit-shift) or
@@ -515,7 +556,7 @@ class PointTransformerV3Encoder(nn.Module):
         act_kwargs: Optional keyword arguments for the activation factory.
         norm_kwargs: Optional keyword arguments for the normalization factory.
         bias: Whether the stem and blocks use learnable bias where applicable.
-        legacy: Reproduce the Pointcept v1.5.1 block xCPE bug (the block output was not written back to
+        legacy: Reproduce the reference implementation's v1.5.1 block xCPE bug (the block output was not written back to
             the sparse tensor the next block convolves; fixed in v1.5.2). The released weights need
             `legacy=True`; leave `False` (default) for new training.
 
@@ -536,7 +577,7 @@ class PointTransformerV3Encoder(nn.Module):
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
-        encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
+        encoder_num_heads: Sequence[int] = (2, 4, 8, 16, 32),
         encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
         act: Union[str, Callable] = "gelu",
         norm: Union[str, Callable] = "batch_norm",
@@ -579,10 +620,11 @@ class PointTransformerV3Encoder(nn.Module):
         self.blocks = self.configure_blocks(
             depths=encoder_depths,
             channels=encoder_channels,
-            num_heads=encoder_num_head,
+            num_heads=encoder_num_heads,
             patch_sizes=encoder_patch_size,
             strides=strides,
             mlp_ratio=mlp_ratio,
+            bias=bias,
             norm=norm,
             act=act,
             qkv_bias=qkv_bias,
@@ -705,7 +747,6 @@ class PointTransformerV3Encoder(nn.Module):
                 attn_drop=attn_drop,
                 proj_drop=proj_drop,
                 drop_path=drop_paths[i].tolist(),
-                norm=norm,
                 act=act,
                 act_kwargs=act_kwargs,
                 norm_kwargs=norm_kwargs,
@@ -776,6 +817,8 @@ class PointTransformerV3Encoder(nn.Module):
                 "serialized_order": serialized_order,
                 "serialized_inverse": serialized_inverse,
             }
+            if pos is not None:
+                intermediate["pos"] = pos
 
             (
                 x,
@@ -819,7 +862,7 @@ class PointTransformerV3Decoder(nn.Module):
             skip-connection channels).
         decoder_depths: Number of blocks per decoder stage.
         decoder_channels: Feature channels per decoder stage.
-        decoder_num_head: Attention heads per decoder stage.
+        decoder_num_heads: Attention heads per decoder stage.
         decoder_patch_size: Patch size per decoder stage.
         norm: Normalization layer type.
         act: Activation function type.
@@ -850,7 +893,7 @@ class PointTransformerV3Decoder(nn.Module):
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
         decoder_depths: Sequence[int] = (2, 2, 2, 2),
         decoder_channels: Sequence[int] = (256, 128, 64, 64),
-        decoder_num_head: Sequence[int] = (16, 8, 4, 4),
+        decoder_num_heads: Sequence[int] = (16, 8, 4, 4),
         decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
         norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
@@ -874,7 +917,7 @@ class PointTransformerV3Decoder(nn.Module):
             depths=decoder_depths,
             channels=[encoder_channels[-1]] + list(decoder_channels),
             skip_channels=list(encoder_channels[:-1])[::-1],
-            num_heads=decoder_num_head,
+            num_heads=decoder_num_heads,
             patch_sizes=decoder_patch_size,
             mlp_ratio=mlp_ratio,
             norm=norm,
@@ -953,7 +996,6 @@ class PointTransformerV3Decoder(nn.Module):
                 attn_drop=attn_drop,
                 proj_drop=proj_drop,
                 drop_path=drop_paths[i].tolist()[::-1],
-                norm=norm,
                 act=act,
                 act_kwargs=act_kwargs,
                 norm_kwargs=norm_kwargs,
@@ -974,9 +1016,10 @@ class PointTransformerV3Decoder(nn.Module):
         self, x: Tensor, intermediates: List[Dict[str, Tensor]], condition: Optional[str] = None
     ) -> Tuple[Tensor, Tensor, Tensor]:
         for block, intermediate in zip(self.blocks, reversed(intermediates)):
-            intermediate.pop("serialized_code", None)
-            intermediate = {f"{k}_skip" if k != "inverse" else k: v for k, v in intermediate.items()}
-            x, pos_grid, batch = block(x, **intermediate, condition=condition)
+            skip_kwargs = {
+                f"{k}_skip" if k != "inverse" else k: v for k, v in intermediate.items() if k != "serialized_code"
+            }
+            x, pos_grid, batch = block(x, **skip_kwargs, condition=condition)
         return x, pos_grid, batch
 
 
@@ -989,7 +1032,9 @@ class PointTransformerV3Classification(ClassificationModel):
 
     Important:
         This model requires `spconv`, `torch-scatter` to be installed.
-        It is also recommended to install `flash-attn` for faster attention.
+        It is also recommended to install `flash-attn` for faster attention. The registered
+        configurations construct with `use_flash_attn=True`, which requires `flash-attn` and a CUDA
+        device; pass `use_flash_attn=False` to run without it (e.g. on CPU).
         In addition, it is recommended to install `ocnn` if you want to use more serialization orders.
 
     Args:
@@ -1000,7 +1045,7 @@ class PointTransformerV3Classification(ClassificationModel):
         strides: Downsampling strides between encoder stages.
         encoder_depths: Number of encoder blocks per stage.
         encoder_channels: Number of channels per stage.
-        encoder_num_head: Number of attention heads per stage.
+        encoder_num_heads: Number of attention heads per stage.
         encoder_patch_size: Patch size per stage.
         norm: Normalization layer to use.
         act: Activation function to use.
@@ -1010,7 +1055,8 @@ class PointTransformerV3Classification(ClassificationModel):
         attn_drop: Dropout rate for the attention.
         proj_drop: Dropout rate for the output projection of each block.
         drop_path: Stochastic depth rate.
-        attn_kind: Attention variant: `"default"`, `"rpe"`, or `"rope"`.
+        attn_kind: Attention variant: `"default"`, `"rpe"`, or `"rope"`. The `"rope"` variant
+            requires the real-valued `pos` argument at forward time.
         use_flash_attn: Whether to use flash attention.
         upcast_attn: Whether to upcast the attention to fp32.
         upcast_softmax: Whether to upcast the softmax in fp32.
@@ -1026,6 +1072,8 @@ class PointTransformerV3Classification(ClassificationModel):
         x: Float tensor of shape $(N, in_channels)$.
         pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
         batch: Long tensor of shape $(N,)$.
+        pos: Float tensor of shape $(N, 3)$ with metric coordinates. Required when
+            `attn_kind="rope"`.
 
     Outputs:
         logits: Float tensor of shape $(N, num_classes)$.
@@ -1040,7 +1088,7 @@ class PointTransformerV3Classification(ClassificationModel):
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
-        encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
+        encoder_num_heads: Sequence[int] = (2, 4, 8, 16, 32),
         encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
         norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
@@ -1067,6 +1115,7 @@ class PointTransformerV3Classification(ClassificationModel):
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.condition = condition
+        self.pdnorm_conditions = pdnorm_conditions
         norm_kwargs = norm_kwargs or {}
         if pdnorm_conditions is not None:
             norm_kwargs = {**norm_kwargs, "conditions": pdnorm_conditions}
@@ -1077,7 +1126,7 @@ class PointTransformerV3Classification(ClassificationModel):
             strides=strides,
             encoder_depths=encoder_depths,
             encoder_channels=encoder_channels,
-            encoder_num_head=encoder_num_head,
+            encoder_num_heads=encoder_num_heads,
             encoder_patch_size=encoder_patch_size,
             norm=norm,
             act=act,
@@ -1106,7 +1155,7 @@ class PointTransformerV3Classification(ClassificationModel):
     def embedding_dim(self) -> int:
         return self.encoder.embedding_dim
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
 
         Note:
@@ -1115,10 +1164,12 @@ class PointTransformerV3Classification(ClassificationModel):
         Args:
             num_classes: Number of output classes.
             global_pool: Pooling method to aggregate point features ("max" or "mean").
+                `None` keeps the current pooling.
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
@@ -1128,6 +1179,7 @@ class PointTransformerV3Classification(ClassificationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
+        pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
@@ -1138,6 +1190,7 @@ class PointTransformerV3Classification(ClassificationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
+        pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
@@ -1147,11 +1200,12 @@ class PointTransformerV3Classification(ClassificationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
+        pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, condition=condition)
-        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, condition=condition)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         """Forward pass of the classification head from pre-pooling features.
@@ -1169,28 +1223,15 @@ class PointTransformerV3Classification(ClassificationModel):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
-    def resolve_condition(self, condition: Union[str, Sequence[str], None]) -> Optional[str]:
-        """Reduce a per-batch condition to a single name, falling back to the constructor default.
-
-        Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
-        same string; take its first entry. A `None` argument falls back to the `condition` set at
-        construction.
-
-        Args:
-            condition: A single condition name, a per-sample sequence of names, or `None`.
-
-        Returns:
-            The resolved condition name, or `None` when neither an argument nor a default is set.
-        """
-        condition = condition if condition is not None else self.condition
-        if condition is None or isinstance(condition, str):
-            return condition
-        return condition[0]
-
     def forward(
-        self, x: OptTensor, pos_grid: Tensor, batch: Tensor, condition: Union[str, Sequence[str], None] = None
+        self,
+        x: OptTensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        condition: Union[str, Sequence[str], None] = None,
+        pos: OptTensor = None,
     ) -> Tensor:
-        """Forward pass of the PointNet classification network.
+        """Forward pass of the Point Transformer V3 classification network.
 
         Args:
             x: Additional point features of shape $(N, C)$.
@@ -1199,11 +1240,15 @@ class PointTransformerV3Classification(ClassificationModel):
                 must be voxel indices, not float positions.
             batch: Batch indices for each point of shape $(N,)$.
             condition: Optional per-batch condition selecting the PDNorm inner norms.
+            pos: Real-valued metric positions of shape $(N, 3)$. Required when
+                `attn_kind="rope"`; ignored otherwise.
 
         Returns:
             Classification logits of shape $(B, num\\_classes)$.
         """
-        x, _pos_grid, batch = self.forward_features(x, pos_grid, batch, condition=self.resolve_condition(condition))
+        x, _pos_grid, batch = self.forward_features(
+            x, pos_grid, batch, pos=pos, condition=_resolve_condition(condition, self.condition, self.pdnorm_conditions)
+        )
         return self.forward_head(x, batch)
 
 
@@ -1222,11 +1267,11 @@ class PointTransformerV3Segmentation(SegmentationModel):
         strides: Strides for the downsampling operations.
         encoder_depths: Number of encoder blocks for each stage.
         encoder_channels: Number of channels for each encoder block.
-        encoder_num_head: Number of attention heads for each encoder block.
+        encoder_num_heads: Number of attention heads for each encoder block.
         encoder_patch_size: Patch size for each encoder block.
         decoder_depths: Number of decoder blocks for each stage.
         decoder_channels: Number of channels for each decoder block.
-        decoder_num_head: Number of attention heads for each decoder block.
+        decoder_num_heads: Number of attention heads for each decoder block.
         decoder_patch_size: Patch size for each decoder block.
         norm: Normalization layer to use.
         act: Activation function to use.
@@ -1237,9 +1282,12 @@ class PointTransformerV3Segmentation(SegmentationModel):
         proj_drop: Dropout rate for the projection.
         drop_path: Dropout rate for the drop path.
         shuffle_serialization_orders: Whether to shuffle the serialization orders.
-        attn_kind: Attention variant: `"default"`, `"rpe"`, or `"rope"`.
+        attn_kind: Attention variant: `"default"`, `"rpe"`, or `"rope"`. The `"rope"` variant
+            requires the real-valued `pos` argument at forward time.
         rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
-        use_flash_attn: Whether to use flash attention.
+        use_flash_attn: Whether to use flash attention. The registered configurations construct
+            with `use_flash_attn=True`, which requires `flash-attn` and a CUDA device; pass
+            `use_flash_attn=False` to run without it (e.g. on CPU).
         upcast_attn: Whether to upcast the attention.
         upcast_softmax: Whether to upcast the softmax.
         dropout: Dropout on the per-point logits.
@@ -1257,11 +1305,11 @@ class PointTransformerV3Segmentation(SegmentationModel):
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (32, 64, 128, 256, 512),
-        encoder_num_head: Sequence[int] = (2, 4, 8, 16, 32),
+        encoder_num_heads: Sequence[int] = (2, 4, 8, 16, 32),
         encoder_patch_size: Sequence[int] = (48, 48, 48, 48, 48),
         decoder_depths: Sequence[int] = (2, 2, 2, 2),
         decoder_channels: Sequence[int] = (256, 128, 64, 64),
-        decoder_num_head: Sequence[int] = (16, 8, 4, 4),
+        decoder_num_heads: Sequence[int] = (16, 8, 4, 4),
         decoder_patch_size: Sequence[int] = (48, 48, 48, 48),
         norm: Union[str, Callable] = "batch_norm",
         act: Union[str, Callable] = "gelu",
@@ -1288,6 +1336,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.condition = condition
+        self.pdnorm_conditions = pdnorm_conditions
         norm_kwargs = norm_kwargs or {}
         if pdnorm_conditions is not None:
             norm_kwargs = {**norm_kwargs, "conditions": pdnorm_conditions}
@@ -1298,7 +1347,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
             strides=strides,
             encoder_depths=encoder_depths,
             encoder_channels=encoder_channels,
-            encoder_num_head=encoder_num_head,
+            encoder_num_heads=encoder_num_heads,
             encoder_patch_size=encoder_patch_size,
             norm=norm,
             act=act,
@@ -1323,7 +1372,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
             encoder_channels=encoder_channels,
             decoder_depths=decoder_depths,
             decoder_channels=decoder_channels,
-            decoder_num_head=decoder_num_head,
+            decoder_num_heads=decoder_num_heads,
             decoder_patch_size=decoder_patch_size,
             norm=norm,
             act=act,
@@ -1345,24 +1394,6 @@ class PointTransformerV3Segmentation(SegmentationModel):
         self.dropout = dropout
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
 
-    def resolve_condition(self, condition: Union[str, Sequence[str], None]) -> Optional[str]:
-        """Reduce a per-batch condition to a single name, falling back to the constructor default.
-
-        Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
-        same string; take its first entry. A `None` argument falls back to the `condition` set at
-        construction (single-dataset fine-tune or benchmark).
-
-        Args:
-            condition: A single condition name, a per-sample sequence of names, or `None`.
-
-        Returns:
-            The resolved condition name, or `None` when neither an argument nor a default is set.
-        """
-        condition = condition if condition is not None else self.condition
-        if condition is None or isinstance(condition, str):
-            return condition
-        return condition[0]
-
     @property
     def embedding_dim(self) -> int:
         return self.encoder.embedding_dim
@@ -1371,6 +1402,19 @@ class PointTransformerV3Segmentation(SegmentationModel):
     def out_channels(self) -> int:
         return self.decoder.out_channels
 
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        """Resets the segmentation head with new parameters.
+
+        Note:
+            To set an empty segmentation head, use `num_classes=0`.
+
+        Args:
+            num_classes: Number of output classes.
+            **kwargs: Additional keyword arguments to pass to the segmentation head.
+        """
+        self.num_classes = num_classes
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
+
     @overload
     def forward_features(
         self,
@@ -1378,6 +1422,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
+        pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
 
@@ -1388,6 +1433,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[False] = False,
+        pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
@@ -1397,11 +1443,12 @@ class PointTransformerV3Segmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
+        pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Any:
         if return_intermediates:
-            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, condition=condition)
-        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, condition=condition)
+            return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition)
+        return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
 
     def forward_decoder(
         self, x: Tensor, intermediates: List[Dict[str, Tensor]], condition: Optional[str] = None
@@ -1414,13 +1461,31 @@ class PointTransformerV3Segmentation(SegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(
-        self, x: Tensor, pos_grid: Tensor, batch: Tensor, condition: Union[str, Sequence[str], None] = None
+        self,
+        x: Tensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        condition: Union[str, Sequence[str], None] = None,
+        pos: OptTensor = None,
     ) -> Tensor:
-        condition = self.resolve_condition(condition)
+        """Forward pass of the Point Transformer V3 segmentation network.
+
+        Args:
+            x: Per-point features of shape $(N, C)$.
+            pos_grid: Integer grid coordinates of shape $(N, 3)$ used for serialization.
+            batch: Batch indices for each point of shape $(N,)$.
+            condition: Optional per-batch condition selecting the PDNorm inner norms.
+            pos: Real-valued metric positions of shape $(N, 3)$. Required when
+                `attn_kind="rope"`; ignored otherwise.
+
+        Returns:
+            Per-point segmentation logits of shape $(N, num\\_classes)$.
+        """
+        resolved = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         x, _, _, intermediates = self.forward_features(
-            x, pos_grid, batch, return_intermediates=True, condition=condition
+            x, pos_grid, batch, return_intermediates=True, pos=pos, condition=resolved
         )
-        x, _, _ = self.forward_decoder(x, intermediates, condition=condition)
+        x, _, _ = self.forward_decoder(x, intermediates, condition=resolved)
         return self.forward_head(x)
 
 
@@ -1439,11 +1504,11 @@ def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", pa
         strides=(2, 2, 2, 2),
         encoder_depths=(2, 2, 2, 6, 2),
         encoder_channels=(32, 64, 128, 256, 512),
-        encoder_num_head=(2, 4, 8, 16, 32),
+        encoder_num_heads=(2, 4, 8, 16, 32),
         encoder_patch_size=(patch_size,) * 5,
         decoder_depths=(2, 2, 2, 2),
         decoder_channels=(256, 128, 64, 64),
-        decoder_num_head=(16, 8, 4, 4),
+        decoder_num_heads=(16, 8, 4, 4),
         decoder_patch_size=(patch_size,) * 4,
         mlp_ratio=4,
         drop_path=0.3,

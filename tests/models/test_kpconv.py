@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict
 
 import pytest
@@ -12,6 +13,7 @@ from torch_pointcloud.models.kpconv import (
     KPFCNNClassification,
     KPFCNNSegmentation,
     KPResidualBlock,
+    create_kernel_points,
 )
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
@@ -218,6 +220,46 @@ def test_kpconv_clf_forward(model_clf: KPFCNNClassification, data: Dict[str, Ten
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
+def test_kpconv_clf_forward_x_none_uses_pos(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
+    logits = model_clf(None, data["pos"], data["batch"])
+    assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
+
+
+def test_kpconv_clf_forward_x_none_channel_mismatch_raises(data: Dict[str, Tensor]) -> None:
+    model = KPFCNNClassification(
+        in_channels=6,
+        num_classes=10,
+        encoder_depths=[2, 2],
+        encoder_channels=[32, 64],
+        encoder_num_neighbors=[16, 16],
+        grid_sizes=[0.1],
+        radii=[0.1, 0.2],
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+    )
+    with pytest.raises(ValueError, match="in_channels=6"):
+        model(None, data["pos"], data["batch"])
+
+
+def test_kpconv_seg_forward_x_none_channel_mismatch_raises(data: Dict[str, Tensor]) -> None:
+    model = KPFCNNSegmentation(
+        in_channels=6,
+        num_classes=10,
+        encoder_depths=[2, 2],
+        encoder_channels=[32, 64],
+        encoder_num_neighbors=[16, 16],
+        fp_channels=[[32], [16]],
+        grid_sizes=[0.1],
+        radii=[0.1, 0.2],
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+    )
+    with pytest.raises(ValueError, match="in_channels=6"):
+        model(None, data["pos"], data["batch"])
+
+
 def test_kpconv_clf_reset_classifier(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
     new_num_classes = 20
     model_clf.reset_classifier(new_num_classes)
@@ -279,3 +321,34 @@ def test_kpconv_seg_forward_features_and_head(model_seg: KPFCNNSegmentation, dat
     out_x = model_seg.forward_decoder(out_x, out_pos, out_batch, intermediates)
     logits = model_seg.forward_head(out_x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_create_kernel_points_gradient(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.models.kpconv.CACHE_DIR", tmp_path)
+    torch.manual_seed(0)
+    kernel_points = create_kernel_points(radius=0.05, num_points=7, method="gradient")
+    assert kernel_points.shape == (7, 3)
+    assert float(kernel_points.norm(dim=-1).max()) < 0.1
+
+
+def test_kpconv_seg_reset_classifier_keeps_head_channels() -> None:
+    model = KPFCNNSegmentation(
+        in_channels=3,
+        num_classes=10,
+        encoder_depths=[2, 2],
+        encoder_channels=[32, 64],
+        encoder_num_neighbors=[16, 16],
+        fp_channels=[[32], [16]],
+        grid_sizes=[0.1],
+        radii=[0.1, 0.2],
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+        head_channels=[8],
+    )
+    model.reset_classifier(num_classes=7)
+    assert isinstance(model.head, torch.nn.Sequential)
+    assert model.head[-1].out_features == 7
+    hidden = model.head[0]
+    assert isinstance(hidden, torch.nn.Sequential)
+    assert hidden[0].out_features == 8

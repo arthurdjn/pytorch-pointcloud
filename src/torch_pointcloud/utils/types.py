@@ -2,7 +2,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Sequence, Tuple, TypedDict, TypeVar, Union
 
-import numpy as np
 from torch import Tensor
 from typing_extensions import NotRequired
 
@@ -18,14 +17,6 @@ ValueCollection = Union[T, Sequence[T]]
 # Collection of keys used in dict-based transforms (e.g. a string or a list of strings)
 KeyCollection = ValueCollection[str]
 
-# A shorthand for a dictionary with string keys and values of type T
-DictStr = Dict[str, T]
-
-# Array-like (numpy.ndarray or torch.Tensor)
-NdarrayOrTensor = Union[np.ndarray, Tensor]
-
-# Optional numpy array (numpy.ndarray or None)
-OptNdarray = Union[np.ndarray, None]
 # Optional tensor (torch.Tensor or None)
 OptTensor = Union[Tensor, None]
 
@@ -61,10 +52,13 @@ class Detection3D(Boxes3D):
         scores: Per-box confidence score, shape $(N,)$.
         class_probs: Per-box class probabilities, shape $(N, C)$, emitted by detectors whose eval protocol
             expands every kept box across all classes (e.g. VoteNet / 3DETR).
+        velocity: Per-box BEV velocity $(v_x, v_y)$, shape $(N, 2)$, emitted by detectors whose head
+            regresses velocity (the nuScenes heads).
     """
 
     scores: Tensor
     class_probs: NotRequired[Tensor]
+    velocity: NotRequired[Tensor]
 
 
 # Flow and aggregation types for message passing

@@ -3,6 +3,7 @@ import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
+from ssl import SSLContext
 from typing import Generator
 from unittest.mock import Mock, patch
 
@@ -14,6 +15,7 @@ from torch_pointcloud.datasets.utils import (
     extract_tar,
     extract_zip,
     is_hash_valid,
+    urlsize,
     urltailname,
 )
 
@@ -238,3 +240,67 @@ def test_is_hash_valid_nonexistent_file() -> None:
 def test_is_hash_valid_none_hash() -> None:
     """Test that validation is skipped when expected hash is None."""
     assert is_hash_valid("nonexistent_file.txt", None)
+
+
+def test_urlsize_returns_content_length(mock_urlopen: Mock, mock_response: Mock) -> None:
+    """The remote size is read from the content-length header of a HEAD request."""
+    mock_response.headers = {"content-length": "1024"}
+    assert urlsize("https://example.com/file.zip") == 1024
+
+
+def test_urlsize_returns_none_without_content_length(mock_urlopen: Mock, mock_response: Mock) -> None:
+    """A response without a content-length header yields None, not a bogus size of 0."""
+    mock_response.headers = {}
+    assert urlsize("https://example.com/file.zip") is None
+
+
+def test_urlsize_builds_ssl_context_from_ca_arguments(mock_urlopen: Mock, mock_response: Mock) -> None:
+    """CA arguments become an `SSLContext` passed as `context`, never forwarded to `urlopen` directly."""
+    mock_response.headers = {"content-length": "7"}
+    assert urlsize("https://example.com/file.zip", cadefault=True) == 7
+
+    kwargs = mock_urlopen.call_args.kwargs
+    assert "cafile" not in kwargs
+    assert "capath" not in kwargs
+    assert "cadefault" not in kwargs
+    assert isinstance(kwargs["context"], SSLContext)
+
+
+def test_download_url_incomplete_keeps_matching_size(mock_urlopen: Mock, mock_response: Mock, tmp_path: Path) -> None:
+    """overwrite='incomplete' keeps an existing file whose size matches the remote size."""
+    mock_response.headers = {"content-length": "7"}
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("content")
+
+    result = download_url("https://example.com/file.txt", file_path, overwrite="incomplete", show_progress=False)
+
+    assert Path(result).read_text() == "content"
+    assert mock_urlopen.call_count == 1  # the HEAD request only
+
+
+def test_download_url_incomplete_redownloads_mismatched_size(
+    mock_urlopen: Mock, mock_response: Mock, tmp_path: Path
+) -> None:
+    """overwrite='incomplete' re-downloads an existing file whose size differs from the remote size."""
+    mock_response.headers = {"content-length": "3"}
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("partial-old")
+
+    result = download_url("https://example.com/file.txt", file_path, overwrite="incomplete", show_progress=False)
+
+    assert Path(result).read_text() == "content"
+    assert mock_urlopen.call_count == 2
+
+
+def test_download_url_incomplete_unknown_size_keeps_file(
+    mock_urlopen: Mock, mock_response: Mock, tmp_path: Path
+) -> None:
+    """overwrite='incomplete' keeps the existing file when the remote size is unknown."""
+    mock_response.headers = {}
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("existing")
+
+    result = download_url("https://example.com/file.txt", file_path, overwrite="incomplete", show_progress=False)
+
+    assert Path(result).read_text() == "existing"
+    assert mock_urlopen.call_count == 1  # the HEAD request only

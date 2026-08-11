@@ -1,6 +1,6 @@
 r"""SSD-style 2D BEV backbones shared by the voxel detectors (PointPillars, SECOND, Voxel Mamba).
 
-A packed-format port of the OpenPCDet `BaseBEVBackbone` / `BaseBEVResBackbone`:
+Packed-format ports of the `BaseBEVBackbone` / `BaseBEVResBackbone` blocks from
 :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 """
 

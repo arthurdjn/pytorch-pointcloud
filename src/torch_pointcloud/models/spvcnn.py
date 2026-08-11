@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -8,6 +9,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     TypedDict,
     Union,
     overload,
@@ -38,6 +40,9 @@ if TYPE_CHECKING:
     import torchsparse.nn as spnn
     import torchsparse.nn.functional as spF
     from torchsparse.tensor import SparseTensor
+    from torchsparse.tensor import SparseTensor as _PointTensorBase
+else:
+    _PointTensorBase = object
 
 
 torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_URL)
@@ -46,34 +51,59 @@ spnn, _ = optional_import("torchsparse.nn", url=_TORCHSPARSE_GITHUB_URL)
 spF, _ = optional_import("torchsparse.nn.functional", url=_TORCHSPARSE_GITHUB_URL)
 SparseTensor, _ = optional_import("torchsparse.tensor", "SparseTensor", url=_TORCHSPARSE_GITHUB_URL)
 
-if _IS_TORCHSPARSE_AVAILABLE:
 
-    class PointTensor(SparseTensor):
-        """A SparseTensor subclass that caches per-stride point↔voxel mappings.
+def __getattr__(name: str) -> Type["PointTensor"]:
+    # Pickle saves the concrete class by reference through this module attribute (its `__qualname__`),
+    # so unpickling in a fresh process builds it on demand.
+    if name == "_PointTensorConcrete":
+        return _point_tensor_cls()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-        This mirrors `mit-han-lab/spvnas` `core/models/utils.py:PointTensor`. The
-        voxelisation helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
-        expect coordinates in **batch-FIRST** layout `[B, X, Y, Z]` (matching torchsparse's
-        `SparseTensor.C`).
-        """
 
-        def __init__(
-            self,
-            feats: Tensor,
-            coords: Tensor,
-            stride: Union[int, Tuple[int, ...]] = 1,
-        ) -> None:
-            super().__init__(feats=feats, coords=coords, stride=stride)
-            self._caches.idx_query = dict()
-            self._caches.idx_query_devox = dict()
-            self._caches.weights_devox = dict()
+# Creating the `SparseTensor` subclass at module scope would resolve `torchsparse` (and initialize CUDA)
+# at import time, so the concrete class is built lazily on first instantiation.
+@lru_cache
+def _point_tensor_cls() -> Type["PointTensor"]:
+    if not _IS_TORCHSPARSE_AVAILABLE:
+        raise ImportError(
+            f"Optional module `torchsparse` is required to use `PointTensor`. "
+            f"Install it from {_TORCHSPARSE_GITHUB_URL}."
+        )
 
-else:
-    PointTensor = SparseTensor  # type: ignore[misc]
+    class _PointTensor(PointTensor, SparseTensor):
+        pass
+
+    _PointTensor.__name__ = "PointTensor"
+    _PointTensor.__qualname__ = "_PointTensorConcrete"
+    return _PointTensor
+
+
+class PointTensor(_PointTensorBase):
+    """A SparseTensor subclass that caches per-stride point↔voxel mappings.
+
+    The voxelisation helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
+    expect coordinates in **batch-FIRST** layout `[B, X, Y, Z]` (matching torchsparse's
+    `SparseTensor.C`).
+    """
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "PointTensor":
+        concrete = _point_tensor_cls() if cls is PointTensor else cls
+        return super().__new__(concrete)
+
+    def __init__(
+        self,
+        feats: Tensor,
+        coords: Tensor,
+        stride: Union[int, Tuple[int, ...]] = 1,
+    ) -> None:
+        super().__init__(feats=feats, coords=coords, stride=stride)
+        self._caches.idx_query = dict()
+        self._caches.idx_query_devox = dict()
+        self._caches.weights_devox = dict()
 
 
 def _sphashquery(query: Tensor, target: Tensor, kernel_size: int = 1) -> Tensor:
-    """SPVNAS-style hash lookup that maps each row of `query` to its position in
+    """Hash lookup that maps each row of `query` to its position in
     `target` (or to `-1` when not found). Both tensors use batch-FIRST coords.
     """
     hashmap_keys = torch.zeros(2 * target.shape[0], dtype=torch.int64, device=target.device)
@@ -90,9 +120,8 @@ def _sphashquery(query: Tensor, target: Tensor, kernel_size: int = 1) -> Tensor:
 def initial_voxelize(z: "PointTensor", init_res: float = 1.0, after_res: float = 1.0) -> "SparseTensor":
     """Aggregate a `PointTensor` into a `SparseTensor` of voxel features.
 
-    Mirrors SPVNAS's `core/models/utils.py:initial_voxelize`. Mutates `z.C` to the
-    rescaled (voxel-unit) float coordinates so subsequent `voxel_to_point` calls
-    can stay in voxel space.
+    Mutates `z.C` to the rescaled (voxel-unit) float coordinates so subsequent
+    `voxel_to_point` calls can stay in voxel space.
     """
     new_float_coord = torch.cat(
         [z.C[:, 0].view(-1, 1), (z.C[:, 1:] * init_res) / after_res],
@@ -257,7 +286,7 @@ class ResidualBlock(nn.Module):
 class SPVFusionBlock(nn.Module):
     def __init__(
         self,
-        in_channels: Optional[int],
+        in_channels: int,
         out_channels: int,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -268,14 +297,11 @@ class SPVFusionBlock(nn.Module):
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
 
-        self.lin = nn.LazyLinear(out_channels) if not in_channels else nn.Linear(in_channels, out_channels)
+        self.lin = nn.Linear(in_channels, out_channels)
         self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.act = create_act(act, **act_kwargs) or nn.Identity()
 
     def forward(self, x_voxels: "SparseTensor", x_points: "PointTensor") -> Tuple["SparseTensor", "PointTensor"]:
-        # NOTE: In the original paper, the fusion is done with a simple addition
-        # between the voxel and point features. However, concatenating the features
-        # and passing them through a MLP achieves better performance.
         x_points_out = voxel_to_point(x_voxels, x_points)
         x_points_out.F = x_points_out.F + self.act(self.norm(self.lin(x_points.F)))
         x_voxels_out = point_to_voxel(x_voxels, x_points_out)
@@ -487,10 +513,17 @@ class SPVCNNEncoder(nn.Module):
     ):
         super().__init__()
         self.num_blocks = len(depths)
-        assert len(depths) == len(fusion_stages), f"{len(depths) = }, {len(fusion_stages) = }"
-        assert len(channels) == self.num_blocks + 1, f"{len(channels) = }, {self.num_blocks + 1 = }"
+        if len(depths) != len(fusion_stages):
+            raise ValueError(
+                f"`depths` and `fusion_stages` must have the same length, got {len(depths)} and {len(fusion_stages)}."
+            )
+        if len(channels) != self.num_blocks + 1:
+            raise ValueError(f"`channels` must have length {self.num_blocks + 1}, got {len(channels)}.")
         drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
 
+        # Point features enter with the stem width `channels[0]`; each fusion stage projects them
+        # to that stage's voxel width.
+        point_channels = channels[0]
         for i in range(self.num_blocks):
             downsample = BasicBlock(
                 channels[i],
@@ -507,13 +540,14 @@ class SPVCNNEncoder(nn.Module):
             fusion = None
             if fusion_stages[i]:
                 fusion = SPVFusionBlock(
-                    in_channels=None,
+                    in_channels=point_channels,
                     out_channels=channels[i + 1],
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
                     norm_kwargs=norm_kwargs,
                 )
+                point_channels = channels[i + 1]
 
             block = SPVCNNEncoderBlock(
                 in_channels=channels[i],
@@ -593,9 +627,17 @@ class SPVCNNDecoder(nn.Module):
     ):
         super().__init__()
         self.num_blocks = len(depths)
-        assert len(depths) == len(skip_channels) == len(fusion_stages)
-        assert len(channels) == self.num_blocks + 1
+        if not (len(depths) == len(skip_channels) == len(fusion_stages)):
+            raise ValueError(
+                f"`depths`, `skip_channels`, and `fusion_stages` must have the same length, "
+                f"got {len(depths)}, {len(skip_channels)}, and {len(fusion_stages)}."
+            )
+        if len(channels) != self.num_blocks + 1:
+            raise ValueError(f"`channels` must have length {self.num_blocks + 1}, got {len(channels)}.")
 
+        # Point features enter with the encoder bottleneck width `channels[0]` (the encoder's last
+        # fusion stage); each fusion stage projects them to that stage's voxel width.
+        point_channels = channels[0]
         for i in range(self.num_blocks):
             upsample = SPVCNNUpsampleBlock(
                 in_channels=channels[i],
@@ -613,13 +655,14 @@ class SPVCNNDecoder(nn.Module):
             fusion = None
             if fusion_stages[i]:
                 fusion = SPVFusionBlock(
-                    in_channels=None,
+                    in_channels=point_channels,
                     out_channels=channels[i + 1],
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
                     norm_kwargs=norm_kwargs,
                 )
+                point_channels = channels[i + 1]
 
             block = SPVCNNDecoderBlock(
                 channels=channels[i + 1],
@@ -723,12 +766,7 @@ class SPVCNNClassification(ClassificationModel):
         self.global_pool = create_pool(global_pool)
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
-    def forward(
-        self,
-        x: Optional[Tensor],
-        pos: Tensor,
-        batch: Tensor,
-    ) -> Tensor:
+    def forward_features(self, x: Optional[Tensor], pos: Tensor, batch: Tensor) -> Tensor:
         x = pos.float() if x is None else x
         coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
         x_points = PointTensor(x, coords)
@@ -738,11 +776,22 @@ class SPVCNNClassification(ClassificationModel):
         x_points = voxel_to_point(x_voxels, x_points)
 
         x_voxels, x_points = self.encoder(x_voxels, x_points)
+        return x_points.F
 
-        x = self.global_pool(x_points.F, batch)
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+        x = self.global_pool(x, batch)
         if self.dropout:
             x = F.dropout(x, p=self.dropout, training=self.training)
-        return self.head(x)
+        return x if pre_logits else self.head(x)
+
+    def forward(
+        self,
+        x: Optional[Tensor],
+        pos: Tensor,
+        batch: Tensor,
+    ) -> Tensor:
+        x = self.forward_features(x, pos, batch)
+        return self.forward_head(x, batch)
 
 
 class SPVCNNSegmentation(SegmentationModel):
@@ -771,6 +820,7 @@ class SPVCNNSegmentation(SegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
         self.stem_channels = stem_channels
+        self.embedding_dim = decoder_channels[-1]
         self.stem = nn.Sequential(
             BasicBlock(
                 self.in_channels or self.spatial_dim,
@@ -824,14 +874,18 @@ class SPVCNNSegmentation(SegmentationModel):
             norm_kwargs=norm_kwargs,
         )
 
-        self.head = nn.Identity() if num_classes == 0 else nn.Linear(decoder_channels[-1], num_classes)
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
-    def forward(
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+
+    def forward_features(
         self,
         x: Optional[Tensor],
         pos: Tensor,
         batch: Tensor,
-    ) -> Tensor:
+    ) -> Tuple["SparseTensor", "PointTensor", List[SPVCNNIntermediateDict]]:
         x = pos.float() if x is None else x
         coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
         x_points = PointTensor(x, coords)
@@ -840,15 +894,34 @@ class SPVCNNSegmentation(SegmentationModel):
         x_voxels = self.stem(x_voxels)
         x_points = voxel_to_point(x_voxels, x_points)
 
-        x_voxels, x_points, intermediates = self.encoder(x_voxels, x_points, return_intermediates=True)
-        x_voxels, x_points = self.decoder(x_voxels, x_points, intermediates)
-        return self.head(x_points.F)
+        return self.encoder(x_voxels, x_points, return_intermediates=True)
+
+    def forward_decoder(
+        self,
+        x_voxels: "SparseTensor",
+        x_points: "PointTensor",
+        intermediates: List[SPVCNNIntermediateDict],
+    ) -> Tuple["SparseTensor", "PointTensor"]:
+        return self.decoder(x_voxels, x_points, intermediates)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        return x if pre_logits else self.head(x)
+
+    def forward(
+        self,
+        x: Optional[Tensor],
+        pos: Tensor,
+        batch: Tensor,
+    ) -> Tensor:
+        x_voxels, x_points, intermediates = self.forward_features(x, pos, batch)
+        x_voxels, x_points = self.forward_decoder(x_voxels, x_points, intermediates)
+        return self.forward_head(x_points.F)
 
 
 def _spvcnn_semantickitti_transforms() -> Callable:
     return T.Compose(
         [
-            # SemanticKITTI 19-class learning_map used by the SPVNAS-trained checkpoints.
+            # SemanticKITTI 19-class learning_map used by the pretrained checkpoints.
             # Each (raw_id -> contiguous_idx) entry follows the convention from
             # https://github.com/mit-han-lab/spvnas/blob/master/core/datasets/semantic_kitti.py:
             #  - the static benchmark classes get indices 0..18;
@@ -886,12 +959,14 @@ def _spvcnn_semantickitti_transforms() -> Callable:
                 default=255,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(keys=DataKeys.SEGMENT, names="origin_segment"),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
                 keys=[DataKeys.X, DataKeys.SEGMENT],
                 reduce=["first", "first"],
                 size=0.05,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     )

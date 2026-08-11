@@ -29,11 +29,11 @@ from torch_pointcloud import transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.inferers import SlidingWindowInferer
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.ensemble import mean_ensemble
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -41,8 +41,6 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 COORD_MAX_KEY = "coord_max"
-NORM_POS_KEY = "norm_pos"
-BLOCK_CENTER_KEY = "block_center"
 
 
 def predict(model: Module, data: Dict[str, Any], device: str) -> Tensor:
@@ -80,13 +78,13 @@ def evaluate(
             pad_rng = torch.Generator(device=room[DataKeys.POS].device).manual_seed(room_seed + vote_i)
             transform = T.Compose(
                 [
-                    T.BBoxCenter(keys="block_bbox", dst_keys=BLOCK_CENTER_KEY),
-                    T.CopyItems(keys=DataKeys.POS, names=NORM_POS_KEY),
-                    T.DivideKey(keys=NORM_POS_KEY, div_keys=COORD_MAX_KEY),
-                    T.SubtractKey(keys=DataKeys.POS, sub_keys=BLOCK_CENTER_KEY, axes=[0, 1]),
+                    T.BBoxCenter(keys="block_bbox", dst_keys=DataKeys.BLOCK_CENTER),
+                    T.CopyItems(keys=DataKeys.POS, names=DataKeys.NORM_POS),
+                    T.DivideKey(keys=DataKeys.NORM_POS, div_keys=COORD_MAX_KEY),
+                    T.SubtractKey(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
                     T.ToFloat(keys=DataKeys.COLOR),
                     T.Divide(keys=DataKeys.COLOR, divisor=255.0),
-                    T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, NORM_POS_KEY], dst_key=DataKeys.X, dim=1),
+                    T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X, dim=1),
                     T.DivisiblePad(
                         num_samples=block_points,
                         pad_fill="random",
@@ -145,6 +143,7 @@ def parse_args() -> Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Loading model {args.model!r}!")
     model = create_model(args.model, task="segmentation", pretrained=True)

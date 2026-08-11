@@ -51,9 +51,10 @@ class SerializedPool(nn.Module):
         pos_grid: Tensor,
         batch: Tensor,
         serialized_code: Tensor,
-        return_inverse: Literal[True] = True,
+        return_inverse: Literal[True],
+        pos: Optional[Tensor] = None,
         condition: Optional[str] = None,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Optional[Tensor]]: ...
 
     @overload
     def forward(
@@ -63,8 +64,9 @@ class SerializedPool(nn.Module):
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: Literal[False] = False,
+        pos: Optional[Tensor] = None,
         condition: Optional[str] = None,
-    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Optional[Tensor]]: ...
 
     def forward(
         self,
@@ -73,8 +75,9 @@ class SerializedPool(nn.Module):
         batch: Tensor,
         serialized_code: Tensor,
         return_inverse: bool = False,
+        pos: Optional[Tensor] = None,
         condition: Optional[str] = None,
-    ) -> Tuple[Tensor, ...]:
+    ) -> Tuple[Any, ...]:
         pooling_depth = (math.ceil(self.stride) - 1).bit_length()
         pooled_code = serialized_code >> (pooling_depth * 3)
         _, cluster, counts = torch.unique(pooled_code[0], sorted=True, return_inverse=True, return_counts=True)
@@ -89,6 +92,7 @@ class SerializedPool(nn.Module):
         pos_grid = pos_grid[head_indices] >> pooling_depth
         batch = batch[head_indices]
         pooled_code = pooled_code[:, head_indices]
+        pos = torch_scatter.segment_csr(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
 
         norm_kwargs = {} if condition is None else {"condition": condition}
         if self.norm is not None:
@@ -97,8 +101,8 @@ class SerializedPool(nn.Module):
             x = self.act(x)
 
         if return_inverse:
-            return x, pos_grid, batch, pooled_code, cluster
-        return x, pos_grid, batch, pooled_code
+            return x, pos_grid, batch, pooled_code, cluster, pos
+        return x, pos_grid, batch, pooled_code, pos
 
 
 class SerializedUpsample(nn.Module):
@@ -174,7 +178,7 @@ class SerializedUpsample(nn.Module):
 
         out = x_skip + x[inverse]
 
-        # Support Pointcept's `SerializedUnpooling` behavior
+        # Expose the projected skip branch so a decoder block can seed its xCPE from it
         if return_intermediate:
             return out, x_skip
         return out

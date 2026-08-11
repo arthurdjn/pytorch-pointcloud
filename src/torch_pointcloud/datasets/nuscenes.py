@@ -11,6 +11,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
+from .utils import check_cache_meta
 
 NUSCENES_DETECTION_CLASSES = (
     "car",
@@ -23,6 +24,18 @@ NUSCENES_DETECTION_CLASSES = (
     "bicycle",
     "pedestrian",
     "traffic_cone",
+)
+
+# The official nuScenes attribute set, in `attribute.json` table order; annotation attribute ids index into it.
+NUSCENES_ATTRIBUTES = (
+    "vehicle.moving",
+    "vehicle.stopped",
+    "vehicle.parked",
+    "cycle.with_rider",
+    "cycle.without_rider",
+    "pedestrian.sitting_lying_down",
+    "pedestrian.standing",
+    "pedestrian.moving",
 )
 
 # nuScenes category name -> detection class (the official 10-class mapping; unlisted -> ignored).
@@ -74,6 +87,26 @@ def _lidar_to_global(record: Dict[str, Any], ego_pose: Dict[str, Any], calib: Di
     ego = ego_pose[record["ego_pose_token"]]
     sensor = calib[record["calibrated_sensor_token"]]
     return _pose_matrix(ego["translation"], ego["rotation"]) @ _pose_matrix(sensor["translation"], sensor["rotation"])
+
+
+def _annotation_velocity(
+    ann: Dict[str, Any], ann_by_token: Dict[str, Dict[str, Any]], sample_timestamp: Dict[str, float]
+) -> np.ndarray:
+    r"""Global-frame velocity $(3,)$ of an annotation: the finite difference of its neighbors' translations.
+
+    Uses the `prev` / `next` annotations of the same instance (falling back to the annotation itself when a
+    neighbor is missing) and divides by the sample-timestamp delta in seconds; zeros when neither neighbor
+    resolves.
+    """
+    first = ann_by_token.get(ann["prev"]) if ann["prev"] else None
+    last = ann_by_token.get(ann["next"]) if ann["next"] else None
+    if first is None and last is None:
+        return np.zeros(3, dtype=np.float64)
+    first = first if first is not None else ann
+    last = last if last is not None else ann
+    delta = np.asarray(last["translation"], dtype=np.float64) - np.asarray(first["translation"], dtype=np.float64)
+    dt = sample_timestamp[last["sample_token"]] - sample_timestamp[first["sample_token"]]
+    return delta / dt
 
 
 def read_nuscenes_table(version_dir: PathLike, name: str) -> List[Dict[str, Any]]:
@@ -135,23 +168,28 @@ def load_nuscenes_boxes(
     calib: Dict[str, Any],
     annotations: Dict[str, List[Dict[str, Any]]],
     class_to_idx: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray]:
-    r"""Convert a keyframe's global-frame annotations to LiDAR 7-DoF boxes and labels.
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    r"""Convert a keyframe's global-frame annotations to LiDAR 7-DoF boxes with labels and box extras.
 
     Args:
         record: The keyframe `sample_data` record.
         ego_pose: `ego_pose` table indexed by token.
         calib: `calibrated_sensor` table indexed by token.
         annotations: `sample_annotation` records grouped by `sample_token`, each carrying a
-            `detection_name` (resolved detection class, or `None`).
+            `detection_name` (resolved detection class, or `None`), a global-frame `velocity` $(3,)$ and
+            an `attribute_id` (index into `NUSCENES_ATTRIBUTES`, $-1$ when unset).
         class_to_idx: Detection-class-name to label-index map; annotations whose class is absent are dropped.
 
     Returns:
-        Boxes $(K, 7)$ of $(c_x, c_y, c_z, dx, dy, dz, \theta)$ and integer labels $(K,)$.
+        Boxes $(K, 7)$ of $(c_x, c_y, c_z, dx, dy, dz, \theta)$, integer labels $(K,)$, LiDAR-frame BEV
+        velocities $(K, 2)$, LiDAR point counts $(K,)$ and attribute ids $(K,)$.
     """
     ref_from_global = np.linalg.inv(_lidar_to_global(record, ego_pose, calib))
     rows: List[List[float]] = []
     labels: List[int] = []
+    velocities: List[List[float]] = []
+    num_points: List[int] = []
+    attributes: List[int] = []
     for ann in annotations.get(record["sample_token"], []):
         name = ann["detection_name"]
         if name not in class_to_idx:
@@ -163,9 +201,19 @@ def load_nuscenes_boxes(
         width, length, height = ann["size"]
         rows.append([center[0], center[1], center[2], length, width, height, yaw])
         labels.append(class_to_idx[name])
+        velocity = ref_from_global[:3, :3] @ ann["velocity"]
+        velocities.append([velocity[0], velocity[1]])
+        num_points.append(int(ann["num_lidar_pts"]))
+        attributes.append(int(ann["attribute_id"]))
 
     boxes = np.asarray(rows, dtype=np.float32).reshape(-1, 7)
-    return boxes, np.asarray(labels, dtype=np.int64)
+    return (
+        boxes,
+        np.asarray(labels, dtype=np.int64),
+        np.asarray(velocities, dtype=np.float32).reshape(-1, 2),
+        np.asarray(num_points, dtype=np.int64),
+        np.asarray(attributes, dtype=np.int64),
+    )
 
 
 class NuScenesMini(PointCloudDataset):
@@ -187,20 +235,27 @@ class NuScenesMini(PointCloudDataset):
         `raw/sweeps/LIDAR_TOP/` exist.
 
     Tip:
-        The processed cache is keyed by `version` and `max_sweeps`, so different sweep counts coexist. After
-        changing any other processing argument (e.g. `classes`), delete the processed directory or pass
-        `force_process=True` to reprocess.
+        The processed cache is keyed by `version` and `max_sweeps`, so different sweep counts coexist. The
+        cache also records the `classes` it was built with and refuses to load under a different class set;
+        pass `force_process=True` to regenerate it.
 
     Each sample is a dict:
 
-    | Key         | Shape    | Dtype   | Description                                       |
-    | ----------- | -------- | ------- | ------------------------------------------------- |
-    | `pos`       | $(N, 3)$ | float32 | LiDAR XYZ (sweeps aggregated into keyframe frame) |
-    | `intensity` | $(N, 1)$ | float32 | LiDAR reflectance                                 |
-    | `timestamp` | $(N, 1)$ | float32 | Per-point time lag to the keyframe (seconds)      |
-    | `box`       | $(K, 7)$ | float32 | GT boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$    |
-    | `label`     | $(K,)$   | int64   | Detection class index into `classes`              |
-    | `token`     | -        | str     | Source keyframe `sample_token`                    |
+    | Key          | Shape    | Dtype   | Description                                              |
+    | ------------ | -------- | ------- | -------------------------------------------------------- |
+    | `pos`        | $(N, 3)$ | float32 | LiDAR XYZ (sweeps aggregated into keyframe frame)        |
+    | `intensity`  | $(N, 1)$ | float32 | LiDAR reflectance                                        |
+    | `timestamp`  | $(N, 1)$ | float32 | Per-point time lag to the keyframe (seconds)             |
+    | `box`        | $(K, 7)$ | float32 | GT boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$           |
+    | `label`      | $(K,)$   | int64   | Detection class index into `classes`                     |
+    | `velocity`   | $(K, 2)$ | float32 | Per-box LiDAR-frame BEV velocity $(v_x, v_y)$            |
+    | `num_points` | $(K,)$   | int64   | Per-box LiDAR point count (`num_lidar_pts`)              |
+    | `attribute`  | $(K,)$   | int64   | Index into `NUSCENES_ATTRIBUTES` ($-1$ when unset)       |
+    | `token`      | -        | str     | Source keyframe `sample_token`                           |
+
+    Per-box velocities are the finite difference of the annotation translation across the `prev` / `next`
+    annotations divided by their sample-timestamp delta, computed in the global frame, rotated into the
+    keyframe LiDAR frame, and zero when neither neighbor exists.
 
     Args:
         root: Dataset root; raw data is read from `<root>/NuScenesMini/raw/`.
@@ -272,12 +327,19 @@ class NuScenesMini(PointCloudDataset):
         version_dir = Path(self.raw_dir, self.version)
         return (version_dir / "sample_data.json").exists() and Path(self.raw_dir, "samples", "LIDAR_TOP").is_dir()
 
+    def _cache_meta(self) -> Dict[str, Any]:
+        """Snapshot of the constructor parameters the processed cache content depends on."""
+        return {"format_version": 2, "classes": list(self.classes)}
+
     @override
     def processed_files_exist(self) -> bool:
-        return Path(self.processed_dir, "keyframes.json").exists()
+        if not Path(self.processed_dir, "keyframes.json").exists():
+            return False
+        check_cache_meta(Path(self.processed_dir, "meta.json"), self._cache_meta())
+        return True
 
     def process(self, force: bool = False) -> None:
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
         if not self.raw_files_exist():
             raise RuntimeError(
@@ -286,14 +348,24 @@ class NuScenesMini(PointCloudDataset):
                 f"and extract it under {self.raw_dir!r}."
             )
 
+        Path(self.processed_dir, "keyframes.json").unlink(missing_ok=True)
+
         version_dir = Path(self.raw_dir, self.version)
         ego_pose = {r["token"]: r for r in read_nuscenes_table(version_dir, "ego_pose")}
         calib = {r["token"]: r for r in read_nuscenes_table(version_dir, "calibrated_sensor")}
         category = {r["token"]: r["name"] for r in read_nuscenes_table(version_dir, "category")}
         instance = {r["token"]: category[r["category_token"]] for r in read_nuscenes_table(version_dir, "instance")}
+        sample_timestamp = {r["token"]: r["timestamp"] * 1e-6 for r in read_nuscenes_table(version_dir, "sample")}
+        attribute = {r["token"]: r["name"] for r in read_nuscenes_table(version_dir, "attribute")}
+        attribute_to_idx = {name: i for i, name in enumerate(NUSCENES_ATTRIBUTES)}
+        ann_records = read_nuscenes_table(version_dir, "sample_annotation")
+        ann_by_token = {ann["token"]: ann for ann in ann_records}
         annotations: Dict[str, List[Dict[str, Any]]] = {}
-        for ann in read_nuscenes_table(version_dir, "sample_annotation"):
+        for ann in ann_records:
             ann["detection_name"] = _CATEGORY_TO_DETECTION.get(instance[ann["instance_token"]])
+            ann["velocity"] = _annotation_velocity(ann, ann_by_token, sample_timestamp)
+            attr_tokens = ann["attribute_tokens"]
+            ann["attribute_id"] = attribute_to_idx[attribute[attr_tokens[0]]] if attr_tokens else -1
             annotations.setdefault(ann["sample_token"], []).append(ann)
 
         sample_data = {r["token"]: r for r in read_nuscenes_table(version_dir, "sample_data")}
@@ -302,7 +374,9 @@ class NuScenesMini(PointCloudDataset):
         tokens: List[str] = []
         for record in tqdm(keyframes, desc="Processing", disable=not self.show_progress):
             points = load_nuscenes_sweeps(self.raw_dir, record, ego_pose, calib, sample_data, self.max_sweeps)
-            boxes, labels = load_nuscenes_boxes(record, ego_pose, calib, annotations, self._class_to_idx)
+            boxes, labels, velocity, num_points, attribute_ids = load_nuscenes_boxes(
+                record, ego_pose, calib, annotations, self._class_to_idx
+            )
 
             token = record["sample_token"]
             keyframe_dir = Path(self.processed_dir, token)
@@ -312,9 +386,19 @@ class NuScenesMini(PointCloudDataset):
             np.save(keyframe_dir / "timestamp.npy", points[:, 4:5])
             np.save(keyframe_dir / "box.npy", boxes)
             np.save(keyframe_dir / "label.npy", labels)
+            np.save(keyframe_dir / "velocity.npy", velocity)
+            np.save(keyframe_dir / "num_points.npy", num_points)
+            np.save(keyframe_dir / "attribute.npy", attribute_ids)
             tokens.append(token)
 
-        Path(self.processed_dir, "keyframes.json").write_text(json.dumps(tokens))
+        processed_dir = Path(self.processed_dir)
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        meta_tmp_path = processed_dir / "meta.json.tmp"
+        meta_tmp_path.write_text(json.dumps(self._cache_meta()))
+        meta_tmp_path.replace(processed_dir / "meta.json")
+        tokens_tmp_path = processed_dir / "keyframes.json.tmp"
+        tokens_tmp_path.write_text(json.dumps(tokens))
+        tokens_tmp_path.replace(processed_dir / "keyframes.json")
 
     def load(self) -> None:
         if not self.processed_files_exist():
@@ -335,6 +419,9 @@ class NuScenesMini(PointCloudDataset):
             DataKeys.TIMESTAMP: torch.from_numpy(np.load(keyframe_dir / "timestamp.npy")),
             DataKeys.BOX: torch.from_numpy(np.load(keyframe_dir / "box.npy")),
             DataKeys.LABEL: torch.from_numpy(np.load(keyframe_dir / "label.npy")),
+            DataKeys.VELOCITY: torch.from_numpy(np.load(keyframe_dir / "velocity.npy")),
+            DataKeys.NUM_POINTS: torch.from_numpy(np.load(keyframe_dir / "num_points.npy")),
+            DataKeys.ATTRIBUTE: torch.from_numpy(np.load(keyframe_dir / "attribute.npy")),
             DataKeys.TOKEN: token,
         }
 

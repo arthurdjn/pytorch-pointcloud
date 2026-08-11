@@ -15,6 +15,7 @@ from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.heatmap import transpose_gather
 from torch_pointcloud.utils.hilbert import encode as hilbert_encode
 from torch_pointcloud.utils.imports import _MAMBA_SSM_GITHUB_URL, _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -636,7 +637,7 @@ class VoxelMambaDetection(DetectionModel):
 
     Reference: :arxiv:
     [Zhang et al., 2024](https://arxiv.org/abs/2406.10700). Reference implementation: :github:
-    [gwenzhang/Voxel-Mamba](https://github.com/gwenzhang/Voxel-Mamba) (built on OpenPCDet + DSVT).
+    [gwenzhang/Voxel-Mamba](https://github.com/gwenzhang/Voxel-Mamba) (built on DSVT).
 
     Voxels are serialized into a single Hilbert-curve sequence and processed by bidirectional Mamba
     (state-space) blocks (no windowing / grouping), then scattered to a BEV map, refined by a 2D
@@ -751,12 +752,17 @@ class VoxelMambaDetection(DetectionModel):
             score_threshold: Minimum (pre-rectification) heatmap score to keep a peak; the non-filtering
                 $0$ default returns every peak (the reference protocol filters at $0.1$).
             top_k: Number of heatmap peaks gathered per scene.
-            iou_rectifier: Per-class IoU-rectification exponent (the reference Waymo values).
+            iou_rectifier: Per-class IoU-rectification exponent, one entry per class (the default holds
+                the reference Waymo 3-class values).
 
         Returns:
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
             (PyG layout).
         """
+        if len(iou_rectifier) != self.num_classes:
+            raise ValueError(
+                f"`iou_rectifier` must have one entry per class ({self.num_classes}), got {len(iou_rectifier)}."
+            )
         heatmap = out["heatmap"].sigmoid()
         batch_size, _, h, w = heatmap.shape
         # One global top-k over the flat heatmap equals the reference's per-class-then-global two-stage top-k.
@@ -766,12 +772,12 @@ class VoxelMambaDetection(DetectionModel):
         xs = (inds % w).float()
         ys = torch.div(inds, w, rounding_mode="floor").float()
 
-        center = _transpose_gather(out["center"], inds)
-        center_z = _transpose_gather(out["center_z"], inds)
-        dim = _transpose_gather(out["dim"], inds).exp()
-        rot = _transpose_gather(out["rot"], inds)
+        center = transpose_gather(out["center"], inds)
+        center_z = transpose_gather(out["center_z"], inds)
+        dim = transpose_gather(out["dim"], inds).exp()
+        rot = transpose_gather(out["rot"], inds)
         angle = torch.atan2(rot[..., 1], rot[..., 0])
-        iou = torch.clamp((_transpose_gather(out["iou"], inds) + 1) * 0.5, min=0, max=1.0).squeeze(-1)
+        iou = torch.clamp((transpose_gather(out["iou"], inds) + 1) * 0.5, min=0, max=1.0).squeeze(-1)
 
         xs = (xs + center[..., 0]) * self.feature_map_stride * self.voxel_size[0] + self.point_cloud_range[0]
         ys = (ys + center[..., 1]) * self.feature_map_stride * self.voxel_size[1] + self.point_cloud_range[1]
@@ -793,12 +799,6 @@ class VoxelMambaDetection(DetectionModel):
             "labels": torch.cat(out_labels),
             "batch": torch.cat(out_batch),
         }
-
-
-def _transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
-    b, c = feat.shape[0], feat.shape[1]
-    feat = feat.permute(0, 2, 3, 1).reshape(b, -1, c)
-    return feat.gather(1, ind.unsqueeze(2).expand(-1, -1, c))
 
 
 @register_model(
