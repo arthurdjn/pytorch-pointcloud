@@ -8,6 +8,7 @@ import torch_pointcloud as tpc
     [
         pytest.param("datasets"),
         pytest.param("inferers"),
+        pytest.param("layers"),
         pytest.param("losses"),
         pytest.param("models"),
         pytest.param("transforms"),

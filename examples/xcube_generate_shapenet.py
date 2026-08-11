@@ -14,7 +14,6 @@ from pathlib import Path
 import numpy as np
 import torch
 
-import torch_pointcloud.models.xcube  # noqa: F401
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.xcube import XCubeDiffusion
 from torch_pointcloud.utils.random import seed_everything

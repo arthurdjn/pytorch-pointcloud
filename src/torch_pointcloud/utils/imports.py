@@ -1,8 +1,8 @@
 import importlib
-from functools import lru_cache
+from functools import lru_cache, partial
 from importlib import import_module
 from importlib.util import find_spec
-from typing import Any, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import torch
 from packaging.requirements import Requirement
@@ -23,9 +23,13 @@ def package_available(package_name: str) -> bool:
         False
     """
     try:
-        return find_spec(package_name) is not None
+        spec = find_spec(package_name)
     except (ModuleNotFoundError, ValueError):
         return False
+    # A bare namespace portion (spec.origin is None) does not count as installed: e.g. pytest putting the
+    # repository's tests/ on sys.path makes tests/lightning satisfy find_spec("lightning") in an
+    # environment without lightning.
+    return spec is not None and spec.origin is not None
 
 
 @lru_cache
@@ -87,60 +91,15 @@ def check_requirement(requirement: str) -> bool:
         return False
 
 
-@lru_cache
-def optional_import(
-    module_path: str,
-    name: str = "",
-    requirement: str = "",
-    url: Optional[str] = None,
-) -> Tuple[Any, bool]:
-    """Import a module with a version check and return a boolean indicating availability.
-    Args:
-        module_path: Path to the module to import (e.g. `torch`)
-        name: Name of the class, function or attribute to import from the module
-            (e.g. `from torch import nn`, here `module="torch", name="nn"`)
-        requirement: Requirement for the module (e.g., ">=1.10.0")
-        url: URL of the module documentation, if any. Will be used in case of an import error.
+def _missing_import_proxy(msg: str) -> type:
+    """Subclassable stand-in for an unavailable dependency that raises an informative `ImportError` on any use.
 
-    Returns:
-        Imported module (or proxy if not available) and boolean indicating availability
-
-    Examples:
-        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch", requirement=">=2.5.0")
-        >>> IS_TORCH_AVAILABLE
-        True
-        >>> pkg, IS_PKG_AVAILABLE = optional_import("missing_package")
-        >>> IS_PKG_AVAILABLE
-        False
-        >>> pkg.some_function()  # doctest: +SKIP
-        ImportError: Optional module 'missing_package' does not meet the requirement missing_package.
+    Dunder lookups are answered with `AttributeError` instead: they come from introspection machinery
+    (e.g. doctest / inspect probing `__wrapped__` through `hasattr`, which only swallows `AttributeError`),
+    so raising `ImportError` there would crash module collection on Python < 3.12 even though no real use
+    of the dependency occurred.
     """
-    package_name = module_path.split(".")[0]
-    # In case the requirement is in the format "package>=1.0.0"
-    requirement = requirement.replace(package_name, "")
 
-    # Extra message in case the module is not installed
-    msg = ""
-
-    if check_requirement(f"{package_name}{requirement}"):
-        try:
-            module = import_module(module_path)
-            return (getattr(module, name) if name else module), True
-        except ImportError:
-            msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
-        except AttributeError:
-            msg = f"Optional module '{module_path}' is available but could not import '{name}' from '{module_path}'."
-        except Exception:
-            msg = f"Optional module '{module_path}' is installed but failed to load."
-
-    msg = msg or f"Optional module '{module_path}' does not meet the requirement {package_name}{requirement}."
-    if url:
-        msg += f" Check official documentation to install it: {url}."
-
-    # Create a proxy that raises an informative ImportError whenever the missing dependency is used. Dunder lookups
-    # are answered with AttributeError instead: they come from introspection machinery (e.g. doctest / inspect probing
-    # `__wrapped__` through `hasattr`, which only swallows AttributeError), so raising ImportError there would crash
-    # module collection on Python < 3.12 even though no real use of the dependency occurred.
     def _getattr(name: str) -> Any:
         if name.startswith("__") and name.endswith("__"):
             raise AttributeError(name)
@@ -166,7 +125,152 @@ def optional_import(
         def __repr__(self) -> str:
             return msg
 
-    return ModuleNotFoundProxy, False
+    return ModuleNotFoundProxy
+
+
+_UNRESOLVED = object()
+
+
+class _LazyImportProxy:
+    """Stand-in for an installed optional dependency that defers the import to first use.
+
+    Resolution happens on the first attribute access, call, `isinstance` / `issubclass` check, or
+    subclassing (PEP 560 `__mro_entries__`), so module-scope `optional_import` calls do not load heavy
+    dependencies at import time. Dunder lookups on an unresolved proxy raise `AttributeError`: they come
+    from introspection machinery (e.g. doctest probing `__wrapped__` through `hasattr`) and must not
+    force the import. When resolution fails during subclassing, the class definition still succeeds
+    against a raising placeholder base and the `ImportError` surfaces on first use of the subclass.
+
+    The defer-to-first-use pattern follows TensorFlow's `LazyLoader`
+    (https://github.com/tensorflow/tensorflow/blob/v2.17.0/tensorflow/python/util/lazy_loader.py#L28), written
+    as a plain wrapper instead of a `types.ModuleType` subclass. Unlike `importlib.util.LazyLoader`, no import
+    machinery is hooked: the first use runs an ordinary `import_module`, so a failed import cannot leave a
+    half-initialized module in `sys.modules` and there is no loader-compatibility constraint.
+    """
+
+    def __init__(self, module_path: str, name: str, url: Optional[str]) -> None:
+        self._module_path = module_path
+        self._name = name
+        self._url = url
+        self._target: Any = _UNRESOLVED
+
+    def _resolve(self) -> Any:
+        if self._target is _UNRESOLVED:
+            try:
+                target: Any = import_module(self._module_path)
+                if self._name:
+                    target = getattr(target, self._name)
+            except Exception as error:
+                detail = f"could not provide '{self._name}'" if self._name else "failed to load"
+                msg = f"Optional module '{self._module_path}' is installed but {detail}."
+                if self._url:
+                    msg += f" Check official documentation to install it: {self._url}."
+                raise ImportError(msg) from error
+            self._target = target
+        return self._target
+
+    def __getattr__(self, name: str) -> Any:
+        if self._target is _UNRESOLVED and name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        return getattr(self._resolve(), name)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        target = self._resolve()
+        return target(*args, **kwargs)
+
+    def __mro_entries__(self, bases: Tuple[Any, ...]) -> Tuple[type, ...]:
+        try:
+            target = self._resolve()
+        except ImportError as error:
+            # Defining the subclass must stay harmless at import time (the availability probe can be
+            # fooled, e.g. by a same-named plain directory on sys.path); the informative error is raised
+            # on instantiation or use of the subclass instead.
+            return (_missing_import_proxy(str(error)),)
+        assert isinstance(target, type), f"'{self._module_path}.{self._name}' is not a class"
+        return (target,)
+
+    def __instancecheck__(self, instance: Any) -> bool:
+        target = self._resolve()
+        assert isinstance(target, type), f"'{self._module_path}.{self._name}' is not a class"
+        return isinstance(instance, target)
+
+    def __subclasscheck__(self, subclass: type) -> bool:
+        target = self._resolve()
+        assert isinstance(target, type), f"'{self._module_path}.{self._name}' is not a class"
+        return issubclass(subclass, target)
+
+    def __repr__(self) -> str:
+        qualifier = f"{self._module_path}.{self._name}" if self._name else self._module_path
+        return f"<lazy optional import '{qualifier}'>"
+
+
+@lru_cache
+def optional_import(
+    module_path: str,
+    name: str = "",
+    requirement: str = "",
+    url: Optional[str] = None,
+) -> Tuple[Any, bool]:
+    """Import a module lazily and return a boolean indicating availability.
+
+    When the top-level package is installed and no `requirement` is given, the returned object is a
+    lightweight proxy that defers the actual import to first use (attribute access, call, `isinstance`
+    check, or subclassing), so module-scope calls do not load heavy dependencies at import time. With a
+    `requirement`, the module is imported eagerly to check its version. When the dependency is missing,
+    the returned proxy raises an informative `ImportError` on any use.
+
+    The `(module, available)` return contract and the raising placeholder for missing dependencies are
+    modeled on MONAI's `optional_import`
+    (https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/utils/module.py#L283).
+
+    Args:
+        module_path: Path to the module to import (e.g. `torch`)
+        name: Name of the class, function or attribute to import from the module
+            (e.g. `from torch import nn`, here `module="torch", name="nn"`)
+        requirement: Requirement for the module (e.g., ">=1.10.0")
+        url: URL of the module documentation, if any. Will be used in case of an import error.
+
+    Returns:
+        Imported module (or proxy) and boolean indicating availability
+
+    Examples:
+        >>> torch, IS_TORCH_AVAILABLE = optional_import("torch", requirement=">=2.5.0")
+        >>> IS_TORCH_AVAILABLE
+        True
+        >>> pkg, IS_PKG_AVAILABLE = optional_import("missing_package")
+        >>> IS_PKG_AVAILABLE
+        False
+        >>> pkg.some_function()  # doctest: +SKIP
+        ImportError: Optional module 'missing_package' does not meet the requirement missing_package.
+    """
+    package_name = module_path.split(".")[0]
+    # In case the requirement is in the format "package>=1.0.0"
+    requirement = requirement.replace(package_name, "")
+
+    # Extra message in case the module is not installed
+    msg = ""
+
+    if requirement:
+        if check_requirement(f"{package_name}{requirement}"):
+            try:
+                module = import_module(module_path)
+                return (getattr(module, name) if name else module), True
+            except ImportError:
+                msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
+            except AttributeError:
+                msg = (
+                    f"Optional module '{module_path}' is available but could not import '{name}' from '{module_path}'."
+                )
+            except Exception:
+                msg = f"Optional module '{module_path}' is installed but failed to load."
+    elif package_available(package_name):
+        return _LazyImportProxy(module_path, name, url), True
+
+    msg = msg or f"Optional module '{module_path}' does not meet the requirement {package_name}{requirement}."
+    if url:
+        msg += f" Check official documentation to install it: {url}."
+
+    return _missing_import_proxy(msg), False
 
 
 _DWCONV_GITHUB_URL = "https://github.com/octree-nn/dwconv"
@@ -183,16 +287,29 @@ _TORCH_SPARSE_GITHUB_URL = "https://github.com/rusty1s/pytorch_sparse"
 _TORCHMETRICS_GITHUB_URL = "https://github.com/Lightning-AI/torchmetrics"
 _TORCHSPARSE_GITHUB_URL = "https://github.com/mit-han-lab/torchsparse"
 
-_CUDA_AVAILABLE = torch.cuda.is_available()
-_FLASH_ATTN_AVAILABLE = module_available("flash_attn")
-_FVDB_AVAILABLE = module_available("fvdb")
-_OCNN_AVAILABLE = module_available("ocnn")
-_SPCONV_AVAILABLE = module_available("spconv.pytorch")
-_SPTR_AVAILABLE = module_available("sptr")
-_TORCH_CLUSTER_AVAILABLE = module_available("torch_cluster")
-_TORCH_SCATTER_AVAILABLE = module_available("torch_scatter")
-_TORCHSPARSE_AVAILABLE = module_available("torchsparse")
-_MAMBA_SSM_AVAILABLE = module_available("mamba_ssm")
-_DWCONV_AVAILABLE = module_available("dwconv")
-_LIGHTNING_AVAILABLE = module_available("lightning.pytorch")
-_HYDRA_AVAILABLE = module_available("hydra")
+# Availability probes fully import their dependency (spconv alone costs seconds), so the flags are
+# resolved lazily on first attribute access (PEP 562) and cached in the module globals.
+_AVAILABILITY_FLAGS: Dict[str, Callable[[], bool]] = {
+    "_CUDA_AVAILABLE": torch.cuda.is_available,
+    "_DWCONV_AVAILABLE": partial(module_available, "dwconv"),
+    "_FLASH_ATTN_AVAILABLE": partial(module_available, "flash_attn"),
+    "_FVDB_AVAILABLE": partial(module_available, "fvdb"),
+    "_HYDRA_AVAILABLE": partial(module_available, "hydra"),
+    "_LIGHTNING_AVAILABLE": partial(module_available, "lightning.pytorch"),
+    "_MAMBA_SSM_AVAILABLE": partial(module_available, "mamba_ssm"),
+    "_OCNN_AVAILABLE": partial(module_available, "ocnn"),
+    "_SPCONV_AVAILABLE": partial(module_available, "spconv.pytorch"),
+    "_SPTR_AVAILABLE": partial(module_available, "sptr"),
+    "_TORCH_CLUSTER_AVAILABLE": partial(module_available, "torch_cluster"),
+    "_TORCH_SCATTER_AVAILABLE": partial(module_available, "torch_scatter"),
+    "_TORCHSPARSE_AVAILABLE": partial(module_available, "torchsparse"),
+}
+
+
+def __getattr__(name: str) -> bool:
+    flag = _AVAILABILITY_FLAGS.get(name)
+    if flag is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = flag()
+    globals()[name] = value
+    return value
