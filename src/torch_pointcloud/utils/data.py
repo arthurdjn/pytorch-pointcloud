@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from torch_pointcloud.utils.conversion import ensure_tuple
-from torch_pointcloud.utils.imports import _OCNN_AVAILABLE, _OCNN_GITHUB_URL, optional_import
+from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import KeyCollection, StrEnum
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ocnn.octree import Octree, Points
 
 
-ocnn, _ = optional_import("ocnn", url=_OCNN_GITHUB_URL)
+ocnn, _OCNN_AVAILABLE = optional_import("ocnn", url=_OCNN_GITHUB_URL)
 Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
 Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
@@ -33,6 +33,7 @@ class DataKeys(StrEnum):
     SEGMENT = "segment"
     SEMANTIC = "semantic"
     INSTANCE = "instance"
+    SUPERPOINT = "superpoint"
     INTENSITY = "intensity"
     REFLECTANCE = "reflectance"
     CATEGORY = "category"
@@ -41,7 +42,9 @@ class DataKeys(StrEnum):
     INVERSE = "inverse"
     BOX = "box"
     BATCH_BOX = "batch_box"
-    CLASS = "class"
+    VELOCITY = "velocity"
+    NUM_POINTS = "num_points"
+    ATTRIBUTE = "attribute"
     TRUNCATION = "truncation"
     OCCLUSION = "occlusion"
     BBOX_HEIGHT = "bbox_height"
@@ -50,6 +53,18 @@ class DataKeys(StrEnum):
     GPS_TIME = "gps_time"
     TOKEN = "token"
     CONDITION = "condition"
+    NORM_POS = "norm_pos"
+    # Sample-identity keys
+    NAME = "name"
+    SCENE = "scene"
+    SEQUENCE = "sequence"
+    # Tiling keys (fixed-size block datasets)
+    ROOM_MAX = "room_max"
+    SCENE_MAX = "scene_max"
+    BLOCK_CENTER = "block_center"
+    POINT_INDICES = "point_indices"
+    SCENE_INDEX = "scene_index"
+    NUM_SCENE_POINTS = "num_scene_points"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
     POINTS = "points"
@@ -118,7 +133,8 @@ def collate(
       `batch_key`. Used for ragged per-scene ground truth such as `box` $(K, 8)$ -> `batch_box` $(K,)$.
 
     Every key must be present in every sample; a key missing from a sample raises a `ValueError`.
-    `stack_keys` / `cat_keys` entries absent from all samples are ignored.
+    `stack_keys` / `cat_keys` entries absent from all samples are ignored. A key may appear in only
+    one of `stack_keys` / `cat_keys`; overlapping entries raise a `ValueError`.
 
     Args:
         data_list: List of sample dicts.
@@ -132,6 +148,9 @@ def collate(
     """
     stack_keys = ensure_tuple(stack_keys)
     cat_keys = ensure_tuple(cat_keys)
+    overlap = sorted((set(stack_keys) & set(cat_keys)) - {None})
+    if overlap:
+        raise ValueError(f"Keys cannot be in both `stack_keys` and `cat_keys`: {overlap}.")
     if not data_list:
         return {}
 

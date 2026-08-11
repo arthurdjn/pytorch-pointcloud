@@ -209,9 +209,9 @@ class PointNetClassification(ClassificationModel):
         To skip them, set them to `None`.
 
     Args:
+        in_channels: Dimension of additional point features.
         num_classes: Number of output classes.
         spatial_dim: Dimension of point coordinates.
-        in_channels: Dimension of additional point features.
         dropout: Dropout rate applied within the classification head.
         global_pool: Pooling method to aggregate point features (`"max"` or `"mean"`).
         mlp1_dims: Dimensions of encoder's first MLP.
@@ -236,8 +236,9 @@ class PointNetClassification(ClassificationModel):
 
     def __init__(
         self,
+        in_channels: int,
         num_classes: int,
-        in_channels: int = 0,
+        *,
         spatial_dim: int = 3,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -333,7 +334,7 @@ class PointNetClassification(ClassificationModel):
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the number of points.
         """
         return self.encoder(x, pos, batch)
 
@@ -341,7 +342,7 @@ class PointNetClassification(ClassificationModel):
         """Forward pass of the classification head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the number of points.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
@@ -387,9 +388,9 @@ class PointNetSegmentation(SegmentationModel):
         aware of the overall object structure.
 
     Args:
+        in_channels: Dimension of additional point features.
         num_classes: Number of segmentation classes.
         spatial_dim: Dimension of point coordinates.
-        in_channels: Dimension of additional point features.
         dropout: Dropout rate applied within the segmentation head.
         mlp1_dims: Dimensions of encoder's first MLP.
         mlp2_dims: Dimensions of encoder's second MLP.
@@ -414,9 +415,10 @@ class PointNetSegmentation(SegmentationModel):
 
     def __init__(
         self,
+        in_channels: int,
         num_classes: int,
+        *,
         spatial_dim: int = 3,
-        in_channels: int = 0,
         dropout: float = 0.3,
         mlp1_dims: Sequence[int] = (64,),
         mlp2_dims: Sequence[int] = (128, 1024),
@@ -534,7 +536,7 @@ class PointNetSegmentation(SegmentationModel):
         """Forward pass of the segmentation head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the number of points.
             point_features: Point features of shape $(N, mlp1_dims[-1])$.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
@@ -594,7 +596,7 @@ def pointnet_modelnet40(**hparams: Any) -> PointNetClassification:
     hparams=dict(in_channels=9, num_classes=13),
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
         ]
     ),
 )

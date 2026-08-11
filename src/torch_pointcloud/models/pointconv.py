@@ -118,6 +118,21 @@ class PointConvDensityEncoder(nn.Module):
 
 
 class PointConvDensityClassification(ClassificationModel):
+    r"""PointConv classification model with density re-weighting from
+    :arxiv: [PointConv: Deep Convolutional Networks on 3D Point Clouds](https://arxiv.org/abs/1811.07246)
+    by Wenxuan Wu, Zhongang Qi, Li Fuxin.
+
+    Each set-abstraction stage samples centroids with farthest point sampling, estimates a kernel
+    density per point, and applies a density-reweighted continuous convolution over each $k$-NN
+    neighborhood. The last stage pools globally, so the classification head operates on one feature
+    vector per sample.
+
+    Shape:
+        - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape
+          $(N, \text{spatial\_dim})$, batch indices of shape $(N,)$.
+        - Output: logits of shape $(B, \text{num\_classes})$.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -182,6 +197,8 @@ class PointConvDensityClassification(ClassificationModel):
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         channels = [self.embedding_dim] + ensure_list(self.head_channels) + [self.num_classes]
         return MLP(
             channels,
@@ -294,5 +311,4 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
     ),
 )
 def pointconv_density_modelnet40_clf(**hparams: Any) -> PointConvDensityClassification:
-    # adapted from original repo: https://github.com/DylanWusee/pointconv_pytorch
     return PointConvDensityClassification(**hparams)

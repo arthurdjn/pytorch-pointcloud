@@ -7,6 +7,7 @@ from typing import Callable
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 
@@ -17,7 +18,10 @@ from torch_pointcloud.datasets.scannet import (
     SCANNET200_LABELS,
     SCANNET_UNK_CLS,
     load_scannet_scene,
+    select_scannet_classes,
+    tile_scannet_scene,
 )
+from torch_pointcloud.utils.data import DataKeys
 
 
 def test_load_scannet_scene(datasets_dir: Path) -> None:
@@ -333,6 +337,31 @@ def test_scannet_dataset_missing_scene_detected(datasets_dir_factory: Callable[.
         _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
 
 
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_skipped_scene_not_marked_complete(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A processing run that skips a scene writes no completion marker, so the next construction raises"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    for mesh_file in datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"):
+        mesh_file.unlink()
+
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    assert not (Path(dataset.processed_dir) / "train" / "meta.json").exists()
+
+    with pytest.raises(RuntimeError, match="force_process"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_all_scenes_skipped_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Construction raises instead of silently serving zero scenes when every scene fails to process"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    for mesh_file in datasets_dir.glob("**/*_vh_clean_2.ply"):
+        mesh_file.unlink()
+
+    with pytest.raises(RuntimeError, match="No processed scenes"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+
 def test_scannet_dataset_download_rejects_malicious_scan_id(
     datasets_dir_factory: Callable[..., Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -417,3 +446,144 @@ def test_scannet20_load_matches_relabelled_base_segments(datasets_dir_factory: C
         assert scene["scene"] == base_scene["scene"]
         expected = torch.tensor([lookup.get(int(label), 0) for label in base_scene["segment"]])
         assert torch.equal(scene["segment"], expected)
+
+
+def _synthetic_scene(num_points: int = 400) -> dict:
+    generator = torch.Generator().manual_seed(0)
+    pos = torch.rand(num_points, 3, generator=generator) * torch.tensor([3.0, 3.0, 2.0])
+    return {
+        DataKeys.POS: pos,
+        DataKeys.COLOR: torch.rand(num_points, 3, generator=generator),
+        DataKeys.SEGMENT: torch.randint(0, 5, (num_points,), generator=generator),
+        DataKeys.SCENE: "scene_synthetic",
+    }
+
+
+def test_tile_scannet_scene_blocks_have_fixed_size_and_metadata() -> None:
+    """Each block has exactly `num_nodes` rows across all per-point keys plus the tiling metadata keys"""
+    scene = _synthetic_scene()
+    blocks = tile_scannet_scene(scene, block_size=1.5, block_stride=0.75, num_nodes=128, min_num_nodes=1)
+
+    assert len(blocks) > 1
+    for block in blocks:
+        assert block[DataKeys.POS].shape == (128, 3)
+        assert block[DataKeys.COLOR].shape == (128, 3)
+        assert block[DataKeys.SEGMENT].shape == (128,)
+        assert block[DataKeys.SCENE] == "scene_synthetic"
+        assert torch.equal(block[DataKeys.SCENE_MAX], scene[DataKeys.POS].max(dim=0).values)
+        assert block[DataKeys.BLOCK_CENTER].shape == (3,)
+        assert DataKeys.SCENE_INDEX not in block
+        assert DataKeys.NUM_SCENE_POINTS not in block
+
+
+def test_tile_scannet_scene_point_indices_map_back_to_scene() -> None:
+    """`point_indices` recovers each block's rows from the source scene and stays inside the block window"""
+    scene = _synthetic_scene()
+    blocks = tile_scannet_scene(scene, block_size=1.5, block_stride=0.75, num_nodes=128, min_num_nodes=1)
+
+    for block in blocks:
+        indices = block[DataKeys.POINT_INDICES]
+        assert torch.equal(block[DataKeys.POS], scene[DataKeys.POS][indices])
+        assert torch.equal(block[DataKeys.SEGMENT], scene[DataKeys.SEGMENT][indices])
+        offsets = (block[DataKeys.POS][:, :2] - block[DataKeys.BLOCK_CENTER][:2]).abs()
+        assert (offsets <= 1.5 / 2 + 1e-6).all()
+
+
+def test_tile_scannet_scene_emits_scene_index_when_requested() -> None:
+    """Passing `scene_index` adds `scene_index` and `num_scene_points` to every block"""
+    scene = _synthetic_scene(num_points=300)
+    blocks = tile_scannet_scene(scene, block_size=1.5, block_stride=0.75, num_nodes=64, min_num_nodes=1, scene_index=3)
+
+    assert len(blocks) > 0
+    for block in blocks:
+        assert block[DataKeys.SCENE_INDEX] == 3
+        assert block[DataKeys.NUM_SCENE_POINTS] == 300
+
+
+def test_tile_scannet_scene_drops_blocks_below_min_num_nodes() -> None:
+    """Blocks covering only a sparse far-away cluster are dropped by `min_num_nodes`"""
+    generator = torch.Generator().manual_seed(0)
+    dense = torch.rand(200, 3, generator=generator)
+    sparse = torch.rand(5, 3, generator=generator) + torch.tensor([10.0, 10.0, 0.0])
+    scene = {DataKeys.POS: torch.cat([dense, sparse])}
+
+    blocks = tile_scannet_scene(scene, block_size=1.0, block_stride=1.0, num_nodes=64, min_num_nodes=50)
+    assert len(blocks) > 0
+    for block in blocks:
+        assert (block[DataKeys.POINT_INDICES] < 200).all()
+
+
+def test_tile_scannet_scene_oversamples_small_blocks() -> None:
+    """A block with fewer raw points than `num_nodes` is filled by resampling its own points"""
+    scene = _synthetic_scene(num_points=60)
+    blocks = tile_scannet_scene(scene, block_size=10.0, block_stride=10.0, num_nodes=128, min_num_nodes=1)
+
+    assert len(blocks) == 1
+    assert blocks[0][DataKeys.POS].shape == (128, 3)
+    assert blocks[0][DataKeys.POINT_INDICES].unique().numel() <= 60
+
+
+def _synthetic_labels() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "raw_category": ["couch", "wall", "chair", "floor"],
+            "id": [4, 1, 3, 2],
+            "nyu40class": ["sofa", "wall", "chair", "floor"],
+            "nyu40id": [6, 1, 5, 2],
+        }
+    )
+
+
+def test_select_scannet_classes_all_returns_column_order() -> None:
+    labels = _synthetic_labels()
+    assert select_scannet_classes(labels, "raw_category", sort_by="id") == ["wall", "floor", "chair", "couch"]
+    assert select_scannet_classes(labels, "nyu40class", sort_by="nyu40id") == ["wall", "floor", "chair", "sofa"]
+
+
+def test_select_scannet_classes_subset_is_kept_verbatim() -> None:
+    labels = _synthetic_labels()
+    assert select_scannet_classes(labels, "raw_category", values=["wall", "chair"]) == ["wall", "chair"]
+
+
+def test_select_scannet_classes_warns_and_drops_unknown_values() -> None:
+    labels = _synthetic_labels()
+    with pytest.warns(UserWarning, match="not present"):
+        selected = select_scannet_classes(labels, "raw_category", values=["wall", "spaceship"])
+    assert selected == ["wall"]
+
+
+def test_select_scannet_classes_invalid_values_raises() -> None:
+    labels = _synthetic_labels()
+    with pytest.raises(ValueError, match="Invalid values"):
+        select_scannet_classes(labels, "raw_category", values=42)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_cache_meta_mismatch_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A processed cache written with different label columns raises instead of serving stale labels"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        _ = ScanNet(root=datasets_dir, split="train", label_name="raw_category", label_id="id", show_progress=False)
+
+    dataset = ScanNet(
+        root=datasets_dir,
+        split="train",
+        label_name="raw_category",
+        label_id="id",
+        show_progress=False,
+        force_process=True,
+    )
+    assert len(dataset) > 0
+
+
+def test_scannet_dataset_getitem_returns_shallow_copy(datasets_dir_factory: Callable[..., Path]) -> None:
+    """User edits on a returned sample dict never reach the in-memory cache"""
+    datasets_dir = datasets_dir_factory("ScanNet/processed/**/*")
+    dataset = ScanNet(root=datasets_dir, show_progress=False)
+
+    sample = dataset[0]
+    assert sample is not dataset.data[0]
+    sample["extra"] = 1
+    assert "extra" not in dataset[0]

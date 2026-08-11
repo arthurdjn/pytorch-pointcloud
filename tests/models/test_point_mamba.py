@@ -18,13 +18,17 @@ from torch_pointcloud.utils.imports import (
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
     pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available"),
     pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
     pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
 ]
 
+# The mamba_ssm selective-scan kernels only run on CUDA tensors, so every test that calls a
+# forward pass is gated; construction-only tests run on CPU.
+requires_cuda = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="mamba_ssm kernels require CUDA")
 
+
+@requires_cuda
 def test_point_mamba_block_uses_stochastic_depth() -> None:
     block = PointMambaBlock(16, drop_path=0.5).cuda()
     assert isinstance(block.drop_path, DropPath)
@@ -46,20 +50,54 @@ def test_point_mamba_block_uses_stochastic_depth() -> None:
 
 
 def test_point_mamba_decoder_mask_token_initialized() -> None:
-    decoder = PointMambaDecoderMAE(embedding_dim=64, depth=1, drop_path_rate=0.0)
+    decoder = PointMambaDecoderMAE(embed_dim=64, depth=1, drop_path=0.0)
     assert not torch.all(decoder.mask_token == 0)
 
 
+def test_point_mamba_classification_num_classes_zero_head_is_identity() -> None:
+    model = PointMambaClassification(in_channels=0, num_classes=0, embed_dim=64, depth=1)
+    assert isinstance(model.head, torch.nn.Identity)
+
+
+def test_point_mamba_classification_head_dropout_is_pinned() -> None:
+    model = PointMambaClassification(
+        in_channels=0, num_classes=10, embed_dim=64, depth=1, dropout=0.1, head_channels=(256, 256)
+    )
+    assert model.head.dropout == [0.5, 0.5, 0.0]
+
+
+def test_point_mamba_classification_reset_classifier_keeps_config() -> None:
+    model = PointMambaClassification(
+        in_channels=0,
+        num_classes=15,
+        embed_dim=64,
+        depth=1,
+        dropout=0.1,
+        global_pool="mean",
+        head_channels=(256, 256),
+    )
+    pool = model.global_pool
+    model.reset_classifier(7)
+    assert model.global_pool is pool
+    assert model.dropout == 0.1
+    assert model.head.channel_list == [64, 256, 256, 7]
+    model.reset_classifier(7, global_pool="max", head_channels=(), dropout=0.3)
+    assert isinstance(model.global_pool, torch.nn.AdaptiveMaxPool1d)
+    assert model.dropout == 0.3
+    assert model.head.channel_list == [64, 7]
+
+
+@requires_cuda
 def test_point_mamba_encoder_basic() -> None:
     """Test the basic functionality of the PointMambaEncoder model,
     following similar architecture as the original PointMamba model."""
     model = PointMambaEncoder(
         in_channels=0,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
-        num_patches=64,
+        num_group=64,
         group_size=32,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         use_cls_token=False,
         spatial_dim=3,
         act="relu",
@@ -77,6 +115,7 @@ def test_point_mamba_encoder_basic() -> None:
     assert out.shape == (2, 128, 384)
 
 
+@requires_cuda
 def test_point_mamba_classification_basic() -> None:
     """Test the basic functionality of the PointMambaClassification model,
     following similar architecture as the original PointMamba model."""
@@ -84,11 +123,11 @@ def test_point_mamba_classification_basic() -> None:
     model = PointMambaClassification(
         in_channels=0,
         num_classes=10,
-        embedding_dim=384,
+        embed_dim=384,
         depth=12,
-        num_patches=64,
+        num_group=64,
         group_size=32,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         use_cls_token=False,
         spatial_dim=3,
         act="relu",
@@ -109,14 +148,15 @@ def test_point_mamba_classification_basic() -> None:
     assert out.shape == (2, 10)
 
 
+@requires_cuda
 def test_point_mamba_classification_accepts_features() -> None:
     in_channels = 3
     model = PointMambaClassification(
         in_channels=in_channels,
         num_classes=10,
-        embedding_dim=192,
+        embed_dim=192,
         depth=2,
-        num_patches=64,
+        num_group=64,
         group_size=32,
     )
     model.cuda()
@@ -133,18 +173,19 @@ def test_point_mamba_classification_accepts_features() -> None:
     assert not torch.allclose(out_a, out_b)
 
 
+@requires_cuda
 def test_point_mamba_mae_basic() -> None:
     """Test the basic functionality of the PointMambaMAE model,
     following similar architecture as the original PointMamba model."""
     model = PointMambaMAE(
         in_channels=0,
-        embedding_dim=384,
+        embed_dim=384,
         encoder_depth=12,
         decoder_depth=4,
-        num_patches=64,
+        num_group=64,
         group_size=32,
         mask_ratio=0.6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         spatial_dim=3,
         act="relu",
         norm="batch_norm",
@@ -158,14 +199,15 @@ def test_point_mamba_mae_basic() -> None:
     assert pred.shape == target.shape
 
 
+@requires_cuda
 def test_point_mamba_mae_accepts_features() -> None:
     in_channels = 3
     model = PointMambaMAE(
         in_channels=in_channels,
-        embedding_dim=192,
+        embed_dim=192,
         encoder_depth=2,
         decoder_depth=1,
-        num_patches=64,
+        num_group=64,
         group_size=32,
         mask_ratio=0.6,
     )

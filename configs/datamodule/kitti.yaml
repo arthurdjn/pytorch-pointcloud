@@ -9,7 +9,7 @@ num_workers: 8
 train_dataset:
   _target_: torch_pointcloud.datasets.KITTI
   root: ${paths.data_dir}
-  split: training
+  train: true
   split_file: ${paths.data_dir}/KITTI/raw/ImageSets/train.txt
   fov: true
   transform: null
@@ -17,7 +17,7 @@ train_dataset:
 val_dataset:
   _target_: torch_pointcloud.datasets.KITTI
   root: ${paths.data_dir}
-  split: training
+  train: true
   split_file: ${paths.data_dir}/KITTI/raw/ImageSets/val.txt
   fov: true
   transform: null

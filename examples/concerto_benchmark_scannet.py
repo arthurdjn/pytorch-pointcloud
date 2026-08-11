@@ -12,8 +12,8 @@ full-resolution per-point evaluation):
 | concerto-large-lp.scannet20.pointcept | 77.68 mIoU / 92.35 OA |
 
 Usage:
-    uv run --no-sync python examples/concerto_benchmark.py --model concerto-large-lp.scannet20.pointcept --limit 5
-    uv run --no-sync python examples/concerto_benchmark.py --model concerto-base.pointcept --limit 5
+    uv run --no-sync python examples/concerto_benchmark_scannet.py --model concerto-large-lp.scannet20.pointcept --limit 5
+    uv run --no-sync python examples/concerto_benchmark_scannet.py --model concerto-base.pretrain.pointcept --limit 5
 """
 
 import argparse
@@ -29,10 +29,9 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -42,18 +41,18 @@ BATCH_SIZE = 1
 SEED = 42
 
 ENCODER_MODELS = (
-    "concerto-tiny.pointcept",
-    "concerto-small.pointcept",
-    "concerto-base.pointcept",
-    "concerto-large.pointcept",
+    "concerto-tiny.pretrain.pointcept",
+    "concerto-small.pretrain.pointcept",
+    "concerto-base.pretrain.pointcept",
+    "concerto-large.pretrain.pointcept",
 )
 SEG_MODELS = ("concerto-large-lp.scannet20.pointcept",)
 
 
 def _resolve_task(model_name: str) -> str:
-    if model_name in _REGISTERED_MODELS["segmentation"]:
+    if model_name in SEG_MODELS:
         return "segmentation"
-    if model_name in _REGISTERED_MODELS["base"]:
+    if model_name in ENCODER_MODELS:
         return "base"
     raise ValueError(f"Unknown Concerto model {model_name!r}.")
 
@@ -155,6 +154,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     task = _resolve_task(args.model)
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r}, task={task!r})!")

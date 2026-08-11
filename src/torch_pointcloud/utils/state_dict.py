@@ -27,6 +27,10 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     Returns:
         The flat parameter-name to tensor mapping.
 
+    Raises:
+        ValueError: If the checkpoint is not a mapping, or if a Lightning checkpoint has no
+            `model.`-prefixed key to extract.
+
     Example:
         ```{.python notest}
         from torch_pointcloud.utils.state_dict import read_state_dict
@@ -39,14 +43,26 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         return dict(load_file(path.as_posix()))
 
     data = torch.load(path, weights_only=True, map_location="cpu")
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Checkpoint {path.as_posix()!r} is not a state dict: expected a mapping of parameter names to "
+            f"tensors, got {type(data).__name__}."
+        )
     state_dict = data["state_dict"] if "state_dict" in data else data
     if "pytorch-lightning_version" in data:
-        state_dict = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
+        extracted = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
+        if state_dict and not extracted:
+            sample = ", ".join(list(state_dict)[:5])
+            raise ValueError(
+                f"Lightning checkpoint {path.as_posix()!r} has no 'model.'-prefixed keys (found: {sample}); "
+                "the wrapped network must be stored under `self.model` to be extracted."
+            )
+        state_dict = extracted
 
     return state_dict
 
 
-def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str) -> None:
+def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, strict: bool = True) -> None:
     """Load `state_dict` into `model`, adapting the head instead of failing on a rebuilt classifier.
 
     Checkpoint keys absent from the model are ignored with a warning (e.g. head weights when the model was
@@ -58,9 +74,12 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str) -
         model: Module to load the parameters into.
         state_dict: Flat parameter-name to tensor mapping (see `read_state_dict`).
         source: Label identifying where the checkpoint came from, used in warnings and errors.
+        strict: Raise when the checkpoint is missing model keys. Pass `False` to warm-start from a partial
+            checkpoint (e.g. a backbone-only or pretraining export): missing keys warn and keep their fresh
+            initialization.
 
     Raises:
-        RuntimeError: If the checkpoint is missing keys the model requires.
+        RuntimeError: If `strict` and the checkpoint is missing keys the model requires.
 
     Example:
         ```{.python notest}
@@ -78,13 +97,22 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str) -
     )
     missing = sorted(key for key in model_state if key not in state_dict)
     if missing:
-        raise RuntimeError(f"Checkpoint {source!r} is missing model keys: {', '.join(missing)}.")
+        if strict:
+            raise RuntimeError(f"Checkpoint {source!r} is missing model keys: {', '.join(missing)}.")
+        warnings.warn(
+            f"Checkpoint {source!r} is missing model keys, keeping their initialization: {', '.join(missing)}.",
+            stacklevel=2,
+        )
     if unexpected:
-        warnings.warn(f"Ignoring checkpoint keys from {source!r} absent from the model: {', '.join(unexpected)}.")
+        warnings.warn(
+            f"Ignoring checkpoint keys from {source!r} absent from the model: {', '.join(unexpected)}.",
+            stacklevel=2,
+        )
     if mismatched:
         warnings.warn(
             f"Skipping checkpoint keys from {source!r} with mismatched shapes, keeping their initialization: "
-            f"{', '.join(mismatched)}."
+            f"{', '.join(mismatched)}.",
+            stacklevel=2,
         )
 
     dropped = set(unexpected) | set(mismatched)
@@ -185,12 +213,9 @@ def transform_state_dict(
     unused_keys = [mapping_keys[i] for i in range(len(rules)) if i not in used_rule_idxs]
 
     if strict and unused_keys:
-        # TODO: Maybe provide a better exception, just like how pytorch does when loading a state dict with unexpected keys.
-        # TODO: This way it will be possible to programmatically catch the keys that were not used.
         raise ValueError(
-            f"Unused keys found in mapping: {', '.join([f'{k!r}' for k in unused_keys])}.\n"
-            "These patterns did not match any keys in the provided state_dict. "
-            "You can disable this behavior by setting `strict=False`."
+            f"Unused mapping patterns: {', '.join(f'{k!r}' for k in unused_keys)}. "
+            "These patterns matched no key in the state dict; pass `strict=False` to ignore them."
         )
 
     first_source: Dict[str, str] = {}
@@ -208,6 +233,6 @@ def transform_state_dict(
         )
         if strict:
             raise ValueError(message)
-        warnings.warn(message)
+        warnings.warn(message, stacklevel=2)
 
     return OrderedDict(transformed_state_dict)

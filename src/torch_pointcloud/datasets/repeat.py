@@ -8,8 +8,8 @@ from torch.utils.data import Dataset
 class RepeatDataset(Dataset):
     """Repeats a dataset `loop` times so one epoch iterates it `loop` times.
 
-    Mirrors Pointcept's dataset `loop`: it lengthens an epoch (and thus the
-    number of optimizer steps per epoch) without otherwise changing training.
+    Lengthens an epoch (and thus the number of optimizer steps per epoch)
+    without otherwise changing training.
 
     Args:
         dataset: The dataset to repeat.

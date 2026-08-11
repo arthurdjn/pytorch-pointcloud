@@ -7,11 +7,11 @@ num_workers: 4
 train_dataset:
   _target_: torch_pointcloud.datasets.SunRGBD
   root: ${paths.data_dir}
-  split: train
+  train: true
   transform: null
 
 val_dataset:
   _target_: torch_pointcloud.datasets.SunRGBD
   root: ${paths.data_dir}
-  split: val
+  train: false
   transform: null

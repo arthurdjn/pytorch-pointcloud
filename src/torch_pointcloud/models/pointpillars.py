@@ -190,7 +190,8 @@ def scatter_to_bev(
         ```
     """
     nx, ny, nz = grid_size
-    assert nz == 1, "scatter_to_bev expects a single height bin."
+    if nz != 1:
+        raise ValueError(f"`grid_size` must have a single height bin (nz == 1), got {nz}.")
     num_bev_features = pillar_features.size(-1)
     # voxel_indices columns: (batch, z, y, x), z == 0.
     flat = voxel_indices[:, 0].long() * (ny * nx) + voxel_indices[:, 2].long() * nx + voxel_indices[:, 3].long()
@@ -308,7 +309,8 @@ class PointPillarsMultiHeadDetection(DetectionModel):
     r"""PointPillars with a multi-group anchor head (nuScenes 10-class, packed point format).
 
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
-    (`cbgs_pp_multihead`). Same pillar trunk as [`PointPillars`][torch_pointcloud.models.pointpillars.PointPillars]
+    (`cbgs_pp_multihead`). Same pillar trunk as
+    [`PointPillarsDetection`][torch_pointcloud.models.pointpillars.PointPillarsDetection]
     but with an [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti] head (per-group
     heads, sincos + velocity box code). Input points carry 5 features ($x, y, z, \text{intensity},
     \Delta t$ from 10-sweep aggregation).

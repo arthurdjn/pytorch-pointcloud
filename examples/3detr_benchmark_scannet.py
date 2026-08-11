@@ -3,13 +3,24 @@ r"""Evaluate 3DETR on ScanNet-V2 val with mAP@0.25 / mAP@0.5.
 The whole benchmark is `create_model` -> `model` -> `model.decode` -> `mean_average_precision3d`: the
 `ScanNet` dataset gives the upright cloud and per-point instance / segment labels, `Relabel` +
 `InstanceToBox` derive the 18-class axis-aligned detection boxes (no detection-specific data export), the
-registered transform samples to 40k points (3DETR's eval preprocessing), and the AP is the
-dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
+registered transform samples to 40k points (3DETR's eval preprocessing), the script applies the reference
+test protocol's filters (drop boxes with fewer than 5 points, per-class 3D NMS, objectness > 0.05), and
+the AP is the dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
+
+Ground truth uses the same box definition as the reference (axis-aligned bounds of each labeled instance's
+vertices, 18-class NYU40 subset) computed by our own transforms instead of consuming the reference's
+exported `.npy`, keeping one uniform dataset path. mAP averages over classes present in the ground truth
+(a class with no GT instances has undefined AP and is excluded rather than counted as 0); identical to the
+reference here since every detection class occurs in the val GT.
 
 | Model                  | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
 | ---------------------- | ------------------------------ | ------------------------- |
-| `3detr-m.scannet.fair` | 66.76 / 47.77                  | 65.0 / 47.0               |
-| `3detr.scannet.fair`   | 62.17 / 38.60                  | 62.1 / 37.9               |
+| `3detr-m.scannet.fair` | 66.76 / 47.77 (pre-fix)        | 65.0 / 47.0               |
+| `3detr.scannet.fair`   | 62.17 / 38.60 (pre-fix)        | 62.1 / 37.9               |
+
+The pre-fix numbers were measured WITHOUT the reference test-protocol filters (empty-box removal and the
+0.05 objectness threshold), which lets the low-score tail inflate the AP integral; they need re-measuring
+with the filters in place.
 
 Usage:
     uv run --no-sync python examples/3detr_benchmark_scannet.py --root "/path/to/data"
@@ -29,22 +40,25 @@ from torch_pointcloud.datasets import ScanNet
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_LABELS
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.detr3d import DETR3DDetection
-from torch_pointcloud.utils.box3d import nms3d
+from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import mean_average_precision3d
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+SCORE_THRESHOLD = 0.05
 NMS_IOU = 0.25
+MIN_POINTS = 5
 
 
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
     assert isinstance(model, DETR3DDetection)
@@ -55,7 +69,7 @@ def main() -> None:
         [
             T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET_DETECTION_LABELS, default=-1),
             T.InstanceToBox(ignore_index=-1),
-            T.KeepItems(keys=[DataKeys.POS, DataKeys.BOX, DataKeys.CLASS]),
+            T.KeepItems(keys=[DataKeys.POS, DataKeys.BOX, DataKeys.LABEL]),
             info["transform"],
         ]
     )
@@ -68,7 +82,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        cat_keys=[DataKeys.BOX, DataKeys.CLASS],
+        cat_keys=[DataKeys.BOX, DataKeys.LABEL],
     )
     print(f"Test set: {len(dataset)} scenes")  # type: ignore[arg-type]
     metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.ap_iou)
@@ -92,14 +106,18 @@ def evaluate(
     for data in tqdm(dataloader, desc="ScanNet val"):
         pos = data[DataKeys.POS].to(device)
         box = data[DataKeys.BOX].to(device)
-        gt_labels = data[DataKeys.CLASS].to(device)
+        gt_labels = data[DataKeys.LABEL].to(device)
         batch = data[DataKeys.BATCH].to(device)
         batch_box = data[DataKeys.BATCH_BOX].to(device)
 
         out = model(None, pos, batch)
         det = model.decode(out)
         boxes, obj, labels, det_batch = det["boxes"], det["scores"], det["labels"], det["batch"]
-        keep = nms3d(boxes, obj, NMS_IOU, labels=labels, batch=det_batch)
+        counts = count_points_in_boxes(pos, boxes, pos_batch=batch, box_batch=det_batch)
+        cand = (counts >= MIN_POINTS).nonzero(as_tuple=False).squeeze(-1)
+        keep = cand[nms3d(boxes[cand], obj[cand], NMS_IOU, labels=labels[cand], batch=det_batch[cand])]
+        keep = keep[obj[keep] > SCORE_THRESHOLD]
+        # Indoor AP convention: score every surviving box against each class by its class probability.
         class_probs = out["sem_cls_prob"].reshape(-1, model.num_classes)[keep]
         all_preds.append(
             {

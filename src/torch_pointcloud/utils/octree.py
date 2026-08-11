@@ -1,7 +1,7 @@
 # Imports annotations to support string based types (Octree, Points, etc.) in case ocnn is not installed.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Optional, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 import torch
 from torch import Tensor
@@ -10,7 +10,6 @@ from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 if TYPE_CHECKING:
-    import ocnn
     from ocnn.nn.octree_interp import (
         octree_linear_pts,
         octree_nearest_pts,
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
     from ocnn.octree import Octree, Points
 
 
-ocnn, _ = optional_import("ocnn", url=_OCNN_GITHUB_URL)
 octree_linear_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_linear_pts", url=_OCNN_GITHUB_URL)
 octree_linear_upsample, _ = optional_import("ocnn.nn.octree_interp", "octree_linear_upsample", url=_OCNN_GITHUB_URL)
 octree_nearest_pts, _ = optional_import("ocnn.nn.octree_interp", "octree_nearest_pts", url=_OCNN_GITHUB_URL)
@@ -70,6 +68,31 @@ def build_octree(
     *,
     return_points: bool = False,
 ) -> Octree | tuple[Octree, Points]:
+    r"""Build an `ocnn.octree.Octree` from a packed point cloud.
+
+    Wraps `ocnn.octree.Points` construction and `Octree.build_octree`. Coordinates are expected in
+    the `ocnn` convention, i.e. normalized to $[-1, 1]$.
+
+    Args:
+        pos: Point coordinates of shape $(N, 3)$, normalized to $[-1, 1]$.
+        normal: Optional per-point normals of shape $(N, 3)$.
+        features: Optional per-point features of shape $(N, C)$.
+        batch: Optional per-point batch indices of shape $(N,)$; `None` for a single sample.
+        labels: Optional per-point labels of shape $(N,)$.
+        depth: Depth of the octree.
+        full_depth: Depth up to which all octree nodes are kept, empty or not.
+        batch_size: Number of samples in the batch.
+        return_points: If `True`, also return the intermediate `ocnn.octree.Points` object.
+
+    Returns:
+        The octree, or the tuple `(octree, points)` when `return_points` is `True`.
+
+    Example:
+        >>> import torch
+        >>> from torch_pointcloud.utils.octree import build_octree
+        >>> pos = torch.rand(100, 3) * 2 - 1
+        >>> octree = build_octree(pos, depth=5, full_depth=2)  # doctest: +SKIP
+    """
     points = Points(
         points=pos,
         normals=normal,
@@ -110,23 +133,26 @@ def octree_interpolate(
         to be consistent with other functions and the design philosophy of this library.
 
     Args:
-        x: The octree feature to interpolate.
+        x: The octree features to interpolate, of shape $(M, C)$ with $M$ the number of octree
+            nodes at `depth`.
         octree: The octree structure.
         depth: The depth of the octree.
-        pts: The points to interpolate at, in the format $(x, y, z, batch)$.
-        method: The method to use for interpolation.
-        nempty: Whether to allow empty points.
+        pts: The points to interpolate at, of shape $(N, 4)$ in the format $(x, y, z, \text{batch})$.
+            The input is not modified.
+        method: The method to use for interpolation, `"linear"` or `"nearest"`.
+        nempty: Whether the features `x` only cover non-empty octree nodes.
         bound_check: Whether to check if the points are within the bounds of the octree.
-        rescale_pts: Whether to rescale the points from [-1, 1] to [0, 2^depth].
+        rescale_pts: Whether to rescale the point coordinates from $[-1, 1]$ to $[0, 2^\text{depth}]$.
 
     Returns:
-        The interpolated features.
+        The interpolated features of shape $(N, C)$.
     """
     if method not in ["linear", "nearest"]:
         raise ValueError(f"Invalid method. Expected `method` to be one of `linear` or `nearest`, but got {method}.")
 
     if rescale_pts:
         scale_factor = 2 ** (depth - 1)
+        pts = pts.clone()
         pts[:, :3] = (pts[:, :3] + 1.0) * scale_factor
 
     fn = octree_linear_pts if method == "linear" else octree_nearest_pts
@@ -141,6 +167,23 @@ def octree_upsample(
     method: Literal["linear", "nearest"] = "linear",
     nempty: bool = False,
 ) -> Tensor:
+    r"""Upsample octree features from `src_depth` to the finer `dst_depth`.
+
+    Interpolates the features of the octree nodes at `src_depth` at the node centers of
+    `dst_depth`. When `dst_depth == src_depth` the features are returned unchanged; a single-level
+    nearest upsample uses the dedicated `ocnn` kernel.
+
+    Args:
+        x: The octree features at `src_depth`, of shape $(M_\text{src}, C)$.
+        octree: The octree structure.
+        src_depth: The depth the features live at.
+        dst_depth: The target depth; must be greater than or equal to `src_depth`.
+        method: The method to use for interpolation, `"linear"` or `"nearest"`.
+        nempty: Whether the features `x` only cover non-empty octree nodes.
+
+    Returns:
+        The upsampled features of shape $(M_\text{dst}, C)$.
+    """
     if method not in ["linear", "nearest"]:
         raise ValueError(f"Invalid method. Expected `method` to be one of `linear` or `nearest`, but got {method}.")
 
@@ -162,72 +205,3 @@ def octree_upsample(
 
     fn = octree_linear_pts if method == "linear" else octree_nearest_pts
     return fn(x, octree, src_depth, pts, nempty)
-
-
-def octree_grid(
-    x: Optional[Tensor],
-    pos: Tensor,
-    depth: int,
-    full_depth: int = 2,
-    batch: Optional[Tensor] = None,
-    normal: Optional[Tensor] = None,
-) -> Octree:
-    r"""Build an octree from a point cloud.
-
-    Note:
-        This function is a utility wrapper around the `ocnn.octree.Octree` constructor.
-
-    Note:
-        The batch tensor is optional. If not provided, it is assumed that the points are from a single batch.
-
-    Args:
-        x: The features of the points.
-        pos: The positions of the points.
-        batch: The batch of the points.
-        normal: The normal of the points.
-        depth: The depth of the octree.
-        full_depth: The full depth of the octree.
-
-    Returns:
-        The octree.
-
-    Examples:
-        >>> x = torch.randn(100, 3)
-        >>> pos = torch.randn(100, 3)
-        >>> batch = torch.cat([torch.zeros(50), torch.ones(50)], dim=0)
-        >>> normal = torch.randn(100, 3)
-        >>> depth = 12
-        >>> full_depth = 2
-        >>> octree = octree_grid(  # doctest: +SKIP
-        ...     x,
-        ...     pos,
-        ...     batch=batch,
-        ...     normal=normal,
-        ...     depth=depth,
-        ...     full_depth=full_depth,
-        ... )
-    """
-    device = pos.device
-    if batch is None:
-        batch = torch.zeros(pos.size(0), dtype=torch.long, device=device)
-
-    batch_size = batch.max().item() + 1
-
-    point = Points(
-        points=pos,
-        normal=normal,
-        features=x,
-        batch_id=batch.unsqueeze(-1),
-        batch_size=batch_size,
-    )
-
-    octree = ocnn.octree.Octree(
-        depth=depth,
-        full_depth=full_depth,
-        batch_size=batch_size,
-        device=device,
-    )
-    octree.build_octree(point)
-    octree.construct_all_neigh()
-
-    return octree

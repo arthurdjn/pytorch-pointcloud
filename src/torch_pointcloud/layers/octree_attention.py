@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+import inspect
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any, ClassVar, List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -11,19 +13,41 @@ from torch_pointcloud.utils.ops import pad_tail
 if TYPE_CHECKING:
     import ocnn
     from ocnn.octree import Octree
+    from ocnn.octree import Octree as _OctreeTBase
+else:
+    _OctreeTBase = object
 
 ocnn, _OCNN_AVAILABLE = optional_import("ocnn", url=_OCNN_GITHUB_URL)
 Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
-
-# Safely set `Octree` as a dummy object such that the `OctreeT` class is defined
-if not _OCNN_AVAILABLE:
-    Octree = object
 
 
 INVALID_MASK_VALUE = -1e3
 
 
-class OctreeT(Octree):
+def __getattr__(name: str) -> Type["OctreeT"]:
+    # Pickle saves the concrete class by reference through this module attribute (its `__qualname__`),
+    # so unpickling in a fresh process builds it on demand.
+    if name == "_OctreeTConcrete":
+        return _octree_t_cls()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+# Creating the `Octree` subclass at module scope would resolve `ocnn` (and initialize CUDA) at import
+# time, so the concrete class is built lazily on first instantiation.
+@lru_cache
+def _octree_t_cls() -> Type["OctreeT"]:
+    if not _OCNN_AVAILABLE:
+        raise ImportError(f"Optional module `ocnn` is required to use `OctreeT`. Install it from {_OCNN_GITHUB_URL}.")
+
+    class _OctreeT(OctreeT, Octree):
+        pass
+
+    _OctreeT.__name__ = "OctreeT"
+    _OctreeT.__qualname__ = "_OctreeTConcrete"
+    return _OctreeT
+
+
+class OctreeT(_OctreeTBase):
     r"""An enhanced Octree with transformer-specific capabilities (patching, dilation, masking).
 
     Can be instantiated directly like a standard Octree, or created from an existing
@@ -45,6 +69,12 @@ class OctreeT(Octree):
         >>> octree_t.dilated_rel_pos[6].shape  # doctest: +SKIP
     """
 
+    __signature__: ClassVar[inspect.Signature]
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "OctreeT":
+        concrete = _octree_t_cls() if cls is OctreeT else cls
+        return super().__new__(concrete)
+
     def __init__(
         self,
         depth: int,
@@ -55,9 +85,6 @@ class OctreeT(Octree):
         device: Union[torch.device, str] = "cpu",
         **kwargs: Any,
     ):
-        if not _OCNN_AVAILABLE:
-            raise RuntimeError("`ocnn` is not installed. Please install `ocnn` to use `OctreeT`.")
-
         super().__init__(depth, full_depth, batch_size, device, **kwargs)
         self.patch_size = patch_size
         self.dilation = dilation
@@ -185,6 +212,12 @@ class OctreeT(Octree):
             f"patch_size={self.patch_size}, dilation={self.dilation}, "
             f"batch_size={self.batch_size}, device={self.device})"
         )
+
+
+# `inspect.signature` reads a class's own `__new__` before `__init__`, which would report the lazy
+# facade's opaque `(*args, **kwargs)`; pin the real constructor signature explicitly.
+_init_signature = inspect.signature(OctreeT.__init__)
+OctreeT.__signature__ = _init_signature.replace(parameters=list(_init_signature.parameters.values())[1:])
 
 
 class RPE(nn.Module):

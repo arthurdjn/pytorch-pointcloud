@@ -2,7 +2,7 @@
 
 The released `s3dis-semseg-pt-v3m1-0-rpe` weights were trained on mesh-derived normals, which the S3DIS
 point-cloud download does not include. The registered transform estimates normals by local PCA
-(`EstimateNormals`, `orient_to_centroid=True`), so Area-5 mIoU here (~31.0 / OA ~68.7, single forward) is well
+(`EstimateNormals`, `orient_to_centroid=True`), so Area-5 mIoU here (~32.1 / OA ~68.6, single forward) is well
 below the paper's 73.6 (mesh normals + TTA).
 
 RPE attention materialises the per-patch relative-position bias, so the largest rooms can exhaust GPU memory
@@ -28,7 +28,7 @@ from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -116,6 +116,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on S3DIS (areas={args.areas})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)

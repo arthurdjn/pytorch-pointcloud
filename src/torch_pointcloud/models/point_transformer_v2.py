@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
+from torch_geometric.nn.pool import voxel_grid
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import (
@@ -18,7 +19,7 @@ from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
-from torch_pointcloud.utils.ops import softmax, voxel_grid
+from torch_pointcloud.utils.ops import softmax
 from torch_pointcloud.utils.types import OptTensor, ValueCollection
 
 if TYPE_CHECKING:

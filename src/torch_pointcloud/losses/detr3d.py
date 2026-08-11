@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 from torch import Tensor, nn
 
+from torch_pointcloud.transforms.functional import angle_to_class
 from torch_pointcloud.utils.box3d import box3d_overlap, box_corners
 from torch_pointcloud.utils.data import DataKeys
 
@@ -36,37 +37,6 @@ def _huber_loss(error: Tensor, delta: float = 1.0) -> Tensor:
     quadratic = abs_error.clamp(max=delta)
     linear = abs_error - quadratic
     return 0.5 * quadratic**2 + delta * linear
-
-
-def _angle_to_class(angle: Tensor, num_angle_bin: int) -> Tuple[Tensor, Tensor]:
-    r"""Discretize a continuous heading into a bin index and an in-bin residual.
-
-    Bins are centered at $0, 2\pi/N, \ldots, (N-1) \cdot 2\pi/N$ so that
-    $\text{class} \cdot 2\pi/N + \text{residual} = \text{angle} \pmod{2\pi}$.
-
-    Args:
-        angle: Continuous heading (radians), shape $(\ldots)$.
-        num_angle_bin: Number of heading bins $N$.
-
-    Returns:
-        A tuple `(class_id, residual)`, each shape $(\ldots)$; `class_id` is long.
-
-    Shape:
-        - angle: $(\ldots)$
-        - output: $(\ldots)$, $(\ldots)$
-
-    Example:
-        >>> cls, res = _angle_to_class(torch.zeros(3), 12)
-        >>> int(cls[0]), float(res[0])
-        (0, 0.0)
-    """
-    two_pi = 2 * math.pi
-    angle = angle % two_pi
-    angle_per_class = two_pi / num_angle_bin
-    shifted = (angle + angle_per_class / 2) % two_pi
-    class_id = (shifted / angle_per_class).floor().long().clamp(max=num_angle_bin - 1)
-    residual = shifted - (class_id.to(shifted.dtype) * angle_per_class + angle_per_class / 2)
-    return class_id, residual
 
 
 class _Targets:
@@ -128,7 +98,9 @@ class DETR3DLoss(nn.Module):
         matcher_giou_cost: Matcher weight on the negative generalized 3D IoU.
         matcher_center_cost: Matcher weight on the normalized-center $L_1$ distance.
         matcher_objectness_cost: Matcher weight on the negative objectness.
-        loss_giou_weight: Weight of the GIoU term in the total.
+        loss_giou_weight: Weight of the GIoU term in the total. The reference trains with $0$ (the GIoU
+            drives only the matcher); note the rotated-box GIoU (scenes with non-zero headings) is
+            computed without gradients, so a non-zero weight trains only axis-aligned scenes.
         loss_sem_cls_weight: Weight of the semantic-classification term in the total.
         loss_no_object_weight: Cross-entropy weight of the background class.
         loss_angle_cls_weight: Weight of the heading-bin classification term in the total.
@@ -148,7 +120,7 @@ class DETR3DLoss(nn.Module):
         matcher_giou_cost: float = 2.0,
         matcher_center_cost: float = 0.0,
         matcher_objectness_cost: float = 0.0,
-        loss_giou_weight: float = 1.0,
+        loss_giou_weight: float = 0.0,
         loss_sem_cls_weight: float = 1.0,
         loss_no_object_weight: float = 0.2,
         loss_angle_cls_weight: float = 0.1,
@@ -183,7 +155,7 @@ class DETR3DLoss(nn.Module):
                 `center_unnormalized`, `size_normalized`, `size_unnormalized`, `angle_logits`,
                 `angle_residual_normalized`, `angle_continuous`) and `point_cloud_dims`.
             batch: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise
-                headings, `DataKeys.CLASS` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box
+                headings, `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box
                 scene index.
 
         Returns:
@@ -228,7 +200,7 @@ class DETR3DLoss(nn.Module):
         its meaning.
         """
         box: Tensor = batch[DataKeys.BOX]
-        cls: Tensor = batch[DataKeys.CLASS].long()
+        cls: Tensor = batch[DataKeys.LABEL].long()
         box_batch: Tensor = batch[DataKeys.BATCH_BOX]
         lo, hi = point_cloud_dims
         batch_size = lo.shape[0]
@@ -256,7 +228,7 @@ class DETR3DLoss(nn.Module):
         scene_scale = (hi - lo).clamp(min=1e-1)
         center_normalized = (center - lo.unsqueeze(1)) / (hi - lo).unsqueeze(1)
         size_normalized = size / scene_scale.unsqueeze(1)
-        angle_class, angle_residual = _angle_to_class(angle, self.num_angle_bin)
+        angle_class, angle_residual = angle_to_class(angle, self.num_angle_bin)
         angle_residual_normalized = angle_residual / (math.pi / self.num_angle_bin)
 
         return _Targets(
@@ -427,6 +399,7 @@ class DETR3DLoss(nn.Module):
         vol2 = self._box_volume(gt_size).unsqueeze(1)
         return self._giou_from_volumes(inter, enclosing, vol1, vol2)
 
+    @torch.no_grad()
     def _giou3d_rotated(
         self,
         pred_center: Tensor,
@@ -436,7 +409,12 @@ class DETR3DLoss(nn.Module):
         gt_size: Tensor,
         gt_angle: Tensor,
     ) -> Tensor:
-        r"""Per-scene rotated generalized 3D IoU from the exact polygon-clip intersection and corner-AABB enclosing."""
+        r"""Per-scene rotated generalized 3D IoU from the BEV-overlap intersection and corner-AABB enclosing.
+
+        `box3d_overlap` computes the rotated intersection without gradients, so the whole rotated GIoU is
+        gradient-free (a partially-detached term would push a biased gradient through the union / enclosing
+        volumes only); it feeds the matcher and monitoring, not training.
+        """
         batch_size, num_queries = pred_center.shape[:2]
         num_gt = gt_center.shape[1]
         gious = pred_center.new_zeros(batch_size, num_queries, num_gt)
@@ -447,7 +425,6 @@ class DETR3DLoss(nn.Module):
             corners1 = box_corners(pred_boxes)
             corners2 = box_corners(gt_boxes)
             inter, _ = box3d_overlap(corners1, corners2)
-            inter = inter.to(pred_boxes.dtype)
 
             lo1, hi1 = corners1.amin(dim=1), corners1.amax(dim=1)
             lo2, hi2 = corners2.amin(dim=1), corners2.amax(dim=1)

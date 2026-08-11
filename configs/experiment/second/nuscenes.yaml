@@ -5,6 +5,12 @@
 # | model.name                          | mAP@0.25 | mAP@0.5 |
 # | ----------------------------------- | -------- | ------- |
 # | second-multihead.nuscenes.openpcdet | 0.5256   | 0.3806  |
+#
+# Reference (nuScenes val, official protocol): mAP 50.59, NDS 62.29 (reference implementation model zoo).
+# The table above is the pre-fix measurement with the generic oriented-3D IoU mAP on v1.0-mini, a smoke
+# check; the full val split is the comparable run. This Lightning eval keeps that generic IoU mAP; the
+# official nuScenes protocol (distance mAP, TP errors, NDS) lives in the benchmark script
+# (examples/second_benchmark_nuscenes.py; its --legacy-map path keeps the pre-fix protocol).
 defaults:
   - override /datamodule: nuscenes
   - override /model: detection
@@ -19,7 +25,6 @@ model:
   input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
   score_threshold: 0.1
   nms_iou: 0.2
-  label_key: label
   scheduler_interval: step
   criterion:
     _target_: torch_pointcloud.losses.MultiHeadAnchorLoss
@@ -33,7 +38,7 @@ model:
     feature_map_stride: 8
     matched_thresholds: [0.6, 0.55, 0.5, 0.55, 0.5, 0.55, 0.5, 0.5, 0.6, 0.6]
     unmatched_thresholds: [0.45, 0.4, 0.35, 0.4, 0.35, 0.4, 0.3, 0.35, 0.4, 0.4]
-    # 10-dim box code (x, y, z, dx, dy, dz, cos, sin, vx, vy); nuScenes GT has no velocity, so vx/vy weights are 0.
+    # 10-dim box code (x, y, z, dx, dy, dz, cos, sin, vx, vy); the box targets are 7-DoF, so vx/vy weights are 0.
     code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
     cls_weight: 1.0
     loc_weight: 0.25
@@ -53,6 +58,12 @@ model:
     div_factor: 10.0
     base_momentum: 0.85
     max_momentum: 0.95
+
+# Generic IoU thresholds of the legacy mAP; the official nuScenes protocol is script-only (see header).
+callbacks:
+  val_map:
+    metric:
+      iou_thresholds: [0.25, 0.5]
 
 datamodule:
   # 10-sweep keyframes are memory-heavy

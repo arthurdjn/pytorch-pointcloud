@@ -1,3 +1,4 @@
+import pytest
 import torch
 import torch.nn as nn
 
@@ -55,3 +56,24 @@ def test_pdnorm_shared_ignores_condition() -> None:
     out_a = norm(x, condition="A")
     out_b = norm(x, condition="B")
     assert torch.equal(out_a, out_b)
+
+
+def test_pdnorm_shared_accepts_none_condition() -> None:
+    norm = PDNorm(16, conditions=["A", "B"], norm=nn.BatchNorm1d, decouple=False)
+    norm.eval()
+    x = torch.randn(8, 16)
+    assert torch.equal(norm(x), norm(x, condition="A"))
+
+
+def test_pdnorm_decoupled_missing_condition_raises() -> None:
+    norm = PDNorm(16, conditions=["A", "B"], norm=nn.BatchNorm1d)
+    x = torch.randn(8, 16)
+    with pytest.raises(ValueError, match="PDNorm requires a condition when decoupled. Valid conditions are: 'A', 'B'."):
+        norm(x)
+
+
+def test_pdnorm_unknown_condition_raises() -> None:
+    norm = PDNorm(16, conditions=["A", "B"], norm=nn.BatchNorm1d)
+    x = torch.randn(8, 16)
+    with pytest.raises(ValueError, match="Unknown condition 'C'. Valid conditions are: 'A', 'B'."):
+        norm(x, condition="C")

@@ -517,30 +517,51 @@ def convert_to_spconv_tensor(
     batch: Tensor,
     spatial_shape: Optional[Sequence[int]] = None,
     padding: int = 96,
+    batch_size: Optional[int] = None,
 ) -> SparseConvTensor:
-    """Convert point features and coordinates to `spconv.SparseConvTensor` sparse tensor.
+    r"""Convert point features and coordinates to a `spconv.SparseConvTensor` sparse tensor.
 
     Args:
-        x: The point features.
-        pos: The point coordinates.
-        batch: The batch indices of the points.
-        spatial_shape: The spatial shape of the sparse tensor.
+        x: The point features of shape $(N, C)$.
+        pos: The integer voxel coordinates of shape $(N, 3)$.
+        batch: The batch indices of the points of shape $(N,)$.
+        spatial_shape: The spatial shape of the sparse tensor. When `None`, it is inferred as the
+            per-axis maximum of `pos` plus `padding`.
+        padding: Padding (in voxels) added to the inferred spatial shape.
+        batch_size: Number of scenes in the batch. When `None`, it is inferred as `batch.max() + 1`,
+            which drops trailing empty scenes; pass it explicitly when those must be preserved.
 
     Returns:
         The `spconv.SparseConvTensor` sparse tensor.
+
+    Shape:
+        - `x`: $(N, C)$
+        - `pos`: $(N, 3)$
+        - `batch`: $(N,)$
     """
     if spatial_shape is None:
         spatial_shape = torch.add(torch.max(pos, dim=0).values, padding).tolist()
+    if batch_size is None:
+        batch_size = int(batch.max().item()) + 1 if batch.numel() > 0 else 0
 
     return spconv.SparseConvTensor(
         features=x,
         indices=torch.cat([batch.unsqueeze(-1).int(), pos.int()], dim=1).contiguous(),
         spatial_shape=spatial_shape,
-        batch_size=batch[-1].item() + 1,
+        batch_size=batch_size,
     )
 
 
 def convert_from_spconv_tensor(spconv_tensor: SparseConvTensor) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Convert a `spconv.SparseConvTensor` back to packed features, coordinates, and batch indices.
+
+    Args:
+        spconv_tensor: The sparse tensor to unpack.
+
+    Returns:
+        Tuple `(x, pos, batch)` with features $(N, C)$, integer voxel coordinates $(N, 3)$,
+        and batch indices $(N,)$.
+    """
     x = spconv_tensor.features
     indices = spconv_tensor.indices
 

@@ -115,11 +115,15 @@ class MetricCallback(Callback):
 
     def _update(self, outputs: Any) -> None:
         assert self.metric is not None
-        if isinstance(outputs, dict):
-            if self.batch_key is not None:
-                self.metric.update(outputs[self.preds_key], outputs[self.target_key], outputs[self.batch_key])
-            else:
-                self.metric.update(outputs[self.preds_key], outputs[self.target_key])
+        if not isinstance(outputs, dict):
+            raise TypeError(
+                f"MetricCallback expects the step output to be a dict holding {self.preds_key!r} and "
+                f"{self.target_key!r}; got {type(outputs).__name__}."
+            )
+        if self.batch_key is not None:
+            self.metric.update(outputs[self.preds_key], outputs[self.target_key], outputs[self.batch_key])
+        else:
+            self.metric.update(outputs[self.preds_key], outputs[self.target_key])
 
     def _compute(self, pl_module: "L.LightningModule", stage: str) -> None:
         assert self.metric is not None

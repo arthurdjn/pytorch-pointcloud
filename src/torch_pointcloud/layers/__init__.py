@@ -31,7 +31,6 @@ from .dropouts import (
 from .fps import FPS
 from .geometric_affine import GeometricAffineConv, NormalizeType
 from .grid_pool import GridPool
-from .layer_container import LayerContainer
 from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import RPE, OctreeAttention, OctreeT
@@ -54,6 +53,7 @@ from .pointnet2_blocks import (
     PointNet2SetAbstraction,
     SAModule,
     ensure_msg_list,
+    ensure_msg_list_size,
 )
 from .pointnext_blocks import (
     PointNeXtConv,
@@ -76,8 +76,7 @@ from .pools import (
     create_adaptive_pool,
     create_pool,
 )
-from .pvcnn_blocks import PVConv
-from .reshape import Reshape
+from .pvcnn_blocks import PVConv, SE3d, Voxelization
 from .rope import Point3DRoPE
 from .serialized_attention import (
     RelativePositionalEncoding,

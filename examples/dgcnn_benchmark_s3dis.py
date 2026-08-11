@@ -34,9 +34,9 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, S3DISHdf5
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -51,8 +51,9 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
-    model_name = f"dgcnn-antao.s3dis.area{args.area}"
+    model_name = f"dgcnn.s3dis-area{args.area}.an-tao"
     print(f"Loading model {model_name!r}!")
     model, model_info = create_model(model_name, task="segmentation", pretrained=True, return_info=True)
 
@@ -100,7 +101,7 @@ def predict(model: Module, dataloader: DataLoader, device: str) -> tuple:
     for data in tqdm(dataloader, desc="Predicting"):
         pos = data[DataKeys.POS].to(device)
         color = data[DataKeys.COLOR].to(device)
-        norm_pos = data["norm_pos"].to(device)
+        norm_pos = data[DataKeys.NORM_POS].to(device)
         segment = data[DataKeys.SEGMENT]
         batch = data[DataKeys.BATCH].to(device)
         x = torch.cat([pos, color], dim=1)

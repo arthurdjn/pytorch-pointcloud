@@ -1,13 +1,18 @@
 """Benchmark Point Transformer V3 semantic segmentation on ScanNet / ScanNet200.
 
 The released PT-v3m1 weights are v1.5.1-trained, so the registered models load with `legacy=True`.
-Single-forward, voxel-level mIoU on val (the zoo numbers add test-time augmentation and full-resolution
-per-point evaluation):
+Scenes are loaded with `use_axis_alignment=False`: the released weights were trained on unaligned
+coordinates, so the alignment now matches the reference preprocessing (and the sibling SpUNet
+benchmark). Single-forward, voxel-level mIoU on val (the zoo numbers add test-time augmentation and
+full-resolution per-point evaluation):
 
 | Model                | Zoo (TTA) | Here                  |
 | -------------------- | --------- | --------------------- |
-| ptv3-base.scannet20.pointcept  | 77.6      | 76.04 mIoU / 91.67 OA |
-| ptv3-base.scannet200.pointcept | 35.3      | 32.09 mIoU / 83.34 OA |
+| ptv3-base.scannet20.pointcept  | 77.6      | 76.06 mIoU / 91.66 OA |
+| ptv3-base.scannet200.pointcept | 35.3      | 32.15 mIoU / 83.39 OA |
+
+The numbers above were measured on axis-aligned scenes with the previous protocol and are pending
+re-measurement on unaligned data.
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet20.pointcept --limit 5
@@ -29,7 +34,7 @@ from torch_pointcloud.datasets import ScanNet20, ScanNet200
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -110,6 +115,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
@@ -124,6 +130,7 @@ def main() -> None:
         download=args.download,
         force_process=args.force_process,
         num_workers=args.num_workers,
+        use_axis_alignment=False,
     )
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))  # type: ignore[arg-type]

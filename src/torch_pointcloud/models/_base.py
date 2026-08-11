@@ -5,6 +5,24 @@ import torch.nn as nn
 
 
 class BaseModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for task-agnostic point cloud models, registered under the `"base"` task.
+
+    Models whose output is neither logits nor detections inherit from this class: self-supervised
+    pretraining models (masked autoencoders, generative pretraining) and generative models, whose
+    `forward` returns pretext outputs such as `(pred, target)` group coordinates for a
+    reconstruction objective. The class only stores `in_channels`; each subclass defines its own
+    `forward` signature.
+
+    Models with a task head inherit from one of the task ABCs instead: `ClassificationModel`,
+    `SegmentationModel` or `DetectionModel`. Those standardize the split into `forward_features`
+    (encoder), `forward_decoder` (segmentation only) and `forward_head` (logits or raw
+    predictions), plus `reset_classifier` for rebuilding the head (concrete models build it in a
+    `configure_head` method called from both `__init__` and `reset_classifier`).
+
+    Args:
+        in_channels: Number of input feature channels.
+    """
+
     def __init__(self, in_channels: int) -> None:
         super().__init__()
         self.in_channels = in_channels

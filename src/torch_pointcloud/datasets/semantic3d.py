@@ -167,12 +167,25 @@ class Semantic3D(PointCloudDataset):
             if not txt.exists():
                 raise FileNotFoundError(
                     f"Dataset not found: expected Semantic3D scene at {txt.as_posix()}; "
-                    f"download from http://semantic3d.net and place under {self.raw_dir!r}."
+                    f"download from {self.data_url} and place under {self.raw_dir!r}."
                 )
 
     @override
     def raw_files_exist(self) -> bool:
         return all(p.exists() for p in self.txt_paths)
+
+    def download(self, force: bool = False) -> None:
+        """Semantic3D must be downloaded manually (a license must be accepted).
+
+        Args:
+            force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
+        """
+        raise RuntimeError(
+            f"{self.__class__.__name__} does not support automatic download. Download the Semantic3D scenes "
+            f"from {self.data_url!r} and place the `.txt` / `.labels` files under {self.raw_dir!r}."
+        )
 
     def __len__(self) -> int:
         return len(self.scenes)
@@ -182,7 +195,7 @@ class Semantic3D(PointCloudDataset):
         txt = self.txt_paths[index]
         lbl = self.label_paths[index]
         data: Dict[str, Any] = load_semantic3d_data(txt, lbl)
-        data["name"] = self.scenes[index]
+        data[DataKeys.NAME] = self.scenes[index]
         if self.transform is not None:
             data = self.transform(data)
         return data

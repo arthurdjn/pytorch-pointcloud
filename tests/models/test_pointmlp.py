@@ -213,3 +213,19 @@ def test_pointmlp_segmentation_forward_features_and_head(
     x, _, _ = model_seg.forward_decoder(x, pos, batch, intermediates)
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_pointmlp_classification_num_classes_zero_returns_features(data: Dict[str, Tensor]) -> None:
+    model = PointMLPClassification(
+        in_channels=6,
+        num_classes=0,
+        encoder_channels=[32, 64, 128, 256],
+        num_neighbors=[16, 16, 16],
+        ratios=[0.5, 0.5, 0.5],
+        num_pre_blocks=2,
+        num_pos_blocks=2,
+        head_channels=[32],
+    )
+    assert isinstance(model.head, torch.nn.Identity)
+    out = model(data["x"], data["pos"], data["batch"])
+    assert out.shape == (int(data["batch"].max()) + 1, model.embedding_dim)

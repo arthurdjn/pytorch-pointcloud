@@ -11,10 +11,13 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Tuple, Type, Union
 from unittest.mock import Mock, patch
 
+import h5py
+import numpy as np
 import pytest
 import torch
 
-from torch_pointcloud.datasets import ModelNet10, ModelNet40, ModelNetNormalResampled
+import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResampled
 from torch_pointcloud.datasets.modelnet import (
     load_modelnet_data,
     load_modelnet_normal_resampled_data,
@@ -406,7 +409,7 @@ def test_modelnet_normal_resampled_stale_pickle_cache_raises(
     cache_path.write_bytes(pickle.dumps(_MarkerPayload(f"touch {marker}")))
 
     with pytest.raises(RuntimeError, match="force_process=True"):
-        _ = ModelNet10NormalResampled(root=datasets_dir, show_progress=False)
+        _ = ModelNet10NormalResampled(root=datasets_dir, train=False, show_progress=False)
 
     assert not marker.exists()
 
@@ -460,6 +463,123 @@ def test_modelnet_dataset_cache_meta_pre_transform_mismatch_raises(
 
     with pytest.raises(RuntimeError, match="force_process=True"):
         _ = ModelNet10(root=datasets_dir, pre_transform=Mock(side_effect=lambda data: data), show_progress=False)
+
+
+def test_modelnet_dataset_cache_meta_records_transform_params(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """The cache metadata includes transform parameters, so the same class with different params raises."""
+    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
+    _ = ModelNet10(root=datasets_dir, pre_transform=T.RandomSample(keys="pos", num_samples=32), show_progress=False)
+
+    reloaded = ModelNet10(
+        root=datasets_dir, pre_transform=T.RandomSample(keys="pos", num_samples=32), show_progress=False
+    )
+    assert len(reloaded) > 0
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        _ = ModelNet10(root=datasets_dir, pre_transform=T.RandomSample(keys="pos", num_samples=64), show_progress=False)
+
+
+def test_modelnet_dataset_force_download_implies_download(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`force_download=True` triggers the download even when `download` is left False."""
+    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
+    mock = Mock()
+    monkeypatch.setattr(ModelNet10, "download", mock)
+
+    _ = ModelNet10(root=datasets_dir, force_download=True, show_progress=False)
+    mock.assert_called_once_with(force=True)
+
+
+def test_modelnet_normal_resampled_force_download_implies_download(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`force_download=True` triggers the download even when `download` is left False."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/raw/**/*")
+    mock = Mock()
+    monkeypatch.setattr(ModelNetNormalResampled, "download", mock)
+
+    _ = ModelNet10NormalResampled(root=datasets_dir, force_download=True, show_progress=False)
+    mock.assert_called_once_with(force=True)
+
+
+@pytest.mark.parametrize(
+    "dataset_cls,resource",
+    [
+        (ModelNet10, "ModelNet10.zip"),
+        (ModelNet10NormalResampled, "modelnet40_normal_resampled.tar.gz"),
+    ],
+)
+def test_modelnet_dataset_leftover_archive_detected(
+    datasets_dir_factory: Callable[..., Path],
+    dataset_cls: Type[ModelNetDataset],
+    resource: str,
+) -> None:
+    """A leftover archive marks an interrupted extraction, so the partial raw tree is not processed."""
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+    archive_path = datasets_dir / dataset_cls.__name__ / "raw" / resource
+    archive_path.write_bytes(b"partial")
+
+    with pytest.raises(RuntimeError, match="Dataset not found"):
+        _ = dataset_cls(root=datasets_dir, show_progress=False)
+
+    archive_path.unlink()
+    dataset = dataset_cls(root=datasets_dir, show_progress=False)
+    assert len(dataset) > 0
+
+
+def test_modelnet_download_reextracts_leftover_archive(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A valid archive left by an interrupted extraction is re-extracted without re-downloading."""
+    datasets_dir = datasets_dir_factory("ModelNet10/processed/**/*")
+    dataset = ModelNet10(root=datasets_dir, show_progress=False)
+    archive = _zip_bytes("ModelNet10/dummy.off")
+    monkeypatch.setattr(dataset, "md5", hashlib.md5(archive).hexdigest())
+    resource_path = Path(dataset.raw_dir, dataset.resource)
+    resource_path.parent.mkdir(parents=True, exist_ok=True)
+    resource_path.write_bytes(archive)
+
+    with _serve_download(archive) as mock_urlopen:
+        dataset.download()
+
+    assert not mock_urlopen.called
+    assert Path(dataset.raw_dir, "dummy.off").exists()
+    assert not resource_path.exists()
+
+
+def test_modelnet_dataset_interrupted_cache_write_reprocesses(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A crash during the cache write leaves no processed file, so the next construction reprocesses."""
+    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
+
+    def interrupted_save(obj: Any, path: Any, **kwargs: Any) -> None:
+        Path(path).write_bytes(b"partial")
+        raise RuntimeError("interrupted")
+
+    monkeypatch.setattr(torch, "save", interrupted_save)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        _ = ModelNet10(root=datasets_dir, show_progress=False)
+
+    assert not (datasets_dir / "ModelNet10" / "processed" / "train.pt").exists()
+
+    monkeypatch.undo()
+    dataset = ModelNet10(root=datasets_dir, show_progress=False)
+    assert len(dataset) > 0
+
+
+def test_modelnet_dataset_getitem_returns_shallow_copy(datasets_dir_factory: Callable[..., Path]) -> None:
+    """User edits on a returned sample dict never reach the in-memory cache."""
+    datasets_dir = datasets_dir_factory("ModelNet10/processed/**/*")
+    dataset = ModelNet10(root=datasets_dir, show_progress=False)
+
+    sample = dataset[0]
+    assert sample is not dataset.data[0]
+    sample["extra"] = 1
+    assert "extra" not in dataset[0]
 
 
 @pytest.mark.parametrize(
@@ -611,3 +731,151 @@ def test_modelnet_dataset_transform(
     dataset = dataset_cls(root=datasets_dir, transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
+
+
+def _write_modelnet40_hdf5_shard(path: Path, labels: list[int], num_points: int = 32, seed: int = 0) -> None:
+    """Write a tiny synthetic `ply_data_*.h5` shard with the release's keys, shapes and dtypes."""
+    rng = np.random.default_rng(seed)
+    pos = rng.standard_normal((len(labels), num_points, 3)).astype(np.float32)
+    normal = rng.standard_normal((len(labels), num_points, 3)).astype(np.float32)
+    with h5py.File(path, "w") as f:
+        f.create_dataset("data", data=pos)
+        f.create_dataset("normal", data=normal)
+        f.create_dataset("label", data=np.asarray(labels, dtype=np.uint8).reshape(-1, 1))
+
+
+def _write_modelnet40_hdf5_raw(raw_dir: Path) -> None:
+    """Fabricate a tiny raw tree: two train shards, one test shard, and the release-style file lists."""
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    _write_modelnet40_hdf5_shard(raw_dir / "ply_data_train0.h5", labels=[0, 1], seed=0)
+    _write_modelnet40_hdf5_shard(raw_dir / "ply_data_train1.h5", labels=[2], seed=1)
+    _write_modelnet40_hdf5_shard(raw_dir / "ply_data_test0.h5", labels=[3, 4], seed=2)
+    (raw_dir / "train_files.txt").write_text(
+        "data/modelnet40_ply_hdf5_2048/ply_data_train0.h5\ndata/modelnet40_ply_hdf5_2048/ply_data_train1.h5\n"
+    )
+    (raw_dir / "test_files.txt").write_text("data/modelnet40_ply_hdf5_2048/ply_data_test0.h5\n")
+
+
+def _modelnet40_hdf5_zip_bytes(tmp_path: Path) -> bytes:
+    """Zip the tiny raw tree under the release's `modelnet40_ply_hdf5_2048/` root directory."""
+    stage = tmp_path / "modelnet40_ply_hdf5_2048_stage"
+    _write_modelnet40_hdf5_raw(stage)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zip_file:
+        for file_path in sorted(stage.rglob("*")):
+            if file_path.is_file():
+                zip_file.write(file_path, Path("modelnet40_ply_hdf5_2048") / file_path.relative_to(stage))
+    return buffer.getvalue()
+
+
+def test_modelnet40_hdf5_dataset_not_found() -> None:
+    """Raises an error if the dataset is not found"""
+    with pytest.raises(RuntimeError, match="Dataset not found"):
+        _ = ModelNet40Hdf5(root="not-found", show_progress=False)
+
+
+@pytest.mark.parametrize("train,expected_labels", [(True, [0, 1, 2]), (False, [3, 4])])
+def test_modelnet40_hdf5_dataset_loads_shards_in_list_order(
+    datasets_dir_factory: Callable[..., Path], train: bool, expected_labels: list[int]
+) -> None:
+    """Shards are concatenated in the split file-list order, with the release's `(N, 1)` labels squeezed."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
+
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=train, show_progress=False)
+    assert len(dataset) == len(expected_labels)
+    assert [dataset[i]["label"].item() for i in range(len(dataset))] == expected_labels
+
+    sample = dataset[0]
+    assert sample["pos"].shape == (32, 3) and sample["pos"].dtype == torch.float32
+    assert sample["normal"].shape == (32, 3) and sample["normal"].dtype == torch.float32
+    assert sample["label"].shape == () and sample["label"].dtype == torch.int64
+
+
+def test_modelnet40_hdf5_dataset_transform_called(datasets_dir_factory: Callable[..., Path]) -> None:
+    """The transform is applied to every sample at `__getitem__` time."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
+
+    transform = Mock(side_effect=lambda data: data)
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=False, transform=transform, show_progress=False)
+    _ = list(dataset)
+    assert transform.call_count == len(dataset)
+
+
+def test_modelnet40_hdf5_getitem_returns_detached_copy(datasets_dir_factory: Callable[..., Path]) -> None:
+    """In-place user edits on a returned sample never reach the in-memory cache."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
+
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=False, show_progress=False)
+    sample = dataset[0]
+    original = sample["pos"].clone()
+    sample["pos"] += 1.0
+    assert torch.equal(dataset[0]["pos"], original)
+
+
+def test_modelnet40_hdf5_download_extracts_archive(
+    tmp_path: Path, datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`download=True` fetches the archive, strips its root directory into `raw/`, and removes the archive."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    archive = _modelnet40_hdf5_zip_bytes(tmp_path)
+    monkeypatch.setattr(ModelNet40Hdf5, "md5", hashlib.md5(archive).hexdigest())
+
+    with _serve_download(archive) as mock_urlopen:
+        dataset = ModelNet40Hdf5(root=datasets_dir, train=True, download=True, show_progress=False)
+
+    assert mock_urlopen.called
+    assert len(dataset) == 3
+    assert Path(dataset.raw_dir, "ply_data_train0.h5").exists()
+    assert not Path(dataset.raw_dir, "modelnet40_ply_hdf5_2048").exists()
+    assert not Path(dataset.raw_dir, dataset.resource).exists()
+
+
+def test_modelnet40_hdf5_download_raises_when_redownload_still_corrupt(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """If the re-downloaded archive still fails the checksum, download() raises with both hashes."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
+    dataset = ModelNet40Hdf5(root=datasets_dir, train=True, show_progress=False)
+    resource_path = Path(dataset.raw_dir, dataset.resource)
+    resource_path.write_bytes(b"corrupt")
+
+    with _serve_download(b"still corrupt") as mock_urlopen:
+        with pytest.raises(RuntimeError, match="MD5 hash mismatch") as excinfo:
+            dataset.download()
+
+    assert mock_urlopen.called
+    assert dataset.md5 in str(excinfo.value)
+    assert hashlib.md5(b"still corrupt").hexdigest() in str(excinfo.value)
+
+
+def test_modelnet40_hdf5_leftover_archive_detected(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A leftover archive marks an interrupted extraction, so the partial raw tree is not loaded."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    raw_dir = datasets_dir / "ModelNet40Hdf5" / "raw"
+    _write_modelnet40_hdf5_raw(raw_dir)
+    archive_path = raw_dir / ModelNet40Hdf5.resource
+    archive_path.write_bytes(b"partial")
+
+    with pytest.raises(RuntimeError, match="Dataset not found"):
+        _ = ModelNet40Hdf5(root=datasets_dir, show_progress=False)
+
+    archive_path.unlink()
+    dataset = ModelNet40Hdf5(root=datasets_dir, show_progress=False)
+    assert len(dataset) > 0
+
+
+def test_modelnet40_hdf5_force_download_implies_download(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`force_download=True` triggers the download even when `download` is left False."""
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
+    mock = Mock()
+    monkeypatch.setattr(ModelNet40Hdf5, "download", mock)
+
+    _ = ModelNet40Hdf5(root=datasets_dir, force_download=True, show_progress=False)
+    mock.assert_called_once_with(force=True)

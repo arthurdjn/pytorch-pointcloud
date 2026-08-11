@@ -87,6 +87,12 @@ class SerializedAttention(nn.Module):
     No positional information is added inside attention itself: relative
     structure comes from the conditional position embedding (CPE) applied
     around each block.
+
+    Note:
+        The input must be batch-blocked: each sample's points contiguous (a sorted `batch`), and
+        any `serialized_order` must keep samples contiguous (the serialization codes embed the
+        batch index). Otherwise patches silently mix points from different samples and attention
+        leaks across the batch.
     """
 
     def __init__(
@@ -175,6 +181,12 @@ class SerializedAttentionRPE(nn.Module):
     between query and key inside each patch. Flash Attention does not support
     arbitrary attention biases, so this variant always uses the manual softmax
     path.
+
+    Note:
+        The input must be batch-blocked: each sample's points contiguous (a sorted `batch`), and
+        any `serialized_order` must keep samples contiguous (the serialization codes embed the
+        batch index). Otherwise patches silently mix points from different samples and attention
+        leaks across the batch.
     """
 
     def __init__(
@@ -258,6 +270,12 @@ class SerializedAttentionRoPE(nn.Module):
     Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
     position of each token. Flash Attention is supported and uses bfloat16
     (matching upstream Utonia's reference implementation).
+
+    Note:
+        The input must be batch-blocked: each sample's points contiguous (a sorted `batch`), and
+        any `serialized_order` must keep samples contiguous (the serialization codes embed the
+        batch index). Otherwise patches silently mix points from different samples and attention
+        leaks across the batch.
     """
 
     def __init__(

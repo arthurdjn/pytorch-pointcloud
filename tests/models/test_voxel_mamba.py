@@ -3,6 +3,7 @@ import torch
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.voxel_mamba import (
+    CenterHeadOutput,
     VoxelMambaDetection,
     build_hilbert_template,
     hilbert_serialize,
@@ -113,6 +114,28 @@ def test_voxel_mamba_decode() -> None:
     # The default decode is non-filtering: it returns every gathered peak (the eval layer thresholds).
     assert raw["boxes"].shape[0] == 100
     assert raw["boxes"].shape[0] >= det["boxes"].shape[0]
+
+
+@pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")
+def test_voxel_mamba_decode_validates_iou_rectifier_length() -> None:
+    """`iou_rectifier` must carry one exponent per class; a mismatched length raises instead of misindexing."""
+    torch.manual_seed(0)
+    model = create_model("voxel-mamba.waymo", task="detection")
+    assert isinstance(model, VoxelMambaDetection)
+    out: CenterHeadOutput = {
+        "heatmap": torch.randn(1, 3, 4, 4),
+        "center": torch.randn(1, 2, 4, 4),
+        "center_z": torch.randn(1, 1, 4, 4),
+        "dim": torch.randn(1, 3, 4, 4),
+        "rot": torch.randn(1, 2, 4, 4),
+        "iou": torch.randn(1, 1, 4, 4),
+    }
+    with pytest.raises(ValueError, match="iou_rectifier"):
+        model.decode(out, iou_rectifier=(0.68, 0.71))
+    det = model.decode(out, top_k=8)
+    assert det["boxes"].shape == (8, 7)
+    assert det["labels"].dtype == torch.long
+    assert int(det["labels"].max()) < 3
 
 
 @pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")

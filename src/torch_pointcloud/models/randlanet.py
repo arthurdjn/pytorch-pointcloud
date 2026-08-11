@@ -562,7 +562,7 @@ class RandLANetClassification(ClassificationModel):
         self.aggr: Optional[nn.Module] = None
         if aggr_channels:
             self.aggr = MLP(
-                channel_list=[in_channels, aggr_channels],
+                channel_list=[in_channels, *aggr_channels],
                 plain_last=False,
                 **mlp_kwargs,
             )

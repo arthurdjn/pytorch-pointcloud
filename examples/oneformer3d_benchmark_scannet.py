@@ -1,4 +1,4 @@
-"""Benchmark OneFormer3D semantic segmentation on ScanNet val.
+"""Benchmark OneFormer3D semantic and instance segmentation on ScanNet val.
 
 OneFormer3D predicts over superpoints (offline Felzenszwalb mesh segmentation),
 not over points or voxels directly. The released ScanNet model therefore needs
@@ -12,12 +12,24 @@ labels (ignore index $-1$), matching the official protocol.
 The processed ScanNet vertices keep the mesh vertex order, so `segIndices`
 aligns 1:1 with the loaded points.
 
-Results (ScanNet val, semantic mIoU):
+The instance path decodes the same forward with `predict_instance` (top-600 query-class
+pairs, matrix NMS, superpoint-score and point-count thresholds), maps the superpoint
+masks back to points, and scores mask mAP over the 18 instance classes with
+`instance_matches` / `instance_average_precision`, the standard indoor protocol:
+greedy mask-IoU matching per class, AP averaged over thresholds 0.5:0.05:0.9 plus
+AP@50 / AP@25, instances under 100 points ignored. Ground truth follows the official
+mapping: wall, floor and unannotated points are void, and a point belongs to an
+instance only if it has both an instance id and an instance-class label.
 
-    | Source              | mIoU |
-    | ------------------- | ---- |
-    | OneFormer3D (paper) | 76.4 |
-    | torch-pointcloud    | 76.5 |
+Results (ScanNet val):
+
+    | Source              | mIoU | mAP  | mAP@50 | mAP@25 |
+    | ------------------- | ---- | ---- | ------ | ------ |
+    | OneFormer3D (paper) | 76.4 | 59.3 | 78.8   | 86.7   |
+    | torch-pointcloud    | 76.5 | TBD  | TBD    | TBD    |
+
+The 76.5 mIoU was measured with the semantic-only protocol below (unchanged); the
+instance mAP columns are pending a GPU run.
 
 Usage:
     uv run --no-sync python examples/oneformer3d_benchmark_scannet.py --limit 20
@@ -34,14 +46,14 @@ import torch
 from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets.scannet import SCANNET20_LABELS
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET20_LABELS
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.oneformer3d import OneFormer3DSegmentation, _shift_superpoints
 from torch_pointcloud.transforms import Relabel
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.io import load_safetensors
-from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.metrics import confusion_matrix, instance_average_precision, instance_matches
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SEED = 42
@@ -71,6 +83,7 @@ def evaluate(
     relabel_eval = next(t for t in transform.transforms if isinstance(t, Relabel))
 
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
+    records = []
     n_scenes = 0
     total_points = 0
     total_latency_ms = 0.0
@@ -92,13 +105,13 @@ def evaluate(
                 DataKeys.POS: pos.clone(),
                 DataKeys.COLOR: scene[DataKeys.COLOR].clone(),
                 DataKeys.SEGMENT: scene[DataKeys.SEGMENT].clone(),
-                "superpoint": superpoint,
+                DataKeys.SUPERPOINT: superpoint,
             }
         )
         x = data[DataKeys.X].to(device)
         pos_grid = data[DataKeys.POS_GRID].to(device).long()
         inverse = data[DataKeys.INVERSE].to(device)
-        superpoint = data["superpoint"].to(device)
+        superpoint = data[DataKeys.SUPERPOINT].to(device)
         batch = torch.zeros(pos_grid.shape[0], dtype=torch.long, device=device)
 
         if device.startswith("cuda"):
@@ -112,6 +125,11 @@ def evaluate(
         sp_shift, _ = _shift_superpoints(superpoint, inverse, batch)
         preds = model.predict_semantic(out, sp_shift)
         cm += confusion_matrix(preds.cpu(), target, num_classes, ignore_index=-1)
+
+        masks, labels, scores = model.predict_instance(out, sp_shift)
+        instance = scene[DataKeys.INSTANCE].long()
+        gt_label = torch.where((target >= 2) & (instance >= 0), target - 2, torch.full_like(target, -1))
+        records.append(instance_matches(masks, labels, scores, instance.to(device), gt_label.to(device)))
         n_scenes += 1
         total_points += int(target.shape[0])
 
@@ -123,9 +141,15 @@ def evaluate(
     inter = cm.diag().float()
     union = cm.sum(1).float() + cm.sum(0).float() - inter
     valid = union > 0
+    instance_ap = instance_average_precision(
+        records, num_classes=model.num_instance_classes, class_names=SCANNET20_CLASSES[2:]
+    )
     return {
         "test/mIoU": (inter[valid] / union[valid]).mean().item(),
         "test/oA": (cm.diag().sum().float() / cm.sum().float().clamp_min(1)).item(),
+        "test/mAP": instance_ap["mAP"],
+        "test/mAP@0.5": instance_ap["mAP@0.5"],
+        "test/mAP@0.25": instance_ap["mAP@0.25"],
         "test/latency_ms": total_latency_ms / max(n_scenes, 1),
         "test/points_per_second": total_points / max(total_latency_ms / 1000.0, 1e-12),
         "test/scenes": n_scenes,
@@ -157,6 +181,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
     root = Path(args.root) / "ScanNet"
     processed_dir = Path(args.processed_dir) if args.processed_dir else root / "processed_noalign_20" / args.split
     scans_root = Path(args.scans_root) if args.scans_root else root / "raw" / "v2" / "scans"

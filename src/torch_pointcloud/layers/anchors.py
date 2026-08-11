@@ -1,6 +1,6 @@
 r"""Anchor-based dense detection heads for the voxel detectors (PointPillars, SECOND).
 
-A packed-format port of the OpenPCDet anchor head:
+A packed-format port of the anchor head from
 :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
 - [`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors]: axis-aligned anchor
@@ -54,7 +54,7 @@ def generate_anchors(
 ) -> Tensor:
     r"""Generate axis-aligned anchors for a single class over a BEV feature map.
 
-    Mirrors OpenPCDet `AnchorGenerator` with `align_center=False`: anchor centers are placed on a
+    Mirrors the reference `AnchorGenerator` with `align_center=False`: anchor centers are placed on a
     grid spanning `point_cloud_range` (endpoints inclusive), then `anchor_bottom_heights` are lifted
     by half the box height to box centers.
 
@@ -102,8 +102,6 @@ class AnchorTargets(TypedDict):
 
     cls_labels: Tensor
     box_reg_targets: Tensor
-    reg_weights: Tensor
-    cls_weights: Tensor
 
 
 def assign_anchor_targets(
@@ -122,9 +120,7 @@ def assign_anchor_targets(
     between is ignored. Each ground-truth box additionally force-matches its single highest-IoU anchor, so a
     box with no anchor above threshold still receives one positive. Positive anchors' regression targets are
     the residual encoding of their matched box against the anchor (the inverse of
-    [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals]). `reg_weights` and
-    `cls_weights` are normalized by the positive count so a scene's loss is invariant to how many anchors
-    matched.
+    [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals]).
 
     Callers with several class groups (one anchor set per class) invoke this once per group with that class's
     anchors, ground truth, and thresholds, then concatenate the results.
@@ -138,9 +134,8 @@ def assign_anchor_targets(
         match_height: Match by 3D IoU when `True`, otherwise bird's-eye IoU.
 
     Returns:
-        A `TypedDict` with `cls_labels` $(A,)$ ($-1$ ignore, $0$ background, $\ge 1$ foreground class),
-        `box_reg_targets` $(A, 7)$ (residual encodings, zero for non-positive anchors), and
-        `reg_weights` / `cls_weights` $(A,)$.
+        A `TypedDict` with `cls_labels` $(A,)$ ($-1$ ignore, $0$ background, $\ge 1$ foreground class) and
+        `box_reg_targets` $(A, 7)$ (residual encodings, zero for non-positive anchors).
 
     Shape:
         - anchors: $(A, 7)$
@@ -148,8 +143,6 @@ def assign_anchor_targets(
         - gt_labels: $(G,)$
         - cls_labels: $(A,)$
         - box_reg_targets: $(A, 7)$
-        - reg_weights: $(A,)$
-        - cls_weights: $(A,)$
 
     Example:
         >>> anchors = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0], [20.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
@@ -187,16 +180,9 @@ def assign_anchor_targets(
     else:
         labels[:] = 0
 
-    positives = labels > 0
-    pos_normalizer = positives.sum().clamp(min=1.0).to(anchors.dtype)
-    reg_weights = positives.to(anchors.dtype) / pos_normalizer
-    cls_weights = (labels >= 0).to(anchors.dtype) / pos_normalizer
-
     return {
         "cls_labels": labels,
         "box_reg_targets": box_reg_targets,
-        "reg_weights": reg_weights,
-        "cls_weights": cls_weights,
     }
 
 
@@ -354,7 +340,7 @@ def separate_branch(
 ) -> nn.Sequential:
     r"""Build a `SeparateHead`-style prediction branch: middle conv blocks, then a plain output conv.
 
-    The per-attribute branch shared by the OpenPCDet separate heads (the anchor multi-head and the
+    The per-attribute branch shared by the separate detection heads (the anchor multi-head and the
     center head): `num_middle_conv` blocks of ($3\times3$ conv, norm, act) followed by a
     $3\times3$ output conv.
 
@@ -456,7 +442,7 @@ class MultiGroupSingleHead(nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        # Register conv_box before conv_cls so the parameter order matches the OpenPCDet reference
+        # Register conv_box before conv_cls so the parameter order matches the reference
         # checkpoint (its `SeparateHead` lists the regression branches first), keeping conversion a
         # straight positional alignment.
         self.conv_box = nn.ModuleDict()
@@ -580,7 +566,7 @@ class AnchorHeadMulti(nn.Module):
         for group in head_class_groups:
             num_anchors = sum(num_anchors_per_class[i] for i in group)
             label_indices = torch.tensor([i + 1 for i in group], dtype=torch.long)
-            # OpenPCDet's per-group SeparateHead uses default BatchNorm hyperparameters (eps 1e-5),
+            # The reference per-group SeparateHead uses default BatchNorm hyperparameters (eps 1e-5),
             # unlike the trunk / shared conv (eps 1e-3); `norm_kwargs` is left at the default so a
             # converted checkpoint stays bit-exact.
             head = MultiGroupSingleHead(
@@ -629,13 +615,14 @@ class AnchorHeadMulti(nn.Module):
 
         Each head scores its anchors by their top sigmoid class probability and maps the argmax to the
         global label; the per-head results are concatenated in head order (matching `batch_box`'s anchor
-        order) and the velocity columns are dropped. The full per-anchor set is returned; the evaluation
-        pipeline applies score thresholding and per-class 3D NMS via the `torch_pointcloud.utils.box3d`
-        utilities (see the benchmark examples).
+        order). When the box code carries velocity deltas the decoded $(v_x, v_y)$ columns are returned
+        under `velocity`. The full per-anchor set is returned; the evaluation pipeline applies score
+        thresholding and per-class 3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the
+        benchmark examples).
 
         Returns:
             Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
-            "batch": (B * A,)}` (PyG layout).
+            "batch": (B * A,)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the head predicts it.
         """
         boxes_all = out["batch_box"]
         batch_size, num_anchors = boxes_all.shape[:2]
@@ -650,9 +637,12 @@ class AnchorHeadMulti(nn.Module):
             labels_per_scene.append(torch.cat(scene_labels))
 
         batch = torch.arange(batch_size, device=boxes_all.device).repeat_interleave(num_anchors)
-        return {
+        det: Detection3D = {
             "boxes": boxes_all[:, :, :7].reshape(-1, 7),
             "scores": torch.stack(scores_per_scene).reshape(-1),
             "labels": torch.stack(labels_per_scene).reshape(-1),
             "batch": batch,
         }
+        if boxes_all.shape[-1] >= 9:
+            det["velocity"] = boxes_all[:, :, 7:9].reshape(-1, 2)
+        return det

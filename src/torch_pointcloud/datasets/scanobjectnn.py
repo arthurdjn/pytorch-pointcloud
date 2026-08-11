@@ -14,8 +14,8 @@ from torch_pointcloud.utils.types import PathLike
 from .pointcloud import PointCloudDataset
 from .utils import compute_hash, download_url, extract_zip, is_hash_valid
 
-ScanObjectNNSplit = Literal["main", "split1", "split2", "split3", "split4"]
-SCANOBJECTNN_SPLITS = get_args(ScanObjectNNSplit)
+ScanObjectNNPartition = Literal["main", "split1", "split2", "split3", "split4"]
+SCANOBJECTNN_PARTITIONS = get_args(ScanObjectNNPartition)
 
 ScanObjectNNVariant = Literal["augmented25_norot", "augmented25rot", "augmentedrot", "augmentedrot_scale75"]
 SCANOBJECTNN_VARIANTS = get_args(ScanObjectNNVariant)
@@ -40,9 +40,9 @@ ScanObjectNNClasses = Literal[
 SCANOBJECTNN_CLASSES = get_args(ScanObjectNNClasses)
 
 
-def _check_split(split: str) -> None:
-    if split not in SCANOBJECTNN_SPLITS:
-        raise ValueError(f"Invalid split {split!r}, expected one of {', '.join(SCANOBJECTNN_SPLITS)}.")
+def _check_partition(partition: str) -> None:
+    if partition not in SCANOBJECTNN_PARTITIONS:
+        raise ValueError(f"Invalid partition {partition!r}, expected one of {', '.join(SCANOBJECTNN_PARTITIONS)}.")
 
 
 def _check_variant(variant: str | None) -> None:
@@ -71,9 +71,9 @@ class ScanObjectNN(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        split: ScanObjectNNSplit = "main",
+        train: bool = True,
+        partition: ScanObjectNNPartition = "main",
         background: bool = False,
-        train: bool = False,
         variant: Optional[ScanObjectNNVariant] = None,
         classes: Union[ScanObjectNNClasses, Sequence[ScanObjectNNClasses], Literal["all"]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -83,18 +83,18 @@ class ScanObjectNN(PointCloudDataset):
         show_progress: bool = True,
     ) -> None:
         super().__init__(root)
-        self.split = split
-        self.background = background
         self.train = train
+        self.partition = partition
+        self.background = background
         self.variant = variant
         self.classes = tuple(self.original_classes if classes == "all" else ensure_tuple(classes))
         self.transform = transform
 
-        _check_split(self.split)
+        _check_partition(self.partition)
         _check_variant(self.variant)
         _check_classes(self.classes)
 
-        if download:
+        if download or force_download:
             self.download(force=force_download, show_progress=show_progress)
 
         self.process(force=force_process, show_progress=show_progress)
@@ -106,8 +106,8 @@ class ScanObjectNN(PointCloudDataset):
 
     @property
     def raw_file(self) -> str:
-        dir_name = f"{self.split}"
-        if self.split == "main":
+        dir_name = f"{self.partition}"
+        if self.partition == "main":
             dir_name += "_split"
         if not self.background:
             dir_name += "_nobg"
@@ -181,11 +181,10 @@ class ScanObjectNN(PointCloudDataset):
             )
 
         Path(self.processed_file).parent.mkdir(parents=True, exist_ok=True)
-        np.savez(
-            self.processed_file,
-            pos=pos.astype(np.float32),
-            label=labels.astype(np.int16),
-        )
+        tmp_path = Path(f"{self.processed_file}.tmp")
+        with open(tmp_path, "wb") as f:
+            np.savez(f, pos=pos.astype(np.float32), label=labels.astype(np.int16))
+        tmp_path.replace(self.processed_file)
 
     def load(self, show_progress: bool = True) -> None:
         with np.load(self.processed_file) as f:
@@ -221,7 +220,7 @@ class ScanObjectNN(PointCloudDataset):
 
     @override
     def __getitem__(self, index: int) -> Any:
-        data = self.data[index]
+        data = dict(self.data[index])
         if self.transform is not None:
             data = self.transform(data)
         return data

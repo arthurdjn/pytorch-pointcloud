@@ -20,13 +20,16 @@ from torch import Tensor
 def gaussian_radius(height: Tensor, width: Tensor, min_overlap: float = 0.5) -> Tensor:
     r"""Per-box Gaussian splat radius from the standard three min-overlap cases.
 
-    Returns the largest radius $r$ such that a box overlapping the ground truth by at least
-    `min_overlap` (IoU) still has its center inside the positive Gaussian region. It is the minimum
-    of the three closed-form solutions for the inscribed, enclosing, and shifted-box cases.
+    Approximates the largest radius $r$ such that a box overlapping the ground truth by at least
+    `min_overlap` (IoU) still has its center inside the positive Gaussian region, as the minimum over
+    the inscribed, enclosing, and shifted-box cases. The quadratic roots keep the un-normalized
+    $r_2, r_3$ of the original Objects as Points formulation (no $1 / (2a)$ factor), so the radii match
+    the published detectors' training targets rather than the exact closed-form solutions. The formula
+    is symmetric in `height` and `width`.
 
     Args:
-        height: Box heights in feature-map cells, shape $(N,)$.
-        width: Box widths in feature-map cells, shape $(N,)$.
+        height: Box heights ($y$ extent) in feature-map cells, shape $(N,)$.
+        width: Box widths ($x$ extent) in feature-map cells, shape $(N,)$.
         min_overlap: Minimum IoU a candidate box must keep with the ground truth.
 
     Returns:
@@ -145,7 +148,8 @@ def draw_heatmap_targets(
     Projects each ground truth box center to the BEV feature map, splats a per-class Gaussian, and
     records the regression target at that peak cell. The regression code is the sub-cell center
     offset, absolute $z$, log extents, and $(\cos\theta, \sin\theta)$, followed by any extra box
-    columns (e.g. velocity): $8 + (D - 7)$ channels for a $(M, D)$ box tensor.
+    columns (e.g. velocity): $8 + (D - 7)$ channels for a $(M, D)$ box tensor. Extents are clamped
+    to $10^{-5}$ before the log so a degenerate box does not produce a non-finite target.
 
     Args:
         boxes: Ground truth boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta, \ldots)$, shape $(M, D)$, $D \ge 7$.
@@ -221,10 +225,41 @@ def draw_heatmap_targets(
 
         reg_targets[i, 0:2] = center[i] - center_int_float[i]
         reg_targets[i, 2] = z[i]
-        reg_targets[i, 3:6] = boxes[i, 3:6].log()
+        reg_targets[i, 3:6] = boxes[i, 3:6].clamp_min(1e-5).log()
         reg_targets[i, 6] = torch.cos(boxes[i, 6])
         reg_targets[i, 7] = torch.sin(boxes[i, 6])
         if boxes.shape[1] > 7:
             reg_targets[i, 8:] = boxes[i, 7:]
 
     return heatmap, reg_targets, inds, mask
+
+
+def transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
+    r"""Gather per-object channel vectors from a dense map at flat cell indices.
+
+    Reads the $C$-dim vector at each flat cell index $y \cdot W + x$ (the `inds` produced by
+    `draw_heatmap_targets`) out of a dense $(B, C, H, W)$ prediction map, e.g. to compare head outputs
+    against per-object regression targets at the Gaussian peak cells.
+
+    Args:
+        feat: Dense prediction map, shape $(B, C, H, W)$.
+        ind: Flat per-object cell indices, shape $(B, M)$ (long).
+
+    Returns:
+        Gathered per-object vectors, shape $(B, M, C)$.
+
+    Shape:
+        - feat: $(B, C, H, W)$
+        - ind: $(B, M)$
+        - output: $(B, M, C)$
+
+    Example:
+        >>> import torch
+        >>> feat = torch.arange(16.0).reshape(1, 1, 4, 4)
+        >>> transpose_gather(feat, torch.tensor([[5, 10]]))
+        tensor([[[ 5.],
+                 [10.]]])
+    """
+    b, c = feat.shape[0], feat.shape[1]
+    feat = feat.permute(0, 2, 3, 1).reshape(b, -1, c)
+    return feat.gather(1, ind.unsqueeze(2).expand(-1, -1, c))

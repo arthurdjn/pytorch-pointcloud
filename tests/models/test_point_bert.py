@@ -9,21 +9,19 @@ from torch_pointcloud.models.point_bert import (
     PointBERTMaskedTransformer,
 )
 from torch_pointcloud.utils.imports import (
-    _CUDA_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
 )
 
 pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
     pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
     pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
 ]
 
 
 def _packed_batch() -> tuple[torch.Tensor, torch.Tensor]:
-    pos = torch.randn(2048, 3).cuda()
-    batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long().cuda()
+    pos = torch.randn(2048, 3)
+    batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
     return pos, batch
 
 
@@ -37,7 +35,7 @@ def test_point_bert_encoder_basic() -> None:
         encoder_dims=256,
         act="gelu",
         act_kwargs=None,
-    ).cuda()
+    )
     pos, batch = _packed_batch()
     out = model(None, pos, batch)
     assert out.shape == (2, 65, 384)
@@ -53,19 +51,19 @@ def test_point_bert_classification_basic() -> None:
         num_group=64,
         group_size=32,
         encoder_dims=256,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         act="gelu",
         act_kwargs=None,
         head_act="relu",
         dropout=0.5,
         head_channels=256,
-    ).cuda()
+    )
     pos, batch = _packed_batch()
     out = model(None, pos, batch)
     assert out.shape == (2, 40)
 
 
-def _small_encoder(drop_path_rate: float) -> PointBERTEncoder:
+def _small_encoder(drop_path: float) -> PointBERTEncoder:
     return PointBERTEncoder(
         embed_dim=96,
         depth=4,
@@ -73,13 +71,13 @@ def _small_encoder(drop_path_rate: float) -> PointBERTEncoder:
         num_group=16,
         group_size=8,
         encoder_dims=64,
-        drop_path_rate=drop_path_rate,
+        drop_path=drop_path,
     )
 
 
 def test_point_bert_encoder_drop_path_schedule() -> None:
-    model = _small_encoder(drop_path_rate=0.9).cuda()
-    baseline = _small_encoder(drop_path_rate=0.0).cuda()
+    model = _small_encoder(drop_path=0.9)
+    baseline = _small_encoder(drop_path=0.0)
     baseline.load_state_dict(model.state_dict())
 
     rates = []
@@ -99,6 +97,9 @@ def test_point_bert_encoder_drop_path_schedule() -> None:
     out_base = baseline(None, pos, batch)
     assert not torch.allclose(out_dp, out_base)
 
+    # The train forwards update batch-norm running stats from fps-randomized groupings (fps'
+    # random start is not governed by `torch.manual_seed`), so re-sync before the eval check.
+    baseline.load_state_dict(model.state_dict())
     model.eval()
     baseline.eval()
     assert torch.allclose(model(None, pos, batch), baseline(None, pos, batch))
@@ -114,7 +115,7 @@ def test_point_bert_classification_num_classes_zero_returns_features() -> None:
         num_group=16,
         group_size=8,
         encoder_dims=64,
-    ).cuda()
+    )
     assert isinstance(model.head, torch.nn.Identity)
     pos, batch = _packed_batch()
     out = model(None, pos, batch)
@@ -133,12 +134,12 @@ def test_point_bert_classification_accepts_features() -> None:
         group_size=32,
         encoder_dims=256,
         act="gelu",
-    ).cuda()
+    )
     model.eval()
     assert model.encoder.encoder.local_mlp.channel_list[0] == 3 + in_channels
     pos, batch = _packed_batch()
-    x_a = torch.randn(pos.size(0), in_channels).cuda()
-    x_b = torch.randn(pos.size(0), in_channels).cuda()
+    x_a = torch.randn(pos.size(0), in_channels)
+    x_b = torch.randn(pos.size(0), in_channels)
 
     out_a = model(x_a, pos, batch)
     out_b = model(x_b, pos, batch)
@@ -159,7 +160,7 @@ def test_point_bert_masked_transformer_basic() -> None:
         cls_dim=512,
         act="gelu",
         act_kwargs=None,
-    ).cuda()
+    )
     pos, batch = _packed_batch()
     out = model(None, pos, batch)
     assert out["cls_feature"].shape == (2, 512)
@@ -178,12 +179,12 @@ def test_point_bert_masked_transformer_accepts_features() -> None:
         encoder_dims=256,
         num_tokens=512,
         cls_dim=128,
-    ).cuda()
+    )
     model.eval()
     assert model.encoder.local_mlp.channel_list[0] == 3 + in_channels
     pos, batch = _packed_batch()
-    x_a = torch.randn(pos.size(0), in_channels).cuda()
-    x_b = torch.randn(pos.size(0), in_channels).cuda()
+    x_a = torch.randn(pos.size(0), in_channels)
+    x_b = torch.randn(pos.size(0), in_channels)
 
     out_a = model(x_a, pos, batch)
     out_b = model(x_b, pos, batch)
@@ -203,15 +204,15 @@ def _small_masked_transformer(mask_ratio: tuple[float, float]) -> PointBERTMaske
         num_tokens=128,
         cls_dim=32,
         mask_ratio=mask_ratio,
-        drop_path_rate=0.0,
+        drop_path=0.0,
     )
 
 
 def test_point_bert_masked_transformer_masks_only_in_training() -> None:
-    model = _small_masked_transformer(mask_ratio=(0.25, 0.45)).cuda()
+    model = _small_masked_transformer(mask_ratio=(0.25, 0.45))
     with torch.no_grad():
         model.mask_token.normal_()
-    unmasked = _small_masked_transformer(mask_ratio=(0.0, 0.0)).cuda()
+    unmasked = _small_masked_transformer(mask_ratio=(0.0, 0.0))
     unmasked.load_state_dict(model.state_dict())
 
     pos, batch = _packed_batch()
@@ -223,6 +224,9 @@ def test_point_bert_masked_transformer_masks_only_in_training() -> None:
     out_unmasked = unmasked(None, pos, batch)
     assert not torch.allclose(out_masked["logits"], out_unmasked["logits"])
 
+    # The train forwards update batch-norm running stats from fps-randomized groupings (fps'
+    # random start is not governed by `torch.manual_seed`), so re-sync before the eval check.
+    unmasked.load_state_dict(model.state_dict())
     model.eval()
     unmasked.eval()
     out_a = model(None, pos, batch)
@@ -240,7 +244,7 @@ def test_point_bert_dvae_basic() -> None:
         num_tokens=8192,
         tokens_dims=256,
         decoder_dims=256,
-    ).cuda()
+    )
     pos, batch = _packed_batch()
     out = model(None, pos, batch)
     assert out["logits"].shape == (2, 64, 8192)

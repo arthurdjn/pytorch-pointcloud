@@ -9,9 +9,8 @@ from torch import Tensor, nn
 class SumLoss(nn.Module):
     """Sum of several loss modules sharing a `(logits, target)` signature.
 
-    Mirrors Pointcept's list of criteria: each sub-loss is evaluated on the
-    same inputs and the results are added. Apply per-loss weights through each
-    module's own option (e.g. `LovaszLoss(loss_weight=...)`).
+    Each sub-loss is evaluated on the same inputs and the results are added (e.g. cross-entropy plus
+    Lovász). Apply per-loss weights through each module's own option (e.g. `LovaszLoss(loss_weight=...)`).
 
     Args:
         losses: The loss modules to sum.

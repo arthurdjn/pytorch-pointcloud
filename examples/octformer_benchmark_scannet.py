@@ -1,3 +1,27 @@
+"""Evaluate the OctFormer ScanNet semantic-segmentation models on the val split.
+
+`ScanNet20` / `ScanNet200` scenes -> `DataLoader` -> model -> argmax -> confusion matrix over all
+scenes, with the model's registered eval transform (grid sampling + octree build) and class $0$
+(unannotated) ignored.
+
+Results vs reference (ScanNet val mIoU, single pass; octree-nn repo eval of the released checkpoints):
+
+    | Variant                             | reference | torch-pointcloud |
+    | ----------------------------------- | --------- | ---------------- |
+    | octformer-base.scannet20.octree-nn  | 74.8      | 74.78            |
+    | octformer-base.scannet200.octree-nn | 31.7      | 31.71            |
+
+The reference column is the released checkpoints' single-pass scores; the paper reports 74.5 (75.7
+with voting) on ScanNet and 32.6 with voting on ScanNet200.
+
+Both datasets now load with `use_axis_alignment=False`, matching the reference preprocessing (the
+released weights are trained on unaligned coordinates). The ScanNet200 number above was measured on
+axis-aligned scenes and is pending re-measurement.
+
+Usage:
+    uv run --no-sync python examples/octformer_benchmark_scannet.py --model octformer-base.scannet20.octree-nn
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import TYPE_CHECKING, Any, Dict
@@ -9,11 +33,11 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20, ScanNet200
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 if TYPE_CHECKING:
     from ocnn.octree import Octree, Points
@@ -34,6 +58,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
 
     model, info = create_model(args.model, task="segmentation", pretrained=args.pretrained, return_info=True)
@@ -55,6 +80,7 @@ def main() -> None:
             transform=transform,
             force_process=args.force_process,
             num_workers=args.num_workers,
+            use_axis_alignment=False,
         )
     else:
         test_dataset = ScanNet20(

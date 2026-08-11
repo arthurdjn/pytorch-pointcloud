@@ -71,7 +71,7 @@ class SubMConv3dBlock(nn.Module):
 
 
 class SparseConvBlock(SparseSequential):
-    r"""Sparse 3D convolution followed by normalization and activation (the OpenPCDet `post_act_block`).
+    r"""Sparse 3D convolution followed by normalization and activation.
 
     A `subm` (submanifold), `spconv` (regular, optionally strided), or `inverseconv` convolution over a
     `SparseConvTensor`, followed by normalization and activation on the features. As a `SparseSequential`
@@ -125,8 +125,8 @@ class SparseConvBlock(SparseSequential):
 
         super().__init__(
             conv,
-            create_norm(norm, out_channels, dim=1, **(norm_kwargs or {})),
-            create_act(act, **(act_kwargs or {})),
+            create_norm(norm, out_channels, dim=1, **(norm_kwargs or {})) or nn.Identity(),
+            create_act(act, **(act_kwargs or {})) or nn.Identity(),
         )
 
 

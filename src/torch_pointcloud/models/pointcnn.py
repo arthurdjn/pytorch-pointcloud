@@ -1,5 +1,4 @@
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -21,18 +20,12 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import FPS, PoolLike, XConv, create_pool
 from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
-
-if TYPE_CHECKING:
-    from torch_cluster import knn
-
-fps, _ = optional_import("torch_cluster", name="fps", url=_TORCH_CLUSTER_GITHUB_URL)
-knn, _ = optional_import("torch_cluster", name="knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 class PointCNNIntermediate(NamedTuple):
@@ -419,6 +412,14 @@ class PointCNNClassification(ClassificationModel):
 
 
 class PointCNNSegmentation(SegmentationModel):
+    r"""Segmentation model as described in the paper
+    :arxiv: ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
+    by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.
+
+    An encoder of XConv layers with FPS downsampling, a decoder of XConv layers upsampling back to
+    the skip resolutions, and a per-point MLP head.
+    """
+
     def __init__(
         self,
         in_channels: int,

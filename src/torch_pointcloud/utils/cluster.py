@@ -17,6 +17,11 @@ scatter_min, _ = optional_import("torch_scatter", name="scatter_min", url=_TORCH
 torch_cluster, _ = optional_import("torch_cluster", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
+def _check_sorted_batch(batch: Tensor, name: str) -> None:
+    if batch.numel() > 1 and bool((batch[1:] < batch[:-1]).any()):
+        raise ValueError(f"`{name}` must be sorted in non-decreasing order.")
+
+
 def knn(
     x: Tensor,
     y: Tensor,
@@ -32,6 +37,14 @@ def knn(
     However, in case the `batch_x` and `batch_y` tensors are provided, and the samples have the same number of nodes,
     this function uses a more efficient implementation that is significantly faster on GPU using `torch.cdist` + `topk`.
 
+    Important:
+        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
+        (both the dense fast path and `torch_cluster` require it); unsorted batches raise a `ValueError`.
+
+    Note:
+        When a point of $y$ coincides with a point of $x$ (e.g. `knn(pos, pos, k)`), the query point
+        itself counts among the $k$ neighbors, matching `torch_cluster.knn`.
+
     Args:
         x: The source tensor to find the nearest neighbors of shape $(N, *)$.
         y: The target tensor to find the nearest neighbors of shape $(M, *)$.
@@ -45,6 +58,10 @@ def knn(
     Returns:
         The nearest neighbors of shape $(2, M*k)$.
     """
+    if batch_x is not None:
+        _check_sorted_batch(batch_x, "batch_x")
+    if batch_y is not None:
+        _check_sorted_batch(batch_y, "batch_y")
 
     def _torch_cluster_knn() -> Tensor:
         return torch_cluster.knn(
@@ -112,6 +129,10 @@ def knn_graph(
     uses a `torch.cdist` + `topk` implementation that is significantly faster on GPU
     than the underlying `torch_cluster.knn_graph`.
 
+    Important:
+        If provided, the `batch` tensor must be sorted in non-decreasing order (both the dense
+        fast path and `torch_cluster` require it); an unsorted batch raises a `ValueError`.
+
     Args:
         x: The input tensor of shape $(N, *)$.
         k: The number of nearest neighbors to find. When `loop=False`, the
@@ -127,6 +148,8 @@ def knn_graph(
     Returns:
         Edge index of shape $(2, k \cdot N)$.
     """
+    if batch is not None:
+        _check_sorted_batch(batch, "batch")
 
     def _torch_cluster_knn_graph() -> Tensor:
         return torch_cluster.knn_graph(
@@ -341,6 +364,10 @@ def radius(
     PointNet++ checkpoints from yanx27 / charlesq34 overfit to this selection rule,
     so reproducing their accuracy requires `sort=True`.
 
+    Important:
+        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
+        (`torch_cluster.radius` requires it); unsorted batches raise a `ValueError`.
+
     Args:
         x: Source positions, shape $(N_x, d)$.
         y: Query positions, shape $(N_y, d)$.
@@ -355,8 +382,13 @@ def radius(
         Centroids with no in-ball neighbors emit zero edges; pooling leaves those
         rows at the reduction identity.
     """
+    if batch_x is not None:
+        _check_sorted_batch(batch_x, "batch_x")
+    if batch_y is not None:
+        _check_sorted_batch(batch_y, "batch_y")
     if not sort:
-        return torch_cluster.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
+        edge_index = torch_cluster.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
+        return edge_index[0], edge_index[1]
 
     # Custom sort-by-source-index ball query. Asking `torch_cluster.radius` for the
     # full `max_num_neighbors=Nx` over-allocates memory; instead we materialise the

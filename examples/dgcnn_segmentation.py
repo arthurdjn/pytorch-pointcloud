@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
@@ -50,10 +51,9 @@ def main() -> None:
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        train_metrics = train_one_epoch(model, optimizer, scheduler, train_dataloader, args.device)
         val_metrics = eval_one_epoch(model, test_dataloader, args.num_classes, args.device)
         metrics = {**train_metrics, **val_metrics}
-        scheduler.step()
 
         print("Scores:", end=" ")
         print(" | ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
@@ -64,7 +64,20 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="shapenetpart", choices=["shapenetpart", "s3dis"])
-    parser.add_argument("--model", type=str, default="dgcnn-base", choices=["dgcnn-base"])
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="dgcnn.s3dis-area5.an-tao",
+        choices=[
+            "dgcnn.s3dis-area1.an-tao",
+            "dgcnn.s3dis-area2.an-tao",
+            "dgcnn.s3dis-area3.an-tao",
+            "dgcnn.s3dis-area4.an-tao",
+            "dgcnn.s3dis-area5.an-tao",
+            "dgcnn.s3dis-area6.an-tao",
+            "dgcnn.scannet20.an-tao",
+        ],
+    )
     parser.add_argument("--num-classes", type=int, default=50)
     parser.add_argument("--categories", nargs="+", default=None)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -81,6 +94,7 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
+    scheduler: LRScheduler,
     dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
@@ -102,6 +116,7 @@ def train_one_epoch(
         loss.backward()
         optimizer.step()
 
+        scheduler.step()
         total_loss += loss.item()
 
         if (i + 1) % log_interval == 0:

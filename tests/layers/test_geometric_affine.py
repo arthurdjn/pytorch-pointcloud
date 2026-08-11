@@ -130,3 +130,25 @@ def test_geometric_affine_conv_cuda(data: Dict[str, Tensor]) -> None:
     output = conv(data["x"], data["pos"], data["batch"], data["edge_index"])
     assert output.shape == (len(data["pos"]), 32)
     assert output.dtype == data["x"].dtype
+
+
+def test_geometric_affine_add_self_loops_plain_pos() -> None:
+    torch.manual_seed(0)
+    conv = GeometricAffineConv(
+        local_nn=nn.Identity(),
+        channels=4,
+        spatial_dim=3,
+        add_self_loops=True,
+    )
+    x = torch.randn(6, 4)
+    pos = torch.randn(6, 3)
+    batch = torch.zeros(6, dtype=torch.long)
+    ring = torch.stack([(torch.arange(6) + 1) % 6, torch.arange(6)])
+
+    out_auto = conv(x, pos, batch, ring)
+
+    # A plain `pos` tensor must yield one self-loop per point, not per coordinate.
+    conv.add_self_loops = False
+    loops = torch.arange(6).repeat(2, 1)
+    out_manual = conv(x, pos, batch, torch.cat([ring, loops], dim=1))
+    assert torch.allclose(out_auto, out_manual, atol=1e-6)
