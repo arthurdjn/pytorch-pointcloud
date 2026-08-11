@@ -9,12 +9,12 @@ train_dataset:
   _target_: torch_pointcloud.datasets.ModelNetNormalResampled
   root: ${paths.data_dir}
   variant: "40"
-  train: true
+  split: train
   transform: null
 
 val_dataset:
   _target_: torch_pointcloud.datasets.ModelNetNormalResampled
   root: ${paths.data_dir}
   variant: "40"
-  train: false
+  split: test
   transform: null

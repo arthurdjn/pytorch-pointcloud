@@ -1,6 +1,6 @@
 import torch
 
-from torch_pointcloud.utils.ops import decimate_indices, voxel_grid_fnv
+from torch_pointcloud.utils.ops import decimate_indices, first_permutation, voxel_grid_fnv
 
 
 def _two_voxel_cloud() -> torch.Tensor:
@@ -70,3 +70,22 @@ def test_decimate_indices_non_consecutive_batch_ids() -> None:
     assert indices.shape == decim_batch.shape
     assert decim_batch.tolist() == [0, 0, 2]
     assert torch.equal(decim_batch, batch[indices])
+
+
+def test_first_permutation_picks_first_occurrence() -> None:
+    cluster = torch.tensor([1, 0, 1, 2, 0])
+    perm = first_permutation(cluster)
+    assert perm.tolist() == [1, 0, 3]
+
+
+def test_first_permutation_with_explicit_num_clusters() -> None:
+    cluster = torch.tensor([0, 0, 1, 1, 1, 2])
+    perm = first_permutation(cluster, num_clusters=3)
+    assert perm.tolist() == [0, 2, 5]
+
+
+def test_first_permutation_empty() -> None:
+    cluster = torch.empty(0, dtype=torch.long)
+    perm = first_permutation(cluster)
+    assert perm.shape == (0,)
+    assert perm.dtype == torch.long

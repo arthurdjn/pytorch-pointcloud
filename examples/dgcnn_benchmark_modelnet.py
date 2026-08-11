@@ -1,18 +1,19 @@
 """Evaluate the DGCNN ModelNet40 classifiers (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
-registered eval transform (FPS to the checkpoint's point count).
+`ModelNet40Hdf5` -> `DataLoader` -> model -> argmax -> overall accuracy, following the reference
+protocol: take the first $N$ points of each pre-shuffled 2048-point HDF5 cloud (no FPS), where $N$ is
+the checkpoint's point count.
 
 Results vs reference (ModelNet40 overall accuracy; antao97 repo eval of the released checkpoints):
 
-    | Variant                     | reference | torch-pointcloud |
-    | --------------------------- | --------- | ---------------- |
-    | dgcnn.modelnet40-1024.an-tao | 93.3      | 92.34            |
-    | dgcnn.modelnet40-2048.an-tao | 93.6      | 92.46            |
+    | Variant                      | reference | torch-pointcloud            |
+    | ---------------------------- | --------- | --------------------------- |
+    | dgcnn.modelnet40-1024.an-tao | 93.3      | 92.34 (pre-fix, re-measure) |
+    | dgcnn.modelnet40-2048.an-tao | 93.6      | 92.46 (pre-fix, re-measure) |
 
-Both variants sit about a point below the reference because the eval data differs: antao97 takes the
-first $N$ points of the pre-shuffled HDF5 clouds, while this script FPS-samples the normal-resampled
-dataset.
+The torch-pointcloud numbers were measured before this script switched to the reference protocol
+(FPS on the normal-resampled dataset, about a point below the reference for that reason);
+re-measurement on the HDF5 first-$N$ protocol is pending.
 
 Usage:
     uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn.modelnet40-1024.an-tao
@@ -27,12 +28,13 @@ from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.datasets import ModelNet40Hdf5
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -41,29 +43,33 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 16
 SEED = 42
 
+NUM_POINTS = {
+    "dgcnn.modelnet40-1024.an-tao": 1024,
+    "dgcnn.modelnet40-2048.an-tao": 2048,
+}
+
 
 def main() -> None:
     args = parse_args()
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Loading model {args.model!r}!")
-    model, model_info = create_model(
+    model = create_model(
         args.model,
         task="classification",
         pretrained=True,
-        return_info=True,
     )
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transform")
+    transform = T.Slice(keys=[DataKeys.POS, DataKeys.NORMAL], stop=NUM_POINTS[args.model])
 
-    print("Loading ModelNet40 (normal-resampled) test dataset!")
-    test_dataset = ModelNetNormalResampled(
+    print("Loading ModelNet40 (HDF5) test dataset!")
+    test_dataset = ModelNet40Hdf5(
         root=args.root,
-        variant="40",
-        train=False,
+        split="test",
         download=args.download,
         transform=transform,
     )
@@ -85,7 +91,7 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark DGCNN classification on ModelNet40 (normal-resampled).")
+    parser = ArgumentParser(description="Benchmark DGCNN classification on ModelNet40 (HDF5).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument(

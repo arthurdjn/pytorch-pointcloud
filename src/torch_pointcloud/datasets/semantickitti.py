@@ -254,14 +254,18 @@ class SemanticKITTI(PointCloudDataset):
         sample["segment"].shape     # torch.Size([N]) - raw label ids in [0, 259]
         ```
 
-        To map raw labels onto the standard 19-class benchmark, compose a
-        `Relabel` transform yourself:
+        To map raw labels onto a 19-class training set, compose a `Relabel` transform yourself.
+        The mapping below follows the evaluation protocol this library's SemanticKITTI
+        pretrained weights were trained against. It is *not* the official
+        `semantic-kitti-api` learning map: the official 19-class map merges bus (13) and
+        on-rails (16) into other-vehicle and lane-marking (60) into road, whereas this one
+        sends them to the ignore index.
 
         ```python
         import torch_pointcloud.transforms as T
         from torch_pointcloud.datasets import SemanticKITTI
 
-        # `{raw_id: contiguous_index}` for the standard 19-class benchmark
+        # `{raw_id: contiguous_index}`
         # (moving-* are merged with their static counterpart; bus/on-rails/
         # lane-marking/other-* fall through to `default=255`).
         labels = {
@@ -285,6 +289,8 @@ class SemanticKITTI(PointCloudDataset):
         )
         ```
     """
+
+    data_url: str = "https://www.semantic-kitti.org/dataset.html"
 
     # NOTE: We use a union of Literal types and a str subclass (not bare `str`)
     # so that IDEs provide autocompletion for known values while still accepting
@@ -335,6 +341,19 @@ class SemanticKITTI(PointCloudDataset):
     def processed_files_exist(self) -> bool:
         return self.raw_files_exist()
 
+    def download(self, force: bool = False) -> None:
+        """SemanticKITTI must be downloaded manually (a license must be accepted).
+
+        Args:
+            force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
+        """
+        raise RuntimeError(
+            f"{self.__class__.__name__} does not support automatic download. Download the velodyne scans and "
+            f"labels from {self.data_url!r} and extract the `sequences/` tree under {self.raw_dir!r}."
+        )
+
     def load(self) -> None:
         """Enumerate the velodyne scans for the configured sequences.
 
@@ -381,7 +400,7 @@ class SemanticKITTI(PointCloudDataset):
         data: Dict[str, Any] = {
             DataKeys.POS: pos,
             DataKeys.INTENSITY: intensity,
-            "sequence": seq,
+            DataKeys.SEQUENCE: seq,
             DataKeys.FRAME: frame,
         }
 

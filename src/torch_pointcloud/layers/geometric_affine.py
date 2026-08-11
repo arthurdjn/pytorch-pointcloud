@@ -26,6 +26,25 @@ NormalizeType = Literal["center", "anchor"]
 
 
 class GeometricAffineConv(MessagePassing):
+    r"""Grouping convolution with geometric affine normalization (PointMLP) from
+    :arxiv: [Rethinking Network Design and Local Geometry in Point Cloud: A Simple Residual MLP Framework](https://arxiv.org/abs/2202.07123)
+    by Xu Ma, Can Qin, Haoxuan You, Haoxi Ran, Yun Fu.
+
+    Each neighborhood is recentered (`normalize="center"` subtracts the neighborhood mean,
+    `"anchor"` subtracts the center's values), rescaled by the per-sample standard deviation of the
+    offsets, and modulated by learnable affine parameters; the center features are appended to each
+    normalized message before `local_nn` and aggregation.
+
+    Args:
+        local_nn: Network applied to each message.
+        channels: Number of input feature channels.
+        spatial_dim: Dimension of point coordinates.
+        use_pos: Whether to concatenate the point positions to the features before normalization.
+        normalize: Neighborhood normalization mode (`"center"` or `"anchor"`).
+        add_self_loops: Whether to add self-loops to the edge index.
+        **kwargs: Additional `MessagePassing` arguments.
+    """
+
     def __init__(
         self,
         local_nn: nn.Module,
@@ -73,7 +92,7 @@ class GeometricAffineConv(MessagePassing):
         if self.add_self_loops:
             if isinstance(edge_index, Tensor):
                 edge_index, _ = remove_self_loops(edge_index)
-                edge_index, _ = add_self_loops(edge_index, num_nodes=min(pos[0].size(0), pos[1].size(0)))
+                edge_index, _ = add_self_loops(edge_index, num_nodes=min(pos_src.size(0), pos_dst.size(0)))
             elif isinstance(edge_index, SparseTensor):
                 edge_index = torch_sparse.set_diag(edge_index)
 

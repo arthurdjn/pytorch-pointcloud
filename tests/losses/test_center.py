@@ -1,9 +1,11 @@
 from typing import Any, Dict, List, Tuple
 
+import pytest
 import torch
 from torch import Tensor
 
 from torch_pointcloud.losses import CenterLoss, SparseCenterLoss
+from torch_pointcloud.losses.center import _reg_l1_loss
 from torch_pointcloud.utils.data import DataKeys
 
 _POINT_CLOUD_RANGE = (-12.0, -12.0, -2.0, 12.0, 12.0, 4.0)
@@ -149,6 +151,12 @@ def test_center_loss_backward() -> None:
     assert output["center"].grad is not None
 
 
+def test_center_loss_rejects_velocity_code_weights() -> None:
+    """The dense head predicts no velocity codes, so a length-10 `code_weights` must raise, not crash later."""
+    with pytest.raises(ValueError, match="`code_weights` must have length 8"):
+        CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8 + [0.2, 0.2])
+
+
 def test_center_loss_no_boxes_is_finite() -> None:
     loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
     output, batch = _dense_data()
@@ -184,6 +192,40 @@ def test_sparse_center_loss_backward() -> None:
     loss_fn(output, batch)["loss"].backward()
     assert output["hm"][0].grad is not None
     assert output["center"][0].grad is not None
+
+
+def test_reg_l1_loss_non_finite_target_codes_are_neutralized() -> None:
+    torch.manual_seed(0)
+    pred = torch.randn(1, 2, 8)
+    target = torch.randn(1, 2, 8)
+    target[0, 0, 3] = float("nan")
+    target[0, 1, 5] = float("inf")
+    mask = torch.ones(1, 2, dtype=torch.long)
+    loss = _reg_l1_loss(pred, target, mask)
+    assert torch.isfinite(loss).all()
+    # A non-finite code contributes exactly zero, as if the target matched the prediction there.
+    neutral = target.clone()
+    neutral[0, 0, 3] = pred[0, 0, 3]
+    neutral[0, 1, 5] = pred[0, 1, 5]
+    assert torch.allclose(loss, _reg_l1_loss(pred, neutral, mask))
+
+
+def test_center_loss_zero_height_box_is_finite() -> None:
+    loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
+    output, batch = _dense_data()
+    batch[DataKeys.BOX][0, 5] = 0.0
+    assert torch.isfinite(loss_fn(output, batch)["loss"])
+
+
+def test_sparse_center_loss_zero_height_box_is_finite() -> None:
+    groups = [[0, 1]]
+    loss_fn = SparseCenterLoss(
+        groups, (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 8, code_weights=[1.0] * 8 + [0.2, 0.2]
+    )
+    output, batch = _sparse_data(groups)
+    batch[DataKeys.LABEL] = torch.tensor([0, 1, 0])
+    batch[DataKeys.BOX][0, 5] = 0.0
+    assert torch.isfinite(loss_fn(output, batch)["loss"])
 
 
 def test_sparse_center_loss_empty_mid_batch_scene_is_finite() -> None:

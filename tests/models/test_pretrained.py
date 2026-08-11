@@ -78,7 +78,7 @@ DATASET_REGISTRY: Dict[str, Callable[..., Dataset]] = {
         ModelNetNormalResampled,
         root=DATASETS_DIR,
         variant="40",
-        train=False,
+        split="test",
         show_progress=False,
     ),
     "s3dis_hdf5": partial(
@@ -104,9 +104,9 @@ DATASET_REGISTRY: Dict[str, Callable[..., Dataset]] = {
     "scanobjectnn": partial(
         ScanObjectNN,
         root=DATASETS_DIR,
-        split="split1",
+        split="test",
+        partition="split1",
         background=False,
-        train=False,
         show_progress=False,
     ),
     "scannet20": partial(

@@ -26,9 +26,9 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets.scannet import ScanNet20
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -69,6 +69,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print("Loading model 'dgcnn.scannet20.an-tao'!")
     model, model_info = create_model("dgcnn.scannet20.an-tao", task="segmentation", pretrained=True, return_info=True)
@@ -137,7 +138,7 @@ def predict(
     for data in pbar_pred:
         pos = data[DataKeys.POS].to(args.device)
         color = data[DataKeys.COLOR].to(args.device)
-        norm_pos = data["norm_pos"].to(args.device)
+        norm_pos = data[DataKeys.NORM_POS].to(args.device)
         batch = data[DataKeys.BATCH].to(args.device)
 
         x = torch.cat([pos, color], dim=1)
@@ -150,11 +151,11 @@ def predict(
         total += int(valid.sum())
         pbar_pred.set_postfix(block_acc=f"{correct / max(total, 1):.3f}")
 
-        scene_ids_per_point = data["scene_index"].repeat_interleave(args.npoint)
-        num_pts_per_point = data["num_scene_points"].repeat_interleave(args.npoint)
+        scene_ids_per_point = data[DataKeys.SCENE_INDEX].repeat_interleave(args.npoint)
+        num_pts_per_point = data[DataKeys.NUM_SCENE_POINTS].repeat_interleave(args.npoint)
 
         all_logits.append(logits.cpu())
-        all_indices.append(data["point_indices"])
+        all_indices.append(data[DataKeys.POINT_INDICES])
         all_labels.append(labels_block)
         all_scene_ids.append(scene_ids_per_point)
         all_num_scene_points.append(num_pts_per_point)

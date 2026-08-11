@@ -31,13 +31,31 @@ def test_serialized_pool_forward() -> None:
     # Single serialization order, monotonically increasing codes.
     serialized_code = torch.arange(n, dtype=torch.long).unsqueeze(0)
 
-    x_pooled, pos_grid_pooled, batch_pooled, pooled_code, cluster = pool(
+    x_pooled, pos_grid_pooled, batch_pooled, pooled_code, cluster, pos_pooled = pool(
         x, pos_grid, batch, serialized_code, return_inverse=True
     )
     assert x_pooled.shape[1] == 32
     assert x_pooled.shape[0] == pos_grid_pooled.shape[0] == batch_pooled.shape[0]
     assert cluster.shape == (n,)
     assert pooled_code.shape[0] == 1
+    assert pos_pooled is None
+
+
+def test_serialized_pool_forward_pools_pos() -> None:
+    pool = SerializedPool(in_channels=4, out_channels=8, stride=2)
+    n = 16
+    x = torch.randn(n, 4)
+    pos_grid = torch.randint(0, 8, (n, 3), dtype=torch.long)
+    pos = pos_grid.float()
+    batch = torch.zeros(n, dtype=torch.long)
+    # Stride 2 shifts codes by 3 bits, so codes 0..7 and 8..15 form two clusters of 8 points.
+    serialized_code = torch.arange(n, dtype=torch.long).unsqueeze(0)
+
+    x_pooled, _, _, _, pos_pooled = pool(x, pos_grid, batch, serialized_code, pos=pos)
+    assert pos_pooled is not None
+    assert pos_pooled.shape == (x_pooled.shape[0], 3)
+    expected = torch.stack([pos[:8].mean(dim=0), pos[8:].mean(dim=0)])
+    assert torch.allclose(pos_pooled, expected)
 
 
 def test_serialized_pool_invalid_reduce_raises() -> None:

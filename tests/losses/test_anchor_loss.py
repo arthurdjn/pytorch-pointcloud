@@ -180,6 +180,22 @@ def test_multihead_anchor_loss_velocity_codes_unsupervised_by_default() -> None:
     assert out["box_loss"] == 0.0
 
 
+def test_multihead_anchor_loss_rejects_misordered_class_groups() -> None:
+    """The anchors and head outputs are laid out class 0..C-1, so any other grouping would silently misalign."""
+    with pytest.raises(ValueError, match="class_groups"):
+        MultiHeadAnchorLoss(
+            2,
+            class_groups=[[1], [0]],
+            voxel_size=_VOXEL_SIZE,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            anchor_sizes=[[3.0, 1.5, 1.5], [1.0, 1.0, 2.0]],
+            anchor_bottom_heights=[-1.0, -1.0],
+            feature_map_stride=1,
+            matched_thresholds=[0.6, 0.6],
+            unmatched_thresholds=[0.45, 0.45],
+        )
+
+
 def test_multihead_anchor_loss_rejects_plain_angle_encoding() -> None:
     with pytest.raises(ValueError, match="sincos"):
         MultiHeadAnchorLoss(

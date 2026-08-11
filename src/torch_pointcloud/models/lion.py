@@ -307,7 +307,8 @@ class PatchMerging3D(nn.Module):
         pos_shift: int = 1,
         diffusion_scale: int = 4,
     ) -> Tuple["spconv.SparseConvTensor", Tensor]:
-        assert diffusion_scale in (2, 4)
+        if diffusion_scale not in (2, 4):
+            raise ValueError(f"`diffusion_scale` must be 2 or 4, got {diffusion_scale}.")
         x = self.sub_conv(x)
         d, h, w = x.spatial_shape
         down_scale = self.down_scale
@@ -378,7 +379,7 @@ class PatchMerging3D(nn.Module):
 
         merge_indices = pos[:, 0].int() * scale_xyz + pos[:, 3] * scale_yz + pos[:, 2] * scale_z + pos[:, 1]
         new_sparse_shape = [math.ceil(x.spatial_shape[i] / down_scale[2 - i]) for i in range(3)]
-        unq_indices, unq_inv = torch.unique(merge_indices, return_inverse=True, return_counts=False, dim=0)
+        unq_indices, unq_inv = torch.unique(merge_indices, return_inverse=True)
         x_merge = scatter_add(final_diffusion_feats, unq_inv, dim=0)
 
         unq_indices = unq_indices.int()
@@ -599,7 +600,12 @@ class LION3DBackbone(nn.Module):
         expand: int = 2,
     ) -> None:
         super().__init__()
-        assert num_layers == len(depths) == len(layer_down_scales) == len(window_shape) == len(group_size)
+        if not (num_layers == len(depths) == len(layer_down_scales) == len(window_shape) == len(group_size)):
+            raise ValueError(
+                f"`depths`, `layer_down_scales`, `window_shape` and `group_size` must all have length"
+                f" `num_layers` ({num_layers}), got {len(depths)}, {len(layer_down_scales)},"
+                f" {len(window_shape)} and {len(group_size)}."
+            )
         self.sparse_shape = list(grid_size[::-1])
         layer_dim = [channels] * num_layers
         block_kwargs: Dict[str, Any] = dict(d_state=d_state, d_conv=d_conv, expand=expand)
@@ -1096,7 +1102,8 @@ class TransFusionHead(nn.Module):
 
         Multiplies the sigmoid query scores by the gathered dense-heatmap score, recovers oriented
         boxes, rescores each by predicted IoU (`iou_rectifier`), and filters by the post-center range.
-        The full candidate set is returned; the evaluation pipeline applies the per-task circular NMS
+        The predicted BEV velocity $(v_x, v_y)$ of each kept box is returned under `velocity`. The full
+        candidate set is returned; the evaluation pipeline applies the per-task circular NMS
         (on the `local_max_classes`, e.g. the nuScenes pedestrian / traffic-cone) via the
         `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
 
@@ -1105,7 +1112,7 @@ class TransFusionHead(nn.Module):
 
         Returns:
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
-            (PyG layout).
+            (PyG layout), plus `"velocity"` $(K, 2)$.
         """
         batch_size = preds_dicts["heatmap"].shape[0]
         batch_score = preds_dicts["heatmap"].sigmoid()
@@ -1122,7 +1129,7 @@ class TransFusionHead(nn.Module):
             preds_dicts["vel"],
         )
 
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
+        out_boxes, out_scores, out_labels, out_batch, out_velocity = [], [], [], [], []
         for i in range(batch_size):
             boxes3d = preds[i]["pred_boxes"]
             scores = preds[i]["pred_scores"]
@@ -1134,12 +1141,14 @@ class TransFusionHead(nn.Module):
             out_scores.append(torch.pow(scores, 1 - rectifier[labels]) * torch.pow(pred_iou, rectifier[labels]))
             out_labels.append(labels.long())
             out_batch.append(torch.full((scores.shape[0],), i, dtype=torch.long, device=scores.device))
+            out_velocity.append(boxes3d[:, 7:9])
 
         return {
             "boxes": torch.cat(out_boxes),
             "scores": torch.cat(out_scores),
             "labels": torch.cat(out_labels),
             "batch": torch.cat(out_batch),
+            "velocity": torch.cat(out_velocity),
         }
 
 
@@ -1147,7 +1156,7 @@ class LIONDetection(DetectionModel):
     r"""LION: linear group RNN (Mamba) 3D object detector (packed point format).
 
     Reference: :arxiv: [Liu et al., 2024](https://arxiv.org/abs/2407.18232). Reference implementation:
-    :github: [happinesslz/LION](https://github.com/happinesslz/LION) (built on OpenPCDet).
+    :github: [happinesslz/LION](https://github.com/happinesslz/LION).
 
     Points are encoded into voxels by a dynamic mean VFE, processed by a hierarchical sparse backbone
     that serializes voxels into spatially grouped windows and runs a bidirectional Mamba operator

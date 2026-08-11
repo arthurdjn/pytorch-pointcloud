@@ -42,7 +42,7 @@ def model_clf() -> PointTransformerV3Classification:
         strides=(2, 2),
         encoder_depths=(1, 1, 1),
         encoder_channels=(16, 32, 64),
-        encoder_num_head=(2, 4, 8),
+        encoder_num_heads=(2, 4, 8),
         encoder_patch_size=(16, 16, 16),
         norm="batch_norm",
         act="gelu",
@@ -75,11 +75,11 @@ def model_seg() -> PointTransformerV3Segmentation:
         strides=(2, 2),
         encoder_depths=(1, 1, 1),
         encoder_channels=(16, 32, 64),
-        encoder_num_head=(2, 4, 8),
+        encoder_num_heads=(2, 4, 8),
         encoder_patch_size=(16, 16, 16),
         decoder_depths=(1, 1),
         decoder_channels=(32, 16),
-        decoder_num_head=(4, 2),
+        decoder_num_heads=(4, 2),
         decoder_patch_size=(16, 16),
         norm="batch_norm",
         act="gelu",
@@ -100,6 +100,25 @@ def model_seg() -> PointTransformerV3Segmentation:
         stem_type="sparse_conv",
         act_kwargs=None,
         norm_kwargs=None,
+    ).cuda()
+
+
+@pytest.fixture
+def model_seg_pdnorm() -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(
+        in_channels=6,
+        num_classes=10,
+        strides=(2, 2),
+        encoder_depths=(1, 1, 1),
+        encoder_channels=(16, 32, 64),
+        encoder_num_heads=(2, 4, 8),
+        encoder_patch_size=(16, 16, 16),
+        decoder_depths=(1, 1),
+        decoder_channels=(32, 16),
+        decoder_num_heads=(4, 2),
+        decoder_patch_size=(16, 16),
+        use_flash_attn=False,
+        pdnorm_conditions=("ScanNet", "S3DIS"),
     ).cuda()
 
 
@@ -141,3 +160,33 @@ def test_pt_v3_segmentation_forward_features_decoder_head(
     x, _, _ = model_seg.forward_decoder(x, intermediates)
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
+
+
+def test_pt_v3_segmentation_reset_classifier(
+    model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+) -> None:
+    model_seg.reset_classifier(num_classes=42)
+    model_seg.cuda()
+    logits = model_seg(data["x"], data["pos_grid"], data["batch"])
+    assert logits.shape == (data["pos_grid"].shape[0], 42)
+
+
+def test_pt_v3_condition_without_pdnorm_conditions_raises(
+    model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+) -> None:
+    with pytest.raises(ValueError, match="without conditional norms"):
+        model_seg(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
+
+
+def test_pt_v3_pdnorm_conditions_without_condition_raises(
+    model_seg_pdnorm: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+) -> None:
+    with pytest.raises(ValueError, match="pass `condition=`"):
+        model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"])
+
+
+def test_pt_v3_pdnorm_forward_with_condition(
+    model_seg_pdnorm: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+) -> None:
+    logits = model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
+    assert logits.shape == (data["pos_grid"].shape[0], model_seg_pdnorm.num_classes)

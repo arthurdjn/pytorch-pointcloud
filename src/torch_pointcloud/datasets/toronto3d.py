@@ -41,7 +41,7 @@ TORONTO3D_CLASSES: Tuple[Toronto3DClass, ...] = get_args(Toronto3DClass)
 TORONTO3D_IGNORE_IDX = 0  # 'Unclassified'
 
 # Local UTM offset applied to every point so coordinates are not in raw UTM range
-# (which is ~6.27e5, 4.84e6 for southern Ontario). Matches Open3D-ML's `Toronto3D.UTM_OFFSET`.
+# (which is ~6.27e5, 4.84e6 for southern Ontario), matching the published checkpoints' convention.
 TORONTO3D_UTM_OFFSET = (627285.0, 4841948.0, 0.0)
 
 Toronto3DSplit = Literal["train", "val", "test", "trainval", "all"]
@@ -174,6 +174,19 @@ class Toronto3D(PointCloudDataset):
     def raw_files_exist(self) -> bool:
         return all(p.exists() for p in self.paths)
 
+    def download(self, force: bool = False) -> None:
+        """Toronto-3D must be downloaded manually (a license must be accepted).
+
+        Args:
+            force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
+        """
+        raise RuntimeError(
+            f"{self.__class__.__name__} does not support automatic download. Download the Toronto-3D archive "
+            f"from {self.data_url!r} and place the `.ply` files under {self.raw_dir!r}."
+        )
+
     def __len__(self) -> int:
         return len(self.paths)
 
@@ -181,7 +194,7 @@ class Toronto3D(PointCloudDataset):
     def __getitem__(self, index: int) -> Dict[str, Any]:
         path = self.paths[index]
         data: Dict[str, Any] = load_toronto3d_data(path, utm_offset=self.utm_offset)
-        data["name"] = path.stem
+        data[DataKeys.NAME] = path.stem
         if self.transform is not None:
             data = self.transform(data)
         return data

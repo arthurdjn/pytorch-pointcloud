@@ -163,7 +163,7 @@ class SECONDDetection(DetectionModel):
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
-        # spconv spatial shape is (z, y, x) with an extra +1 on z (matches OpenPCDet).
+        # spconv spatial shape is (z, y, x) with an extra +1 on z (matches the reference implementation).
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
 
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)

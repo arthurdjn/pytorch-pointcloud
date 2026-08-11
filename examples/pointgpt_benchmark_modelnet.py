@@ -4,18 +4,21 @@
 patchifies the cloud (FPS centers + kNN groups), Morton-sorts the patches, and runs the GPT extractor as
 the classification backbone.
 
-Results vs reference (ModelNet40 overall accuracy, single-pass; the paper uses multi-crop voting):
+Results vs reference (ModelNet40 overall accuracy):
 
-    | Variant                            | paper | torch-pointcloud |
-    | ---------------------------------- | ----- | ---------------- |
-    | pointgpt-s.modelnet40.guangyan-chen    | 94.0  | 93.31            |
-    | pointgpt-b.modelnet40.guangyan-chen    | 94.4  | 94.37            |
-    | pointgpt-l.modelnet40.guangyan-chen    | 94.7  | 93.88            |
-    | pointgpt-s.modelnet40-8k.guangyan-chen | 94.2  | 93.76            |
+    | Variant                                | paper (vote-best) | torch-pointcloud (single-pass) |
+    | -------------------------------------- | ----------------- | ------------------------------ |
+    | pointgpt-s.modelnet40.guangyan-chen    | 94.0              | 93.31                          |
+    | pointgpt-b.modelnet40.guangyan-chen    | 94.4              | 94.37                          |
+    | pointgpt-l.modelnet40.guangyan-chen    | 94.7              | 93.88                          |
+    | pointgpt-s.modelnet40-8k.guangyan-chen | 94.2              | 93.76                          |
 
-The S/L gap (~0.7) is the FPS-tokenizer residual (reference CUDA FPS vs torch_cluster FPS resample a
-different subset) plus the paper's voting; B matches to 0.03 and the logits are bit-exact, so this is
-sampling variance, not an architecture difference.
+The columns are not protocol-comparable: the paper numbers are the vote-best protocol (best of
+multi-crop voting), ours are single-pass. A reference-env single-pass measurement (the reference
+repo's eval with voting disabled) is pending. The S/L gap (~0.7) is the FPS-tokenizer residual
+(reference CUDA FPS vs torch_cluster FPS resample a different subset) plus the paper's voting; B
+matches to 0.03 and the logits are bit-exact, so this is sampling variance, not an architecture
+difference.
 
 Usage:
     uv run --no-sync python examples/pointgpt_benchmark_modelnet.py --model pointgpt-b.modelnet40.guangyan-chen
@@ -30,13 +33,12 @@ from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import torch_pointcloud.models.pointgpt  # noqa: F401
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -60,6 +62,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Loading model {args.model!r}!")
     model, model_info = create_model(
@@ -76,7 +79,7 @@ def main() -> None:
     test_dataset = ModelNetNormalResampled(
         root=args.root,
         variant="40",
-        train=False,
+        split="test",
         download=args.download,
         transform=transform,
     )

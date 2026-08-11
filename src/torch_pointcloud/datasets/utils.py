@@ -1,10 +1,11 @@
 import hashlib
+import json
 import shutil
 import tarfile
 import zipfile
 from pathlib import Path
-from ssl import SSLContext
-from typing import Callable, Dict, Literal, Optional, Union
+from ssl import SSLContext, create_default_context
+from typing import Any, Callable, Dict, Literal, Optional, Union
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -49,7 +50,7 @@ def urlsize(
     capath: Optional[str] = None,
     cadefault: bool = False,
     context: Optional[SSLContext] = None,
-) -> int:
+) -> Optional[int]:
     """Get the size of a URL.
 
     Args:
@@ -58,18 +59,22 @@ def urlsize(
         cafile: Optional path to a CA file.
         capath: Optional path to a directory with CA certificates.
         cadefault: Whether to use the default CA store.
-        context: Optional `SSLContext` for the request.
+        context: Optional `SSLContext` for the request. Built from `cafile` / `capath` / `cadefault`
+            when not provided.
 
     Returns:
-        The size of the URL in bytes.
+        The size of the URL in bytes, or `None` if the response has no `content-length` header.
 
     Examples:
         >>> urlsize("https://example.com/file.zip")  # doctest: +SKIP
         1024
     """
+    if context is None and (cafile or capath or cadefault):
+        context = create_default_context(cafile=cafile, capath=capath)
     req = Request(url, method="HEAD")
-    with urlopen(req, timeout=timeout, cafile=cafile, capath=capath, cadefault=cadefault, context=context) as f:
-        return int(f.headers.get("content-length", 0))
+    with urlopen(req, timeout=timeout, context=context) as f:
+        size = f.headers.get("content-length")
+        return int(size) if size is not None else None
 
 
 def download_url(
@@ -91,8 +96,8 @@ def download_url(
         show_progress: Whether to display a progress bar.
         overwrite: Whether to overwrite the file if it already exists. If `True`, the local file will be overwritten
             even if it already exists. If `'incomplete'`, the local file will be overwritten if it already exists and its
-            size does not match the expected size. If `False`, the local file will not be overwritten if it already
-            exists.
+            size does not match the expected size (when the remote size is unknown, the local file is kept). If `False`,
+            the local file will not be overwritten if it already exists.
 
     Returns:
         The local path to the downloaded file.
@@ -108,8 +113,10 @@ def download_url(
 
     if file_path.exists() and not overwrite:
         return file_path.as_posix()
-    if file_path.exists() and overwrite == "incomplete" and file_path.stat().st_size == urlsize(url):
-        return file_path.as_posix()
+    if file_path.exists() and overwrite == "incomplete":
+        expected_size = urlsize(url)
+        if expected_size is None or file_path.stat().st_size == expected_size:
+            return file_path.as_posix()
 
     part_path = file_path.with_name(file_path.name + ".part")
     with urlopen(Request(url, headers={"User-Agent": USER_AGENT})) as response:
@@ -237,6 +244,31 @@ def compute_hash(file_path: PathLike, hash_type: HashType = "md5") -> str:
             file_hash.update(chunk)
 
     return str(file_hash.hexdigest())
+
+
+def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
+    """Validate a processed cache against the parameters it was built with.
+
+    Compares the JSON metadata stored next to a processed cache with the metadata the current
+    constructor parameters would produce, and raises a `RuntimeError` on mismatch so a stale cache
+    is never silently served. A missing metadata file (legacy cache) is accepted as-is.
+
+    Args:
+        meta_path: Path to the cache `meta.json` file.
+        meta: The metadata the requested parameters would produce.
+
+    Examples:
+        >>> check_cache_meta("data/ModelNet10/processed/train.meta.json", {"classes": ["chair"]})  # doctest: +SKIP
+    """
+    meta_path = Path(meta_path)
+    if not meta_path.exists():
+        return
+    cached_meta = json.loads(meta_path.read_text())
+    if cached_meta != meta:
+        raise RuntimeError(
+            f"Processed cache at {meta_path.parent.as_posix()!r} was created with different parameters "
+            f"(cached: {cached_meta}, requested: {meta}). Pass force_process=True to regenerate it."
+        )
 
 
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py

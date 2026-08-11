@@ -1,7 +1,7 @@
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TypedDict
 
 import numpy as np
 import torch
@@ -303,7 +303,7 @@ class KITTI(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: str = "training",
+        split: Literal["training", "testing"] = "training",
         split_file: Optional[PathLike] = None,
         fov: bool = True,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -314,6 +314,9 @@ class KITTI(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
+        if split not in ["training", "testing"]:
+            raise ValueError(f"Invalid split {split!r}, expected one of 'training' or 'testing'.")
+
         self.split = split
         self.split_file = split_file
         self.fov = fov
@@ -384,10 +387,12 @@ class KITTI(PointCloudDataset):
         return True
 
     def download(self, force: bool = False) -> None:
-        r"""Raise: KITTI must be downloaded manually after accepting its license.
+        """KITTI must be downloaded manually after accepting its license.
 
         Args:
             force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
         """
         raise RuntimeError(
             f"{self.__class__.__name__} does not support automatic download. Register and download the KITTI 3D object "

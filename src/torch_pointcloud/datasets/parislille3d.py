@@ -3,7 +3,7 @@
 :arxiv: [Paris-Lille-3D: A Point Cloud Dataset for Urban Scene Segmentation and Classification](https://arxiv.org/abs/1712.00032)
 by Roynard, Deschaud and Goulette (2018).
 
-The 10-class benchmark used by the Open3D-ML model zoo splits the data into:
+The 10-class benchmark splits the data into:
 
 - train: `Lille1_1.ply`, `Lille1_2.ply`, `Paris.ply`
 - val / held-out: `Lille2.ply`
@@ -46,7 +46,7 @@ PARISLILLE3D_IGNORE_IDX = 0  # 'unclassified'
 
 ParisLille3DSplit = Literal["train", "val", "trainval", "all"]
 
-# Default file groupings for the 10-class benchmark, matching Open3D-ML.
+# Default file groupings for the 10-class benchmark.
 _FILES_PER_SPLIT: Dict[str, Tuple[str, ...]] = {
     "train": ("Lille1_1.ply", "Lille1_2.ply", "Paris.ply"),
     "val": ("Lille2.ply",),
@@ -112,6 +112,8 @@ class ParisLille3D(PointCloudDataset):
         layout is `<root>/ParisLille3D/raw/<Lille1_1, Lille1_2, Lille2, Paris>.ply`.
     """
 
+    data_url: str = "https://npm3d.fr/paris-lille-3d"
+
     def __init__(
         self,
         root: PathLike,
@@ -137,12 +139,25 @@ class ParisLille3D(PointCloudDataset):
             if not p.exists():
                 raise FileNotFoundError(
                     f"Dataset not found: expected Paris-Lille-3D scan at {p.as_posix()}; "
-                    f"download from https://npm3d.fr/paris-lille-3d and place under {self.raw_dir!r}."
+                    f"download from {self.data_url} and place under {self.raw_dir!r}."
                 )
 
     @override
     def raw_files_exist(self) -> bool:
         return all(p.exists() for p in self.paths)
+
+    def download(self, force: bool = False) -> None:
+        """Paris-Lille-3D must be downloaded manually (a license must be accepted).
+
+        Args:
+            force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
+        """
+        raise RuntimeError(
+            f"{self.__class__.__name__} does not support automatic download. Download the Paris-Lille-3D scans "
+            f"from {self.data_url!r} and place the `.ply` files under {self.raw_dir!r}."
+        )
 
     def __len__(self) -> int:
         return len(self.paths)
@@ -151,7 +166,7 @@ class ParisLille3D(PointCloudDataset):
     def __getitem__(self, index: int) -> Dict[str, Any]:
         path = self.paths[index]
         data: Dict[str, Any] = load_parislille3d_data(path)
-        data["name"] = path.stem
+        data[DataKeys.NAME] = path.stem
         if self.transform is not None:
             data = self.transform(data)
         return data

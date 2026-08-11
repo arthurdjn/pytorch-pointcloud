@@ -141,7 +141,7 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
             create_act(act, **(act_kwargs or {})),
         )
         # The reference `shared_conv` (and the whole head) use a plain `nn.BatchNorm1d` (default
-        # eps 1e-5), unlike the 3D conv stages whose norm carries the OpenPCDet eps 1e-3 override.
+        # eps 1e-5), unlike the 3D conv stages whose norm carries the reference eps 1e-3 override.
         self.shared_conv = spconv.SparseSequential(
             spconv.SubMConv2d(out_channels, out_channels, 3, stride=1, padding=1, bias=True),
             create_norm(norm, out_channels, dim=1),
@@ -367,8 +367,9 @@ class VoxelNeXtHead(nn.Module):
             out_batch.append(torch.full((k,), b, dtype=torch.long, device=hm.device))
 
         if not out_boxes:
+            # spconv voxel indices are int32; labels and batch must stay int64 like the non-empty path.
             empty = boxes.new_zeros((0, boxes.shape[1]))
-            return empty, hm.new_zeros(0), batch_idx.new_zeros(0), batch_idx.new_zeros(0)
+            return empty, hm.new_zeros(0), global_classes.new_zeros(0), global_classes.new_zeros(0)
         return torch.cat(out_boxes), torch.cat(out_scores), torch.cat(out_labels), torch.cat(out_batch)
 
     @torch.no_grad()
@@ -376,9 +377,9 @@ class VoxelNeXtHead(nn.Module):
         r"""Decode raw sparse head outputs into raw candidate detections (no score threshold or NMS).
 
         Selects the top-$K$ scoring voxels per group and scene and recovers an oriented box, score and
-        label per candidate. The full candidate set is returned; the evaluation pipeline applies score
-        thresholding and per-class 3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the
-        benchmark example).
+        label per candidate, along with the predicted BEV velocity $(v_x, v_y)$ under `velocity`. The
+        full candidate set is returned; the evaluation pipeline applies score thresholding and per-class
+        3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
 
         Args:
             out: A `VoxelNeXtHeadOutput` from `forward`.
@@ -387,7 +388,7 @@ class VoxelNeXtHead(nn.Module):
 
         Returns:
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
-            (PyG layout).
+            (PyG layout), plus `"velocity"` $(K, 2)$.
         """
         all_boxes, all_scores, all_labels, all_batch = [], [], [], []
         for group_idx in range(len(self.heads_list)):
@@ -397,11 +398,13 @@ class VoxelNeXtHead(nn.Module):
             all_labels.append(labels)
             all_batch.append(batch)
 
+        boxes_all = torch.cat(all_boxes)
         return {
-            "boxes": torch.cat(all_boxes)[:, :7],
+            "boxes": boxes_all[:, :7],
             "scores": torch.cat(all_scores),
             "labels": torch.cat(all_labels),
             "batch": torch.cat(all_batch),
+            "velocity": boxes_all[:, 7:9],
         }
 
 
@@ -461,7 +464,7 @@ class VoxelNeXtDetection(DetectionModel):
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
-        # spconv spatial shape is (z, y, x) with an extra +1 on z (matches OpenPCDet `grid[::-1] + [1, 0, 0]`).
+        # spconv spatial shape is (z, y, x) with an extra +1 on z (matches the reference `grid[::-1] + [1, 0, 0]`).
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
 
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)

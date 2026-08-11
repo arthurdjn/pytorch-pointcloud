@@ -205,3 +205,9 @@ def test_kitti_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> N
     dataset = KITTI(root=datasets_dir, split="training", transform=transform, fov=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
+
+
+def test_kitti_dataset_invalid_split() -> None:
+    """A split typo raises a ValueError instead of a misleading manual-download hint."""
+    with pytest.raises(ValueError, match="Invalid split"):
+        _ = KITTI(root="not-found", split="train")

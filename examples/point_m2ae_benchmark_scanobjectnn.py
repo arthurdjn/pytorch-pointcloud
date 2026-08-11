@@ -23,13 +23,12 @@ from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import torch_pointcloud.models.point_m2ae  # noqa: F401
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanObjectNN
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -45,12 +44,12 @@ MODEL_CHOICES = [
 
 DATASET_CONFIG = {
     "point-m2ae-base.scanobjectnn-objbg.renrui-zhang": dict(
-        split="main",
+        partition="main",
         background=True,
         variant=None,
     ),
     "point-m2ae-base.scanobjectnn-hardest.renrui-zhang": dict(
-        split="main",
+        partition="main",
         background=True,
         variant="augmentedrot_scale75",
     ),
@@ -62,6 +61,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Loading model {args.model!r}!")
     model, model_info = create_model(
@@ -78,8 +78,8 @@ def main() -> None:
     print(f"Loading ScanObjectNN test dataset (bg={ds_cfg['background']}, variant={ds_cfg['variant']})!")
     test_dataset = ScanObjectNN(
         root=args.root,
-        train=False,
-        split=ds_cfg["split"],  # type: ignore[arg-type]
+        split="test",
+        partition=ds_cfg["partition"],  # type: ignore[arg-type]
         background=ds_cfg["background"],  # type: ignore[arg-type]
         variant=ds_cfg["variant"],  # type: ignore[arg-type]
         download=args.download,

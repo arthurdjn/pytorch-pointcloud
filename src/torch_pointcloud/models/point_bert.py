@@ -22,6 +22,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.layers import Conv2dBlock, PointPatchEmbed, TransformerBlock, create_act, create_norm
 from torch_pointcloud.utils.cluster import group, knn
 from torch_pointcloud.utils.conversion import ensure_list
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -58,7 +59,7 @@ class PointBERTEncoder(nn.Module):
         token_local_channels: Hidden widths of the tokenizer's per-point MLP.
         token_global_channels: Hidden widths of the tokenizer's per-patch MLP.
         pos_embed_channels: Hidden widths of the positional-embedding MLP.
-        drop_path_rate: The stochastic depth rate (identity at eval).
+        drop_path: The stochastic depth rate (identity at eval).
         spatial_dim: The number of spatial dimensions of the coordinates.
         act: The activation used in the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
@@ -98,7 +99,7 @@ class PointBERTEncoder(nn.Module):
         token_local_channels: Sequence[int] = (128, 256),
         token_global_channels: Sequence[int] = (512,),
         pos_embed_channels: Sequence[int] = (128,),
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -133,7 +134,7 @@ class PointBERTEncoder(nn.Module):
         self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
@@ -214,7 +215,7 @@ class PointBERTClassification(ClassificationModel):
         token_local_channels: Hidden widths of the tokenizer's per-point MLP.
         token_global_channels: Hidden widths of the tokenizer's per-patch MLP.
         pos_embed_channels: Hidden widths of the positional-embedding MLP.
-        drop_path_rate: The stochastic depth rate (identity at eval).
+        drop_path: The stochastic depth rate (identity at eval).
         spatial_dim: The number of spatial dimensions of the coordinates.
         act: The activation used in the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
@@ -255,7 +256,7 @@ class PointBERTClassification(ClassificationModel):
         token_local_channels: Sequence[int] = (128, 256),
         token_global_channels: Sequence[int] = (512,),
         pos_embed_channels: Sequence[int] = (128,),
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -275,7 +276,7 @@ class PointBERTClassification(ClassificationModel):
         self.token_local_channels = token_local_channels
         self.token_global_channels = token_global_channels
         self.pos_embed_channels = pos_embed_channels
-        self.drop_path_rate = drop_path_rate
+        self.drop_path = drop_path
         self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
@@ -300,7 +301,7 @@ class PointBERTClassification(ClassificationModel):
             token_local_channels=self.token_local_channels,
             token_global_channels=self.token_global_channels,
             pos_embed_channels=self.pos_embed_channels,
-            drop_path_rate=self.drop_path_rate,
+            drop_path=self.drop_path,
             spatial_dim=self.spatial_dim,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -382,7 +383,7 @@ class PointBERTMaskedTransformer(BaseModel):
         num_tokens: The dVAE vocabulary size predicted by `lm_head`.
         cls_dim: The contrastive head output dimension.
         mask_ratio: Lower / upper bounds of the block-masking ratio.
-        drop_path_rate: The stochastic depth rate (identity at eval).
+        drop_path: The stochastic depth rate (identity at eval).
         spatial_dim: The number of spatial dimensions of the coordinates.
         act: The activation used in the transformer MLPs and the contrastive head.
         act_kwargs: Keyword arguments for the activation.
@@ -426,7 +427,7 @@ class PointBERTMaskedTransformer(BaseModel):
         num_tokens: int = 8192,
         cls_dim: int = 512,
         mask_ratio: Tuple[float, float] = (0.25, 0.45),
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -447,7 +448,7 @@ class PointBERTMaskedTransformer(BaseModel):
         self.num_tokens = num_tokens
         self.cls_dim = cls_dim
         self.mask_ratio = mask_ratio
-        self.drop_path_rate = drop_path_rate
+        self.drop_path = drop_path
 
         self.encoder = PointPatchEmbed(
             embed_dim=encoder_dims,
@@ -466,7 +467,7 @@ class PointBERTMaskedTransformer(BaseModel):
         self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
@@ -844,14 +845,14 @@ class PointBERTDiscreteVAE(BaseModel):
 def _modelnet_transforms(num_samples: int) -> Callable:
     return T.Compose(
         [
-            T.Rescale(keys="pos", method="centroid"),
-            T.FarthestPointSample(pos_key="pos", num_samples=num_samples, random_start=False),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=num_samples, random_start=False),
         ]
     )
 
 
 def _scanobjectnn_transforms() -> Callable:
-    return T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=1024, random_start=False)])
+    return T.Compose([T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False)])
 
 
 _CLS_HPARAMS = dict(
@@ -865,7 +866,7 @@ _CLS_HPARAMS = dict(
     token_local_channels=(128, 256),
     token_global_channels=(512,),
     pos_embed_channels=(128,),
-    drop_path_rate=0.1,
+    drop_path=0.1,
     spatial_dim=3,
     act="gelu",
     act_kwargs=None,
@@ -1001,7 +1002,7 @@ def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassificati
         num_tokens=8192,
         cls_dim=512,
         mask_ratio=(0.25, 0.45),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         spatial_dim=3,
         act="gelu",
         act_kwargs=None,

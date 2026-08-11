@@ -1,18 +1,19 @@
 #!/bin/bash
+set -euo pipefail
 
 # DGCNN Classification
 uv run --no-sync python examples/dgcnn_classification.py \
     --limit-train-batches 5 \
     --limit-test-batches 5 \
     --epochs 1 \
-    --model dgcnn-base \
+    --model dgcnn.modelnet40-1024.an-tao \
     --dataset modelnet10
 
 uv run --no-sync python examples/dgcnn_classification.py \
     --limit-train-batches 5 \
     --limit-test-batches 5 \
     --epochs 1 \
-    --model dgcnn-base \
+    --model dgcnn.modelnet40-2048.an-tao \
     --dataset modelnet40
 
 # DGCNN Segmentation
@@ -20,14 +21,14 @@ uv run --no-sync python examples/dgcnn_segmentation.py \
     --limit-train-batches 5 \
     --limit-test-batches 5 \
     --epochs 1 \
-    --model dgcnn-base \
+    --model dgcnn.s3dis-area5.an-tao \
     --dataset shapenetpart
 
 uv run --no-sync python examples/dgcnn_segmentation.py \
     --limit-train-batches 5 \
     --limit-test-batches 5 \
     --epochs 1 \
-    --model dgcnn-base \
+    --model dgcnn.s3dis-area5.an-tao \
     --dataset s3dis
 
 # DGCNN Benchmark

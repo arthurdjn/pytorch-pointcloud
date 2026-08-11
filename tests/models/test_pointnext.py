@@ -4,6 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.models import list_models
 from torch_pointcloud.models.pointnext import (
     PointNeXtClassification,
     PointNeXtDecoder,
@@ -44,7 +45,7 @@ def model_clf() -> PointNeXtClassification:
         stem_channels=32,
         encoder_channels=[32, 64, 128],
         encoder_depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
     )
@@ -60,7 +61,7 @@ def model_seg() -> PointNeXtSegmentation:
         encoder_depths=[2, 2, 2],
         decoder_channels=[128, 64, 32],
         decoder_depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
     )
@@ -73,7 +74,6 @@ def test_pointnext_encoder_block_basic(data: Dict[str, Tensor]) -> None:
         channels=6,
         depth=2,
         expansion=4,
-        ratio=0.5,
         radius=0.1,
         num_neighbors=16,
     )
@@ -91,7 +91,7 @@ def test_pointnext_encoder_basic(data: Dict[str, Tensor]) -> None:
     encoder = PointNeXtEncoder(
         channels=[6, 32, 64, 128],
         depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
     )
@@ -108,7 +108,7 @@ def test_pointnext_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
     encoder = PointNeXtEncoder(
         channels=[6, 32, 64, 128],
         depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
     )
@@ -133,7 +133,7 @@ def test_pointnext_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
     encoder = PointNeXtEncoder(
         channels=[6, 32, 64, 128],
         depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
     )
@@ -182,7 +182,7 @@ def model_partseg() -> PointNeXtPartSegmentation:
         decoder_channels=[128, 64, 32],
         decoder_depths=[2, 2, 2],
         decoder_plain_last=True,
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
         add_self_loops=False,
@@ -229,7 +229,7 @@ def test_pointnext_segmentation_single_dropout_with_mlp_head() -> None:
         encoder_depths=[2, 2, 2],
         decoder_channels=[128, 64, 32],
         decoder_depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
         head_channels=[16],
@@ -247,7 +247,7 @@ def test_pointnext_segmentation_single_dropout_with_mlp_head() -> None:
         encoder_depths=[2, 2, 2],
         decoder_channels=[128, 64, 32],
         decoder_depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
         dropout=0.9,
@@ -270,7 +270,7 @@ def test_pointnext_part_segmentation_single_dropout_with_mlp_head(
         sa_layers=1,
         decoder_channels=[128, 64, 32],
         decoder_depths=[2, 2, 2],
-        ratios=[0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5],
         radiuses=[0.1, 0.2, 0.4, 0.8],
         num_neighbors=[16, 16, 16, 16],
         head_channels=[16],
@@ -290,3 +290,45 @@ def test_pointnext_part_segmentation_single_dropout_with_mlp_head(
     model(data["features"], data["pos"], data["batch"], partseg_category)
     assert widths
     assert all(width != model.embedding_dim for width in widths)
+
+
+def test_pointnext_classification_num_classes_zero_returns_features(data: Dict[str, Tensor]) -> None:
+    model = PointNeXtClassification(
+        in_channels=6,
+        num_classes=0,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+    )
+    assert isinstance(model.head, torch.nn.Identity)
+    out = model(data["features"], data["pos"], data["batch"])
+    assert out.shape == (int(data["batch"].max()) + 1, model.embedding_dim)
+
+
+def test_pointnext_segmentation_reset_classifier_keeps_head_channels() -> None:
+    model = PointNeXtSegmentation(
+        in_channels=6,
+        num_classes=10,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+    )
+    model.reset_classifier(num_classes=7)
+    assert model.head.channel_list == [model.embedding_dim, 16, 7]
+
+
+def test_pointnext_xl_s3dis_area6_registered_without_weights() -> None:
+    pretrained = list_models("pointnext-xl.s3dis*", task="segmentation", pretrained=True)
+    assert "pointnext-xl.s3dis-area6.openpoints" not in pretrained
+    assert "pointnext-xl.s3dis-area5.openpoints" in pretrained
+    assert "pointnext-xl.s3dis-area6.openpoints" in list_models("pointnext-xl*", task="segmentation")

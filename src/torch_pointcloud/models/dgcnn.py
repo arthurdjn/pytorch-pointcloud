@@ -47,6 +47,7 @@ class DGCNNEncoderBlock(nn.Module):
             plain_last=False,
             act=act,
             act_kwargs=act_kwargs,
+            act_first=act_first,
             norm=norm,
             norm_kwargs=norm_kwargs,
             bias=bias,
@@ -402,7 +403,16 @@ class DGCNNSegmentation(SegmentationModel):
             bias=self.bias,
         )
 
-        self.head = MLP(
+        self.head = self.configure_head()
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.encoder.out_channels + self.proj_channels
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return MLP(
             [self.embedding_dim] + self.head_channels + [self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -414,24 +424,9 @@ class DGCNNSegmentation(SegmentationModel):
             plain_last=True,
         )
 
-    @property
-    def embedding_dim(self) -> int:
-        return self.encoder.out_channels + self.proj_channels
-
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        kwargs.setdefault("act", self.act)
-        kwargs.setdefault("act_kwargs", self.act_kwargs)
-        kwargs.setdefault("act_first", self.act_first)
-        kwargs.setdefault("norm", self.norm)
-        kwargs.setdefault("norm_kwargs", self.norm_kwargs)
-        kwargs.setdefault("bias", self.bias)
-        kwargs.setdefault("dropout", self.dropout)
-        self.head = MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
-            plain_last=True,
-            **kwargs,
-        )
+        self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         if self.stnet is not None:
@@ -577,7 +572,16 @@ class DGCNNPartSegmentation(SegmentationModel):
             bias=self.bias,
         )
 
-        self.head = MLP(
+        self.head = self.configure_head()
+
+    @property
+    def embedding_dim(self) -> int:
+        return self.encoder.out_channels + self.proj_channels + self.cat_embed_channels
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return MLP(
             [self.embedding_dim] + self.head_channels + [self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -589,24 +593,9 @@ class DGCNNPartSegmentation(SegmentationModel):
             plain_last=True,
         )
 
-    @property
-    def embedding_dim(self) -> int:
-        return self.encoder.out_channels + self.proj_channels + self.cat_embed_channels
-
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        kwargs.setdefault("act", self.act)
-        kwargs.setdefault("act_kwargs", self.act_kwargs)
-        kwargs.setdefault("act_first", self.act_first)
-        kwargs.setdefault("norm", self.norm)
-        kwargs.setdefault("norm_kwargs", self.norm_kwargs)
-        kwargs.setdefault("bias", self.bias)
-        kwargs.setdefault("dropout", self.dropout)
-        self.head = MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
-            plain_last=True,
-            **kwargs,
-        )
+        self.head = self.configure_head()
 
     def forward_features(
         self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor
@@ -843,10 +832,10 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             # scene_max (whole-scene extent) and block_center (block window center) are attached per block by
             # tile_scannet_scene; recomputing them here would normalize by the block instead of the scene.
-            T.CopyItems(keys=DataKeys.POS, names="norm_pos"),
-            T.DivideKey(keys="norm_pos", div_keys="scene_max"),
-            T.SubtractKey(keys=DataKeys.POS, sub_keys="block_center"),
-            T.Cat(keys=["norm_pos", DataKeys.COLOR], dst_key=DataKeys.X),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.NORM_POS),
+            T.DivideKey(keys=DataKeys.NORM_POS, div_keys=DataKeys.SCENE_MAX),
+            T.SubtractKey(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER),
+            T.Cat(keys=[DataKeys.NORM_POS, DataKeys.COLOR], dst_key=DataKeys.X),
         ]
     ),
 )

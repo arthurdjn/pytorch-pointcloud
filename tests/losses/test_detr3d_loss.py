@@ -57,7 +57,7 @@ def _batch(centers: Tensor, sizes: Tensor, headings: Tensor, labels: Tensor) -> 
     boxes = torch.cat([centers, sizes, headings.unsqueeze(-1)], dim=-1)
     return {
         DataKeys.BOX: boxes,
-        DataKeys.CLASS: labels,
+        DataKeys.LABEL: labels,
         DataKeys.BATCH_BOX: torch.zeros(centers.shape[0], dtype=torch.long),
     }
 
@@ -72,9 +72,16 @@ _SIZES = torch.tensor([[1.0, 1.5, 2.0], [2.0, 1.0, 1.0]])
 _LABELS = torch.tensor([0, 2])
 
 
+def test_detr3d_loss_giou_weight_defaults_to_zero() -> None:
+    """The reference recipe trains with the GIoU term disabled; the GIoU still drives the matcher cost."""
+    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
+    assert loss_fn.loss_giou_weight == 0.0
+    assert loss_fn.matcher_giou_cost == 2.0
+
+
 def test_detr3d_loss_perfect_axis_aligned_predictions_near_zero() -> None:
     angles = torch.zeros(2)
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
+    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_angle_bin=1)
     out = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -angles, _LABELS))
     for key in ("loss_center", "loss_size", "loss_giou", "loss_angle_cls", "loss_angle_reg"):
@@ -86,7 +93,7 @@ def test_detr3d_loss_perfect_axis_aligned_predictions_near_zero() -> None:
 
 def test_detr3d_loss_perturbed_predictions_are_larger() -> None:
     angles = torch.zeros(2)
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
+    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_angle_bin=1)
     batch = _batch(_CENTERS, _SIZES, -angles, _LABELS)
     perfect = loss_fn(_output(layer), batch)
@@ -114,7 +121,7 @@ def test_detr3d_loss_ccw_gt_matches_native_heading_predictions() -> None:
 
 
 def test_detr3d_loss_densified_targets_follow_box_contract() -> None:
-    """Densify negates the CCW heading, keeps full extents, and reads classes from `DataKeys.CLASS`."""
+    """Densify negates the CCW heading, keeps full extents, and reads classes from `DataKeys.LABEL`."""
     headings = torch.tensor([0.4, -1.2])
     loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
     dims = (torch.zeros(1, 3), torch.full((1, 3), _SCENE))

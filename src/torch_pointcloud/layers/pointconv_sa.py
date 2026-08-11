@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -6,25 +6,33 @@ from torch import Tensor
 from torch_geometric.nn import MLP, global_max_pool
 from torch_geometric.typing import OptTensor
 
+from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.neighbors import gaussian_kernel_density
 
 from .linear_blocks import LinearBlock
 from .pointconv import PointConv, PointConvDensity
 from .pools import PoolLike, create_pool
 
-if TYPE_CHECKING:
-    from torch_cluster import knn
-
-
-knn, _ = optional_import("torch_cluster", "knn", url=_TORCH_CLUSTER_GITHUB_URL)
-
 # ! IMPORTANT: In original PointConv, the density net has a sigmoid activation function in the last layer,
 # ! but is never called due to a bug in the code. For reproducibility, this behavior is replicated here.
 
 
 class PointConvSetAbstraction(nn.Module):
+    r"""PointConv set-abstraction block: optional downsampling, $k$-NN grouping, and a
+    weight-net continuous convolution.
+
+    Args:
+        in_channels: Number of input feature channels.
+        num_neighbors: Number of neighbors gathered per output point.
+        channels: Per-layer channel sizes of the feature MLP.
+        weight_channels: Hidden channel sizes of the weight net applied to relative positions.
+        expansion: Channel expansion factor of the final matrix multiplication.
+        spatial_dim: Dimension of point coordinates.
+        downsample: Optional module returning the sampled indices (e.g. `FPS`). If `None`, the
+            resolution is unchanged.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -75,6 +83,24 @@ class PointConvSetAbstraction(nn.Module):
 
 
 class PointConvDensitySetAbstraction(nn.Module):
+    r"""PointConv set-abstraction block with inverse-density re-weighting.
+
+    Same layout as `PointConvSetAbstraction`, with a Gaussian kernel density estimated per point;
+    the inverse density is transformed by a density net and re-weights the grouped features.
+
+    Args:
+        in_channels: Number of input feature channels.
+        num_neighbors: Number of neighbors gathered per output point.
+        channels: Per-layer channel sizes of the feature MLP.
+        bandwidth: Bandwidth of the Gaussian kernel density estimate.
+        weight_channels: Hidden channel sizes of the weight net applied to relative positions.
+        density_channels: Hidden channel sizes of the density net.
+        expansion: Channel expansion factor of the final matrix multiplication.
+        spatial_dim: Dimension of point coordinates.
+        downsample: Optional module returning the sampled indices (e.g. `FPS`). If `None`, the
+            resolution is unchanged.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -138,6 +164,17 @@ class PointConvDensitySetAbstraction(nn.Module):
 
 
 class PointConvGlobalSetAbstraction(nn.Module):
+    r"""Global PointConv set-abstraction block: one weight-net convolution over each whole sample.
+
+    Args:
+        in_channels: Number of input feature channels.
+        channels: Per-layer channel sizes of the feature MLP.
+        weight_channels: Hidden channel sizes of the weight net applied to relative positions.
+        expansion: Channel expansion factor of the final matrix multiplication.
+        aggr: Pooling used to place the single output position of each sample.
+        spatial_dim: Dimension of point coordinates.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -185,6 +222,19 @@ class PointConvGlobalSetAbstraction(nn.Module):
 
 
 class PointConvDensityGlobalSetAbstraction(nn.Module):
+    r"""Global PointConv set-abstraction block with inverse-density re-weighting.
+
+    Args:
+        in_channels: Number of input feature channels.
+        channels: Per-layer channel sizes of the feature MLP.
+        bandwidth: Bandwidth of the Gaussian kernel density estimate.
+        weight_channels: Hidden channel sizes of the weight net applied to relative positions.
+        density_channels: Hidden channel sizes of the density net.
+        expansion: Channel expansion factor of the final matrix multiplication.
+        pool: Pooling used to place the single output position of each sample.
+        spatial_dim: Dimension of point coordinates.
+    """
+
     def __init__(
         self,
         in_channels: int,

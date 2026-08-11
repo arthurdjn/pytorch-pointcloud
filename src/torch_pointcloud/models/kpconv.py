@@ -9,6 +9,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
+from torch_geometric.nn.pool import voxel_grid
+from torch_geometric.nn.pool.consecutive import consecutive_cluster
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
@@ -20,7 +22,6 @@ from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
-from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
@@ -45,7 +46,7 @@ def create_kernel_points(
     if method not in ["lloyd", "gradient"]:
         raise ValueError(f"Unknown method: {method!r}, expected 'lloyd' or 'gradient'.")
     if num_points > 30 and method != "lloyd":
-        warnings.warn("Too many points, consider using Lloyds algorithm with `method='lloyd'`.")
+        warnings.warn("Too many points, consider using Lloyds algorithm with `method='lloyd'`.", stacklevel=2)
 
     # Check if kernel is already computed
     kernel_path = Path(CACHE_DIR, "kernels", f"k_{num_points}_{fixed_position}_{method}.pt")
@@ -59,6 +60,7 @@ def create_kernel_points(
                 radius=1.0,
                 num_points=num_points,
                 fixed_position=fixed_position,
+                return_grad_norms=True,
             )
 
         kernel_path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,15 +68,15 @@ def create_kernel_points(
 
     # Random rotations for the kernel
     R = torch.eye(3)
-    theta = torch.rand(1) * 2 * math.pi
+    theta = torch.rand(1).item() * 2 * math.pi
 
     if fixed_position != "vertical":
-        c, s = torch.cos(theta), torch.sin(theta)
+        c, s = math.cos(theta), math.sin(theta)
         R = torch.tensor([[c, -s, 0], [s, c, 0], [0, 0, 1]], dtype=torch.float32)
     else:
-        phi = (torch.rand(1) - 0.5) * math.pi
+        phi = (torch.rand(1).item() - 0.5) * math.pi
         # Create the first vector in cartesian coordinates
-        u = torch.tensor([torch.cos(theta) * torch.cos(phi), torch.sin(theta) * torch.cos(phi), torch.sin(phi)])
+        u = torch.tensor([math.cos(theta) * math.cos(phi), math.sin(theta) * math.cos(phi), math.sin(phi)])
         # Choose a random rotation angle
         alpha = random.random() * 2 * math.pi
         R = rodrigues_rotation_matrix(u, theta=alpha)
@@ -447,7 +449,7 @@ class GridPool(nn.Module):
     ) -> Tuple[Tensor, ...]:
         start = torch.floor(pos.min(dim=0).values / self.grid_size) * self.grid_size
         cluster = voxel_grid(pos, size=self.grid_size, batch=batch, start=start)
-        cluster, perm = consecutive_cluster(cluster, return_permutation=True)
+        cluster, perm = consecutive_cluster(cluster)
         pos = scatter(pos, cluster, dim=0, reduce="mean")
         x = scatter(x, cluster, dim=0, reduce=self.reduce)
         batch = batch[perm]
@@ -795,7 +797,12 @@ class KPFCNNClassification(ClassificationModel):
         self.embedding_dim = encoder_channels[-1]
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -810,7 +817,7 @@ class KPFCNNClassification(ClassificationModel):
         """
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -837,17 +844,27 @@ class KPFCNNClassification(ClassificationModel):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        """Forward pass of the encoder, returning pre-pooling features.
+        r"""Forward pass of the encoder, returning pre-pooling features.
 
         Args:
-            x: Point features of shape $(N, C)$. If `None`, `pos` is used as features.
+            x: Point features of shape $(N, C)$. If `None`, `pos` is used as features, which requires
+                `in_channels` to match the dimension of `pos`.
             pos: Point coordinates of shape $(N, D)$.
             batch: Batch indices for each point of shape $(N,)$.
+            return_intermediates: Whether to also return the per-stage intermediates.
 
         Returns:
-            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
+            A tuple `(x, pos, batch)` at the coarsest level, where `x` has shape
+                $(N', \text{encoder\_channels}[-1])$ and $N'$ is the number of downsampled points.
+                If `return_intermediates=True`, the per-stage intermediates are appended to the tuple.
         """
-        x = x if x is not None else pos
+        if x is None:
+            if self.in_channels != pos.size(1):
+                raise ValueError(
+                    f"Got `x=None` but the model expects in_channels={self.in_channels} features while `pos` has "
+                    f"{pos.size(1)} channels; pass `x` of shape (N, {self.in_channels})."
+                )
+            x = pos
 
         if self.stem is not None:
             if self.stem_type == "kpconv":
@@ -877,15 +894,16 @@ class KPFCNNClassification(ClassificationModel):
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        """Forward pass of the classification head from pre-pooling features.
+        r"""Forward pass of the classification head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the batch size.
-            batch: Batch indices for each point of shape $(N,)$.
+            x: Pre-pooling features of shape $(N', \text{encoder\_channels}[-1])$ where $N'$ is the
+                number of downsampled points.
+            batch: Batch indices for each downsampled point of shape $(N',)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
-            Classification logits of shape $(B, num_classes)$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x = self.global_pool(x, batch)
         if self.dropout:
@@ -896,7 +914,8 @@ class KPFCNNClassification(ClassificationModel):
         """Forward pass of the classification model.
 
         Args:
-            x: Point features of shape $(N, C)$. If `None`, `pos` is used as features.
+            x: Point features of shape $(N, C)$. If `None`, `pos` is used as features, which requires
+                `in_channels` to match the dimension of `pos`.
             pos: Point coordinates of shape $(N, D)$.
             batch: Batch indices for each point of shape $(N,)$.
 
@@ -1057,21 +1076,28 @@ class KPFCNNSegmentation(SegmentationModel):
 
         self.embedding_dim = fp_channels[-1][-1]
         self.dropout = dropout
-        if head_channels:
-            head_act = create_act(act, **(act_kwargs or {})) or nn.Identity()
-            layers: List[nn.Module] = []
-            ch_in = self.embedding_dim
-            for ch in head_channels:
-                layers.append(nn.Sequential(nn.Linear(ch_in, ch, bias=True), head_act))
-                ch_in = ch
-            layers.append(nn.Linear(ch_in, num_classes))
-            self.head: nn.Module = nn.Sequential(*layers)
-        else:
-            self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head_channels = list(head_channels) if head_channels else []
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        if not self.head_channels:
+            return nn.Linear(self.embedding_dim, self.num_classes)
+        head_act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
+        layers: List[nn.Module] = []
+        ch_in = self.embedding_dim
+        for ch in self.head_channels:
+            layers.append(nn.Sequential(nn.Linear(ch_in, ch, bias=True), head_act))
+            ch_in = ch
+        layers.append(nn.Linear(ch_in, self.num_classes))
+        return nn.Sequential(*layers)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -1098,7 +1124,13 @@ class KPFCNNSegmentation(SegmentationModel):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        x = x if x is not None else pos
+        if x is None:
+            if self.in_channels != pos.size(1):
+                raise ValueError(
+                    f"Got `x=None` but the model expects in_channels={self.in_channels} features while `pos` has "
+                    f"{pos.size(1)} channels; pass `x` of shape (N, {self.in_channels})."
+                )
+            x = pos
 
         if self.stem is not None:
             if self.stem_type == "kpconv":

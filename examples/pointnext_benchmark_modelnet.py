@@ -1,18 +1,18 @@
 """Evaluate the PointNeXt ModelNet40 classifier (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
-registered eval transform (FPS to 1024 points).
+`ModelNet40Hdf5` -> `DataLoader` -> model -> argmax -> overall accuracy, following the reference
+protocol: take the first 1024 points of each pre-shuffled 2048-point HDF5 cloud (no FPS).
 
 Results vs reference (ModelNet40 overall accuracy; reference is the model-zoo best-seed checkpoint eval,
 paper mean 93.7 +- 0.3):
 
-    | Variant                     | reference | torch-pointcloud |
-    | --------------------------- | --------- | ---------------- |
-    | pointnext-sm-c64.modelnet40.openpoints | 94.0      | 92.10            |
+    | Variant                                | reference | torch-pointcloud            |
+    | -------------------------------------- | --------- | --------------------------- |
+    | pointnext-sm-c64.modelnet40.openpoints | 94.0      | 92.10 (pre-fix, re-measure) |
 
-The gap comes from the eval data: the reference takes the first 1024 points of the
-`modelnet40_ply_hdf5_2048` clouds, while this script FPS-samples the normal-resampled dataset, and the
-fixed ball-query radii make PointNeXt sensitive to that shift in point distribution.
+The torch-pointcloud number was measured before this script switched to the reference protocol
+(FPS on the normal-resampled dataset; the fixed ball-query radii make PointNeXt sensitive to that
+shift in point distribution). Re-measurement on the HDF5 first-1024 protocol is pending.
 
 Usage:
     uv run --no-sync python examples/pointnext_benchmark_modelnet.py --download
@@ -27,12 +27,13 @@ from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.datasets import ModelNet40Hdf5
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -40,6 +41,7 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 16
 SEED = 42
+NUM_POINTS = 1024
 
 MODEL_CHOICES = [
     "pointnext-sm-c64.modelnet40.openpoints",
@@ -51,23 +53,22 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Loading model {args.model!r}!")
-    model, model_info = create_model(
+    model = create_model(
         args.model,
         task="classification",
         pretrained=True,
-        return_info=True,
     )
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transform")
+    transform = T.Slice(keys=[DataKeys.POS, DataKeys.NORMAL], stop=NUM_POINTS)
 
-    print("Loading ModelNet40 (normal-resampled) test dataset!")
-    test_dataset = ModelNetNormalResampled(
+    print("Loading ModelNet40 (HDF5) test dataset!")
+    test_dataset = ModelNet40Hdf5(
         root=args.root,
-        variant="40",
-        train=False,
+        split="test",
         download=args.download,
         transform=transform,
     )
@@ -89,7 +90,7 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark PointNeXt classification on ModelNet40 (normal-resampled).")
+    parser = ArgumentParser(description="Benchmark PointNeXt classification on ModelNet40 (HDF5).")
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--root", type=str, default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument(

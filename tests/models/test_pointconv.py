@@ -128,3 +128,19 @@ def test_pointconv_classification_forward_features(
         data["features"], data["pos"], data["batch"], return_intermediates=True
     )
     assert len(intermediates) == len(model_clf.channels)
+
+
+def test_pointconv_classification_num_classes_zero_returns_features(data: Dict[str, Tensor]) -> None:
+    model = PointConvDensityClassification(
+        in_channels=64,
+        num_classes=0,
+        channels=[[64, 64], [64, 128]],
+        num_neighbors=[16, 16],
+        bandwidths=[0.1, 0.2],
+        ratios=[0.5, 0.5],
+        density_channels=[16, 8],
+        weight_channels=[8, 8],
+    )
+    assert isinstance(model.head, torch.nn.Identity)
+    out = model(data["features"], data["pos"], data["batch"])
+    assert out.shape == (int(data["batch"].max()) + 1, model.embedding_dim)

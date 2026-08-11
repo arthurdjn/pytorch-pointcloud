@@ -28,7 +28,7 @@ from torch_pointcloud.models.detr3d import DETR3DDetection
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import mean_average_precision3d
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 CPU_COUNT = os.cpu_count()
@@ -43,6 +43,7 @@ MIN_POINTS = 5
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
     assert isinstance(model, DETR3DDetection)
@@ -57,7 +58,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        cat_keys=[DataKeys.BOX, DataKeys.CLASS],
+        cat_keys=[DataKeys.BOX, DataKeys.LABEL],
     )
     print(f"Test set: {len(dataset)} scenes")  # type: ignore[arg-type]
     metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.ap_iou)
@@ -81,7 +82,7 @@ def evaluate(
     for data in tqdm(dataloader, desc="SUN RGB-D val"):
         pos = data[DataKeys.POS].to(device)
         box = data[DataKeys.BOX].to(device)
-        gt_labels = data[DataKeys.CLASS].to(device)
+        gt_labels = data[DataKeys.LABEL].to(device)
         batch = data[DataKeys.BATCH].to(device)
         batch_box = data[DataKeys.BATCH_BOX].to(device)
 

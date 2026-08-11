@@ -50,7 +50,7 @@ class Conv3dBlock(nn.Module):
             padding=kernel_size // 2,
             bias=bias,
         )
-        self.norm = create_norm(norm, out_channels, dim=3, **(norm_kwargs or {})) if norm is not None else None
+        self.norm = create_norm(norm, out_channels, dim=3, **(norm_kwargs or {}))
         self.act = create_act(act, **(act_kwargs or {}))
 
     def forward(self, x: Tensor) -> Tensor:

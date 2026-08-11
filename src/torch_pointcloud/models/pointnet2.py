@@ -198,15 +198,16 @@ class PointNet2Decoder(nn.Module):
             coarsest to finest resolution.
         fp_channels: List of channel configurations for Feature Propagation (FP) blocks.
             Each element defines the MLP channels for one FP block.
-        spatial_dim: Spatial dimensionality of point coordinates. Also used as the default
-            number of neighbors `k` for kNN interpolation.
+        spatial_dim: Spatial dimensionality of point coordinates. Also used as the default number
+            of neighbors `k` for kNN interpolation in all but the first FP block.
         act: Activation function type or callable.
         act_kwargs: Additional keyword arguments for the activation function.
         act_first: If `True`, activation is applied before normalization.
         norm: Normalization layer type or callable.
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
-        k: Number of neighbors for kNN interpolation. Defaults to `spatial_dim`.
+        k: Number of neighbors for kNN interpolation, per FP block when a sequence. Defaults to
+            `1` for the first (deepest) block and `spatial_dim` for the remaining blocks.
     """
 
     def __init__(
@@ -392,8 +393,10 @@ class PointNet2Classification(ClassificationModel):
         self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         if not self.head_channels:
-            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.embedding_dim, self.num_classes)
 
         channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
         dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
@@ -598,8 +601,10 @@ class PointNet2Segmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         if not self.head_channels:
-            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.embedding_dim, self.num_classes)
 
         channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
         dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
@@ -804,7 +809,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
     ),
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
         ]
     ),
 )

@@ -7,7 +7,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.models import create_model, list_models
+from torch_pointcloud.models import ClassificationModel, SegmentationModel, create_model, list_models
 from torch_pointcloud.models._registry import _REGISTERED_MODELS
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
@@ -16,6 +16,7 @@ from torch_pointcloud.utils.imports import (
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
     _SPCONV_AVAILABLE,
+    _SPTR_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
@@ -85,10 +86,10 @@ CLASSIFICATION_MODELS = [
     "pointnext-xl",
 ]
 BASE_MODELS = [
-    "concerto-base.pointcept",
-    "concerto-large.pointcept",
-    "concerto-small.pointcept",
-    "concerto-tiny.pointcept",
+    "concerto-base.pretrain.pointcept",
+    "concerto-large.pretrain.pointcept",
+    "concerto-small.pretrain.pointcept",
+    "concerto-tiny.pretrain.pointcept",
     "point-bert-base.dvae.xumin-yu",
     "point-bert-base.pretrain.xumin-yu",
     "point-m2ae-base.pretrain.renrui-zhang",
@@ -97,9 +98,9 @@ BASE_MODELS = [
     "pointgpt-s.pretrain.guangyan-chen",
     "pointgpt-b.pretrain.guangyan-chen",
     "pointgpt-l.pretrain.guangyan-chen",
-    "sonata-base.fair",
+    "sonata-base.pretrain.fair",
     "spformer-unet.scannet",
-    "utonia.pointcept",
+    "utonia.pretrain.pointcept",
     "xcube-vae-coarse.shapenet-chair.nvidia",
     "xcube-vae-fine.shapenet-chair.nvidia",
     "xcube-vae-coarse.shapenet-car.nvidia",
@@ -236,8 +237,8 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("torch_cluster is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
-    if model_name.startswith("sphereformer") and not _SPCONV_AVAILABLE:
-        pytest.skip("spconv is not installed")
+    if model_name.startswith("sphereformer") and not (_SPCONV_AVAILABLE and _SPTR_AVAILABLE):
+        pytest.skip("spconv or sptr is not installed")
     if model_name.startswith("xcube") and not _FVDB_AVAILABLE:
         pytest.skip("fvdb is not installed")
 
@@ -544,14 +545,15 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
         in_channels: int,
         spatial_dim: int = 3,
         num_categories: int = 0,
+        lengths: tuple = (512, 768),
     ) -> Dict[str, Any]:
         torch.manual_seed(42)
-        lengths = torch.tensor([512, 768])
-        pos = torch.randn(int(lengths.sum()), spatial_dim)
-        x = torch.randn(int(lengths.sum()), in_channels) if in_channels > 0 else None
-        batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
-        cls_onehot = torch.zeros(len(lengths), num_categories) if num_categories > 0 else None
-        voxel = _make_voxel_inputs(lengths)
+        lengths_tensor = torch.tensor(list(lengths))
+        pos = torch.randn(int(lengths_tensor.sum()), spatial_dim)
+        x = torch.randn(int(lengths_tensor.sum()), in_channels) if in_channels > 0 else None
+        batch = torch.repeat_interleave(torch.arange(len(lengths_tensor)), lengths_tensor)
+        cls_onehot = torch.zeros(len(lengths_tensor), num_categories) if num_categories > 0 else None
+        voxel = _make_voxel_inputs(lengths_tensor)
 
         octree = None
         if _OCNN_AVAILABLE:
@@ -597,10 +599,14 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = create_model(model_name, task=task, in_channels=3, num_classes=num_classes)  # type: ignore[call-overload]
+    # The Point-MAE / Point-M2AE part-segmentation heads require a uniform number of points per sample
+    # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
+    uniform_models = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
     data = data_factory(
         in_channels=model.in_channels,
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
+        lengths=(512, 512) if model_name in uniform_models else (512, 768),
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
@@ -686,6 +692,27 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
         assert detections["labels"].max().item() < model.num_classes
         assert detections["batch"].min().item() >= 0
         assert detections["batch"].max().item() <= 1
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize(
+    "model_name,task",
+    [
+        *[(model, "classification") for model in CLASSIFICATION_MODELS],
+        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+    ],
+)
+def test_model_overrides_reset_classifier(model_name: str, task: str) -> None:
+    """Every registered classification / segmentation model must override the ABC `reset_classifier` stub."""
+    _skip_if_model_deps_missing(model_name)
+    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    stub = ClassificationModel.reset_classifier if task == "classification" else SegmentationModel.reset_classifier
+    assert type(model).reset_classifier is not stub, (
+        f"{type(model).__name__} (registered as {model_name!r}) does not override `reset_classifier`"
+    )
 
 
 def test_registered_weights_classes_match_num_classes() -> None:

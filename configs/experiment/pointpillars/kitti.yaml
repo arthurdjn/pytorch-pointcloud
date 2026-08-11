@@ -5,6 +5,15 @@
 # | model.name                   | AP/Car | AP/Pedestrian | AP/Cyclist | mAP    |
 # | ---------------------------- | ------ | ------------- | ---------- | ------ |
 # | pointpillars.kitti.openpcdet | 0.7796 | 0.5027        | 0.6052     | 0.6292 |
+#
+# Reference: OpenPCDet model zoo (val, moderate R11): Car 77.28, Pedestrian 52.29, Cyclist 62.68 (mAP 64.08).
+# The paper's KITTI test-split numbers are not like-for-like with this val protocol. Matching is
+# detection-centric (each prediction greedily takes its best unused GT, not the reference GT-centric
+# assignment) and the NMS is axis-aligned rather than rotated-BEV; both only act on borderline overlaps.
+# This Lightning eval keeps the all-point AP, per-class NMS, and no min-height prediction filter; the
+# benchmark script (examples/pointpillars_benchmark_kitti.py) implements the full R11 protocol.
+# For Easy / Hard, change the `RelabelBoxes` ignore rule (Easy: occlusion <= 0, truncation <= 0.15,
+# bbox_height >= 40; Hard: occlusion <= 2, truncation <= 0.5, bbox_height >= 25).
 defaults:
   - override /datamodule: kitti
   - override /model: detection
@@ -19,7 +28,6 @@ model:
   input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
   score_threshold: 0.1
   nms_iou: 0.01
-  label_key: label
   ignore_mask_key: ignore_mask
   scheduler_interval: step
   criterion:
@@ -71,10 +79,11 @@ datamodule:
       _target_: torch_pointcloud.transforms.Compose
       transforms:
         # KITTI_CLASSES: Car=0, Van=1, Truck=2, Pedestrian=3, Person_sitting=4, Cyclist=5, Tram=6, Misc=7.
+        # No `ignore_mapping` at train: attributed Van / Person_sitting rows would enter the anchor
+        # targets as Car / Pedestrian ground truth.
         - _target_: torch_pointcloud.transforms.RelabelBoxes
           keys: [box, label, truncation, occlusion, bbox_height]
           mapping: { 0: 0, 3: 1, 5: 2 }
-          ignore_labels: [1, 4]
           ignore_fields:
             occlusion: [null, 1]
             truncation: [null, 0.3]
@@ -96,10 +105,11 @@ datamodule:
       _target_: torch_pointcloud.transforms.Compose
       transforms:
         # KITTI_CLASSES: Car=0, Van=1, Truck=2, Pedestrian=3, Person_sitting=4, Cyclist=5, Tram=6, Misc=7.
+        # Van / Person_sitting become ignore regions attributed to Car / Pedestrian.
         - _target_: torch_pointcloud.transforms.RelabelBoxes
           keys: [box, label, truncation, occlusion, bbox_height]
           mapping: { 0: 0, 3: 1, 5: 2 }
-          ignore_labels: [1, 4]
+          ignore_mapping: { 1: 0, 4: 1 }
           ignore_fields:
             occlusion: [null, 1]
             truncation: [null, 0.3]

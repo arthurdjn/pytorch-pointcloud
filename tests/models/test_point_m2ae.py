@@ -1,5 +1,6 @@
 import pytest
 import torch
+from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import PointPatchEmbed
 from torch_pointcloud.models.point_m2ae import (
@@ -10,13 +11,11 @@ from torch_pointcloud.models.point_m2ae import (
     multi_scale_group,
 )
 from torch_pointcloud.utils.imports import (
-    _CUDA_AVAILABLE,
     _TORCH_CLUSTER_AVAILABLE,
     _TORCH_SCATTER_AVAILABLE,
 )
 
 pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
     pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
     pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
 ]
@@ -26,8 +25,8 @@ GROUP_SIZES = (16, 8, 8)
 
 
 def _packed(batch_size: int, num_points: int) -> tuple[torch.Tensor, torch.Tensor]:
-    pos = torch.randn(batch_size * num_points, 3).cuda()
-    batch = torch.arange(batch_size).repeat_interleave(num_points).cuda()
+    pos = torch.randn(batch_size * num_points, 3)
+    batch = torch.arange(batch_size).repeat_interleave(num_points)
     return pos, batch
 
 
@@ -46,9 +45,9 @@ def test_hierarchical_encoder_basic() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         with_norms=True,
-    ).cuda()
+    )
     pos, batch = _packed(2, 1024)
     neighborhoods, centers, idxs = multi_scale_group(pos, batch, NUM_GROUPS, GROUP_SIZES)
 
@@ -67,7 +66,7 @@ def test_hierarchical_encoder_custom_token_channels() -> None:
         num_heads=4,
         token_local_channels=(32, 48),
         token_global_channels=(96,),
-    ).cuda()
+    )
     embed_0, embed_1 = model.token_embed[0], model.token_embed[1]
     assert isinstance(embed_0, PointPatchEmbed) and isinstance(embed_1, PointPatchEmbed)
     assert embed_0.local_mlp.channel_list == [3, 32, 48]
@@ -91,11 +90,11 @@ def test_point_m2ae_classification_modelnet() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         concat_pooling=False,
         dropout=0.5,
         head_channels=(256, 256),
-    ).cuda()
+    )
     pos, batch = _packed(2, 1024)
     out = model(None, pos, batch)
     assert out.shape == (2, 40)
@@ -111,14 +110,58 @@ def test_point_m2ae_classification_scanobjectnn_concat_pooling() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         concat_pooling=True,
         dropout=0.5,
         head_channels=(256, 256),
-    ).cuda()
+    )
     pos, batch = _packed(2, 2048)
     out = model(None, pos, batch)
     assert out.shape == (2, 15)
+
+
+def test_point_m2ae_classification_num_classes_zero_returns_features() -> None:
+    model = PointM2AEClassification(
+        in_channels=0,
+        num_classes=0,
+        group_sizes=(8, 4, 4),
+        num_groups=(32, 16, 8),
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(32, 48, 64),
+        local_radius=(0.32, 0.64, 1.28),
+        num_heads=2,
+    )
+    assert isinstance(model.head, torch.nn.Identity)
+    pos, batch = _packed(2, 256)
+    out = model(None, pos, batch)
+    assert out.shape == (2, model.feat_dim)
+
+
+def test_point_m2ae_classification_reset_classifier() -> None:
+    model = PointM2AEClassification(
+        in_channels=0,
+        num_classes=15,
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(32, 48, 64),
+        concat_pooling=True,
+        head_channels=(256, 256),
+    )
+    assert model.head.channel_list == [128, 256, 256, 15]
+    model.reset_classifier(7)
+    assert model.head.channel_list == [128, 256, 256, 7]
+    with pytest.raises(ValueError, match="global_pool"):
+        model.reset_classifier(7, global_pool="mean")
+
+
+def test_point_m2ae_classification_reset_classifier_zero() -> None:
+    model = PointM2AEClassification(
+        in_channels=0,
+        num_classes=15,
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(32, 48, 64),
+    )
+    model.reset_classifier(0)
+    assert isinstance(model.head, torch.nn.Identity)
 
 
 def test_point_m2ae_segmentation_basic() -> None:
@@ -132,11 +175,57 @@ def test_point_m2ae_segmentation_basic() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-    ).cuda()
+    )
     pos, batch = _packed(2, 2048)
-    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float().cuda()
+    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float()
     out = model(None, pos, batch, category)
     assert out.shape == (2 * 2048, 50)
+
+
+def test_point_m2ae_segmentation_reset_classifier() -> None:
+    model = PointM2AESegmentation(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(32, 48, 64),
+    )
+    model.reset_classifier(13)
+    assert isinstance(model.head, MLP)
+    assert model.head.channel_list[-1] == 13
+
+
+def test_point_m2ae_segmentation_reset_classifier_zero() -> None:
+    model = PointM2AESegmentation(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(32, 48, 64),
+    )
+    model.reset_classifier(0)
+    assert isinstance(model.head, torch.nn.Identity)
+
+
+def test_point_m2ae_segmentation_ragged_batch_raises() -> None:
+    model = PointM2AESegmentation(
+        in_channels=0,
+        num_classes=5,
+        num_categories=16,
+        group_sizes=(8, 4, 4),
+        num_groups=(32, 16, 8),
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(32, 48, 64),
+        local_radius=(0.32, 0.64, 1.28),
+        num_heads=2,
+    )
+    model.eval()
+    pos = torch.randn(128, 3)
+    batch = torch.cat([torch.zeros(96), torch.ones(32)]).long()
+    category = torch.nn.functional.one_hot(torch.tensor([0, 1]), 16).float()
+
+    with pytest.raises(ValueError, match="same number of points per sample"):
+        model(None, pos, batch, category)
 
 
 def test_point_m2ae_segmentation_forward_head_pre_logits() -> None:
@@ -150,10 +239,10 @@ def test_point_m2ae_segmentation_forward_head_pre_logits() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-    ).cuda()
+    )
     model.eval()
     pos, batch = _packed(2, 2048)
-    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float().cuda()
+    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float()
     with torch.no_grad():
         x_vis_list, centers = model.forward_features(None, pos, batch)
         feat = model.forward_decoder(x_vis_list, centers, pos, batch)
@@ -174,13 +263,31 @@ def test_point_m2ae_mae_basic() -> None:
         decoder_dims=(384, 192),
         decoder_up_blocks=(1, 1),
         num_heads=6,
-        drop_path_rate=0.1,
-    ).cuda()
+        drop_path=0.1,
+    )
     pos, batch = _packed(2, 2048)
     pred, target = model(None, pos, batch)
     assert pred.ndim == target.ndim == 3
     assert pred.shape[0] == target.shape[0]
     assert pred.shape[-1] == target.shape[-1] == 3
+
+
+@pytest.mark.parametrize(
+    "mask_ratio",
+    [
+        pytest.param(0.0, id="zero"),
+        pytest.param(1.0, id="one"),
+        pytest.param(-0.1, id="negative"),
+    ],
+)
+def test_point_m2ae_mae_invalid_mask_ratio_raises(mask_ratio: float) -> None:
+    with pytest.raises(ValueError, match="mask_ratio"):
+        PointM2AEMaskedAutoEncoder(
+            in_channels=0,
+            encoder_depths=(1, 1, 1),
+            encoder_dims=(32, 48, 64),
+            mask_ratio=mask_ratio,
+        )
 
 
 def test_point_m2ae_classification_accepts_features() -> None:
@@ -194,14 +301,14 @@ def test_point_m2ae_classification_accepts_features() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-    ).cuda()
+    )
     model.eval()
     embed = model.h_encoder.token_embed[0]
     assert isinstance(embed, PointPatchEmbed)
     assert embed.local_mlp.channel_list[0] == 3 + in_channels
     pos, batch = _packed(2, 1024)
-    x_a = torch.randn(pos.size(0), in_channels).cuda()
-    x_b = torch.randn(pos.size(0), in_channels).cuda()
+    x_a = torch.randn(pos.size(0), in_channels)
+    x_b = torch.randn(pos.size(0), in_channels)
 
     out_a = model(x_a, pos, batch)
     out_b = model(x_b, pos, batch)
@@ -221,15 +328,15 @@ def test_point_m2ae_segmentation_accepts_features() -> None:
         encoder_dims=(96, 192, 384),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-    ).cuda()
+    )
     model.eval()
     embed = model.h_encoder.token_embed[0]
     assert isinstance(embed, PointPatchEmbed)
     assert embed.local_mlp.channel_list[0] == 3 + in_channels
     pos, batch = _packed(2, 2048)
-    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float().cuda()
-    x_a = torch.randn(pos.size(0), in_channels).cuda()
-    x_b = torch.randn(pos.size(0), in_channels).cuda()
+    category = torch.nn.functional.one_hot(torch.tensor([0, 3]), 16).float()
+    x_a = torch.randn(pos.size(0), in_channels)
+    x_b = torch.randn(pos.size(0), in_channels)
 
     out_a = model(x_a, pos, batch, category)
     out_b = model(x_b, pos, batch, category)

@@ -78,7 +78,9 @@ class GridPool(nn.Module):
 
         Args:
             x: Point features of shape $(N, C_{in})$.
-            pos_grid: Integer grid coordinates of shape $(N, 3)$.
+            pos_grid: Integer grid coordinates of shape $(N, 3)$. Must be non-negative and pool to
+                coordinates below $2^{16}$: batch index and coordinates are bit-packed into a single
+                int64 cluster key, so out-of-range coordinates would merge clusters across samples.
             batch: Batch indices of shape $(N,)$.
             pos: Optional real-valued positions of shape $(N, 3)$ to mean-pool
                 alongside the features (e.g. for downstream rotary position embedding).
@@ -90,9 +92,15 @@ class GridPool(nn.Module):
             `pos_pooled` is `None` when `pos` is not provided.
         """
         pos_grid_pooled = torch.div(pos_grid, self.stride, rounding_mode="trunc")
-        tagged = pos_grid_pooled | batch.view(-1, 1) << 48
-        tagged, cluster, counts = torch.unique(tagged, sorted=True, return_inverse=True, return_counts=True, dim=0)
-        pos_grid_pooled = tagged & ((1 << 48) - 1)
+        if pos_grid.numel() > 0 and bool(((pos_grid < 0) | (pos_grid_pooled >= 1 << 16)).any()):
+            raise ValueError(
+                f"`pos_grid` must be non-negative and pool to coordinates below 65536, "
+                f"got range [{int(pos_grid.min())}, {int(pos_grid.max())}] with stride {self.stride}: "
+                f"out-of-range coordinates corrupt the bit-packed cluster key."
+            )
+        key = batch << 48 | pos_grid_pooled[:, 0] << 32 | pos_grid_pooled[:, 1] << 16 | pos_grid_pooled[:, 2]
+        key, cluster, counts = torch.unique(key, sorted=True, return_inverse=True, return_counts=True)
+        pos_grid_pooled = torch.stack([key >> 32 & 0xFFFF, key >> 16 & 0xFFFF, key & 0xFFFF], dim=1)
 
         _, indices = torch.sort(cluster)
         idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])

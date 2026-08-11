@@ -153,6 +153,19 @@ def test_seg_forward_shapes() -> None:
     assert logits.shape == (12, 4)
 
 
+def test_seg_target_key_defaults_to_segment() -> None:
+    lit = LitSegmentationModel(name="dummy.segmentation")
+    batch = {
+        "x": torch.randn(12, 3),
+        "pos": torch.randn(12, 3),
+        "batch": torch.cat([torch.zeros(6, dtype=torch.long), torch.ones(6, dtype=torch.long)]),
+        "segment": torch.randint(0, 4, (12,)),
+    }
+    assert lit.hparams["target_key"] == "segment"
+    out = lit.step(batch, "val")
+    assert torch.equal(out["target"], batch["segment"])
+
+
 def test_seg_training_step_returns_scalar_loss() -> None:
     lit = _make_seg_module()
     batch = {
@@ -163,6 +176,58 @@ def test_seg_training_step_returns_scalar_loss() -> None:
     }
     loss = lit.training_step(batch, batch_idx=0)
     assert isinstance(loss, Tensor) and loss.dim() == 0
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected"),
+    [
+        pytest.param("train", False, id="train"),
+        pytest.param("val", True, id="val"),
+        pytest.param("test", True, id="test"),
+    ],
+)
+def test_step_syncs_logged_loss_on_eval_stages_only(
+    stage: str, expected: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lit = _make_seg_module()
+    log = Mock()
+    monkeypatch.setattr(lit, "log", log)
+    batch = {
+        "x": torch.randn(12, 3),
+        "pos": torch.randn(12, 3),
+        "batch": torch.cat([torch.zeros(6, dtype=torch.long), torch.ones(6, dtype=torch.long)]),
+        "segment": torch.randint(0, 4, (12,)),
+    }
+    lit.step(batch, stage)
+    assert log.call_args.kwargs["sync_dist"] is expected
+
+
+def test_forward_missing_input_key_raises() -> None:
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", input_keys=("x", "pos", "wrong"))
+    batch = {
+        "x": torch.randn(6, 3),
+        "pos": torch.randn(6, 3),
+        "batch": torch.zeros(6, dtype=torch.long),
+        "segment": torch.randint(0, 4, (6,)),
+    }
+    with pytest.raises(KeyError, match="wrong"):
+        lit(batch)
+
+
+def test_forward_missing_x_resolves_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`x` is the only optional input key: a batch without point features passes `x=None` to the model."""
+    lit = _make_cls_module()
+    forward = Mock(return_value=torch.randn(2, 5))
+    monkeypatch.setattr(lit.model, "forward", forward)
+    batch = {
+        "pos": torch.randn(12, 3),
+        "batch": torch.cat([torch.zeros(6, dtype=torch.long), torch.ones(6, dtype=torch.long)]),
+    }
+    lit(batch)
+    args = forward.call_args.args
+    assert args[0] is None
+    assert args[1] is batch["pos"]
+    assert args[2] is batch["batch"]
 
 
 def test_cls_module_forward_shapes() -> None:
@@ -227,6 +292,39 @@ def test_fit_smoke_with_explicit_scheduler() -> None:
     )
     trainer.fit(lit, datamodule=dm)
     assert "train/loss" in trainer.callback_metrics
+
+
+def test_fit_smoke_train_only() -> None:
+    """A datamodule without a `val_dataset` fits train-only: its `val_dataloader` returns an empty
+    list, which tells Lightning to skip validation."""
+    lit = _make_seg_module()
+    dm = PointCloudDataModule(train_dataset=DummySegmentationDataset(4), batch_size=2, num_workers=0)
+    trainer = L.Trainer(
+        fast_dev_run=True,
+        accelerator="cpu",
+        devices=1,
+        logger=False,
+        enable_progress_bar=False,
+        enable_checkpointing=False,
+    )
+    trainer.fit(lit, datamodule=dm)
+    assert "train/loss" in trainer.callback_metrics
+    assert "val/loss" not in trainer.callback_metrics
+
+
+def test_seg_eval_params_saved_to_hparams() -> None:
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    assert lit.hparams_initial["inverse_key"] == "inverse"
+    assert lit.hparams_initial["origin_target_key"] == "origin_segment"
+
+
+def test_detection_eval_params_saved_to_hparams() -> None:
+    module = LitDetectionModel(name="dummy.detection", score_threshold=0.5, nms_iou=0.1, min_points=5)
+    assert module.hparams_initial["score_threshold"] == 0.5
+    assert module.hparams_initial["nms_iou"] == 0.1
+    assert module.hparams_initial["min_points"] == 5
+    assert module.hparams_initial["label_key"] == "label"
+    assert module.hparams_initial["ignore_mask_key"] is None
 
 
 def test_seg_inferer_runs_on_test_step() -> None:
@@ -393,7 +491,7 @@ def test_detection_criterion_none_eval_step_returns_preds_without_loss(monkeypat
         "batch": torch.zeros(4, dtype=torch.long),
         "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
-        "class": torch.tensor([3]),
+        "label": torch.tensor([3]),
     }
     out = module.test_step(batch, batch_idx=0)
     log.assert_not_called()
@@ -478,7 +576,7 @@ def test_detection_validation_step_decodes_filters_and_targets(monkeypatch: pyte
         "batch": torch.tensor([0, 0, 1, 1]),
         "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
-        "class": torch.tensor([3]),
+        "label": torch.tensor([3]),
     }
     out = module.validation_step(batch, batch_idx=0)
     forward.assert_called_once_with(batch)
@@ -514,7 +612,7 @@ def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch
         "batch": torch.tensor([0, 0]),
         "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
-        "class": torch.tensor([1]),
+        "label": torch.tensor([1]),
     }
     out = module.validation_step(batch, batch_idx=0)
     # the 0.3-score box is below score_threshold=0.5, so nothing is kept.
@@ -541,7 +639,7 @@ def test_detection_min_points_filters_boxes_without_points(monkeypatch: pytest.M
         "batch": torch.zeros(4, dtype=torch.long),
         "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
-        "class": torch.tensor([1]),
+        "label": torch.tensor([1]),
     }
     out = module.validation_step(batch, batch_idx=0)
     # all 4 points fall in the first box; the far-away box holds 0 < min_points=2 and is dropped.
@@ -567,7 +665,7 @@ def test_detection_class_probs_expands_boxes_per_class(monkeypatch: pytest.Monke
         "batch": torch.tensor([0, 0, 1, 1]),
         "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "batch_box": torch.tensor([0]),
-        "class": torch.tensor([1]),
+        "label": torch.tensor([1]),
     }
     out = module.validation_step(batch, batch_idx=0)
     assert out["preds"]["boxes"].shape == (6, 7)

@@ -611,7 +611,7 @@ _SUNRGBD_MEAN_SIZES = [
         num_heading_bin=1,
         num_size_cluster=18,
         mean_sizes=_SCANNET_MEAN_SIZES,
-        sampling="vote_fps",
+        sampling="seed_fps",
     ),
 )
 def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:

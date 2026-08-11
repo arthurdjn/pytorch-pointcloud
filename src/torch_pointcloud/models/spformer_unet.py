@@ -353,17 +353,18 @@ class SPFormerUNetDecoder(nn.Module):
         return out
 
 
-class SPFormerUNet(SegmentationModel):
+class SPFormerUNetSegmentation(SegmentationModel):
     r"""SpConv U-Net from SPFormer.
 
     Reference: :github: [sunjiahao1999/SPFormer](https://github.com/sunjiahao1999/SPFormer).
     A symmetric submanifold sparse-convolution U-Net with pre-norm residual blocks,
-    reused as the backbone of OneFormer3D. Distinct from the Pointcept-style
+    reused as the backbone of OneFormer3D. Distinct from
     [`SparseUNetSegmentation`](#): the residual blocks are pre-norm and the
     stem-level blocks run at full resolution before any downsampling.
 
-    Set `num_classes=0` to drop the classifier (the head becomes `nn.Identity` and
-    `forward` returns per-voxel features), which is how OneFormer3D consumes it.
+    Set `num_classes=0` to drop the classifier: the head keeps only the final normalization
+    and activation and `forward` returns per-voxel features, which is how OneFormer3D
+    consumes it.
 
     Args:
         in_channels: Number of input feature channels.
@@ -510,5 +511,5 @@ class SPFormerUNet(SegmentationModel):
         spatial_padding=96,
     ),
 )
-def spformer_unet_scannet(**hparams: Any) -> SPFormerUNet:
-    return SPFormerUNet(**hparams)
+def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
+    return SPFormerUNetSegmentation(**hparams)

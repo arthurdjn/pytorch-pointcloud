@@ -1,5 +1,5 @@
+import difflib
 import fnmatch
-import functools
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, TypedDict, Union, overload
@@ -12,7 +12,7 @@ from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 from torch_pointcloud.utils.types import PathLike
 
-from ._base import BaseModel, ClassificationModel, DetectionModel, SegmentationModel
+from ._base import ClassificationModel, DetectionModel, SegmentationModel
 
 Task = Literal["base", "classification", "segmentation", "detection"]
 
@@ -123,24 +123,25 @@ def register_model(
     Returns:
         The decorator registering its target callable.
 
-    Example:
-        ```{.python notest}
-        from torch_pointcloud.models._registry import WeightsDict, register_model
+    Registering a classification entry point with weight metadata:
+
+    ```python
+    from torch_pointcloud.models import PointNetClassification, WeightsDict, register_model
 
 
-        @register_model(
-            "my-model.scanobjectnn",
-            task="classification",
-            hparams=dict(in_channels=3, num_classes=15),
-            weights=WeightsDict(
-                url="hf://my-org/my-model/my-model.scanobjectnn.safetensors",
-                dataset="scanobjectnn",
-                metrics={"OA": 88.20},
-            ),
-        )
-        def my_model(**hparams):
-            return MyModelClassification(**hparams)
-        ```
+    @register_model(
+        "pointnet-demo.scanobjectnn",
+        task="classification",
+        hparams=dict(in_channels=0, num_classes=15),
+        weights=WeightsDict(
+            url="hf://my-org/pointnet/pointnet-demo.scanobjectnn.safetensors",
+            dataset="scanobjectnn",
+            metrics={"OA": 88.20},
+        ),
+    )
+    def pointnet_demo(**hparams):
+        return PointNetClassification(**hparams)
+    ```
     """
     hparams = hparams or {}
     weights_dict: Optional[WeightsDict] = {"url": weights} if isinstance(weights, str) else weights
@@ -151,7 +152,10 @@ def register_model(
 
     def decorator(fn: Callable) -> Callable:
         if name in _REGISTERED_MODELS[task]:
-            warnings.warn(f"Model {name!r} is already registered for task {task!r}; overwriting the existing entry.")
+            warnings.warn(
+                f"Model {name!r} is already registered for task {task!r}; overwriting the existing entry.",
+                stacklevel=2,
+            )
         _REGISTERED_MODELS[task][name] = {
             "name": name,
             "transform": transform,
@@ -159,12 +163,7 @@ def register_model(
             "weights": weights_dict,
             "fn": fn,
         }
-
-        @functools.wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> nn.Module:
-            return fn(*args, **kwargs)
-
-        return wrapper
+        return fn
 
     return decorator
 
@@ -178,7 +177,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[True],
     **kwargs: Any,
-) -> tuple[BaseModel, Dict[str, Any]]: ...
+) -> tuple[nn.Module, Dict[str, Any]]: ...
 
 
 @overload
@@ -190,7 +189,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[False] = False,
     **kwargs: Any,
-) -> BaseModel: ...
+) -> nn.Module: ...
 
 
 @overload
@@ -308,18 +307,15 @@ def create_model(
         ValueError: If `task` or `name` is unknown, or both `pretrained` and `checkpoint_path` are passed.
         FileNotFoundError: If the weight or checkpoint file does not exist.
 
-    Example:
-        ```{.python notest}
-        import torch_pointcloud as tp
+    Building a registered model, overriding its registered hparams, and inspecting its registry entry:
 
-        model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True)
+    ```python
+    import torch_pointcloud as tp
 
-        # Fine-tuning: reuse the pretrained backbone with a fresh 10-class head.
-        model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True, num_classes=10)
-
-        # Load your own trained checkpoint (e.g. saved by Lightning).
-        model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", checkpoint_path="last.ckpt")
-        ```
+    model = tp.create_model("pointnet.modelnet40", task="classification")
+    model = tp.create_model("pointnet.modelnet40", task="classification", num_classes=10)
+    model, info = tp.create_model("pointnet.modelnet40", task="classification", return_info=True)
+    ```
     """
     if task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
@@ -329,8 +325,15 @@ def create_model(
 
     model_info = _REGISTERED_MODELS[task].get(name)
     if model_info is None:
-        available_models = ", ".join(f"{m!r}" for m in _REGISTERED_MODELS[task].keys())
-        raise ValueError(f"Model {name!r} not found in {task!r} registry. Available models: {available_models}.")
+        message = f"Model {name!r} not found in the {task!r} registry."
+        matches = difflib.get_close_matches(name, _REGISTERED_MODELS[task], n=3)
+        if matches:
+            message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
+        other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
+        if other_tasks:
+            message += " The name is registered under task " + " and ".join(f"{t!r}" for t in other_tasks) + "."
+        message += f" Use `list_models(task={task!r})` to list the registered names."
+        raise ValueError(message)
 
     # create a copy of the model entry to avoid modifying the original entry stored in the registry
     model_info = model_info.copy()
@@ -346,7 +349,7 @@ def create_model(
     if pretrained:
         weights = model_info["weights"]
         if weights is None:
-            warnings.warn(f"No pretrained weights available for model {name!r}.")
+            warnings.warn(f"No pretrained weights available for model {name!r}.", stacklevel=2)
         else:
             parsed = urlparse(weights["url"])
             local_path = Path(MODELS_DIR, parsed.path.lstrip("/"))
@@ -377,14 +380,15 @@ def list_models(name: str = "*", *, task: Optional[Task] = None, pretrained: boo
     Returns:
         The matching model names.
 
-    Example:
-        ```python
-        import torch_pointcloud as tp
+    Filtering by name pattern, task, and weight availability:
 
-        classifiers = tp.list_models("pointnext*", task="classification")
-        with_weights = tp.list_models(task="segmentation", pretrained=True)
-        everything = tp.list_models()
-        ```
+    ```python
+    import torch_pointcloud as tp
+
+    classifiers = tp.list_models("pointnext*", task="classification")
+    with_weights = tp.list_models(task="segmentation", pretrained=True)
+    everything = tp.list_models()
+    ```
     """
     if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())

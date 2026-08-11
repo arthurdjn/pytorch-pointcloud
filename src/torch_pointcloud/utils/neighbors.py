@@ -20,7 +20,7 @@ def gaussian_kernel_density(x: Tensor, batch: Tensor, bandwidth: float) -> Tenso
         from torch_pointcloud.utils.neighbors import gaussian_kernel_density
 
         pos = torch.randn(100, 3)
-        batch = torch.zeros(100)
+        batch = torch.zeros(100, dtype=torch.long)
         bandwidth = 0.1
 
         density = gaussian_kernel_density(pos, batch, bandwidth)
@@ -31,8 +31,6 @@ def gaussian_kernel_density(x: Tensor, batch: Tensor, bandwidth: float) -> Tenso
 
     # TODO: Maybe avoid the expansive 'to_dense_batch' operation by using a better suited approach for packed data,
     # TODO: like a custom CUDA kernel to compute directly the KDE?
-    # NOTE: This function is approximately 20% slower than the original one (from PointConv paper)
-    # https://github.com/DylanWusee/pointconv_pytorch/blob/master/utils/pointconv_util.py
     x_dense, mask = to_dense_batch(x, batch)
 
     dist = -2 * torch.matmul(x_dense, x_dense.transpose(1, 2))

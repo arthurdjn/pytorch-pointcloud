@@ -264,8 +264,8 @@ def test_sunrgbd_dataset_loads_processed(datasets_dir_factory: Callable[..., Pat
     assert sample[DataKeys.POS].shape[1] == 3
     assert sample[DataKeys.POS].dtype == torch.float32
     assert sample[DataKeys.BOX].shape[1] == 7
-    assert sample[DataKeys.CLASS].shape[0] == sample[DataKeys.BOX].shape[0]
-    assert sample[DataKeys.CLASS].dtype == torch.long
+    assert sample[DataKeys.LABEL].shape[0] == sample[DataKeys.BOX].shape[0]
+    assert sample[DataKeys.LABEL].dtype == torch.long
     assert sample[DataKeys.COLOR].shape == sample[DataKeys.POS].shape
 
 
@@ -280,7 +280,7 @@ def test_sunrgbd_dataset_processes_from_raw(datasets_dir_factory: Callable[..., 
     assert sample[DataKeys.POS].shape[1] == 3
     assert sample[DataKeys.POS].shape[0] > 2048
     assert sample[DataKeys.BOX].shape[1] == 7
-    assert sample[DataKeys.BOX].shape[0] == sample[DataKeys.CLASS].shape[0]
+    assert sample[DataKeys.BOX].shape[0] == sample[DataKeys.LABEL].shape[0]
     assert sample[DataKeys.BOX].shape[0] >= 1
 
 
@@ -291,7 +291,7 @@ def test_sunrgbd_dataset_box_contract(datasets_dir_factory: Callable[..., Path])
     dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
     checked = 0
     for scene_dir, sample in zip(dataset.processed_files, dataset.data):
-        cached = np.load(scene_dir / f"{DataKeys.BOX}.npy")
+        cached = np.load(scene_dir / "box.npy")
         box = sample[DataKeys.BOX]
         assert box.shape == (cached.shape[0], 7)
         np.testing.assert_allclose(box[:, :3].numpy(), cached[:, :3])
@@ -325,7 +325,7 @@ def test_sunrgbd_dataset_interrupted_cache_detected(datasets_dir_factory: Callab
 
     dataset = SunRGBD(root=datasets_dir, split="val", show_progress=False)
     (Path(dataset.processed_dir) / "val" / "meta.json").unlink()
-    (dataset.processed_files[0] / f"{DataKeys.CLASS}.npy").unlink()
+    (dataset.processed_files[0] / "class.npy").unlink()
 
     with pytest.raises(RuntimeError, match="force_process"):
         _ = SunRGBD(root=datasets_dir, split="val", show_progress=False)
@@ -341,3 +341,14 @@ def test_sunrgbd_dataset_missing_scene_detected(datasets_dir_factory: Callable[.
 
     with pytest.raises(RuntimeError, match="force_process"):
         _ = SunRGBD(root=datasets_dir, split="val", show_progress=False)
+
+
+def test_sunrgbd_getitem_returns_shallow_copy(datasets_dir_factory: Callable[..., Path]) -> None:
+    """User edits on a returned sample dict never reach the in-memory cache"""
+    datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
+    dataset = SunRGBD(root=datasets_dir, show_progress=False)
+
+    sample = dataset[0]
+    assert sample is not dataset.data[0]
+    sample["extra"] = 1
+    assert "extra" not in dataset[0]

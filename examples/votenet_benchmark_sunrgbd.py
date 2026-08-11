@@ -1,9 +1,16 @@
 r"""Evaluate `votenet.sunrgbd.fair` on SUN RGB-D val with mAP@0.25 / mAP@0.5.
 
-The whole benchmark is `create_model` -> `model.predict` -> `mean_average_precision3d`: the `SunRGBD`
-dataset reconstructs the upright cloud and oriented boxes, the registered transform adds the
-floor-relative height feature and samples to 20k points, the model decodes oriented boxes (per-class
-3D NMS, empty-box removal), and the AP is the dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
+The whole benchmark is `create_model` -> model -> `model.decode` -> `nms3d` -> `mean_average_precision3d`:
+the `SunRGBD` dataset reconstructs the upright cloud and oriented boxes, the registered transform adds the
+floor-relative height feature and samples to 20k points, the model decodes oriented boxes (the script then
+applies the score threshold, empty-box removal, and per-class 3D NMS), and the AP is the dataset-agnostic
+3D metric in `torch_pointcloud.utils.metrics`.
+
+Ground truth uses the same box definition as the reference (v1 labels, 10-class oriented boxes) computed
+by our own dataset instead of consuming the reference's exported `.npy`, keeping one uniform dataset path;
+the numbers land within noise of the reference. mAP averages over classes present in the ground truth (a
+class with no GT instances has undefined AP and is excluded rather than counted as 0); identical to the
+reference here since every detection class occurs in the val GT.
 
 | Model                       | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
 | --------------------------- | ------------------------------ | ------------------------- |
@@ -27,7 +34,7 @@ from torch_pointcloud.models import VoteNetDetection, create_model
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.metrics import mean_average_precision3d
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 CPU_COUNT = os.cpu_count()
@@ -42,6 +49,7 @@ MIN_POINTS = 5
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     model, info = create_model(args.model, task="detection", pretrained=True, return_info=True)
     assert isinstance(model, VoteNetDetection)
@@ -56,7 +64,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        cat_keys=[DataKeys.BOX, DataKeys.CLASS],
+        cat_keys=[DataKeys.BOX, DataKeys.LABEL],
     )
     print(f"Test set: {len(dataset)} scenes")  # type: ignore[arg-type]
     metrics = evaluate(model, dataloader, args.device, iou_thresholds=args.ap_iou)
@@ -81,7 +89,7 @@ def evaluate(
         x = data[DataKeys.X].to(device)
         pos = data[DataKeys.POS].to(device)
         box = data[DataKeys.BOX].to(device)
-        gt_labels = data[DataKeys.CLASS].to(device)
+        gt_labels = data[DataKeys.LABEL].to(device)
         batch = data[DataKeys.BATCH].to(device)
         batch_box = data[DataKeys.BATCH_BOX].to(device)
 

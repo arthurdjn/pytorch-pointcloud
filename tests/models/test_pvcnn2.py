@@ -86,10 +86,15 @@ def test_pvcnn2_classification_forward(model_clf: PVCNN2Classification, data: Di
     assert logits.dtype == data["x"].dtype
 
 
-def test_pvcnn2_classification_reset_head(model_clf: PVCNN2Classification, data: Dict[str, Tensor]) -> None:
-    model_clf.reset_head(num_classes=42)
+def test_pvcnn2_classification_reset_classifier(model_clf: PVCNN2Classification, data: Dict[str, Tensor]) -> None:
+    model_clf.reset_classifier(num_classes=42)
     logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
+
+
+def test_pvcnn2_classification_reset_classifier_zero(model_clf: PVCNN2Classification) -> None:
+    model_clf.reset_classifier(num_classes=0)
+    assert isinstance(model_clf.head, torch.nn.Identity)
 
 
 def test_pvcnn2_segmentation_forward(model_seg: PVCNN2Segmentation, data: Dict[str, Tensor]) -> None:
@@ -120,10 +125,15 @@ def test_pvcnn2_segmentation_forward_features_decoder_head(
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
 
 
-def test_pvcnn2_segmentation_reset_head(model_seg: PVCNN2Segmentation, data: Dict[str, Tensor]) -> None:
-    model_seg.reset_head(num_classes=42)
+def test_pvcnn2_segmentation_reset_classifier(model_seg: PVCNN2Segmentation, data: Dict[str, Tensor]) -> None:
+    model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_pvcnn2_segmentation_reset_classifier_zero(model_seg: PVCNN2Segmentation) -> None:
+    model_seg.reset_classifier(num_classes=0)
+    assert isinstance(model_seg.head, torch.nn.Identity)
 
 
 def test_pvcnn2_segmentation_asymmetric_decoder(data: Dict[str, Tensor]) -> None:
@@ -144,7 +154,7 @@ def test_pvcnn2_segmentation_asymmetric_decoder(data: Dict[str, Tensor]) -> None
         decoder_resolutions=[4, 4],
         decoder_kernel_sizes=[3, 3],
     )
-    assert model.decoder.skip_channels == (32, 6)
+    assert model.decoder.skip_channels == (32, 3)
     logits = model(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 10)
 
@@ -175,7 +185,7 @@ def test_pvcnn2_segmentation_reference_hparams() -> None:
     model = create_model("pvcnn2.s3dis-area5", task="segmentation")
     assert isinstance(model, PVCNN2Segmentation)
     assert isinstance(model.head, MLP)
-    assert model.decoder.skip_channels == (256, 128, 64, 9)
+    assert model.decoder.skip_channels == (256, 128, 64, 6)
 
     lengths = torch.tensor([512, 768])
     num_points = int(lengths.sum())

@@ -150,3 +150,11 @@ def test_semantic3d_dataset_load_is_lazy(datasets_dir_factory: Callable[..., Pat
     assert transform.call_count == 0
     _ = dataset[0]
     assert transform.call_count == 1
+
+
+def test_semantic3d_dataset_download_unsupported(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`download()` raises because Semantic3D must be downloaded manually."""
+    datasets_dir = datasets_dir_factory("Semantic3D/raw/**/*")
+    dataset = Semantic3D(root=datasets_dir, scenes=[TRAIN_SCENE])
+    with pytest.raises(RuntimeError, match="does not support automatic download"):
+        dataset.download()

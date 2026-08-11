@@ -6,16 +6,10 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from torch_pointcloud.losses._utils import _clamp_sigmoid
 from torch_pointcloud.utils.box3d import boxes_iou3d
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.heatmap import draw_heatmap_targets, gaussian_radius
-
-_EPS = 1e-4
-
-
-def _sigmoid_clamp(x: Tensor) -> Tensor:
-    r"""Sigmoid clamped to $[\varepsilon, 1 - \varepsilon]$ so the focal $\log$ terms stay finite."""
-    return torch.clamp(x.sigmoid(), min=_EPS, max=1 - _EPS)
+from torch_pointcloud.utils.heatmap import draw_heatmap_targets, gaussian_radius, transpose_gather
 
 
 def _gaussian_focal_loss(pred: Tensor, target: Tensor) -> Tensor:
@@ -45,13 +39,6 @@ def _gaussian_focal_loss(pred: Tensor, target: Tensor) -> Tensor:
     return -(pos_loss + neg_loss) / num_pos
 
 
-def _transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
-    r"""Gather per-object rows from a dense $(B, C, H, W)$ map at flat cell indices `ind` $(B, M)$."""
-    b, c = feat.shape[0], feat.shape[1]
-    feat = feat.permute(0, 2, 3, 1).reshape(b, -1, c)
-    return feat.gather(1, ind.unsqueeze(2).expand(-1, -1, c))
-
-
 def _reg_l1_loss(pred: Tensor, target: Tensor, mask: Tensor) -> Tensor:
     r"""Masked per-code $L_1$ regression, summed over objects and batch, normalized by the object count.
 
@@ -64,9 +51,9 @@ def _reg_l1_loss(pred: Tensor, target: Tensor, mask: Tensor) -> Tensor:
         Per-code loss, shape $(\text{code},)$.
     """
     num = mask.float().sum()
-    expanded = mask.unsqueeze(2).expand_as(target).float() * (~torch.isnan(target)).float()
+    expanded = mask.unsqueeze(2).expand_as(target).float() * torch.isfinite(target).float()
     pred = pred * expanded
-    target = target * expanded
+    target = torch.nan_to_num(target) * expanded
     loss = (pred - target).abs().transpose(2, 0)
     loss = loss.sum(dim=2).sum(dim=1)
     return loss / torch.clamp_min(num, min=1.0)
@@ -117,18 +104,18 @@ class CenterLoss(nn.Module):
     Reference: :arxiv: [Center-based 3D Object Detection and Tracking](https://arxiv.org/abs/2006.11275).
 
     Ground-truth boxes are splatted onto a per-class BEV Gaussian heatmap and their regression code
-    (sub-cell center offset, $z$, log extents, $(\cos\theta, \sin\theta)$ and any trailing columns) is
-    recorded at each peak cell. The heatmap is supervised by the penalty-reduced center focal loss and
-    the regression maps by a masked, code-weighted $L_1$ read back at those cells. When the head emits an
-    `iou` map an optional $L_1$ term regresses it toward the 3D IoU (rescaled to $[-1, 1]$) between the
-    decoded prediction and its matched box.
+    (sub-cell center offset, $z$, log extents and $(\cos\theta, \sin\theta)$) is recorded at each peak
+    cell. The heatmap is supervised by the penalty-reduced center focal loss and the regression maps by
+    a masked, code-weighted $L_1$ read back at those cells. When the head emits an `iou` map an optional
+    $L_1$ term regresses it toward the 3D IoU (rescaled to $[-1, 1]$) between the decoded prediction and
+    its matched box.
 
     Args:
         num_classes: Number of heatmap channels.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
         feature_map_stride: Stride from the voxel grid to the BEV feature map.
-        code_weights: Per-code regression weight, length $8 + \text{extra}$ (e.g. $8$, or $10$ with velocity).
+        code_weights: Per-code regression weight, length $8$ (the head predicts no velocity codes).
         cls_weight: Multiplier on the heatmap focal loss.
         loc_weight: Multiplier on the summed regression loss.
         iou_weight: Multiplier on the optional IoU-branch loss ($0$ disables it).
@@ -155,6 +142,9 @@ class CenterLoss(nn.Module):
         num_max_objs: int = 500,
     ) -> None:
         super().__init__()
+        if len(code_weights) != 8:
+            raise ValueError(f"`code_weights` must have length 8, got {len(code_weights)}.")
+
         self.num_classes = num_classes
         self.point_cloud_range = tuple(point_cloud_range)
         self.voxel_size = tuple(voxel_size)
@@ -213,10 +203,10 @@ class CenterLoss(nn.Module):
         ind = torch.stack(inds)
         mask = torch.stack(masks)
 
-        hm_loss = _gaussian_focal_loss(_sigmoid_clamp(heatmap_pred), hm_target) * self.cls_weight
+        hm_loss = _gaussian_focal_loss(_clamp_sigmoid(heatmap_pred), hm_target) * self.cls_weight
 
         pred_boxes = torch.cat([output["center"], output["center_z"], output["dim"], output["rot"]], dim=1)
-        reg = _reg_l1_loss(_transpose_gather(pred_boxes, ind), reg_target, mask)
+        reg = _reg_l1_loss(transpose_gather(pred_boxes, ind), reg_target, mask)
         loc_loss = (reg * self.code_weights).sum() * self.loc_weight
 
         total = hm_loss + loc_loss
@@ -238,8 +228,8 @@ class CenterLoss(nn.Module):
         width: int,
     ) -> Tensor:
         r"""IoU-branch $L_1$: regress the `iou` map toward $2 \cdot \text{IoU}_{3D} - 1$ at each peak cell."""
-        gathered_iou = _transpose_gather(iou_pred, ind)
-        gathered_box = _transpose_gather(pred_boxes, ind)
+        gathered_iou = transpose_gather(iou_pred, ind)
+        gathered_box = transpose_gather(pred_boxes, ind)
         vx, vy, _ = self.voxel_size
         pxs = ind % width
         pys = torch.div(ind, width, rounding_mode="floor")
@@ -292,7 +282,8 @@ def _assign_sparse_scene(
     Each box center is projected to BEV cells; the target Gaussian is splatted only onto occupied
     voxels (by squared distance to both the box center and the nearest occupied voxel). The regression
     code is anchored to that nearest occupied voxel: the center offset is measured against its real
-    (non-integer) index rather than a dense-grid floor.
+    (non-integer) index rather than a dense-grid floor. Extents are clamped to $10^{-5}$ before the log
+    so a degenerate box does not produce a non-finite target.
 
     Args:
         boxes: Scene boxes $(K, D)$, $D \ge 7$, without a class column.
@@ -329,7 +320,7 @@ def _assign_sparse_scene(
 
     dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
     dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
-    radius = torch.clamp_min(gaussian_radius(dx, dy, min_overlap=gaussian_overlap).int(), min_radius)
+    radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
 
     for k in range(min(num_max_objs, boxes.shape[0])):
         if dx[k] <= 0 or dy[k] <= 0:
@@ -347,7 +338,7 @@ def _assign_sparse_scene(
 
         reg_targets[k, 0:2] = center[k] - spatial_xy[nearest]
         reg_targets[k, 2] = z[k]
-        reg_targets[k, 3:6] = boxes[k, 3:6].log()
+        reg_targets[k, 3:6] = boxes[k, 3:6].clamp_min(1e-5).log()
         reg_targets[k, 6] = torch.cos(boxes[k, 6])
         reg_targets[k, 7] = torch.sin(boxes[k, 6])
         if boxes.shape[1] > 7:
@@ -471,7 +462,7 @@ class SparseCenterLoss(nn.Module):
                 inds.append(ind)
                 masks.append(mask)
 
-            hm_loss = _gaussian_focal_loss(_sigmoid_clamp(hm_pred), hm_target) * self.cls_weight
+            hm_loss = _gaussian_focal_loss(_clamp_sigmoid(hm_pred), hm_target) * self.cls_weight
 
             ind = torch.stack(inds)
             mask = torch.stack(masks)

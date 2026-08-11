@@ -8,7 +8,13 @@ from torch import Tensor
 
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.lion import LIONDetection, TransFusionHead, TransFusionHeadOutput
+from torch_pointcloud.models.lion import (
+    LION3DBackbone,
+    LIONDetection,
+    PatchMerging3D,
+    TransFusionHead,
+    TransFusionHeadOutput,
+)
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
@@ -62,6 +68,34 @@ def test_lion_head_decode_packs_detections() -> None:
     assert det["scores"].shape[0] == det["boxes"].shape[0] == det["labels"].shape[0] == det["batch"].shape[0]
     assert torch.isfinite(det["boxes"]).all()
     assert set(det["batch"].tolist()) <= {0, 1}
+
+
+def test_lion_head_decode_returns_velocity() -> None:
+    """Decoded candidates carry the head's predicted BEV velocity unchanged under `velocity`."""
+    torch.manual_seed(0)
+    head = TransFusionHead(384, 10, (360, 360, 32), RANGE, (0.3, 0.3, 0.25)).eval()
+    num_proposals = head.num_proposals
+    batch_size = 2
+    vel = torch.empty(batch_size, 2, num_proposals)
+    vel[:, 0] = 1.5
+    vel[:, 1] = -0.5
+    out: TransFusionHeadOutput = {
+        "center": torch.rand(batch_size, 2, num_proposals),
+        "height": torch.rand(batch_size, 1, num_proposals),
+        "dim": torch.rand(batch_size, 3, num_proposals),
+        "rot": torch.randn(batch_size, 2, num_proposals),
+        "vel": vel,
+        "iou": torch.rand(batch_size, 1, num_proposals),
+        "heatmap": torch.randn(batch_size, 10, num_proposals),
+        "query_heatmap_score": torch.rand(batch_size, 10, num_proposals),
+        "query_labels": torch.randint(0, 10, (batch_size, num_proposals)),
+        "dense_heatmap": torch.randn(batch_size, 10, 180, 180),
+    }
+    det = head.decode(out)
+    assert det["boxes"].shape[0] > 0
+    assert det["velocity"].shape == (det["boxes"].shape[0], 2)
+    assert torch.all(det["velocity"][:, 0] == 1.5)
+    assert torch.all(det["velocity"][:, 1] == -0.5)
 
 
 def test_lion_head_predict_supports_non_nuscenes_num_classes() -> None:
@@ -129,6 +163,21 @@ def test_lion_head_local_max_classes_decode() -> None:
     assert torch.isfinite(det["boxes"]).all()
 
 
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_lion_patch_merging_invalid_diffusion_scale_raises() -> None:
+    import spconv.pytorch as spconv
+
+    merge = PatchMerging3D(8)
+    x = spconv.SparseConvTensor(torch.randn(4, 8), torch.zeros(4, 4, dtype=torch.int32), [4, 4, 4], batch_size=1)
+    with pytest.raises(ValueError, match="diffusion_scale"):
+        merge(x, diffusion_scale=3)
+
+
+def test_lion_backbone_3d_num_layers_mismatch_raises() -> None:
+    with pytest.raises(ValueError, match="num_layers"):
+        LION3DBackbone((360, 360, 32), num_layers=2, depths=(2, 2, 2))
+
+
 def _make_inputs(scene_sizes: Sequence[int] = (30000,)) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     torch.manual_seed(0)
     pos, x, batch = [], [], []
@@ -154,6 +203,7 @@ def test_lion_forward_and_decode() -> None:
     assert out["dense_heatmap"].shape[1] == 10
     assert torch.isfinite(out["heatmap"]).all()
     assert det["boxes"].shape[1] == 7
+    assert det["velocity"].shape == (det["boxes"].shape[0], 2)
     assert det["scores"].shape[0] == det["boxes"].shape[0] == det["labels"].shape[0] == det["batch"].shape[0]
     assert torch.isfinite(det["boxes"]).all()
 

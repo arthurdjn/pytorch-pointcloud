@@ -144,3 +144,18 @@ def test_pointnet2_encoder_needs_ratios_or_num_points() -> None:
         PointNet2Encoder(
             in_channels=6, sa_channels=[[32, 64]], ratios=[0.5], num_points=[128], radii=[0.2], num_neighbors=[16]
         )
+
+
+def test_pointnet2_classification_num_classes_zero_returns_features(data: Dict[str, Tensor]) -> None:
+    model = PointNet2Classification(
+        in_channels=6,
+        num_classes=0,
+        sa_channels=[[32, 64], [64, 128]],
+        ratios=[0.5, 0.5],
+        radii=[0.2, 0.4],
+        num_neighbors=[16, 16],
+        head_channels=[32],
+    )
+    assert isinstance(model.head, torch.nn.Identity)
+    out = model(data["x"], data["pos"], data["batch"])
+    assert out.shape == (int(data["batch"].max()) + 1, model.embedding_dim)

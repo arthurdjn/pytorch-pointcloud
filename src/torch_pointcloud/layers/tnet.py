@@ -96,15 +96,17 @@ class TNet(nn.Module):
         nn.init.zeros_(self.transform.bias)
 
     def forward(self, x: Tensor, batch: Tensor) -> Tensor:
-        """Forward pass of the T-Net.
+        r"""Forward pass of the T-Net.
+
+        Predicts one $k \times k$ transformation matrix per sample and applies it to the points.
 
         Args:
-            x: Input tensor of shape $(N, k, *)$ where $N$ is the batch size, $k$ is the dimension of the input features,
-                and $*$ means any number of additional dimensions.
-            batch: Batch indices of shape $(N,)$ where $N$ is the batch size.
+            x: Input tensor of shape $(N, k)$ where $N$ is the number of points and $k$ is the
+                dimension of the input features.
+            batch: Batch indices of shape $(N,)$.
 
         Returns:
-            Transformation matrix of shape $(N, k, k)$ where $N$ is the batch size.
+            Transformed features of shape $(N, k)$.
         """
 
         xt = self.local_nn(x)

@@ -2,8 +2,9 @@ from unittest.mock import Mock, patch, sentinel
 
 import pytest
 import torch
+from torch import Tensor
 
-from torch_pointcloud.utils.cluster import fps, group
+from torch_pointcloud.utils.cluster import fps, group, knn, knn_graph, radius
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
 
@@ -161,3 +162,82 @@ def test_group_calls_fps_and_knn_with_correct_params(mock_fps: Mock, mock_knn: M
     assert neighborhood.shape == (2, 2, 3, 3)
     assert center.shape == (2, 2, 3)
     assert idx.shape == (12,)
+
+
+def test_knn_unsorted_batch_raises() -> None:
+    pos = torch.randn(6, 3)
+    batch = torch.tensor([0, 1, 0, 1, 0, 1])
+    with pytest.raises(ValueError, match="`batch_x` must be sorted"):
+        knn(pos, pos, k=2, batch_x=batch, batch_y=torch.zeros(6, dtype=torch.long))
+    with pytest.raises(ValueError, match="`batch_y` must be sorted"):
+        knn(pos, pos, k=2, batch_x=torch.zeros(6, dtype=torch.long), batch_y=batch)
+
+
+def test_knn_graph_unsorted_batch_raises() -> None:
+    pos = torch.randn(6, 3)
+    batch = torch.tensor([0, 1, 0, 1, 0, 1])
+    with pytest.raises(ValueError, match="`batch` must be sorted"):
+        knn_graph(pos, k=2, batch=batch)
+
+
+def test_radius_unsorted_batch_raises() -> None:
+    pos = torch.randn(6, 3)
+    batch = torch.tensor([0, 1, 0, 1, 0, 1])
+    with pytest.raises(ValueError, match="`batch_x` must be sorted"):
+        radius(pos, pos, r=1.0, batch_x=batch, batch_y=torch.zeros(6, dtype=torch.long))
+
+
+def _edge_set(edge_index: Tensor) -> set:
+    return set(map(tuple, edge_index.t().tolist()))
+
+
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+def test_knn_dense_fast_path_matches_torch_cluster(monkeypatch: pytest.MonkeyPatch) -> None:
+    torch.manual_seed(0)
+    x = torch.randn(20, 3)
+    y = torch.randn(10, 3)
+    batch_x = torch.repeat_interleave(torch.arange(2), 10)
+    batch_y = torch.repeat_interleave(torch.arange(2), 5)
+
+    dense = knn(x, y, k=3, batch_x=batch_x, batch_y=batch_y)
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.KNN_DENSE_BUDGET", 0)
+    fallback = knn(x, y, k=3, batch_x=batch_x, batch_y=batch_y)
+    assert _edge_set(dense) == _edge_set(fallback)
+
+
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.parametrize("loop", [pytest.param(False, id="no-loop"), pytest.param(True, id="loop")])
+def test_knn_graph_dense_fast_path_matches_torch_cluster(monkeypatch: pytest.MonkeyPatch, loop: bool) -> None:
+    torch.manual_seed(0)
+    x = torch.randn(16, 3)
+    batch = torch.repeat_interleave(torch.arange(2), 8)
+
+    dense = knn_graph(x, k=3, batch=batch, loop=loop)
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.KNN_DENSE_BUDGET", 0)
+    fallback = knn_graph(x, k=3, batch=batch, loop=loop)
+    assert _edge_set(dense) == _edge_set(fallback)
+
+
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+def test_radius_returns_tuple_in_both_paths() -> None:
+    torch.manual_seed(0)
+    x = torch.randn(12, 3)
+    batch = torch.repeat_interleave(torch.arange(2), 6)
+
+    out_plain = radius(x, x, r=10.0, batch_x=batch, batch_y=batch, max_num_neighbors=4)
+    out_sorted = radius(x, x, r=10.0, batch_x=batch, batch_y=batch, max_num_neighbors=4, sort=True)
+    assert isinstance(out_plain, tuple) and len(out_plain) == 2
+    assert isinstance(out_sorted, tuple) and len(out_sorted) == 2
+
+
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+def test_radius_sort_keeps_smallest_source_indices() -> None:
+    # All 6 sources fall inside every ball; with k=3 and sort=True the 3 smallest
+    # per-batch source indices are kept for every query.
+    x = torch.zeros(6, 3)
+    batch = torch.repeat_interleave(torch.arange(2), 3)
+    row, col = radius(x, x, r=1.0, batch_x=batch, batch_y=batch, max_num_neighbors=3, sort=True)
+    for q in range(6):
+        picked = sorted(col[row == q].tolist())
+        expected = [0, 1, 2] if q < 3 else [3, 4, 5]
+        assert picked == expected

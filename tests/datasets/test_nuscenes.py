@@ -1,7 +1,8 @@
 # mypy: disable-error-code="arg-type,call-overload"
+import json
 from pathlib import Path
 from typing import Callable
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -9,7 +10,9 @@ import torch
 
 from torch_pointcloud.datasets import NuScenesMini
 from torch_pointcloud.datasets.nuscenes import (
+    NUSCENES_ATTRIBUTES,
     NUSCENES_DETECTION_CLASSES,
+    _annotation_velocity,
     _pose_matrix,
     _remove_ego_points,
 )
@@ -30,6 +33,27 @@ def test_remove_ego_points_drops_near_origin() -> None:
     kept = _remove_ego_points(points)
     assert kept.shape == (1, 4)
     assert np.allclose(kept[0, :2], [5.0, 5.0])
+
+
+def test_annotation_velocity_finite_difference() -> None:
+    """_annotation_velocity divides the neighbor translation delta by the sample-timestamp delta."""
+    ann_by_token = {
+        "a": {"token": "a", "prev": "", "next": "b", "sample_token": "sa", "translation": [0.0, 0.0, 0.0]},
+        "b": {"token": "b", "prev": "a", "next": "c", "sample_token": "sb", "translation": [1.0, 2.0, 0.0]},
+        "c": {"token": "c", "prev": "b", "next": "", "sample_token": "sc", "translation": [2.0, 4.0, 0.0]},
+    }
+    timestamps = {"sa": 10.0, "sb": 10.5, "sc": 11.0}
+    assert np.allclose(_annotation_velocity(ann_by_token["b"], ann_by_token, timestamps), [2.0, 4.0, 0.0])
+    assert np.allclose(_annotation_velocity(ann_by_token["a"], ann_by_token, timestamps), [2.0, 4.0, 0.0])
+    assert np.allclose(_annotation_velocity(ann_by_token["c"], ann_by_token, timestamps), [2.0, 4.0, 0.0])
+
+
+def test_annotation_velocity_without_neighbors_is_zero() -> None:
+    """No prev/next neighbor (or a dangling token) yields a zero velocity."""
+    isolated = {"token": "a", "prev": "", "next": "", "sample_token": "sa", "translation": [3.0, 1.0, 0.0]}
+    assert np.allclose(_annotation_velocity(isolated, {"a": isolated}, {"sa": 0.0}), 0.0)
+    dangling = {"token": "b", "prev": "missing", "next": "", "sample_token": "sb", "translation": [3.0, 1.0, 0.0]}
+    assert np.allclose(_annotation_velocity(dangling, {"b": dangling}, {"sb": 0.0}), 0.0)
 
 
 def test_nuscenes_dataset_not_found() -> None:
@@ -61,6 +85,9 @@ def test_nuscenes_dataset_dtypes(datasets_dir_factory: Callable[..., Path]) -> N
     assert sample[DataKeys.TIMESTAMP].dtype == torch.float32
     assert sample[DataKeys.BOX].dtype == torch.float32
     assert sample[DataKeys.LABEL].dtype == torch.int64
+    assert sample[DataKeys.VELOCITY].dtype == torch.float32
+    assert sample[DataKeys.NUM_POINTS].dtype == torch.int64
+    assert sample[DataKeys.ATTRIBUTE].dtype == torch.int64
 
 
 def test_nuscenes_dataset_boxes(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -72,6 +99,24 @@ def test_nuscenes_dataset_boxes(datasets_dir_factory: Callable[..., Path]) -> No
     assert boxes.shape[0] == labels.shape[0] >= 1
     assert labels.min() >= 0
     assert labels.max() < len(NUSCENES_DETECTION_CLASSES)
+
+
+def test_nuscenes_dataset_box_extras(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Per-box velocity, LiDAR point count and attribute id align with the boxes and stay in range."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    sample = NuScenesMini(root=datasets_dir)[0]
+    num_boxes = sample[DataKeys.BOX].shape[0]
+    velocity = sample[DataKeys.VELOCITY]
+    assert velocity.shape == (num_boxes, 2)
+    assert torch.isfinite(velocity).all()
+    # The fixture annotations all have prev/next neighbors, so velocities resolve to non-zero values.
+    assert velocity.abs().sum() > 0
+    assert sample[DataKeys.NUM_POINTS].shape == (num_boxes,)
+    assert (sample[DataKeys.NUM_POINTS] >= 0).all()
+    attribute = sample[DataKeys.ATTRIBUTE]
+    assert attribute.shape == (num_boxes,)
+    assert (attribute >= -1).all()
+    assert (attribute < len(NUSCENES_ATTRIBUTES)).all()
 
 
 def test_nuscenes_dataset_sweep_aggregation(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -92,3 +137,52 @@ def test_nuscenes_dataset_transform(datasets_dir_factory: Callable[..., Path]) -
     dataset = NuScenesMini(root=datasets_dir, transform=transform)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
+
+
+def test_nuscenes_dataset_cache_meta_mismatch_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A processed cache written with different classes raises instead of serving mislabeled boxes."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    _ = NuScenesMini(root=datasets_dir, classes=("pedestrian", "car"), show_progress=False)
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        _ = NuScenesMini(root=datasets_dir, show_progress=False)
+
+    dataset = NuScenesMini(root=datasets_dir, show_progress=False, force_process=True)
+    assert dataset.classes == NUSCENES_DETECTION_CLASSES
+
+
+def test_nuscenes_dataset_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache from an older format version raises, so the box extras are never silently missing."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    dataset = NuScenesMini(root=datasets_dir, show_progress=False)
+    meta_path = Path(dataset.processed_dir, "meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] = 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        _ = NuScenesMini(root=datasets_dir, show_progress=False)
+
+    reprocessed = NuScenesMini(root=datasets_dir, show_progress=False, force_process=True)
+    assert reprocessed[0][DataKeys.VELOCITY].shape[1] == 2
+
+
+def test_nuscenes_dataset_legacy_cache_without_meta_loads(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A processed cache from before cache metadata existed is accepted as-is."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    dataset = NuScenesMini(root=datasets_dir, show_progress=False)
+    Path(dataset.processed_dir, "meta.json").unlink()
+
+    reloaded = NuScenesMini(root=datasets_dir, show_progress=False)
+    assert len(reloaded) == len(dataset)
+
+
+def test_nuscenes_dataset_interrupted_process_not_marked_complete(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A crash during processing leaves no keyframes sentinel, so the next construction reprocesses."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    with patch("torch_pointcloud.datasets.nuscenes.json.dumps", side_effect=RuntimeError("interrupted")):
+        with pytest.raises(RuntimeError, match="interrupted"):
+            _ = NuScenesMini(root=datasets_dir, show_progress=False)
+
+    dataset = NuScenesMini(root=datasets_dir, show_progress=False)
+    assert len(dataset) > 0

@@ -1,6 +1,6 @@
 # mypy: disable-error-code="arg-type,call-overload"
 from pathlib import Path
-from typing import Callable, List
+from typing import Any, Callable, List
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -238,3 +238,42 @@ def test_shapenet_dataset_transform_called(datasets_dir_factory: Callable[..., P
     dataset = ShapeNetPart(root=datasets_dir, split="train", transform=transform, show_progress=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
+
+
+def test_shapenetpart_getitem_returns_shallow_copy(datasets_dir_factory: Callable[..., Path]) -> None:
+    """User edits on a returned sample dict never reach the in-memory cache"""
+    datasets_dir = datasets_dir_factory("ShapeNetPart/processed/**/*")
+    dataset = ShapeNetPart(root=datasets_dir, split="train", show_progress=False)
+
+    sample = dataset[0]
+    assert sample is not dataset.samples[0]
+    sample["extra"] = 1
+    assert "extra" not in dataset[0]
+
+
+def test_shapenetpart_dataset_download_unsupported(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`download()` raises because ShapeNetPart must be downloaded manually."""
+    datasets_dir = datasets_dir_factory("ShapeNetPart/**/*")
+    dataset = ShapeNetPart(root=datasets_dir, split="test", show_progress=False)
+    with pytest.raises(RuntimeError, match="does not support automatic download"):
+        dataset.download()
+
+
+def test_shapenetpart_interrupted_cache_write_reprocesses(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A crash during the cache write leaves no processed split, so the next construction reprocesses."""
+    datasets_dir = datasets_dir_factory("ShapeNetPart/raw/**/*")
+
+    def interrupted_save(path: Any, array: Any, **kwargs: Any) -> None:
+        raise RuntimeError("interrupted")
+
+    monkeypatch.setattr("numpy.save", interrupted_save)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        _ = ShapeNetPart(root=datasets_dir, split="train", show_progress=False)
+
+    assert not (datasets_dir / "ShapeNetPart" / "processed" / "train").exists()
+
+    monkeypatch.undo()
+    dataset = ShapeNetPart(root=datasets_dir, split="train", show_progress=False)
+    assert len(dataset) > 0
