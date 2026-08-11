@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torch_pointcloud.datasets import ModelNet40
 from torch_pointcloud.utils.data import collate
 
-dataset = ModelNet40(root="data", split="train")
+dataset = ModelNet40(root="data", train=True)
 loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 ```
 

@@ -50,7 +50,7 @@ transform = T.Compose([
     ),
 ])
 
-dataset = ModelNet10(root="data", split="test", transform=transform)
+dataset = ModelNet10(root="data", train=False, transform=transform)
 loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 
 for batch in loader:
