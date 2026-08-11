@@ -23,9 +23,13 @@ def package_available(package_name: str) -> bool:
         False
     """
     try:
-        return find_spec(package_name) is not None
+        spec = find_spec(package_name)
     except (ModuleNotFoundError, ValueError):
         return False
+    # A bare namespace portion (spec.origin is None) does not count as installed: e.g. pytest putting the
+    # repository's tests/ on sys.path makes tests/lightning satisfy find_spec("lightning") in an
+    # environment without lightning.
+    return spec is not None and spec.origin is not None
 
 
 @lru_cache
@@ -87,6 +91,43 @@ def check_requirement(requirement: str) -> bool:
         return False
 
 
+def _missing_import_proxy(msg: str) -> type:
+    """Subclassable stand-in for an unavailable dependency that raises an informative `ImportError` on any use.
+
+    Dunder lookups are answered with `AttributeError` instead: they come from introspection machinery
+    (e.g. doctest / inspect probing `__wrapped__` through `hasattr`, which only swallows `AttributeError`),
+    so raising `ImportError` there would crash module collection on Python < 3.12 even though no real use
+    of the dependency occurred.
+    """
+
+    def _getattr(name: str) -> Any:
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        raise ImportError(msg)
+
+    class _Meta(type):
+        def __getattr__(cls, name: str) -> Any:
+            return _getattr(name)
+
+        def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+            raise ImportError(msg)
+
+        def __repr__(cls) -> str:
+            return msg
+
+    class ModuleNotFoundProxy(metaclass=_Meta):
+        def __getattr__(self, name: str) -> Any:
+            return _getattr(name)
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            raise ImportError(msg)
+
+        def __repr__(self) -> str:
+            return msg
+
+    return ModuleNotFoundProxy
+
+
 _UNRESOLVED = object()
 
 
@@ -97,7 +138,8 @@ class _LazyImportProxy:
     subclassing (PEP 560 `__mro_entries__`), so module-scope `optional_import` calls do not load heavy
     dependencies at import time. Dunder lookups on an unresolved proxy raise `AttributeError`: they come
     from introspection machinery (e.g. doctest probing `__wrapped__` through `hasattr`) and must not
-    force the import.
+    force the import. When resolution fails during subclassing, the class definition still succeeds
+    against a raising placeholder base and the `ImportError` surfaces on first use of the subclass.
 
     The defer-to-first-use pattern follows TensorFlow's `LazyLoader`
     (https://github.com/tensorflow/tensorflow/blob/v2.17.0/tensorflow/python/util/lazy_loader.py#L28), written
@@ -137,7 +179,13 @@ class _LazyImportProxy:
         return target(*args, **kwargs)
 
     def __mro_entries__(self, bases: Tuple[Any, ...]) -> Tuple[type, ...]:
-        target = self._resolve()
+        try:
+            target = self._resolve()
+        except ImportError as error:
+            # Defining the subclass must stay harmless at import time (the availability probe can be
+            # fooled, e.g. by a same-named plain directory on sys.path); the informative error is raised
+            # on instantiation or use of the subclass instead.
+            return (_missing_import_proxy(str(error)),)
         assert isinstance(target, type), f"'{self._module_path}.{self._name}' is not a class"
         return (target,)
 
@@ -222,36 +270,7 @@ def optional_import(
     if url:
         msg += f" Check official documentation to install it: {url}."
 
-    # Create a proxy that raises an informative ImportError whenever the missing dependency is used. Dunder lookups
-    # are answered with AttributeError instead: they come from introspection machinery (e.g. doctest / inspect probing
-    # `__wrapped__` through `hasattr`, which only swallows AttributeError), so raising ImportError there would crash
-    # module collection on Python < 3.12 even though no real use of the dependency occurred.
-    def _getattr(name: str) -> Any:
-        if name.startswith("__") and name.endswith("__"):
-            raise AttributeError(name)
-        raise ImportError(msg)
-
-    class _Meta(type):
-        def __getattr__(cls, name: str) -> Any:
-            return _getattr(name)
-
-        def __call__(cls, *args: Any, **kwargs: Any) -> Any:
-            raise ImportError(msg)
-
-        def __repr__(cls) -> str:
-            return msg
-
-    class ModuleNotFoundProxy(metaclass=_Meta):
-        def __getattr__(self, name: str) -> Any:
-            return _getattr(name)
-
-        def __call__(self, *args: Any, **kwargs: Any) -> Any:
-            raise ImportError(msg)
-
-        def __repr__(self) -> str:
-            return msg
-
-    return ModuleNotFoundProxy, False
+    return _missing_import_proxy(msg), False
 
 
 _DWCONV_GITHUB_URL = "https://github.com/octree-nn/dwconv"

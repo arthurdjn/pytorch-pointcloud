@@ -247,3 +247,28 @@ def test_config_import_has_no_dotenv_side_effect(tmp_path: Path) -> None:
         [sys.executable, "-c", code], capture_output=True, text=True, check=True, cwd=tmp_path, env=env
     )
     assert result.stdout.strip().splitlines()[-2:] == ["<unset>", "data"]
+
+
+def test_package_available_ignores_namespace_shadow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A same-named plain directory on `sys.path` (e.g. `tests/lightning` when pytest prepends `tests/`)
+    resolves to a namespace-package spec and must not count as an installed dependency."""
+    (tmp_path / "fake_namespace_shadow").mkdir()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    package_available.cache_clear()
+    try:
+        assert package_available("fake_namespace_shadow") is False
+    finally:
+        package_available.cache_clear()
+
+
+def test_lazy_proxy_subclassing_unresolvable_target_defers_error() -> None:
+    """Subclassing a proxy whose target cannot resolve must not fail at class-definition (import) time;
+    the informative `ImportError` surfaces when the subclass is instantiated."""
+    proxy, available = optional_import("importlib", name="does_not_exist_attribute")
+    assert available is True
+
+    class Consumer(proxy):  # type: ignore[valid-type, misc]
+        pass
+
+    with pytest.raises(ImportError, match="could not provide 'does_not_exist_attribute'"):
+        Consumer()
