@@ -391,3 +391,17 @@ def test_spherical_points_lloyd_approximation(approximation: Literal["discretiza
     # Check points are within expected radius
     distances = torch.norm(points, dim=1)
     assert torch.all(distances <= radius)
+
+
+def test_random_spherical_points_int_bounds() -> None:
+    points = random_spherical_points(1.0, 50, bounds=1)
+    assert points.shape == (50, 3)
+    assert torch.all(points.norm(dim=1) <= 1.0)
+
+
+def test_spherical_points_gradient_honors_radius() -> None:
+    torch.manual_seed(0)
+    radius = 0.05
+    points = spherical_points_gradient(radius, 16, max_steps=50)
+    distances = torch.norm(points, dim=1)
+    assert torch.allclose(torch.mean(distances[1:]), torch.tensor(0.66 * radius), atol=1e-4)

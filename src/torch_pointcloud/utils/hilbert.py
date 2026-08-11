@@ -100,10 +100,10 @@ def encode(locs: Tensor, num_dims: int, num_bits: int) -> Tensor:
 
 
 def decode(hilberts: Tensor, num_dims: int, num_bits: int) -> Tensor:
-    if num_dims * num_bits > 64:
+    if num_dims * num_bits > 63:
         raise ValueError(
             f"Got num_dims={num_dims} and num_bits={num_bits} for {num_dims * num_bits} bits total, "
-            "which can't be encoded into a uint64. Are you sure you need that many points on your Hilbert curve?"
+            "which can't be encoded into a int64. Are you sure you need that many points on your Hilbert curve?"
         )
 
     # Handle the case where we got handed a naked integer.

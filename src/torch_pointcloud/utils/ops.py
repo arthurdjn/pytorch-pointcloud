@@ -1,19 +1,19 @@
-from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 import torch
 from torch import Tensor
+from torch_geometric.nn.pool.consecutive import consecutive_cluster
 
-from .conversion import ensure_option, ensure_tuple_size
+from .conversion import ensure_option
 from .imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from .types import OptTensor
 
 if TYPE_CHECKING:
-    from torch_cluster import grid_cluster, knn
+    from torch_cluster import knn
     from torch_scatter import scatter
 
 scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
-grid_cluster, _ = optional_import("torch_cluster", name="grid_cluster", url=_TORCH_CLUSTER_GITHUB_URL)
 knn, _ = optional_import("torch_cluster", name="knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
@@ -75,55 +75,6 @@ def softmax(x: Tensor, batch: Tensor, dim: int = 0) -> Tensor:
     out_sum = out_sum.index_select(dim, batch)
 
     return out / out_sum
-
-
-def voxel_grid(
-    coords: Tensor,
-    size: Union[float, Sequence[float], Tensor],
-    batch: Optional[Tensor] = None,
-    start: Optional[Union[float, Sequence[float], Tensor]] = None,
-    end: Optional[Union[float, Sequence[float], Tensor]] = None,
-) -> Tensor:
-    """Creates a voxel grid from 3D coordinates. This function is compatible with
-    batched coordinates in a packed format.
-
-    Note:
-        This function is adapted from :github: [`torch-geometric`](https://github.com/pyg-team/pytorch_geometric)
-        and depends on the :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) package.
-
-    Args:
-        coords: The 3D coordinates of shape `(N, 3)`.
-        size: The size of the voxel grid.
-        batch: The batch vector of shape `(N,)`.
-        start: The start of the voxel grid.
-        end: The end of the voxel grid.
-
-    Returns:
-        The voxel grid of shape `(N, 3)`.
-    """
-    coords = coords.unsqueeze(-1) if coords.dim() == 1 else coords
-    dim = coords.size(1)
-
-    if batch is None:
-        batch = coords.new_zeros(coords.size(0), dtype=torch.long)
-
-    coords = torch.cat([coords, batch.view(-1, 1).to(coords.dtype)], dim=-1)
-
-    size = ensure_tuple_size(size, dim)
-    size = torch.as_tensor(size, dtype=coords.dtype, device=coords.device)
-    size = torch.cat([size, size.new_ones(1)])
-
-    if start is not None:
-        start = ensure_tuple_size(start, dim)
-        start = torch.as_tensor(start, dtype=coords.dtype, device=coords.device)
-        start = torch.cat([start, start.new_zeros(1)])
-
-    if end is not None:
-        end = ensure_tuple_size(end, dim)
-        end = torch.as_tensor(end, dtype=coords.dtype, device=coords.device)
-        end = torch.cat([end, batch.max().unsqueeze(0)])
-
-    return grid_cluster(coords, size, start, end)
 
 
 @overload
@@ -211,8 +162,7 @@ def voxel_grid_fnv(
     if not return_inverse and not return_counts:
         return hashed_tensor
 
-    inverse = consecutive_cluster(hashed_tensor)
-    assert isinstance(inverse, Tensor)
+    inverse, _ = consecutive_cluster(hashed_tensor)
     if return_inverse and return_counts:
         return hashed_tensor, inverse, torch.bincount(inverse)
     if return_inverse:
@@ -220,34 +170,31 @@ def voxel_grid_fnv(
     return hashed_tensor, torch.bincount(inverse)
 
 
-def consecutive_cluster(cluster: Tensor, return_permutation: bool = False) -> Union[Tuple[Tensor, Tensor], Tensor]:
-    """Return consecutive cluster indices (and associated permutation)
-    from a tensor of cluster indices. A cluster tensor is a tensor of shape `(N,)` where each element
-    represents the cluster index of the corresponding point.
+def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Tensor:
+    r"""Index of the first occurrence of each cluster id in a consecutive cluster tensor.
+
+    The permutation returned by `consecutive_cluster` picks a backend-dependent representative per
+    cluster (the last occurrence on CPU, a nondeterministic one on CUDA). This helper always picks
+    the first occurrence, so `tensor[first_permutation(cluster)]` is deterministic across devices.
 
     Args:
-        cluster: The cluster tensor of shape `(N,)`.
-        return_permutation: Whether to return the permutation. Can be used
-            to select batch indices, target categories etc. belonging to the same cluster.
+        cluster: Consecutive cluster indices of shape $(N,)$ with values in $[0, V)$.
+        num_clusters: Number of clusters $V$. Inferred as `cluster.max() + 1` when `None`.
 
     Returns:
-        The consecutive cluster indices and the permutation.
+        Long tensor of shape $(V,)$ holding, per cluster id, the smallest index in `cluster` with that id.
 
     Example:
-        >>> cluster = torch.tensor([10, 2, 31, 10, 10, 31, 5, 6, 5])
-        >>> inv, perm = consecutive_cluster(cluster, return_permutation=True)
-        >>> inv
-        tensor([3, 0, 4, 3, 3, 4, 1, 2, 1])
-        >>> perm
-        tensor([1, 8, 7, 4, 5])
+        >>> cluster = torch.tensor([1, 0, 1, 2, 0])
+        >>> first_permutation(cluster)
+        tensor([1, 0, 3])
     """
-    unique, inv = torch.unique(cluster, sorted=True, return_inverse=True)
-    if not return_permutation:
-        return inv
-
-    perm = torch.arange(inv.size(0), dtype=inv.dtype, device=inv.device)
-    perm = inv.new_empty(unique.size(0)).scatter_(0, inv, perm)
-    return inv, perm
+    n = cluster.numel()
+    if num_clusters is None:
+        num_clusters = int(cluster.max().item()) + 1 if n > 0 else 0
+    perm = torch.arange(n, device=cluster.device)
+    first = torch.full((num_clusters,), n, dtype=torch.long, device=cluster.device)
+    return first.scatter_reduce_(0, cluster, perm, reduce="amin")
 
 
 def knn_interpolate(
@@ -279,7 +226,7 @@ def knn_interpolate(
 
     - `"squared"` (default, `torch_geometric` convention):
       $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))^2$
-    - `"inverse"` (PointNet++ `three_interpolation` / OpenPoints convention):
+    - `"inverse"` (PointNet++ `three_interpolation` convention):
       $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))$
 
     Note:
@@ -298,7 +245,7 @@ def knn_interpolate(
             `batch_x` or `batch_y` is not `None`, or the input lies on GPU.
         weighting: Weighting scheme for neighbours. `"squared"` for $1/d^2$
             weights (`torch_geometric` default) or `"inverse"` for $1/d$
-            weights (PointNet++ / OpenPoints convention).
+            weights (PointNet++ convention).
         eps: Small value to avoid division by zero.
 
     Returns:

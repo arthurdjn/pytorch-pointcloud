@@ -28,12 +28,14 @@ from typing import (
 import numpy as np
 import torch
 from torch import Tensor
+from torch_geometric.nn.pool import voxel_grid
+from torch_geometric.nn.pool.consecutive import consecutive_cluster
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.octree import build_octree
-from torch_pointcloud.utils.ops import consecutive_cluster, voxel_grid, voxel_grid_fnv
+from torch_pointcloud.utils.ops import first_permutation, voxel_grid_fnv
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 from torch_pointcloud.utils.voxelization import hard_voxelize
 
@@ -155,6 +157,21 @@ class Transform(metaclass=ABCMeta):
         Instead, it should return a new object with the transformed data.
 
         If the transform is in-place, it should be clearly stated in its documentation.
+
+    Warning:
+        Transforms that accept a `generator` keep a reference to it. Under a multi-worker
+        `DataLoader`, every worker receives an identical copy of that generator, so all workers
+        replay the same "random" augmentations (and with `persistent_workers=False`, so does every
+        epoch). Leave `generator=None` for multi-worker training: the global generator is seeded
+        per worker by PyTorch (`base_seed + worker_id`), which stays random across workers and
+        reproducible under `torch.manual_seed`. Reserve a stored generator for `num_workers=0`, or
+        re-seed it per worker in a `worker_init_fn`:
+
+        ```{.python notest}
+        def worker_init_fn(worker_id: int) -> None:
+            info = torch.utils.data.get_worker_info()
+            info.dataset.transform.generator = torch.Generator().manual_seed(info.seed)
+        ```
 
     See Also:
         `torch_pointcloud.transforms.DictTransform` for a version of this class
@@ -417,7 +434,7 @@ class DivisiblePad(DictTransform):
             data, padding runs per-batch; otherwise a single zero batch is
             synthesized for the whole scene.
         generator: Optional `torch.Generator`. Only consumed when
-            `pad_fill="random"`.
+            `pad_fill="random"`. See `Transform` for the multi-worker caveat.
         dst_inverse_key: When set, store the source-to-padded index map under
             this key (auto-composes with any existing value at the same key).
             Leave `None` for training pipelines that never need the inverse.
@@ -480,7 +497,7 @@ class DivisiblePad(DictTransform):
         for key, value in d.items():
             if key == self.dst_inverse_key:
                 continue
-            if torch.is_tensor(value) and value.size(0) == n:
+            if torch.is_tensor(value) and value.ndim > 0 and value.size(0) == n:
                 d[key] = value[indices]
         d[self.batch_key] = padded_batch
         if self.dst_inverse_key is not None:
@@ -624,6 +641,10 @@ class FarthestPointSample(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
+        if self.pos_key not in d:
+            if self.allow_missing_keys:
+                return d
+            raise KeyError(f"`FarthestPointSample` requires {self.pos_key!r} in data.")
         indices = F.farthest_point_sample(
             d[self.pos_key], num_samples=self.num_samples, ratio=self.ratio, random_start=self.random_start
         )
@@ -704,6 +725,10 @@ class RemoveNearOrigin(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
+        if self.pos_key not in d:
+            if self.allow_missing_keys:
+                return d
+            raise KeyError(f"`RemoveNearOrigin` requires {self.pos_key!r} in data.")
         _, mask = F.remove_near_origin(d[self.pos_key], radius=self.radius, return_mask=True)
         for key in self.iter_keys(d):
             d[key] = d[key][mask]
@@ -736,13 +761,14 @@ class Abs(DictTransform):
 class BoxMask(DictTransform):
     r"""Create a boolean mask for points inside an axis-aligned bounding box (AABB).
 
-    Membership condition along `dim`:
+    Membership condition along `dim` (default, boundary points included):
 
     $$
-    \text{bbmin}_j < x_j < \text{bbmax}_j \quad \forall j
+    \text{bbmin}_j \leq x_j \leq \text{bbmax}_j \quad \forall j
     $$
 
-    where `bbox = (*bbmin, *bbmax)` is the AABB.
+    where `bbox = (*bbmin, *bbmax)` is the AABB. With `strict=True` the inequalities are strict,
+    so boundary points are excluded.
 
     Sibling masks:
 
@@ -757,7 +783,7 @@ class BoxMask(DictTransform):
         bbox: The bounding box used to mask input tensors, as `(*bbmin, *bbmax)`.
         dst_keys: The keys to store the mask in.
         dim: The dimension to create the mask over.
-        strict: Whether to use strict inequality.
+        strict: If `True`, use strict inequalities (points exactly on the boundary are excluded).
         allow_missing_keys: If `True`, the transform will not raise an error if
             the keys are not present in the data.
     """
@@ -780,7 +806,7 @@ class BoxMask(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.box_mask(data[key], self.bbox, dim=self.dim)
+            data[dst_key] = F.box_mask(data[key], self.bbox, dim=self.dim, strict=self.strict)
         return data
 
 
@@ -969,15 +995,14 @@ class Shift(DictTransform):
         method: `"bbox"` (midrange), `"centroid"` (mean), or `"min"` (shift to origin).
         dim: The dimension to reduce over.
         axes: Which axes (last-dim indices) to shift. `None` (default) shifts every
-            axis; pass e.g. `axes=[0, 1]` to recenter only XY (matching Open3D-ML's
-            `recenter: dim: [0, 1]` augmentation). Axes outside this list are
+            axis; pass e.g. `axes=[0, 1]` to recenter only XY. Axes outside this list are
             left unchanged - this is the composable knob for mixed-method shifts.
         dst_keys: The keys to store the shifted data in.
         allow_missing_keys: If `True`, skip missing keys silently.
 
     Example:
-        Pointcept-style centering - XY shifted by the bbox midpoint, Z shifted
-        by its minimum (equivalent to the old `CenterShift(apply_z=True)`):
+        XY shifted by the bbox midpoint, Z shifted by its minimum (equivalent
+        to the old `CenterShift(apply_z=True)`):
 
         ```python
         from torch_pointcloud.transforms import Compose, Shift
@@ -1510,29 +1535,31 @@ class RelabelBoxes(DictTransform):
     3D AP metric expects, the way `Relabel` turns raw segmentation ids into a benchmark label set:
 
     - boxes whose raw label is a key of `mapping` are kept as ground truth, relabelled to `mapping[raw]`;
-    - boxes whose raw label is in `ignore_labels` (neighbouring classes, e.g. KITTI `Van` for `Car`) are
-      kept as **ignore regions** (label set to `default`, `ignore_mask = True`): they suppress false
-      positives but are not scored;
+    - boxes whose raw label is a key of `ignore_mapping` (neighbouring classes, e.g. KITTI `Van` for
+      `Car`) are kept as **ignore regions** (`ignore_mask = True`), labelled `ignore_mapping[raw]`: the
+      evaluated class they excuse. They suppress false positives of that class but are not scored;
     - a kept foreground box that falls outside any range in `ignore_fields` (e.g. KITTI's moderate rule:
-      occlusion $\le 1$, truncation $\le 0.3$, 2D height $\ge 25$ px) is downgraded to an ignore region;
+      occlusion $\le 1$, truncation $\le 0.3$, 2D height $\ge 25$ px) is downgraded to an ignore region
+      attributed to its mapped class;
     - every other box is dropped.
 
     All keys in `keys` (the box tensor and every per-box attribute, including those named in
     `ignore_fields`) are filtered together by the keep mask so they stay row-aligned. The output adds the
-    boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`.
+    boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`, which
+    excuse an unmatched prediction only on ignore boxes labelled with the evaluated class.
 
     Args:
         keys: Per-box tensors to filter together (e.g. `DataKeys.BOX`, `DataKeys.LABEL`,
             `DataKeys.TRUNCATION`, `DataKeys.OCCLUSION`). Must include `label_key` and every key
             referenced by `ignore_fields`.
-        mapping: Raw-label to detection-label dict; raw labels absent from it (and from `ignore_labels`)
+        mapping: Raw-label to detection-label dict; raw labels absent from it (and from `ignore_mapping`)
             are dropped.
         label_key: Key holding the raw integer labels (must be one of `keys`).
-        ignore_labels: Raw labels kept as ignore regions rather than scored ground truth.
+        ignore_mapping: Raw labels kept as ignore regions rather than scored ground truth, mapped to the
+            detection class they excuse (e.g. KITTI `Van` to the `Car` class index).
         ignore_fields: Per-attribute inclusive ranges `{key: (low, high)}` (use `None` for an open side);
             a foreground box outside any range becomes an ignore region.
         ignore_mask_key: Output key for the written boolean ignore mask.
-        default: Label assigned to ignore-region boxes (their label is unused by the metric).
         allow_missing_keys: If `True`, skip missing keys instead of raising.
 
     Example:
@@ -1540,12 +1567,13 @@ class RelabelBoxes(DictTransform):
         import torch_pointcloud.transforms as T
         from torch_pointcloud.utils.data import DataKeys
 
-        # KITTI: raw 8-class boxes -> 3 detection classes, Van / Person_sitting as ignore,
-        # moderate difficulty (occlusion <= 1, truncation <= 0.3, height >= 25 px) as ignore.
+        # KITTI: raw 8-class boxes -> 3 detection classes, Van / Person_sitting as ignore regions
+        # for Car / Pedestrian, moderate difficulty (occlusion <= 1, truncation <= 0.3,
+        # height >= 25 px) as ignore.
         T.RelabelBoxes(
             keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
             mapping={0: 0, 3: 1, 5: 2},
-            ignore_labels=(1, 4),
+            ignore_mapping={1: 0, 4: 1},
             ignore_fields={
                 DataKeys.OCCLUSION: (None, 1),
                 DataKeys.TRUNCATION: (None, 0.3),
@@ -1561,27 +1589,25 @@ class RelabelBoxes(DictTransform):
         mapping: Dict[int, int],
         *,
         label_key: str = DataKeys.LABEL,
-        ignore_labels: Sequence[int] = (),
+        ignore_mapping: Optional[Dict[int, int]] = None,
         ignore_fields: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
         ignore_mask_key: str = "ignore_mask",
-        default: int = -1,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mapping = {int(k): int(v) for k, v in mapping.items()}
         self.label_key = label_key
-        self.ignore_labels = tuple(int(v) for v in ignore_labels)
+        self.ignore_mapping = {int(k): int(v) for k, v in (ignore_mapping or {}).items()}
         self.ignore_fields = dict(ignore_fields or {})
         self.ignore_mask_key = ignore_mask_key
-        self.default = default
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         labels = d[self.label_key].long()
         foreground = torch.isin(labels, torch.tensor(sorted(self.mapping), device=labels.device))
         is_ignore = (
-            torch.isin(labels, torch.tensor(self.ignore_labels, device=labels.device))
-            if self.ignore_labels
+            torch.isin(labels, torch.tensor(sorted(self.ignore_mapping), device=labels.device))
+            if self.ignore_mapping
             else torch.zeros_like(labels, dtype=torch.bool)
         )
 
@@ -1597,7 +1623,7 @@ class RelabelBoxes(DictTransform):
 
         keep = foreground | is_ignore
         ignore = is_ignore | (foreground & hard)
-        new_labels = F.relabel(labels, self.mapping, default=self.default)
+        new_labels = F.relabel(labels, {**self.ignore_mapping, **self.mapping}, default=-1)
 
         for key in self.iter_keys(d):
             d[key] = d[key][keep]
@@ -1812,8 +1838,7 @@ class Voxelize(DictTransform):
     and optionally records a source-to-voxel index map for full-resolution
     back-projection.
 
-    Operates on a single sample (pre-collate); equivalent to Pointcept's
-    `GridSample` for the convention. With `dst_inverse_key` set, the stored
+    Operates on a single sample (pre-collate). With `dst_inverse_key` set, the stored
     tensor has shape $(N_\text{full},)$ with values in $[0, N_\text{voxel})$:
     for each original point $i$, the voxel it belongs to. Downstream code can
     recover full-resolution predictions with `preds_full = preds_voxel[inverse]`.
@@ -1826,11 +1851,13 @@ class Voxelize(DictTransform):
     Args:
         pos_key: Key holding the positions to sub-sample.
         pos_reduce: How to reduce positions per voxel (`mean`/`min`/`max`/`sum`/`first`/`grid`).
-        size: Voxel edge length in the same units as the positions.
-        method: Voxel-id hashing scheme (`fnv` matches Pointcept; `pyg` is the default).
+        size: Voxel edge length in the same units as the positions. Must be positive.
+        method: Voxel-id hashing scheme (`fnv` matches FNV-1a-based reference pipelines; `pyg` is the default).
         reduce: Per-key reduction for `keys`. `None` (the default) resolves per key to `mean` for
             floating-point tensors and `first` for integer tensors (e.g. `segment`). Integer keys keep
-            their dtype: non-`first` reductions compute in float and cast back.
+            their dtype: non-`first` reductions compute in float and cast back. The `first`
+            representative is the first point of each voxel in input order, deterministic across
+            devices (unless `random_sample=True`).
         keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
         dst_inverse_key: When set, store the source-to-voxel index map under
             this key (auto-composes with any existing value at the same key).
@@ -1841,11 +1868,16 @@ class Voxelize(DictTransform):
             and integer grid coordinates (for serialization / sparse-conv stems).
         random_sample: If `True`, the per-voxel representative used by `reduce="first"`
             (and the `pos`/`grid_pos` derivations) is chosen *randomly* within each
-            voxel on every call. Matches Pointcept `GridSample(mode="train")`'s
-            per-voxel random sampling, a meaningful training augmentation; leave
+            voxel on every call. Per-voxel random sampling is a meaningful
+            training augmentation; leave
             `False` (default) for deterministic validation.
-        generator: Optional `torch.Generator` for `random_sample` reproducibility.
+        generator: Optional `torch.Generator` for `random_sample` reproducibility. See `Transform`
+            for the multi-worker caveat.
         allow_missing_keys: If `True`, missing keys are skipped silently.
+
+    Raises:
+        ValueError: If `size` is not positive, or `pos_reduce` / `method` / any `reduce` entry is
+            not one of its allowed values.
     """
 
     def __init__(
@@ -1863,10 +1895,19 @@ class Voxelize(DictTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
+        if size <= 0:
+            raise ValueError(f"size must be positive; got {size}.")
+        if pos_reduce not in get_args(VoxelPosReduce):
+            raise ValueError(f"Invalid pos_reduce: {pos_reduce!r}. Expected one of {get_args(VoxelPosReduce)}.")
+        if method not in get_args(VoxelMethod):
+            raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(VoxelMethod)}.")
         self.pos_key = pos_key
         self.pos_reduce = pos_reduce
         self.size = size
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
+        invalid = set(self.reduce) - set(get_args(VoxelReduce)) - {None}
+        if invalid:
+            raise ValueError(f"Invalid reduce(s): {invalid}. Expected one of {get_args(VoxelReduce)}.")
         self.method = method
         self.dst_inverse_key = dst_inverse_key
         self.grid_pos_key = grid_pos_key
@@ -1910,17 +1951,19 @@ class Voxelize(DictTransform):
         start = torch.floor(pos.min(dim=0).values / self.size) * self.size
 
         if self.method == "fnv":
-            # This method is supported only for debugging and reproducibility, such that it behaves and produces
-            # the same output as Pointcept grid subsampling.
-            # This method might be removed in the future (?)
+            # This method is supported only for debugging and reproducibility against FNV-hash-based
+            # grid subsampling. This method might be removed in the future (?)
             cluster = voxel_grid_fnv(pos, size=self.size, start=start)
         else:
             cluster = voxel_grid(pos, size=self.size, start=start)
 
-        cluster, perm = consecutive_cluster(cluster, return_permutation=True)
+        cluster, _ = consecutive_cluster(cluster)
+        num_clusters = int(cluster.max().item()) + 1
 
         if self.random_sample:
-            perm = self._random_perm(cluster, num_clusters=perm.numel())
+            perm = self._random_perm(cluster, num_clusters=num_clusters)
+        else:
+            perm = first_permutation(cluster, num_clusters=num_clusters)
 
         if self.pos_reduce == "grid":
             pos_grid = torch.floor((pos[perm] - start) / self.size).long()
@@ -2069,6 +2112,9 @@ class Cat(DictTransform):
     Note:
         This transform is mostly used to concatenate multiple features into a single tensor to feed into your model.
 
+    Integer inputs are cast to `float32`; floating inputs keep their dtype. When the inputs mix
+    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast).
+
     Args:
         keys: Keys whose tensors are concatenated (in order).
         dst_key: Key under which the result is stored.
@@ -2107,8 +2153,13 @@ class Cat(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        tensors = [data[key].float() for key in self.iter_keys(data)]
-        data[self.dst_key] = torch.cat(tensors, dim=self.dim)
+        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in self.iter_keys(data)]
+        if not tensors:
+            return data
+        dtype = tensors[0].dtype
+        for tensor in tensors[1:]:
+            dtype = torch.promote_types(dtype, tensor.dtype)
+        data[self.dst_key] = torch.cat([tensor.to(dtype) for tensor in tensors], dim=self.dim)
         return data
 
 
@@ -2162,7 +2213,8 @@ class Reduce(DictTransform):
     Args:
         keys: Keys to reduce.
         op: Reduction operator: `"min"`, `"max"`, `"mean"`, or `"sum"` (matches the
-            vocabulary used by `Voxelize`).
+            vocabulary used by `Voxelize`). `"mean"` keeps the input's floating dtype
+            (`float64` included); integer inputs are cast to `float32`.
         dim: Dimension to reduce. Defaults to `0`.
         keepdim: Pass `keepdim=True` to keep the reduced axis as size $1$. This
             is helpful when the result is meant to broadcast against a $(N, D)$
@@ -2204,7 +2256,8 @@ class Reduce(DictTransform):
         for key, dst_key, op, dim in self.iter_keys(data, self.dst_keys, self.op, self.dim):
             x = data[key]
             if op == "mean":
-                data[dst_key] = x.float().mean(dim=dim, keepdim=self.keepdim)
+                x_float = x if x.is_floating_point() else x.float()
+                data[dst_key] = x_float.mean(dim=dim, keepdim=self.keepdim)
             else:
                 data[dst_key] = self._OP_FUNCS[op](x, dim=dim, keepdim=self.keepdim)
         return data
@@ -2275,7 +2328,8 @@ class RandomRotate(DictTransform):
         box_key: Optional key of a `(K, 7)` oriented-box tensor to rotate jointly (requires `axis=2`).
         dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
         dst_box_key: Where to store the rotated boxes. Defaults to `box_key` (in-place).
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2296,6 +2350,8 @@ class RandomRotate(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.angle_range = angle_range
         self.axis = axis
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -2326,18 +2382,23 @@ class RandomScale(DictTransform):
     tensor (centers and sizes). An oriented box has no per-axis scale, so `box_key` is incompatible with
     `anisotropic=True`.
 
+    List only point-like keys. Do not list direction vectors such as `normal`: a scaled normal is no
+    longer unit length, while a true surface normal is unchanged by an isotropic scale (and an
+    anisotropic scale would require the inverse-transpose rule). Simply omit normal keys.
+
     See Also:
         `torch_pointcloud.transforms.functional.scale_boxes`
 
     Args:
-        keys: Keys to scale.
+        keys: Keys to scale. Point-like keys only; do not list direction vectors such as `normal`.
         scale_range: Min and max scaling factor.
         anisotropic: If `True`, sample a separate scale per axis of the last dim (incompatible with `box_key`).
         p: Probability of applying the transform.
         box_key: Optional key of a `(K, 7)` oriented-box tensor to scale jointly.
         dst_keys: Where to store the scaled tensors.
         dst_box_key: Where to store the scaled boxes. Defaults to `box_key` (in-place).
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2358,6 +2419,8 @@ class RandomScale(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.scale_range = scale_range
         self.anisotropic = anisotropic
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -2405,7 +2468,8 @@ class RandomFlip(DictTransform):
         box_key: Optional key of a `(K, 7)` oriented-box tensor to flip jointly.
         dst_keys: Where to store the flipped tensors.
         dst_box_key: Where to store the flipped boxes. Defaults to `box_key` (in-place).
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2422,6 +2486,8 @@ class RandomFlip(DictTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.axes = tuple(axes)
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -2466,7 +2532,8 @@ class RandomJitter(DictTransform):
         clip: If not `None`, clip the noise to `[-clip, clip]`.
         p: Probability of applying the transform.
         dst_keys: Where to store the jittered tensors.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2483,6 +2550,8 @@ class RandomJitter(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.sigma = sigma
         self.clip = clip
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -2497,20 +2566,27 @@ class RandomJitter(DictTransform):
 
 
 class RandomShift(DictTransform):
-    """Translate listed keys by a uniformly random vector.
+    """Translate listed keys (and optionally oriented boxes) by a uniformly random vector.
 
-    Sampling is done once per call: all listed keys are shifted by the same
-    translation vector.
+    Sampling is done once per call: all listed keys and the optional box are shifted by the same
+    translation vector. Pass `box_key` to also shift a `(K, 7)` oriented-box tensor (centers only;
+    sizes and heading unchanged).
+
+    List only point-like keys. Do not list direction vectors such as `normal`: directions are
+    translation-invariant, so a shifted normal is wrong. Simply omit normal keys.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_shift`
+        `torch_pointcloud.transforms.functional.shift_boxes`
 
     Args:
-        keys: Keys to shift.
+        keys: Keys to shift. Point-like keys only; do not list direction vectors such as `normal`.
         shift_range: Min and max per-axis translation.
         p: Probability of applying the transform.
+        box_key: Optional key of a `(K, 7)` oriented-box tensor to shift jointly.
         dst_keys: Where to store the shifted tensors.
-        generator: Optional `torch.Generator` for reproducibility.
+        dst_box_key: Where to store the shifted boxes. Defaults to `box_key` (in-place).
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2519,14 +2595,20 @@ class RandomShift(DictTransform):
         keys: KeyCollection,
         shift_range: Tuple[float, float] = (-0.2, 0.2),
         p: float = 1.0,
+        box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
+        dst_box_key: Optional[str] = None,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.shift_range = shift_range
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
+        self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.dst_box_key = dst_box_key or box_key
         self.generator = generator
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -2534,11 +2616,16 @@ class RandomShift(DictTransform):
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         lo, hi = self.shift_range
+        box_key = self.box_key
+        has_box = box_key is not None and box_key in data
         first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None:
+        if first_key is None and not has_box:
             return data
-        d = data[first_key].shape[-1]
+        d = data[first_key].shape[-1] if first_key is not None else 3
         shift = torch.empty(d).uniform_(lo, hi, generator=self.generator)
+        if box_key is not None and box_key in data:
+            assert self.dst_box_key is not None
+            data[self.dst_box_key] = F.shift_boxes(data[box_key], shift[:3])
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             data[dst_key] = x + shift.to(x.dtype).to(x.device)
@@ -2559,7 +2646,8 @@ class RandomDropout(DictTransform):
         p_drop: Fraction of points to drop per call (uniform across points).
             Must lie in $[0, 1)$.
         p: Probability of applying the transform.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2575,6 +2663,8 @@ class RandomDropout(DictTransform):
         if not 0.0 <= p_drop < 1.0:
             raise ValueError(f"p_drop must be in [0, 1); got {p_drop}.")
         self.p_drop = p_drop
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
 
@@ -2606,10 +2696,13 @@ class RandomColorJitter(DictTransform):
         brightness: Max relative brightness change in $[0, 1]$.
         contrast: Max relative contrast change in $[0, 1]$.
         saturation: Max relative saturation change in $[0, 1]$.
-        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
+            above 1 with `int_color=False` raise a ValueError.
         p: Probability of applying the transform.
         dst_keys: Where to store the jittered tensors.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2630,6 +2723,8 @@ class RandomColorJitter(DictTransform):
         self.contrast = contrast
         self.saturation = saturation
         self.int_color = int_color
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -2658,12 +2753,16 @@ class RandomColorDrop(DictTransform):
 
     Args:
         keys: Color keys to drop.
-        fill: Replacement value in the same range as the colors. For
-            `int_color=False`, sensible default is `0.5`; for `int_color=True`, `128`.
-        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        fill: Replacement value in the range implied by `int_color` (`[0, 1]` when `False`,
+            `[0, 255]` when `True`); rescaled to the input's actual range when that differs, so
+            the default `0.5` fills `127` on `uint8` colors.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
+            above 1 with `int_color=False` raise a ValueError.
         p: Probability of dropping colors.
         dst_keys: Where to store the result.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2680,6 +2779,8 @@ class RandomColorDrop(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.fill = fill
         self.int_color = int_color
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -2704,7 +2805,8 @@ class RandomColorGrayScale(DictTransform):
         int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
         p: Probability of converting to grayscale.
         dst_keys: Where to store the result.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2719,6 +2821,8 @@ class RandomColorGrayScale(DictTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.int_color = int_color
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -2741,10 +2845,13 @@ class RandomColorAutoContrast(DictTransform):
     Args:
         keys: Color keys, shape `(N, 3)`.
         blend: Blend weight in `[0, 1]`. `1.0` is fully auto-contrasted; `0.0` is the input.
-        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
+            above 1 with `int_color=False` raise a ValueError.
         p: Probability of applying the transform.
         dst_keys: Where to store the result.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2761,6 +2868,8 @@ class RandomColorAutoContrast(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.blend = blend
         self.int_color = int_color
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -2782,8 +2891,7 @@ class SphereCrop(DictTransform):
     convenience preset (the dual of `RemoveNearOrigin`).
 
     When `max_nodes` is set and the sphere holds more than `max_nodes` points,
-    only the `max_nodes` nearest the center are kept. This matches Pointcept's
-    `SphereCrop(point_max=...)` and bounds memory on large scenes.
+    only the `max_nodes` nearest the center are kept, bounding memory on large scenes.
 
     Args:
         pos_key: Key with positions used to compute the mask.
@@ -2795,7 +2903,7 @@ class SphereCrop(DictTransform):
             no cap is applied; otherwise the `max_nodes` points nearest the center are kept.
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility (used when
-            `center="random_point"`).
+            `center="random_point"`). See `Transform` for the multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2818,6 +2926,8 @@ class SphereCrop(DictTransform):
         self.radius = radius
         self.max_nodes = max_nodes
         self.center = center
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
 
@@ -2835,6 +2945,10 @@ class SphereCrop(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
+        if self.pos_key not in data:
+            if self.allow_missing_keys:
+                return data
+            raise KeyError(f"`SphereCrop` requires {self.pos_key!r} in data.")
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
@@ -2919,7 +3033,8 @@ class ShufflePoint(DictTransform):
     Args:
         keys: Keys to permute. All must share the same leading dimension `N`.
         p: Probability of applying the transform.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -2931,6 +3046,8 @@ class ShufflePoint(DictTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
 
@@ -2989,7 +3106,8 @@ class RandomRotateChoice(DictTransform):
     the same rotation matrix.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_rotate_choice`
+        `torch_pointcloud.transforms.functional.rotation_matrix`,
+        `torch_pointcloud.transforms.functional.rotate_vectors`
 
     Args:
         keys: Keys to rotate. Each must have shape `(..., 3)`.
@@ -2997,7 +3115,8 @@ class RandomRotateChoice(DictTransform):
         axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
         p: Probability of applying the transform.
         dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3016,6 +3135,8 @@ class RandomRotateChoice(DictTransform):
             raise ValueError("RandomRotateChoice requires at least one angle.")
         self.angles = tuple(float(a) for a in angles)
         self.axis = axis
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -3029,7 +3150,7 @@ class RandomRotateChoice(DictTransform):
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             R = F.rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
-            data[dst_key] = F.rotate(x, R)
+            data[dst_key] = F.rotate_vectors(x, R)
         return data
 
 
@@ -3041,15 +3162,18 @@ class RandomColorShift(DictTransform):
     across all listed keys). Result is clamped to the valid color range.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_color_shift`
+        `torch_pointcloud.transforms.functional.color_shift`
 
     Args:
         keys: Color keys to shift, shape `(N, 3)`.
         shift_range: Min and max per-channel offset (in the same range as the colors).
-        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
+            above 1 with `int_color=False` raise a ValueError.
         p: Probability of applying the transform.
         dst_keys: Where to store the shifted tensors.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3066,6 +3190,8 @@ class RandomColorShift(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.shift_range = shift_range
         self.int_color = int_color
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -3075,37 +3201,37 @@ class RandomColorShift(DictTransform):
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
         lo, hi = self.shift_range
-        max_val = 255.0 if self.int_color else 1.0
         shift = torch.empty(3).uniform_(lo, hi, generator=self.generator)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            x = data[key]
-            out = x.float() + shift.to(x.device)
-            data[dst_key] = out.clamp(0.0, max_val).to(x.dtype)
+            data[dst_key] = F.color_shift(data[key], shift, int_color=self.int_color)
         return data
 
 
 class RandomElasticDistortion(DictTransform):
     """Apply a smooth random displacement field (elastic distortion).
 
-    Used in SparseConvNet / MinkowskiEngine / Pointcept indoor segmentation
-    recipes. Sampling is done once per call so multi-key consistency is
-    preserved (the same displacement field is applied to every listed key).
+    Used in sparse-voxel indoor segmentation recipes. Sampling is done once
+    per call so multi-key consistency is preserved (the same displacement
+    field is applied to every listed key).
 
-    For multi-scale distortion (the standard Pointcept default), compose two
+    For multi-scale distortion (the common default), compose two
     `RandomElasticDistortion` calls with different `granularity` / `magnitude`.
 
     See Also:
         `torch_pointcloud.transforms.functional.random_elastic_distortion`
 
     Args:
-        keys: Position keys to distort, shape `(N, 3)`.
+        keys: Position keys to distort, shape `(N, 3)`. All listed keys must
+            share the same leading dimension `N`: the per-point displacement is
+            computed once from the first present key and added to every key.
         granularity: Size of the displacement-field grid cells. Smaller values
             give higher-frequency distortion.
         magnitude: Standard deviation of the per-cell Gaussian noise. Larger
             values give stronger deformation.
         p: Probability of applying the transform.
         dst_keys: Where to store the distorted tensors.
-        generator: Optional `torch.Generator` for reproducibility.
+        generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
+            multi-worker caveat.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3122,6 +3248,8 @@ class RandomElasticDistortion(DictTransform):
         super().__init__(keys, allow_missing_keys)
         self.granularity = granularity
         self.magnitude = magnitude
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.generator = generator
@@ -3130,10 +3258,17 @@ class RandomElasticDistortion(DictTransform):
         data = dict(data)
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
+        first_key = next(iter(self.iter_keys(data)), None)
+        if first_key is None:
+            return data
+        reference = data[first_key]
+        displacement = (
+            F.random_elastic_distortion(reference, self.granularity, self.magnitude, generator=self.generator)
+            - reference
+        )
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.random_elastic_distortion(
-                data[key], self.granularity, self.magnitude, generator=self.generator
-            )
+            x = data[key]
+            data[dst_key] = x + displacement.to(x.dtype).to(x.device)
         return data
 
 
@@ -3164,7 +3299,7 @@ class InstanceToBox(DictTransform):
         semantic_key: str = "segment",
         pos_key: str = "pos",
         dst_box_key: str = "box",
-        dst_class_key: str = "class",
+        dst_class_key: str = "label",
         ignore_index: int = -1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -3324,7 +3459,7 @@ class EncodeVoteNetTargets(DictTransform):
     def __init__(
         self,
         box_key: str = "box",
-        class_key: str = "class",
+        class_key: str = "label",
         center_key: str = "center_label",
         heading_class_key: str = "heading_class_label",
         heading_residual_key: str = "heading_residual_label",
@@ -3418,7 +3553,8 @@ class Mix3D(Transform):
         instance_key: Key of per-point instance ids to offset, or `None` to skip instance handling.
         ignore_index: Instance id treated as "no instance" (kept as-is, ignored by the offset).
         p: Probability of applying the mix; below it the first scene is returned unchanged.
-        generator: Optional `torch.Generator` for the probability draw.
+        generator: Optional `torch.Generator` for the probability draw. See `Transform` for the
+            multi-worker caveat.
 
     Shape:
         - each key in `keys`: $(N, \ldots)$ and $(M, \ldots)$ inputs, $(N + M, \ldots)$ output.
@@ -3447,6 +3583,8 @@ class Mix3D(Transform):
         self.keys = ensure_tuple(keys)
         self.instance_key = instance_key
         self.ignore_index = ignore_index
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
 
@@ -3489,6 +3627,7 @@ class LaserMix(Transform):
         pos_key: Key of the coordinates used to compute inclination bands.
         p: Probability of applying the mix; below it the first scene is returned unchanged.
         generator: Optional `torch.Generator` for the band count, parity, and probability draws.
+            See `Transform` for the multi-worker caveat.
 
     Shape:
         - each key in `keys`: $(N, \ldots)$ and $(M, \ldots)$ inputs, $(N' + M', \ldots)$ output.
@@ -3518,6 +3657,8 @@ class LaserMix(Transform):
         self.num_areas = tuple(num_areas)
         self.pitch_range = pitch_range
         self.pos_key = pos_key
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
 
@@ -3558,6 +3699,7 @@ class PolarMix(Transform):
         segment_key: Key of per-point semantic labels used to select the instance classes.
         p: Probability of applying the mix; below it the first scene is returned unchanged.
         generator: Optional `torch.Generator` for the sector, rotation, and probability draws.
+            See `Transform` for the multi-worker caveat.
 
     Shape:
         - each key in `keys`: $(N, \ldots)$ and $(M, \ldots)$ inputs, $(K, \ldots)$ output.
@@ -3591,6 +3733,8 @@ class PolarMix(Transform):
         self.rotate_paste_ratio = rotate_paste_ratio
         self.pos_key = pos_key
         self.segment_key = segment_key
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
 
