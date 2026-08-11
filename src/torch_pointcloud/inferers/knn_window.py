@@ -64,6 +64,7 @@ def knn_window_inference(
     sigma_scale: float = 0.125,
     aggregate: AggregateMode = "weighted_mean",
     ema_smoothing: float = 0.95,
+    softmax: bool = False,
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
@@ -100,9 +101,11 @@ def knn_window_inference(
         roi_num_points: Number of points per window (the window size $k$).
         sw_batch_size: Number of windows packed into one `predictor` call.
             Higher values reduce launch overhead at the cost of more memory.
-        overlap: Coverage threshold in $[0, 1)$. The loop stops once every point
+        overlap: Coverage threshold in $(0, 1)$. The loop stops once every point
             has accumulated at least `overlap` possibility mass. Higher values give
-            more thorough coverage at the cost of more iterations.
+            more thorough coverage at the cost of more iterations. `0.0` is rejected:
+            the initial coverage scores already satisfy a zero threshold, so no
+            window would ever be predicted.
         mode: Distance weighting for each window. `"constant"` gives equal weight
             to every point; `"gaussian"` weights by $\exp(-d^2 / 2\sigma^2)$ with
             $\sigma = \text{sigma\_scale} \cdot \max_i d_i$. `"gaussian"` requires
@@ -114,6 +117,10 @@ def knn_window_inference(
             ($\text{new} = \alpha \cdot \text{old} + (1 - \alpha) \cdot \text{softmax}(\text{logits})$);
             use `sw_batch_size=1` with EMA to match the reference evaluation protocol.
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ used when `aggregate="ema"`.
+        softmax: If `True`, softmax each window's logits before the weighted-mean
+            accumulation, so overlapping windows average probabilities instead of
+            raw logits. Ignored when `aggregate="ema"`, which always accumulates
+            softmax probabilities.
         transform: Optional callable applied to each window's data dict before the
             predictor (typical example: `T.Shift(keys=DataKeys.POS, method="centroid")`).
         pos_key: Dict key for the position tensor.
@@ -123,15 +130,17 @@ def knn_window_inference(
 
     Returns:
         Per-point output tensor of shape $(N, C_\text{out})$. Aggregation produces
-        logits when `aggregate="weighted_mean"` and probabilities when
-        `aggregate="ema"`.
+        logits when `aggregate="weighted_mean"` (probabilities with `softmax=True`)
+        and probabilities when `aggregate="ema"`. An empty scene ($N = 0$) returns
+        a $(0, 0)$ tensor: the predictor is never called, so the channel count
+        cannot be inferred.
     """
     if pos_key not in data:
         raise KeyError(f"`data` is missing the required key {pos_key!r}.")
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
-    if not 0.0 <= overlap < 1.0:
-        raise ValueError(f"`overlap` must be in [0, 1), got {overlap}.")
+    if not 0.0 < overlap < 1.0:
+        raise ValueError(f"`overlap` must be in (0, 1), got {overlap}.")
     if mode not in ("constant", "gaussian"):
         raise ValueError(f"`mode` must be 'constant' or 'gaussian', got {mode!r}.")
     if aggregate not in ("weighted_mean", "ema"):
@@ -219,7 +228,9 @@ def knn_window_inference(
 
                 distances = torch.linalg.norm(pos_b[local_idxs] - centre_pos.unsqueeze(1), dim=-1)
                 if mode == "gaussian":
-                    w = _gaussian_window_weights(distances, sigma_scale=sigma_scale)
+                    # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
+                    # windowed point at a nonzero blend weight so its predictions survive the division.
+                    w = _gaussian_window_weights(distances, sigma_scale=sigma_scale).clamp_min(1e-12)
                 else:
                     w = torch.ones_like(distances)
 
@@ -229,8 +240,9 @@ def knn_window_inference(
                         idx_w = local_idxs[w_i]
                         scores_b[idx_w] = ema_smoothing * scores_b[idx_w] + (1.0 - ema_smoothing) * window_probs[w_i]
                 else:
-                    weighted_logits = window_logits * w.unsqueeze(-1)
-                    scores_b.index_add_(0, flat_idxs, weighted_logits.reshape(sw * k, num_classes))
+                    window_preds = torch.softmax(window_logits, dim=-1) if softmax else window_logits
+                    weighted_preds = window_preds * w.unsqueeze(-1)
+                    scores_b.index_add_(0, flat_idxs, weighted_preds.reshape(sw * k, num_classes))
                     weights_b.index_add_(0, flat_idxs, w.reshape(-1))  # type: ignore[union-attr]
 
                 d_sq = distances.square()
@@ -250,7 +262,10 @@ def knn_window_inference(
         if aggregate == "ema":
             final = scores_b
         else:
-            final = scores_b / weights_b.clamp_min(1e-6).unsqueeze(-1)  # type: ignore[union-attr]
+            assert weights_b is not None
+            weighted = weights_b > 0
+            scores_b[weighted] = scores_b[weighted] / weights_b[weighted].unsqueeze(-1)
+            final = scores_b
 
         output[idx_b] = final
 
@@ -287,6 +302,7 @@ class KNNWindowInferer(Inferer):
         sigma_scale: float = 0.125,
         aggregate: AggregateMode = "weighted_mean",
         ema_smoothing: float = 0.95,
+        softmax: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
@@ -300,6 +316,7 @@ class KNNWindowInferer(Inferer):
         self.sigma_scale = sigma_scale
         self.aggregate = aggregate
         self.ema_smoothing = ema_smoothing
+        self.softmax = softmax
         self.transform = transform
         self.pos_key = pos_key
         self.batch_key = batch_key
@@ -321,6 +338,7 @@ class KNNWindowInferer(Inferer):
             sigma_scale=self.sigma_scale,
             aggregate=self.aggregate,
             ema_smoothing=self.ema_smoothing,
+            softmax=self.softmax,
             transform=self.transform,
             pos_key=self.pos_key,
             batch_key=self.batch_key,

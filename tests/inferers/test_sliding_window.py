@@ -207,6 +207,33 @@ def test_sliding_window_gaussian_pulls_shared_points_toward_nearer_block() -> No
     assert 1.5 <= out_gauss[2, 0].item() < out_const[2, 0].item()
 
 
+def test_sliding_window_gaussian_small_sigma_divides_by_true_weight() -> None:
+    """Gaussian blending divides by the true accumulated weight, even when the float32 gaussian
+    weights underflow at scene borders under a sharp `sigma_scale`.
+
+    A per-point-pure predictor gives identical logits for a point in every covering block, so the
+    weighted mean must recover that point's softmax row exactly: no zeroed rows, no rows crushed
+    toward zero by a fixed denominator clamp.
+    """
+    torch.manual_seed(0)
+    n = 500
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.rand(n, 3) * 4.0,
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS] * torch.tensor([1.0, 2.0, 3.0])
+
+    ref = torch.softmax(predictor(data), dim=-1)
+    out = sliding_window_inference(
+        data, predictor=predictor, block_size=3.0, overlap=0.5, mode="gaussian", sigma_scale=0.05, softmax=True
+    )
+    sums = out.sum(dim=1)
+    assert torch.allclose(sums, torch.ones_like(sums), atol=1e-4), "some rows were zeroed or rescaled"
+    assert torch.allclose(out, ref, atol=1e-4)
+
+
 def test_sliding_window_overlap_without_padding_blocks_contain_their_points() -> None:
     """With overlap>0 and padding=0, every point handed to a block lies inside that block's bbox, and
     every point is still covered by at least one block (constant predictions average back to the constant)."""
@@ -402,3 +429,17 @@ def test_sliding_window_with_voxelize_gathers_predictions_back_to_source() -> No
     assert torch.isfinite(out).all()
     assert float(out.min()) >= 0.0
     assert float(out.max()) <= 3.0
+
+
+def test_sliding_window_empty_scene_returns_zero_by_zero() -> None:
+    """With $N = 0$ the predictor is never called and the output is a $(0, 0)$ tensor."""
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.zeros(0, 3),
+        DataKeys.BATCH: torch.zeros(0, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        raise AssertionError("predictor must not be called for an empty scene")
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=1.0)
+    assert out.shape == (0, 0)

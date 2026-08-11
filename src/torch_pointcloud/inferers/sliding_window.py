@@ -133,7 +133,9 @@ def _assign_point_blocks(
         if mode == "gaussian":
             centres_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)
             dist = torch.linalg.norm(pos_tiled[valid] - centres_v_tiled, dim=-1)
-            w = gaussian_weights(dist, sigma)
+            # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
+            # covered point at a nonzero blend weight so its predictions survive the division.
+            w = gaussian_weights(dist, sigma).clamp_min(1e-12)
         else:
             # Blend weights are float even when `pos` holds integer grid coordinates.
             w = pos.new_ones(int(valid.sum()), dtype=torch.float32)
@@ -264,7 +266,9 @@ def sliding_window_inference(
     Returns:
         Per-point output tensor of shape $(N, C_\text{out})$, containing a
         distance-weighted average of softmax probabilities when `softmax=True`
-        or of raw logits when `softmax=False`.
+        or of raw logits when `softmax=False`. An empty scene ($N = 0$) returns
+        a $(0, 0)$ tensor: the predictor is never called, so the channel count
+        cannot be inferred.
     """
     if pos_key not in data:
         raise KeyError(f"`data` is missing the required key {pos_key!r}.")
@@ -356,7 +360,9 @@ def sliding_window_inference(
         if output is None:
             output = torch.zeros(n_total, int(scores_b.size(1)), device=device, dtype=torch.float32)
 
-        output[idx_b] = scores_b / weights_b.clamp_min(1e-6).unsqueeze(-1)
+        covered = weights_b > 0
+        scores_b[covered] = scores_b[covered] / weights_b[covered].unsqueeze(-1)
+        output[idx_b] = scores_b
 
     if output is None:
         return pos.new_zeros((0, 0))

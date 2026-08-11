@@ -125,3 +125,20 @@ def test_tta_empty_sequence_raises() -> None:
     base = SimpleInferer()
     with pytest.raises(ValueError, match="at least one"):
         TTAInferer(base=base, transforms=[])
+
+
+def test_tta_empty_scene_passes_through_base_output() -> None:
+    """With $N = 0$ the aggregate of the base inferer's empty outputs is returned unchanged in shape."""
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.zeros(0, 3),
+        DataKeys.BATCH: torch.zeros(0, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return torch.zeros(0, 5)
+
+    def identity(sample: Dict[str, Any]) -> Dict[str, Any]:
+        return dict(sample)
+
+    out = TTAInferer(base=SimpleInferer(), transforms=identity, num_passes=2)(data, predictor=predictor)
+    assert out.shape == (0, 5)
