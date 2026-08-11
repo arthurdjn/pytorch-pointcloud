@@ -1,6 +1,6 @@
 r"""Dynamic voxel feature encoder shared by the voxel detectors (Voxel Mamba, LION).
 
-A packed-format port of the OpenPCDet / Voxel-Mamba `DynamicVoxelVFE`:
+A packed-format port of the `DynamicVoxelVFE` from
 :github: [gwenzhang/Voxel-Mamba](https://github.com/gwenzhang/Voxel-Mamba).
 """
 
@@ -131,7 +131,7 @@ class DynamicMeanVFE(nn.Module):
         batch = batch[mask]
 
         merge = batch.int() * self.scale_xyz + coords[:, 0] * self.scale_yz + coords[:, 1] * self.scale_z + coords[:, 2]
-        unq_indices, unq_inv, _ = torch.unique(merge, return_inverse=True, return_counts=True, dim=0)
+        unq_indices, unq_inv = torch.unique(merge, return_inverse=True)
 
         points_mean = scatter_mean(pos, unq_inv, dim=0)
         f_cluster = pos - points_mean[unq_inv]

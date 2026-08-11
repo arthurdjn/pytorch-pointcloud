@@ -45,7 +45,11 @@ def _loss() -> TransFusionLoss:
 
 
 def _perfect_output(boxes: Tensor, labels: Tensor, num_queries: int = 4) -> Dict[str, Tensor]:
-    """Queries 0..K-1 decode exactly to the GT boxes with confident class logits; the rest are background."""
+    r"""Queries 0..K-1 decode exactly to the GT boxes with confident class logits; the rest are background.
+
+    The height channel carries the box-top code $z + d_z / 2$ (the decode recovers the gravity center as
+    $\text{height} - d_z / 2$).
+    """
     k = boxes.shape[0]
     center = torch.full((1, 2, num_queries), 1.0)
     height = torch.zeros(1, 1, num_queries)
@@ -57,7 +61,7 @@ def _perfect_output(boxes: Tensor, labels: Tensor, num_queries: int = 4) -> Dict
 
     center[0, 0, :k] = (boxes[:, 0] + 12.0) / 1.0
     center[0, 1, :k] = (boxes[:, 1] + 12.0) / 1.0
-    height[0, 0, :k] = boxes[:, 2]
+    height[0, 0, :k] = boxes[:, 2] + 0.5 * boxes[:, 5]
     dim[0, :, :k] = boxes[:, 3:6].log().t()
     rot[0, 0, :k] = torch.sin(boxes[:, 6])
     rot[0, 1, :k] = torch.cos(boxes[:, 6])
@@ -87,6 +91,18 @@ def test_transfusion_loss_perfect_queries_regression_terms_zero() -> None:
     assert out["bbox_loss"] < 1e-5
     assert out["iou_loss"] < 1e-5
     assert out["cls_loss"] < 1e-3
+
+
+def test_transfusion_loss_encode_decode_height_convention() -> None:
+    r"""The height code is the box top $z + d_z / 2$ and the loss decode inverts it back to the gravity center."""
+    boxes = torch.tensor([[2.0, 3.0, -1.0, 3.5, 2.0, 1.8, 0.4]])
+    loss_fn = _loss()
+    targets = loss_fn._encode(boxes)
+    assert torch.isclose(targets[0, 2], torch.tensor(-1.0 + 0.9))
+
+    output = _perfect_output(boxes, torch.tensor([0]))
+    decoded = loss_fn._decode_queries(output, 0)
+    assert torch.allclose(decoded[0], boxes[0], atol=1e-5)
 
 
 def test_transfusion_loss_perturbed_queries_are_larger() -> None:

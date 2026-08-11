@@ -42,7 +42,7 @@ spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=_SPCONV_GITHUB_URL)
 ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo", url=_SPCONV_GITHUB_URL)
 scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
-sptr, _ = optional_import("sptr", url=_SPTR_GITHUB_URL)
+sptr, _SPTR_AVAILABLE = optional_import("sptr", url=_SPTR_GITHUB_URL)
 
 
 def cart2sphere(pos: Tensor) -> Tensor:
@@ -81,15 +81,18 @@ def exponential_split(
     index_key: Tensor,
     relative_position_index: Tensor,
     radial_split_exponent: float = 0.0125,
+    offset: int = 24,
 ) -> Tensor:
     r"""Quantize the radial relative position $r_q - r_k$ into a signed, exponentially-growing bin index.
 
     Reproduces the reference radial split: bins are symmetric around $0$, double in width every two steps
     (`[0, a)`, `[a, 2a)`, `[2a, 4a)`, `[4a, 6a)`, `[6a, 10a)`, ... with $a$ the base bin width), and the sign
-    of $r_q - r_k$ selects the positive or negative half. The returned index is offset by $24$ (the reference
-    `quant_size_scale`) so it indexes the radial relative-position table without going negative. The signed bin
-    index overwrites the third (radial) column of `relative_position_index` in place, matching the `split_func`
-    contract of the `sptr` kernel.
+    of $r_q - r_k$ selects the positive or negative half. The returned index is shifted by `offset` (half the
+    number of rows of the radial relative-position table, the reference `quant_size_scale`) so it indexes the
+    table without going negative, and clamped to $[0, 2 \cdot \text{offset} - 1]$: radial gaps beyond the
+    outermost bins fall into those bins instead of overflowing the table. The signed bin index overwrites the
+    third (radial) column of `relative_position_index` in place, matching the `split_func` contract of the
+    `sptr` kernel.
 
     Args:
         pos: Spherical coordinates whose third column is the radius $r$.
@@ -98,6 +101,8 @@ def exponential_split(
         relative_position_index: Per-pair, per-axis relative-position table indices whose radial column is
             replaced with the signed exponential bin index.
         radial_split_exponent: Base bin width of the radial exponential split.
+        offset: Non-negative shift applied to the signed bin index; the radial table has
+            $2 \cdot \text{offset}$ rows.
 
     Returns:
         The updated `relative_position_index` with its radial column set to the signed bin index.
@@ -115,7 +120,7 @@ def exponential_split(
     idx = 2 * torch.floor(torch.log((rel_pos_abs + 2 * radial_split_exponent) / radial_split_exponent) / np.log(2)) - 2
     idx = idx + ((3 * (2 ** (idx // 2)) - 2) * radial_split_exponent <= rel_pos_abs).float()
     idx = idx * (2 * flag_float - 1) + (flag_float - 1)
-    relative_position_index[:, 2] = idx.long() + 24
+    relative_position_index[:, 2] = (idx.long() + offset).clamp_(0, 2 * offset - 1)
     return relative_position_index
 
 
@@ -155,6 +160,15 @@ class WindowedRelPosAttention(SparseModule):
         qk_scale: Optional[float] = None,
     ) -> None:
         super().__init__()
+        if not _SPTR_AVAILABLE:
+            raise ImportError(
+                f"Optional module `sptr` is required to use `WindowedRelPosAttention`. "
+                f"Install it from {_SPTR_GITHUB_URL}."
+            )
+        if num_heads < 2:
+            raise ValueError(f"`num_heads` must be at least 2 (one cubic and one spherical head), got {num_heads}.")
+        if embed_dim % num_heads != 0:
+            raise ValueError(f"`embed_dim` ({embed_dim}) must be divisible by `num_heads` ({num_heads}).")
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         head_dim = embed_dim // num_heads
@@ -274,7 +288,11 @@ class WindowedRelPosAttention(SparseModule):
             relative_pos_query_table=self.relative_pos_query_table_sphere.float(),
             relative_pos_key_table=self.relative_pos_key_table_sphere.float(),
             relative_pos_value_table=self.relative_pos_value_table_sphere.float(),
-            split_func=partial(exponential_split, radial_split_exponent=self.radial_split_exponent),
+            split_func=partial(
+                exponential_split,
+                radial_split_exponent=self.radial_split_exponent,
+                offset=self.quant_grid_length_sphere,
+            ),
         )
 
         out = torch.cat([out_cubic, out_sphere], 1).reshape(num_points, channels)
@@ -415,6 +433,8 @@ class SphereFormerUBlock(nn.Module):
 
         self.transformer_block: Optional[SphereFormerBlock] = None
         if indice_key_id in self.sphere_layers:
+            if planes[0] % head_dim != 0:
+                raise ValueError(f"`planes[0]` ({planes[0]}) must be divisible by `head_dim` ({head_dim}).")
             self.transformer_block = SphereFormerBlock(
                 planes[0],
                 num_heads=planes[0] // head_dim,
@@ -428,8 +448,8 @@ class SphereFormerUBlock(nn.Module):
 
         if len(planes) > 1:
             self.conv = spconv.SparseSequential(
-                create_norm(norm, planes[0], **(norm_kwargs or {})),
-                create_act(act, **(act_kwargs or {})),
+                create_norm(norm, planes[0], **(norm_kwargs or {})) or nn.Identity(),
+                create_act(act, **(act_kwargs or {})) or nn.Identity(),
                 spconv.SparseConv3d(
                     planes[0],
                     planes[1],
@@ -467,8 +487,8 @@ class SphereFormerUBlock(nn.Module):
             )
 
             self.deconv = spconv.SparseSequential(
-                create_norm(norm, planes[1], **(norm_kwargs or {})),
-                create_act(act, **(act_kwargs or {})),
+                create_norm(norm, planes[1], **(norm_kwargs or {})) or nn.Identity(),
+                create_act(act, **(act_kwargs or {})) or nn.Identity(),
                 spconv.SparseInverseConv3d(
                     planes[1],
                     planes[0],
@@ -546,7 +566,7 @@ class SphereFormerSegmentation(SegmentationModel):
         window_size_scale: Pair `(cubic_scale, sphere_scale)` applied per deeper level.
         sphere_layers: Levels (1-indexed) that receive a windowed-attention block.
         radial_split_exponent: Base bin width for the radial exponential split.
-        drop_path_rate: Maximum stochastic-depth rate (linearly spread across levels).
+        drop_path: Maximum stochastic-depth rate (linearly spread across levels).
         min_spatial_shape: Per-axis lower bound on the inferred sparse spatial shape.
         norm: Normalization layer name / callable.
         norm_kwargs: Extra keyword arguments for the normalisation layer.
@@ -582,7 +602,7 @@ class SphereFormerSegmentation(SegmentationModel):
         window_size_scale: Tuple[float, float] = (2.0, 1.5),
         sphere_layers: Sequence[int] = (1, 2, 3, 4, 5),
         radial_split_exponent: float = 0.0125,
-        drop_path_rate: float = 0.0,
+        drop_path: float = 0.0,
         min_spatial_shape: int = 128,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
@@ -600,7 +620,7 @@ class SphereFormerSegmentation(SegmentationModel):
             spconv.SubMConv3d(in_channels, base_channels, kernel_size=3, padding=1, bias=False, indice_key="subm1")
         )
 
-        drop_path = [float(v) for v in torch.linspace(0, drop_path_rate, len(self.layers) + 2)]
+        drop_paths = [float(v) for v in torch.linspace(0, drop_path, len(self.layers) + 2)]
 
         self.unet = SphereFormerUBlock(
             self.layers,
@@ -611,7 +631,7 @@ class SphereFormerSegmentation(SegmentationModel):
             quant_size_sphere=torch.as_tensor(quant_size_sphere, dtype=torch.float32),
             head_dim=head_dim,
             window_size_scale=window_size_scale,
-            drop_path=drop_path,
+            drop_path=drop_paths,
             radial_split_exponent=radial_split_exponent,
             indice_key_id=1,
             sphere_layers=sphere_layers,
@@ -622,17 +642,17 @@ class SphereFormerSegmentation(SegmentationModel):
         )
 
         self.output_layer = spconv.SparseSequential(
-            create_norm(norm, base_channels, **norm_kwargs),
-            create_act(act, **(act_kwargs or {})),
+            create_norm(norm, base_channels, **norm_kwargs) or nn.Identity(),
+            create_act(act, **(act_kwargs or {})) or nn.Identity(),
         )
 
-        self.head: nn.Module = self._make_head(num_classes)
+        self.head: nn.Module = self.configure_head()
         self.reset_parameters()
 
-    def _make_head(self, num_classes: int) -> nn.Module:
-        if num_classes <= 0:
+    def configure_head(self) -> nn.Module:
+        if self.num_classes <= 0:
             return nn.Identity()
-        return nn.Linear(self.base_channels, num_classes)
+        return nn.Linear(self.base_channels, self.num_classes)
 
     def reset_parameters(self) -> None:
         for module in self.modules():
@@ -642,14 +662,14 @@ class SphereFormerSegmentation(SegmentationModel):
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
-        self.head = self._make_head(num_classes)
+        self.head = self.configure_head()
 
     def forward_features(
         self,
         x: Tensor,
+        pos: Tensor,
         pos_grid: Tensor,
         batch: Tensor,
-        pos: Tensor,
     ) -> "SparseConvTensor":
         indices = torch.cat([batch.unsqueeze(-1), pos_grid], dim=1).int()
         spatial_shape = np.clip((pos_grid.max(0).values + 1).cpu().numpy(), self.min_spatial_shape, None)
@@ -665,7 +685,7 @@ class SphereFormerSegmentation(SegmentationModel):
         return x.features if pre_logits else self.head(x.features)
 
     def forward(self, x: Tensor, pos: Tensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
-        sparse_x = self.forward_features(x, pos_grid, batch, pos)
+        sparse_x = self.forward_features(x, pos, pos_grid, batch)
         sparse_x = self.forward_decoder(sparse_x)
         return self.forward_head(sparse_x)
 

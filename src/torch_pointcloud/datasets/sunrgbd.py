@@ -11,7 +11,7 @@ import shutil
 import zipfile
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import scipy.io as sio
@@ -216,11 +216,12 @@ class SunRGBD(PointCloudDataset):
     Each scene is processed into a `<processed_dir>/<split>/<sequence_id>/` directory holding one `.npy` per
     attribute; `pos` is stored as float16 and `color` as uint8 to keep the cache compact.
     Cached boxes keep the on-disk $(K, 8)$ encoding (half extents, clockwise heading, trailing class
-    column); `load` converts them to the emitted $(K, 7)$ format below, so existing caches stay valid.
+    column) and the per-box classes stay in `class.npy`; `load` converts them to the emitted $(K, 7)$
+    `box` / $(K,)$ `label` format below, so existing caches stay valid.
 
     Args:
         root: Root directory where the dataset is stored or will be downloaded.
-        split: The split to load, one of `train` or `val`.
+        train: If `True`, loads the train split; if `False`, loads the val split.
         transform: A callable that transforms the data when retrieved from the dataset.
         download: Whether to download missing raw inputs if not present.
         force_download: Whether to force the download of the raw data.
@@ -233,7 +234,7 @@ class SunRGBD(PointCloudDataset):
         - `color`: $(N, 3)$ RGB values in $[0, 255]$ (uint8).
         - `box`: $(K, 7)$ boxes as $[cx, cy, cz, dx, dy, dz, \text{heading}]$ with full extents and a
           counter-clockwise heading about $+z$ from $+x$.
-        - `class`: $(K,)$ class indices.
+        - `label`: $(K,)$ per-box class indices.
 
     Example:
         Assuming you have downloaded `SUNRGBD.zip` and `SUNRGBDtoolbox.zip` under
@@ -242,7 +243,7 @@ class SunRGBD(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import SunRGBD
 
-        dataset = SunRGBD(root="data", split="val")
+        dataset = SunRGBD(root="data", train=False)
         sample = dataset[0]
         sample["pos"].shape  # (N, 3)
         sample["box"].shape  # (K, 7)
@@ -262,7 +263,7 @@ class SunRGBD(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Literal["train", "val"] = "train",
+        train: bool = True,
         transform: Optional[Callable] = None,
         download: bool = False,
         force_download: bool = False,
@@ -271,10 +272,8 @@ class SunRGBD(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        if split not in ["train", "val"]:
-            raise ValueError(f"Invalid split {split!r}, expected one of 'train' or 'val'.")
-
-        self.split = split
+        self.train = train
+        self._split = "train" if train else "val"
         self.transform = transform
         self.show_progress = show_progress
 
@@ -302,12 +301,12 @@ class SunRGBD(PointCloudDataset):
 
     @property
     def processed_files(self) -> List[Path]:
-        scene_paths = Path(self.processed_dir, self.split).glob(f"*/{DataKeys.POS}.npy")
+        scene_paths = Path(self.processed_dir, self._split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
     @override
     def processed_files_exist(self) -> bool:
-        split_dir = Path(self.processed_dir, self.split)
+        split_dir = Path(self.processed_dir, self._split)
         if (split_dir / "meta.json").exists():
             return True
 
@@ -315,7 +314,7 @@ class SunRGBD(PointCloudDataset):
         if not scene_dirs:
             return False
 
-        file_names = tuple(f"{key}.npy" for key in (DataKeys.POS, DataKeys.COLOR, DataKeys.BOX, DataKeys.CLASS))
+        file_names = ("pos.npy", "color.npy", "box.npy", "class.npy")
         incomplete = [d.name for d in scene_dirs if not all((d / name).exists() for name in file_names)]
         missing: List[str] = []
         if self.raw_files_exist():
@@ -366,7 +365,7 @@ class SunRGBD(PointCloudDataset):
         with zipfile.ZipFile(self.toolbox_zip_path) as z:
             split = sio.loadmat(io.BytesIO(z.read(TOOLBOX_SPLIT_MEMBER)), struct_as_record=False, squeeze_me=True)
 
-        if self.split == "train":
+        if self.train:
             return [rebase_sequence(str(p)) for p in split["alltrain"]]
         return [rebase_sequence(str(p)) for p in split["alltest"]]
 
@@ -385,7 +384,7 @@ class SunRGBD(PointCloudDataset):
                 f"and place {SUNRGBD_RELEASE_ZIP!r} and {SUNRGBD_TOOLBOX_ZIP!r} under {self.raw_dir!r}."
             )
 
-        split_dir = Path(self.processed_dir, self.split)
+        split_dir = Path(self.processed_dir, self._split)
         split_dir.mkdir(parents=True, exist_ok=True)
         for stale in split_dir.glob("*.tmp"):
             if stale.is_dir():
@@ -402,7 +401,7 @@ class SunRGBD(PointCloudDataset):
             records,
             num_workers=num_workers,
             total=len(records),
-            desc=f"Processing {self.split}",
+            desc=f"Processing {self._split}",
             show_progress=show_progress,
         )
 
@@ -420,10 +419,10 @@ class SunRGBD(PointCloudDataset):
         scene_dir = Path(split_dir, sequence_id.replace("/", "_"))
         tmp_dir = scene_dir.with_name(f"{scene_dir.name}.tmp")
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        np.save(Path(tmp_dir, f"{DataKeys.POS}.npy"), coords.astype(np.float16))
-        np.save(Path(tmp_dir, f"{DataKeys.COLOR}.npy"), colors)
-        np.save(Path(tmp_dir, f"{DataKeys.BOX}.npy"), boxes)
-        np.save(Path(tmp_dir, f"{DataKeys.CLASS}.npy"), classes)
+        np.save(Path(tmp_dir, "pos.npy"), coords.astype(np.float16))
+        np.save(Path(tmp_dir, "color.npy"), colors)
+        np.save(Path(tmp_dir, "box.npy"), boxes)
+        np.save(Path(tmp_dir, "class.npy"), classes)
         if scene_dir.exists():
             shutil.rmtree(scene_dir)
         tmp_dir.replace(scene_dir)
@@ -451,14 +450,14 @@ class SunRGBD(PointCloudDataset):
             desc="Loading",
             disable=not show_progress,
         ):
-            # The cache stores half extents, a clockwise heading, and a trailing class column;
+            # The cache stores half extents, a clockwise heading, and per-box classes in `class.npy`;
             # convert to the emitted format at load time so existing caches stay valid.
-            boxes = torch.from_numpy(np.load(Path(scene_dir, f"{DataKeys.BOX}.npy")))
+            boxes = torch.from_numpy(np.load(Path(scene_dir, "box.npy")))
             scene: Dict[str, Any] = {
-                DataKeys.POS: torch.from_numpy(np.load(Path(scene_dir, f"{DataKeys.POS}.npy"))).float(),
-                DataKeys.COLOR: torch.from_numpy(np.load(Path(scene_dir, f"{DataKeys.COLOR}.npy"))),
+                DataKeys.POS: torch.from_numpy(np.load(Path(scene_dir, "pos.npy"))).float(),
+                DataKeys.COLOR: torch.from_numpy(np.load(Path(scene_dir, "color.npy"))),
                 DataKeys.BOX: torch.cat([boxes[:, :3], boxes[:, 3:6] * 2, -boxes[:, 6:7]], dim=1),
-                DataKeys.CLASS: torch.from_numpy(np.load(Path(scene_dir, f"{DataKeys.CLASS}.npy"))),
+                DataKeys.LABEL: torch.from_numpy(np.load(Path(scene_dir, "class.npy"))),
             }
             self.data.append(scene)
 
@@ -468,7 +467,7 @@ class SunRGBD(PointCloudDataset):
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        data = self.data[index]
+        data = dict(self.data[index])
         if self.transform is not None:
             data = self.transform(data)
         return data

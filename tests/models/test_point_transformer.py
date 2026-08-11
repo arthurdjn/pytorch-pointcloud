@@ -86,6 +86,16 @@ def test_point_transformer_clf_forward(model_clf: PointTransformerClassification
     assert logits.shape == (data["batch"].max() + 1, model_clf.num_classes)
 
 
+def test_point_transformer_clf_eval_deterministic(
+    model_clf: PointTransformerClassification, data: Dict[str, Tensor]
+) -> None:
+    model_clf.eval()
+    with torch.no_grad():
+        first = model_clf(data["features"], data["pos"], data["batch"])
+        second = model_clf(data["features"], data["pos"], data["batch"])
+    assert torch.equal(first, second)
+
+
 def test_point_transformer_clf_reset_classifier(
     model_clf: PointTransformerClassification,
     data: Dict[str, Tensor],

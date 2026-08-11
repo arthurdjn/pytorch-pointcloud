@@ -34,7 +34,7 @@ from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.data import collate as collate_packed
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -49,6 +49,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
     print(f"Benchmarking model {args.model!r} on S3DIS areas {list(args.areas)}!")
 
     model, info = create_model(args.model, task="segmentation", pretrained=args.pretrained, return_info=True)

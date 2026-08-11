@@ -31,9 +31,9 @@ from .pointrcnn import PointRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
-from .second import SECONDDetection, SECONDMultiHeadDetection, SparseBasicBlock, VoxelBackbone8x, VoxelResBackbone8x
+from .second import SECONDDetection, SECONDMultiHeadDetection, VoxelBackbone8x, VoxelResBackbone8x
 from .sonata import SonataSegmentation
-from .spformer_unet import SPFormerUNet, SPFormerUNetDecoder, SPFormerUNetEncoder
+from .spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder, SPFormerUNetSegmentation
 from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation

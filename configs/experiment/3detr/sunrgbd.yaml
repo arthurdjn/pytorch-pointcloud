@@ -21,7 +21,7 @@ model:
     matcher_giou_cost: 2.0
     matcher_center_cost: 0.0
     matcher_objectness_cost: 0.0
-    loss_giou_weight: 1.0
+    loss_giou_weight: 0.0
     loss_sem_cls_weight: 1.0
     loss_no_object_weight: 0.2
     loss_angle_cls_weight: 0.1

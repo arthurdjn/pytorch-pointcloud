@@ -714,8 +714,14 @@ class DETR3DDetection(DetectionModel):
         head.layers[-1] = nn.Conv1d(self.decoder_embed_dim, num_classes + 1, 1).to(last.weight.device)
 
     def _point_cloud_dims(self, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
-        batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
-        dense = _to_dense(pos, batch, pos.size(0) // batch_size)
+        if batch.numel() == 0:
+            raise ValueError("`DETR3DDetection` requires a non-empty point cloud.")
+        counts = batch.bincount()
+        if bool((counts != counts[0]).any()):
+            raise ValueError(
+                f"`DETR3DDetection` requires the same number of points per scene, got counts {counts.tolist()}."
+            )
+        dense = _to_dense(pos, batch, int(counts[0]))
         return dense.amin(dim=1), dense.amax(dim=1)
 
     def run_encoder(

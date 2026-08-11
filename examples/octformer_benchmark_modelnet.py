@@ -1,19 +1,47 @@
+"""Evaluate the OctFormer ModelNet40 classifier (single-pass, no voting).
+
+`ModelNet40` meshes -> frozen once-sampled eval set -> `DataLoader` -> model -> argmax -> overall
+accuracy. The reference protocol evaluates a frozen point set sampled once from the meshes
+(area-weighted surface sampling with face normals, bbox-normalized to $[-1, 1]$), clipped to the
+$[-0.99, 0.99]$ box before the octree build. This script follows that protocol: the sampled set is
+cached under the dataset's processed directory on first run and reused across runs
+(`--force-process` regenerates it), and the box clip is enabled. Pass `--fresh-sampling` for the
+non-reference variant that resamples surface points from the meshes on every run without the box
+clip (the model's registered eval transform).
+
+Results vs reference (ModelNet40 overall accuracy; octree-nn repo eval of the released checkpoint):
+
+    | Variant                             | reference | torch-pointcloud            |
+    | ----------------------------------- | --------- | --------------------------- |
+    | octformer-base.modelnet40.octree-nn | 92.7      | 89.02 (pre-fix, re-measure) |
+
+The torch-pointcloud number was measured before this script implemented the frozen protocol (fresh
+sampling per run without the box clip; seeds 42/0/1/123 all scored 88.4-89.1, so the gap is
+systematic, not sampling luck). Re-measurement on the frozen once-sampled protocol is pending.
+
+Usage:
+    uv run --no-sync python examples/octformer_benchmark_modelnet.py
+    uv run --no-sync python examples/octformer_benchmark_modelnet.py --fresh-sampling
+"""
+
 import os
 from argparse import ArgumentParser, Namespace
-from typing import TYPE_CHECKING, Dict
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import torch
 from torch.nn import Module
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 if TYPE_CHECKING:
     from ocnn.octree import Octree
@@ -26,6 +54,79 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 16
 SEED = 42
+NUM_SAMPLES = 8000
+
+SAMPLE_TRANSFORM = T.Compose(
+    [
+        T.RandomSampleFaceVertices(
+            keys=DataKeys.POS,
+            face_key=DataKeys.FACE,
+            normal_key=DataKeys.NORMAL,
+            num_samples=NUM_SAMPLES,
+        ),
+        T.Shift(keys=DataKeys.POS, method="bbox"),
+        T.Rescale(keys=DataKeys.POS, method="bbox"),
+    ]
+)
+
+EVAL_TRANSFORM = T.Compose(
+    [
+        T.BoxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.BOX_MASK),
+        T.ApplyMask(keys=[DataKeys.POS, DataKeys.NORMAL], mask_key=DataKeys.BOX_MASK),
+        T.Abs(keys=DataKeys.NORMAL),
+        T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
+        T.BuildOctree(
+            pos_key=DataKeys.POS,
+            octree_key=DataKeys.OCTREE,
+            depth=6,
+            full_depth=2,
+            batch_size=1,
+            normal_key=DataKeys.NORMAL,
+        ),
+        T.OctreeFeatures(
+            keys=DataKeys.OCTREE,
+            features_type="ND",
+            nempty=False,
+            dst_keys=DataKeys.X,
+        ),
+    ]
+)
+
+
+class FrozenEvalDataset(Dataset):
+    def __init__(self, data: List[Dict[str, Any]], transform: T.Compose) -> None:
+        self.data = data
+        self.transform = transform
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        return self.transform(dict(self.data[index]))
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+
+def load_frozen_eval_data(dataset: ModelNet40, force: bool = False) -> List[Dict[str, Any]]:
+    split = "train" if dataset.train else "test"
+    cache_path = Path(dataset.processed_dir, f"{split}_sampled_{NUM_SAMPLES}.pt")
+    if cache_path.exists() and not force:
+        with torch.serialization.safe_globals([DataKeys]):
+            return torch.load(cache_path, weights_only=True)
+
+    data_list: List[Dict[str, Any]] = []
+    for data in tqdm(dataset, total=len(dataset), desc="Sampling eval set"):
+        sampled = SAMPLE_TRANSFORM(data)
+        data_list.append(
+            {
+                DataKeys.POS: sampled[DataKeys.POS],
+                DataKeys.NORMAL: sampled[DataKeys.NORMAL],
+                DataKeys.LABEL: sampled[DataKeys.LABEL],
+            }
+        )
+
+    tmp_path = cache_path.with_name(cache_path.name + ".tmp")
+    torch.save(data_list, tmp_path)
+    tmp_path.replace(cache_path)
+    return data_list
 
 
 def main() -> None:
@@ -33,6 +134,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Loading model {args.model!r}!")
     model, model_info = create_model(
@@ -43,15 +145,27 @@ def main() -> None:
     )
 
     num_classes: int = int(model.num_classes)
-    transform = model_info.get("transform")
 
     print("Loading ModelNet40 test dataset!")
-    test_dataset = ModelNet40(
-        root=args.root,
-        train=False,
-        download=args.download,
-        transform=transform,
-    )
+    test_dataset: Dataset
+    if args.fresh_sampling:
+        test_dataset = ModelNet40(
+            root=args.root,
+            train=False,
+            download=args.download,
+            force_process=args.force_process,
+            transform=model_info.get("transform"),
+        )
+    else:
+        mesh_dataset = ModelNet40(
+            root=args.root,
+            train=False,
+            download=args.download,
+            force_process=args.force_process,
+        )
+        frozen_data = load_frozen_eval_data(mesh_dataset, force=args.force_process)
+        test_dataset = FrozenEvalDataset(frozen_data, EVAL_TRANSFORM)
+
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
@@ -80,6 +194,16 @@ def parse_args() -> Namespace:
         choices=["octformer-base.modelnet40.octree-nn"],
     )
     parser.add_argument("--download", action="store_true", help="Download ModelNet if missing.")
+    parser.add_argument(
+        "--fresh-sampling",
+        action="store_true",
+        help="Resample surface points from the meshes on every run without the box clip (non-reference variant).",
+    )
+    parser.add_argument(
+        "--force-process",
+        action="store_true",
+        help="Regenerate the processed mesh cache and the frozen once-sampled eval set.",
+    )
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--num-workers", type=int, default=NUM_WORKERS)
     parser.add_argument("--device", type=str, default=DEVICE)

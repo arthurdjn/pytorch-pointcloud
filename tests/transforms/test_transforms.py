@@ -1,5 +1,5 @@
 import copy
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 from unittest.mock import MagicMock, sentinel
 
 import pytest
@@ -268,6 +268,18 @@ def test_box_mask_with_dst_keys() -> None:
     assert torch.equal(result["pos"], pos)
 
 
+def test_box_mask_default_includes_boundary() -> None:
+    pos = torch.tensor([[0.0, 0.0], [1.0, 1.0], [0.5, 0.5]])
+    result = T.BoxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0), dst_keys=["mask"])({"pos": pos})
+    assert result["mask"].tolist() == [True, True, True]
+
+
+def test_box_mask_strict_excludes_boundary() -> None:
+    pos = torch.tensor([[0.0, 0.0], [1.0, 1.0], [0.5, 0.5]])
+    result = T.BoxMask(keys=["pos"], bbox=(0.0, 0.0, 1.0, 1.0), dst_keys=["mask"], strict=True)({"pos": pos})
+    assert result["mask"].tolist() == [False, False, True]
+
+
 def test_apply_mask_basic() -> None:
     pos = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
     mask = torch.tensor([True, False, True])
@@ -485,6 +497,33 @@ def test_cat() -> None:
     assert result["x"].shape == (4, 5)
 
 
+def test_cat_preserves_float64() -> None:
+    data = {
+        "a": torch.ones(4, 2, dtype=torch.float64),
+        "b": torch.zeros(4, 3, dtype=torch.float64),
+    }
+    result = T.Cat(keys=["a", "b"], dst_key="x", dim=-1)(data)
+    assert result["x"].dtype == torch.float64
+
+
+def test_cat_promotes_mixed_float_dtypes() -> None:
+    data = {
+        "a": torch.ones(4, 2, dtype=torch.float32),
+        "b": torch.zeros(4, 3, dtype=torch.float64),
+    }
+    result = T.Cat(keys=["a", "b"], dst_key="x", dim=-1)(data)
+    assert result["x"].dtype == torch.float64
+
+
+def test_cat_casts_integer_inputs_to_float32() -> None:
+    data = {
+        "a": torch.ones(4, 2, dtype=torch.long),
+        "b": torch.zeros(4, 3),
+    }
+    result = T.Cat(keys=["a", "b"], dst_key="x", dim=-1)(data)
+    assert result["x"].dtype == torch.float32
+
+
 @pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster not installed")
 def test_estimate_normals() -> None:
     grid = torch.linspace(-1.0, 1.0, 20)
@@ -646,6 +685,13 @@ def test_reduce_mean_keepdim() -> None:
     assert torch.allclose(result["center"], torch.tensor([[2.0, 6.0]]))
 
 
+def test_reduce_mean_preserves_float64() -> None:
+    data = {"pos": torch.tensor([[1.0, 5.0], [3.0, 7.0]], dtype=torch.float64)}
+    result = T.Reduce(keys=["pos"], op="mean", dim=0, dst_keys=["center"])(data)
+    assert result["center"].dtype == torch.float64
+    assert torch.allclose(result["center"], torch.tensor([2.0, 6.0], dtype=torch.float64))
+
+
 def test_reduce_sum_dst_key() -> None:
     data = {"x": torch.tensor([[1.0, 2.0], [3.0, 4.0]])}
     result = T.Reduce(keys=["x"], op="sum", dim=0, dst_keys=["total"])(data)
@@ -753,6 +799,32 @@ def test_voxelize_integer_key_non_first_reduce_stays_integer() -> None:
     assert sorted(result["segment"].tolist()) == [6, 7]
 
 
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_first_reduce_picks_first_occurrence_in_input_order() -> None:
+    """`first` is the stable first point per voxel, even when voxel members are interleaved."""
+    pos = torch.tensor([[0.1, 0.0, 0.0], [1.2, 0.0, 0.0], [0.3, 0.0, 0.0], [1.4, 0.0, 0.0]])
+    segment = torch.tensor([10, 20, 30, 40])
+    result = T.Voxelize(pos_key="pos", pos_reduce="first", size=1.0, keys=["segment"], reduce="first")(
+        {"pos": pos, "segment": segment}
+    )
+    assert torch.equal(result["pos"], pos[[0, 1]])
+    assert torch.equal(result["segment"], torch.tensor([10, 20]))
+
+
+def test_voxelize_invalid_arguments_raise() -> None:
+    with pytest.raises(ValueError, match="size"):
+        T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.0)
+    with pytest.raises(ValueError, match="pos_reduce"):
+        T.Voxelize(pos_key="pos", pos_reduce="median", size=0.5)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="method"):
+        T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, method="hash")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="reduce"):
+        T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys=["segment"], reduce="median")  # type: ignore[arg-type]
+
+
 def test_compose_empty_is_passthrough() -> None:
     data = {"pos": torch.tensor([1.0, 2.0])}
     result = T.Compose([])(data)
@@ -831,6 +903,10 @@ def test_rescale_single_point(single_point_scene: dict) -> None:
         T.RenameItems(keys=["absent"], names=["new"], allow_missing_keys=True),
         T.CopyItems(keys=["absent"], names=["new"], allow_missing_keys=True),
         T.KeepItems(keys=["pos"], allow_missing_keys=True),
+        T.FarthestPointSample(pos_key="absent", num_samples=2, allow_missing_keys=True),
+        T.RemoveNearOrigin(pos_key="absent", allow_missing_keys=True),
+        T.SphereCrop(pos_key="absent", radius=1.0, allow_missing_keys=True),
+        T.Cat(keys=["absent"], dst_key="feat", allow_missing_keys=True),
     ],
     ids=lambda t: type(t).__name__,
 )
@@ -852,6 +928,10 @@ def test_allow_missing_keys_true_is_noop(transform: T.DictTransform) -> None:
         T.Shift(keys=["absent"], method="bbox"),
         T.Scale(keys=["absent"], scale=2.0),
         T.ToFloat(keys=["absent"]),
+        T.FarthestPointSample(pos_key="absent", num_samples=2),
+        T.RemoveNearOrigin(pos_key="absent"),
+        T.SphereCrop(pos_key="absent", radius=1.0),
+        T.Cat(keys=["absent"], dst_key="feat"),
     ],
     ids=lambda t: type(t).__name__,
 )
@@ -978,14 +1058,15 @@ def test_random_rotate_p_zero_is_noop() -> None:
 
 
 def test_random_scale_same_factor_across_keys() -> None:
+    """Same factor applies to every point-like key. Direction vectors (e.g. `normal`) must not be listed."""
     pos = torch.tensor([[1.0, 2.0, 3.0]])
-    normal = torch.tensor([[1.0, 0.0, 0.0]])
+    grid_pos = torch.tensor([[4.0, 5.0, 6.0]])
     g = torch.Generator().manual_seed(0)
-    out = T.RandomScale(keys=("pos", "normal"), scale_range=(2.0, 2.0), generator=g)(
-        {"pos": pos.clone(), "normal": normal.clone()}
+    out = T.RandomScale(keys=("pos", "grid_pos"), scale_range=(2.0, 2.0), generator=g)(
+        {"pos": pos.clone(), "grid_pos": grid_pos.clone()}
     )
     assert torch.allclose(out["pos"], pos * 2.0)
-    assert torch.allclose(out["normal"], normal * 2.0)
+    assert torch.allclose(out["grid_pos"], grid_pos * 2.0)
 
 
 def test_random_scale_anisotropic_per_axis() -> None:
@@ -1061,6 +1142,28 @@ def test_random_color_auto_contrast_stretches_range() -> None:
     # Fully stretched: min becomes 0, max becomes 1.
     assert torch.allclose(out["color"].min(dim=0).values, torch.zeros(3), atol=1e-5)
     assert torch.allclose(out["color"].max(dim=0).values, torch.ones(3), atol=1e-5)
+
+
+def test_random_color_jitter_uint8_keeps_255_scale() -> None:
+    color = torch.tensor([[200, 100, 50], [30, 60, 90]], dtype=torch.uint8)
+    g = torch.Generator().manual_seed(0)
+    out = T.RandomColorJitter(keys="color", brightness=0.2, p=1.0, generator=g)({"color": color})
+    assert out["color"].dtype == torch.uint8
+    assert out["color"].float().max().item() > 100.0
+
+
+def test_random_color_shift_uint8_clamps_to_255_range() -> None:
+    color = torch.full((5, 3), 250, dtype=torch.uint8)
+    g = torch.Generator().manual_seed(0)
+    out = T.RandomColorShift(keys="color", shift_range=(10.0, 10.0), p=1.0, generator=g)({"color": color})
+    assert out["color"].dtype == torch.uint8
+    assert torch.all(out["color"] == 255)
+
+
+def test_random_color_shift_float_255_without_flag_raises() -> None:
+    color = torch.full((5, 3), 200.0)
+    with pytest.raises(ValueError, match="int_color"):
+        T.RandomColorShift(keys="color", p=1.0)({"color": color})
 
 
 def test_sphere_crop_fixed_center_drops_outside() -> None:
@@ -1217,8 +1320,37 @@ def test_random_elastic_distortion_p_zero_is_noop() -> None:
     assert torch.equal(out["pos"], pos)
 
 
+@pytest.mark.parametrize("p", [-0.1, 1.5])
+@pytest.mark.parametrize(
+    "make_transform",
+    [
+        pytest.param(lambda p: T.RandomRotate(keys="pos", p=p), id="RandomRotate"),
+        pytest.param(lambda p: T.RandomScale(keys="pos", p=p), id="RandomScale"),
+        pytest.param(lambda p: T.RandomFlip(keys="pos", p=p), id="RandomFlip"),
+        pytest.param(lambda p: T.RandomJitter(keys="pos", p=p), id="RandomJitter"),
+        pytest.param(lambda p: T.RandomShift(keys="pos", p=p), id="RandomShift"),
+        pytest.param(lambda p: T.RandomDropout(keys="pos", p=p), id="RandomDropout"),
+        pytest.param(lambda p: T.RandomColorJitter(keys="color", p=p), id="RandomColorJitter"),
+        pytest.param(lambda p: T.RandomColorDrop(keys="color", p=p), id="RandomColorDrop"),
+        pytest.param(lambda p: T.RandomColorGrayScale(keys="color", p=p), id="RandomColorGrayScale"),
+        pytest.param(lambda p: T.RandomColorAutoContrast(keys="color", p=p), id="RandomColorAutoContrast"),
+        pytest.param(lambda p: T.SphereCrop(pos_key="pos", radius=1.0, p=p), id="SphereCrop"),
+        pytest.param(lambda p: T.ShufflePoint(keys="pos", p=p), id="ShufflePoint"),
+        pytest.param(lambda p: T.RandomRotateChoice(keys="pos", angles=[90.0], p=p), id="RandomRotateChoice"),
+        pytest.param(lambda p: T.RandomColorShift(keys="color", p=p), id="RandomColorShift"),
+        pytest.param(lambda p: T.RandomElasticDistortion(keys="pos", p=p), id="RandomElasticDistortion"),
+        pytest.param(lambda p: T.Mix3D(keys="pos", p=p), id="Mix3D"),
+        pytest.param(lambda p: T.LaserMix(keys="pos", num_areas=(3,), pitch_range=(-25.0, 3.0), p=p), id="LaserMix"),
+        pytest.param(lambda p: T.PolarMix(keys="pos", instance_classes=(1,), p=p), id="PolarMix"),
+    ],
+)
+def test_random_transform_out_of_range_p_raises(make_transform: Callable[[float], T.Transform], p: float) -> None:
+    with pytest.raises(ValueError, match=r"p must be in \[0, 1\]"):
+        make_transform(p)
+
+
 def test_random_elastic_distortion_multi_key_shares_field() -> None:
-    """Two keys with the same positions should receive the same displacement."""
+    """Two keys with the same positions receive the same displacement."""
     pos = torch.randn(50, 3)
     g = torch.Generator().manual_seed(0)
     out = T.RandomElasticDistortion(
@@ -1227,13 +1359,8 @@ def test_random_elastic_distortion_multi_key_shares_field() -> None:
         magnitude=0.5,
         generator=g,
     )({"pos": pos.clone(), "pos_copy": pos.clone()})
-    # Multi-key consistency means both end up with the same displaced positions
-    # (each key receives its OWN independent sample of the noise field, though,
-    # because we use the generator state sequentially -- so this asserts the
-    # weaker property that both transforms produced finite results).
-    assert out["pos"].shape == out["pos_copy"].shape
-    assert torch.isfinite(out["pos"]).all()
-    assert torch.isfinite(out["pos_copy"]).all()
+    assert torch.equal(out["pos"], out["pos_copy"])
+    assert not torch.equal(out["pos"], pos)
 
 
 def test_divisible_pad_default_does_not_write_inverse_key() -> None:
@@ -1280,6 +1407,15 @@ def test_divisible_pad_composes_through_prior_inverse() -> None:
     assert inverse.shape == (3,)  # length = outer source size, not pre-pad size
     # Composed map gathers from padded back to outer source.
     assert torch.equal(out["pos"][inverse], pos)
+
+
+def test_divisible_pad_scalar_label_passthrough() -> None:
+    """0-dim tensors (e.g. classification labels) are left untouched by the gather."""
+    pos = torch.randn(5, 3)
+    out = T.DivisiblePad(num_samples=4)({"pos": pos, "label": torch.tensor(3)})
+    assert out["pos"].shape[0] == 8
+    assert out["label"].ndim == 0
+    assert int(out["label"]) == 3
 
 
 def test_divisible_pad_zero_points_passthrough() -> None:

@@ -17,6 +17,8 @@ Usage:
 """
 
 import logging
+from pathlib import Path
+from typing import List
 
 import hydra
 import lightning as L
@@ -24,15 +26,30 @@ from dotenv import load_dotenv
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf, open_dict
 
-from torch_pointcloud.utils.hydra import instantiate_list
-from torch_pointcloud.utils.random import seed_everything, set_determinism
+# Load .env before the torch_pointcloud imports: the configs' `${oc.env:...}` interpolations and the
+# library's `TORCH_POINTCLOUD_*` settings (read at import time) both resolve from the environment.
+load_dotenv()
+
+from torch_pointcloud import list_models  # noqa: E402
+from torch_pointcloud.utils.hydra import instantiate_list  # noqa: E402
+from torch_pointcloud.utils.random import seed_everything, set_determinism  # noqa: E402
 
 log = logging.getLogger(__name__)
 
-# Load .env so the configs' `${oc.env:...}` interpolations resolve.
-load_dotenv()
-
 OmegaConf.register_new_resolver("eval", eval, replace=True)
+
+
+def _pretrained_experiments() -> List[str]:
+    """Experiment ids (e.g. `spunet/scannet`) whose `model.name` ships registry weights."""
+    experiments_dir = Path(__file__).resolve().parent / "configs" / "experiment"
+    pretrained = set(list_models(pretrained=True))
+    names: List[str] = []
+    for path in sorted(experiments_dir.rglob("*.yaml")):
+        experiment = OmegaConf.load(path)
+        model = experiment.get("model")
+        if isinstance(model, DictConfig) and model.get("name") in pretrained:
+            names.append(path.relative_to(experiments_dir).with_suffix("").as_posix())
+    return names
 
 
 @hydra.main(config_path="configs", config_name="test", version_base=None)
@@ -52,6 +69,14 @@ def main(cfg: DictConfig) -> None:
         # default (16-mixed) shifts benchmark numbers, so evaluation upgrades it to full precision.
         if cfg.trainer.get("precision") == "16-mixed":
             cfg.trainer.precision = "32-true"
+
+    if cfg.model.pretrained and cfg.model.name not in list_models(pretrained=True):
+        hint = "\n  ".join(_pretrained_experiments())
+        raise SystemExit(
+            f"Model {cfg.model.name!r} has no registered pretrained weights, so there is no benchmark to "
+            "reproduce. Pass ckpt_path=... to evaluate your own checkpoint, or pick an experiment whose "
+            f"model ships registry weights:\n  {hint}"
+        )
 
     model: L.LightningModule = instantiate(cfg.model)
     datamodule: L.LightningDataModule = instantiate(cfg.datamodule)

@@ -1,14 +1,21 @@
-"""Benchmark PointNeXt semantic segmentation on S3DIS.
+r"""Benchmark PointNeXt semantic segmentation on S3DIS.
 
 Usage:
     # Area 5 evaluation (default)
-    python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-area5.openpoints --download
+    uv run --no-sync python examples/pointnext_benchmark_s3dis.py \
+        --model pointnext-sm.s3dis-area5.openpoints --download
 
-    # 6-fold cross-validation (all areas, one at a time)
-    python examples/pointnext_benchmark_s3dis.py --model pointnext-sm.s3dis-6fold --areas Area_1 --download
+    # 6-fold cross-validation (one per-area model at a time)
+    uv run --no-sync python examples/pointnext_benchmark_s3dis.py \
+        --model pointnext-sm.s3dis-area1.openpoints --areas Area_1 --download
 
 Results on Area 5 (align=True, voxel_size=0.04):
-    pointnext-sm  : mIoU=62.91%  OA=87.01%  (reported: 63.4/87.9)
+    pointnext-sm  : mIoU=62.12%  OA=86.83%  (reported: 63.4/87.9)
+
+The eval pipeline keeps the deterministic first point per voxel, while the reference (openpoints)
+freezes one random point per voxel when it caches the val split. Measured across random draws,
+Area-5 mIoU spans roughly $62.1$ to $63.0$, so differences at that scale are representative-choice
+noise rather than model differences.
 """
 
 import os
@@ -22,10 +29,10 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.models._registry import create_model
+from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -34,7 +41,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 1
 SEED = 42
 
-MODEL_CHOICES = [f"pointnext-{v}.s3dis-area{a}" for v in ("sm", "base", "lg", "xl") for a in range(1, 7)]
+MODEL_CHOICES = [f"pointnext-{v}.s3dis-area{a}.openpoints" for v in ("sm", "base", "lg", "xl") for a in range(1, 7)]
 
 
 def main() -> None:
@@ -42,6 +49,7 @@ def main() -> None:
 
     print(f"Seeding everything to {args.seed}!")
     seed_everything(args.seed)
+    set_determinism(tf32=False)
     print(f"Benchmarking model {args.model!r} on S3DIS areas {list(args.areas)}!")
 
     model, info = create_model(args.model, task="segmentation", pretrained=args.pretrained, return_info=True)

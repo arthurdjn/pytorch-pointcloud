@@ -226,3 +226,19 @@ def test_randlanet_segmentation_with_aggr(data: Dict[str, Tensor]) -> None:
     assert model.aggr is not None
     logits = model(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 10)
+
+
+def test_randlanet_classification_with_aggr(data: Dict[str, Tensor]) -> None:
+    model = RandLANetClassification(
+        in_channels=6,
+        num_classes=10,
+        stem_channels=8,
+        encoder_channels=[16, 32, 64],
+        aggr_channels=[128, 64],
+        decimation=2,
+        num_neighbors=8,
+    )
+    assert model.aggr is not None
+    assert model.embedding_dim == 64
+    logits = model(data["features"], data["pos"], data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, 10)

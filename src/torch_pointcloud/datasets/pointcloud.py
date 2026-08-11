@@ -7,6 +7,23 @@ from torch_pointcloud.utils.types import PathLike
 
 
 class PointCloudDataset(Dataset):
+    """Base class for point-cloud datasets stored under a `raw/` + `processed/` disk layout.
+
+    Data for a concrete dataset lives under `<root>/<name>/`, with the original download in
+    `raw/` and the preprocessed cache in `processed/`. Subclasses implement `__getitem__` /
+    `__len__` and return per-sample `Dict[str, Tensor]` objects keyed by `DataKeys` members;
+    batching is left to the caller (see `torch_pointcloud.utils.data.collate`).
+
+    Note:
+        Datasets that keep their samples in an in-memory cache return a shallow `dict` copy from
+        `__getitem__`, so adding or replacing keys on a returned sample never mutates the cache.
+        The tensor values still share storage with the cache: treat them as read-only and let
+        transforms return new tensors instead of writing in place.
+
+    Args:
+        root: The root directory under which the dataset directory is created.
+    """
+
     _repr_indent = 4
 
     def __init__(self, root: PathLike) -> None:

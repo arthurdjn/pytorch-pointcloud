@@ -119,11 +119,25 @@ def test_encode_rejects_mismatched_last_dim() -> None:
         encode(torch.zeros(4, 2, dtype=torch.long), num_dims=3, num_bits=4)
 
 
-def test_encode_rejects_too_many_bits() -> None:
+@pytest.mark.parametrize(
+    "num_dims,num_bits",
+    [
+        pytest.param(3, 22, id="66-bits"),
+        pytest.param(4, 16, id="64-bits"),
+    ],
+)
+def test_encode_rejects_too_many_bits(num_dims: int, num_bits: int) -> None:
     with pytest.raises(ValueError, match="int64"):
-        encode(torch.zeros(4, 3, dtype=torch.long), num_dims=3, num_bits=22)
+        encode(torch.zeros(4, num_dims, dtype=torch.long), num_dims=num_dims, num_bits=num_bits)
 
 
-def test_decode_rejects_too_many_bits() -> None:
-    with pytest.raises(ValueError, match="uint64"):
-        decode(torch.zeros(4, dtype=torch.long), num_dims=3, num_bits=22)
+@pytest.mark.parametrize(
+    "num_dims,num_bits",
+    [
+        pytest.param(3, 22, id="66-bits"),
+        pytest.param(4, 16, id="64-bits"),
+    ],
+)
+def test_decode_rejects_too_many_bits(num_dims: int, num_bits: int) -> None:
+    with pytest.raises(ValueError, match="int64"):
+        decode(torch.zeros(4, dtype=torch.long), num_dims=num_dims, num_bits=num_bits)

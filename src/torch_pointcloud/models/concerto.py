@@ -28,6 +28,11 @@ class ConcertoSegmentation(SegmentationModel):
     Architecturally identical to Sonata's linear-probe head, only the encoder
     scale differs (Concerto-large uses $C = (64, 128, 256, 512, 768)$ versus
     Sonata's $(48, 96, 192, 384, 512)$).
+
+    Note:
+        The default (and registered) configuration enables flash attention (`use_flash_attn=True`),
+        which requires the `flash-attn` package and a CUDA device; pass `use_flash_attn=False` to
+        run without it (e.g. on CPU).
     """
 
     def __init__(
@@ -39,7 +44,7 @@ class ConcertoSegmentation(SegmentationModel):
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (3, 3, 3, 12, 3),
         encoder_channels: Sequence[int] = (64, 128, 256, 512, 768),
-        encoder_num_head: Sequence[int] = (4, 8, 16, 32, 48),
+        encoder_num_heads: Sequence[int] = (4, 8, 16, 32, 48),
         encoder_patch_size: Sequence[int] = (1024, 1024, 1024, 1024, 1024),
         norm: Union[str, Callable] = "layer_norm",
         act: Union[str, Callable] = "gelu",
@@ -61,6 +66,10 @@ class ConcertoSegmentation(SegmentationModel):
         legacy: bool = False,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        # PyG's LayerNorm defaults to graph mode, which normalizes across the whole packed batch and
+        # leaks features between samples; node mode matches nn.LayerNorm semantics.
+        if norm == "layer_norm":
+            norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
         self.encoder_channels = encoder_channels
         self.encoder = PointTransformerV3Encoder(
             in_channels=in_channels,
@@ -69,7 +78,7 @@ class ConcertoSegmentation(SegmentationModel):
             strides=strides,
             encoder_depths=encoder_depths,
             encoder_channels=encoder_channels,
-            encoder_num_head=encoder_num_head,
+            encoder_num_heads=encoder_num_heads,
             encoder_patch_size=encoder_patch_size,
             norm=norm,
             act=act,
@@ -90,15 +99,18 @@ class ConcertoSegmentation(SegmentationModel):
             legacy=legacy,
         )
         self.dropout = dropout
-        self.head = nn.Linear(self.embedding_dim, num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return sum(self.encoder_channels)
 
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
-        self.head = nn.Linear(self.embedding_dim, num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -193,7 +205,7 @@ _CONCERTO_SEG_TRANSFORMS = T.Compose(
 def _concerto_encoder_hparams(
     encoder_depths: Sequence[int],
     encoder_channels: Sequence[int],
-    encoder_num_head: Sequence[int],
+    encoder_num_heads: Sequence[int],
 ) -> Dict[str, Any]:
     return dict(
         in_channels=9,
@@ -202,7 +214,7 @@ def _concerto_encoder_hparams(
         strides=(2, 2, 2, 2),
         encoder_depths=encoder_depths,
         encoder_channels=encoder_channels,
-        encoder_num_head=encoder_num_head,
+        encoder_num_heads=encoder_num_heads,
         encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
         norm="layer_norm",
         act="gelu",
@@ -222,10 +234,10 @@ def _concerto_encoder_hparams(
 
 
 @register_model(
-    "concerto-tiny.pointcept",
+    "concerto-tiny.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-tiny.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto/concerto-tiny.pretrain.pointcept.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -233,7 +245,7 @@ def _concerto_encoder_hparams(
     hparams=_concerto_encoder_hparams(
         encoder_depths=(1, 1, 1, 3, 1),
         encoder_channels=(16, 32, 64, 128, 256),
-        encoder_num_head=(1, 2, 4, 8, 16),
+        encoder_num_heads=(1, 2, 4, 8, 16),
     ),
 )
 def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
@@ -241,10 +253,10 @@ def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-small.pointcept",
+    "concerto-small.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-small.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto/concerto-small.pretrain.pointcept.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -252,7 +264,7 @@ def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
     hparams=_concerto_encoder_hparams(
         encoder_depths=(2, 2, 2, 6, 2),
         encoder_channels=(32, 64, 128, 256, 512),
-        encoder_num_head=(2, 4, 8, 16, 32),
+        encoder_num_heads=(2, 4, 8, 16, 32),
     ),
 )
 def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
@@ -260,10 +272,10 @@ def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-base.pointcept",
+    "concerto-base.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-base.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto/concerto-base.pretrain.pointcept.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -271,7 +283,7 @@ def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
     hparams=_concerto_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_head=(3, 6, 12, 24, 32),
+        encoder_num_heads=(3, 6, 12, 24, 32),
     ),
 )
 def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
@@ -279,10 +291,10 @@ def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "concerto-large.pointcept",
+    "concerto-large.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-large.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto/concerto-large.pretrain.pointcept.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -290,7 +302,7 @@ def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
     hparams=_concerto_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(64, 128, 256, 512, 768),
-        encoder_num_head=(4, 8, 16, 32, 48),
+        encoder_num_heads=(4, 8, 16, 32, 48),
     ),
 )
 def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
@@ -314,7 +326,7 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
         **_concerto_encoder_hparams(
             encoder_depths=(3, 3, 3, 12, 3),
             encoder_channels=(64, 128, 256, 512, 768),
-            encoder_num_head=(4, 8, 16, 32, 48),
+            encoder_num_heads=(4, 8, 16, 32, 48),
         ),
     ),
 )

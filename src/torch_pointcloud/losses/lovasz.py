@@ -1,5 +1,7 @@
 """Lovász-Softmax loss."""
 
+from typing import Literal
+
 import torch
 from torch import Tensor, nn
 
@@ -40,6 +42,9 @@ def _lovasz_softmax(probas: Tensor, labels: Tensor, classes: str, ignore_index: 
         errors = (fg - probas[:, c]).abs()
         errors_sorted, perm = torch.sort(errors, dim=0, descending=True)
         losses.append(torch.dot(errors_sorted, _lovasz_grad(fg[perm])))
+    if not losses:
+        # `classes="present"` with no label in $[0, C)$: no class contributes, so the loss is zero.
+        return 0.0 * probas.sum()
     return torch.stack(losses).mean()
 
 
@@ -55,8 +60,12 @@ class LovaszLoss(nn.Module):
         loss_weight: Scalar multiplier applied to the loss.
     """
 
-    def __init__(self, ignore_index: int = -1, classes: str = "present", loss_weight: float = 1.0) -> None:
+    def __init__(
+        self, ignore_index: int = -1, classes: Literal["present", "all"] = "present", loss_weight: float = 1.0
+    ) -> None:
         super().__init__()
+        if classes not in ("present", "all"):
+            raise ValueError(f"`classes` must be 'present' or 'all', got {classes!r}.")
         self.ignore_index = ignore_index
         self.classes = classes
         self.loss_weight = loss_weight

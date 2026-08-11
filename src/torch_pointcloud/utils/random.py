@@ -36,13 +36,15 @@ def seed_everything(seed: Optional[int] = None) -> int:
 
 
 def set_determinism(*, tf32: bool = False) -> None:
-    """Pin the global numeric flags that make CUDA results reproducible across runs and machines.
+    """Set the TensorFloat-32 flags for fp32 CUDA matmul and cuDNN convolutions.
 
     TensorFloat-32 rounds fp32 matmul/convolution inputs to 19-bit mantissas on Ampere+ GPUs, which
     shifts benchmark metrics relative to references measured with it off. Neither the Lightning
     `Trainer(precision=...)` flag nor `torch.set_float32_matmul_precision` covers the cuDNN
     convolution path (`torch.backends.cudnn.allow_tf32` defaults to `True`), so both backends are
-    pinned here.
+    pinned here. Nothing else is touched: RNG seeding is `seed_everything`, and deterministic
+    kernel selection (`torch.use_deterministic_algorithms`,
+    `torch.backends.cudnn.deterministic`) is not enabled.
 
     Args:
         tf32: Allow TensorFloat-32 in fp32 CUDA matmul and cuDNN convolutions.

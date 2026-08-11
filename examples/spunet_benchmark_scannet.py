@@ -1,19 +1,21 @@
 """Benchmark SpUNet (SparseUNet) semantic segmentation on ScanNet.
 
-By default, evaluates at full point resolution: voxel-level logits are
-broadcast back to all raw points via the inverse cluster mapping (matches
-Pointcept's val pipeline). Pass `--voxel-eval` to evaluate at voxel resolution
-(faster, but biased: small voxels weighted same as large ones).
+Evaluates at full point resolution: voxel-level logits are broadcast back to
+all raw points via the inverse cluster mapping.
 
 Results (ScanNet val, full resolution, single pass):
 
     | Variant               | reference | torch-pointcloud |
     | --------------------- | --------- | ---------------- |
-    | spunet-v1m1.scannet20.pointcept | 75.67     | 70.02            |
+    | spunet-v1m1.scannet20.pointcept | 75.67     | 69.87            |
 
 The reference is the checkpoint's 2023 training log (75.5 in the MSC paper). On currently processed
 ScanNet data the same checkpoint scores 71.81 in Pointcept's own pipeline, whose test protocol also
 votes over multiple fragments rather than this script's single pass.
+
+The eval pipeline keeps the deterministic first point per voxel. Pointcept's own protocols instead
+sample a random point (train-mode `GridSample`) or cover all points in fragments (test protocol);
+measured across random draws, the representative choice moves mIoU by less than $0.2$.
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_scannet.py --limit 5
@@ -34,7 +36,7 @@ from torch_pointcloud.datasets import ScanNet20
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -121,6 +123,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)

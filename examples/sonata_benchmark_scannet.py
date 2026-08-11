@@ -5,7 +5,7 @@ on ScanNet20 val (the paper's ~72.5 adds test-time augmentation and full-resolut
 
 | Model               | Here                  |
 | ------------------- | --------------------- |
-| sonata-lp.scannet20.fair | 71.93 mIoU / 90.02 OA |
+| sonata-lp.scannet20.fair | 71.92 mIoU / 90.03 OA |
 
 Usage:
     uv run --no-sync python examples/sonata_benchmark_scannet.py --limit 5
@@ -26,7 +26,7 @@ from torch_pointcloud.datasets import ScanNet20
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -107,6 +107,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)

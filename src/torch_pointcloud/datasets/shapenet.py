@@ -245,7 +245,8 @@ class XCubeShapeNet(PointCloudDataset):
         if len(available) < len(models):
             warnings.warn(
                 f"{len(models) - len(available)} of {len(models)} shapes listed in {split_file.name!r} for "
-                f"synset {synset_id} are missing from the release and were skipped."
+                f"synset {synset_id} are missing from the release and were skipped.",
+                stacklevel=2,
             )
         return available
 
@@ -271,7 +272,14 @@ class XCubeShapeNet(PointCloudDataset):
             return False
         return all(path.exists() for _, path in self._index_files())
 
-    def download(self) -> None:
+    def download(self, force: bool = False) -> None:
+        """The XCube ShapeNet release must be downloaded manually.
+
+        Args:
+            force: Unused; present to mirror the other datasets' `download` signature.
+        Raises:
+            RuntimeError: Always; automatic download is not supported.
+        """
         raise RuntimeError(
             f"{self.__class__.__name__} does not support automatic download. "
             f"Download the data from {self.data_url!r} and extract it under {self.raw_dir!r}."

@@ -36,3 +36,20 @@ def test_xconv_forward() -> None:
     edge_index = knn_graph(pos, k=k, batch=batch)
     out = conv(x, pos, edge_index)
     assert out.shape == (64, 32)
+
+
+def test_xconv_zero_hidden_channels_raises() -> None:
+    with pytest.raises(ValueError, match="hidden_channels"):
+        XConv(in_channels=3, out_channels=32, spatial_dim=3, kernel_size=8)
+
+
+def test_xconv_cloud_smaller_than_neighborhood_raises() -> None:
+    k = 8
+    conv = XConv(in_channels=16, out_channels=32, spatial_dim=3, kernel_size=k, hidden_channels=8)
+    torch.manual_seed(0)
+    pos = torch.randn(4, 3)  # fewer points than kernel_size
+    x = torch.randn(4, 16)
+    batch = torch.zeros(4, dtype=torch.long)
+    edge_index = knn_graph(pos, k=k, batch=batch)
+    with pytest.raises(ValueError, match="kernel_size"):
+        conv(x, pos, edge_index)

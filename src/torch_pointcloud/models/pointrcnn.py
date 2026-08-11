@@ -66,7 +66,7 @@ class PointRCNNTrainOutput(TypedDict):
 
 
 def rotate_points_along_z(points: Tensor, angle: Tensor) -> Tensor:
-    r"""Rotate point sets about the $+z$ axis (angle increases $x \to y$), matching OpenPCDet.
+    r"""Rotate point sets about the $+z$ axis (angle increases $x \to y$).
 
     Args:
         points: Point sets, shape $(B, N, 3 + C)$; only the first three channels are rotated.
@@ -90,7 +90,7 @@ def rotate_points_along_z(points: Tensor, angle: Tensor) -> Tensor:
 
 
 def decode_point_residuals(encodings: Tensor, points: Tensor, classes: Tensor, mean_sizes: Tensor) -> Tensor:
-    r"""Decode per-point box residuals with class mean-size anchors (OpenPCDet's `PointResidualCoder`).
+    r"""Decode per-point box residuals with class mean-size anchors.
 
     Decodes a stage-1 prediction $(x_t, y_t, z_t, d_{x,t}, d_{y,t}, d_{z,t}, \cos, \sin)$ at a foreground
     point into an oriented box $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, using the predicted class mean size
@@ -330,7 +330,7 @@ class PointRCNNRefinementHead(nn.Module):
     def roipool(self, pos: Tensor, features: Tensor, rois: Tensor) -> Tuple[Tensor, Tensor]:
         r"""Pool a fixed number of in-box points per ROI and canonically transform them.
 
-        Mirrors OpenPCDet's `roipoint_pool3d` CUDA kernel: for every (optionally enlarged) box, the input
+        Mirrors the reference `roipoint_pool3d` CUDA kernel: for every (optionally enlarged) box, the input
         points are scanned in order and the first `num_sampled_points` that fall inside are kept (cyclically
         duplicated when fewer are found, zeroed when none). Pooled points are translated to the ROI center
         and rotated by $-\theta$ into the box-canonical frame.

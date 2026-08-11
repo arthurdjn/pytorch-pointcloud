@@ -21,13 +21,14 @@ from dotenv import load_dotenv
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 
-from torch_pointcloud.utils.hydra import instantiate_list
-from torch_pointcloud.utils.random import seed_everything
+# Load .env before the torch_pointcloud imports: the configs' `${oc.env:...}` interpolations and the
+# library's `TORCH_POINTCLOUD_*` settings (read at import time) both resolve from the environment.
+load_dotenv()
+
+from torch_pointcloud.utils.hydra import instantiate_list  # noqa: E402
+from torch_pointcloud.utils.random import seed_everything  # noqa: E402
 
 log = logging.getLogger(__name__)
-
-# Load .env so the configs' `${oc.env:...}` interpolations resolve.
-load_dotenv()
 
 # `${eval:"<expr>"}` for inline arithmetic in YAML (e.g. compute total_steps from
 # epoch count, scene count, batch size). Executes a Python expression at compose

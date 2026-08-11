@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
@@ -50,10 +51,9 @@ def main() -> None:
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        train_metrics = train_one_epoch(model, optimizer, scheduler, train_dataloader, args.device)
         val_metrics = eval_one_epoch(model, test_dataloader, args.device)
         metrics = {**train_metrics, **val_metrics}
-        scheduler.step()
 
         print("Scores:", end=" ")
         print(" | ".join([f"{k}: {v:.4f}" for k, v in metrics.items()]))
@@ -80,6 +80,7 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
+    scheduler: LRScheduler,
     dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
@@ -102,6 +103,7 @@ def train_one_epoch(
         loss = F.nll_loss(probs, target)
         loss.backward()
         optimizer.step()
+        scheduler.step()
         total_loss += loss.item()
 
         correct = logits.argmax(dim=1).eq(target).sum()
@@ -153,14 +155,14 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     if args.dataset.lower() == "modelnet10":
         train_dataset = ModelNet10(
             args.root,
-            True,
+            train=True,
             transform=transform,
             download=True,
             num_workers=args.num_workers,
         )
         test_dataset = ModelNet10(
             args.root,
-            False,
+            train=False,
             transform=transform,
             download=True,
             num_workers=args.num_workers,
@@ -168,14 +170,14 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     elif args.dataset.lower() == "modelnet40":
         train_dataset = ModelNet40(
             args.root,
-            True,
+            train=True,
             transform=transform,
             download=True,
             num_workers=args.num_workers,
         )
         test_dataset = ModelNet40(
             args.root,
-            False,
+            train=False,
             transform=transform,
             download=True,
             num_workers=args.num_workers,

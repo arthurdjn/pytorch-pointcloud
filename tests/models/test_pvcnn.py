@@ -105,6 +105,28 @@ def test_pvcnn_segmentation_forward_features_decoder_head(
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
 
 
+def test_pvcnn_classification_reset_classifier(model_clf: PVCNNClassification, data: Dict[str, Tensor]) -> None:
+    model_clf.reset_classifier(num_classes=42)
+    logits = model_clf(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, 42)
+
+
+def test_pvcnn_classification_reset_classifier_zero(model_clf: PVCNNClassification) -> None:
+    model_clf.reset_classifier(num_classes=0)
+    assert isinstance(model_clf.head, nn.Identity)
+
+
+def test_pvcnn_segmentation_reset_classifier(model_seg: PVCNNSegmentation, data: Dict[str, Tensor]) -> None:
+    model_seg.reset_classifier(num_classes=42)
+    logits = model_seg(data["x"], data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_pvcnn_segmentation_reset_classifier_zero(model_seg: PVCNNSegmentation) -> None:
+    model_seg.reset_classifier(num_classes=0)
+    assert isinstance(model_seg.head, nn.Identity)
+
+
 def test_pvconv_voxel_branch_uses_generic_act_and_norm() -> None:
     """Default PVConv builds its voxel branch from the generic `act` / `norm` kwargs.
 

@@ -21,6 +21,11 @@ from .act import create_act
 class SAModule(nn.Module):
     r"""Single-resolution set-abstraction block (PointNet++ SSG/MSG).
 
+    Note:
+        `SAModule` / `GlobalSAModule` / `FPModule` form the canonical PointNet++ stack used by the
+        registered models. The `PointNet2*` classes in this module are an alternative implementation
+        of the same blocks on top of PyG's `MessagePassing`.
+
     Args:
         ratio: Fractional farthest-point-sampling rate. Mutually exclusive with `num_points`.
         num_points: Absolute number of centroids to sample (e.g. VoteNet's fixed $2048, 1024, \ldots$).
@@ -181,11 +186,22 @@ class GlobalSAModule(nn.Module):
 
 
 class FPModule(torch.nn.Module):
+    r"""Feature-propagation block (PointNet++): $k$-NN interpolation, skip concatenation, and an MLP.
+
+    Args:
+        in_channels: Number of input channels after the skip concatenation.
+        channels: Per-layer channel sizes of the MLP.
+        k: Number of neighbors for the $k$-NN interpolation. PointNet++ uses $k = 3$;
+            $k = 1$ copies the nearest coarse feature (RandLA-Net).
+        weighting: Inverse-distance weighting scheme passed to `knn_interpolate`. Irrelevant when $k = 1$.
+        eps: Numerical stability term added to the interpolation distances.
+    """
+
     def __init__(
         self,
         in_channels: int,
         channels: Sequence[int],
-        k: int,
+        k: int = 3,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -291,6 +307,17 @@ def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -
 
 
 class PointNet2Conv(MessagePassing):
+    r"""PointNet++ grouping convolution on top of PyG's `MessagePassing`.
+
+    Each message concatenates the neighbor features with the relative position
+    (`cat([x_j, pos_j - pos_i])`) and applies `local_nn`; messages are aggregated per centroid.
+
+    Args:
+        local_nn: Network applied to each message of shape $(E, C + D)$.
+        add_self_loops: Whether to add self-loops to the edge index.
+        **kwargs: Additional `MessagePassing` arguments (`aggr` defaults to `"max"`).
+    """
+
     def __init__(self, local_nn: nn.Module, add_self_loops: bool = True, **kwargs: Unpack[MessagePassingParams]):
         kwargs.setdefault("aggr", "max")
         super().__init__(**kwargs)
@@ -338,6 +365,24 @@ class PointNet2Conv(MessagePassing):
 
 
 class PointNet2SetAbstraction(nn.Module):
+    r"""Set-abstraction block built from one `PointNet2Conv` per grouping scale.
+
+    Farthest point sampling selects the centroids, a ball query gathers the neighbors of each
+    centroid per scale, and the per-scale outputs are concatenated (Multi-Scale Grouping when
+    `channels` is a nested sequence).
+
+    Args:
+        spatial_dim: Dimension of point coordinates.
+        in_channels: Number of input feature channels.
+        channels: Per-scale MLP channel sizes; a nested sequence enables Multi-Scale Grouping.
+        ratio: Fractional farthest-point-sampling rate.
+        radius: Ball-query radius per scale.
+        num_neighbors: Maximum number of neighbors per scale.
+        dropout: Dropout rate inside the per-scale MLPs.
+        add_self_loops: Whether to add self-loops to the grouping edge index.
+        aggr: Message aggregation used by the convolutions.
+    """
+
     def __init__(
         self,
         spatial_dim: int,
@@ -402,29 +447,23 @@ class PointNet2SetAbstraction(nn.Module):
         )
 
         self.convs = nn.ModuleList()
-        for i, channels in enumerate(self.channels):
-            in_channels = self.in_channels + self.spatial_dim
-            conv = self.configure_conv(channels, i)
-            self.convs.append(conv)
-
-    def configure_conv(self, channels: Sequence[Any], index: int) -> MessagePassing:
-        in_channels = self.in_channels + self.spatial_dim
-        local_nn = MLP(
-            [in_channels] + ensure_list(channels),
-            act=self.act,
-            act_first=self.act_first,
-            act_kwargs=self.act_kwargs,
-            norm=self.norm,
-            norm_kwargs=self.norm_kwargs,
-            bias=self.bias,
-            dropout=self.dropout,
-            plain_last=False,
-        )
-
-        return PointNet2Conv(local_nn=local_nn, add_self_loops=self.add_self_loops, aggr=self.aggr)
+        for scale_channels in self.channels:
+            local_nn = MLP(
+                [self.in_channels + self.spatial_dim] + ensure_list(scale_channels),
+                act=self.act,
+                act_first=self.act_first,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                bias=self.bias,
+                dropout=self.dropout,
+                plain_last=False,
+            )
+            self.convs.append(PointNet2Conv(local_nn=local_nn, add_self_loops=self.add_self_loops, aggr=self.aggr))
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        idx = fps(pos, batch, ratio=self.ratio)
+        # In eval mode pin the FPS start to make predictions reproducible across runs.
+        idx = fps(pos, batch, ratio=self.ratio, random_start=self.training)
         x_dst = None if x is None else x[idx]
         pos_dst = pos[idx]
         batch_dst = batch[idx]
@@ -440,6 +479,15 @@ class PointNet2SetAbstraction(nn.Module):
 
 
 class PointNet2GlobalSetAbstraction(nn.Module):
+    r"""Global set-abstraction block: a shared MLP followed by a pool over each batch element.
+
+    Args:
+        in_channels: Number of input feature channels.
+        channels: Per-layer channel sizes of the MLP.
+        dropout: Dropout rate inside the MLP.
+        aggr: Pooling operation applied per batch element.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -495,7 +543,7 @@ class PointNet2FeaturePropagation(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
-        k: int,
+        k: int = 3,
         dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_first: bool = False,

@@ -80,6 +80,24 @@ def test_create_model_unknown_name_raises() -> None:
         create_model("does-not-exist", task="classification")
 
 
+def test_create_model_unknown_name_suggests_close_matches() -> None:
+    with pytest.raises(ValueError, match="Did you mean 'dummy.classification'"):
+        create_model("dummy.classifiction", task="classification")
+
+
+def test_create_model_unknown_name_hints_other_task() -> None:
+    with pytest.raises(ValueError, match="registered under task 'classification'"):
+        create_model("dummy.classification", task="segmentation")
+
+
+def test_register_model_returns_the_registered_callable() -> None:
+    decorated = register_model("dummy-identity.classification", task="classification")(_dummy_classification)
+    try:
+        assert decorated is _dummy_classification
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-identity.classification", None)
+
+
 def test_create_model_invalid_task_raises() -> None:
     with pytest.raises(ValueError, match="Invalid model task"):
         create_model("dummy.classification", task="invalid")  # type: ignore[call-overload]

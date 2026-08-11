@@ -10,6 +10,7 @@ from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import group
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -33,7 +34,7 @@ class EncoderBlock(nn.Module):
         qkv_bias: Whether to add a bias to the query / key / value projection.
         dropout: The dropout rate for the MLP and attention output projections.
         attn_drop_rate: The attention dropout rate.
-        drop_path_rate: The stochastic depth rate, either a scalar or a per-block list.
+        drop_path: The stochastic depth rate, either a scalar or a per-block list.
         act: The activation function used in the feed-forward MLP.
         norm: The normalization applied before attention and the MLP.
 
@@ -51,7 +52,7 @@ class EncoderBlock(nn.Module):
         qkv_bias: bool = False,
         dropout: float = 0.0,
         attn_drop_rate: float = 0.0,
-        drop_path_rate: Union[float, List[float]] = 0.0,
+        drop_path: Union[float, List[float]] = 0.0,
         act: Union[str, Callable, None] = "gelu",
         norm: Union[str, Callable, None] = nn.LayerNorm,
     ):
@@ -65,7 +66,7 @@ class EncoderBlock(nn.Module):
                     qkv_bias=qkv_bias,
                     dropout=dropout,
                     attn_dropout=attn_drop_rate,
-                    drop_path=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
                     act=act,
                     norm=norm,
                 )
@@ -76,63 +77,6 @@ class EncoderBlock(nn.Module):
     def forward(self, x: Tensor, pos: Tensor, mask: OptTensor = None) -> Tensor:
         for block in self.blocks:
             x = block(x + pos, mask)
-        return x
-
-
-class DecoderBlock(nn.Module):
-    r"""A stack of transformer blocks for the decoder, adding the positional embedding before every block.
-
-    Args:
-        embed_dim: The number of channels.
-        depth: The number of transformer blocks.
-        num_heads: The number of attention heads.
-        mlp_ratio: The feed-forward expansion ratio.
-        qkv_bias: Whether to add a bias to the query / key / value projection.
-        dropout: The dropout rate for the MLP and attention output projections.
-        attn_drop_rate: The attention dropout rate.
-        drop_path_rate: The stochastic depth rate, either a scalar or a per-block list.
-        act: The activation function used in the feed-forward MLP.
-        norm: The normalization applied before attention and the MLP.
-
-    Shape:
-        - Input: $(B, N, C)$
-        - Output: $(B, N, C)$
-    """
-
-    def __init__(
-        self,
-        embed_dim: int,
-        depth: int,
-        num_heads: int,
-        mlp_ratio: float = 4.0,
-        qkv_bias: bool = False,
-        dropout: float = 0.0,
-        attn_drop_rate: float = 0.0,
-        drop_path_rate: Union[float, List[float]] = 0.1,
-        act: Union[str, Callable, None] = "gelu",
-        norm: Union[str, Callable, None] = nn.LayerNorm,
-    ):
-        super().__init__()
-        self.blocks = nn.ModuleList(
-            [
-                TransformerBlock(
-                    dim=embed_dim,
-                    num_heads=num_heads,
-                    mlp_ratio=mlp_ratio,
-                    qkv_bias=qkv_bias,
-                    dropout=dropout,
-                    attn_dropout=attn_drop_rate,
-                    drop_path=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
-                    act=act,
-                    norm=norm,
-                )
-                for i in range(depth)
-            ]
-        )
-
-    def forward(self, x: Tensor, pos: Tensor) -> Tensor:
-        for block in self.blocks:
-            x = block(x + pos)
         return x
 
 
@@ -154,6 +98,34 @@ def local_attention_mask(mask: Tensor) -> Tensor:
         - Output: $(B, 1, N, N)$
     """
     return (mask * -100000.0).unsqueeze(1)
+
+
+def local_att_mask(pos: Tensor, radius: float, dist: OptTensor = None) -> Tuple[Tensor, Tensor]:
+    r"""Compute the boolean local-attention mask of a center set from a pairwise-distance threshold.
+
+    A pair of centers is masked (`True`) when their Euclidean distance is at least `radius`. The
+    pairwise-distance matrix is recomputed only when the cached `dist` does not match the current
+    number of centers, so consecutive stages with the same token count share it.
+
+    Args:
+        pos: Center coordinates of shape $(B, N, 3)$.
+        radius: The local-attention radius.
+        dist: An optional cached pairwise-distance matrix from a previous call.
+
+    Returns:
+        A tuple `(mask, dist)` with the boolean mask of shape $(B, N, N)$ and the pairwise-distance
+        matrix of shape $(B, N, N)$.
+
+    Shape:
+        - `pos`: $(B, N, 3)$
+        - `mask`: $(B, N, N)$
+        - `dist`: $(B, N, N)$
+    """
+    with torch.no_grad():
+        if dist is None or dist.shape[1] != pos.shape[1]:
+            dist = torch.cdist(pos, pos, p=2)
+        mask = dist >= radius
+    return mask, dist
 
 
 def dense_centers_to_packed(centers: Tensor) -> Tuple[Tensor, Tensor]:
@@ -301,7 +273,7 @@ class HierarchicalEncoder(nn.Module):
         encoder_dims: The channel width per stage.
         local_radius: The local-attention radius per stage (non-positive disables the mask).
         num_heads: The number of attention heads.
-        drop_path_rate: The maximum stochastic depth rate (linearly scaled across blocks).
+        drop_path: The maximum stochastic depth rate (linearly scaled across blocks).
         with_norms: Whether to apply a per-stage output LayerNorm (disabled for the ModelNet40 / ScanObjectNN finetune heads).
         in_channels: The number of per-point feature channels concatenated to the coordinates at the first stage ($0$ for coordinates only).
         token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP (later stages derive their widths from `encoder_dims`).
@@ -318,7 +290,7 @@ class HierarchicalEncoder(nn.Module):
         encoder_dims: Sequence[int],
         local_radius: Sequence[float],
         num_heads: int,
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         with_norms: bool = True,
         in_channels: int = 0,
         token_local_channels: Sequence[int] = (128, 256),
@@ -360,14 +332,14 @@ class HierarchicalEncoder(nn.Module):
             self.encoder_pos_embeds.append(MLP([3, self.encoder_dims[i], self.encoder_dims[i]], act="gelu", norm=None))
 
         self.encoder_blocks = nn.ModuleList()
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(self.encoder_depths))]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, sum(self.encoder_depths))]
         depth_count = 0
         for i in range(len(self.encoder_depths)):
             self.encoder_blocks.append(
                 EncoderBlock(
                     embed_dim=self.encoder_dims[i],
                     depth=self.encoder_depths[i],
-                    drop_path_rate=dpr[depth_count : depth_count + self.encoder_depths[i]],
+                    drop_path=dpr[depth_count : depth_count + self.encoder_depths[i]],
                     num_heads=num_heads,
                 )
             )
@@ -375,13 +347,6 @@ class HierarchicalEncoder(nn.Module):
 
         if with_norms:
             self.encoder_norms = nn.ModuleList([nn.LayerNorm(d) for d in self.encoder_dims])
-
-    def local_att_mask(self, xyz: Tensor, radius: float, dist: OptTensor = None) -> Tuple[Tensor, Tensor]:
-        with torch.no_grad():
-            if dist is None or dist.shape[1] != xyz.shape[1]:
-                dist = torch.cdist(xyz, xyz, p=2)
-            mask = dist >= radius
-        return mask, dist
 
     def forward(
         self,
@@ -403,7 +368,7 @@ class HierarchicalEncoder(nn.Module):
                 group_input_tokens = self.token_embed[i](x_vis_neighborhoods)
 
             if self.local_radius[i] > 0:
-                mask_vis_att, xyz_dist = self.local_att_mask(centers[i], self.local_radius[i], xyz_dist)
+                mask_vis_att, xyz_dist = local_att_mask(centers[i], self.local_radius[i], xyz_dist)
                 attn_mask: OptTensor = local_attention_mask(mask_vis_att.float())
             else:
                 attn_mask = None
@@ -490,7 +455,7 @@ class PointM2AEClassification(ClassificationModel):
         token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         local_radius: The local-attention radius per stage.
         num_heads: The number of attention heads.
-        drop_path_rate: The maximum stochastic depth rate.
+        drop_path: The maximum stochastic depth rate.
         concat_pooling: Use the ScanObjectNN concat pooling when `True`, the ModelNet40 sum pooling otherwise.
         dropout: The dropout rate in the classification head.
         head_channels: The hidden widths of the classification head.
@@ -514,7 +479,7 @@ class PointM2AEClassification(ClassificationModel):
         token_global_channels: Sequence[int] = (512,),
         local_radius: Sequence[float] = (0.32, 0.64, 1.28),
         num_heads: int = 6,
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         concat_pooling: bool = False,
         dropout: float = 0.5,
         head_channels: Sequence[int] = (256, 256),
@@ -525,13 +490,15 @@ class PointM2AEClassification(ClassificationModel):
         self.encoder_dims = list(encoder_dims)
         self.feat_dim = encoder_dims[-1]
         self.concat_pooling = concat_pooling
+        self.dropout = dropout
+        self.head_channels = list(head_channels)
 
         self.h_encoder = HierarchicalEncoder(
             encoder_depths=encoder_depths,
             encoder_dims=encoder_dims,
             local_radius=local_radius,
             num_heads=num_heads,
-            drop_path_rate=drop_path_rate,
+            drop_path=drop_path,
             with_norms=False,
             in_channels=in_channels,
             token_local_channels=token_local_channels,
@@ -539,14 +506,28 @@ class PointM2AEClassification(ClassificationModel):
         )
 
         self.norm = nn.LayerNorm(self.feat_dim)
-        head_in = self.feat_dim * 2 if concat_pooling else self.feat_dim
-        self.cls_head_finetune = MLP(
-            [head_in, *head_channels, num_classes],
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        head_in = self.feat_dim * 2 if self.concat_pooling else self.feat_dim
+        return MLP(
+            [head_in, *self.head_channels, self.num_classes],
             act="relu",
             norm="batch_norm",
-            dropout=dropout,
+            dropout=self.dropout,
             plain_last=True,
         )
+
+    def reset_classifier(self, num_classes: int, global_pool: Any = None, **kwargs: Any) -> None:
+        if global_pool is not None:
+            raise ValueError(
+                f"{self.__class__.__name__} pools with a fixed mean / max scheme selected by `concat_pooling`; "
+                "`global_pool` is not configurable."
+            )
+        self.num_classes = num_classes
+        self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         neighborhoods, centers, idxs = multi_scale_group(
@@ -568,7 +549,7 @@ class PointM2AEClassification(ClassificationModel):
         else:
             x_cat = x.mean(1) + x.max(1)[0]
 
-        return x_cat if pre_logits else self.cls_head_finetune(x_cat)
+        return x_cat if pre_logits else self.head(x_cat)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x_vis = self.forward_features(x, pos, batch)
@@ -582,7 +563,8 @@ class PointM2AESegmentation(SegmentationModel):
     This implementation is adapted from the official repository :github: [ZrrSkywalker/Point-M2AE](https://github.com/ZrrSkywalker/Point-M2AE).
 
     Per-stage encoder features are propagated back to the full-resolution cloud, concatenated with
-    a global feature and the one-hot object label, and decoded into per-point logits.
+    a global feature and the one-hot object label, and decoded into per-point logits. Every sample
+    in the packed batch must contain the same number of points; a ragged batch raises `ValueError`.
 
     Args:
         in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
@@ -662,14 +644,23 @@ class PointM2AESegmentation(SegmentationModel):
             ]
         )
 
-        self.head = MLP(
-            [3 * 1024 * 2 + 64, 1024, 512, 256, num_classes],
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return MLP(
+            [3 * 1024 * 2 + 64, 1024, 512, 256, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=[0.5, 0.0, 0.0, 0.0],
             bias=True,
             plain_last=True,
         )
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
         neighborhoods, centers, idxs = multi_scale_group(
@@ -687,6 +678,12 @@ class PointM2AESegmentation(SegmentationModel):
 
     def forward_decoder(self, x_vis_list: List[Tensor], centers: List[Tensor], pos: Tensor, batch: Tensor) -> Tensor:
         batch_size = int(batch.max().item()) + 1
+        counts = batch.bincount()
+        if bool((counts != counts[0]).any()):
+            raise ValueError(
+                f"{self.__class__.__name__} requires the same number of points per sample, got per-sample "
+                f"counts from {int(counts.min())} to {int(counts.max())}."
+            )
         num_points = pos.size(0) // batch_size
         feats: List[Tensor] = []
         for i in range(len(x_vis_list)):
@@ -747,7 +744,7 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         decoder_dims: The decoder channel width per stage.
         decoder_up_blocks: The number of residual blocks in each feature-propagation stage.
         num_heads: The number of attention heads.
-        drop_path_rate: The maximum stochastic depth rate.
+        drop_path: The maximum stochastic depth rate.
 
     Shape:
         - `pos`: $(N, 3)$
@@ -771,7 +768,7 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         decoder_dims: Sequence[int] = (384, 192),
         decoder_up_blocks: Sequence[int] = (1, 1),
         num_heads: int = 6,
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
     ):
         super().__init__(in_channels=in_channels)
         self.group_sizes = list(group_sizes)
@@ -787,7 +784,7 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
             local_radius=local_radius,
             num_heads=num_heads,
             mask_ratio=mask_ratio,
-            drop_path_rate=drop_path_rate,
+            drop_path=drop_path,
             token_local_channels=token_local_channels,
             token_global_channels=token_global_channels,
         )
@@ -798,14 +795,14 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         self.h_decoder = nn.ModuleList()
         self.decoder_pos_embeds = nn.ModuleList()
         self.token_prop = nn.ModuleList()
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(self.decoder_depths))]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, sum(self.decoder_depths))]
         depth_count = 0
         for i in range(len(self.decoder_dims)):
             self.h_decoder.append(
-                DecoderBlock(
+                EncoderBlock(
                     embed_dim=self.decoder_dims[i],
                     depth=self.decoder_depths[i],
-                    drop_path_rate=dpr[depth_count : depth_count + self.decoder_depths[i]],
+                    drop_path=dpr[depth_count : depth_count + self.decoder_depths[i]],
                     num_heads=num_heads,
                 )
             )
@@ -836,6 +833,7 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         centers = centers[::-1]
         neighborhoods = neighborhoods[::-1]
         x_vis_list = x_vis_list[::-1]
+        mask_vis_list = mask_vis_list[::-1]
         masks = masks[::-1]
 
         center_0 = torch.empty(0, device=pos.device)
@@ -892,7 +890,7 @@ class HierarchicalEncoderMAE(nn.Module):
         local_radius: The local-attention radius per stage.
         num_heads: The number of attention heads.
         mask_ratio: The fraction of coarsest-stage tokens to mask.
-        drop_path_rate: The maximum stochastic depth rate.
+        drop_path: The maximum stochastic depth rate.
         token_local_channels: Hidden widths of the first-stage token embedder's per-point MLP (later stages derive their widths from `encoder_dims`).
         token_global_channels: Hidden widths of the first-stage token embedder's per-group MLP.
         act: The activation function used in the token embedders and transformer blocks.
@@ -908,7 +906,7 @@ class HierarchicalEncoderMAE(nn.Module):
         local_radius: Sequence[float],
         num_heads: int,
         mask_ratio: float,
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         token_local_channels: Sequence[int] = (128, 256),
         token_global_channels: Sequence[int] = (512,),
         act: Union[str, Callable, None] = "relu",
@@ -917,6 +915,8 @@ class HierarchicalEncoderMAE(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
+        if not 0.0 < mask_ratio < 1.0:
+            raise ValueError(f"`mask_ratio` must be in (0, 1), got {mask_ratio}.")
         self.encoder_depths = list(encoder_depths)
         self.encoder_dims = list(encoder_dims)
         self.local_radius = list(local_radius)
@@ -948,14 +948,14 @@ class HierarchicalEncoderMAE(nn.Module):
             self.encoder_pos_embeds.append(MLP([3, self.encoder_dims[i], self.encoder_dims[i]], act="gelu", norm=None))
 
         self.encoder_blocks = nn.ModuleList()
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(self.encoder_depths))]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, sum(self.encoder_depths))]
         depth_count = 0
         for i in range(len(self.encoder_depths)):
             self.encoder_blocks.append(
                 EncoderBlock(
                     embed_dim=self.encoder_dims[i],
                     depth=self.encoder_depths[i],
-                    drop_path_rate=dpr[depth_count : depth_count + self.encoder_depths[i]],
+                    drop_path=dpr[depth_count : depth_count + self.encoder_depths[i]],
                     num_heads=num_heads,
                 )
             )
@@ -970,13 +970,6 @@ class HierarchicalEncoderMAE(nn.Module):
             perm = torch.randperm(G, device=center.device)
             overall_mask[i, perm[:num_mask]] = 1
         return overall_mask.to(torch.bool)
-
-    def local_att_mask(self, xyz: Tensor, radius: float, dist: OptTensor = None) -> Tuple[Tensor, Tensor]:
-        with torch.no_grad():
-            if dist is None or dist.shape[1] != xyz.shape[1]:
-                dist = torch.cdist(xyz, xyz, p=2)
-            mask = dist >= radius
-        return mask, dist
 
     def forward(
         self,
@@ -1030,7 +1023,7 @@ class HierarchicalEncoderMAE(nn.Module):
                 mask_vis[bz][0 : vis_tokens_len[bz], 0 : vis_tokens_len[bz]] = 0
 
             if self.local_radius[i] > 0:
-                mask_radius, xyz_dist = self.local_att_mask(masked_center, self.local_radius[i], xyz_dist)
+                mask_radius, xyz_dist = local_att_mask(masked_center, self.local_radius[i], xyz_dist)
                 mask_vis_att = mask_radius * mask_vis
             else:
                 mask_vis_att = mask_vis
@@ -1063,8 +1056,8 @@ class HierarchicalEncoderMAE(nn.Module):
     ),
     transform=T.Compose(
         [
-            T.Rescale(keys="pos"),
-            T.FarthestPointSample(pos_key="pos", num_samples=1024, random_start=False),
+            T.Rescale(keys=DataKeys.POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
         ]
     ),
     hparams=dict(
@@ -1078,7 +1071,7 @@ class HierarchicalEncoderMAE(nn.Module):
         token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         concat_pooling=False,
         dropout=0.5,
         head_channels=(256, 256),
@@ -1099,7 +1092,7 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
         author="renrui-zhang",
         license="MIT",
     ),
-    transform=T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)]),
+    transform=T.Compose([T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False)]),
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -1111,7 +1104,7 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
         token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         concat_pooling=True,
         dropout=0.5,
         head_channels=(256, 256),
@@ -1132,7 +1125,7 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
         author="renrui-zhang",
         license="MIT",
     ),
-    transform=T.Compose([T.FarthestPointSample(pos_key="pos", num_samples=2048, random_start=False)]),
+    transform=T.Compose([T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False)]),
     hparams=dict(
         in_channels=0,
         num_classes=15,
@@ -1144,7 +1137,7 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
         token_global_channels=(512,),
         local_radius=(0.32, 0.64, 1.28),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         concat_pooling=True,
         dropout=0.5,
         head_channels=(256, 256),
@@ -1165,8 +1158,8 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
     ),
     transform=T.Compose(
         [
-            T.Rescale(keys="pos", method="centroid"),
-            T.FarthestPointSample(pos_key="pos", keys=("segment",), num_samples=2048, random_start=False),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=("segment",), num_samples=2048, random_start=False),
             T.OneHot(keys="category", num_classes=16),
         ]
     ),
@@ -1211,7 +1204,7 @@ def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AESegmentation:
         decoder_dims=(384, 192),
         decoder_up_blocks=(1, 1),
         num_heads=6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
     ),
 )
 def point_m2ae_base_pretrain(**kwargs: Any) -> PointM2AEMaskedAutoEncoder:

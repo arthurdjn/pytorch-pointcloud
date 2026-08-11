@@ -6,6 +6,8 @@
 # | -------------------- | -------- | ------- |
 # | 3detr-m.scannet.fair | 0.6544   | 0.4809  |
 # | 3detr.scannet.fair   | 0.6179   | 0.3830  |
+# Pre-fix numbers, measured WITHOUT the reference test-protocol filters (min_points, score_threshold);
+# re-measure with the filters below in place.
 defaults:
   - override /datamodule: scannet
   - override /model: detection
@@ -14,9 +16,11 @@ defaults:
 model:
   name: 3detr-m.scannet.fair
   input_keys: [x, pos, batch]
-  # RandomSample(40k) draw depends on seed and num_workers; seed=42 datamodule.num_workers=16 reproduces 0.6676/0.4777 bitwise.
-  score_threshold: 0.0
+  # RandomSample(40k) draw depends on seed and num_workers; seed=42 datamodule.num_workers=16 reproduces the
+  # example script bitwise (0.6676/0.4777 pre-fix, without the two filters below).
+  score_threshold: 0.05
   nms_iou: 0.25
+  min_points: 5
   criterion:
     _target_: torch_pointcloud.losses.DETR3DLoss
     num_classes: 18
@@ -25,7 +29,7 @@ model:
     matcher_giou_cost: 2.0
     matcher_center_cost: 0.0
     matcher_objectness_cost: 0.0
-    loss_giou_weight: 1.0
+    loss_giou_weight: 0.0
     loss_sem_cls_weight: 1.0
     loss_no_object_weight: 0.2
     loss_angle_cls_weight: 0.1
@@ -62,7 +66,7 @@ datamodule:
         - _target_: torch_pointcloud.transforms.InstanceToBox
           ignore_index: -1
         - _target_: torch_pointcloud.transforms.KeepItems
-          keys: [pos, box]
+          keys: [pos, box, label]
         - _target_: torch_pointcloud.transforms.RandomSample
           keys: [pos, segment, instance]
           num_samples: 40000
@@ -81,7 +85,7 @@ datamodule:
         - _target_: torch_pointcloud.transforms.InstanceToBox
           ignore_index: -1
         - _target_: torch_pointcloud.transforms.KeepItems
-          keys: [pos, box]
+          keys: [pos, box, label]
         - _target_: torch_pointcloud.transforms.RandomSample
           keys: [pos, segment, instance]
           num_samples: 40000

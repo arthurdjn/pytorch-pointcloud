@@ -135,10 +135,12 @@ class PVCNNClassification(ClassificationModel):
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
+        if self.global_channels:
+            return self.global_channels[-1]
         return self.channels[-1]
 
     def configure_blocks(self) -> nn.ModuleList:
@@ -177,6 +179,13 @@ class PVCNNClassification(ClassificationModel):
             plain_last=False,
         )
 
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
+
     @overload
     def forward_features(
         self,
@@ -210,6 +219,8 @@ class PVCNNClassification(ClassificationModel):
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
+        if self.global_mlp is not None:
+            x = self.global_mlp(x)
         if self.dropout:
             x = F.dropout(x, p=self.dropout, training=self.training)
         return x if pre_logits else self.head(x)
@@ -327,6 +338,10 @@ class PVCNNSegmentation(SegmentationModel):
             plain_last=True,
         )
 
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
+
     @overload
     def forward_features(
         self,
@@ -363,8 +378,7 @@ class PVCNNSegmentation(SegmentationModel):
         if self.global_mlp:
             x_global = self.global_mlp(x_global)
 
-        intermediates.append(x_global[batch])
-        return torch.cat(intermediates, dim=1)
+        return torch.cat([*intermediates, x_global[batch]], dim=1)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout and not self.head_channels:
@@ -404,7 +418,7 @@ class PVCNNSegmentation(SegmentationModel):
     ),
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, "norm_pos"], dst_key=DataKeys.X),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
         ]
     ),
 )

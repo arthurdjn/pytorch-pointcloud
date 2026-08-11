@@ -1,4 +1,4 @@
-from typing import Any, Callable, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Union
 
 import torch.nn as nn
 from torch import Tensor
@@ -67,7 +67,13 @@ class PDNorm(nn.Module):
         else:
             self.norm = create_norm(norm, channels, dim=dim, **norm_kwargs) or nn.Identity()
 
-    def forward(self, x: Tensor, condition: str) -> Tensor:
+    def forward(self, x: Tensor, condition: Optional[str] = None) -> Tensor:
         if isinstance(self.norm, nn.ModuleList):
+            if condition is None:
+                options = ", ".join(repr(c) for c in self.conditions)
+                raise ValueError(f"PDNorm requires a condition when decoupled. Valid conditions are: {options}.")
+            if condition not in self.conditions:
+                options = ", ".join(repr(c) for c in self.conditions)
+                raise ValueError(f"Unknown condition {condition!r}. Valid conditions are: {options}.")
             return self.norm[self.conditions.index(condition)](x)
         return self.norm(x)

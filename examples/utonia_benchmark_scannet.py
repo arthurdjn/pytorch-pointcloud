@@ -1,7 +1,7 @@
 """Benchmark Utonia on ScanNet.
 
 For the linear-probe segmentation variant (`utonia-lp.scannet20.pointcept`), reports mIoU
-+ OA + latency on ScanNet20 val. For the encoder-only variant (`utonia.pointcept`), only
++ OA + latency on ScanNet20 val. For the encoder-only variant (`utonia.pretrain.pointcept`), only
 latency / throughput is reported (no head, no labels). Utonia's forward takes
 real-valued positions (`pos`) for 3D RoPE in addition to integer grid coords.
 
@@ -10,11 +10,11 @@ full-resolution per-point evaluation):
 
 | Model               | Here                  |
 | ------------------- | --------------------- |
-| utonia-lp.scannet20.pointcept | 71.11 mIoU / 89.04 OA |
+| utonia-lp.scannet20.pointcept | 71.12 mIoU / 89.05 OA |
 
 Usage:
-    uv run --no-sync python examples/utonia_benchmark.py --model utonia-lp.scannet20.pointcept --limit 5
-    uv run --no-sync python examples/utonia_benchmark.py --model utonia.pointcept --limit 5
+    uv run --no-sync python examples/utonia_benchmark_scannet.py --model utonia-lp.scannet20.pointcept --limit 5
+    uv run --no-sync python examples/utonia_benchmark_scannet.py --model utonia.pretrain.pointcept --limit 5
 """
 
 import argparse
@@ -30,10 +30,9 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -42,14 +41,14 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 1
 SEED = 42
 
-ENCODER_MODELS = ("utonia.pointcept",)
+ENCODER_MODELS = ("utonia.pretrain.pointcept",)
 SEG_MODELS = ("utonia-lp.scannet20.pointcept",)
 
 
 def _resolve_task(model_name: str) -> str:
-    if model_name in _REGISTERED_MODELS["segmentation"]:
+    if model_name in SEG_MODELS:
         return "segmentation"
-    if model_name in _REGISTERED_MODELS["base"]:
+    if model_name in ENCODER_MODELS:
         return "base"
     raise ValueError(f"Unknown Utonia model {model_name!r}.")
 
@@ -171,6 +170,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     task = _resolve_task(args.model)
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r}, task={task!r})!")

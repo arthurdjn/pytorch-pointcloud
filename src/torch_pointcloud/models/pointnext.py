@@ -34,7 +34,6 @@ class PointNeXtEncoderBlock(nn.Module):
         channels: int,
         depth: int,
         expansion: int,
-        ratio: float,
         radius: float,
         num_neighbors: int,
         act: Union[str, Callable, None] = "relu",
@@ -58,7 +57,6 @@ class PointNeXtEncoderBlock(nn.Module):
                 spatial_dim=spatial_dim,
                 channels=channels,
                 expansion=expansion,
-                ratio=ratio,
                 radius=radius,
                 num_neighbors=num_neighbors,
                 act=act,
@@ -114,12 +112,12 @@ class PointNeXtEncoder(nn.Module):
         )
         self.depths = ensure_tuple_size(depths, size, extra_msg=extra_msg.format(param="depths"))
         self.expansion = ensure_tuple_size(expansion, size, extra_msg=extra_msg.format(param="expansion"))
+        self.ratios = ensure_tuple_size(ratios, size, extra_msg=extra_msg.format(param="ratios"))
 
         extra_msg = (
             f"Invalid {self.__class__.__name__} parameter: "
             f"expected `{{param}}` to have the same length as the number of channels ({size + 1})."
         )
-        self.ratios = ensure_tuple_size(ratios, size + 1, extra_msg=extra_msg.format(param="ratios"))
         self.radiuses = ensure_tuple_size(radiuses, size + 1, extra_msg=extra_msg.format(param="radiuses"))
         self.num_neighbors = ensure_tuple_size(
             num_neighbors,
@@ -158,7 +156,6 @@ class PointNeXtEncoder(nn.Module):
                 channels=channels[i + 1],
                 depth=self.depths[i],
                 expansion=self.expansion[i],
-                ratio=self.ratios[i + 1],
                 radius=self.radiuses[i + 1],
                 num_neighbors=self.num_neighbors[i + 1],
                 act=act,
@@ -298,7 +295,7 @@ class PointNeXtPartDecoder(nn.Module):
     global features from two encoder levels and a shape-category one-hot
     vector before the FP layer.
 
-    This matches the OpenPoints `PointNextPartDecoder` with
+    This matches the reference `PointNextPartDecoder` with
     `cls_map='curvenet'`.
 
     Args:
@@ -374,7 +371,7 @@ class PointNeXtPartDecoder(nn.Module):
         intermediates: List[PointNeXtIntermediate],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # Global features from the bottleneck and deepest skip
-        # (computed BEFORE any decoder blocks modify x, matching OpenPoints convention).
+        # (computed BEFORE any decoder blocks modify x, matching the reference convention).
         # intermediates are ordered deep-to-shallow: [0]=deepest, [-1]=shallowest
         x_deep_skip = intermediates[0].x  # encoder_channels[-2] channels
         b_deep_skip = intermediates[0].batch
@@ -520,30 +517,40 @@ class PointNeXtPartSegmentation(SegmentationModel):
         )
 
         self.dropout = dropout
-        last_decoder_ch = decoder_channels[-1]
-        head_in = last_decoder_ch * 3  # point + global_max + global_avg
-        if head_channels:
-            self.head: nn.Module = MLP(
-                [head_in] + list(head_channels) + [num_classes],
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                dropout=dropout,
-                plain_last=True,
-            )
-        else:
-            self.head = nn.Linear(head_in, num_classes)
+        self.head_channels = list(head_channels) if head_channels else []
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return self.decoder.channels[-1]
 
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        head_in = self.embedding_dim * 3  # point + global_max + global_avg
+        if not self.head_channels:
+            return nn.Linear(head_in, self.num_classes)
+        return MLP(
+            [head_in] + list(self.head_channels) + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=True,
+        )
+
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = nn.Linear(self.embedding_dim * 3, num_classes)
+        self.head = self.configure_head()
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x = x if x is not None else pos
@@ -586,7 +593,7 @@ class PointNeXtClassification(ClassificationModel):
         encoder_depths: Number of blocks in each encoder stage after the initial SA block.
         encoder_expansion: Expansion ratio to determine the hidden channels of the encoder blocks.
         ratios: Downsampling sampling ratios for each encoder stage.
-            The number of ratios should be equal to the number of blocks + 1.
+            The number of ratios should be equal to the number of blocks.
         radiuses: Query radius for neighborhood grouping in each stage.
             The number of radiuses should be equal to the number of blocks + 1.
         num_neighbors: Maximum number of neighbors for each encoder stage.
@@ -694,32 +701,41 @@ class PointNeXtClassification(ClassificationModel):
             self._embedding_dim = encoder_channels[-1]
 
         self.dropout = dropout
+        self.head_channels = list(head_channels) if head_channels else []
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
         self.global_pool = create_pool(global_pool)
-        self.head: nn.Module
-        if head_channels:
-            channels_list = [self._embedding_dim] + list(head_channels) + [num_classes]
-            self.head = MLP(
-                channels_list,
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                dropout=dropout,
-                plain_last=True,
-            )
-        else:
-            self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self._embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return self._embedding_dim
 
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        if not self.head_channels:
+            return nn.Linear(self.embedding_dim, self.num_classes)
+        return MLP(
+            [self.embedding_dim] + list(self.head_channels) + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=True,
+        )
+
     def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -789,7 +805,7 @@ class PointNeXtSegmentation(SegmentationModel):
             The number of channels should be equal to the number of decoder blocks + 1.
         decoder_depths: Number of layers in each decoder stage.
         ratios: Downsampling sampling ratios for each encoder stage.
-            The number of ratios should be equal to the number of blocks + 1.
+            The number of ratios should be equal to the number of blocks.
         radiuses: Query radius for neighborhood grouping in each stage.
             The number of radiuses should be equal to the number of blocks + 1.
         num_neighbors: Maximum number of neighbors for each encoder stage.
@@ -891,30 +907,39 @@ class PointNeXtSegmentation(SegmentationModel):
         )
 
         self.dropout = dropout
-        self._head_channels = head_channels
-        last_decoder_ch = decoder_channels[-1]
-        if head_channels:
-            self.head: nn.Module = MLP(
-                [last_decoder_ch] + list(head_channels) + [num_classes],
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                dropout=dropout,
-                plain_last=True,
-            )
-        else:
-            self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head_channels = list(head_channels) if head_channels else []
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return self.decoder.channels[-1]
 
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        if not self.head_channels:
+            return nn.Linear(self.embedding_dim, self.num_classes)
+        return MLP(
+            [self.embedding_dim] + list(self.head_channels) + [self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            plain_last=True,
+        )
+
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -979,7 +1004,7 @@ class PointNeXtSegmentation(SegmentationModel):
         encoder_expansion=4,
         sa_layers=2,
         sa_use_res=True,
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1007,7 +1032,7 @@ def pointnext_sm_clf(**hparams: Any) -> PointNeXtClassification:
         encoder_expansion=4,
         sa_layers=1,
         sa_use_res=False,
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1035,7 +1060,7 @@ def pointnext_base_clf(**hparams: Any) -> PointNeXtClassification:
         encoder_expansion=4,
         sa_layers=1,
         sa_use_res=False,
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1063,7 +1088,7 @@ def pointnext_lg_clf(**hparams: Any) -> PointNeXtClassification:
         encoder_expansion=4,
         sa_layers=1,
         sa_use_res=False,
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1108,7 +1133,7 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
         encoder_expansion=4,
         sa_layers=2,
         sa_use_res=True,
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5, 0.5],
         radiuses=[0.15, 0.225, 0.3375, 0.50625, 0.759375],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1148,7 +1173,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
         encoder_expansion=4,
         sa_layers=2,
         sa_use_res=True,
-        ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+        ratios=[0.5, 0.5, 0.5, 0.5],
         radiuses=[0.15, 0.225, 0.3375, 0.50625, 0.759375],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1179,7 +1204,7 @@ def pointnext_sm_c64_modelnet40_clf(**hparams: Any) -> PointNeXtClassification:
         sa_use_res=True,
         decoder_channels=[512, 256, 128, 64],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1207,7 +1232,7 @@ def pointnext_sm_seg(**hparams: Any) -> PointNeXtSegmentation:
         sa_use_res=False,
         decoder_channels=[512, 256, 128, 64],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1235,7 +1260,7 @@ def pointnext_base_seg(**hparams: Any) -> PointNeXtSegmentation:
         sa_use_res=False,
         decoder_channels=[512, 256, 128, 64],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1263,7 +1288,7 @@ def pointnext_lg_seg(**hparams: Any) -> PointNeXtSegmentation:
         sa_use_res=False,
         decoder_channels=[1024, 512, 256, 128],
         decoder_depths=[2, 2, 2, 2],
-        ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+        ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
         act="relu",
@@ -1314,7 +1339,7 @@ _S3DIS_COMMON_HPARAMS = dict(
     spatial_dim=3,
     stem_plain_last=True,
     decoder_plain_last=False,
-    ratios=[0.25, 0.25, 0.25, 0.25, 0.25],
+    ratios=[0.25, 0.25, 0.25, 0.25],
     radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
     num_neighbors=[32, 32, 32, 32, 32],
     act="relu",
@@ -1768,13 +1793,8 @@ def pointnext_xl_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 @register_model(
     "pointnext-xl.s3dis-area6.openpoints",
     task="segmentation",
-    weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area6.openpoints.safetensors",
-        dataset="s3dis-area6",
-        classes=S3DIS_CLASSES,
-        author="openpoints",
-        license="MIT",
-    ),
+    # No converted checkpoint exists for the xl / Area 6 variant, so it is registered without pretrained weights.
+    weights=None,
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
 )
@@ -1808,7 +1828,7 @@ _SHAPENETPART_COMMON_HPARAMS = dict(
     sa_use_res=True,
     decoder_depths=[2, 2, 2, 2],
     decoder_plain_last=False,
-    ratios=[0.5, 0.5, 0.5, 0.5, 0.5],
+    ratios=[0.5, 0.5, 0.5, 0.5],
     radiuses=[0.1, 0.25, 0.625, 1.5625, 3.906],
     num_neighbors=[32, 32, 32, 32, 32],
     act="relu",

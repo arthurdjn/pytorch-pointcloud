@@ -117,7 +117,7 @@ def generate_processed(args: Namespace) -> None:
     generator = torch.Generator().manual_seed(args.seed)
     for split in args.splits:
         shutil.rmtree(dst / "processed" / split, ignore_errors=True)
-        dataset = SunRGBD(root=dst.parent, split=split, force_process=True, show_progress=False)
+        dataset = SunRGBD(root=dst.parent, train=split == "train", force_process=True, show_progress=False)
         for scene_dir in dataset.processed_files:
             _subsample_scene(scene_dir, args.num_points, generator)
         print(f"Processed {len(dataset.processed_files)} {split} scenes")

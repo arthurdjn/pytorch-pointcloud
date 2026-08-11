@@ -185,6 +185,20 @@ def test_votenet_create_model_no_pretrained() -> None:
     assert model.sampling == "seed_fps"
 
 
+def test_votenet_scannet_registered_seed_fps() -> None:
+    # The reference eval command samples proposal centers with seed_fps on ScanNet too.
+    model = create_model("votenet.scannet.fair", task="detection")
+    assert isinstance(model, VoteNetDetection)
+    assert model.sampling == "seed_fps"
+    assert model.vote_factor == 1
+
+
+def test_votenet_sampling_is_weight_free() -> None:
+    vote = _create_votenet(sampling="vote_fps")
+    seed = _create_votenet(sampling="seed_fps")
+    assert list(vote.state_dict().keys()) == list(seed.state_dict().keys())
+
+
 def test_votenet_decode_negates_native_heading() -> None:
     """`decode` returns counter-clockwise headings: the negated bin-decoded angle; all else is unchanged."""
     torch.manual_seed(0)

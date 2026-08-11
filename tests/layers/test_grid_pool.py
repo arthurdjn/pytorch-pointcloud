@@ -52,3 +52,33 @@ def test_grid_pool_with_pos() -> None:
 def test_grid_pool_invalid_reduce_raises() -> None:
     with pytest.raises(ValueError, match="Invalid reduce"):
         GridPool(in_channels=4, out_channels=8, reduce="foo")
+
+
+def test_grid_pool_matches_rowwise_unique() -> None:
+    pool = GridPool(in_channels=4, out_channels=4, stride=2)
+    torch.manual_seed(0)
+    x = torch.randn(200, 4)
+    pos_grid = torch.randint(0, 100, (200, 3))
+    batch = torch.cat([torch.zeros(80), torch.ones(120)]).long()
+    _, pos_grid_pooled, batch_pooled, cluster, _ = pool(x, pos_grid, batch)
+
+    rows = torch.cat([batch.view(-1, 1), torch.div(pos_grid, 2, rounding_mode="trunc")], dim=1)
+    expected_rows, expected_cluster = torch.unique(rows, sorted=True, return_inverse=True, dim=0)
+    assert torch.equal(cluster, expected_cluster)
+    assert torch.equal(batch_pooled, expected_rows[:, 0])
+    assert torch.equal(pos_grid_pooled, expected_rows[:, 1:])
+
+
+@pytest.mark.parametrize(
+    "pos_grid",
+    [
+        pytest.param(torch.tensor([[0, -1, 0]]), id="negative"),
+        pytest.param(torch.tensor([[0, 1 << 17, 0]]), id="too_large"),
+    ],
+)
+def test_grid_pool_out_of_range_pos_grid_raises(pos_grid: torch.Tensor) -> None:
+    pool = GridPool(in_channels=4, out_channels=4, stride=2)
+    x = torch.randn(1, 4)
+    batch = torch.zeros(1, dtype=torch.long)
+    with pytest.raises(ValueError, match="out-of-range coordinates"):
+        pool(x, pos_grid, batch)

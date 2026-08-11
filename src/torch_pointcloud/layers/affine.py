@@ -5,10 +5,34 @@ import torch.nn as nn
 from torch import Tensor
 
 
-def affine(input: Tensor, weight: Tensor, bias: Optional[Tensor] = None) -> Tensor:
+def affine(x: Tensor, weight: Tensor, bias: Optional[Tensor] = None) -> Tensor:
+    r"""Apply a per-channel affine transformation $y = x \cdot \text{weight} + \text{bias}$.
+
+    Args:
+        x: Input tensor.
+        weight: Per-channel scale, broadcastable against `x`.
+        bias: Optional per-channel offset, broadcastable against `x`. `None` skips the addition.
+
+    Returns:
+        The transformed tensor, same shape as `x`.
+
+    Shape:
+        Input: $(N, *, C)$ where $*$ means any number of additional dimensions.
+        Output: $(N, *, C)$, same as the input.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.layers import affine
+
+        x = torch.randn(4, 8)
+        y = affine(x, weight=torch.ones(8), bias=torch.zeros(8))
+        assert torch.equal(y, x)
+        ```
+    """
     if bias is None:
-        return input * weight
-    return input * weight + bias
+        return x * weight
+    return x * weight + bias
 
 
 class Affine(nn.Module):

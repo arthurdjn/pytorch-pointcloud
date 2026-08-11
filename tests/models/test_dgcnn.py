@@ -4,7 +4,12 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
+from torch_pointcloud.models.dgcnn import (
+    DGCNNClassification,
+    DGCNNEncoderBlock,
+    DGCNNPartSegmentation,
+    DGCNNSegmentation,
+)
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -91,6 +96,11 @@ def test_dgcnn_segmentation_reset_classifier(model_seg: DGCNNSegmentation, data:
     model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_dgcnn_encoder_block_act_first_forwarded() -> None:
+    block = DGCNNEncoderBlock(in_channels=3, out_channels=[16], num_neighbors=8, act_first=True)
+    assert block.conv.nn.act_first is True
 
 
 def test_dgcnn_classification_num_classes_zero_returns_features(

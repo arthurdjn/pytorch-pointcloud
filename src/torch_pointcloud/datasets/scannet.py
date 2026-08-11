@@ -32,7 +32,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url
+from .utils import check_cache_meta, download_url
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -482,7 +482,8 @@ def select_scannet_classes(
             warnings.warn(
                 f"Some values are not present in the labels {name!r}, "
                 f"ignoring them: {missing_values}. "
-                f"If you want to load all values, use 'all' instead."
+                f"If you want to load all values, use 'all' instead.",
+                stacklevel=2,
             )
             values = [c for c in values if c in original_values]
 
@@ -593,13 +594,13 @@ def tile_scannet_scene(
         block_stride: Step size for the sliding window in meters.
         num_nodes: Fixed number of nodes per block.
         min_num_nodes: Minimum number of raw nodes for a block to be kept.
-        scene_index: If provided, each block will include `"scene_index"` and
-            `"num_scene_points"` entries.
+        scene_index: If provided, each block will include `scene_index` and
+            `num_scene_points` entries.
 
     Returns:
-        List of dicts, one per retained block.  Each block has exactly
-        `num_nodes` nodes and an extra `"scene_max"` key with the scene-level
-        coordinate maxima (useful for downstream normalization).
+        List of dicts, one per retained block. Each block has exactly `num_nodes` nodes and extra
+        `scene_max` (scene-level coordinate maxima, useful for downstream normalization),
+        `block_center`, and `point_indices` entries.
     """
     pos = scene[DataKeys.POS]
     N = pos.shape[0]
@@ -641,12 +642,14 @@ def tile_scannet_scene(
                 else:
                     block[key] = val
 
-            block["scene_max"] = pos_max
-            block["block_center"] = torch.tensor([s_x + block_size / 2.0, s_y + block_size / 2.0, 0.0], dtype=pos.dtype)
-            block["point_indices"] = chosen
+            block[DataKeys.SCENE_MAX] = pos_max
+            block[DataKeys.BLOCK_CENTER] = torch.tensor(
+                [s_x + block_size / 2.0, s_y + block_size / 2.0, 0.0], dtype=pos.dtype
+            )
+            block[DataKeys.POINT_INDICES] = chosen
             if scene_index is not None:
-                block["scene_index"] = scene_index
-                block["num_scene_points"] = N
+                block[DataKeys.SCENE_INDEX] = scene_index
+                block[DataKeys.NUM_SCENE_POINTS] = N
             blocks.append(block)
 
     return blocks
@@ -704,7 +707,7 @@ class ScanNet(PointCloudDataset):
         from torch_pointcloud.datasets import ScanNet
 
         dataset = ScanNet(
-            root="data/ScanNet/raw",
+            root="data",
             version="v2",
             split="train",
         )
@@ -718,9 +721,9 @@ class ScanNet(PointCloudDataset):
 
         ```python
         dataset = ScanNet(
-            root="data/ScanNet/raw",
+            root="data",
             version="v2",
-            train=True,
+            split="train",
             label_name="raw_category",
             label_id="id",
         )
@@ -866,9 +869,14 @@ class ScanNet(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
+    def _cache_meta(self) -> Dict[str, Any]:
+        """Snapshot of the constructor parameters the processed cache content depends on."""
+        return {"format_version": 1, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
+
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
         if (split_dir / "meta.json").exists():
+            check_cache_meta(split_dir / "meta.json", self._cache_meta())
             return True
 
         scene_dirs = self.processed_files
@@ -987,13 +995,14 @@ class ScanNet(PointCloudDataset):
 
         split_dir = Path(self.processed_dir, self.split)
         split_dir.mkdir(parents=True, exist_ok=True)
+        (split_dir / "meta.json").unlink(missing_ok=True)
         for stale in split_dir.glob("*.tmp"):
             if stale.is_dir():
                 shutil.rmtree(stale)
             else:
                 stale.unlink()
 
-        def process_scene(scene_id: str) -> None:
+        def process_scene(scene_id: str) -> bool:
             meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"), None)
             mesh_path = next(scans_dir.glob(f"{scene_id}/{scene_id}_vh_clean_2.ply"), None)
             aggregation_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.aggregation.json"), None)
@@ -1004,8 +1013,9 @@ class ScanNet(PointCloudDataset):
                     f"Scene {scene_id!r} is missing a mesh file. "
                     f"Make sure the scene has a {scene_id}_vh_clean_2.ply file.",
                     category=RuntimeWarning,
+                    stacklevel=2,
                 )
-                return
+                return False
 
             try:
                 data = load_scannet_scene(
@@ -1018,8 +1028,10 @@ class ScanNet(PointCloudDataset):
                     use_axis_alignment=self.use_axis_alignment,
                 )
             except Exception as e:
-                warnings.warn(f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning)
-                return
+                warnings.warn(
+                    f"Error loading scene {scene_id!r}: {e!r}. Skipping...", category=RuntimeWarning, stacklevel=2
+                )
+                return False
 
             scene_dir = split_dir / scene_id
             tmp_dir = split_dir / f"{scene_id}.tmp"
@@ -1034,8 +1046,9 @@ class ScanNet(PointCloudDataset):
             if scene_dir.exists():
                 shutil.rmtree(scene_dir)
             tmp_dir.replace(scene_dir)
+            return True
 
-        parallel_map(
+        results = parallel_map(
             process_scene,
             scene_ids,
             num_workers=num_workers,
@@ -1044,11 +1057,14 @@ class ScanNet(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        meta = {"format_version": 1, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
-        meta_path = split_dir / "meta.json"
-        tmp_path = split_dir / "meta.json.tmp"
-        tmp_path.write_text(json.dumps(meta))
-        tmp_path.replace(meta_path)
+        # meta.json marks the cache complete: never stamp it when scenes were skipped, so the next
+        # construction runs the missing/incomplete-scene audit instead of serving a partial cache.
+        if all(results):
+            meta = self._cache_meta()
+            meta_path = split_dir / "meta.json"
+            tmp_path = split_dir / "meta.json.tmp"
+            tmp_path.write_text(json.dumps(meta))
+            tmp_path.replace(meta_path)
 
     def load(
         self,
@@ -1060,17 +1076,23 @@ class ScanNet(PointCloudDataset):
     ) -> None:
         self.data: List[Dict[str, Any]] = []
         self.scene_boundaries: List[int] = []
+        scene_paths = self.processed_files
+        if not scene_paths:
+            raise RuntimeError(
+                f"No processed scenes found under {Path(self.processed_dir, self.split).as_posix()!r}. "
+                "Pass `force_process=True` to reprocess the raw data."
+            )
         for scene_idx, path in tqdm(
-            enumerate(self.processed_files),
+            enumerate(scene_paths),
             desc="Loading",
-            total=len(self.processed_files),
+            total=len(scene_paths),
             disable=not show_progress,
         ):
             scene: Dict[str, Any] = {
                 DataKeys.POS: torch.from_numpy(np.load(path / "pos.npy")),
                 DataKeys.COLOR: torch.from_numpy(np.load(path / "color.npy")),
                 DataKeys.NORMAL: torch.from_numpy(np.load(path / "normal.npy")),
-                "scene": path.name,
+                DataKeys.SCENE: path.name,
             }
             if (path / "segment.npy").exists():
                 scene[DataKeys.SEGMENT] = torch.from_numpy(np.load(path / "segment.npy"))
@@ -1094,7 +1116,7 @@ class ScanNet(PointCloudDataset):
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        data = self.data[index]
+        data = dict(self.data[index])
         if self.transform is not None:
             data = self.transform(data)
         return data
@@ -1105,6 +1127,44 @@ class ScanNet(PointCloudDataset):
 
 
 class ScanNet20(ScanNet):
+    r"""ScanNet restricted to the standard 20-class semantic-segmentation benchmark.
+
+    A thin wrapper over `ScanNet` that fixes the label columns to `nyu40class` / `nyu40id` and exposes
+    the official 20-class benchmark label set (wall, floor, cabinet, ..., otherfurniture) plus the
+    `<unk>` ignore class at index $0$. The `relabel` transform, applied while loading, maps the raw
+    NYU40 segment ids onto these contiguous benchmark indices; points outside the 20 classes map to
+    `<unk>`. The processed cache lives in `processed_20/` so it never collides with the base `ScanNet`
+    or `ScanNet200` caches.
+
+    Args:
+        root: The root directory of the dataset.
+        version: The version of the dataset to use.
+        split: The split to load, one of `train`, `val`, or `test`.
+        use_axis_alignment: If True, apply ScanNet's axis-alignment transform to the mesh.
+        block_size: If set, split each scene into ground-plane blocks of this size (meters) for training.
+        block_stride: Stride between adjacent blocks when `block_size` is set.
+        num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
+        min_num_nodes: Skip blocks with fewer than this many points.
+        transform: A callable that transforms the data when retrieved from the dataset.
+        download: Whether to download the raw data.
+        force_download: Whether to force the download of the raw data.
+        force_process: Whether to force the processing of the raw data.
+        show_progress: Whether to show a progress bar during processing.
+        num_workers: Worker processes for preprocessing, or `None` for sequential processing.
+
+    Example:
+        Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
+        and extracted it under `data/ScanNet/raw`, you can load the benchmark labels as follows:
+
+        ```python
+        from torch_pointcloud.datasets import ScanNet20
+
+        dataset = ScanNet20(root="data", split="val")
+        sample = dataset[0]
+        sample["segment"].unique()  # benchmark indices in [0, 20]
+        ```
+    """
+
     def __init__(
         self,
         root: PathLike,
@@ -1163,6 +1223,44 @@ class ScanNet20(ScanNet):
 
 
 class ScanNet200(ScanNet):
+    r"""ScanNet restricted to the 200-class benchmark, as described in the paper
+    :arxiv: [Language-Grounded Indoor 3D Semantic Segmentation in the Wild](https://arxiv.org/abs/2204.07761).
+
+    A thin wrapper over `ScanNet` that reads the fine-grained `raw_category` / `id` label columns and
+    exposes the 200-class benchmark label set plus the `<unk>` ignore class at index $0$. The `relabel`
+    transform, applied while loading, maps the raw category ids onto contiguous benchmark indices;
+    categories outside the 200 classes map to `<unk>`. The processed cache lives in `processed_200/` so
+    it never collides with the base `ScanNet` or `ScanNet20` caches.
+
+    Args:
+        root: The root directory of the dataset.
+        version: The version of the dataset to use.
+        split: The split to load, one of `train`, `val`, or `test`.
+        use_axis_alignment: If True, apply ScanNet's axis-alignment transform to the mesh.
+        block_size: If set, split each scene into ground-plane blocks of this size (meters) for training.
+        block_stride: Stride between adjacent blocks when `block_size` is set.
+        num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
+        min_num_nodes: Skip blocks with fewer than this many points.
+        transform: A callable that transforms the data when retrieved from the dataset.
+        download: Whether to download the raw data.
+        force_download: Whether to force the download of the raw data.
+        force_process: Whether to force the processing of the raw data.
+        show_progress: Whether to show a progress bar during processing.
+        num_workers: Worker processes for preprocessing, or `None` for sequential processing.
+
+    Example:
+        Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
+        and extracted it under `data/ScanNet/raw`, you can load the benchmark labels as follows:
+
+        ```python
+        from torch_pointcloud.datasets import ScanNet200
+
+        dataset = ScanNet200(root="data", split="val")
+        sample = dataset[0]
+        sample["segment"].unique()  # benchmark indices in [0, 200]
+        ```
+    """
+
     def __init__(
         self,
         root: str,

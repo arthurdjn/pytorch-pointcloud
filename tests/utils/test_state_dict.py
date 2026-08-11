@@ -1,11 +1,12 @@
 from collections import OrderedDict
+from pathlib import Path
 from unittest.mock import Mock, call, sentinel
 
 import pytest
 import torch
 from torch import nn
 
-from torch_pointcloud.utils.state_dict import load_state_dict, transform_state_dict
+from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict, transform_state_dict
 
 
 def test_state_dict_empty() -> None:
@@ -168,6 +169,15 @@ def test_state_dict_collision_warns_when_not_strict() -> None:
     assert result["c.weight"] is sentinel.b
 
 
+def test_state_dict_unused_mapping_raises_when_strict() -> None:
+    """A mapping pattern that matches no key raises under strict instead of silently doing nothing."""
+    state_dict = {"a.weight": sentinel.a}
+    mapping = {"missing.{i}.weight": "new.{i}.weight"}
+
+    with pytest.raises(ValueError, match="matched no key"):
+        transform_state_dict(state_dict, mapping, strict=True)
+
+
 def test_load_state_dict_supports_lazy_parameters() -> None:
     """Uninitialized lazy parameters are skipped by the shape check and materialize on load."""
     source = nn.LazyLinear(4)
@@ -178,3 +188,49 @@ def test_load_state_dict_supports_lazy_parameters() -> None:
 
     assert torch.equal(target.weight, source.weight)
     assert target(torch.randn(2, 3)).shape == (2, 4)
+
+
+def test_load_state_dict_missing_keys_raise_by_default() -> None:
+    model = nn.Linear(3, 4)
+
+    with pytest.raises(RuntimeError, match="missing model keys"):
+        load_state_dict(model, {}, source="empty.ckpt")
+
+
+def test_load_state_dict_strict_false_warm_starts_from_partial_checkpoint() -> None:
+    """A backbone-only checkpoint loads its keys and keeps the head's fresh initialization."""
+    backbone = nn.Linear(3, 4)
+    model = nn.Sequential(OrderedDict([("backbone", nn.Linear(3, 4)), ("head", nn.Linear(4, 2))]))
+    head_weight = model.state_dict()["head.weight"].clone()
+    checkpoint = {f"backbone.{key}": value for key, value in backbone.state_dict().items()}
+
+    with pytest.warns(UserWarning, match="missing model keys"):
+        load_state_dict(model, checkpoint, source="backbone.ckpt", strict=False)
+
+    assert torch.equal(model.state_dict()["backbone.weight"], backbone.weight)
+    assert torch.equal(model.state_dict()["head.weight"], head_weight)
+
+
+def test_read_state_dict_non_mapping_checkpoint_raises(tmp_path: Path) -> None:
+    path = tmp_path / "raw.pt"
+    torch.save(torch.zeros(3), path)
+
+    with pytest.raises(ValueError, match="not a state dict"):
+        read_state_dict(path)
+
+
+def test_read_state_dict_lightning_checkpoint_without_model_prefix_raises(tmp_path: Path) -> None:
+    path = tmp_path / "lit.ckpt"
+    torch.save({"pytorch-lightning_version": "2.0", "state_dict": {"net.lin.weight": torch.zeros(2, 2)}}, path)
+
+    with pytest.raises(ValueError, match="no 'model.'-prefixed keys"):
+        read_state_dict(path)
+
+
+def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path) -> None:
+    path = tmp_path / "lit.ckpt"
+    torch.save({"pytorch-lightning_version": "2.0", "state_dict": {"model.lin.weight": torch.zeros(2, 2)}}, path)
+
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["lin.weight"]

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn import MLP, MessagePassing, fps, knn, knn_graph, knn_interpolate
+from torch_geometric.nn import MLP, MessagePassing, knn, knn_graph, knn_interpolate
 from torch_geometric.nn.inits import reset
 from torch_geometric.typing import Adj, OptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops, scatter, softmax
@@ -16,6 +16,7 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
 from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import MessagePassingParams
@@ -223,13 +224,15 @@ class PointTransformerBlock(torch.nn.Module):
         super().__init__()
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
+        # plain_last=True: the reference position and attention MLPs end in a bare linear layer, so
+        # attention logits and the positional value term stay signed instead of being ReLU-clipped.
         kwargs = dict(
             act=act,
             act_first=act_first,
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
-            plain_last=False,
+            plain_last=True,
         )
 
         self.act = create_act(act, **act_kwargs) or nn.Identity()
@@ -264,6 +267,7 @@ class PointTransformerTransitionDown(torch.nn.Module):
         out_channels: int,
         num_neighbors: int = 16,
         ratio: float = 0.25,
+        spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -286,17 +290,19 @@ class PointTransformerTransitionDown(torch.nn.Module):
         self.num_neighbors = num_neighbors
         self.ratio = ratio
         self.pool = pool
-        self.mlp = MLP([in_channels, out_channels], **kwargs)
+        self.mlp = MLP([in_channels + spatial_dim, out_channels], **kwargs)
 
     def forward(self, x: Tensor, pos: Tensor, batch: OptTensor) -> Tuple[Tensor, Tensor, OptTensor]:
-        id_clusters = fps(pos, ratio=self.ratio, batch=batch)
-        sub_batch = batch[id_clusters] if batch is not None else None
-        id_k_neighbor = knn(pos, pos[id_clusters], k=self.num_neighbors, batch_x=batch, batch_y=sub_batch)
-
-        x = self.mlp(x)
-
-        x_out = scatter(x[id_k_neighbor[1]], id_k_neighbor[0], dim=0, dim_size=id_clusters.size(0), reduce=self.pool)
+        id_clusters = fps(pos, batch, ratio=self.ratio, random_start=self.training)
         sub_pos = pos[id_clusters]
+        sub_batch = batch[id_clusters] if batch is not None else None
+        row, col = knn(pos, sub_pos, k=self.num_neighbors, batch_x=batch, batch_y=sub_batch)
+
+        # The reference TransitionDown runs the MLP on [neighbor pos - center pos, neighbor features]
+        # per neighbor, then max-pools the neighborhood.
+        x = self.mlp(torch.cat([pos[col] - sub_pos[row], x[col]], dim=1))
+
+        x_out = scatter(x, row, dim=0, dim_size=id_clusters.size(0), reduce=self.pool)
         return x_out, sub_pos, sub_batch
 
     def extra_repr(self) -> str:
@@ -385,7 +391,7 @@ class PointTransformerEncoderBlock(torch.nn.Module):
         if self.downsample is not None:
             x, pos, batch = self.downsample(x, pos, batch)
 
-        edge_index = knn_graph(pos, k=self.num_neighbors, batch=batch)
+        edge_index = knn_graph(pos, k=self.num_neighbors, batch=batch, loop=True)
         for block in self.blocks:
             x = block(x, pos, edge_index)
 
@@ -440,7 +446,7 @@ class PointTransformerDecoderBlock(torch.nn.Module):
         if self.upsample is not None:
             x = self.upsample(x, pos, batch, x_skip, pos_skip, batch_skip)
 
-        edge_index = knn_graph(pos_skip, k=self.num_neighbors, batch=batch_skip)
+        edge_index = knn_graph(pos_skip, k=self.num_neighbors, batch=batch_skip, loop=True)
         for block in self.blocks:
             x = block(x, pos_skip, edge_index)
         return x, pos_skip, batch_skip
@@ -484,6 +490,7 @@ class PointTransformerEncoder(torch.nn.Module):
                     out_channels=channels[i],
                     num_neighbors=num_neighbors[i],
                     ratio=ratios[i - 1],
+                    spatial_dim=spatial_dim,
                     act=act,
                     act_kwargs=act_kwargs,
                     act_first=act_first,
@@ -693,9 +700,10 @@ class PointTransformerClassification(ClassificationModel):
         self.global_pool = create_pool(global_pool)
         self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.embedding_dim, num_classes)
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload

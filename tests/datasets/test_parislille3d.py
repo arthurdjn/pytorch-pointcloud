@@ -138,3 +138,11 @@ def test_parislille3d_dataset_load_is_lazy(datasets_dir_factory: Callable[..., P
     assert transform.call_count == 0
     _ = dataset[0]
     assert transform.call_count == 1
+
+
+def test_parislille3d_dataset_download_unsupported(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`download()` raises because Paris-Lille-3D must be downloaded manually."""
+    datasets_dir = datasets_dir_factory("ParisLille3D/raw/**/*")
+    dataset = ParisLille3D(root=datasets_dir, split="all")
+    with pytest.raises(RuntimeError, match="does not support automatic download"):
+        dataset.download()

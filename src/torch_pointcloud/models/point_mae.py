@@ -19,6 +19,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.utils.cluster import group
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel, SegmentationModel
@@ -42,7 +43,7 @@ class TransformerEncoder(nn.Module):
         qkv_bias: Whether to use a bias term in the query / key / value projection.
         dropout: Dropout rate inside the blocks.
         attn_dropout: Dropout rate applied to the attention matrix.
-        drop_path_rate: Stochastic-depth drop-path rate(s). A float applies to every block.
+        drop_path: Stochastic-depth drop-path rate(s). A float applies to every block.
         act: Activation function of the MLP.
         act_kwargs: Extra arguments for the activation.
         norm: Normalization applied before attention and before the MLP.
@@ -62,7 +63,7 @@ class TransformerEncoder(nn.Module):
         qkv_bias: bool = False,
         dropout: float = 0.0,
         attn_dropout: float = 0.0,
-        drop_path_rate: Union[float, List[float]] = 0.0,
+        drop_path: Union[float, List[float]] = 0.0,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = nn.LayerNorm,
@@ -78,7 +79,7 @@ class TransformerEncoder(nn.Module):
                     qkv_bias=qkv_bias,
                     dropout=dropout,
                     attn_dropout=attn_dropout,
-                    drop_path=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
@@ -121,7 +122,7 @@ class TransformerDecoder(nn.Module):
         qkv_bias: Whether to use a bias term in the query / key / value projection.
         dropout: Dropout rate inside the blocks.
         attn_dropout: Dropout rate applied to the attention matrix.
-        drop_path_rate: Stochastic-depth drop-path rate(s). A float applies to every block.
+        drop_path: Stochastic-depth drop-path rate(s). A float applies to every block.
         act: Activation function of the MLP.
         act_kwargs: Extra arguments for the activation.
         norm: Normalization applied before attention and before the MLP.
@@ -141,7 +142,7 @@ class TransformerDecoder(nn.Module):
         qkv_bias: bool = False,
         dropout: float = 0.0,
         attn_dropout: float = 0.0,
-        drop_path_rate: Union[float, List[float]] = 0.1,
+        drop_path: Union[float, List[float]] = 0.1,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = nn.LayerNorm,
@@ -157,7 +158,7 @@ class TransformerDecoder(nn.Module):
                     qkv_bias=qkv_bias,
                     dropout=dropout,
                     attn_dropout=attn_dropout,
-                    drop_path=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
                     act=act,
                     act_kwargs=act_kwargs,
                     norm=norm,
@@ -190,7 +191,7 @@ class MaskTransformer(nn.Module):
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
         mask_ratio: Fraction of tokens to mask.
-        drop_path_rate: Stochastic-depth drop-path rate.
+        drop_path: Stochastic-depth drop-path rate.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
         pos_embed_channels: Hidden widths of the positional-embedding MLP.
@@ -211,7 +212,7 @@ class MaskTransformer(nn.Module):
         depth: int = 12,
         num_heads: int = 6,
         mask_ratio: float = 0.6,
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
         pos_embed_channels: Sequence[int] = (128,),
@@ -222,6 +223,8 @@ class MaskTransformer(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
+        if not 0.0 < mask_ratio < 1.0:
+            raise ValueError(f"`mask_ratio` must be in (0, 1), got {mask_ratio}.")
         self.mask_ratio = mask_ratio
         self.embed_dim = embed_dim
         self.encoder = PointPatchEmbed(
@@ -233,11 +236,11 @@ class MaskTransformer(nn.Module):
             [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
         self.blocks = TransformerEncoder(
             embed_dim=embed_dim,
             depth=depth,
-            drop_path_rate=dpr,
+            drop_path=dpr,
             num_heads=num_heads,
             act=act,
             act_kwargs=act_kwargs,
@@ -248,9 +251,6 @@ class MaskTransformer(nn.Module):
 
     def mask_center_rand(self, center: Tensor) -> Tensor:
         B, G, _ = center.shape
-        if self.mask_ratio == 0:
-            return torch.zeros(B, G, dtype=torch.bool, device=center.device)
-
         num_mask = int(self.mask_ratio * G)
         noise = torch.rand(B, G, device=center.device)
         keep = torch.argsort(noise, dim=1)[:, : G - num_mask]
@@ -293,7 +293,7 @@ class PointMAEClassification(ClassificationModel):
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
         pos_embed_channels: Hidden widths of the positional-embedding MLP.
-        drop_path_rate: Stochastic-depth drop-path rate.
+        drop_path: Stochastic-depth drop-path rate.
         dropout: Dropout rate in the classification head.
         act: Activation function.
         act_kwargs: Extra arguments for the activation.
@@ -319,7 +319,7 @@ class PointMAEClassification(ClassificationModel):
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
         pos_embed_channels: Sequence[int] = (128,),
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -333,7 +333,7 @@ class PointMAEClassification(ClassificationModel):
         self.num_heads = num_heads
         self.num_group = num_group
         self.group_size = group_size
-        self.drop_path_rate = drop_path_rate
+        self.drop_path = drop_path
         self.dropout = dropout
         self.act = act
         self.act_kwargs = act_kwargs
@@ -353,11 +353,11 @@ class PointMAEClassification(ClassificationModel):
             [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
         self.blocks = TransformerEncoder(
             embed_dim=embed_dim,
             depth=depth,
-            drop_path_rate=dpr,
+            drop_path=dpr,
             num_heads=num_heads,
             act=act,
             act_kwargs=act_kwargs,
@@ -385,6 +385,11 @@ class PointMAEClassification(ClassificationModel):
         nn.init.trunc_normal_(self.cls_pos, std=0.02)
 
     def reset_classifier(self, num_classes: int, global_pool: Any = None, **kwargs: Any) -> None:
+        if global_pool is not None:
+            raise ValueError(
+                f"{self.__class__.__name__} pools with a fixed cls-token + max-pool concatenation; "
+                "`global_pool` is not configurable."
+            )
         self.num_classes = num_classes
         self.head = self.configure_head()
 
@@ -426,7 +431,8 @@ class PointMAESegmentation(SegmentationModel):
     Tokenizes local groups with a mini-PointNet encoder, processes them with a plain transformer
     encoder, concatenates the normalized hidden states at three block depths, and propagates the
     group features back to every point with a PointNet++-style feature propagation (`FPModule`). A
-    category-conditioned global branch is fused before the per-point classifier.
+    category-conditioned global branch is fused before the per-point classifier. Every sample in
+    the packed batch must contain the same number of points; a ragged batch raises `ValueError`.
 
     Args:
         in_channels: Number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
@@ -440,7 +446,7 @@ class PointMAESegmentation(SegmentationModel):
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
         pos_embed_channels: Hidden widths of the positional-embedding MLP.
-        drop_path_rate: Stochastic-depth drop-path rate.
+        drop_path: Stochastic-depth drop-path rate.
         dropout: Dropout rate in the per-point head.
         act: Activation function.
         act_kwargs: Extra arguments for the activation.
@@ -469,7 +475,7 @@ class PointMAESegmentation(SegmentationModel):
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
         pos_embed_channels: Sequence[int] = (128,),
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -484,7 +490,7 @@ class PointMAESegmentation(SegmentationModel):
         self.num_heads = num_heads
         self.num_group = num_group
         self.group_size = group_size
-        self.drop_path_rate = drop_path_rate
+        self.drop_path = drop_path
         self.dropout = dropout
         self.act = act
         self.act_kwargs = act_kwargs
@@ -502,11 +508,11 @@ class PointMAESegmentation(SegmentationModel):
             [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
         self.blocks = TransformerEncoder(
             embed_dim=embed_dim,
             depth=depth,
-            drop_path_rate=dpr,
+            drop_path=dpr,
             num_heads=num_heads,
             act=act,
             act_kwargs=act_kwargs,
@@ -537,7 +543,7 @@ class PointMAESegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         return MLP(
-            [3392, 512, 256, self.num_classes],
+            [1024 + 3 * self.embed_dim * 2 + 64, 512, 256, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=[self.dropout, 0.0, 0.0],
@@ -567,6 +573,12 @@ class PointMAESegmentation(SegmentationModel):
 
     def forward_decoder(self, x_feat: Tensor, pos: Tensor, batch: Tensor, center: Tensor, category: Tensor) -> Tensor:
         B = x_feat.size(0)
+        counts = batch.bincount()
+        if bool((counts != counts[0]).any()):
+            raise ValueError(
+                f"{self.__class__.__name__} requires the same number of points per sample, got per-sample "
+                f"counts from {int(counts.min())} to {int(counts.max())}."
+            )
         N = pos.size(0) // B
 
         x_max = torch.max(x_feat, 2)[0]
@@ -607,7 +619,8 @@ class PointMAEMaskedAutoEncoder(BaseModel):
     Masks a fraction of the group tokens, encodes the visible tokens, then reconstructs the
     masked groups' centered coordinates from learnable mask tokens with a transformer decoder
     and a per-token coordinate head. `forward` returns the predicted and target group coordinates
-    suitable for a Chamfer reconstruction loss.
+    for a set-to-set reconstruction objective such as `chamfer_distance` from
+    `torch_pointcloud.losses`.
 
     Args:
         in_channels: Number of input channels (unused beyond coordinates; kept for the registry contract).
@@ -622,7 +635,7 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
         pos_embed_channels: Hidden widths of the encoder and decoder positional-embedding MLPs.
         mask_ratio: Fraction of tokens to mask.
-        drop_path_rate: Stochastic-depth drop-path rate.
+        drop_path: Stochastic-depth drop-path rate.
         act: Activation function.
         act_kwargs: Extra arguments for the activation.
         norm: Normalization function.
@@ -649,7 +662,7 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         encoder_global_channels: Sequence[int] = (512,),
         pos_embed_channels: Sequence[int] = (128,),
         mask_ratio: float = 0.6,
-        drop_path_rate: float = 0.1,
+        drop_path: float = 0.1,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = nn.LayerNorm,
@@ -665,7 +678,7 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         self.num_group = num_group
         self.group_size = group_size
         self.mask_ratio = mask_ratio
-        self.drop_path_rate = drop_path_rate
+        self.drop_path = drop_path
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
@@ -677,7 +690,7 @@ class PointMAEMaskedAutoEncoder(BaseModel):
             depth=encoder_depth,
             num_heads=num_heads,
             mask_ratio=mask_ratio,
-            drop_path_rate=drop_path_rate,
+            drop_path=drop_path,
             encoder_local_channels=encoder_local_channels,
             encoder_global_channels=encoder_global_channels,
             pos_embed_channels=pos_embed_channels,
@@ -692,11 +705,11 @@ class PointMAEMaskedAutoEncoder(BaseModel):
             [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
         )
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, decoder_depth)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, decoder_depth)]
         self.MAE_decoder = TransformerDecoder(
             embed_dim=embed_dim,
             depth=decoder_depth,
-            drop_path_rate=dpr,
+            drop_path=dpr,
             num_heads=decoder_num_heads,
             act=act,
             act_kwargs=act_kwargs,
@@ -733,8 +746,8 @@ class PointMAEMaskedAutoEncoder(BaseModel):
 
 _MODELNET_TRANSFORM = T.Compose(
     [
-        T.FarthestPointSample(pos_key="pos", num_samples=1024, random_start=False),
-        T.Rescale(keys="pos", method="centroid"),
+        T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+        T.Rescale(keys=DataKeys.POS, method="centroid"),
     ]
 )
 
@@ -762,7 +775,7 @@ _MODELNET_TRANSFORM = T.Compose(
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         dropout=0.5,
         act="gelu",
         spatial_dim=3,
@@ -785,8 +798,8 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     ),
     transform=T.Compose(
         [
-            T.FarthestPointSample(pos_key="pos", num_samples=8192, random_start=False),
-            T.Rescale(keys="pos", method="centroid"),
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=8192, random_start=False),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
         ]
     ),
     hparams=dict(
@@ -800,7 +813,7 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         dropout=0.5,
         act="gelu",
         spatial_dim=3,
@@ -833,7 +846,7 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         dropout=0.5,
         act="gelu",
         spatial_dim=3,
@@ -866,7 +879,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         dropout=0.5,
         act="gelu",
         spatial_dim=3,
@@ -899,7 +912,7 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         dropout=0.5,
         act="gelu",
         spatial_dim=3,
@@ -920,8 +933,8 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     ),
     transform=T.Compose(
         [
-            T.Rescale(keys="pos", method="centroid"),
-            T.FarthestPointSample(pos_key="pos", keys=("segment",), num_samples=2048, random_start=False),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=("segment",), num_samples=2048, random_start=False),
             T.OneHot(keys="category", num_classes=16),
         ]
     ),
@@ -937,7 +950,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
-        drop_path_rate=0.1,
+        drop_path=0.1,
         dropout=0.5,
         act="gelu",
         spatial_dim=3,
@@ -969,7 +982,7 @@ def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAESegmentation:
         encoder_global_channels=(512,),
         pos_embed_channels=(128,),
         mask_ratio=0.6,
-        drop_path_rate=0.1,
+        drop_path=0.1,
         act="gelu",
         spatial_dim=3,
     ),

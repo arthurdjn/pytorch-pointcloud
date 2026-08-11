@@ -8,17 +8,32 @@ a faithful PyTorch port of the original
 The model expects a 0.06 m grid sub-sampled cloud (only XYZ; intensity is dropped),
 matching the upstream `helper_tool` convention. We do this sub-sampling **inside the
 benchmark loop** so we can keep the cluster ids that map every original point back to
-its voxel — predictions are projected to full-resolution before mIoU is computed,
+its voxel: predictions are projected to full-resolution before mIoU is computed,
 matching the upstream `proj_inds = KDTree(sub_pc).query(pc)` evaluation protocol.
+
+The reference evaluates with possibility-driven voting: per-point softmax probabilities are
+accumulated over repeated stochastic passes with $0.98$ smoothing. The default protocol here
+reproduces that with `TTAInferer` in `ema` mode (`ema_smoothing=0.98`): each pass shuffles the
+sub-sampled cloud, which redraws the encoder's random decimation, and the per-pass softmax
+outputs are EMA-accumulated before the argmax. Use `--single-pass` for one forward per scan.
+
+Results (val sequence 08, full resolution, mIoU):
+
+    | Source                         | mIoU              |
+    | ------------------------------ | ----------------- |
+    | RandLA-Net-pytorch (repo, val) | 52.9              |
+    | RandLA-Net (original TF, val)  | 53.1              |
+    | torch-pointcloud               | TBD (pending run) |
 
 Usage:
     uv run --no-sync python examples/randlanet_benchmark_semantickitti.py --limit 5
+    uv run --no-sync python examples/randlanet_benchmark_semantickitti.py --single-pass
 """
 
 import argparse
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import torch
 from torch.nn import Module
@@ -28,10 +43,11 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SemanticKITTI
+from torch_pointcloud.inferers import SimpleInferer, TTAInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 CPU_COUNT = os.cpu_count()
@@ -41,6 +57,8 @@ BATCH_SIZE = 1
 SEED = 42
 IGNORE_INDEX = 255
 GRID_SIZE = 0.06
+EMA_SMOOTHING = 0.98  # reference possibility-vote smoothing
+NUM_PASSES = 20
 
 
 # --- 19-class learning_map (raw SemanticKITTI ids -> contiguous indices) ----
@@ -97,22 +115,55 @@ def _eval_transforms() -> Any:
     )
 
 
+def _shuffle_pass(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Shuffle the packed cloud (within batch segments) and record the permutation.
+
+    The encoder's eval-time decimation generator is seeded from the input size, so re-ordering the
+    points is what redraws the random decimation between voting passes.
+    """
+    data = dict(data)
+    batch = data[DataKeys.BATCH]
+    perm = torch.randperm(batch.shape[0], device=batch.device)
+    perm = perm[torch.argsort(batch[perm], stable=True)]
+    data[DataKeys.POS] = data[DataKeys.POS][perm]
+    data[DataKeys.BATCH] = batch[perm]
+    data["perm"] = perm
+    return data
+
+
+def _make_predictor(model: Module) -> Callable[[Dict[str, Any]], torch.Tensor]:
+    def predictor(data: Dict[str, Any]) -> torch.Tensor:
+        logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH])
+        perm = data.get("perm")
+        if perm is None:
+            return logits
+        unshuffled = torch.empty_like(logits)
+        unshuffled[perm] = logits
+        return unshuffled
+
+    return predictor
+
+
 @torch.inference_mode()
 def predict(
     model: torch.nn.Module,
     pos: torch.Tensor,
     batch: torch.Tensor,
     device: str,
+    inferer: Optional[TTAInferer] = None,
 ) -> tuple[torch.Tensor, float]:
     if device.startswith("cuda"):
         torch.cuda.synchronize()
 
     start = time.perf_counter()
-    logits = model(None, pos, batch)
+    if inferer is None:
+        output = model(None, pos, batch)
+    else:
+        output = inferer({DataKeys.POS: pos, DataKeys.BATCH: batch}, predictor=_make_predictor(model))
     if device.startswith("cuda"):
         torch.cuda.synchronize()
     latency_ms = (time.perf_counter() - start) * 1000.0
-    return logits, latency_ms
+    return output, latency_ms
 
 
 @torch.no_grad()
@@ -122,6 +173,7 @@ def evaluate(
     device: str,
     num_classes: int,
     max_iters: Optional[int] = None,
+    inferer: Optional[TTAInferer] = None,
 ) -> Dict[str, Any]:
     model.to(device).eval()
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
@@ -139,7 +191,7 @@ def evaluate(
         inverse_full = data[DataKeys.INVERSE]
         n_full = int(target_full.shape[0])
 
-        logits_sub, latency_ms = predict(model, data[DataKeys.POS], data[DataKeys.BATCH], device)
+        logits_sub, latency_ms = predict(model, data[DataKeys.POS], data[DataKeys.BATCH], device, inferer)
         preds_sub = logits_sub.argmax(dim=1)
         # Project predictions back to full resolution: every original point gets the label
         # of its enclosing voxel (matches upstream's `KDTree(sub_pc).query(pc)` semantics).
@@ -179,12 +231,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", default=BATCH_SIZE, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scans.")
+    parser.add_argument("--num-passes", default=NUM_PASSES, type=int, help="Number of voting passes per scan.")
+    parser.add_argument(
+        "--single-pass",
+        action="store_true",
+        help="Disable multi-pass voting and run one forward per scan.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on SemanticKITTI (split={args.split!r})!")
     model = create_model(args.model, task="segmentation", pretrained=True)
@@ -204,8 +263,19 @@ def main() -> None:
         collate_fn=collate,
     )
 
+    inferer: Optional[TTAInferer] = None
+    if not args.single_pass:
+        inferer = TTAInferer(
+            base=SimpleInferer(),
+            transforms=_shuffle_pass,
+            num_passes=args.num_passes,
+            aggregate="ema",
+            ema_smoothing=EMA_SMOOTHING,
+        )
+        print(f"Voting over {args.num_passes} shuffled passes (EMA smoothing {EMA_SMOOTHING}).")
+
     print(f"Test set: {len(dataset)} scans")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device, num_classes)
+    metrics = evaluate(model, dataloader, args.device, num_classes, inferer=inferer)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")

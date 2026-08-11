@@ -1,10 +1,26 @@
 """Benchmark SPVCNN on the 19-class SemanticKITTI val split.
 
-The pretrained `spvcnn.semantickitti` checkpoint comes from the SPVNAS model
-zoo (https://github.com/mit-han-lab/spvnas). Its registered eval pipeline
-voxelises the cloud to $5\\,\\text{cm}$ before inference, so mIoU is reported
-per-voxel — close to but not identical to the published full-resolution
-numbers (the per-point inverse map is not propagated back).
+The pretrained `spvcnn-{30,47,119}gmacs.semantickitti.mit-han-lab` checkpoints come from the SPVNAS
+model zoo (https://github.com/mit-han-lab/spvnas). The registered eval pipeline voxelises the cloud
+to $5\\,\\text{cm}$ before inference and stores the per-point inverse map, so per-voxel predictions
+are back-projected to the raw points and mIoU is scored at full resolution, matching the reference
+evaluation of the published numbers. The per-voxel representative is the first point in input order,
+matching the `np.unique` selection in torchsparse's `sparse_quantize` used by SPVNAS.
+
+Reference (full-resolution val, sequence 08, SPVNAS model zoo):
+    | Model                                     | mIoU |
+    | ----------------------------------------- | ---- |
+    | spvcnn-119gmacs.semantickitti.mit-han-lab | 63.8 |
+    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 61.4 |
+    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 60.7 |
+
+Results measured with the previous per-voxel protocol (no back-projection, single pass); the
+full-resolution numbers are pending re-measurement:
+    | Model                                     | mIoU  | OA    |
+    | ----------------------------------------- | ----- | ----- |
+    | spvcnn-119gmacs.semantickitti.mit-han-lab | 62.37 | 92.14 |
+    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 60.26 | 91.91 |
+    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 59.21 | 91.58 |
 
 Usage:
     uv run --no-sync python examples/spvcnn_benchmark_semantickitti.py --limit 5
@@ -26,7 +42,7 @@ from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.metrics import confusion_matrix
-from torch_pointcloud.utils.random import seed_everything
+from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 torchsparse.nn.functional.set_conv_mode(2)
 
@@ -86,14 +102,17 @@ def evaluate(
         x = data[DataKeys.X].to(device)
         pos = data[DataKeys.POS].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        target = data[DataKeys.SEGMENT].to(device)
+        target_full = data["origin_segment"].to(device)
+        inverse_full = data[DataKeys.INVERSE].to(device)
 
         logits, latency_ms = predict(model, x, pos, batch, device)
-        preds = logits.argmax(dim=1)
+        preds_sub = logits.argmax(dim=1)
+        # Every raw point takes its enclosing voxel's prediction (full-resolution scoring).
+        preds_full = preds_sub[inverse_full]
 
-        cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=IGNORE_INDEX)
+        cm += confusion_matrix(preds_full.cpu(), target_full.cpu(), num_classes, ignore_index=IGNORE_INDEX)
         total_latency_ms += latency_ms
-        total_points += int(x.shape[0])
+        total_points += int(target_full.shape[0])
         oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)
         pbar.set_postfix({"oa": f"{oa.item():.4f}"})
 
@@ -115,7 +134,9 @@ def evaluate(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SPVCNN semantic segmentation on SemanticKITTI.")
-    parser.add_argument("--model", default="spvcnn.semantickitti", help="Registered segmentation model name.")
+    parser.add_argument(
+        "--model", default="spvcnn-119gmacs.semantickitti.mit-han-lab", help="Registered segmentation model name."
+    )
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "trainval", "test"])
@@ -129,6 +150,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
+    set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on SemanticKITTI (split={args.split!r})!")
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)

@@ -49,6 +49,14 @@ def test_scale_boxes_centers_and_sizes() -> None:
     assert torch.allclose(scaled[:, 6], box[:, 6])
 
 
+def test_shift_boxes_centers_only() -> None:
+    box = _box(heading=0.2)
+    shift = torch.tensor([0.5, -1.0, 2.0])
+    shifted = F.shift_boxes(box, shift)
+    assert torch.allclose(shifted[:, 0:3], box[:, 0:3] + shift)
+    assert torch.allclose(shifted[:, 3:7], box[:, 3:7])
+
+
 def test_points_in_oriented_box_axis_aligned() -> None:
     box = torch.tensor([1.0, 0.5, 0.3, 0.4, 0.3, 0.2, 0.0])  # half extents
     pts = torch.tensor([[1.0, 0.5, 0.3], [1.4, 0.5, 0.3], [2.0, 0.5, 0.3]])
@@ -107,6 +115,17 @@ def test_random_scale_boxes_preserves_membership() -> None:
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
     out = T.RandomScale(keys="pos", box_key="box", scale_range=(1.3, 1.3), p=1.0, generator=gen)(data)
+    assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
+
+
+def test_random_shift_boxes_move_with_points() -> None:
+    gen = torch.Generator().manual_seed(0)
+    box = _box(heading=0.2)
+    face = torch.tensor([[1.4, 0.5, 0.3]])
+    data = {"pos": face.clone(), "box": box.clone()}
+    out = T.RandomShift(keys="pos", box_key="box", shift_range=(0.7, 0.7), p=1.0, generator=gen)(data)
+    assert torch.allclose(out["box"][:, 0:3], box[:, 0:3] + 0.7)
+    assert torch.allclose(out["box"][:, 3:7], box[:, 3:7])
     assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
 
 
@@ -200,7 +219,7 @@ def test_generate_vote_labels_oriented_vs_axis_aligned() -> None:
 def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
     mean = torch.ones(10, 3) * 0.5
     box = _box(heading=0.6)
-    data = {"box": box.clone(), "class": torch.tensor([2])}
+    data = {"box": box.clone(), "label": torch.tensor([2])}
     out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
     assert out["center_label"].shape == (64, 3)
     assert out["heading_class_label"].shape == (64,)
@@ -220,7 +239,7 @@ def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
 def test_encode_votenet_targets_truncates_to_max_num_obj() -> None:
     mean = torch.ones(10, 3) * 0.5
     boxes = _box(heading=0.0).repeat(5, 1)
-    data = {"box": boxes, "class": torch.ones(5, dtype=torch.long)}
+    data = {"box": boxes, "label": torch.ones(5, dtype=torch.long)}
     out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=3)(data)
     assert out["center_label"].shape == (3, 3)
     assert out["box_label_mask"].sum().item() == 3
@@ -235,7 +254,7 @@ def test_vote_then_encode_keeps_boxes_and_writes_all_labels() -> None:
             [2.0, 2.0, 1.0, 1.2, 1.0, 0.8, 0.0],
         ]
     )
-    data = {"pos": pos.clone(), "box": boxes.clone(), "class": torch.tensor([3, 1])}
+    data = {"pos": pos.clone(), "box": boxes.clone(), "label": torch.tensor([3, 1])}
     data = T.GenerateVoteLabels(pos_key="pos", box_key="box")(data)
     out = T.EncodeVoteNetTargets(box_key="box", num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
 
@@ -314,8 +333,8 @@ def test_instance_to_box_extents_class_and_drop() -> None:
     assert box.shape == (2, 7)
     assert torch.allclose(box[0], torch.tensor([1.0, 0.5, 0.5, 2.0, 1.0, 1.0, 0.0]))
     assert torch.allclose(box[1], torch.tensor([5.0, 5.5, 5.0, 0.0, 1.0, 0.0, 0.0]))
-    assert out["class"].tolist() == [2, 5]
-    assert out["class"].dtype == torch.long
+    assert out["label"].tolist() == [2, 5]
+    assert out["label"].dtype == torch.long
 
 
 def test_instance_to_box_excludes_negative_instance_ids() -> None:
@@ -325,19 +344,20 @@ def test_instance_to_box_excludes_negative_instance_ids() -> None:
     out = T.InstanceToBox()(data)
     assert out["box"].shape == (1, 7)
     assert torch.allclose(out["box"][0], torch.tensor([1.5, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]))
-    assert out["class"].tolist() == [2]
+    assert out["label"].tolist() == [2]
 
 
 def test_instance_to_box_all_ignored_is_empty() -> None:
     data = {"pos": torch.rand(4, 3), "instance": torch.tensor([0, 0, 1, 1]), "segment": torch.tensor([-1, -1, -1, -1])}
     out = T.InstanceToBox()(data)
     assert out["box"].shape == (0, 7)
-    assert out["class"].shape == (0,)
-    assert out["class"].dtype == torch.long
+    assert out["label"].shape == (0,)
+    assert out["label"].dtype == torch.long
 
 
 def test_relabel_boxes_maps_drops_and_ignores() -> None:
-    # raw 0 -> det 0, raw 3 -> det 1 (foreground); raw 1 is an ignore class; raw 7 is dropped.
+    # raw 0 -> det 0, raw 3 -> det 1 (foreground); raw 1 is an ignore class attributed to det 0;
+    # raw 7 is dropped.
     data: Dict[str, Any] = {
         DataKeys.BOX: torch.tensor(
             [[0.0, 0, 0, 1, 1, 1, 0], [1, 0, 0, 1, 1, 1, 0], [2, 0, 0, 1, 1, 1, 0], [3, 0, 0, 1, 1, 1, 0]]
@@ -346,14 +366,26 @@ def test_relabel_boxes_maps_drops_and_ignores() -> None:
         DataKeys.OCCLUSION: torch.tensor([0, 1, 2, 3]),
     }
     out = T.RelabelBoxes(
-        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.OCCLUSION), mapping={0: 0, 3: 1}, ignore_labels=(1,)
+        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.OCCLUSION), mapping={0: 0, 3: 1}, ignore_mapping={1: 0}
     )(data)
-    assert out[DataKeys.LABEL].tolist() == [0, -1, 1]
+    assert out[DataKeys.LABEL].tolist() == [0, 0, 1]
     assert out["ignore_mask"].tolist() == [False, True, False]
     # Every box key is filtered by the same keep mask: the dropped raw-7 row is gone everywhere.
     assert out[DataKeys.BOX].shape == (3, 7)
     assert out[DataKeys.OCCLUSION].tolist() == [0, 1, 2]
     assert torch.equal(out[DataKeys.BOX][:, 0], torch.tensor([0.0, 1.0, 2.0]))
+
+
+def test_relabel_boxes_ignore_attribution() -> None:
+    # Ignore rows carry the detection class they excuse: raw 1 -> det 0 (Van -> Car style),
+    # raw 4 -> det 1 (Person_sitting -> Pedestrian style).
+    data: Dict[str, Any] = {
+        DataKeys.BOX: torch.zeros(3, 7),
+        DataKeys.LABEL: torch.tensor([1, 4, 0]),
+    }
+    out = T.RelabelBoxes(keys=(DataKeys.BOX, DataKeys.LABEL), mapping={0: 0, 3: 1}, ignore_mapping={1: 0, 4: 1})(data)
+    assert out[DataKeys.LABEL].tolist() == [0, 1, 0]
+    assert out["ignore_mask"].tolist() == [True, True, False]
 
 
 def test_relabel_boxes_difficulty_to_ignore() -> None:

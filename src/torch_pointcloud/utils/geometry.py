@@ -211,8 +211,8 @@ def random_spherical_points(
         Generated points of shape (num_points, dimension).
     """
 
-    if isinstance(bounds, float):
-        bounds = (0.0, bounds)
+    if isinstance(bounds, (int, float)):
+        bounds = (0.0, float(bounds))
 
     inner_bound, outer_bound = bounds
 
@@ -273,23 +273,23 @@ def spherical_points_gradient(
     max_step_size: Optional[float] = None,
     return_grad_norms: bool = False,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-    """Creation of kernel points via optimization of potentials for a single kernel.
+    r"""Creation of kernel points via optimization of potentials for a single kernel.
 
     Args:
         radius: Radius of the kernel.
         num_points: Number of points composing the kernel.
-        fixed_position: Fix position of certain kernel points ('none', 'center', or 'verticals').
+        fixed_position: Fix position of certain kernel points ('none', 'center', or 'vertical').
         ratio: Ratio of the radius where you want the kernel points to be placed.
         max_steps: Maximum number of optimization steps.
         step_size: Step size for moving points based on gradient norms.
         step_decay: Decay factor for reducing the step size over time.
         convergence_threshold: Threshold for stopping the optimization when gradient norm changes are small.
         max_step_size: Maximum distance a point can move in a single step.
+        return_grad_norms: Whether to also return the gradient norms recorded during the optimization.
 
     Returns:
-        A tuple containing:
-            - Optimized kernel points of shape [num_points, dimension].
-            - Saved gradient norms of the optimization process.
+        Optimized kernel points of shape $(\text{num\_points}, 3)$, or a tuple of the kernel points and
+            the recorded gradient norms when `return_grad_norms=True`.
     """
 
     def compute_gradients(points: Tensor) -> Tensor:
@@ -360,7 +360,7 @@ def spherical_points_gradient(
 
     # Rescale kernel points
     r = torch.sqrt(torch.sum(kernel_points**2, dim=-1))
-    kernel_points *= ratio / torch.mean(r[1:])
+    kernel_points *= radius * ratio / torch.mean(r[1:])
 
     if return_grad_norms:
         return kernel_points, saved_grad_norms[:step]

@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from torch_pointcloud.losses.anchor import one_hot_foreground, sigmoid_focal_loss
 from torch_pointcloud.utils.box3d import encode_box_residuals
 from torch_pointcloud.utils.data import DataKeys
 
@@ -271,17 +272,8 @@ class PointRCNNLoss(nn.Module):
         positives = labels > 0
         cared = labels >= 0
         cls_weights = cared.to(preds.dtype) / positives.sum().clamp(min=1).to(preds.dtype)
-
-        one_hot = preds.new_zeros(labels.shape[0], self.num_classes + 1)
-        one_hot.scatter_(-1, (labels * cared.long()).unsqueeze(-1), 1.0)
-        one_hot = one_hot[..., 1:]
-
-        pred_sigmoid = preds.sigmoid()
-        alpha_weight = one_hot * self.focal_alpha + (1.0 - one_hot) * (1.0 - self.focal_alpha)
-        pt = one_hot * (1.0 - pred_sigmoid) + (1.0 - one_hot) * pred_sigmoid
-        focal_weight = alpha_weight * pt.pow(self.focal_gamma)
-        bce = preds.clamp(min=0) - preds * one_hot + torch.log1p(torch.exp(-preds.abs()))
-        loss = focal_weight * bce * cls_weights.unsqueeze(-1)
+        one_hot = one_hot_foreground(labels, self.num_classes)
+        loss = sigmoid_focal_loss(preds, one_hot, cls_weights, alpha=self.focal_alpha, gamma=self.focal_gamma)
         return loss.sum() * self.point_cls_weight
 
     def _point_box_loss(self, preds: Tensor, targets: Tensor, labels: Tensor) -> Tensor:
