@@ -8,7 +8,7 @@ import torch_pointcloud as tp
 import torch_pointcloud.transforms as T
 
 # 1. Load a pretrained model
-model = tp.create_model("pointnext-base.scanobjectnn", task="classification", pretrained=True).eval()
+model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True).eval()
 
 # 2. Build a transform pipeline
 transform = T.Compose([
