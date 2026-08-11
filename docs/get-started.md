@@ -19,7 +19,7 @@ import torch_pointcloud as tp
 
 # 1. Build a pretrained model. `create_model` looks up the architecture by
 #    name and task, then loads its matching weights.
-model = tp.create_model("pointnext-base.scanobjectnn", task="classification", pretrained=True).eval()
+model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True).eval()
 
 # 2. A toy "scene" with 2048 random points.
 pos = torch.randn(2048, 3)
@@ -50,7 +50,7 @@ transform = T.Compose([
     ),
 ])
 
-dataset = ModelNet10(root="data/ModelNet10", train=False, transform=transform)
+dataset = ModelNet10(root="data", split="test", transform=transform)
 loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 
 for batch in loader:

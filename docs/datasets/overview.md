@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torch_pointcloud.datasets import ModelNet40
 from torch_pointcloud.utils.data import collate
 
-dataset = ModelNet40(root="data/ModelNet40", train=True)
+dataset = ModelNet40(root="data", split="train")
 loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 ```
 
@@ -18,6 +18,7 @@ loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 | Dataset | Task | Samples | Classes | License | API |
 | --- | --- | --- | --- | --- | --- |
 | **ModelNet10 / ModelNet40** | Object classification | ~12k | 10 / 40 | Research | [`modelnet`](../api/datasets/modelnet.md) |
+| **ModelNet40Hdf5** | Object classification (pre-sampled 2,048 points + normals) | ~12k | 40 | Research | [`modelnet`](../api/datasets/modelnet.md) |
 | **ShapeNetPart** | Part segmentation | ~16k | 16 categories / 50 parts | Research | [`shapenetpart`](../api/datasets/shapenetpart.md) |
 | **ScanObjectNN** | Real-world object classification | 2.9k | 15 | Research | [`scanobjectnn`](../api/datasets/scanobjectnn.md) |
 
@@ -37,11 +38,11 @@ loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 | **Toronto3D** | Mobile mapping (street scenes) | 4 areas | 8 | Research | [`toronto3d`](../api/datasets/toronto3d.md) |
 | **ParisLille3D** | Mobile mapping (streets) | 3 scenes | 9 | Research | [`parislille3d`](../api/datasets/parislille3d.md) |
 
-### Generic loader
+### Base class
 
 | Dataset | Task | Notes | API |
 | --- | --- | --- | --- |
-| **PointCloud** | (any) | Generic in-memory loader over a folder of `.npy` / `.ply` files. Use for custom data. | [`pointcloud`](../api/datasets/pointcloud.md) |
+| **PointCloudDataset** | (any) | Abstract base class all loaders build on: `raw/` + `processed/` disk layout, `download` / `process` hooks. Subclass it for custom data. | [`pointcloud`](../api/datasets/pointcloud.md) |
 
 ## Dict keys
 
@@ -59,13 +60,16 @@ All datasets emit dicts using the standard key conventions from `DataKeys` in `t
 
 After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ is appended to identify each point's source scene.
 
+!!! warning "Color and ignore-index conventions vary per dataset"
+    `color` is uint8 in $[0, 255]$ for most indoor loaders (e.g. `S3DIS`), float32 in $[0, 255]$ for `ScanNet`, and float32 in $[0, 1]$ for `S3DISHdf5`; check the per-dataset API page before normalizing. Unlabeled points use label 0 (`<unk>` / outdoor conventions, e.g. `ScanNet`), -1 (indoor no-instance and class-subset remaps, e.g. `S3DIS`), or 255 (the `SemanticKITTI` remap example).
+
 ## Picking a dataset
 
 - **Sanity-check classification**: `ModelNet10` (small, downloads fast).
 - **Modern classification benchmark**: `ScanObjectNN` (real-world scans, harder).
 - **Indoor segmentation reference**: `S3DIS` (small) or `ScanNet` (larger).
 - **Driving / LiDAR**: `SemanticKITTI`.
-- **Custom data**: `PointCloud` over a folder of arrays.
+- **Custom data**: subclass `PointCloudDataset`.
 
 ## Downloading
 

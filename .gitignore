@@ -173,3 +173,10 @@ notebooks/**/\[WIP\]*.ipynb
 
 # Git keep
 !.gitkeep
+outputs/
+.claude/
+# Docs content is local-only, but the build scripts must stay tracked (a bare `docs` rule would
+# exclude the directory itself, making any negation ineffective).
+docs/*
+!docs/scripts/
+DEBUG.ipynb

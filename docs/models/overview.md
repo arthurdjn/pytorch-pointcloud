@@ -50,7 +50,7 @@ Best for **dense per-point labelling** (S3DIS, ScanNet, SemanticKITTI). Inputs a
 
 | Model | Paper | Notes | API |
 | --- | --- | --- | --- |
-| **Sonata** | :github: [facebookresearch/sonata](https://github.com/facebookresearch/sonata) | Self-supervised pretraining on diverse 3D corpora. | [`sontata`](../api/models/sontata.md) |
+| **Sonata** | :github: [facebookresearch/sonata](https://github.com/facebookresearch/sonata) | Self-supervised pretraining on diverse 3D corpora. | [`sonata`](../api/models/sonata.md) |
 | **Concerto** | :arxiv: [Long et al. 2024](https://arxiv.org/abs/2510.23607) | Joint 2D-3D self-supervised learning. | [`concerto`](../api/models/concerto.md) |
 | **Utonia** | :arxiv: [Yang et al. 2024](https://arxiv.org/abs/2603.03283) | One encoder, many point clouds. | [`utonia`](../api/models/utonia.md) |
 

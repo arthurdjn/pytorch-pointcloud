@@ -71,5 +71,5 @@ make test
 ## Troubleshooting
 
 - **`ImportError: No module named 'torch_scatter'`**: install the matching CUDA wheel from the PyG index above. The package will fall back to slower pure-Python paths if scatter is missing, but voxelization and some pooling layers will be unavailable.
-- **Pretrained weights download fails**: check that your environment can reach `huggingface.co`. Use `HF_ENDPOINT` to mirror, or pre-download with `huggingface-cli`.
+- **`FileNotFoundError` when loading pretrained weights**: checkpoints are not published for automatic download yet. `pretrained=True` reads the weight file from the local cache (`~/.cache/torch-pointcloud/models/` by default, overridable with `TORCH_POINTCLOUD_MODELS_DIR`), so the file must already be there. Hub publication is pending.
 - **OctFormer / SPVCNN crashes**: these models require `ocnn` and `torchsparse` respectively. Install them as shown above.
