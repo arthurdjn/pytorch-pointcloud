@@ -18,3 +18,19 @@ inferer = TTAInferer(
 )
 probs = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
 ```
+
+## Strategies
+
+| Inferer                  | Runs the predictor on                                                                       | Reproduces                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `SimpleInferer`          | the whole scene, once                                                                       | single-pass evaluation (the Lightning default on test batches)           |
+| `SlidingWindowInferer`   | axis-aligned blocks, blended by `mean`, `max` (most confident block) or `vote` (hard votes) | block-based S3DIS / ScanNet protocols scoring every point of the room    |
+| `VoxelPartitionInferer`  | sub-clouds holding one point per voxel, so every raw point is predicted                     | the voxel-partition (fragment) protocol of sparse and point transformers |
+| `KNNWindowInferer`       | k-nearest-neighbour crops around the least-covered point until coverage                     | possibility-driven crop voting (RandLA-Net)                              |
+| `PotentialSphereInferer` | radius spheres drawn from a coarse potential grid, EMA of softmax                           | potential sphere voting (KPConv)                                         |
+| `TTAInferer`             | any base inferer under enumerated or random views (`include_identity` adds a clean pass)    | test-time augmentation and voting                                        |
+| `PartRefinementInferer`  | any base inferer, then a nearest-neighbour majority over rare / foreign part labels         | part-segmentation label refinement                                       |
+
+Every `Lit*Model` runs its test batches through `model.inferer` (a `SimpleInferer` unless the experiment sets one); the
+Hydra group `configs/inferer/` holds the presets, so an experiment picks its protocol with `override /inferer: <name>`
+and the CLI can swap it (`test.py experiment=... inferer=simple`).

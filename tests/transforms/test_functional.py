@@ -7,6 +7,8 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.transforms import Voxelize
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
 
 @pytest.fixture
@@ -877,6 +879,29 @@ def test_axis_min_offset_preserves_dtype() -> None:
     x = torch.tensor([[1.0, 2.0, 3.0]], dtype=torch.float64)
     out = F.axis_min_offset(x, axis=0)
     assert out.dtype == torch.float64
+
+
+def test_quantize_grid_coordinates() -> None:
+    pos = torch.tensor([[-0.05, 0.0, 0.0], [0.03, 0.0, 0.0], [0.05, 0.02, 0.0], [0.031, 0.0, 0.0]])
+    out = F.quantize(pos, size=0.02)
+    assert out.dtype == torch.long
+    assert out.shape == pos.shape
+    assert torch.equal(out, torch.tensor([[0, 0, 0], [4, 0, 0], [5, 1, 0], [4, 0, 0]]))
+
+
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+def test_quantize_matches_voxelize_grid_representatives() -> None:
+    """Every kept voxel representative of `Voxelize(pos_reduce="grid")` carries the coordinates `quantize` gives it."""
+    pos = torch.rand(200, 3) * 2.0 - 1.0
+    grid = F.quantize(pos, size=0.1)
+    voxelized = Voxelize(pos_key="pos", pos_reduce="grid", size=0.1, dst_inverse_key="inverse")({"pos": pos})
+    assert torch.equal(voxelized["pos"][voxelized["inverse"]], grid)
+
+
+def test_quantize_empty_and_invalid_size() -> None:
+    assert F.quantize(torch.empty(0, 3), size=0.1).shape == (0, 3)
+    with pytest.raises(ValueError, match="size"):
+        F.quantize(torch.zeros(2, 3), size=0.0)
 
 
 def test_axis_min_offset_empty() -> None:

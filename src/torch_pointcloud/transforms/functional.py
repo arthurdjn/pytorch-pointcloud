@@ -828,6 +828,39 @@ def axis_min_offset(x: Tensor, axis: int, quantile: Optional[float] = None) -> T
     return (col - ref).unsqueeze(-1).to(x.dtype)
 
 
+def quantize(pos: Tensor, size: float) -> Tensor:
+    r"""Integer voxel-grid coordinates of every point, without reducing the cloud.
+
+    Each point maps to $\lfloor p / s \rfloor$ shifted so the per-axis minimum is $0$; points sharing a voxel
+    get equal coordinates and every input row is kept. This is the coordinate a voxel-partition protocol feeds
+    to a sparse model for each raw point (`Voxelize(pos_reduce="grid")` produces the same coordinates for the
+    one representative it keeps per voxel).
+
+    Args:
+        pos: Point positions of shape $(N, D)$.
+        size: Voxel side length in the units of `pos`.
+
+    Returns:
+        Long tensor of shape $(N, D)$ (empty input returns an empty $(0, D)$ tensor).
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import functional as F
+
+        pos = torch.tensor([[0.0, 0.0, 0.0], [0.03, 0.0, 0.0], [0.05, 0.0, 0.0]])
+        F.quantize(pos, size=0.02)  # tensor([[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+        ```
+    """
+    if size <= 0.0:
+        raise ValueError(f"`size` must be > 0, got {size}.")
+
+    pos_grid = torch.floor(pos / size).long()
+    if pos_grid.shape[0] == 0:
+        return pos_grid
+    return pos_grid - pos_grid.min(dim=0).values
+
+
 def normalize(
     x: Tensor,
     mean: Union[Tensor, Sequence[float], float],

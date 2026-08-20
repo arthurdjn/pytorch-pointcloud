@@ -8,7 +8,7 @@ be averaged directly without inverting the transform.
 """
 
 import warnings
-from typing import Any, Callable, Dict, Literal, Optional, Sequence, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Union
 
 import torch
 from torch import Tensor
@@ -45,6 +45,9 @@ class TTAInferer(Inferer):
             `num_passes` is ignored.
         num_passes: Number of TTA passes when `transforms` is a single callable.
             Must be $\geq 1$.
+        include_identity: If `True`, run one extra pass on the un-augmented input
+            before the augmented passes (the "clean + N random views" voting
+            protocol), so the total pass count is `num_passes + 1`.
         aggregate: How per-point predictions are combined across passes.
             `"mean"` averages per-pass outputs (works for logits or probabilities).
             `"ema"` maintains an exponential moving average of softmax
@@ -86,6 +89,7 @@ class TTAInferer(Inferer):
         base: Inferer,
         transforms: Union[TransformFn, Sequence[TransformFn]],
         num_passes: Optional[int] = None,
+        include_identity: bool = False,
         aggregate: AggregateMode = "mean",
         ema_smoothing: float = 0.95,
         ema_softmax: bool = True,
@@ -119,6 +123,7 @@ class TTAInferer(Inferer):
             raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
 
         self.base = base
+        self.include_identity = include_identity
         self.aggregate = aggregate
         self.ema_smoothing = ema_smoothing
         self.ema_softmax = ema_softmax
@@ -135,9 +140,14 @@ class TTAInferer(Inferer):
 
         output: Optional[Tensor] = None
 
-        for pass_i in range(self.num_passes):
-            aug = cast(TransformFn, self._sequence[pass_i] if self._sequence is not None else self._sample)
-            data_aug = aug(dict(data))
+        passes: List[Optional[TransformFn]] = [None] if self.include_identity else []
+        if self._sequence is not None:
+            passes.extend(self._sequence)
+        else:
+            passes.extend([self._sample] * self.num_passes)
+
+        for aug in passes:
+            data_aug = dict(data) if aug is None else aug(dict(data))
             pass_output = self.base(data_aug, predictor)
 
             if self.aggregate == "ema":
@@ -155,5 +165,5 @@ class TTAInferer(Inferer):
         if output is None:
             return data[self.pos_key].new_zeros((0, 0))
         if self.aggregate == "mean":
-            output = output / float(self.num_passes)
+            output = output / float(len(passes))
         return output
