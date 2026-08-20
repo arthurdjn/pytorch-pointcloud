@@ -513,3 +513,42 @@ class SPFormerUNetSegmentation(SegmentationModel):
 )
 def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
     return SPFormerUNetSegmentation(**hparams)
+
+
+@register_model(
+    "spformer-unet.scannet20",
+    task="segmentation",
+    weights=None,
+    transform=T.Compose(
+        [
+            T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
+            T.CopyItems(keys=DataKeys.POS, names="pos_centered"),
+            T.Shift(keys="pos_centered", method="centroid"),
+            T.Cat(keys=[DataKeys.COLOR, "pos_centered"], dst_key=DataKeys.X, dim=1),
+            T.Shift(keys=DataKeys.POS, method="min"),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+            T.CopyItems(keys=DataKeys.SEGMENT, names="origin_segment"),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="grid",
+                keys=[DataKeys.X, DataKeys.SEGMENT],
+                reduce=["mean", "first"],
+                size=0.02,
+                method="fnv",
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=20,
+        channels=[32, 64, 96, 128, 160],
+        layers=2,
+        stem_kernel_size=3,
+        norm_kwargs=dict(eps=1e-4, momentum=0.1),
+        spatial_padding=96,
+    ),
+)
+def spformer_unet_scannet20(**hparams: Any) -> SPFormerUNetSegmentation:
+    return SPFormerUNetSegmentation(**hparams)
