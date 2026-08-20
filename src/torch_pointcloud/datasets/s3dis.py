@@ -2,7 +2,7 @@ import math
 from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, Sequence, TypedDict, Union, get_args
+from typing import Any, Callable, Literal, Optional, Sequence, Tuple, TypedDict, Union, get_args
 from urllib.parse import urljoin
 
 import h5py
@@ -46,6 +46,22 @@ S3DIS_CLASSES = get_args(S3DISClass)
 
 # Create a mapping between classes and their indices.
 S3DIS_CLASS_TO_IDX = {cls: idx for idx, cls in enumerate(S3DIS_CLASSES)}
+# Label order stored in the pre-tiled HDF5 blocks.
+S3DIS_HDF5_CLASSES: Tuple[S3DISClass, ...] = (
+    "ceiling",
+    "floor",
+    "wall",
+    "beam",
+    "column",
+    "window",
+    "door",
+    "table",
+    "chair",
+    "sofa",
+    "bookcase",
+    "board",
+    "clutter",
+)
 # In S3DIS original convention, unknown classes are grouped into the 'clutter' class.
 S3DIS_UNK_CLS = "clutter"
 S3DIS_UNK_IDX = S3DIS_CLASS_TO_IDX[S3DIS_UNK_CLS]
@@ -634,6 +650,9 @@ class S3DISHdf5(PointCloudDataset):
     | `norm_pos` | $(4096, 3)$    | float32 | Room-normalised XYZ coordinates (range $[0,1]$) |
     | `segment`  | $(4096,)$      | int64   | Per-point semantic label (13 classes)           |
 
+    Labels are emitted in `S3DIS_CLASSES` order (the archive itself stores them in `S3DIS_HDF5_CLASSES` order,
+    which swaps table / chair and sofa / bookcase).
+
     Important:
         This dataset is already processed and the HDF5 files are used directly.
         They are stored in the `S3DIS/indoor3d_sem_seg_hdf5_data` directory,
@@ -796,6 +815,9 @@ class S3DISHdf5(PointCloudDataset):
         labels = np.concatenate(label_chunks, axis=0).astype(np.int64)
         if labels.ndim == 2 and labels.shape[1] == 1:
             labels = labels.squeeze(1)
+
+        # Relabel labels in `S3DIS_CLASSES` order, to match the original `S3DIS` dataset.
+        labels = np.array([S3DIS_CLASS_TO_IDX[cls_name] for cls_name in S3DIS_HDF5_CLASSES], dtype=np.int64)[labels]
 
         # Remap the stored 13-class labels onto the selected class subset. Unselected classes fall back to
         # the new index of 'clutter' when it is selected, else to the ignore index -1 (matching `S3DIS`).
