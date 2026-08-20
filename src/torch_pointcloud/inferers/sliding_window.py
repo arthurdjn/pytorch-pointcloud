@@ -33,6 +33,7 @@ from ._utils import gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
 
 WindowMode = Literal["constant", "gaussian"]
+AggregateMode = Literal["mean", "max", "vote"]
 
 
 def _assign_point_blocks(
@@ -186,6 +187,7 @@ def sliding_window_inference(
     sigma_scale: float = 0.125,
     roi_num_points: Optional[int] = None,
     softmax: bool = True,
+    aggregate: AggregateMode = "mean",
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     dims: Optional[Sequence[int]] = None,
     padding: float = 0.0,
@@ -201,7 +203,8 @@ def sliding_window_inference(
     Places block centers on a regular grid with step
     $\text{block\_size} \cdot (1 - \text{overlap})$ and calls `predictor` once
     per non-empty block. Each point's predictions from all covering blocks are
-    accumulated with distance-based weights and divided by total weight.
+    combined by `aggregate`: a distance-weighted average (`"mean"`), the single
+    most confident prediction (`"max"`), or a count of hard votes (`"vote"`).
 
     With `overlap=0` and `mode="constant"`, each point lands in exactly one
     block and the weight division is a no-op.
@@ -237,7 +240,15 @@ def sliding_window_inference(
             map under `inverse_key`.
         softmax: If `True`, softmax each block's logits before accumulating.
             Use `True` when averaging predictions across multiple blocks or
-            TTA passes. Set `False` to accumulate raw logits.
+            TTA passes. Set `False` to accumulate raw logits. `"max"` and
+            `"vote"` aggregation always read confidences off the softmax.
+        aggregate: How the predictions of the blocks covering a point are
+            combined. `"mean"`: distance-weighted average of the (softmax)
+            predictions. `"max"`: winner-takes-all, each point keeps the
+            prediction of the block that is most confident about it (the
+            PVCNN / PointCNN scene merge). `"vote"`: each block casts one hard
+            vote (its argmax) per point and the output holds the weighted vote
+            fractions, so `argmax` is the majority label (the PointNet++ protocol).
         transform: Optional callable applied to each block's data dict before
             the predictor. The transform sees the whole block; if it changes the
             row count (pad, voxelize, ...) it must record a source-to-predictor
@@ -264,9 +275,11 @@ def sliding_window_inference(
         seed: RNG seed for sub-batch permutations when `roi_num_points` is set.
 
     Returns:
-        Per-point output tensor of shape $(N, C_\text{out})$, containing a
-        distance-weighted average of softmax probabilities when `softmax=True`
-        or of raw logits when `softmax=False`. An empty scene ($N = 0$) returns
+        Per-point output tensor of shape $(N, C_\text{out})$: with
+        `aggregate="mean"` a distance-weighted average of softmax probabilities
+        when `softmax=True` or of raw logits when `softmax=False`; with
+        `"max"` the most confident block's probabilities; with `"vote"` the
+        per-class vote fractions. An empty scene ($N = 0$) returns
         a $(0, 0)$ tensor: the predictor is never called, so the channel count
         cannot be inferred.
     """
@@ -280,6 +293,8 @@ def sliding_window_inference(
         raise ValueError(f"`overlap` must be in [0, 1), got {overlap}.")
     if mode not in ("constant", "gaussian"):
         raise ValueError(f"`mode` must be 'constant' or 'gaussian', got {mode!r}.")
+    if aggregate not in ("mean", "max", "vote"):
+        raise ValueError(f"`aggregate` must be 'mean', 'max' or 'vote', got {aggregate!r}.")
     if roi_num_points is not None and roi_num_points < 1:
         raise ValueError(f"`roi_num_points` must be >= 1 or None, got {roi_num_points}.")
     if padding < 0.0:
@@ -315,6 +330,7 @@ def sliding_window_inference(
 
         scores_b: Optional[Tensor] = None
         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
+        confidence_b = torch.full((n_b,), -1.0, device=device, dtype=torch.float32)
 
         for point_ids, w, bbox in tqdm(
             zip(point_groups, weight_groups, bbox_groups),
@@ -342,7 +358,7 @@ def sliding_window_inference(
                 logits = predictor(sub_window)
                 if window_preds is None:
                     window_preds = torch.zeros(n_window, int(logits.size(-1)), device=device, dtype=torch.float32)
-                preds = torch.softmax(logits, dim=-1) if softmax else logits
+                preds = torch.softmax(logits, dim=-1) if softmax or aggregate != "mean" else logits
                 window_preds[chunk_local] = preds.to(window_preds.dtype)
 
             if window_preds is None:
@@ -351,6 +367,20 @@ def sliding_window_inference(
             preds_at_block = window_preds if inverse_map is None else window_preds[inverse_map]
             if scores_b is None:
                 scores_b = torch.zeros(n_b, int(window_preds.size(-1)), device=device, dtype=torch.float32)
+
+            if aggregate == "max":
+                confidence, _ = preds_at_block.max(dim=-1)
+                better = confidence > confidence_b[point_ids]
+                scores_b[point_ids[better]] = preds_at_block[better]
+                confidence_b[point_ids[better]] = confidence[better]
+                weights_b[point_ids] = 1.0
+                continue
+
+            if aggregate == "vote":
+                preds_at_block = torch.nn.functional.one_hot(
+                    preds_at_block.argmax(dim=-1), num_classes=int(preds_at_block.size(-1))
+                ).to(scores_b.dtype)
+
             scores_b.index_add_(0, point_ids, preds_at_block * w.unsqueeze(-1))
             weights_b.index_add_(0, point_ids, w)
 
@@ -400,6 +430,7 @@ class SlidingWindowInferer(Inferer):
         sigma_scale: float = 0.125,
         roi_num_points: Optional[int] = None,
         softmax: bool = True,
+        aggregate: AggregateMode = "mean",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         dims: Optional[Sequence[int]] = None,
         padding: float = 0.0,
@@ -416,6 +447,7 @@ class SlidingWindowInferer(Inferer):
         self.sigma_scale = sigma_scale
         self.roi_num_points = roi_num_points
         self.softmax = softmax
+        self.aggregate = aggregate
         self.transform = transform
         self.dims = dims
         self.padding = padding
@@ -440,6 +472,7 @@ class SlidingWindowInferer(Inferer):
             sigma_scale=self.sigma_scale,
             roi_num_points=self.roi_num_points,
             softmax=self.softmax,
+            aggregate=self.aggregate,
             transform=self.transform,
             dims=self.dims,
             padding=self.padding,

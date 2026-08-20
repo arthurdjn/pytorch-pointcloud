@@ -38,6 +38,24 @@ def test_voxel_partition_uniform_voxels_average_to_their_own_x() -> None:
     assert torch.allclose(out.squeeze(-1).float(), data[DataKeys.POS][:, 0])
 
 
+def test_voxel_partition_reduce_sum_skips_the_count_division() -> None:
+    """`reduce="sum"` returns the plain accumulated predictions: a point in a voxel of $c_v$ points is picked
+    $K / c_v$ times, so its summed x-logit equals $K / c_v$ times its own x."""
+    voxel_size = 1.0
+    dense = _make_grid(4, 2, voxel_size)  # K = 4
+    sparse = torch.tensor([[2.0 * voxel_size + 0.1, 0.0, 0.0]])  # one lone point in a third voxel
+    pos = torch.cat([dense[DataKeys.POS], sparse])
+    data = {DataKeys.POS: pos, DataKeys.BATCH: torch.zeros(pos.size(0), dtype=torch.long)}
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS][:, :1].clone()
+
+    out = VoxelPartitionInferer(voxel_size=voxel_size, reduce="sum", seed=0)(data, predictor=predictor)
+    expected = pos[:, 0].clone()
+    expected[-1] *= 4.0  # the lone point sits in all K = 4 sub-clouds
+    assert torch.allclose(out.squeeze(-1).float(), expected)
+
+
 def test_voxel_partition_every_point_participates_at_least_once() -> None:
     """Cyclic indexing guarantees every original point lands in $\\geq 1$ sub-cloud."""
     data = _make_grid(n_per_voxel=3, n_voxels=4, voxel_size=1.0)
@@ -161,6 +179,8 @@ def test_voxel_partition_validates_args() -> None:
         VoxelPartitionInferer(voxel_size=0.0)
     with pytest.raises(ValueError, match="sub_batch_size"):
         VoxelPartitionInferer(voxel_size=1.0, sub_batch_size=0)
+    with pytest.raises(ValueError, match="reduce"):
+        VoxelPartitionInferer(voxel_size=1.0, reduce="max")  # type: ignore[arg-type]
 
 
 def test_voxel_partition_missing_pos_key_raises() -> None:

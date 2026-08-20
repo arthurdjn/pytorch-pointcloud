@@ -1,6 +1,6 @@
 r"""K-pass voxel-partition inferer with per-point scatter-back aggregation."""
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 import torch
 from torch import Tensor
@@ -38,6 +38,11 @@ class VoxelPartitionInferer(Inferer):
         sub_batch_size: Number of sub-clouds packed into one predictor call via `collate`.
             `>1` amortises FPS / radius costs on the GPU.
         softmax: If `True`, softmax each predictor output before scatter-summing.
+        reduce: `"mean"` divides each point's accumulated predictions by the number of sub-clouds it
+            appeared in; `"sum"` returns the plain sum. The argmax is the same within one call, but under
+            `TTAInferer` the counts differ between views (each view is partitioned on its own augmented
+            positions), so `"sum"` reproduces the reference protocols that add un-normalised probabilities
+            over views and fragments.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
         seed: Optional RNG seed for the per-pass index shuffle.
@@ -57,6 +62,7 @@ class VoxelPartitionInferer(Inferer):
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         sub_batch_size: int = 1,
         softmax: bool = False,
+        reduce: Literal["mean", "sum"] = "mean",
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
         seed: Optional[int] = None,
@@ -65,10 +71,14 @@ class VoxelPartitionInferer(Inferer):
             raise ValueError(f"`voxel_size` must be > 0, got {voxel_size}.")
         if sub_batch_size < 1:
             raise ValueError(f"`sub_batch_size` must be >= 1, got {sub_batch_size}.")
+        if reduce not in ("mean", "sum"):
+            raise ValueError(f"`reduce` must be 'mean' or 'sum', got {reduce!r}.")
+
         self.voxel_size = voxel_size
         self.transform = transform
         self.sub_batch_size = sub_batch_size
         self.softmax = softmax
+        self.reduce = reduce
         self.pos_key = pos_key
         self.batch_key = batch_key
         self.seed = seed
@@ -121,16 +131,19 @@ class VoxelPartitionInferer(Inferer):
                                 f"{int(sample[self.pos_key].size(0))} rows. Use `SlidingWindowInferer` with "
                                 "`inverse_key` for row-altering transforms."
                             )
+
                 packed = collate(samples, batch_from=self.pos_key, batch_key=self.batch_key)
                 packed_orig = idx_b[torch.cat(chunk)]
 
                 logits = predictor(packed)
                 if self.softmax:
                     logits = torch.softmax(logits, dim=-1)
+
                 if logits_sum is None:
                     out_dtype = logits.dtype
                     logits_sum = torch.zeros(n, int(logits.size(-1)), dtype=torch.float64, device=logits.device)
                     counts = torch.zeros(n, dtype=torch.long, device=logits.device)
+
                 assert counts is not None
                 packed_orig = packed_orig.to(logits.device)
                 logits_sum.index_add_(0, packed_orig, logits.double())
@@ -138,4 +151,6 @@ class VoxelPartitionInferer(Inferer):
 
         if logits_sum is None or counts is None or out_dtype is None:
             return pos.new_zeros((0, 0))
+        if self.reduce == "sum":
+            return logits_sum.to(out_dtype)
         return (logits_sum / counts.clamp_min(1).unsqueeze(-1)).to(out_dtype)

@@ -93,6 +93,7 @@ __all__ = [
     "OneHot",
     "OnesLike",
     "PolarMix",
+    "Quantize",
     "RandomColorAutoContrast",
     "RandomColorDrop",
     "RandomColorGrayScale",
@@ -1984,6 +1985,53 @@ class Voxelize(DictTransform):
             prior = data.get(self.dst_inverse_key)
             data[self.dst_inverse_key] = cluster if prior is None else cluster[prior]
 
+        return data
+
+
+class Quantize(DictTransform):
+    r"""Integer voxel-grid coordinates of every point, keeping the cloud at full resolution.
+
+    Stores $\lfloor p / s \rfloor$ (shifted so the per-axis minimum is $0$) for each point of `keys` under
+    `dst_keys`. Unlike `Voxelize`, no reduction happens: points sharing a voxel keep their own rows and get equal
+    coordinates. This is how a voxel-partition evaluation feeds sparse models with every raw point (each
+    sub-cloud holds one point per voxel, so its rows are exactly the voxels), and how test-time views recompute
+    grid coordinates after rotating or scaling the positions.
+
+    Args:
+        keys: Keys holding point positions of shape $(N, D)$.
+        size: Voxel side length in the units of the positions.
+        dst_keys: Keys under which the grid coordinates are stored. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, missing keys are skipped.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import Quantize
+
+        transform = Quantize(keys="pos", size=0.02, dst_keys="pos_grid")
+        data = transform({"pos": torch.tensor([[0.0, 0.0, 0.0], [0.03, 0.0, 0.0], [0.05, 0.0, 0.0]])})
+        data["pos_grid"]  # tensor([[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        size: float,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if size <= 0.0:
+            raise ValueError(f"`size` must be > 0, got {size}.")
+
+        self.size = size
+        self.dst_keys = ensure_tuple_size(dst_keys, len(self.keys)) if dst_keys is not None else self.keys
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = F.quantize(data[key], self.size)
         return data
 
 

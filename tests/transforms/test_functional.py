@@ -879,6 +879,30 @@ def test_axis_min_offset_preserves_dtype() -> None:
     assert out.dtype == torch.float64
 
 
+def test_quantize_grid_coordinates() -> None:
+    pos = torch.tensor([[-0.05, 0.0, 0.0], [0.03, 0.0, 0.0], [0.05, 0.02, 0.0], [0.031, 0.0, 0.0]])
+    out = F.quantize(pos, size=0.02)
+    assert out.dtype == torch.long
+    assert out.shape == pos.shape
+    assert torch.equal(out, torch.tensor([[0, 0, 0], [4, 0, 0], [5, 1, 0], [4, 0, 0]]))
+
+
+def test_quantize_matches_voxelize_grid_representatives() -> None:
+    """Every kept voxel representative of `Voxelize(pos_reduce="grid")` carries the coordinates `quantize` gives it."""
+    from torch_pointcloud.transforms import Voxelize
+
+    pos = torch.rand(200, 3) * 2.0 - 1.0
+    grid = F.quantize(pos, size=0.1)
+    voxelized = Voxelize(pos_key="pos", pos_reduce="grid", size=0.1, dst_inverse_key="inverse")({"pos": pos})
+    assert torch.equal(voxelized["pos"][voxelized["inverse"]], grid)
+
+
+def test_quantize_empty_and_invalid_size() -> None:
+    assert F.quantize(torch.empty(0, 3), size=0.1).shape == (0, 3)
+    with pytest.raises(ValueError, match="size"):
+        F.quantize(torch.zeros(2, 3), size=0.0)
+
+
 def test_axis_min_offset_empty() -> None:
     x = torch.empty(0, 3)
     out = F.axis_min_offset(x, axis=2)
