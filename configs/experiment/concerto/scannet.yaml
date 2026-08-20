@@ -3,9 +3,9 @@
 # Train: uv run --no-sync python train.py experiment=concerto/scannet
 # Benchmark: uv run --no-sync python test.py experiment=concerto/scannet
 #
-# | model.name                            | reference (mIoU) |
-# | ------------------------------------- | ---------------- |
-# | concerto-large-lp.scannet20.pointcept | 0.775            |
+# | model.name                            | mIoU   | reference |
+# | ------------------------------------- | ------ | --------- |
+# | concerto-large-lp.scannet20.pointcept | 0.7859 | 0.775     |
 
 defaults:
   - override /datamodule: scannet

@@ -3,9 +3,9 @@
 # Train: uv run --no-sync python train.py experiment=point_transformer_v3/scannet200
 # Benchmark: uv run --no-sync python test.py experiment=point_transformer_v3/scannet200
 #
-# | model.name                     | reference (mIoU) |
-# | ------------------------------ | ---------------- |
-# | ptv3-base.scannet200.pointcept | 0.353            |
+# | model.name                     | mIoU   | reference |
+# | ------------------------------ | ------ | --------- |
+# | ptv3-base.scannet200.pointcept | 0.3376 | 0.353     |
 
 defaults:
   - override /datamodule: scannet200

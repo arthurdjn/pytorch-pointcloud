@@ -3,9 +3,9 @@
 # Train: uv run --no-sync python train.py experiment=sonata/scannet
 # Benchmark: uv run --no-sync python test.py experiment=sonata/scannet
 #
-# | model.name               | reference (mIoU) |
-# | ------------------------ | ---------------- |
-# | sonata-lp.scannet20.fair | 0.725            |
+# | model.name               | mIoU   | reference |
+# | ------------------------ | ------ | --------- |
+# | sonata-lp.scannet20.fair | 0.7260 | 0.725     |
 
 defaults:
   - override /datamodule: scannet
