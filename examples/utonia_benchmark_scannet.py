@@ -1,15 +1,7 @@
 """Benchmark Utonia on ScanNet.
 
-For the linear-probe segmentation variant (`utonia-lp.scannet20.pointcept`), reports mIoU
-+ OA + latency on ScanNet20 val. For the encoder-only variant (`utonia.pretrain.pointcept`), only
-latency / throughput is reported (no head, no labels). Utonia's forward takes
-real-valued positions (`pos`) for 3D RoPE in addition to integer grid coords.
-
-Single-forward, voxel-level mIoU on ScanNet20 val (published numbers add test-time augmentation and
-full-resolution per-point evaluation):
-
-| Model               | Here                  |
-| ------------------- | --------------------- |
+| Model                         | Pytorch PointCloud    |
+| ----------------------------- | --------------------- |
 | utonia-lp.scannet20.pointcept | 71.12 mIoU / 89.05 OA |
 
 Usage:
