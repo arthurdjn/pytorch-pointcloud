@@ -124,14 +124,29 @@ class SparseGroupNorm(nn.GroupNorm):
     """
 
     def forward(self, x: Tensor, offsets: Tensor) -> Tensor:  # type: ignore[override]
-        out = torch.empty_like(x)
-        for b in range(offsets.numel() - 1):
-            start, end = int(offsets[b]), int(offsets[b + 1])
-            if end > start:
-                feat = x[start:end].transpose(0, 1).reshape(1, self.num_channels, -1)
-                feat = super().forward(feat)
-                out[start:end] = feat.reshape(self.num_channels, -1).transpose(0, 1)
-        return out
+        # Single scatter pass: normalizing each grid with its own group_norm call costs B kernel launches
+        # plus host syncs per forward, and this norm sits in every sparse block of the VAE / UNet.
+        counts = offsets.diff().to(x.device)
+        batch = torch.repeat_interleave(torch.arange(counts.numel(), device=x.device), counts)
+        # Statistics in float32 for reduced-precision inputs, matching the native group_norm kernels.
+        dtype = x.dtype if x.dtype in (torch.float32, torch.float64) else torch.float32
+        group_size = self.num_channels // self.num_groups
+        values = x.view(x.shape[0], self.num_groups, group_size).to(dtype)
+        # Empty grids have no voxels to normalize; the clamp keeps their (unused) statistics finite.
+        denom = (counts * group_size).clamp(min=1).to(dtype).unsqueeze(1)
+        mean = torch.zeros(counts.numel(), self.num_groups, dtype=dtype, device=x.device)
+        mean.index_add_(0, batch, values.sum(dim=-1))
+        mean = mean / denom
+        centered = values - mean.index_select(0, batch).unsqueeze(-1)
+        var = torch.zeros_like(mean)
+        var.index_add_(0, batch, centered.square().sum(dim=-1))
+        var = var / denom
+        out = centered * (var.index_select(0, batch).unsqueeze(-1) + self.eps).rsqrt()
+        out = out.reshape(x.shape[0], self.num_channels)
+        if self.affine:
+            out = out * self.weight.to(dtype) + self.bias.to(dtype)
+
+        return out.to(x.dtype)
 
 
 def create_sparse_norm(norm: Union[str, Callable], channels: int, **norm_kwargs: Any) -> nn.Module:
