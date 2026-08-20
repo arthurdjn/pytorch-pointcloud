@@ -1,4 +1,5 @@
 import importlib
+import sys
 from functools import lru_cache, partial
 from importlib import import_module
 from importlib.util import find_spec
@@ -190,6 +191,11 @@ class _LazyImportProxy:
         return (target,)
 
     def __instancecheck__(self, instance: Any) -> bool:
+        # If the dependency was never imported, no instance of its classes can exist, so answer without
+        # importing: forcing the import here can initialize CUDA inside forked dataloader workers.
+        if self._target is _UNRESOLVED and self._module_path.split(".")[0] not in sys.modules:
+            return False
+
         target = self._resolve()
         assert isinstance(target, type), f"'{self._module_path}.{self._name}' is not a class"
         return isinstance(instance, target)
