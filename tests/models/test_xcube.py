@@ -3,6 +3,7 @@ import torch
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.xcube import (
+    SparseGroupNorm,
     XCubeDiffusion,
     XCubeVAE,
     _cached_submanifold_plan,
@@ -31,6 +32,48 @@ def test_timestep_encoding_shape() -> None:
     assert emb.shape == (3, 64)
     assert torch.allclose(emb[0, :32], torch.ones(32))
     assert torch.allclose(emb[0, 32:], torch.zeros(32))
+
+
+@pytest.mark.parametrize(
+    ("dtype", "rtol", "atol"),
+    [
+        pytest.param(torch.float64, 1e-12, 1e-12, id="float64"),
+        pytest.param(torch.float32, 1e-5, 1e-6, id="float32"),
+        pytest.param(torch.float16, 1e-2, 1e-3, id="float16"),
+        pytest.param(torch.bfloat16, 2e-2, 1e-2, id="bfloat16"),
+    ],
+)
+@pytest.mark.parametrize(
+    "counts",
+    [
+        pytest.param((5, 3), id="two-grids"),
+        pytest.param((7,), id="single-grid"),
+        pytest.param((0, 6, 0, 3), id="empty-grids"),
+        pytest.param((0,), id="all-empty"),
+    ],
+)
+def test_sparse_group_norm_matches_per_grid_group_norm(
+    counts: tuple[int, ...], dtype: torch.dtype, rtol: float, atol: float
+) -> None:
+    torch.manual_seed(0)
+    module = SparseGroupNorm(num_groups=4, num_channels=8).to(dtype)
+    torch.nn.init.normal_(module.weight)
+    torch.nn.init.normal_(module.bias)
+    offsets = torch.tensor((0,) + counts).cumsum(0)
+    x = torch.randn(int(offsets[-1]), 8, dtype=dtype) * 3 + 1
+
+    out = module(x, offsets)
+    assert out.shape == x.shape
+    assert out.dtype == dtype
+
+    for b, count in enumerate(counts):
+        if count == 0:
+            continue
+
+        start, end = int(offsets[b]), int(offsets[b + 1])
+        part = x[start:end].transpose(0, 1).reshape(1, 8, -1)
+        ref = torch.nn.functional.group_norm(part, 4, module.weight, module.bias, module.eps)
+        assert torch.allclose(out[start:end], ref.reshape(8, -1).transpose(0, 1), rtol=rtol, atol=atol)
 
 
 def test_xcube_registered_variants() -> None:
