@@ -1,12 +1,9 @@
 """Evaluate the Point-M2AE ShapeNetPart part-segmentation model (single-pass, no voting).
 
-`ShapeNetPart` -> `DataLoader` -> model -> argmax -> per-shape IoU averaged into instance / class mIoU.
-The registered transform normalizes each cloud to the unit sphere and one-hot encodes the category.
-
 Results vs reference (instance mIoU / class mIoU; paper Tab. 5):
 
-    | Variant                      | reference     | torch-pointcloud |
-    | ---------------------------- | ------------- | ---------------- |
+    | Variant                                   | reference     | torch-pointcloud |
+    | ----------------------------------------- | ------------- | ---------------- |
     | point-m2ae-base.shapenetpart.renrui-zhang | 86.51 / 84.86 | 86.17 / 84.60    |
 
 Usage:

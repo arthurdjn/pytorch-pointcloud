@@ -1,21 +1,7 @@
 """Benchmark SpUNet on ScanNet: whole-scene forward vs. grid sliding-window.
 
-Runs the *same* pretrained SpUNet and the *same* full-resolution scoring twice
-per scene: once with a single whole-scene forward (the existing baseline), once
-through `SlidingWindowInferer` (non-overlapping spatial-block tiling, no TTA).
-It prints both mIoU/oA plus the delta.
-
-Why this is a correctness check, not a "make it better" knob: a
-non-overlapping sliding window exists for *memory*, not accuracy. Tiling drops
-cross-block context at seams, so without overlap/TTA the grid-SW result should
-land at parity with the whole-scene baseline (a small dip is normal; a large
-divergence means the tiling/scatter-back is buggy). A genuine boost only
-appears with multi-offset voting (wrap the inferer in `TTAInferer`), which this
-script deliberately does not use.
-
-SpUNet is the appropriate model here: it has registered pretrained ScanNet
-weights and ships an eval transform with voxelization + the raw -> voxel
-CLUSTER map, so both paths are directly comparable.
+NOTE: a non-overlapping sliding window exists for memory, not accuracy: grid-SW should land at parity with
+the whole-scene baseline (a small dip is normal; a large divergence means the tiling/scatter-back is buggy).
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_scannet_sw.py --limit 5

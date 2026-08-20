@@ -1,17 +1,13 @@
 """Benchmark SphereFormer on the 19-class SemanticKITTI val split.
 
-The pretrained `sphereformer.semantickitti` checkpoint comes from the official release
-(:github: [dvlab-research/SphereFormer](https://github.com/dvlab-research/SphereFormer), 67.8 val mIoU).
-The registered eval pipeline voxelises the cloud to $5\\,\\text{cm}$, runs the sparse-conv UNet with cubic +
-radial windowed attention, then back-projects per-voxel predictions to full resolution via the stored inverse
-map, so the reported mIoU is the full-resolution number.
+NOTE: the released weights are no longer downloadable (dvlab issue #78), so no measured number is reported;
+the ported architecture is bit-exact to the reference sptr build (2.4e-7).
 
 Results vs reference:
 
-    | Source               | SemanticKITTI val mIoU                                                    |
-    | -------------------- | ------------------------------------------------------------------------- |
-    | SphereFormer (paper) | 67.8                                                                      |
-    | torch-pointcloud     | not run (weights gone, dvlab issue #78); arch bit-exact to sptr (2.4e-7)  |
+    | Source               | SemanticKITTI val mIoU |
+    | -------------------- | ---------------------- |
+    | SphereFormer (paper) | 67.8                   |
 
 Usage:
     CUDA_VISIBLE_DEVICES=0 uv run --no-sync python examples/sphereformer_benchmark_semantickitti.py --limit 5

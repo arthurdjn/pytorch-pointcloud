@@ -1,9 +1,6 @@
 r"""Evaluate 3DETR on SUN RGB-D val with mAP@0.25 / mAP@0.5.
 
-The whole benchmark is `create_model` -> `model` -> `model.decode` -> `mean_average_precision3d`: the
-`SunRGBD` dataset reconstructs the upright cloud and oriented boxes, the registered transform samples to
-20k points (3DETR's eval preprocessing), the model decodes oriented boxes (per-class 3D NMS), and the AP
-is the dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
+Results vs reference (SUN RGB-D val):
 
 | Model                | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
 | -------------------- | ------------------------------ | ------------------------- |

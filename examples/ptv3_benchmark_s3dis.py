@@ -1,12 +1,8 @@
 """Benchmark Point Transformer V3 semantic segmentation on S3DIS Area-5.
 
-The released `s3dis-semseg-pt-v3m1-0-rpe` weights were trained on mesh-derived normals, which the S3DIS
-point-cloud download does not include. The registered transform estimates normals by local PCA
-(`EstimateNormals`, `orient_to_centroid=True`), so Area-5 mIoU here (~32.1 / OA ~68.6, single forward) is well
-below the paper's 73.6 (mesh normals + TTA).
-
-RPE attention materialises the per-patch relative-position bias, so the largest rooms can exhaust GPU memory
-and are skipped (`test/skipped_rooms`); run with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` to fit more.
+NOTE: the released weights were trained on mesh-derived normals the S3DIS download lacks; with PCA-estimated
+normals, Area-5 mIoU here is ~32.1 / OA ~68.6 (single forward) vs the paper's 73.6 (mesh normals + TTA).
+NOTE: RPE attention can exhaust GPU memory on the largest rooms, which are skipped (`test/skipped_rooms`).
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_s3dis.py --limit 5

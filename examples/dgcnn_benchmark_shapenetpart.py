@@ -1,12 +1,9 @@
 """Evaluate the DGCNN ShapeNetPart part-segmentation model (single-pass, no voting).
 
-`ShapeNetPart` -> `DataLoader` -> model -> argmax -> per-shape IoU averaged into instance / class mIoU.
-The registered transform normalizes each cloud to the unit sphere and one-hot encodes the category.
+Results vs reference (instance mIoU):
 
-Results vs reference (instance mIoU; the antao97 repo publishes no class mIoU):
-
-    | Variant                  | reference | torch-pointcloud  |
-    | ------------------------ | --------- | ----------------- |
+    | Variant                   | reference | torch-pointcloud  |
+    | ------------------------- | --------- | ----------------- |
     | dgcnn.shapenetpart.an-tao | 85.2      | 85.23 (cls 80.92) |
 
 Usage:

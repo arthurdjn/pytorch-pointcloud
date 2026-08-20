@@ -1,35 +1,11 @@
 """Benchmark OneFormer3D semantic and instance segmentation on ScanNet val.
 
-OneFormer3D predicts over superpoints (offline Felzenszwalb mesh segmentation),
-not over points or voxels directly. The released ScanNet model therefore needs
-the per-point superpoint ids that ship with raw ScanNet as
-`scans/<scene>/<scene>_vh_clean_2.0.010000.segs.json`. This script streams the
-processed val scenes one at a time (constant memory), loads those superpoints,
-runs one forward per scene, maps the per-superpoint semantic logits back to points
-with `predict_semantic`, and scores point-level mIoU against the raw ScanNet20
-labels (ignore index $-1$), matching the official protocol.
-
-The processed ScanNet vertices keep the mesh vertex order, so `segIndices`
-aligns 1:1 with the loaded points.
-
-The instance path decodes the same forward with `predict_instance` (top-600 query-class
-pairs, matrix NMS, superpoint-score and point-count thresholds), maps the superpoint
-masks back to points, and scores mask mAP over the 18 instance classes with
-`instance_matches` / `instance_average_precision`, the standard indoor protocol:
-greedy mask-IoU matching per class, AP averaged over thresholds 0.5:0.05:0.9 plus
-AP@50 / AP@25, instances under 100 points ignored. Ground truth follows the official
-mapping: wall, floor and unannotated points are void, and a point belongs to an
-instance only if it has both an instance id and an instance-class label.
-
 Results (ScanNet val):
 
-    | Source              | mIoU | mAP  | mAP@50 | mAP@25 |
-    | ------------------- | ---- | ---- | ------ | ------ |
-    | OneFormer3D (paper) | 76.4 | 59.3 | 78.8   | 86.7   |
-    | torch-pointcloud    | 76.5 | TBD  | TBD    | TBD    |
-
-The 76.5 mIoU was measured with the semantic-only protocol below (unchanged); the
-instance mAP columns are pending a GPU run.
+    | Source              | mIoU |
+    | ------------------- | ---- |
+    | OneFormer3D (paper) | 76.4 |
+    | torch-pointcloud    | 76.5 |
 
 Usage:
     uv run --no-sync python examples/oneformer3d_benchmark_scannet.py --limit 20

@@ -1,9 +1,5 @@
 r"""Evaluate `pointnet2.s3dis-area5.openpoints` on S3DIS via the voxel-partition test protocol.
 
-The protocol partitions each room into FNV voxel buckets and runs the model on $K = \max_v c_v$
-sub-clouds; per-sub-cloud logits are scatter-summed to original-point indices. See
-`VoxelPartitionInferer` for the full description.
-
 | Model                              | This script             | Reference  |
 | ---------------------------------- | ----------------------- | ---------- |
 | `pointnet2.s3dis-area5.openpoints` | 63.59% mIoU / 88.23% OA | 63.6% mIoU |

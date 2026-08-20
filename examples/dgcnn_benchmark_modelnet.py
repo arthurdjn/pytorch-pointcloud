@@ -1,19 +1,11 @@
 """Evaluate the DGCNN ModelNet40 classifiers (single-pass, no voting).
 
-`ModelNet40Hdf5` -> `DataLoader` -> model -> argmax -> overall accuracy, following the reference
-protocol: take the first $N$ points of each pre-shuffled 2048-point HDF5 cloud (no FPS), where $N$ is
-the checkpoint's point count.
+Results vs reference (ModelNet40 overall accuracy):
 
-Results vs reference (ModelNet40 overall accuracy; antao97 repo eval of the released checkpoints):
-
-    | Variant                      | reference | torch-pointcloud            |
-    | ---------------------------- | --------- | --------------------------- |
-    | dgcnn.modelnet40-1024.an-tao | 93.3      | 92.34 (pre-fix, re-measure) |
-    | dgcnn.modelnet40-2048.an-tao | 93.6      | 92.46 (pre-fix, re-measure) |
-
-The torch-pointcloud numbers were measured before this script switched to the reference protocol
-(FPS on the normal-resampled dataset, about a point below the reference for that reason);
-re-measurement on the HDF5 first-$N$ protocol is pending.
+    | Variant                      | reference |
+    | ---------------------------- | --------- |
+    | dgcnn.modelnet40-1024.an-tao | 93.3      |
+    | dgcnn.modelnet40-2048.an-tao | 93.6      |
 
 Usage:
     uv run --no-sync python examples/dgcnn_benchmark_modelnet.py --model dgcnn.modelnet40-1024.an-tao

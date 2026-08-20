@@ -1,19 +1,16 @@
 """Evaluate the KP-FCNN S3DIS semantic-segmentation models on Area 5.
 
-`S3DIS` rooms -> `DataLoader` -> model -> argmax -> confusion matrix, single pass per room with metrics
-computed on the grid-subsampled points produced by the model transform.
+NOTE: the reference protocol accumulates votes over repeated potential-sampled sphere crops at full
+resolution; this single-pass whole-room eval lands 1-2 points below it.
 
-Results vs reference (Area-5 mIoU; reference is the HuguesTHOMAS pretrained-models guide):
+Results vs reference (Area-5 mIoU):
 
-    | Variant                     | reference | torch-pointcloud |
-    | --------------------------- | --------- | ---------------- |
+    | Variant                                   | reference | torch-pointcloud |
+    | ----------------------------------------- | --------- | ---------------- |
     | kpfcnn-base.s3dis.hugues-thomas           | 66.4      | 65.64            |
     | kpfcnn-base-sm.s3dis.hugues-thomas        | 65.4      | 63.92            |
     | kpfcnn-base-deform.s3dis.hugues-thomas    | 67.3      | 65.66            |
     | kpfcnn-base-sm-deform.s3dis.hugues-thomas | 66.7      | 64.47            |
-
-The guide's protocol accumulates votes over repeated potential-sampled sphere crops at full resolution;
-this single-pass whole-room eval lands 1-2 points below it.
 
 Usage:
     uv run --no-sync python examples/kpconv_benchmark_s3dis.py --model kpfcnn-base.s3dis.hugues-thomas

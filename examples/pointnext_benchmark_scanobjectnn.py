@@ -1,7 +1,7 @@
 """Evaluate the PointNeXt ScanObjectNN (PB_T50_RS) classifier (single-pass, no voting).
 
 | Variant                              | reference | torch-pointcloud |
-| ------------------------------------ | --------- | -----------------|
+| ------------------------------------ | --------- | ---------------- |
 | pointnext-sm.scanobjectnn.openpoints | 88.20     | 87.51            |
 
 Usage:

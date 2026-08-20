@@ -1,21 +1,13 @@
 """Benchmark SpUNet (SparseUNet) semantic segmentation on ScanNet.
 
-Evaluates at full point resolution: voxel-level logits are broadcast back to
-all raw points via the inverse cluster mapping.
+NOTE: the reference is the checkpoint's 2023 training log; on currently processed ScanNet data it scores
+71.81 in Pointcept's own pipeline, which also votes over multiple fragments vs this script's single pass.
 
 Results (ScanNet val, full resolution, single pass):
 
-    | Variant               | reference | torch-pointcloud |
-    | --------------------- | --------- | ---------------- |
+    | Variant                         | reference | torch-pointcloud |
+    | ------------------------------- | --------- | ---------------- |
     | spunet-v1m1.scannet20.pointcept | 75.67     | 69.87            |
-
-The reference is the checkpoint's 2023 training log (75.5 in the MSC paper). On currently processed
-ScanNet data the same checkpoint scores 71.81 in Pointcept's own pipeline, whose test protocol also
-votes over multiple fragments rather than this script's single pass.
-
-The eval pipeline keeps the deterministic first point per voxel. Pointcept's own protocols instead
-sample a random point (train-mode `GridSample`) or cover all points in fragments (test protocol);
-measured across random draws, the representative choice moves mIoU by less than $0.2$.
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_scannet.py --limit 5

@@ -1,31 +1,8 @@
 """Reproduce Pointcept's SpUNet / ScanNet test recipe exactly (`SemSegTester`).
 
-Faithful port of `configs/scannet/semseg-spunet-v1m1-0-base.py` `test_cfg` plus
-`pointcept/engines/test.py::SemSegTester` and `transform.py::GridSample`:
-
-- pre (once/scene, raw): `CenterShift(apply_z=True)` + `NormalizeColor` (/255).
-  Implemented by the registered eval pipeline's leading `Shift, Shift, Divide`.
-- **13 aug views**: 4 z-rotations {0, 90, 180, 270} deg, each at scale
-  {1.0, 0.95, 1.05} (12) + 1 flip. Rotation/flip transform `pos` AND `normal`
-  (a direction must rotate with the geometry); scale transforms `pos` only.
-- **`GridSample(mode="test")`**: for each view, the scene is split into
-  `count.max()` fragments where fragment `i` takes point `i % count` of every
-  voxel, so **every raw point is a voxel representative in some fragment** and
-  is fed to SpUNet with *its own* color/normal. This is the part a single
-  `Voxelize(reduce="first")` + broadcast omits (it costs ~3 mIoU).
-- Per fragment: `pred[index] += softmax(model(feat, grid_coord, batch))` into a
-  raw-resolution `(N_raw, K)` buffer; final `argmax`; IoU with ignore_index=-1.
-  No `SimpleInferer`/`TTAInferer`: re-voxelizing per view and accumulating at
-  raw resolution is outside their contracts (kept in the tester, as Pointcept
-  does).
-
-Equivalence already verified offline: the SpUNet model is bit-equivalent to
-Pointcept's SpUNetBase, and CenterShift / color /255 / voxelization / segment
-relabel match. The remaining piece reproduced here is the test-mode
-multi-fragment voting.
-
-Cost: 13 views x count.max() fragments forwards per scene (Pointcept's actual
-cost). Use --limit to sanity-check before the full val run.
+NOTE: 13 aug views x `count.max()` fragment forwards per scene (Pointcept's actual cost); the multi-fragment
+voting is what a single `Voxelize(reduce="first")` + broadcast omits (~3 mIoU). Use --limit to sanity-check
+before the full val run.
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_scannet_tta.py --limit 5 --download
