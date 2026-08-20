@@ -421,8 +421,24 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
-def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshold: float) -> Tensor:
-    """Greedy axis-aligned 3D NMS within a single scene; see `nms3d`."""
+def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshold: float, rotated: bool) -> Tensor:
+    """Greedy 3D NMS within a single scene; see `nms3d`."""
+    if rotated:
+        # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
+        iou_bev = boxes_iou_bev(boxes, boxes)
+        order = scores.argsort(descending=True)
+        keep = []
+
+        while order.numel() > 0:
+            i = order[0]
+            keep.append(i)
+            rest = order[1:]
+            suppress = iou_bev[i, rest] > iou_threshold
+            if labels is not None:
+                suppress = suppress & (labels[rest] == labels[i])
+            order = rest[~suppress]
+        return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+
     corners = box_corners(boxes)
     lo, hi = corners.amin(dim=1), corners.amax(dim=1)
     # Floor degenerate (zero-extent) sides so flat boxes still produce a nonzero self-overlap and
@@ -431,6 +447,7 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
     volume = (hi - lo).prod(dim=-1)
     order = scores.argsort(descending=True)
     keep = []
+
     while order.numel() > 0:
         i = order[0]
         keep.append(i)
@@ -443,6 +460,7 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
         if labels is not None:
             suppress = suppress & (labels[rest] == labels[i])
         order = rest[~suppress]
+
     return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
 
 
@@ -453,10 +471,14 @@ def nms3d(
     *,
     labels: OptTensor = None,
     batch: OptTensor = None,
+    rotated: bool = False,
 ) -> Tensor:
-    r"""Greedy axis-aligned 3D non-maximum suppression.
+    r"""Greedy 3D non-maximum suppression.
 
-    Keeps the highest-scoring box of each overlapping cluster. Pass `labels` to restrict suppression to
+    Keeps the highest-scoring box of each overlapping cluster. By default the suppression criterion is the
+    3D IoU of the boxes' axis-aligned bounding boxes (cheap corner min / max); with `rotated=True` it is
+    the exact rotated bird's-eye IoU of `boxes_iou_bev` (the KITTI outdoor protocol, where the axis-aligned
+    surrogate over-suppresses angled neighbors at low thresholds). Pass `labels` to restrict suppression to
     boxes of the same class, and `batch` (PyG-style per-box scene index) to run NMS independently per
     scene and return a single index tensor over the concatenated input. The heading is counter-clockwise
     about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
@@ -464,9 +486,10 @@ def nms3d(
     Args:
         boxes: Boxes $(N, 7)$ (see `box_corners`).
         scores: Per-box confidence, shape $(N,)$.
-        iou_threshold: Axis-aligned IoU above which a lower-scoring box is removed.
+        iou_threshold: IoU above which a lower-scoring box is removed.
         labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
         batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
+        rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
@@ -478,13 +501,14 @@ def nms3d(
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold)
+        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated)
 
     keep = []
     for b in torch.unique(batch):
         scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
         scene_labels = None if labels is None else labels[scene]
-        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold)])
+        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated)])
+
     return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
 
 
@@ -526,3 +550,60 @@ def count_points_in_boxes(
         half_box = torch.cat([boxes[k, :3], boxes[k, 3:6] / 2, boxes[k, 6:7]])
         counts[k] = int(F.points_in_oriented_box(scene_pos, half_box).sum())
     return counts
+
+
+def projected_ignore_mask(
+    boxes: Tensor,
+    calib: Tensor,
+    image_shape: Tensor,
+    *,
+    min_height: float = 25.0,
+) -> Tensor:
+    r"""Flag boxes whose image projection is shorter than `min_height` pixels (the KITTI difficulty rule).
+
+    Each box's 8 corners are projected through the $(3, 4)$ homogeneous LiDAR-to-image matrix (rows $0$
+    and $1$ divided by the perspective depth of row $2$), the vertical pixel coordinates are clipped to
+    the image rows $[0, \text{height} - 1]$, and a box is flagged when its clipped pixel height is
+    strictly below `min_height`. Only the vertical extent is used; the width entry of `image_shape` keeps
+    the dataset's $(\text{height}, \text{width})$ contract. The KITTI protocol excludes such predictions
+    from scoring (the prediction-side `ignore_mask` of `average_precision3d`), with `min_height` at
+    $40$ / $25$ / $25$ px for the easy / moderate / hard difficulties. For KITTI, compose the calib as
+    $P_2 \cdot [R_0 T_\text{velo}; 0\ 0\ 0\ 1]$ with the third row taken from $R_0 T_\text{velo}$, so the
+    perspective divide is by the rectified depth.
+
+    `calib` and `image_shape` broadcast on a leading box dimension: pass a single $(3, 4)$ / $(2,)$
+    frame for all boxes, or per-box $(N, 3, 4)$ / $(N, 2)$ rows (e.g. a stacked per-frame calib indexed
+    by the boxes' scene index) to score a multi-frame batch in one call.
+
+    Args:
+        boxes: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(N, 7)$.
+        calib: Homogeneous projection from LiDAR coordinates to image pixels, shape $(3, 4)$ or per-box
+            $(N, 3, 4)$.
+        image_shape: Image $(\text{height}, \text{width})$ in pixels, shape $(2,)$ or per-box $(N, 2)$.
+        min_height: Pixel height below which a box is flagged.
+
+    Returns:
+        Boolean ignore mask, shape $(N,)$.
+
+    Shape:
+        - boxes: $(N, 7)$
+        - calib: $(3, 4)$ or $(N, 3, 4)$
+        - image_shape: $(2,)$ or $(N, 2)$
+        - output: $(N,)$
+
+    Example:
+        >>> calib = torch.tensor([[50.0, -100.0, 0.0, 0.0], [50.0, 0.0, -100.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
+        >>> boxes = torch.tensor([[10.0, 0.0, 0.0, 2.0, 2.0, 1.0, 0.0]])
+        >>> projected_ignore_mask(boxes, calib, torch.tensor([100, 200]))
+        tensor([True])
+        >>> boxes = torch.tensor([[10.0, 0.0, 0.0, 2.0, 2.0, 1.0, 0.0], [2.0, 0.0, 0.0, 2.0, 2.0, 1.0, 0.0]])
+        >>> projected_ignore_mask(boxes, calib.expand(2, 3, 4), torch.tensor([[100, 200], [100, 200]]))
+        tensor([ True, False])
+    """
+    corners = box_corners(boxes)
+    hom = torch.cat([corners, corners.new_ones(corners.shape[:-1] + (1,))], dim=-1)
+    projected = hom @ calib.transpose(-1, -2)
+    y = projected[..., 1] / projected[..., 2]
+    max_row = (image_shape[..., 0].to(y.dtype) - 1)[..., None]
+    y = torch.minimum(y.clamp(min=0.0), max_row)
+    return y.amax(dim=-1) - y.amin(dim=-1) < min_height

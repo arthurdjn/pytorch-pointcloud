@@ -20,6 +20,17 @@ def test_collate_single_sample_preserves_tensors() -> None:
     assert torch.equal(out["batch"], torch.zeros(5, dtype=torch.long))
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA device")
+def test_collate_batch_index_follows_source_device() -> None:
+    """The synthesized `batch` (and `batch_<key>`) index lives on the device of the tensor it indexes, so
+    on-device sub-clouds (inferers collate fragments on the GPU) pack without a device mismatch."""
+    samples = [{"pos": torch.randn(3, 3, device="cuda")}, {"pos": torch.randn(2, 3, device="cuda")}]
+    out = collate(samples, cat_keys=["pos"])
+    assert out["batch"].device.type == "cuda"
+    assert out["batch_pos"].device.type == "cuda"
+    assert out["batch"].tolist() == [0, 0, 0, 1, 1]
+
+
 def test_collate_concats_matching_tails() -> None:
     samples = [
         {"pos": torch.randn(3, 3), "color": torch.randn(3, 3)},
