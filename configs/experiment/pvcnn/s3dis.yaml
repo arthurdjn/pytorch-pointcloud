@@ -1,15 +1,17 @@
 # @package _global_
-# PVCNN semantic segmentation on S3DIS Area 5 (per-block HDF5 protocol).
+# PVCNN semantic segmentation on S3DIS Area 5.
 # Train: uv run --no-sync python train.py experiment=pvcnn/s3dis
 # Benchmark: uv run --no-sync python test.py experiment=pvcnn/s3dis
 #
-# | model.name                    | mIoU   | accuracy |
-# | ----------------------------- | ------ | -------- |
-# | pvcnn.s3dis-area5.mit-han-lab | 0.3593 | 0.7654   |
+# | model.name                    | mIoU   | accuracy | reference       |
+# | ----------------------------- | ------ | -------- | --------------- |
+# | pvcnn.s3dis-area5.mit-han-lab | 0.5362 | 0.8507   | 0.5664 / 0.8647 |
+
 defaults:
   - override /datamodule: s3dis_hdf5
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: sliding_window
 
 trainer:
   max_epochs: 100
@@ -22,6 +24,44 @@ model:
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment
+  inferer:
+    block_size: 1.5
+    overlap: 0.5
+    dims: [0, 1]
+    padding: 0.0
+    roi_num_points: 4096
+    softmax: true
+    aggregate: max
+    inverse_key: inverse
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.BBoxCenter
+          keys: block_bbox
+          dst_keys: block_center
+        - _target_: torch_pointcloud.transforms.CopyItems
+          keys: pos
+          names: norm_pos
+        - _target_: torch_pointcloud.transforms.DivideKey
+          keys: norm_pos
+          div_keys: coord_max
+        - _target_: torch_pointcloud.transforms.SubtractKey
+          keys: pos
+          sub_keys: block_center
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.ToFloat
+          keys: color
+        - _target_: torch_pointcloud.transforms.Divide
+          keys: color
+          divisor: 255.0
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [pos, color, norm_pos]
+          dst_key: x
+          dim: 1
+        - _target_: torch_pointcloud.transforms.DivisiblePad
+          num_samples: 4096
+          pad_fill: random
+          dst_inverse_key: inverse
   criterion:
     _target_: torch.nn.CrossEntropyLoss
   optimizer:
@@ -31,7 +71,24 @@ model:
     weight_decay: 0.05
 
 datamodule:
+  # One whole room per eval batch: `coord_max` is a per-room (3,) tensor.
+  eval_batch_size: 1
   train_dataset:
     transform: null
   val_dataset:
     transform: null
+  test_dataset:
+    _target_: torch_pointcloud.datasets.S3DIS
+    root: ${paths.data_dir}
+    areas: [Area_5]
+    aligned: false
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+        - _target_: torch_pointcloud.transforms.Reduce
+          keys: pos
+          op: max
+          dst_keys: coord_max

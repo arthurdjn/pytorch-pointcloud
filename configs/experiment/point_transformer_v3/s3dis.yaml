@@ -2,11 +2,14 @@
 # Point Transformer V3 semantic segmentation on S3DIS Area 5.
 # Train: uv run --no-sync python train.py experiment=point_transformer_v3/s3dis
 # Benchmark: uv run --no-sync python test.py experiment=point_transformer_v3/s3dis
-# Measured: blocked (the largest val rooms OOM and the Lightning test loop cannot skip a room)
+#
+# NOTE: Normals are estimated by local PCA (no mesh normals in the release), so the paper 0.736 is not reproducible here.
+
 defaults:
   - override /datamodule: s3dis
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: tta_scales_flip
 
 trainer:
   max_epochs: 100
@@ -19,6 +22,20 @@ model:
   pretrained: false
   input_keys: [x, pos_grid, batch]
   target_key: segment
+  inferer:
+    base:
+      voxel_size: 0.02
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Cat
+            keys: [color, normal]
+            dst_key: x
+            dim: 1
+          - _target_: torch_pointcloud.transforms.Quantize
+            keys: pos
+            size: 0.02
+            dst_keys: pos_grid
   criterion:
     _target_: torch.nn.CrossEntropyLoss
   optimizer:
@@ -28,9 +45,32 @@ model:
     weight_decay: 0.05
 
 datamodule:
-  # Evaluation runs full-resolution scenes (no crop); more than one per batch exhausts a 24 GB GPU.
+  # Evaluation runs full-resolution rooms (no crop); more than one per batch exhausts a 24 GB GPU.
   eval_batch_size: 1
   train_dataset:
     transform: null
   val_dataset:
     transform: null
+
+  test_dataset:
+    _target_: torch_pointcloud.datasets.S3DIS
+    root: ${paths.data_dir}
+    areas: [Area_5]
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+          axes: [2]
+        - _target_: torch_pointcloud.transforms.Divide
+          keys: color
+          divisor: 255
+        - _target_: torch_pointcloud.transforms.EstimateNormals
+          keys: pos
+          normal_key: normal
+          orient_to_centroid: true

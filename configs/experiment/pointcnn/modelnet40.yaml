@@ -2,9 +2,7 @@
 # PointCNN classification on ModelNet40 (mesh-sampled); from-scratch recipe, no pretrained weights registered.
 # Train: uv run --no-sync python train.py experiment=pointcnn/modelnet40
 #
-# | model.name    | accuracy |
-# | ------------- | -------- |
-# | pointcnn-base | -        |
+
 defaults:
   - override /datamodule: modelnet40
   - override /model: classification

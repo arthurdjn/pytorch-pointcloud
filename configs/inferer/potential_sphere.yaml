@@ -1,0 +1,10 @@
+# @package model.inferer
+# Potential-driven sphere voting: radius-defined spheres centred where the coarse potential grid is lowest, softmax
+# EMA (`ema_smoothing`) into the points within `inner_ratio * radius`, until every cell reaches `num_votes`.
+
+_target_: torch_pointcloud.inferers.PotentialSphereInferer
+radius: ???
+num_votes: 10.0
+inner_ratio: 0.7
+ema_smoothing: 0.95
+sw_batch_size: 1

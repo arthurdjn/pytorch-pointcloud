@@ -1,0 +1,8 @@
+# KITTI 3D detection protocol with 40-point recall interpolation (R40): per-class AP at the official
+# IoU thresholds (Car @ 0.7, Pedestrian / Cyclist @ 0.5). Mount into the AP callback from a benchmark
+# experiment's defaults list: `- /metric@callbacks.val_ap.metric: kitti_r40`.
+
+_target_: torch_pointcloud.lightning.AveragePrecision3D
+iou_per_class: { 0: 0.7, 1: 0.5, 2: 0.5 }
+class_names: [Car, Pedestrian, Cyclist]
+interpolation: r40

@@ -2,9 +2,10 @@
 # Point-BERT classification on ScanObjectNN OBJ_BG (with background).
 # Benchmark: uv run --no-sync python test.py experiment=point_bert/scanobjectnn-objbg
 #
-# | model.name                         | accuracy |
-# | ---------------------------------- | -------- |
-# | point-bert-base.scanobjectnn-objbg.xumin-yu | 0.8744   |
+# | model.name                                  | accuracy | reference |
+# | ------------------------------------------- | -------- | --------- |
+# | point-bert-base.scanobjectnn-objbg.xumin-yu | 0.8744   | 0.8743    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

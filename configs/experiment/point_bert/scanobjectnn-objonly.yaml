@@ -2,10 +2,10 @@
 # Point-BERT classification on ScanObjectNN OBJ_ONLY (no background).
 # Benchmark: uv run --no-sync python test.py experiment=point_bert/scanobjectnn-objonly
 #
-# | model.name                           | accuracy |
-# | ------------------------------------ | -------- |
-# | point-bert-base.scanobjectnn-objonly.xumin-yu | 0.8812   |
-# (exact at precision=32-true datamodule.batch_size=16)
+# | model.name                                    | accuracy | reference |
+# | --------------------------------------------- | -------- | --------- |
+# | point-bert-base.scanobjectnn-objonly.xumin-yu | 0.8812   | 0.8812    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
@@ -20,6 +20,7 @@ model:
     _target_: torch.nn.CrossEntropyLoss
 
 datamodule:
+  eval_batch_size: 16
   train_dataset:
     background: false
     variant: null

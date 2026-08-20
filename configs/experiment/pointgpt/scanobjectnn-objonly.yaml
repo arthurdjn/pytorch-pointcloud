@@ -2,11 +2,12 @@
 # PointGPT classification on ScanObjectNN OBJ_ONLY (no background).
 # Benchmark: uv run --no-sync python test.py experiment=pointgpt/scanobjectnn-objonly
 #
-# | model.name                                | accuracy |
-# | ----------------------------------------- | -------- |
-# | pointgpt-s.scanobjectnn-objonly.guangyan-chen | 0.9071   |
-# | pointgpt-b.scanobjectnn-objonly.guangyan-chen | 0.9518   |
-# | pointgpt-l.scanobjectnn-objonly.guangyan-chen | 0.9690   |
+# | model.name                                    | accuracy | reference |
+# | --------------------------------------------- | -------- | --------- |
+# | pointgpt-s.scanobjectnn-objonly.guangyan-chen | 0.9071   | 0.900     |
+# | pointgpt-b.scanobjectnn-objonly.guangyan-chen | 0.9518   | 0.952     |
+# | pointgpt-l.scanobjectnn-objonly.guangyan-chen | 0.9690   | 0.966     |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

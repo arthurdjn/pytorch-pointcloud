@@ -2,10 +2,11 @@
 # Point-MAE classification on ModelNet40 (normal-resampled), single pass (no voting).
 # Benchmark: uv run --no-sync python test.py experiment=point_mae/modelnet40
 #
-# | model.name                   | accuracy |
-# | ---------------------------- | -------- |
-# | point-mae-base.modelnet40.yatian-pang    | 0.9283   |
-# | point-mae-base.modelnet40-8k.yatian-pang | 0.9335   |
+# | model.name                               | accuracy | reference |
+# | ---------------------------------------- | -------- | --------- |
+# | point-mae-base.modelnet40.yatian-pang    | 0.9287   | 0.9319    |
+# | point-mae-base.modelnet40-8k.yatian-pang | 0.9335   | 0.9404    |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification

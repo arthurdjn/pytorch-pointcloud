@@ -2,13 +2,19 @@
 # Point-M2AE part segmentation on ShapeNetPart.
 # Benchmark: uv run --no-sync python test.py experiment=point_m2ae/shapenetpart
 #
-# | model.name                   | ins_mIoU | cls_mIoU |
-# | ---------------------------- | -------- | -------- |
-# | point-m2ae-base.shapenetpart.renrui-zhang | 0.8617   | 0.8460   |
+# | model.name                                | ins_mIoU | cls_mIoU | reference       |
+# | ----------------------------------------- | -------- | -------- | --------------- |
+# | point-m2ae-base.shapenetpart.renrui-zhang | 0.8617   | 0.8460   | 0.8651 / 0.8486 |
+
 defaults:
   - override /datamodule: shapenetpart
   - override /model: segmentation
   - override /callbacks: part_segmentation
+
+callbacks:
+  val_ins_miou:
+    metric:
+      restrict_to_category: true
 
 model:
   name: point-m2ae-base.shapenetpart.renrui-zhang
