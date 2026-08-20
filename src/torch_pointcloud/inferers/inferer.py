@@ -31,13 +31,15 @@ class Inferer(metaclass=ABCMeta):
     Every concrete inferer exposes a knob controlling whether partial predictions are
     converted to softmax probabilities before aggregation. The defaults differ:
 
-    | Inferer                 | Parameter     | Default | Aggregated quantity                                          |
-    | ----------------------- | ------------- | ------- | ------------------------------------------------------------ |
-    | `SimpleInferer`         | `softmax`     | `False` | predictor output as-is                                       |
-    | `SlidingWindowInferer`  | `softmax`     | `True`  | softmax probabilities per block                              |
-    | `KNNWindowInferer`      | `softmax`     | `False` | raw logits (`"weighted_mean"`); always probabilities (`"ema"`) |
-    | `VoxelPartitionInferer` | `softmax`     | `False` | raw logits per pass                                          |
-    | `TTAInferer`            | `ema_softmax` | `True`  | base output as-is (`"mean"`); softmax of base output (`"ema"`) |
+    | Inferer                  | Parameter     | Default | Aggregated quantity                                          |
+    | ------------------------ | ------------- | ------- | ------------------------------------------------------------ |
+    | `SimpleInferer`          | `softmax`     | `False` | predictor output as-is                                       |
+    | `SlidingWindowInferer`   | `softmax`     | `True`  | softmax probabilities per block (`"max"` / `"vote"` always)  |
+    | `KNNWindowInferer`       | `softmax`     | `False` | raw logits (`"weighted_mean"`); always probabilities (`"ema"`) |
+    | `VoxelPartitionInferer`  | `softmax`     | `False` | raw logits per pass                                          |
+    | `PotentialSphereInferer` | none          |         | always an EMA of softmax probabilities                        |
+    | `TTAInferer`             | `ema_softmax` | `True`  | base output as-is (`"mean"`); softmax of base output (`"ema"`) |
+    | `PartRefinementInferer`  | none          |         | one-hot refined labels of the base output's argmax           |
 
     When the input scene is empty ($N = 0$), inferers that never call the predictor
     return a $(0, 0)$ tensor (the channel count cannot be inferred without a predictor

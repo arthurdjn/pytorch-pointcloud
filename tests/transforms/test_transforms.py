@@ -486,6 +486,19 @@ def test_axis_min_offset() -> None:
     assert result["h"][1].item() == 3.0
 
 
+def test_quantize() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [0.03, 0.0, 0.0], [0.05, 0.0, 0.0]])
+    data = {"pos": pos, "x": torch.randn(3, 2)}
+    result = T.Quantize(keys="pos", size=0.02, dst_keys="pos_grid")(data)
+
+    assert torch.equal(result["pos_grid"], torch.tensor([[0, 0, 0], [1, 0, 0], [2, 0, 0]]))
+    assert result["pos"] is pos
+    assert result["x"] is data["x"]
+
+    in_place = T.Quantize(keys="pos", size=0.02)(data)
+    assert torch.equal(in_place["pos"], result["pos_grid"])
+
+
 def test_cat() -> None:
     data = {
         "a": torch.ones(4, 2),
@@ -1614,3 +1627,14 @@ def test_slice_step() -> None:
     data = {"x": torch.arange(10)}
     out = T.Slice(keys="x", step=2)(data)
     assert out["x"].tolist() == [0, 2, 4, 6, 8]
+
+
+def mesh_scene(index: int) -> Dict[str, Any]:
+    g = torch.Generator().manual_seed(index)
+    return {
+        "pos": torch.randn(16, 3, generator=g),
+        "normal": torch.randn(16, 3, generator=g),
+        "face": torch.tensor([[0, 1, 2], [2, 3, 4]]),
+        "label": torch.tensor(index, dtype=torch.long),
+        "name": f"mesh_{index:04d}",
+    }

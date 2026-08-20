@@ -52,6 +52,23 @@ def test_tta_mean_of_identical_passes_equals_one_pass() -> None:
     assert torch.allclose(out_tta, out_base, atol=1e-5)
 
 
+def test_tta_include_identity_adds_a_clean_pass() -> None:
+    """`include_identity=True` prepends one un-augmented pass: with a deterministic flip view the mean is
+    the average of the clean and the flipped predictions, i.e. two passes."""
+    data = _toy_data(seed=3)
+    base = SimpleInferer()
+    predictor = _pos_logits(3)
+    flip = Compose([RandomFlip(keys=DataKeys.POS, axes=[0], p=1.0)])
+
+    out = TTAInferer(base=base, transforms=flip, num_passes=1, include_identity=True)(data, predictor=predictor)
+    clean = base(data, predictor=predictor)
+    flipped = base(flip(dict(data)), predictor=predictor)
+    assert torch.allclose(out, (clean + flipped) / 2.0)
+
+    out_seq = TTAInferer(base=base, transforms=[flip], include_identity=True)(data, predictor=predictor)
+    assert torch.allclose(out_seq, out)
+
+
 def test_tta_enumerated_sequence_uses_each_view_once() -> None:
     """With a sequence of Composes, `num_passes` is overridden by the sequence length and the aggregate
     equals the mean of the per-view predictions (each view is deterministic, so they can be replayed)."""
