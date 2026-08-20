@@ -7,6 +7,8 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.transforms import Voxelize
+from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
 
 @pytest.fixture
@@ -887,10 +889,9 @@ def test_quantize_grid_coordinates() -> None:
     assert torch.equal(out, torch.tensor([[0, 0, 0], [4, 0, 0], [5, 1, 0], [4, 0, 0]]))
 
 
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
 def test_quantize_matches_voxelize_grid_representatives() -> None:
     """Every kept voxel representative of `Voxelize(pos_reduce="grid")` carries the coordinates `quantize` gives it."""
-    from torch_pointcloud.transforms import Voxelize
-
     pos = torch.rand(200, 3) * 2.0 - 1.0
     grid = F.quantize(pos, size=0.1)
     voxelized = Voxelize(pos_key="pos", pos_reduce="grid", size=0.1, dst_inverse_key="inverse")({"pos": pos})

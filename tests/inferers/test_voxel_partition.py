@@ -45,7 +45,7 @@ def test_voxel_partition_reduce_sum_skips_the_count_division() -> None:
     dense = _make_grid(4, 2, voxel_size)  # K = 4
     sparse = torch.tensor([[2.0 * voxel_size + 0.1, 0.0, 0.0]])  # one lone point in a third voxel
     pos = torch.cat([dense[DataKeys.POS], sparse])
-    data = {DataKeys.POS: pos, DataKeys.BATCH: torch.zeros(pos.size(0), dtype=torch.long)}
+    data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: torch.zeros(pos.size(0), dtype=torch.long)}
 
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()

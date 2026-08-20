@@ -113,13 +113,13 @@ def test_potential_sphere_row_altering_transform_raises() -> None:
 
 
 def test_potential_sphere_empty_scene_returns_zero_by_zero() -> None:
-    data = {DataKeys.POS: torch.empty(0, 3), DataKeys.BATCH: torch.empty(0, dtype=torch.long)}
+    data: Dict[str, Any] = {DataKeys.POS: torch.empty(0, 3), DataKeys.BATCH: torch.empty(0, dtype=torch.long)}
     out = PotentialSphereInferer(radius=1.0)(data, predictor=_left_right_predictor)
     assert out.shape == (0, 0)
 
 
 def test_potential_sphere_validates_args() -> None:
-    data = {DataKeys.POS: torch.zeros(1, 3), DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}
+    data: Dict[str, Any] = {DataKeys.POS: torch.zeros(1, 3), DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}
     with pytest.raises(ValueError, match="radius"):
         potential_sphere_inference(data, predictor=_left_right_predictor, radius=0.0)
     with pytest.raises(ValueError, match="num_votes"):
