@@ -17,7 +17,6 @@ import numpy as np
 import scipy.io as sio
 import torch
 from PIL import Image
-from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.data import DataKeys
@@ -214,9 +213,10 @@ class SunRGBD(PointCloudDataset):
     The dataset reads the depth and RGB frames directly from the 6.8 GB `SUNRGBD.zip` release
     and the metadata from `SUNRGBDtoolbox.zip`, without extracting either archive wholesale.
     Each scene is processed into a `<processed_dir>/<split>/<sequence_id>/` directory holding one `.npy` per
-    attribute; `pos` is stored as float16 and `color` as uint8 to keep the cache compact.
+    attribute; `pos` is stored as float16 and `color` as uint8 to keep the cache compact. Construction only
+    enumerates the cached scene directories; each scene's arrays are read from disk on access.
     Cached boxes keep the on-disk $(K, 8)$ encoding (half extents, clockwise heading, trailing class
-    column) and the per-box classes stay in `class.npy`; `load` converts them to the emitted $(K, 7)$
+    column) and the per-box classes stay in `class.npy`; `__getitem__` converts them to the emitted $(K, 7)$
     `box` / $(K,)$ `label` format below, so existing caches stay valid.
 
     Args:
@@ -281,7 +281,7 @@ class SunRGBD(PointCloudDataset):
             self.download(force=force_download)
 
         self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
-        self.load(show_progress=show_progress)
+        self.load()
 
     @property
     def release_zip_path(self) -> str:
@@ -442,32 +442,25 @@ class SunRGBD(PointCloudDataset):
         colors: np.ndarray = rgb.reshape(-1, 3)[valid]
         return points, colors
 
-    def load(self, show_progress: bool = True) -> None:
-        self.data: List[Dict[str, Any]] = []
-        for scene_dir in tqdm(
-            self.processed_files,
-            total=len(self.processed_files),
-            desc="Loading",
-            disable=not show_progress,
-        ):
-            # The cache stores half extents, a clockwise heading, and per-box classes in `class.npy`;
-            # convert to the emitted format at load time so existing caches stay valid.
-            boxes = torch.from_numpy(np.load(Path(scene_dir, "box.npy")))
-            scene: Dict[str, Any] = {
-                DataKeys.POS: torch.from_numpy(np.load(Path(scene_dir, "pos.npy"))).float(),
-                DataKeys.COLOR: torch.from_numpy(np.load(Path(scene_dir, "color.npy"))),
-                DataKeys.BOX: torch.cat([boxes[:, :3], boxes[:, 3:6] * 2, -boxes[:, 6:7]], dim=1),
-                DataKeys.LABEL: torch.from_numpy(np.load(Path(scene_dir, "class.npy"))),
-            }
-            self.data.append(scene)
+    def load(self) -> None:
+        self.scenes: List[Path] = self.processed_files
 
     @override
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.scenes)
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        data = dict(self.data[index])
+        scene_dir = self.scenes[index]
+        # The cache stores half extents, a clockwise heading, and per-box classes in `class.npy`;
+        # convert to the emitted format on access so existing caches stay valid.
+        boxes = torch.from_numpy(np.load(Path(scene_dir, "box.npy")))
+        data: Dict[str, Any] = {
+            DataKeys.POS: torch.from_numpy(np.load(Path(scene_dir, "pos.npy"))).float(),
+            DataKeys.COLOR: torch.from_numpy(np.load(Path(scene_dir, "color.npy"))),
+            DataKeys.BOX: torch.cat([boxes[:, :3], boxes[:, 3:6] * 2, -boxes[:, 6:7]], dim=1),
+            DataKeys.LABEL: torch.from_numpy(np.load(Path(scene_dir, "class.npy"))),
+        }
         if self.transform is not None:
             data = self.transform(data)
         return data

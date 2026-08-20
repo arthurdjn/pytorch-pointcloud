@@ -688,6 +688,8 @@ class ScanNet(PointCloudDataset):
         label_name: The name of the label column in the labels CSV file.
         label_id: The name of the id column in the labels CSV file.
         use_axis_alignment: If True, apply ScanNet's axis-alignment transform to the mesh.
+        return_superpoint: Also emit the per-point `superpoint` ids, read from the raw
+            `scans/<scene>/<scene>_vh_clean_2.0.010000.segs.json` mesh segmentation (requires the raw scans).
         block_size: If set, split each scene into ground-plane blocks of this size (meters) for training.
         block_stride: Stride between adjacent blocks when `block_size` is set.
         num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
@@ -777,6 +779,7 @@ class ScanNet(PointCloudDataset):
         label_name: str = "nyu40class",
         label_id: str = "nyu40id",
         use_axis_alignment: bool = True,
+        return_superpoint: bool = False,
         block_size: Optional[float] = None,
         block_stride: float = 0.75,
         num_nodes: int = 8192,
@@ -797,6 +800,7 @@ class ScanNet(PointCloudDataset):
         self.label_name = label_name
         self.label_id = label_id
         self.use_axis_alignment = use_axis_alignment
+        self.return_superpoint = return_superpoint
         self.transform = transform
         self.show_progress = show_progress
 
@@ -1074,7 +1078,7 @@ class ScanNet(PointCloudDataset):
         min_num_nodes: int = 100,
         show_progress: bool = True,
     ) -> None:
-        self.data: List[Dict[str, Any]] = []
+        self.data: List[Union[Path, Dict[str, Any]]] = []
         self.scene_boundaries: List[int] = []
         scene_paths = self.processed_files
         if not scene_paths:
@@ -1082,24 +1086,20 @@ class ScanNet(PointCloudDataset):
                 f"No processed scenes found under {Path(self.processed_dir, self.split).as_posix()!r}. "
                 "Pass `force_process=True` to reprocess the raw data."
             )
+
+        if block_size is None or block_size <= 0:
+            # Whole scenes are read in `__getitem__`, so the split costs no memory and no upfront pass.
+            self.data = list(scene_paths)
+            self.scene_boundaries = list(range(1, len(scene_paths) + 1))
+            return
+
         for scene_idx, path in tqdm(
             enumerate(scene_paths),
             desc="Loading",
             total=len(scene_paths),
             disable=not show_progress,
         ):
-            scene: Dict[str, Any] = {
-                DataKeys.POS: torch.from_numpy(np.load(path / "pos.npy")),
-                DataKeys.COLOR: torch.from_numpy(np.load(path / "color.npy")),
-                DataKeys.NORMAL: torch.from_numpy(np.load(path / "normal.npy")),
-                DataKeys.SCENE: path.name,
-            }
-            if (path / "segment.npy").exists():
-                scene[DataKeys.SEGMENT] = torch.from_numpy(np.load(path / "segment.npy"))
-            if (path / "instance.npy").exists():
-                scene[DataKeys.INSTANCE] = torch.from_numpy(np.load(path / "instance.npy"))
-            if self.relabel is not None:
-                scene = self.relabel(scene)
+            scene = self.read_scene(path)
             if block_size is not None and block_size > 0:
                 blocks = tile_scannet_scene(
                     scene,
@@ -1114,9 +1114,61 @@ class ScanNet(PointCloudDataset):
                 self.data.append(scene)
             self.scene_boundaries.append(len(self.data))
 
+    def _load_superpoint(self, scene_id: str, num_points: int) -> Tensor:
+        version_dir = self.version if self.split in ["train", "val"] else "v2"
+        segs_path = Path(self.raw_dir, version_dir, "scans", scene_id, f"{scene_id}_vh_clean_2.0.010000.segs.json")
+        if not segs_path.exists():
+            raise RuntimeError(
+                f"Superpoint file not found at {segs_path.as_posix()!r}. "
+                f"You can download the raw dataset from {self.data_url!r}, "
+                f"and extract it under {self.raw_dir!r}."
+            )
+
+        superpoint = torch.tensor(load_json(segs_path)["segIndices"], dtype=torch.long)
+        if superpoint.shape[0] != num_points:
+            raise RuntimeError(
+                f"{scene_id}: superpoint/point count mismatch ({superpoint.shape[0]} vs {num_points}). "
+                "Pass `force_process=True` to reprocess the raw data."
+            )
+
+        return superpoint
+
+    def read_scene(self, path: Path) -> Dict[str, Any]:
+        r"""Read one processed scene directory into a sample dict, relabelled if `relabel` is set.
+
+        Args:
+            path: Processed scene directory holding `pos.npy`, `color.npy`, `normal.npy` and,
+                when annotated, `segment.npy` / `instance.npy`.
+
+        Returns:
+            The scene as a `DataKeys`-keyed dict of tensors plus its `DataKeys.SCENE` id.
+
+        Example:
+            ```{.python notest}
+            scene = dataset.read_scene(dataset.processed_files[0])
+            scene["pos"].shape  # (N, 3)
+            ```
+        """
+        scene: Dict[str, Any] = {
+            DataKeys.POS: torch.from_numpy(np.load(path / "pos.npy")),
+            DataKeys.COLOR: torch.from_numpy(np.load(path / "color.npy")),
+            DataKeys.NORMAL: torch.from_numpy(np.load(path / "normal.npy")),
+            DataKeys.SCENE: path.name,
+        }
+        if (path / "segment.npy").exists():
+            scene[DataKeys.SEGMENT] = torch.from_numpy(np.load(path / "segment.npy"))
+        if (path / "instance.npy").exists():
+            scene[DataKeys.INSTANCE] = torch.from_numpy(np.load(path / "instance.npy"))
+        if self.return_superpoint:
+            scene[DataKeys.SUPERPOINT] = self._load_superpoint(path.name, scene[DataKeys.POS].shape[0])
+        if self.relabel is not None:
+            scene = self.relabel(scene)
+        return scene
+
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        data = dict(self.data[index])
+        entry = self.data[index]
+        data = self.read_scene(entry) if isinstance(entry, Path) else dict(entry)
         if self.transform is not None:
             data = self.transform(data)
         return data
@@ -1141,6 +1193,8 @@ class ScanNet20(ScanNet):
         version: The version of the dataset to use.
         split: The split to load, one of `train`, `val`, or `test`.
         use_axis_alignment: If True, apply ScanNet's axis-alignment transform to the mesh.
+        return_superpoint: Also emit the per-point `superpoint` ids, read from the raw
+            `scans/<scene>/<scene>_vh_clean_2.0.010000.segs.json` mesh segmentation (requires the raw scans).
         block_size: If set, split each scene into ground-plane blocks of this size (meters) for training.
         block_stride: Stride between adjacent blocks when `block_size` is set.
         num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
@@ -1171,6 +1225,7 @@ class ScanNet20(ScanNet):
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         use_axis_alignment: bool = True,
+        return_superpoint: bool = False,
         block_size: Optional[float] = None,
         block_stride: float = 0.75,
         num_nodes: int = 8192,
@@ -1189,6 +1244,7 @@ class ScanNet20(ScanNet):
             label_name="nyu40class",
             label_id="nyu40id",
             use_axis_alignment=use_axis_alignment,
+            return_superpoint=return_superpoint,
             block_size=block_size,
             block_stride=block_stride,
             num_nodes=num_nodes,
@@ -1237,6 +1293,8 @@ class ScanNet200(ScanNet):
         version: The version of the dataset to use.
         split: The split to load, one of `train`, `val`, or `test`.
         use_axis_alignment: If True, apply ScanNet's axis-alignment transform to the mesh.
+        return_superpoint: Also emit the per-point `superpoint` ids, read from the raw
+            `scans/<scene>/<scene>_vh_clean_2.0.010000.segs.json` mesh segmentation (requires the raw scans).
         block_size: If set, split each scene into ground-plane blocks of this size (meters) for training.
         block_stride: Stride between adjacent blocks when `block_size` is set.
         num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
@@ -1267,6 +1325,7 @@ class ScanNet200(ScanNet):
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         use_axis_alignment: bool = True,
+        return_superpoint: bool = False,
         block_size: Optional[float] = None,
         block_stride: float = 0.75,
         num_nodes: int = 8192,
@@ -1285,6 +1344,7 @@ class ScanNet200(ScanNet):
             label_name="raw_category",
             label_id="id",
             use_axis_alignment=use_axis_alignment,
+            return_superpoint=return_superpoint,
             block_size=block_size,
             block_stride=block_stride,
             num_nodes=num_nodes,
