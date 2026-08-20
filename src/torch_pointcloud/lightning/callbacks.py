@@ -1,3 +1,4 @@
+import inspect
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from torch import nn
@@ -73,6 +74,10 @@ class MetricCallback(Callback):
     interpolates `num_classes` from `${model.num_classes}` and `ignore_index` from the criterion, so the
     callback holds it as-is and stays model-agnostic.
 
+    A step output may carry extra entries beyond `preds_key` / `target_key` (the `Lit*` modules' `metric_input_keys`
+    passthrough); entries matching a parameter name of the metric's `update` signature (inspected once at construction)
+    are forwarded as keyword arguments and the rest are ignored, so each metric declares the inputs it consumes.
+
     A metric whose `compute` returns a dict (e.g. `MeanAveragePrecision3D` returning `mAP@0.25` / `mAP@0.5`)
     is logged one entry per key as `{stage}/{key}`; a scalar metric is logged as `{stage}/{name}`.
 
@@ -107,6 +112,11 @@ class MetricCallback(Callback):
         self.batch_key = batch_key
         self.prog_bar = prog_bar
         self.metric: Optional[Metric] = metric
+        self._update_keys = frozenset(
+            param.name
+            for param in inspect.signature(metric.update).parameters.values()
+            if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+        )
 
     def _reset(self, pl_module: "L.LightningModule") -> None:
         assert self.metric is not None
@@ -120,10 +130,17 @@ class MetricCallback(Callback):
                 f"MetricCallback expects the step output to be a dict holding {self.preds_key!r} and "
                 f"{self.target_key!r}; got {type(outputs).__name__}."
             )
+
+        extras = {
+            key: value
+            for key, value in outputs.items()
+            if key in self._update_keys and key not in (self.preds_key, self.target_key, self.batch_key)
+        }
+
         if self.batch_key is not None:
-            self.metric.update(outputs[self.preds_key], outputs[self.target_key], outputs[self.batch_key])
+            self.metric.update(outputs[self.preds_key], outputs[self.target_key], outputs[self.batch_key], **extras)
         else:
-            self.metric.update(outputs[self.preds_key], outputs[self.target_key])
+            self.metric.update(outputs[self.preds_key], outputs[self.target_key], **extras)
 
     def _compute(self, pl_module: "L.LightningModule", stage: str) -> None:
         assert self.metric is not None

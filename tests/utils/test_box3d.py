@@ -12,6 +12,7 @@ from torch_pointcloud.utils.box3d import (
     boxes_iou_bev,
     count_points_in_boxes,
     nms3d,
+    projected_ignore_mask,
 )
 
 
@@ -209,3 +210,103 @@ def test_count_points_in_boxes_empty_boxes_returns_empty_counts() -> None:
     counts = count_points_in_boxes(torch.randn(5, 3), torch.empty(0, 7))
     assert counts.shape == (0,)
     assert counts.dtype == torch.long
+
+
+def test_projected_ignore_mask_hand_computed_pinhole() -> None:
+    # Pinhole calib with focal 100 and center (50, 50) over LiDAR axes (x forward, y left, z up):
+    # u = 50 - 100 y / x, v = 50 - 100 z / x, perspective depth x. The 2x2x1 box at x = 10 spans
+    # v in [50 - 5/0.9, 50 + 5/0.9] (height 100/9 ~ 11.1 px); at x = 2 it spans v in [0, 100], clipped
+    # to 99 px; raised to z = 2 every corner projects above the image, so the clipped height is 0.
+    calib = torch.tensor([[50.0, -100.0, 0.0, 0.0], [50.0, 0.0, -100.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
+    boxes = _boxes(
+        [
+            [10.0, 0, 0, 2, 2, 1, 0],
+            [2.0, 0, 0, 2, 2, 1, 0],
+            [2.0, 0, 2, 2, 2, 1, 0],
+        ]
+    )
+    image_shape = torch.tensor([100, 200])
+    assert projected_ignore_mask(boxes, calib, image_shape).tolist() == [True, False, True]
+    assert projected_ignore_mask(boxes, calib, image_shape, min_height=25.0).tolist() == [True, False, True]
+    assert projected_ignore_mask(boxes, calib, image_shape, min_height=10.0).tolist() == [False, False, True]
+
+
+def test_projected_ignore_mask_empty_boxes_returns_empty_bool_mask() -> None:
+    calib = torch.tensor([[50.0, -100.0, 0.0, 0.0], [50.0, 0.0, -100.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
+    mask = projected_ignore_mask(torch.empty(0, 7), calib, torch.tensor([375, 1242]))
+    assert mask.shape == (0,)
+    assert mask.dtype == torch.bool
+
+
+def test_projected_ignore_mask_per_box_calib_matches_per_frame_loop() -> None:
+    """The per-box $(N, 3, 4)$ / $(N, 2)$ form (a stacked per-frame calib indexed by the boxes' scene
+    index) equals looping the single-frame form scene by scene."""
+    calibs = torch.stack(
+        [
+            torch.tensor([[50.0, -100.0, 0.0, 0.0], [50.0, 0.0, -100.0, 0.0], [1.0, 0.0, 0.0, 0.0]]),
+            torch.tensor([[60.0, -80.0, 0.0, 0.0], [40.0, 0.0, -500.0, 0.0], [1.0, 0.0, 0.0, 0.0]]),
+        ]
+    )
+    image_shapes = torch.tensor([[100, 200], [375, 1242]])
+    boxes = _boxes(
+        [
+            [10.0, 0, 0, 2, 2, 1, 0],
+            [10.0, 0, 0, 2, 2, 1, 0.3],
+            [2.0, 0, 0, 2, 2, 1, 0],
+            [2.0, 0, 2, 2, 2, 1, 0],
+        ]
+    )
+    batch = torch.tensor([0, 1, 0, 1])
+    broadcast = projected_ignore_mask(boxes, calibs[batch], image_shapes[batch])
+    expected = torch.zeros(len(boxes), dtype=torch.bool)
+    for scene in range(2):
+        rows = batch == scene
+        expected[rows] = projected_ignore_mask(boxes[rows], calibs[scene], image_shapes[scene])
+    assert torch.equal(broadcast, expected)
+    # Both flag values occur, so the comparison is not vacuous.
+    assert broadcast.any() and not broadcast.all()
+
+
+def test_nms3d_rotated_keeps_angled_neighbors_axis_aligned_suppresses() -> None:
+    # Parallel thin boxes at 45 degrees, one body-width apart: their rotated footprints are disjoint,
+    # but their AABBs overlap far above 0.01, so only the rotated criterion keeps both.
+    boxes = _boxes(
+        [
+            [0.0, 0.0, 0.0, 4.0, 0.5, 1.0, math.pi / 4],
+            [-0.7071, 0.7071, 0.0, 4.0, 0.5, 1.0, math.pi / 4],
+        ]
+    )
+    scores = torch.tensor([0.9, 0.8])
+    assert nms3d(boxes, scores, 0.01).tolist() == [0]
+    assert nms3d(boxes, scores, 0.01, rotated=True).tolist() == [0, 1]
+
+
+def test_nms3d_rotated_false_matches_default_on_random_boxes() -> None:
+    torch.manual_seed(0)
+    boxes = torch.cat([torch.randn(64, 3) * 5.0, torch.rand(64, 3) * 3.0 + 0.1, torch.rand(64, 1) * 6.28], dim=1)
+    scores = torch.rand(64)
+    labels = torch.randint(0, 3, (64,))
+    batch = torch.randint(0, 2, (64,)).sort().values
+    assert torch.equal(
+        nms3d(boxes, scores, 0.25, labels=labels, batch=batch),
+        nms3d(boxes, scores, 0.25, labels=labels, batch=batch, rotated=False),
+    )
+
+
+def test_nms3d_empty_boxes_returns_empty_long_indices_both_modes() -> None:
+    for rotated in (False, True):
+        keep = nms3d(torch.empty(0, 7), torch.empty(0), 0.5, rotated=rotated)
+        assert keep.dtype == torch.long and keep.numel() == 0
+
+
+def test_nms3d_degenerate_boxes_both_modes() -> None:
+    # Zero-height boxes: the BEV footprint still overlaps, so both modes suppress the duplicate.
+    flat = _boxes([[0.0, 0, 0, 2, 2, 0, 0], [0.1, 0, 0, 2, 2, 0, 0]])
+    scores = torch.tensor([0.9, 0.8])
+    assert nms3d(flat, scores, 0.3).tolist() == [0]
+    assert nms3d(flat, scores, 0.3, rotated=True).tolist() == [0]
+    # Fully zero-extent coincident boxes: zero volume and zero footprint give an effectively zero IoU in
+    # both modes, so nothing is suppressed and no NaN is produced.
+    point = _boxes([[0.0, 0, 0, 0, 0, 0, 0], [0.0, 0, 0, 0, 0, 0, 0]])
+    assert nms3d(point, scores, 0.3).tolist() == [0, 1]
+    assert nms3d(point, scores, 0.3, rotated=True).tolist() == [0, 1]
