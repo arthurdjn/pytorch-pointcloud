@@ -1,6 +1,6 @@
 from functools import partial
 from typing import Any, Dict, Iterator, Tuple
-from unittest.mock import Mock
+from unittest.mock import Mock, create_autospec
 
 import pytest
 import torch
@@ -176,6 +176,91 @@ def test_metric_callback_batch_key_forwards_third_update_arg(trainer: L.Trainer)
     assert args[0] is preds
     assert args[1] is target
     assert args[2] is batch_index
+
+
+def test_metric_callback_forwards_declared_extra_keys(trainer: L.Trainer) -> None:
+    """Step-output entries matching the metric's `update` signature ride along as kwargs; the rest are dropped."""
+
+    def _update(preds: Tensor, target: Tensor, velocity: Tensor) -> None: ...
+
+    metric = Mock()
+    metric.update = create_autospec(_update)
+    callback = MetricCallback(metric=metric, name="nds", stages=("val",))
+    module = _cls_module(num_classes=3)
+    preds = torch.randn(4, 3)
+    target = torch.tensor([0, 1, 2, 1])
+    velocity = torch.randn(4, 2)
+    outputs = {"preds": preds, "target": target, "velocity": velocity, "calib": torch.rand(3, 4)}
+
+    callback.on_validation_batch_end(trainer, module, outputs, {}, 0)
+
+    metric.update.assert_called_once()
+    args, kwargs = metric.update.call_args.args, metric.update.call_args.kwargs
+    assert args[0] is preds
+    assert args[1] is target
+    assert set(kwargs) == {"velocity"}
+    assert kwargs["velocity"] is velocity
+
+
+def test_metric_callback_undeclared_extras_not_passed(trainer: L.Trainer) -> None:
+    """A two-argument metric receives exactly `(preds, target)` even when the step output carries extras."""
+
+    def _update(preds: Tensor, target: Tensor) -> None: ...
+
+    metric = Mock()
+    metric.update = create_autospec(_update)
+    callback = MetricCallback(metric=metric, name="accuracy", stages=("val",))
+    module = _cls_module(num_classes=3)
+    preds = torch.randn(4, 3)
+    target = torch.tensor([0, 1, 2, 1])
+    outputs = {"preds": preds, "target": target, "velocity": torch.rand(4, 2)}
+
+    callback.on_validation_batch_end(trainer, module, outputs, {}, 0)
+
+    metric.update.assert_called_once()
+    assert metric.update.call_args.args[0] is preds
+    assert metric.update.call_args.args[1] is target
+    assert metric.update.call_args.kwargs == {}
+
+
+def test_metric_callback_batch_key_not_duplicated_as_kwarg(trainer: L.Trainer) -> None:
+    """A `batch_key` forwarded positionally is excluded from the kwargs even when `update` declares it."""
+
+    def _update(preds: Tensor, target: Tensor, batch: Tensor) -> None: ...
+
+    metric = Mock()
+    metric.update = create_autospec(_update)
+    callback = MetricCallback(metric=metric, name="ins_mIoU", stages=("val",), batch_key="batch")
+    module = _cls_module(num_classes=3)
+    preds = torch.randn(4, 3)
+    target = torch.tensor([0, 1, 2, 1])
+    batch_index = torch.tensor([0, 0, 1, 1])
+
+    callback.on_validation_batch_end(trainer, module, {"preds": preds, "target": target, "batch": batch_index}, {}, 0)
+
+    metric.update.assert_called_once()
+    assert metric.update.call_args.args[2] is batch_index
+    assert metric.update.call_args.kwargs == {}
+
+
+def test_metric_callback_real_metric_ignores_extra_step_keys(
+    trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A torchmetrics metric (wrapped `update`) inspects cleanly and ignores undeclared step-output keys."""
+    module = _cls_module(num_classes=3)
+    log = Mock()
+    monkeypatch.setattr(module, "log", log)
+    callback = MetricCallback(metric=Accuracy(task="multiclass", num_classes=3), name="accuracy", stages=("val",))
+    preds = torch.tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]])
+    target = torch.tensor([0, 1])
+    outputs = {"preds": preds, "target": target, "batch": torch.tensor([0, 0])}
+
+    callback.on_validation_epoch_start(trainer, module)
+    callback.on_validation_batch_end(trainer, module, outputs, {}, 0)
+    callback.on_validation_epoch_end(trainer, module)
+
+    logged = {call.args[0]: call.args[1] for call in log.call_args_list}
+    assert logged["val/accuracy"].item() == pytest.approx(1.0)
 
 
 def test_metric_callback_logs_detection_map(trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch) -> None:

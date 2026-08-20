@@ -840,6 +840,83 @@ def nuscenes_detection_metrics(
     return out
 
 
+def nuscenes_velocity_attributes(
+    labels: Tensor,
+    velocity: Tensor,
+    *,
+    class_names: Sequence[str],
+    speed_threshold: float = 1.0,
+) -> Tensor:
+    r"""Derive per-box nuScenes attribute ids from predicted velocities (the standard speed heuristic).
+
+    A box moving faster than `speed_threshold` (BEV speed, m/s) gets its class's moving attribute, a
+    slower box the parked / stopped / standing default; `barrier` and `traffic_cone` carry no attribute
+    (id $-1$). The returned ids index the official 8-entry attribute table (`attribute.json` order), the
+    id space of the `pred_attributes` / `gt_attributes` arguments of `nuscenes_detection_metrics`.
+
+    Args:
+        labels: Per-box class index into `class_names`, shape $(M,)$ long.
+        velocity: Per-box BEV velocity $(v_x, v_y)$, shape $(M, 2)$.
+        class_names: Class name per label index (the official 10 detection class names).
+        speed_threshold: BEV speed in m/s above which a box counts as moving.
+
+    Returns:
+        Per-box attribute id, shape $(M,)$ long, $-1$ for classes without attributes.
+
+    Shape:
+        - labels: $(M,)$
+        - velocity: $(M, 2)$
+        - output: $(M,)$
+
+    Example:
+        >>> labels = torch.tensor([0, 0, 1])
+        >>> velocity = torch.tensor([[3.0, 0.0], [0.5, 0.0], [2.0, 0.0]])
+        >>> nuscenes_velocity_attributes(labels, velocity, class_names=("car", "barrier")).tolist()
+        [0, 2, -1]
+    """
+    attribute_names = (
+        "vehicle.moving",
+        "vehicle.stopped",
+        "vehicle.parked",
+        "cycle.with_rider",
+        "cycle.without_rider",
+        "pedestrian.sitting_lying_down",
+        "pedestrian.standing",
+        "pedestrian.moving",
+    )
+    moving_attribute = {
+        "car": "vehicle.moving",
+        "truck": "vehicle.moving",
+        "construction_vehicle": "vehicle.moving",
+        "bus": "vehicle.moving",
+        "trailer": "vehicle.moving",
+        "motorcycle": "cycle.with_rider",
+        "bicycle": "cycle.with_rider",
+        "pedestrian": "pedestrian.moving",
+    }
+    stopped_attribute = {
+        "car": "vehicle.parked",
+        "truck": "vehicle.parked",
+        "construction_vehicle": "vehicle.parked",
+        "bus": "vehicle.stopped",
+        "trailer": "vehicle.parked",
+        "motorcycle": "cycle.without_rider",
+        "bicycle": "cycle.without_rider",
+        "pedestrian": "pedestrian.standing",
+    }
+    moving = torch.linalg.norm(velocity, dim=1) > speed_threshold
+    attributes = torch.full_like(labels, -1)
+    for index, name in enumerate(class_names):
+        if name not in moving_attribute:
+            continue
+
+        mask = labels == index
+        attributes[mask & moving] = attribute_names.index(moving_attribute[name])
+        attributes[mask & ~moving] = attribute_names.index(stopped_attribute[name])
+
+    return attributes
+
+
 def instance_matches(
     pred_masks: Tensor,
     pred_labels: Tensor,
