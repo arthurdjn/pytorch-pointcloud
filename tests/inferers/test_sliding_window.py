@@ -170,6 +170,45 @@ def test_sliding_window_overlap_blends_blocks_by_exact_weighted_mean() -> None:
     assert torch.allclose(out, expected)
 
 
+def _block_confidence_predictor(window: Dict[str, Any]) -> Tensor:
+    """Predictor whose class-1 logit grows with the window's mean x: on the line fixture block 0 (mean x
+    0.5) is unsure, block 1 (mean 1.5) confident, block 2 (mean 2.0) most confident, all voting class 1."""
+    pos = window[DataKeys.POS]
+    logit = pos[:, 0].mean() * 4.0
+    return torch.stack([torch.zeros(pos.size(0)), logit.expand(pos.size(0))], dim=1)
+
+
+def test_sliding_window_aggregate_max_keeps_the_most_confident_block() -> None:
+    """`aggregate="max"` gives every point the softmax of the covering block that is most confident about
+    it, instead of a blend: x=1 (blocks 0 and 1) takes block 1, x=2 (blocks 1 and 2) takes block 2."""
+    data = _line_data()
+    out = sliding_window_inference(
+        data, predictor=_block_confidence_predictor, block_size=2.0, overlap=0.5, aggregate="max"
+    )
+    block_probs = [torch.softmax(torch.tensor([0.0, m * 4.0]), dim=0) for m in (0.5, 1.5, 2.0)]
+    assert torch.allclose(out[0], block_probs[0])
+    assert torch.allclose(out[1], block_probs[1])
+    assert torch.allclose(out[2], block_probs[2])
+
+
+def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:
+    """`aggregate="vote"` casts one argmax vote per covering block: the output holds vote fractions, so a
+    point covered by two blocks that disagree ends up at 0.5 / 0.5 while unanimous points are one-hot."""
+    data = _line_data()
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        pos = window[DataKeys.POS]
+        # block 0 (mean x 0.5) votes class 0, blocks 1 and 2 vote class 1
+        cls = 0 if pos[:, 0].mean() < 1.0 else 1
+        logits = torch.zeros(pos.size(0), 2)
+        logits[:, cls] = 1.0
+        return logits
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="vote")
+    assert torch.allclose(out, torch.tensor([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]))
+    assert out.argmax(dim=1).tolist() == [0, 0, 1]
+
+
 def test_sliding_window_softmax_outputs_probabilities() -> None:
     """With `softmax=True`, the output per point sums to 1 across classes."""
     data = _grid_data(steps=4)
@@ -352,6 +391,8 @@ def test_sliding_window_validates_args() -> None:
         sliding_window_inference(data, predictor=fake, block_size=1.0, mode="other")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="`roi_num_points`"):
         sliding_window_inference(data, predictor=fake, block_size=1.0, roi_num_points=0)
+    with pytest.raises(ValueError, match="`aggregate`"):
+        sliding_window_inference(data, predictor=fake, block_size=1.0, aggregate="sum")  # type: ignore[arg-type]
 
 
 def test_sliding_window_inferer_class_matches_function() -> None:
