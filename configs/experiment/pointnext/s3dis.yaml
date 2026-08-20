@@ -3,18 +3,18 @@
 # Train: uv run --no-sync python train.py experiment=pointnext/s3dis
 # Benchmark: uv run --no-sync python test.py experiment=pointnext/s3dis
 #
-# | model.name                 | mIoU   | accuracy |
-# | -------------------------- | ------ | -------- |
-# | pointnext-sm.s3dis-area5.openpoints   | 0.6301 | 0.8710   |
-# | pointnext-base.s3dis-area5.openpoints | -      | -        |
-# | pointnext-lg.s3dis-area5.openpoints   | -      | -        |
-# | pointnext-xl.s3dis-area5.openpoints   | -      | -        |
-#
-# pointnext-sm: new deterministic-FPS reference; script and config paths are identical.
+# | model.name                            | reference (mIoU / OA) |
+# | ------------------------------------- | --------------------- |
+# | pointnext-sm.s3dis-area5.openpoints   | 0.642 / 0.882         |
+# | pointnext-base.s3dis-area5.openpoints | 0.675 / 0.894         |
+# | pointnext-lg.s3dis-area5.openpoints   | 0.693 / 0.901         |
+# | pointnext-xl.s3dis-area5.openpoints   | 0.711 / 0.910         |
+
 defaults:
   - override /datamodule: s3dis
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: voxel_partition
 
 trainer:
   max_epochs: 100
@@ -25,6 +25,34 @@ model:
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment
+  inferer:
+    voxel_size: 0.04
+    sub_batch_size: 1
+    softmax: false
+    reduce: mean
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.AxisMinOffset
+          keys: pos
+          axis: 2
+          dst_keys: height
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: centroid
+        - _target_: torch_pointcloud.transforms.AlignAxis
+          keys: pos
+          dim: 2
+        - _target_: torch_pointcloud.transforms.Divide
+          keys: color
+          divisor: 255.0
+        - _target_: torch_pointcloud.transforms.Normalize
+          keys: color
+          mean: [0.5136457, 0.49523646, 0.44921124]
+          std: [0.18308958, 0.18415008, 0.19252081]
+        - _target_: torch_pointcloud.transforms.Cat
+          keys: [color, height]
+          dst_key: x
   criterion:
     _target_: torch.nn.CrossEntropyLoss
     ignore_index: -1
@@ -35,9 +63,21 @@ model:
     weight_decay: 0.05
 
 datamodule:
-  # The benchmark script evaluates one whole room per batch.
   eval_batch_size: 1
   train_dataset:
     transform: null
   val_dataset:
     transform: null
+  test_dataset:
+    _target_: torch_pointcloud.datasets.S3DIS
+    root: ${paths.data_dir}
+    areas: [Area_5]
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [0, 1, 2, 3, 4, 5, 6, 8, 7, 10, 9, 11, 12]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min

@@ -2,12 +2,17 @@
 # PointNet part segmentation on ShapeNetPart.
 # Train: uv run --no-sync python train.py experiment=pointnet/shapenetpart
 # Benchmark: uv run --no-sync python test.py experiment=pointnet/shapenetpart
-#
-# Measured: deferred (training campaign pending)
+
 defaults:
   - override /datamodule: shapenetpart
   - override /model: segmentation
   - override /callbacks: part_segmentation
+
+# The reference protocol restricts the argmax to the shape's own category parts.
+callbacks:
+  val_ins_miou:
+    metric:
+      restrict_to_category: true
 
 trainer:
   max_epochs: 100

@@ -2,9 +2,10 @@
 # Point-MAE classification on ScanObjectNN OBJ_ONLY (no background).
 # Benchmark: uv run --no-sync python test.py experiment=point_mae/scanobjectnn-objonly
 #
-# | model.name                          | accuracy |
-# | ----------------------------------- | -------- |
-# | point-mae-base.scanobjectnn-objonly.yatian-pang | 0.8830   |
+# | model.name                                      | accuracy | reference |
+# | ----------------------------------------------- | -------- | --------- |
+# | point-mae-base.scanobjectnn-objonly.yatian-pang | 0.8830   | 0.8829    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

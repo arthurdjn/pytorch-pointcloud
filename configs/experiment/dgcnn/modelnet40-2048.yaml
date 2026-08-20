@@ -3,9 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=dgcnn/modelnet40-2048
 # Benchmark: uv run --no-sync python test.py experiment=dgcnn/modelnet40-2048
 #
-# | model.name                  | accuracy |
-# | --------------------------- | -------- |
-# | dgcnn.modelnet40-2048.an-tao | 0.9242   |
+# | model.name                   | accuracy | reference |
+# | ---------------------------- | -------- | --------- |
+# | dgcnn.modelnet40-2048.an-tao | 0.9246   | 0.936     |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification

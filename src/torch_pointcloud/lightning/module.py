@@ -4,15 +4,15 @@ import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
 
-from torch_pointcloud.inferers import Inferer
+from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
-from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
+from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 from torch_pointcloud.utils.misc import deep_getattr
 from torch_pointcloud.utils.optim import generate_param_groups
-from torch_pointcloud.utils.types import Boxes3D, Detection3D
+from torch_pointcloud.utils.types import Boxes3D
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
@@ -37,10 +37,19 @@ class LitModel(LightningModule):
         optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.
+        inferer: Test-time inference strategy (e.g. `TTAInferer`, `SlidingWindowInferer`) run in place of the
+            plain forward on test batches; defaults to `SimpleInferer` (one forward on the whole batch), so
+            every test prediction goes through an inferer. Training and validation are unaffected. The
+            inferer may return probabilities instead of logits (torchmetrics handles both), so no `test/loss`
+            is logged.
         input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
             (e.g. `octree.depth`) resolves an attribute. A key missing from the batch raises, except
             `x`: a batch without point features resolves it to `None` (models accept `x=None`).
         target_key: Batch-dict key for the per-cloud label.
+        metric_input_keys: Batch-dict keys copied as-is into the `validation_step` / `test_step` output
+            dict, alongside the predictions and targets, for metrics whose `update` consumes extra inputs
+            (`MetricCallback` forwards the keys each metric declares). A listed key missing from the
+            batch raises.
         scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
         param_groups: Optional dict of kwargs forwarded to
             `torch_pointcloud.utils.optim.generate_param_groups`.
@@ -55,8 +64,10 @@ class LitModel(LightningModule):
         optimizer: Optional[Callable[..., Optimizer]] = None,
         scheduler: Optional[Callable[..., Any]] = None,
         criterion: Optional[nn.Module] = None,
+        inferer: Optional[Inferer] = None,
         input_keys: Sequence[str] = ("x", "pos", "batch"),
         target_key: str = "label",
+        metric_input_keys: Sequence[str] = (),
         scheduler_interval: str = "epoch",
         param_groups: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
@@ -67,6 +78,8 @@ class LitModel(LightningModule):
         self.model = model
         self.transform = info["transform"]
         self.criterion: Optional[nn.Module] = criterion if criterion is not None else nn.CrossEntropyLoss()
+        # Not a serializable hyperparameter, so it stays out of `save_hyperparameters` (like `criterion`).
+        self.inferer: Inferer = inferer if inferer is not None else SimpleInferer()
         self._optimizer = optimizer
         self._scheduler = scheduler
         self._param_groups = param_groups
@@ -76,6 +89,7 @@ class LitModel(LightningModule):
                 "name": name,
                 "input_keys": list(input_keys),
                 "target_key": target_key,
+                "metric_input_keys": list(metric_input_keys),
                 "scheduler_interval": scheduler_interval,
                 **info["hparams"],
                 **kwargs,
@@ -96,9 +110,14 @@ class LitModel(LightningModule):
             inputs.append(value)
         return self.model(*inputs)
 
-    def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:
+    def predict(self, batch: Dict[str, Any]) -> Tensor:
+        """Forward the batch and return the logits tensor (the predictor handed to the inferer)."""
         logits = self.forward(batch)
         assert isinstance(logits, Tensor)
+        return logits
+
+    def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:
+        logits = self.predict(batch)
         target = batch[self.hparams["target_key"]].long()
 
         assert self.criterion is not None
@@ -111,14 +130,27 @@ class LitModel(LightningModule):
         return self.step(batch, "train")["loss"]
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
-        return self._eval_step(batch, "val")
+        return self._attach_metric_inputs(self._eval_step(batch, "val"), batch)
 
     def test_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
-        return self._eval_step(batch, "test")
+        return self._attach_metric_inputs(self._eval_step(batch, "test"), batch)
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+        if stage == "test":
+            preds = self.inferer(batch, predictor=self.predict)
+            return {"preds": preds, "target": batch[self.hparams["target_key"]].long()}
         outputs = self.step(batch, stage)
         return {"preds": outputs["preds"], "target": outputs["target"]}
+
+    def _attach_metric_inputs(self, outputs: Dict[str, Any], batch: Dict[str, Any]) -> Dict[str, Any]:
+        for key in self.hparams["metric_input_keys"]:
+            if key not in batch:
+                raise KeyError(
+                    f"Metric input key {key!r} not found in the batch (available keys: {sorted(batch)}); "
+                    "check the module's `metric_input_keys`."
+                )
+            outputs[key] = batch[key]
+        return outputs
 
     def configure_optimizers(self) -> Any:
         if self._optimizer is None:
@@ -154,33 +186,28 @@ class LitSegmentationModel(LitModel):
 
     Args:
         name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
-        inferer: Optional test-time inference strategy (e.g. `SlidingWindowInferer`, `TTAInferer`) run in
-            place of the plain forward on test batches; training and validation are unaffected. The inferer
-            may return probabilities instead of logits (torchmetrics handles both), so no `test/loss` is
-            logged on this path.
         inverse_key: Optional batch-dict key holding the voxel-to-raw inverse map. When set, eval
             predictions are broadcast to raw resolution (`preds[batch[inverse_key]]`) and scored against
             `origin_target_key`, the benchmark protocol of grid-sampled models; the loss stays at voxel
             resolution against `target_key`. Multi-scene batches need the key in the loader's `cat_keys`
-            so the per-scene maps can be offset into the packed layout.
+            so the per-scene maps can be offset into the packed layout. Leave unset when the inferer already
+            predicts at raw resolution (e.g. `VoxelPartitionInferer`, `SlidingWindowInferer`).
         origin_target_key: Batch-dict key of the raw-resolution labels used with `inverse_key`.
         target_key: Batch-dict key of the per-point labels.
-        **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+        **kwargs: Forwarded to the base `LitModel` (e.g. `inferer`, `optimizer`, `criterion`) and
+            `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
     def __init__(
         self,
         name: str,
-        inferer: Optional[Inferer] = None,
         inverse_key: Optional[str] = None,
         origin_target_key: str = "origin_segment",
         target_key: str = "segment",
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="segmentation", target_key=target_key, **kwargs)
-        # `inferer` is a module-like object, not a serializable hyperparameter (like `criterion` in the base).
         self.save_hyperparameters({"inverse_key": inverse_key, "origin_target_key": origin_target_key})
-        self.inferer = inferer
         self.inverse_key = inverse_key
         self.origin_target_key = origin_target_key
 
@@ -190,12 +217,8 @@ class LitSegmentationModel(LitModel):
         return out
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
-        if self.inferer is not None and stage == "test":
-            preds = self.inferer(batch, predictor=self.forward)
-            target = batch[self.hparams["target_key"]].long()
-        else:
-            outputs = self.step(batch, stage)
-            preds, target = outputs["preds"], outputs["target"]
+        outputs = super()._eval_step(batch, stage)
+        preds, target = outputs["preds"], outputs["target"]
         point_batch = batch[DataKeys.BATCH]
         if self.inverse_key is not None:
             inverse = self._batched_inverse(batch)
@@ -239,13 +262,18 @@ class LitDetectionModel(LitModel):
     - `step` (training only) feeds the whole forward output and the batch to the loss, which returns a dict
       of named components (each logged), and reports the total `loss`;
     - the eval steps are metric-driven, not loss-driven: they run the model's raw `decode`, postprocess it
-      (optional `min_points` filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou`,
-      and the indoor per-class expansion when `decode` emits `class_probs`), and pair the result with the
-      ground truth for a `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`); the
-      ground-truth boxes are `DataKeys.BOX` packed as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$
-      (full extents, counter-clockwise heading $\theta$), with per-box classes under `label_key`. No loss is
-      computed at validation, so a two-stage detector whose inference forward differs from its training
-      forward (its eval output carries decoded proposals, not loss targets) validates cleanly.
+      (optional `min_points` filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou`
+      on the rotated BEV IoU when `nms_rotated`, and the indoor per-class expansion when `decode` emits
+      `class_probs`), and pair the result with the
+      ground truth for a `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`); any other
+      per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is filtered alongside the boxes and kept
+      in the predictions dict, and when the batch carries `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked
+      per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px `projected_ignore_mask` of the surviving boxes is
+      attached as the predictions' `ignore_mask` (the KITTI min-height rule); the ground-truth boxes are
+      `DataKeys.BOX` packed as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ (full extents,
+      counter-clockwise heading $\theta$), with per-box classes under `label_key`. No loss is computed at
+      validation, so a two-stage detector whose inference forward differs from its training forward (its
+      eval output carries decoded proposals, not loss targets) validates cleanly.
 
     A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
     from `decode(output)`, and (for training) is paired with a `criterion(output, batch)`.
@@ -261,12 +289,15 @@ class LitDetectionModel(LitModel):
             ported.
         score_threshold: Minimum score to keep a decoded box in the eval postprocess.
         nms_iou: IoU threshold of the per-class 3D NMS in the eval postprocess.
+        nms_rotated: Suppress on the exact rotated BEV IoU instead of the axis-aligned 3D IoU (see
+            `nms3d`); the KITTI outdoor protocol.
         min_points: Optional minimum number of points inside a decoded box for it to be kept (the
             VoteNet / 3DETR indoor protocol uses $5$).
         label_key: Batch-dict key of the per-box ground-truth class labels (defaults to `DataKeys.LABEL`).
         ignore_mask_key: Optional batch-dict key of a per-box ignore mask forwarded to the metric with the
             ground truth (KITTI-style ignore regions).
-        **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`).
+        **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`). The
+            base's `inferer` does not apply: detection eval is the decode / postprocess path above.
     """
 
     def __init__(
@@ -276,6 +307,7 @@ class LitDetectionModel(LitModel):
         criterion: Union[nn.Module, Callable[..., nn.Module], None] = None,
         score_threshold: float = 0.05,
         nms_iou: float = 0.25,
+        nms_rotated: bool = False,
         min_points: Optional[int] = None,
         label_key: str = DataKeys.LABEL,
         ignore_mask_key: Optional[str] = None,
@@ -286,6 +318,7 @@ class LitDetectionModel(LitModel):
             {
                 "score_threshold": score_threshold,
                 "nms_iou": nms_iou,
+                "nms_rotated": nms_rotated,
                 "min_points": min_points,
                 "label_key": label_key,
                 "ignore_mask_key": ignore_mask_key,
@@ -307,6 +340,7 @@ class LitDetectionModel(LitModel):
             )
         self.score_threshold = score_threshold
         self.nms_iou = nms_iou
+        self.nms_rotated = nms_rotated
         self.min_points = min_points
         self.label_key = label_key
         self.ignore_mask_key = ignore_mask_key
@@ -341,12 +375,19 @@ class LitDetectionModel(LitModel):
             det["labels"][keep],
             det["batch"][keep],
         )
-        idx = nms3d(boxes, scores, self.nms_iou, labels=labels, batch=det_batch)
-        preds: Detection3D = {
+        idx = nms3d(boxes, scores, self.nms_iou, labels=labels, batch=det_batch, rotated=self.nms_rotated)
+        extras: Dict[str, Tensor] = {}
+        for key, value in det.items():
+            if key in ("boxes", "scores", "labels", "batch", "class_probs"):
+                continue
+            assert isinstance(value, Tensor)
+            extras[key] = value[keep][idx]
+        preds: Dict[str, Tensor] = {
             "boxes": boxes[idx],
             "scores": scores[idx],
             "labels": labels[idx],
             "batch": det_batch[idx],
+            **extras,
         }
         if "class_probs" in det:
             # Indoor AP convention: score every surviving box against each class by its class probability.
@@ -357,7 +398,12 @@ class LitDetectionModel(LitModel):
                 "scores": (probs * scores[idx, None]).reshape(-1),
                 "labels": torch.arange(num_classes, device=probs.device).repeat(idx.numel()),
                 "batch": det_batch[idx].repeat_interleave(num_classes),
+                **{key: value.repeat_interleave(num_classes, dim=0) for key, value in extras.items()},
             }
+        if DataKeys.CALIB in batch and DataKeys.IMAGE_SHAPE in batch:
+            preds["ignore_mask"] = projected_ignore_mask(
+                preds["boxes"], batch[DataKeys.CALIB][preds["batch"]], batch[DataKeys.IMAGE_SHAPE][preds["batch"]]
+            )
         target: Boxes3D = {
             "boxes": batch[DataKeys.BOX],
             "labels": batch[self.label_key].long(),

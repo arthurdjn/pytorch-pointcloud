@@ -1,13 +1,15 @@
 # @package _global_
-# PointMLP classification on ScanObjectNN PB_T50_RS (pre-std-fix upstream checkpoints; the README 86.1 / 84.1 are unreachable).
+# PointMLP classification on ScanObjectNN PB_T50_RS
 # Train: uv run --no-sync python train.py experiment=pointmlp/scanobjectnn
 # Benchmark: uv run --no-sync python test.py experiment=pointmlp/scanobjectnn
 #
-# | model.name                  | accuracy |
-# | --------------------------- | -------- |
-# | pointmlp-base.scanobjectnn.xu-ma  | 0.7724   |
-# | pointmlp-elite.scanobjectnn.xu-ma | 0.7533   |
-# (exact at precision=32-true datamodule.batch_size=16)
+# NOTE: The references need post-std-fix checkpoints whose links are dead; the shipped ones score ~0.77 upstream too.
+#
+# | model.name                        | accuracy | reference |
+# | --------------------------------- | -------- | --------- |
+# | pointmlp-base.scanobjectnn.xu-ma  | 0.7748   | 0.861     |
+# | pointmlp-elite.scanobjectnn.xu-ma | 0.7672   | 0.841     |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
@@ -34,6 +36,7 @@ model:
     T_max: ${trainer.max_epochs}
 
 datamodule:
+  eval_batch_size: 16
   train_dataset:
     background: true
     variant: augmentedrot_scale75

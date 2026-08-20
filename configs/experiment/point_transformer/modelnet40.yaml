@@ -2,7 +2,7 @@
 # Point Transformer classification on ModelNet40 (normal-resampled).
 # Train: uv run --no-sync python train.py experiment=point_transformer/modelnet40
 # Benchmark: uv run --no-sync python test.py experiment=point_transformer/modelnet40
-# Measured: deferred (training campaign pending)
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification

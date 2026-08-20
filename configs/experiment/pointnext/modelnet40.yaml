@@ -3,9 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=pointnext/modelnet40
 # Benchmark: uv run --no-sync python test.py experiment=pointnext/modelnet40
 #
-# | model.name                  | accuracy |
-# | --------------------------- | -------- |
-# | pointnext-sm-c64.modelnet40.openpoints | 0.9218   |
+# | model.name                             | accuracy | reference |
+# | -------------------------------------- | -------- | --------- |
+# | pointnext-sm-c64.modelnet40.openpoints | 0.9271   | 0.940     |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification

@@ -2,16 +2,13 @@
 # VoxelNeXt 3D object detection on nuScenes v1.0-mini.
 # Benchmark: uv run --no-sync python test.py experiment=voxelnext/nuscenes
 #
-# | model.name                   | mAP@0.25 | mAP@0.5 |
-# | ---------------------------- | -------- | ------- |
-# | voxelnext.nuscenes.openpcdet | 0.5824   | 0.3855  |
-#
-# Reference (nuScenes val, official protocol): mAP 60.5, NDS 66.6 (reference implementation model zoo).
-# The table above is the pre-fix measurement with the generic oriented-3D IoU mAP on v1.0-mini, a smoke
-# check; the full val split is the comparable run. This Lightning eval keeps that generic IoU mAP; the
-# official nuScenes protocol (distance mAP, TP errors, NDS) lives in the benchmark script
-# (examples/voxelnext_benchmark_nuscenes.py; its --legacy-map path keeps the pre-fix protocol).
+# | model.name                   | mAP    | NDS    | reference (full val) |
+# | ---------------------------- | ------ | ------ | -------------------- |
+# | voxelnext.nuscenes.openpcdet | 0.8154 | 0.7871 | 0.605 / 0.666        |
+
 defaults:
+  - _self_
+  - /metric@callbacks.val_map.metric: nuscenes_official
   - override /datamodule: nuscenes
   - override /model: detection
   - override /callbacks: detection
@@ -25,6 +22,7 @@ model:
   input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
   score_threshold: 0.1
   nms_iou: 0.2
+  metric_input_keys: [velocity, num_points, attribute]
   scheduler_interval: step
   criterion:
     _target_: torch_pointcloud.losses.SparseCenterLoss
@@ -55,11 +53,12 @@ model:
     base_momentum: 0.85
     max_momentum: 0.95
 
-# Generic IoU thresholds of the legacy mAP; the official nuScenes protocol is script-only (see header).
 callbacks:
   val_map:
-    metric:
-      iou_thresholds: [0.25, 0.5]
+    # The generic-mAP node from the callbacks group (`iou_thresholds`) would otherwise merge into the
+    # official metric (`NuScenesDetection` rejects it); nulling it here lets the defaults-list mount
+    # replace the node wholesale, which is why `_self_` sits before the metric entry.
+    metric: null
 
 datamodule:
   batch_size: 2

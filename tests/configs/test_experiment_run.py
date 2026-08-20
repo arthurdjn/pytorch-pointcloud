@@ -44,6 +44,10 @@ _KITTI_DUMMY_TRAIN_OVERRIDES = (
     "datamodule.train_dataset.fov=false",
     *_KITTI_DUMMY_OVERRIDES,
 )
+# Benchmark mode mirrors the documented invocation (`test.py experiment=... model.pretrained=true`): rows
+# whose model ships registry weights append this so it composes after the base random-weights override
+# and wins; rows without fetchable weights keep the random weights.
+_PRETRAINED = ("model.pretrained=true",)
 
 
 class Experiment(NamedTuple):
@@ -70,79 +74,291 @@ _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_TORCH_CLUSTER, _REQUIRES_TORCH_SCATTER)
 
 EXPERIMENTS = (
-    Experiment("3detr/scannet", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("3detr/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("concerto/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
-    Experiment("dgcnn/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("dgcnn/modelnet40-2048", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("dgcnn/s3dis", "cpu", train=False, test=True, marks=_CPU_CLUSTER),
-    Experiment("dgcnn/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER),
-    Experiment("dgcnn/shapenetpart", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("kpfcnn/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment(
+        "3detr/scannet", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "3detr/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "concerto/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment("dgcnn/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED),
+    Experiment(
+        "dgcnn/modelnet40-2048", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment("dgcnn/s3dis", "cpu", train=False, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED),
+    Experiment("dgcnn/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED),
+    Experiment("dgcnn/shapenetpart", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED),
+    Experiment(
+        "kpfcnn/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
     Experiment(
         "lion/nuscenes",
         "auto",
         train=True,
         test=True,
         marks=_GPU_MAMBA + (_REQUIRES_SPCONV,),
-        benchmark_overrides=("model.score_threshold=0.99",),
+        benchmark_overrides=(*_PRETRAINED, "model.score_threshold=0.99"),
         train_overrides=("model.score_threshold=0.99",),
     ),
-    Experiment("octformer/modelnet40", "auto", train=True, test=True, marks=_GPU_OCTREE),
-    Experiment("octformer/scannet", "auto", train=True, test=True, marks=_GPU_OCTREE),
+    Experiment(
+        "octformer/modelnet40", "auto", train=True, test=True, marks=_GPU_OCTREE, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment("octformer/scannet", "auto", train=True, test=True, marks=_GPU_OCTREE, benchmark_overrides=_PRETRAINED),
     # No scannet200 dummy dataset; compose-tested only.
     Experiment("octformer/scannet200", "auto", train=False, test=False, marks=_GPU_OCTREE),
-    Experiment("point_bert/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_bert/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_bert/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_bert/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_m2ae/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_m2ae/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_m2ae/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_m2ae/shapenetpart", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_mae/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_mae/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_mae/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_mae/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_mae/shapenetpart", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_mamba/modelnet40", "auto", train=True, test=True, marks=_GPU_MAMBA),
-    Experiment("point_mamba/scanobjectnn", "auto", train=True, test=True, marks=_GPU_MAMBA),
-    Experiment("point_mamba/scanobjectnn-augmentedrot-scale75", "auto", train=True, test=True, marks=_GPU_MAMBA),
-    Experiment("point_mamba/scanobjectnn-nobg", "auto", train=True, test=True, marks=_GPU_MAMBA),
+    Experiment(
+        "point_bert/modelnet40",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_bert/scanobjectnn-hardest",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_bert/scanobjectnn-objbg",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_bert/scanobjectnn-objonly",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_m2ae/modelnet40",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_m2ae/scanobjectnn-hardest",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_m2ae/scanobjectnn-objbg",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_m2ae/shapenetpart",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mae/modelnet40",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mae/scanobjectnn-hardest",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mae/scanobjectnn-objbg",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mae/scanobjectnn-objonly",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mae/shapenetpart",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mamba/modelnet40", "auto", train=True, test=True, marks=_GPU_MAMBA, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "point_mamba/scanobjectnn", "auto", train=True, test=True, marks=_GPU_MAMBA, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "point_mamba/scanobjectnn-augmentedrot-scale75",
+        "auto",
+        train=True,
+        test=True,
+        marks=_GPU_MAMBA,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_mamba/scanobjectnn-nobg",
+        "auto",
+        train=True,
+        test=True,
+        marks=_GPU_MAMBA,
+        benchmark_overrides=_PRETRAINED,
+    ),
     # pointcnn-base has no registered weights, so the pretrained benchmark is not a supported workflow;
     # the train recipe is the point of these configs.
     Experiment("pointcnn/modelnet40", "cpu", train=True, test=False, marks=_CPU_CLUSTER),
     Experiment("pointcnn/shapenetpart", "cpu", train=True, test=False, marks=_CPU_CLUSTER),
-    Experiment("pointconv/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointgpt/modelnet40", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointgpt/scanobjectnn-hardest", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointgpt/scanobjectnn-objbg", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointgpt/scanobjectnn-objonly", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointmlp/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointmlp/scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment(
+        "pointconv/modelnet40",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointgpt/modelnet40",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointgpt/scanobjectnn-hardest",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointgpt/scanobjectnn-objbg",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointgpt/scanobjectnn-objonly",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointmlp/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "pointmlp/scanobjectnn",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
     # PointNet v1 has no registered weights, so the pretrained benchmark is not a supported workflow;
     # the train recipe is the point of these configs.
     Experiment("pointnet/modelnet40", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
     Experiment("pointnet/s3dis", "cpu", train=True, test=False, marks=(_REQUIRES_TORCH_SCATTER,)),
     Experiment("pointnet/shapenetpart", "cpu", train=True, test=False, marks=(_REQUIRES_TORCH_SCATTER,)),
-    Experiment("pointnet2/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("pointnet2/msg_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("pointnet2/openpoints_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("pointnet2/openpoints_s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("pointnet2/openpoints_scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("pointnet2/yanx27_s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER),
-    Experiment("pointnext/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointnext/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointnext/scanobjectnn", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("pointnext/shapenetpart", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER),
+    Experiment(
+        "pointnet2/modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "pointnet2/msg_modelnet40", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "pointnet2/openpoints_modelnet40",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointnet2/openpoints_s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "pointnet2/openpoints_scanobjectnn",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointnet2/yanx27_s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "pointnext/modelnet40",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointnext/s3dis", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "pointnext/scanobjectnn",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "pointnext/shapenetpart",
+        "cpu",
+        train=False,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    # Random weights leave most dense anchors above the production score threshold; the pairwise
+    # rotated-BEV NMS over that set exhausts host memory.
     Experiment(
         "pointpillars/kitti",
         "cpu",
         train=True,
         test=True,
         marks=(_REQUIRES_TORCH_SCATTER,),
-        benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
-        train_overrides=_KITTI_DUMMY_TRAIN_OVERRIDES,
+        benchmark_overrides=(*_PRETRAINED, *_KITTI_DUMMY_OVERRIDES),
+        train_overrides=(*_KITTI_DUMMY_TRAIN_OVERRIDES, "model.score_threshold=0.99"),
     ),
     # Random weights score ~0.5 on every dense nuScenes anchor; at the production score threshold the
     # pairwise per-class NMS over the full ~500k-anchor set exhausts host memory.
@@ -152,7 +368,7 @@ EXPERIMENTS = (
         train=True,
         test=True,
         marks=(_REQUIRES_TORCH_SCATTER,),
-        benchmark_overrides=("model.score_threshold=0.99",),
+        benchmark_overrides=(*_PRETRAINED, "model.score_threshold=0.99"),
         train_overrides=("model.score_threshold=0.99",),
     ),
     Experiment(
@@ -161,7 +377,7 @@ EXPERIMENTS = (
         train=True,
         test=True,
         marks=_CPU_CLUSTER_SCATTER,
-        benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
+        benchmark_overrides=(*_PRETRAINED, *_KITTI_DUMMY_OVERRIDES),
         train_overrides=_KITTI_DUMMY_TRAIN_OVERRIDES,
     ),
     # Point Transformer v1/v2 have no registered weights; the train recipe is the point of these configs.
@@ -171,24 +387,51 @@ EXPERIMENTS = (
     Experiment("point_transformer_v2/scannet", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
     # No scannet200 dummy dataset; compose-tested only.
     Experiment("point_transformer_v2/scannet200", "cpu", train=False, test=False, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("point_transformer_v3/s3dis", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
-    Experiment("point_transformer_v3/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
+    Experiment(
+        "point_transformer_v3/s3dis",
+        "auto",
+        train=True,
+        test=True,
+        marks=_GPU_SPCONV_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
+    Experiment(
+        "point_transformer_v3/scannet",
+        "auto",
+        train=True,
+        test=True,
+        marks=_GPU_SPCONV_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+    ),
     # No scannet200 dummy dataset; compose-tested only.
     Experiment("point_transformer_v3/scannet200", "auto", train=False, test=False, marks=_GPU_SPCONV_SCATTER),
     # Joint ScanNet20 + S3DIS training with PDNorm; the multi-dataset train recipe is the point (no benchmark).
     Experiment("point_transformer_v3/scannet_s3dis_joint", "auto", train=True, test=False, marks=_GPU_SPCONV_SCATTER),
-    Experiment("pvcnn/s3dis", "cpu", train=True, test=True, marks=(_REQUIRES_TORCH_SCATTER,)),
+    Experiment(
+        "pvcnn/s3dis", "cpu", train=True, test=True, marks=(_REQUIRES_TORCH_SCATTER,), benchmark_overrides=_PRETRAINED
+    ),
     # PVCNN++ has no registered weights; the train recipe is the point of this config.
     Experiment("pvcnn2/s3dis", "cpu", train=True, test=False, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("randlanet/semantickitti", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
+    # The dummy SemanticKITTI tree ships sequences 00 / 08 / 11 only; the train split wants 00-10 minus 08.
+    Experiment(
+        "randlanet/semantickitti",
+        "cpu",
+        train=True,
+        test=True,
+        marks=_CPU_CLUSTER_SCATTER,
+        benchmark_overrides=_PRETRAINED,
+        train_overrides=('+datamodule.train_dataset.sequences=["00"]',),
+    ),
+    # Random weights leave most dense anchors above the production score threshold; the pairwise
+    # rotated-BEV NMS over that set exhausts host memory.
     Experiment(
         "second/kitti",
         "auto",
         train=True,
         test=True,
         marks=_GPU_SPCONV,
-        benchmark_overrides=_KITTI_DUMMY_OVERRIDES,
-        train_overrides=_KITTI_DUMMY_TRAIN_OVERRIDES,
+        benchmark_overrides=(*_PRETRAINED, *_KITTI_DUMMY_OVERRIDES),
+        train_overrides=(*_KITTI_DUMMY_TRAIN_OVERRIDES, "model.score_threshold=0.99"),
     ),
     # Same dense-anchor memory blow-up as pointpillars/nuscenes under random weights.
     Experiment(
@@ -197,16 +440,38 @@ EXPERIMENTS = (
         train=True,
         test=True,
         marks=_GPU_SPCONV,
-        benchmark_overrides=("model.score_threshold=0.99",),
+        benchmark_overrides=(*_PRETRAINED, "model.score_threshold=0.99"),
         train_overrides=("model.score_threshold=0.99",),
     ),
-    Experiment("sonata/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
+    Experiment(
+        "sonata/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    # spformer-unet.scannet20 has no registered weights, so the pretrained benchmark is not a supported
+    # workflow; the train recipe is the point of this config.
+    Experiment("spformer_unet/scannet", "auto", train=True, test=False, marks=_GPU_SPCONV),
+    # sphereformer has no registered weights (dead upstream links), so benchmark mode keeps random weights.
     Experiment("sphereformer/semantickitti", "auto", train=False, test=True, marks=_GPU_SPCONV + (_REQUIRES_SPTR,)),
-    Experiment("spunet/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV),
-    Experiment("spvcnn/semantickitti", "auto", train=True, test=True, marks=(_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)),
-    Experiment("utonia/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER),
-    Experiment("votenet/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER),
-    Experiment("voxelnext/nuscenes", "auto", train=True, test=True, marks=_GPU_SPCONV),
+    Experiment("spunet/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV, benchmark_overrides=_PRETRAINED),
+    Experiment(
+        "spvcnn/semantickitti",
+        "auto",
+        train=True,
+        test=True,
+        marks=(_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA),
+        benchmark_overrides=_PRETRAINED,
+        train_overrides=('+datamodule.train_dataset.sequences=["00"]',),
+    ),
+    Experiment(
+        "utonia/scannet", "auto", train=True, test=True, marks=_GPU_SPCONV_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    # Eval-only config: no train recipe (the checkpoint comes from the reference implementation).
+    Experiment(
+        "votenet/scannet", "cpu", train=False, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment(
+        "votenet/sunrgbd", "cpu", train=True, test=True, marks=_CPU_CLUSTER_SCATTER, benchmark_overrides=_PRETRAINED
+    ),
+    Experiment("voxelnext/nuscenes", "auto", train=True, test=True, marks=_GPU_SPCONV, benchmark_overrides=_PRETRAINED),
 )
 
 TRAIN_EXPERIMENTS = [pytest.param(run, marks=list(run.marks), id=run.experiment) for run in EXPERIMENTS if run.train]
@@ -308,8 +573,9 @@ def test_experiment_benchmark_mode(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Compose the `test.py` config (with random weights instead of the registry checkpoint), run
-    `Trainer.test` on the dummy datasets, and check the metric callback logged a `test/` metric."""
+    """Compose the `test.py` config, run `Trainer.test` on the dummy datasets, and check the metric
+    callback logged a `test/` metric. The base overrides pin random weights; rows whose model ships
+    registry weights re-enable the documented `model.pretrained=true` load through `benchmark_overrides`."""
     import lightning.pytorch as L  # noqa: N812
     from hydra import compose, initialize_config_dir
     from hydra.core.hydra_config import HydraConfig

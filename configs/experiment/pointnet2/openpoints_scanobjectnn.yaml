@@ -3,9 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=pointnet2/openpoints_scanobjectnn
 # Benchmark: uv run --no-sync python test.py experiment=pointnet2/openpoints_scanobjectnn
 #
-# | model.name                        | accuracy |
-# | --------------------------------- | -------- |
-# | pointnet2.scanobjectnn.openpoints | -        |
+# | model.name                        | accuracy | reference |
+# | --------------------------------- | -------- | --------- |
+# | pointnet2.scanobjectnn.openpoints | 0.8616   | 0.862     |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

@@ -2,9 +2,10 @@
 # Point-M2AE classification on ScanObjectNN OBJ_BG (with background).
 # Benchmark: uv run --no-sync python test.py experiment=point_m2ae/scanobjectnn-objbg
 #
-# | model.name                         | accuracy |
-# | ---------------------------------- | -------- |
-# | point-m2ae-base.scanobjectnn-objbg.renrui-zhang | 0.9122   |
+# | model.name                                      | accuracy | reference |
+# | ----------------------------------------------- | -------- | --------- |
+# | point-m2ae-base.scanobjectnn-objbg.renrui-zhang | 0.9122   | 0.9122    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

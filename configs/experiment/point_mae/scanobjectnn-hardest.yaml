@@ -2,9 +2,10 @@
 # Point-MAE classification on ScanObjectNN PB_T50_RS (hardest).
 # Benchmark: uv run --no-sync python test.py experiment=point_mae/scanobjectnn-hardest
 #
-# | model.name                          | accuracy |
-# | ----------------------------------- | -------- |
-# | point-mae-base.scanobjectnn-hardest.yatian-pang | 0.8505   |
+# | model.name                                      | accuracy | reference |
+# | ----------------------------------------------- | -------- | --------- |
+# | point-mae-base.scanobjectnn-hardest.yatian-pang | 0.8505   | 0.8518    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

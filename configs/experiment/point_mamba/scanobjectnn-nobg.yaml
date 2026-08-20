@@ -1,12 +1,14 @@
 # @package _global_
-# PointMamba classification on ScanObjectNN OBJ_ONLY (old-arch upstream checkpoint; the reference code also scores 0.833).
+# PointMamba classification on ScanObjectNN OBJ_ONLY
 # Train: uv run --no-sync python train.py experiment=point_mamba/scanobjectnn-nobg
 # Benchmark: uv run --no-sync python test.py experiment=point_mamba/scanobjectnn-nobg
 #
-# | model.name                         | accuracy |
-# | ---------------------------------- | -------- |
-# | point-mamba-base.scanobjectnn-nobg.dingkang-liang | 0.8382   |
-# (exact at precision=32-true datamodule.batch_size=16)
+# NOTE: Could not reproduce the reference score of 0.9260 even from the released checkpoint / code.
+#
+# | model.name                                        | accuracy | reference |
+# | ------------------------------------------------- | -------- | --------- |
+# | point-mamba-base.scanobjectnn-nobg.dingkang-liang | 0.8382   | 0.9260    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
@@ -33,6 +35,7 @@ model:
     T_max: ${trainer.max_epochs}
 
 datamodule:
+  eval_batch_size: 16
   train_dataset:
     background: false
     variant: null

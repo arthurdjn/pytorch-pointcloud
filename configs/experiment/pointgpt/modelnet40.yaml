@@ -2,14 +2,17 @@
 # PointGPT classification on ModelNet40 (normal-resampled), single pass (no voting).
 # Benchmark: uv run --no-sync python test.py experiment=pointgpt/modelnet40
 #
-# | model.name                         | accuracy |
-# | ---------------------------------- | -------- |
-# | pointgpt-s.modelnet40.guangyan-chen    | 0.9331   |
-# | pointgpt-b.modelnet40.guangyan-chen    | 0.9437   |
-# | pointgpt-l.modelnet40.guangyan-chen    | 0.9388   |
-# | pointgpt-s.modelnet40-8k.guangyan-chen | 0.9376   |
-# | pointgpt-b.modelnet40-8k.guangyan-chen | -        |
-# | pointgpt-l.modelnet40-8k.guangyan-chen | -        |
+# NOTE: No reference is published for the B / L 8k variants.
+#
+# | model.name                             | accuracy | reference |
+# | -------------------------------------- | -------- | --------- |
+# | pointgpt-s.modelnet40.guangyan-chen    | 0.9331   | 0.940     |
+# | pointgpt-b.modelnet40.guangyan-chen    | 0.9437   | 0.944     |
+# | pointgpt-l.modelnet40.guangyan-chen    | 0.9388   | 0.947     |
+# | pointgpt-s.modelnet40-8k.guangyan-chen | 0.9376   | 0.942     |
+# | pointgpt-b.modelnet40-8k.guangyan-chen | 0.9425   |           |
+# | pointgpt-l.modelnet40-8k.guangyan-chen | 0.9380   |           |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification

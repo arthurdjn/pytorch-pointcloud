@@ -3,13 +3,15 @@
 # Train: uv run --no-sync python train.py experiment=concerto/scannet
 # Benchmark: uv run --no-sync python test.py experiment=concerto/scannet
 #
-# | model.name                  | mIoU   | accuracy |
-# | --------------------------- | ------ | -------- |
-# | concerto-large-lp.scannet20.pointcept | 0.7768 | 0.9235   |
+# | model.name                            | reference (mIoU) |
+# | ------------------------------------- | ---------------- |
+# | concerto-large-lp.scannet20.pointcept | 0.775            |
+
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: tta_rotations_scales
 
 trainer:
   max_epochs: 100
@@ -20,8 +22,26 @@ model:
   name: concerto-large-lp.scannet20.pointcept
   num_classes: 20
   pretrained: false
-  input_keys: [x, pos, batch]
+  input_keys: [x, pos_grid, batch]
   target_key: segment
+  inferer:
+    base:
+      voxel_size: 0.02
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Quantize
+            keys: pos
+            size: 0.02
+            dst_keys: pos_grid
+          - _target_: torch_pointcloud.transforms.Shift
+            keys: pos
+            method: bbox
+            axes: [0, 1]
+          - _target_: torch_pointcloud.transforms.Cat
+            keys: [pos, color, normal]
+            dst_key: x
+            dim: 1
   criterion:
     _target_: torch.nn.CrossEntropyLoss
     ignore_index: -1
@@ -37,6 +57,30 @@ datamodule:
   train_dataset:
     transform: null
   val_dataset:
-    # The benchmark script evaluates the aligned frame.
-    use_axis_alignment: true
+    use_axis_alignment: false
     transform: null
+
+  test_dataset:
+    _target_: torch_pointcloud.datasets.ScanNet20
+    root: ${paths.data_dir}
+    split: val
+    use_axis_alignment: false
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+          axes: [2]
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          default: -1
+        - _target_: torch_pointcloud.transforms.Normalize
+          keys: color
+          mean: [0.0, 0.0, 0.0]
+          std: [255.0, 255.0, 255.0]
