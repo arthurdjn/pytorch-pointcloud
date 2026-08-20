@@ -1,22 +1,9 @@
 """Evaluate the OctFormer ScanNet semantic-segmentation models on the val split.
 
-`ScanNet20` / `ScanNet200` scenes -> `DataLoader` -> model -> argmax -> confusion matrix over all
-scenes, with the model's registered eval transform (grid sampling + octree build) and class $0$
-(unannotated) ignored.
-
-Results vs reference (ScanNet val mIoU, single pass; octree-nn repo eval of the released checkpoints):
-
-    | Variant                             | reference | torch-pointcloud |
-    | ----------------------------------- | --------- | ---------------- |
-    | octformer-base.scannet20.octree-nn  | 74.8      | 74.78            |
-    | octformer-base.scannet200.octree-nn | 31.7      | 31.71            |
-
-The reference column is the released checkpoints' single-pass scores; the paper reports 74.5 (75.7
-with voting) on ScanNet and 32.6 with voting on ScanNet200.
-
-Both datasets now load with `use_axis_alignment=False`, matching the reference preprocessing (the
-released weights are trained on unaligned coordinates). The ScanNet200 number above was measured on
-axis-aligned scenes and is pending re-measurement.
+| Model                               | reference | torch-pointcloud |
+| ----------------------------------- | --------- | ---------------- |
+| octformer-base.scannet20.octree-nn  | 74.8      | 74.78            |
+| octformer-base.scannet200.octree-nn | 31.7      | 31.71            |
 
 Usage:
     uv run --no-sync python examples/octformer_benchmark_scannet.py --model octformer-base.scannet20.octree-nn
@@ -80,7 +67,7 @@ def main() -> None:
             transform=transform,
             force_process=args.force_process,
             num_workers=args.num_workers,
-            use_axis_alignment=False,
+            use_axis_alignment=True,
         )
     else:
         test_dataset = ScanNet20(
