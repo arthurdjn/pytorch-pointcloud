@@ -1,13 +1,10 @@
 r"""Reproduce mit-han-lab's PVCNN numbers on S3DIS Area-5.
 
-Follows the upstream evaluation protocol:
+Results (S3DIS Area-5):
 
-- https://github.com/mit-han-lab/pvcnn/blob/master/evaluate/s3dis/eval.py
-- https://github.com/mit-han-lab/pvcnn/blob/master/data/s3dis/prepare_data.py
-
-| Model                             | Paper        | This script                                 |
-| --------------------------------- | ------------ | ------------------------------------------- |
-| `pvcnn.s3dis-area5.mit-han-lab`   | 56.64 % mIoU | 57.51 % mIoU / 86.63 % OA (seed=42, 1 vote) |
+| Model                           | Paper        | This script                                 |
+| ------------------------------- | ------------ | ------------------------------------------- |
+| `pvcnn.s3dis-area5.mit-han-lab` | 56.64 % mIoU | 57.51 % mIoU / 86.63 % OA (seed=42, 1 vote) |
 
 Usage:
 

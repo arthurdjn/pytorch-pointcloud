@@ -1,12 +1,9 @@
 """Evaluate the Point-MAE ShapeNetPart part-segmentation model.
 
-`ShapeNetPart` -> `DataLoader` -> model -> argmax -> per-shape IoU averaged into instance / class mIoU.
-The category one-hot conditioning comes from the dataset's category index.
+Results vs reference (instance mIoU / class mIoU):
 
-Results vs reference (instance mIoU / class mIoU; paper Tab. 4, class mIoU via Point-M2AE Tab. 5):
-
-    | Variant                     | reference    | torch-pointcloud |
-    | --------------------------- | ------------ | ---------------- |
+    | Variant                                 | reference    | torch-pointcloud |
+    | --------------------------------------- | ------------ | ---------------- |
     | point-mae-base.shapenetpart.yatian-pang | 86.1 / 84.19 | 86.09 / 84.12    |
 
 Usage:

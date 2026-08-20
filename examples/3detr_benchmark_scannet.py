@@ -1,26 +1,11 @@
 r"""Evaluate 3DETR on ScanNet-V2 val with mAP@0.25 / mAP@0.5.
 
-The whole benchmark is `create_model` -> `model` -> `model.decode` -> `mean_average_precision3d`: the
-`ScanNet` dataset gives the upright cloud and per-point instance / segment labels, `Relabel` +
-`InstanceToBox` derive the 18-class axis-aligned detection boxes (no detection-specific data export), the
-registered transform samples to 40k points (3DETR's eval preprocessing), the script applies the reference
-test protocol's filters (drop boxes with fewer than 5 points, per-class 3D NMS, objectness > 0.05), and
-the AP is the dataset-agnostic 3D metric in `torch_pointcloud.utils.metrics`.
+Reference results (ScanNet-V2 val):
 
-Ground truth uses the same box definition as the reference (axis-aligned bounds of each labeled instance's
-vertices, 18-class NYU40 subset) computed by our own transforms instead of consuming the reference's
-exported `.npy`, keeping one uniform dataset path. mAP averages over classes present in the ground truth
-(a class with no GT instances has undefined AP and is excluded rather than counted as 0); identical to the
-reference here since every detection class occurs in the val GT.
-
-| Model                  | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
-| ---------------------- | ------------------------------ | ------------------------- |
-| `3detr-m.scannet.fair` | 66.76 / 47.77 (pre-fix)        | 65.0 / 47.0               |
-| `3detr.scannet.fair`   | 62.17 / 38.60 (pre-fix)        | 62.1 / 37.9               |
-
-The pre-fix numbers were measured WITHOUT the reference test-protocol filters (empty-box removal and the
-0.05 objectness threshold), which lets the low-score tail inflate the AP integral; they need re-measuring
-with the filters in place.
+| Model                  | Reference (mAP@0.25 / @0.50) |
+| ---------------------- | ---------------------------- |
+| `3detr-m.scannet.fair` | 65.0 / 47.0                  |
+| `3detr.scannet.fair`   | 62.1 / 37.9                  |
 
 Usage:
     uv run --no-sync python examples/3detr_benchmark_scannet.py --root "/path/to/data"

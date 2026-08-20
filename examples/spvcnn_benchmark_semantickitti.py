@@ -1,26 +1,11 @@
 """Benchmark SPVCNN on the 19-class SemanticKITTI val split.
 
-The pretrained `spvcnn-{30,47,119}gmacs.semantickitti.mit-han-lab` checkpoints come from the SPVNAS
-model zoo (https://github.com/mit-han-lab/spvnas). The registered eval pipeline voxelises the cloud
-to $5\\,\\text{cm}$ before inference and stores the per-point inverse map, so per-voxel predictions
-are back-projected to the raw points and mIoU is scored at full resolution, matching the reference
-evaluation of the published numbers. The per-voxel representative is the first point in input order,
-matching the `np.unique` selection in torchsparse's `sparse_quantize` used by SPVNAS.
-
 Reference (full-resolution val, sequence 08, SPVNAS model zoo):
     | Model                                     | mIoU |
     | ----------------------------------------- | ---- |
     | spvcnn-119gmacs.semantickitti.mit-han-lab | 63.8 |
     | spvcnn-47gmacs.semantickitti.mit-han-lab  | 61.4 |
     | spvcnn-30gmacs.semantickitti.mit-han-lab  | 60.7 |
-
-Results measured with the previous per-voxel protocol (no back-projection, single pass); the
-full-resolution numbers are pending re-measurement:
-    | Model                                     | mIoU  | OA    |
-    | ----------------------------------------- | ----- | ----- |
-    | spvcnn-119gmacs.semantickitti.mit-han-lab | 62.37 | 92.14 |
-    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 60.26 | 91.91 |
-    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 59.21 | 91.58 |
 
 Usage:
     uv run --no-sync python examples/spvcnn_benchmark_semantickitti.py --limit 5

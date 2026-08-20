@@ -1,18 +1,11 @@
 """Evaluate the PointMLP ModelNet40 classifiers (single-pass, no voting).
 
-`ModelNet40Hdf5` -> `DataLoader` -> model -> argmax -> overall accuracy, following the reference
-protocol: take the first 1024 points of each pre-shuffled 2048-point HDF5 cloud (no FPS).
+Results vs reference (ModelNet40 overall accuracy):
 
-Results vs reference (ModelNet40 overall accuracy; reference is the paper's best-seed number without
-voting, with 94.5 / 94.0 reported with voting):
-
-    | Variant                         | reference | torch-pointcloud            |
-    | ------------------------------- | --------- | --------------------------- |
-    | pointmlp-base.modelnet40.xu-ma  | 94.1      | 93.52 (pre-fix, re-measure) |
-    | pointmlp-elite.modelnet40.xu-ma | 93.6      | 92.46 (pre-fix, re-measure) |
-
-The torch-pointcloud numbers were measured before this script switched to the reference protocol
-(FPS on the normal-resampled dataset); re-measurement on the HDF5 first-1024 protocol is pending.
+    | Variant                         | reference |
+    | ------------------------------- | --------- |
+    | pointmlp-base.modelnet40.xu-ma  | 94.1      |
+    | pointmlp-elite.modelnet40.xu-ma | 93.6      |
 
 Usage:
     uv run --no-sync python examples/pointmlp_benchmark_modelnet.py --download

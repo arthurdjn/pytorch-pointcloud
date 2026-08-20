@@ -1,14 +1,12 @@
 """Benchmark Concerto on ScanNet.
 
-For the linear-probe segmentation variant (`concerto-large-lp.scannet20.pointcept`), reports
-mIoU + OA + latency on ScanNet20 val. For encoder-only variants (tiny / small /
-base / large), only latency / throughput is reported (no head, no labels).
+NOTE: single-forward, voxel-level mIoU; published numbers add test-time augmentation and full-resolution
+per-point evaluation.
 
-Single-forward, voxel-level mIoU on ScanNet20 val (published numbers add test-time augmentation and
-full-resolution per-point evaluation):
+Results (ScanNet20 val):
 
-| Model                       | Here                  |
-| --------------------------- | --------------------- |
+| Model                                 | Here                  |
+| ------------------------------------- | --------------------- |
 | concerto-large-lp.scannet20.pointcept | 77.68 mIoU / 92.35 OA |
 
 Usage:

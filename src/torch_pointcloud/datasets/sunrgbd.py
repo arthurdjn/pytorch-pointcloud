@@ -452,8 +452,6 @@ class SunRGBD(PointCloudDataset):
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
         scene_dir = self.scenes[index]
-        # The cache stores half extents, a clockwise heading, and per-box classes in `class.npy`;
-        # convert to the emitted format on access so existing caches stay valid.
         boxes = torch.from_numpy(np.load(Path(scene_dir, "box.npy")))
         data: Dict[str, Any] = {
             DataKeys.POS: torch.from_numpy(np.load(Path(scene_dir, "pos.npy"))).float(),

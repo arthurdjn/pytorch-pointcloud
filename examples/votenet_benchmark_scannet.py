@@ -1,24 +1,8 @@
 r"""Evaluate `votenet.scannet.fair` on ScanNet-V2 val with mAP@0.25 / mAP@0.5.
 
-The benchmark is `create_model` -> model -> `model.decode` -> `nms3d` -> `mean_average_precision3d`. Detection ground
-truth is read from facebookresearch/votenet's preprocessed export (`{scene}_vert.npy` xyz[+rgb] and
-`{scene}_bbox.npy` axis-aligned $(K, 7)$). A native ScanNet detection dataset that derives boxes from
-per-instance labels (as a transform) is the intended uniform path; this script consumes the
-preprocessed export to keep the verified reproduction. mAP averages over classes present in the ground
-truth (a class with no GT instances has undefined AP and is excluded rather than counted as 0); identical
-to the reference here since every detection class occurs in the val GT.
-
-| Model                  | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
-| ---------------------- | ------------------------------ | ------------------------- |
-| `votenet.scannet.fair` | 57.84 / - (pre-fix)            | 58.6 / ~35                |
-
-The registered model now samples proposal centers with `seed_fps`, matching the reference eval command
-(`--cluster_sampling seed_fps`); the pre-fix number was measured with `vote_fps` sampling and needs
-re-measuring (expect ~58.6, and record the measured mAP@0.5 alongside).
-
-Data preparation (one-time, in a clone of facebookresearch/votenet):
-    follow `scannet/README.md` to produce `scannet/scannet_train_detection_data/` and the
-    `scannet/meta_data/scannetv2_val.txt` split list.
+| Model                  | torch-pointcloud (mAP@0.25 / @0.50) | reference (@0.25 / @0.50) |
+| ---------------------- | ----------------------------------- | ------------------------- |
+| `votenet.scannet.fair` | 58.35 / 33.98                       | 58.6 / ~35                |
 
 Usage:
     uv run --no-sync python examples/votenet_benchmark_scannet.py \

@@ -1,16 +1,13 @@
 """Evaluate the Point-M2AE ModelNet40 classifier (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
-registered eval transform.
+NOTE: the remaining gap is FPS sampling variance (reference CUDA FPS and `torch_cluster` FPS pick
+different point subsets).
 
-Results vs reference (ModelNet40 overall accuracy, single-pass; the paper reports 94.0 with voting):
+Results vs reference (ModelNet40 overall accuracy):
 
-    | Variant                    | reference | torch-pointcloud |
-    | -------------------------- | --------- | ---------------- |
+    | Variant                                 | reference | torch-pointcloud |
+    | --------------------------------------- | --------- | ---------------- |
     | point-m2ae-base.modelnet40.renrui-zhang | 93.43     | 92.87            |
-
-The remaining gap is FPS sampling variance (reference CUDA FPS and `torch_cluster` FPS pick different
-point subsets).
 
 Usage:
     uv run --no-sync python examples/point_m2ae_benchmark_modelnet.py

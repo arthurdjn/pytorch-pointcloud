@@ -1,10 +1,12 @@
 """Benchmark Sonata semantic segmentation on ScanNet.
 
-`sonata-lp.scannet20.fair` is a linear-probe head on the frozen Sonata encoder. Single-forward, voxel-level mIoU
-on ScanNet20 val (the paper's ~72.5 adds test-time augmentation and full-resolution per-point evaluation):
+NOTE: `sonata-lp.scannet20.fair` is a linear-probe head on the frozen Sonata encoder; the paper's ~72.5
+adds test-time augmentation and full-resolution per-point evaluation.
 
-| Model               | Here                  |
-| ------------------- | --------------------- |
+Results (ScanNet20 val, single-forward voxel-level mIoU):
+
+| Model                    | Here                  |
+| ------------------------ | --------------------- |
 | sonata-lp.scannet20.fair | 71.92 mIoU / 90.03 OA |
 
 Usage:

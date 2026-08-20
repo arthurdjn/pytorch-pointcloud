@@ -1,11 +1,8 @@
 r"""Evaluate `pointnet2.s3dis-area5.openpoints` on S3DIS via the presample (single-voxelize) protocol.
 
-Each room is voxelized once at $0.04\,\text{m}$ with one random representative per voxel; the
-model runs in a single forward pass and IoU is computed on the voxelized set.
-
-| Model                              | This script              | Reference   |
-| ---------------------------------- | ------------------------ | ----------- |
-| `pointnet2.s3dis-area5.openpoints` | 62.49% mIoU / 87.18% OA  | 62.49% mIoU |
+| Model                              | This script             | Reference   |
+| ---------------------------------- | ----------------------- | ----------- |
+| `pointnet2.s3dis-area5.openpoints` | 62.49% mIoU / 87.18% OA | 62.49% mIoU |
 
 Usage:
 
