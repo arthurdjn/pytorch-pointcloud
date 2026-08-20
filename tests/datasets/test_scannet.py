@@ -213,7 +213,8 @@ def test_scannet_dataset_progress_with_cached_processed(
     assert len(dataset) > 0
     captured = capsys.readouterr()
     assert "Processing" not in captured.err
-    assert "Loading" in captured.err
+    # Whole scenes are read on access, so a cached split loads without a pass over the data.
+    assert "Loading" not in captured.err
     assert captured.out == ""
 
 
@@ -268,7 +269,7 @@ def test_scannet_dataset_segment_ids_match_class_to_idx(datasets_dir_factory: Ca
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     dataset = ScanNet(root=datasets_dir, split="train", label_name="raw_category", label_id="id", show_progress=False)
-    scene = next(data for data in dataset.data if data["scene"] == "scene0191_00")
+    scene = next(data for data in dataset if data["scene"] == "scene0191_00")
     assert scene["segment"].max() < len(dataset.classes)
 
     aggregation_path = datasets_dir / "ScanNet" / "raw" / "v2" / "scans" / "scene0191_00"
@@ -315,7 +316,7 @@ def test_scannet_dataset_interrupted_cache_detected(datasets_dir_factory: Callab
 
     dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
     (Path(dataset.processed_dir) / "train" / "meta.json").unlink()
-    (Path(dataset.processed_dir) / "train" / dataset.data[0]["scene"] / "normal.npy").unlink()
+    (Path(dataset.processed_dir) / "train" / dataset[0]["scene"] / "normal.npy").unlink()
 
     with pytest.raises(RuntimeError, match="force_process"):
         _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
@@ -331,7 +332,7 @@ def test_scannet_dataset_missing_scene_detected(datasets_dir_factory: Callable[.
 
     dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
     (Path(dataset.processed_dir) / "train" / "meta.json").unlink()
-    shutil.rmtree(Path(dataset.processed_dir) / "train" / dataset.data[0]["scene"])
+    shutil.rmtree(Path(dataset.processed_dir) / "train" / dataset[0]["scene"])
 
     with pytest.raises(RuntimeError, match="force_process"):
         _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
@@ -429,7 +430,7 @@ def test_scannet200_legacy_cache_relabels_raw_ids(datasets_dir_factory: Callable
 
     dataset = ScanNet200(root=datasets_dir, split="train", show_progress=False)
     expected = [0, SCANNET200_LABELS.index(1), SCANNET200_LABELS.index(2), SCANNET200_LABELS.index(1163)]
-    assert dataset.data[0]["segment"].tolist() == expected
+    assert dataset[0]["segment"].tolist() == expected
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
@@ -442,10 +443,73 @@ def test_scannet20_load_matches_relabelled_base_segments(datasets_dir_factory: C
     assert len(dataset) == len(base)
 
     lookup = {label: idx for idx, label in enumerate(SCANNET20_LABELS)}
-    for base_scene, scene in zip(base.data, dataset.data):
+    for base_scene, scene in zip(base, dataset):
         assert scene["scene"] == base_scene["scene"]
         expected = torch.tensor([lookup.get(int(label), 0) for label in base_scene["segment"]])
         assert torch.equal(scene["segment"], expected)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_superpoint_absent_by_default(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Without `return_superpoint` no `superpoint` key is emitted."""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    for data in dataset:
+        assert DataKeys.SUPERPOINT not in data
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_return_superpoint(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`return_superpoint=True` emits per-point int64 superpoint ids matching the raw segs.json."""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    dataset = ScanNet(root=datasets_dir, split="train", return_superpoint=True, show_progress=False)
+    for data in dataset:
+        superpoint = data[DataKeys.SUPERPOINT]
+        assert superpoint.dtype == torch.int64
+        assert superpoint.shape == (data[DataKeys.POS].shape[0],)
+
+    scene = next(data for data in dataset if data[DataKeys.SCENE] == "scene0191_00")
+    segs_path = (
+        datasets_dir / "ScanNet" / "raw" / "v2" / "scans" / "scene0191_00"
+    ) / "scene0191_00_vh_clean_2.0.010000.segs.json"
+    assert scene[DataKeys.SUPERPOINT].tolist() == json.loads(segs_path.read_text())["segIndices"]
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_superpoint_count_mismatch_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A segs.json whose vertex count disagrees with the processed points raises a clear error on access."""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+    segs_path = (
+        datasets_dir / "ScanNet" / "raw" / "v2" / "scans" / "scene0191_00"
+    ) / "scene0191_00_vh_clean_2.0.010000.segs.json"
+    segs = json.loads(segs_path.read_text())
+    segs["segIndices"] = segs["segIndices"][:-1]
+    segs_path.write_text(json.dumps(segs))
+
+    dataset = ScanNet(root=datasets_dir, split="train", return_superpoint=True, show_progress=False)
+    with pytest.raises(RuntimeError, match="superpoint/point count mismatch"):
+        for _ in dataset:
+            pass
+
+
+def test_scannet_dataset_superpoint_requires_raw_scans(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`return_superpoint=True` with only a processed cache raises the manual-download error on access."""
+    datasets_dir = datasets_dir_factory("ScanNet/processed/**/*")
+    dataset = ScanNet(root=datasets_dir, split="train", return_superpoint=True, show_progress=False)
+    with pytest.raises(RuntimeError, match="download the raw dataset"):
+        _ = dataset[0]
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet20_dataset_return_superpoint(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`ScanNet20` forwards `return_superpoint` and keeps the ids alongside the relabelled segments."""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    dataset = ScanNet20(root=datasets_dir, split="val", return_superpoint=True, show_progress=False)
+    sample = dataset[0]
+    assert sample[DataKeys.SUPERPOINT].dtype == torch.int64
+    assert sample[DataKeys.SUPERPOINT].shape == (sample[DataKeys.POS].shape[0],)
 
 
 def _synthetic_scene(num_points: int = 400) -> dict:
@@ -584,6 +648,6 @@ def test_scannet_dataset_getitem_returns_shallow_copy(datasets_dir_factory: Call
     dataset = ScanNet(root=datasets_dir, show_progress=False)
 
     sample = dataset[0]
-    assert sample is not dataset.data[0]
+    assert sample is not dataset[0]
     sample["extra"] = 1
     assert "extra" not in dataset[0]

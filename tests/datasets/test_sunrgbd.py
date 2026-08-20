@@ -4,7 +4,7 @@ import math
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable
+from typing import Any, Callable
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -216,14 +216,13 @@ def test_sunrgbd_dataset_without_progress(
 def test_sunrgbd_dataset_progress_with_cached_processed(
     datasets_dir_factory: Callable[..., Path], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Test that no processing progress bar is shown if the processed dataset already exists"""
+    """Test that no progress bar is shown if the processed dataset already exists"""
     datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
 
     dataset = SunRGBD(root=datasets_dir, train=False, show_progress=True)
     assert len(dataset) > 0
     captured = capsys.readouterr()
-    assert "Processing" not in captured.err
-    assert "Loading" in captured.err
+    assert captured.err == ""
     assert captured.out == ""
 
 
@@ -284,7 +283,7 @@ def test_sunrgbd_dataset_box_contract(datasets_dir_factory: Callable[..., Path])
 
     dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False)
     checked = 0
-    for scene_dir, sample in zip(dataset.processed_files, dataset.data):
+    for scene_dir, sample in zip(dataset.processed_files, dataset):
         cached = np.load(scene_dir / "box.npy")
         box = sample[DataKeys.BOX]
         assert box.shape == (cached.shape[0], 7)
@@ -337,12 +336,32 @@ def test_sunrgbd_dataset_missing_scene_detected(datasets_dir_factory: Callable[.
         _ = SunRGBD(root=datasets_dir, train=False, show_progress=False)
 
 
-def test_sunrgbd_getitem_returns_shallow_copy(datasets_dir_factory: Callable[..., Path]) -> None:
-    """User edits on a returned sample dict never reach the in-memory cache"""
+def test_sunrgbd_getitem_returns_fresh_dict(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Each access builds a fresh sample dict, so user edits never reach later accesses"""
     datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
     dataset = SunRGBD(root=datasets_dir, show_progress=False)
 
     sample = dataset[0]
-    assert sample is not dataset.data[0]
     sample["extra"] = 1
     assert "extra" not in dataset[0]
+
+
+def test_sunrgbd_dataset_construction_does_not_load_scenes(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Construction enumerates the scene directories without reading any per-scene payload"""
+    datasets_dir = datasets_dir_factory("SunRGBD/processed/**/*")
+
+    calls: list[str] = []
+    real_load = np.load
+
+    def counting_load(*args: Any, **kwargs: Any) -> Any:
+        calls.append(str(args[0]))
+        return real_load(*args, **kwargs)
+
+    monkeypatch.setattr(np, "load", counting_load)
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False)
+    assert calls == []
+
+    _ = dataset[0]
+    assert len(calls) == 4
