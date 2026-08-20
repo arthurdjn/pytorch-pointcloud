@@ -192,6 +192,7 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area6.openpoints",
     "randlanet.semantickitti.tsung-han-wu",
     "sonata-lp.scannet20.fair",
+    "spformer-unet.scannet20",
     "sphereformer.nuscenes",
     "sphereformer.semantickitti",
     "spunet-v1m1.scannet20.pointcept",
@@ -259,7 +260,10 @@ _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
 def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "oneformer3d")) and not torch.cuda.is_available():
+    if (
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "oneformer3d", "octformer", "ptv3"))
+        and not torch.cuda.is_available()
+    ):
         pytest.skip(f"{model_name} requires CUDA, none available")
     if model_name.startswith("sphereformer"):
         if not torch.cuda.is_available():
