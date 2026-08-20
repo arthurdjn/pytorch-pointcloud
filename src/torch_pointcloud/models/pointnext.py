@@ -1116,9 +1116,9 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     ),
     transform=T.Compose(
         [
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
             T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=("height",), num_samples=1024, random_start=False),
             T.Cat(keys=(DataKeys.POS, "height"), dst_key=DataKeys.X),
         ]
     ),
