@@ -1,13 +1,14 @@
 # @package _global_
-# SPVCNN semantic segmentation on SemanticKITTI (per-voxel scoring).
+# SPVCNN semantic segmentation on SemanticKITTI (full-resolution scoring, sequence 08).
 # Train: uv run --no-sync python train.py experiment=spvcnn/semantickitti
 # Benchmark: uv run --no-sync python test.py experiment=spvcnn/semantickitti
 #
-# | model.name                    | mIoU   |
-# | ----------------------------- | ------ |
-# | spvcnn-30gmacs.semantickitti.mit-han-lab  | 0.5923 |
-# | spvcnn-47gmacs.semantickitti.mit-han-lab  | 0.6025 |
-# | spvcnn-119gmacs.semantickitti.mit-han-lab | 0.6240 |
+# | model.name                                | reference (mIoU) |
+# | ----------------------------------------- | ---------------- |
+# | spvcnn-30gmacs.semantickitti.mit-han-lab  | 0.607            |
+# | spvcnn-47gmacs.semantickitti.mit-han-lab  | 0.614            |
+# | spvcnn-119gmacs.semantickitti.mit-han-lab | 0.638            |
+
 defaults:
   - override /datamodule: semantickitti
   - override /model: segmentation
@@ -24,6 +25,8 @@ model:
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment
+  inverse_key: inverse
+  origin_target_key: origin_segment
   criterion:
     _target_: torch.nn.CrossEntropyLoss
     ignore_index: 255
@@ -34,6 +37,8 @@ model:
     weight_decay: 0.05
 
 datamodule:
+  # Multi-scene batches need the per-scene `batch_inverse` index to offset the voxel-to-raw maps.
+  cat_keys: [inverse]
   train_dataset:
     transform: null
   val_dataset:

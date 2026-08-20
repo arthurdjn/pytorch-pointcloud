@@ -1,0 +1,100 @@
+# @package model.inferer
+# Indoor precise-eval protocol without rotations: 10 test-time views (scales 0.9, 0.95, 1.0, 1.05 and 1.1, each
+# also with an x/y flip) of a voxel-partition base that predicts every raw point (softmax summed over fragments and
+# views, argmax at raw resolution). The experiment sets `base.voxel_size` and the per-fragment `base.transform`.
+
+_target_: torch_pointcloud.inferers.TTAInferer
+aggregate: mean
+base:
+  _target_: torch_pointcloud.inferers.VoxelPartitionInferer
+  voxel_size: ???
+  transform: ???
+  softmax: true
+  reduce: sum
+  seed: 42
+transforms:
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [0.9, 0.9]
+        p: 1.0
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [0.9, 0.9]
+        p: 1.0
+      - _target_: torch_pointcloud.transforms.RandomFlip
+        keys: [pos, normal]
+        axes: [0, 1]
+        p: 1.0
+        allow_missing_keys: true
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [0.95, 0.95]
+        p: 1.0
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [0.95, 0.95]
+        p: 1.0
+      - _target_: torch_pointcloud.transforms.RandomFlip
+        keys: [pos, normal]
+        axes: [0, 1]
+        p: 1.0
+        allow_missing_keys: true
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [1.0, 1.0]
+        p: 1.0
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [1.0, 1.0]
+        p: 1.0
+      - _target_: torch_pointcloud.transforms.RandomFlip
+        keys: [pos, normal]
+        axes: [0, 1]
+        p: 1.0
+        allow_missing_keys: true
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [1.05, 1.05]
+        p: 1.0
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [1.05, 1.05]
+        p: 1.0
+      - _target_: torch_pointcloud.transforms.RandomFlip
+        keys: [pos, normal]
+        axes: [0, 1]
+        p: 1.0
+        allow_missing_keys: true
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [1.1, 1.1]
+        p: 1.0
+  - _target_: torch_pointcloud.transforms.Compose
+    transforms:
+      - _target_: torch_pointcloud.transforms.RandomScale
+        keys: pos
+        scale_range: [1.1, 1.1]
+        p: 1.0
+      - _target_: torch_pointcloud.transforms.RandomFlip
+        keys: [pos, normal]
+        axes: [0, 1]
+        p: 1.0
+        allow_missing_keys: true

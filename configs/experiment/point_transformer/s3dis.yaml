@@ -2,11 +2,12 @@
 # Point Transformer semantic segmentation on S3DIS Area 5.
 # Train: uv run --no-sync python train.py experiment=point_transformer/s3dis
 # Benchmark: uv run --no-sync python test.py experiment=point_transformer/s3dis
-# Measured: deferred (training campaign pending)
+
 defaults:
   - override /datamodule: s3dis
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: tta_scales_flip
 
 trainer:
   max_epochs: 100
@@ -17,6 +18,20 @@ model:
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment
+  inferer:
+    base:
+      voxel_size: 0.04
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Shift
+            keys: pos
+            method: bbox
+            axes: [0, 1]
+          - _target_: torch_pointcloud.transforms.Cat
+            keys: [pos, color]
+            dst_key: x
+            dim: 1
   criterion:
     _target_: torch.nn.CrossEntropyLoss
   optimizer:
@@ -32,3 +47,22 @@ datamodule:
     transform: null
   val_dataset:
     transform: null
+
+  test_dataset:
+    _target_: torch_pointcloud.datasets.S3DIS
+    root: ${paths.data_dir}
+    areas: [Area_5]
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+          axes: [2]
+        - _target_: torch_pointcloud.transforms.Divide
+          keys: color
+          divisor: 255

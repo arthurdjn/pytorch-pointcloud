@@ -1,7 +1,11 @@
 # @package _global_
 # 3DETR 3D object detection on SUN RGB-D.
 # Benchmark: uv run --no-sync python test.py experiment=3detr/sunrgbd
-# Measured: deferred (exceeds the 5-minute run budget)
+#
+# | model.name         | mAP@0.25 | mAP@0.5 | reference     |
+# | ------------------ | -------- | ------- | ------------- |
+# | 3detr.sunrgbd.fair | 0.5867   | 0.3015  | 0.580 / 0.303 |
+
 defaults:
   - override /datamodule: sunrgbd
   - override /model: detection

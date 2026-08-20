@@ -3,9 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=octformer/scannet200
 # Benchmark: uv run --no-sync python test.py experiment=octformer/scannet200
 #
-# | model.name                | mIoU   |
-# | ------------------------- | ------ |
-# | octformer-base.scannet200.octree-nn | 0.3171 |
+# | model.name                          | mIoU   | reference |
+# | ----------------------------------- | ------ | --------- |
+# | octformer-base.scannet200.octree-nn | 0.3171 | 0.317     |
+
 defaults:
   - override /datamodule: scannet200
   - override /model: segmentation
@@ -36,6 +37,5 @@ datamodule:
   train_dataset:
     transform: null
   val_dataset:
-    # The benchmark script evaluates the aligned frame.
     use_axis_alignment: true
     transform: null

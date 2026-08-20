@@ -2,8 +2,7 @@
 # PointNet semantic segmentation on S3DIS Area 5 (per-block HDF5 protocol).
 # Train: uv run --no-sync python train.py experiment=pointnet/s3dis
 # Benchmark: uv run --no-sync python test.py experiment=pointnet/s3dis
-#
-# Measured: deferred (training campaign pending)
+
 defaults:
   - override /datamodule: s3dis_hdf5
   - override /model: segmentation

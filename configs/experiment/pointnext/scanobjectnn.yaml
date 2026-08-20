@@ -3,10 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=pointnext/scanobjectnn
 # Benchmark: uv run --no-sync python test.py experiment=pointnext/scanobjectnn
 #
-# | model.name                | accuracy |
-# | ------------------------- | -------- |
-# | pointnext-sm.scanobjectnn.openpoints | 0.8751   |
-# (exact at precision=32-true datamodule.batch_size=16)
+# | model.name                           | accuracy | reference |
+# | ------------------------------------ | -------- | --------- |
+# | pointnext-sm.scanobjectnn.openpoints | 0.8817   | 0.8820    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification
@@ -33,6 +33,7 @@ model:
     T_max: ${trainer.max_epochs}
 
 datamodule:
+  eval_batch_size: 16
   train_dataset:
     background: true
     variant: augmentedrot_scale75

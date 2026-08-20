@@ -1,15 +1,12 @@
 # @package _global_
 # Point Transformer V3 joint semantic segmentation on ScanNet20 + S3DIS with prompt-driven normalization.
 # Train: uv run --no-sync python train.py experiment=point_transformer_v3/scannet_s3dis_joint
-#
-# The backbone runs `pdnorm_conditions: [ScanNet, S3DIS]`, so every norm site holds one decoupled inner
-# norm per dataset. The joint datamodule draws single-domain batches (ratios 2:1) and each child stamps
-# its `condition` string, which flows through `input_keys` into the model and selects the matching norm.
-# A single shared head with `num_classes: 20` covers both native label spaces (S3DIS maps to $0..12$).
+
 defaults:
   - override /datamodule: scannet_s3dis_joint
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: tta_rotations_scales
 
 trainer:
   max_epochs: 100
@@ -23,6 +20,25 @@ model:
   pdnorm_conditions: [ScanNet, S3DIS]
   input_keys: [x, pos_grid, batch, condition]
   target_key: segment
+  inferer:
+    base:
+      voxel_size: 0.02
+      # `condition` is stamped per fragment: a scene-level value is a list after the loader collate and a nested
+      # list after the fragment collate, one level deeper than the model unwraps.
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Cat
+            keys: [color, normal]
+            dst_key: x
+            dim: 1
+          - _target_: torch_pointcloud.transforms.Quantize
+            keys: pos
+            size: 0.02
+            dst_keys: pos_grid
+          - _target_: torch_pointcloud.transforms.SetValue
+            keys: condition
+            values: ScanNet
   criterion:
     _target_: torch.nn.CrossEntropyLoss
     ignore_index: -1
@@ -34,6 +50,7 @@ model:
 
 datamodule:
   batch_size: 2
+  eval_batch_size: 1
   train_dataset:
     datasets:
       - _target_: torch_pointcloud.datasets.ScanNet20
@@ -154,3 +171,28 @@ datamodule:
         - _target_: torch_pointcloud.transforms.SetValue
           keys: condition
           values: ScanNet
+
+  test_dataset:
+    _target_: torch_pointcloud.datasets.ScanNet20
+    root: ${paths.data_dir}
+    split: val
+    use_axis_alignment: false
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+          axes: [2]
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          default: -1
+        - _target_: torch_pointcloud.transforms.Normalize
+          keys: color
+          mean: [0.0, 0.0, 0.0]
+          std: [255.0, 255.0, 255.0]

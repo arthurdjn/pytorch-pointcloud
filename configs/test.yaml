@@ -2,6 +2,7 @@
 #   uv run --no-sync python test.py experiment=spunet/scannet
 #   uv run --no-sync python test.py experiment=spunet/scannet ckpt_path=logs/.../last.ckpt
 # `datamodule`, `model` and `experiment` are mandatory; every experiment overrides the first two.
+
 defaults:
   - _self_
   - paths: default
@@ -11,9 +12,8 @@ defaults:
   - logger: default
   - datamodule: ???
   - model: ???
-  - experiment: ???
-  # Optional test-time inference strategy composed into `model.inferer` (e.g. `inferer=tta`).
   - inferer: null
+  - experiment: ???
 
 task_name: test
 tags: [test]

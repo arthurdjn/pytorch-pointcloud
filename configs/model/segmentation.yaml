@@ -1,9 +1,11 @@
 # Segmentation LightningModule API. `???` args are filled by each experiment; `optimizer` stays null
 # for benchmark-only experiments (training raises without one). Optional args: `inferer` (test-time
-# strategy, see `configs/inferer/`), `inverse_key` / `origin_target_key` (voxel-to-raw benchmark scoring).
+# strategy), `inverse_key` / `origin_target_key` (voxel-to-raw benchmark scoring).
+
 _target_: torch_pointcloud.lightning.LitSegmentationModel
 name: ???
 input_keys: ???
+pretrained: false
 optimizer: null
 criterion: ???
 target_key: segment

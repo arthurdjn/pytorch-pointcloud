@@ -2,9 +2,10 @@
 # Point-M2AE classification on ModelNet40 (normal-resampled), single pass (no voting).
 # Benchmark: uv run --no-sync python test.py experiment=point_m2ae/modelnet40
 #
-# | model.name                 | accuracy |
-# | -------------------------- | -------- |
-# | point-m2ae-base.modelnet40.renrui-zhang | 0.9287   |
+# | model.name                              | accuracy | reference |
+# | --------------------------------------- | -------- | --------- |
+# | point-m2ae-base.modelnet40.renrui-zhang | 0.9287   | 0.9343    |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
