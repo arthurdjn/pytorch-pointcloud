@@ -1,13 +1,9 @@
 """Evaluate the DGCNN ScanNet-V2 model with antao97's original block protocol.
 
-Reads the raw ScanNet `.ply` scenes directly and reproduces the antao97 eval verbatim (per-scene sliding
-$1.5$ m blocks, block-level voting, full-resolution scoring); use `dgcnn_benchmark_scannet.py` for the
-equivalent benchmark built on the repo dataset (which scores slightly higher).
+Results vs reference (ScanNet val mIoU):
 
-Results vs reference (ScanNet val mIoU; reference is the antao97 repo's ScanNet section):
-
-    | Variant               | reference | torch-pointcloud |
-    | --------------------- | --------- | ---------------- |
+    | Variant                | reference | torch-pointcloud |
+    | ---------------------- | --------- | ---------------- |
     | dgcnn.scannet20.an-tao | 49.6      | 49.17            |
 
 Usage:

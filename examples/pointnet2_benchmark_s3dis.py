@@ -1,12 +1,11 @@
 """Evaluate `pointnet2.s3dis-area5.xu-yan` on S3DIS Area-5 HDF5 blocks (per-block protocol).
 
-Each pre-tiled $4096$-point block is classified in isolation, so the result is a lower bound on
-what the model can do. For the sliding-window protocol that recovers room-level context, see
-`pointnet2_benchmark_s3dis_sw.py`.
+NOTE: each pre-tiled $4096$-point block is classified in isolation, so the result is a lower bound; see
+`pointnet2_benchmark_s3dis_sw.py` for the sliding-window protocol that recovers room-level context.
 
-| Model                          | Paper        | Per-block (here)         | Sliding-window |
-| ------------------------------ | ------------ | ------------------------ | -------------- |
-| `pointnet2.s3dis-area5.xu-yan` | 53.5 % mIoU  | 25.4% mIoU / 62.7% OA    | 54.77% mIoU    |
+| Model                          | Paper       | Per-block (here)      | Sliding-window |
+| ------------------------------ | ----------- | --------------------- | -------------- |
+| `pointnet2.s3dis-area5.xu-yan` | 53.5 % mIoU | 25.4% mIoU / 62.7% OA | 54.77% mIoU    |
 
 Usage:
 

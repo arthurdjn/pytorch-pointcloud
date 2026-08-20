@@ -1,18 +1,14 @@
 """Benchmark Point Transformer V3 semantic segmentation on ScanNet / ScanNet200.
 
-The released PT-v3m1 weights are v1.5.1-trained, so the registered models load with `legacy=True`.
-Scenes are loaded with `use_axis_alignment=False`: the released weights were trained on unaligned
-coordinates, so the alignment now matches the reference preprocessing (and the sibling SpUNet
-benchmark). Single-forward, voxel-level mIoU on val (the zoo numbers add test-time augmentation and
-full-resolution per-point evaluation):
+NOTE: this script reports single-forward, voxel-level mIoU on val; the zoo numbers add test-time
+augmentation and full-resolution per-point evaluation.
 
-| Model                | Zoo (TTA) | Here                  |
-| -------------------- | --------- | --------------------- |
-| ptv3-base.scannet20.pointcept  | 77.6      | 76.06 mIoU / 91.66 OA |
-| ptv3-base.scannet200.pointcept | 35.3      | 32.15 mIoU / 83.39 OA |
+Reference (ScanNet val mIoU):
 
-The numbers above were measured on axis-aligned scenes with the previous protocol and are pending
-re-measurement on unaligned data.
+| Model                          | Zoo (TTA) |
+| ------------------------------ | --------- |
+| ptv3-base.scannet20.pointcept  | 77.6      |
+| ptv3-base.scannet200.pointcept | 35.3      |
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_scannet.py --model ptv3-base.scannet20.pointcept --limit 5

@@ -1,12 +1,9 @@
 """Evaluate the PointMamba ModelNet40 classifier (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
-registered eval transform.
+Results vs reference (ModelNet40 overall accuracy):
 
-Results vs reference (ModelNet40 overall accuracy, no voting; camera-ready PointMamba numbers):
-
-    | Variant                     | reference | torch-pointcloud |
-    | --------------------------- | --------- | ---------------- |
+    | Variant                                    | reference | torch-pointcloud |
+    | ------------------------------------------ | --------- | ---------------- |
     | point-mamba-base.modelnet40.dingkang-liang | 93.6      | 93.64            |
 
 Usage:

@@ -1,13 +1,9 @@
 """Evaluate the Point-BERT ModelNet40 classifiers (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
-registered eval transform (FPS to the checkpoint's point count).
+Results vs reference (ModelNet40 overall accuracy):
 
-Results vs reference (ModelNet40 overall accuracy; reference is the repo checkpoint eval without voting,
-the paper reports 93.2 / 93.4 / 93.8 with voting):
-
-    | Variant                       | reference | torch-pointcloud |
-    | ----------------------------- | --------- | ---------------- |
+    | Variant                                | reference | torch-pointcloud |
+    | -------------------------------------- | --------- | ---------------- |
     | point-bert-base.modelnet40.xumin-yu    | 92.67     | 92.63            |
     | point-bert-base.modelnet40-4k.xumin-yu | 92.91     | 93.03            |
     | point-bert-base.modelnet40-8k.xumin-yu | 93.19     | 93.07            |

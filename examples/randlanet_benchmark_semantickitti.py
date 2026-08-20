@@ -1,29 +1,11 @@
 """Benchmark RandLA-Net semantic segmentation on SemanticKITTI.
 
-The pretrained `randlanet.semantickitti.tsung-han-wu` checkpoint is converted from
-[tsunghan-wu/RandLA-Net-pytorch](https://github.com/tsunghan-wu/RandLA-Net-pytorch),
-a faithful PyTorch port of the original
-[QingyongHu/RandLA-Net](https://github.com/QingyongHu/RandLA-Net) Tensorflow code.
-
-The model expects a 0.06 m grid sub-sampled cloud (only XYZ; intensity is dropped),
-matching the upstream `helper_tool` convention. We do this sub-sampling **inside the
-benchmark loop** so we can keep the cluster ids that map every original point back to
-its voxel: predictions are projected to full-resolution before mIoU is computed,
-matching the upstream `proj_inds = KDTree(sub_pc).query(pc)` evaluation protocol.
-
-The reference evaluates with possibility-driven voting: per-point softmax probabilities are
-accumulated over repeated stochastic passes with $0.98$ smoothing. The default protocol here
-reproduces that with `TTAInferer` in `ema` mode (`ema_smoothing=0.98`): each pass shuffles the
-sub-sampled cloud, which redraws the encoder's random decimation, and the per-pass softmax
-outputs are EMA-accumulated before the argmax. Use `--single-pass` for one forward per scan.
-
 Results (val sequence 08, full resolution, mIoU):
 
-    | Source                         | mIoU              |
-    | ------------------------------ | ----------------- |
-    | RandLA-Net-pytorch (repo, val) | 52.9              |
-    | RandLA-Net (original TF, val)  | 53.1              |
-    | torch-pointcloud               | TBD (pending run) |
+    | Source                         | mIoU |
+    | ------------------------------ | ---- |
+    | RandLA-Net-pytorch (repo, val) | 52.9 |
+    | RandLA-Net (original TF, val)  | 53.1 |
 
 Usage:
     uv run --no-sync python examples/randlanet_benchmark_semantickitti.py --limit 5

@@ -1,19 +1,12 @@
 r"""Evaluate `votenet.sunrgbd.fair` on SUN RGB-D val with mAP@0.25 / mAP@0.5.
 
-The whole benchmark is `create_model` -> model -> `model.decode` -> `nms3d` -> `mean_average_precision3d`:
-the `SunRGBD` dataset reconstructs the upright cloud and oriented boxes, the registered transform adds the
-floor-relative height feature and samples to 20k points, the model decodes oriented boxes (the script then
-applies the score threshold, empty-box removal, and per-class 3D NMS), and the AP is the dataset-agnostic
-3D metric in `torch_pointcloud.utils.metrics`.
+NOTE: ground truth boxes come from our own `SunRGBD` dataset (v1 labels, 10-class oriented boxes) rather
+than the reference's exported `.npy`; the numbers land within noise of the reference.
 
-Ground truth uses the same box definition as the reference (v1 labels, 10-class oriented boxes) computed
-by our own dataset instead of consuming the reference's exported `.npy`, keeping one uniform dataset path;
-the numbers land within noise of the reference. mAP averages over classes present in the ground truth (a
-class with no GT instances has undefined AP and is excluded rather than counted as 0); identical to the
-reference here since every detection class occurs in the val GT.
+Results (SUN RGB-D val):
 
-| Model                       | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
-| --------------------------- | ------------------------------ | ------------------------- |
+| Model                  | This script (mAP@0.25 / @0.50) | Reference (@0.25 / @0.50) |
+| ---------------------- | ------------------------------ | ------------------------- |
 | `votenet.sunrgbd.fair` | 59.04 / 34.27                  | 57.7 / 32.0               |
 
 Usage:

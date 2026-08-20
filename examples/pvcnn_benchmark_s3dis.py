@@ -1,12 +1,13 @@
 """Evaluate `pvcnn.s3dis-area5.mit-han-lab` on S3DIS Area-5, per-block protocol.
 
-Each pre-tiled $4096$-point block is classified in isolation, so the result is
-a lower bound on what the model can do. For the upstream sliding-window
-protocol that recovers room-level context, see `pvcnn_benchmark_s3dis_sw.py`.
+NOTE: each pre-tiled $4096$-point block is classified in isolation, so the result is a lower bound; the
+upstream sliding-window protocol that recovers room-level context is `pvcnn_benchmark_s3dis_sw.py`.
 
-| Model                             | Paper        | Per-block (here)          | Sliding-window |
-| --------------------------------- | ------------ | ------------------------- | -------------- |
-| `pvcnn.s3dis-area5.mit-han-lab`   | 56.64 % mIoU | 35.93 % mIoU / 76.54 % OA | 57.51 % mIoU   |
+Results (S3DIS Area-5):
+
+| Model                           | Paper        | Per-block (here)          | Sliding-window |
+| ------------------------------- | ------------ | ------------------------- | -------------- |
+| `pvcnn.s3dis-area5.mit-han-lab` | 56.64 % mIoU | 35.93 % mIoU / 76.54 % OA | 57.51 % mIoU   |
 
 Usage:
 

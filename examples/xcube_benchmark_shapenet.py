@@ -1,10 +1,9 @@
 """Evaluate XCube VAE reconstruction on the XCube ShapeNet test split.
 
-Reconstructs every test shape through the sparse structure VAE (posterior mean) and reports the
-per-level structure prediction accuracy (as in the reference `test.py`) and the voxel IoU between the
-reconstructed and the input grid. The reference column is the original NVIDIA implementation with the
-released checkpoints on the same shapes (`notebooks/xcube/benchmark_reference_vae.py`); both match to
-all reported digits.
+NOTE: "= reference" is the original NVIDIA implementation with the released checkpoints on the same
+shapes; both match to all reported digits.
+
+Results (per-level structure accuracy and voxel IoU):
 
 | Coarse VAE ($128^3$) | struct acc 3 | struct acc 2 | struct acc 1 | struct acc 0 | IoU    |
 | -------------------- | ------------ | ------------ | ------------ | ------------ | ------ |
