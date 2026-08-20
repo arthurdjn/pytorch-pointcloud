@@ -1,12 +1,5 @@
 """Evaluate a pretrained yanx27 PointNet++ classifier on ModelNet40 (normal-resampled).
 
-Two registered variants:
-
-    `pointnet2-ssg.modelnet40.xu-yan`   single-scale grouping (no normals)
-    `pointnet2-msg.modelnet40.xu-yan`   multi-scale grouping (with normals)
-
-Both use the upstream pre-transform: FPS to 1024 points + center-and-rescale to the unit sphere.
-
 Reproduced performance on ModelNet40 test split (seed=42, batch_size=32):
 
 | Model                             | Upstream (yanx27 README) | torch-pointcloud        |

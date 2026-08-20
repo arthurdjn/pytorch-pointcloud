@@ -1,43 +1,13 @@
 """Benchmark OneFormer3D semantic and instance segmentation on S3DIS Area 5.
 
-The S3DIS variant has no superpoint pooling: the decoder runs on per-scene voxel
-features with 400 learned instance + 13 learned semantic queries, and semantics
-come from the 13 semantic-query masks (no `out_sem` head). Each room is voxelized
-at 5 cm, run through the model once, and the per-voxel semantic argmax is mapped
-back to points via the voxelization `inverse` for point-level mIoU.
-
-The released model is trained with the upstream S3DIS class order
-(`...door, table, chair, sofa, bookcase, board, clutter`); the repo's `S3DIS`
-dataset uses a different order (`chair`/`table` and `sofa`/`bookcase` swapped), so
-model predictions are remapped to the dataset's label space by class name.
-
-Rooms are loaded with `aligned=True`: the reference trains and evaluates on the
-`Stanford3dDataset_v1.2_Aligned_Version` release. The 68.2 below was measured on
-unaligned rooms with the previous protocol and is pending re-measurement.
-
-The instance path decodes the 400 instance queries per room with `predict_instance`
-using the released S3DIS settings (top-450 query-class pairs, matrix NMS, voxel-score
-threshold 0.15, point-count threshold 300, objectness normalization threshold 0.01),
-maps the voxel masks to points via `inverse`, and scores mask mAP over all 13 classes
-with `instance_matches` / `instance_average_precision`: greedy mask-IoU matching per
-class, AP averaged over thresholds 0.5:0.05:0.9 plus AP@50 / AP@25, instances under
-100 points ignored.
-
-Deviation from the reference evaluation: the reference encodes ground-truth ids as
-`semantic * 1000 + instance`, so class-0 (ceiling) instances get ids below 1000 and
-trip its group-ignore branch: an unmatched ceiling prediction overlapping any ceiling
-instance is silently dropped instead of counted as a false positive. This id-encoding
-artifact is not reproduced; it can only make the reference's ceiling AP read higher
-than ours, and touches no other class.
+NOTE: the reference's `semantic * 1000 + instance` GT id encoding silently drops unmatched ceiling
+predictions instead of counting false positives; not reproduced here, so its ceiling AP can only read higher.
 
 Results (S3DIS Area 5):
 
-    | Source                        | mIoU | mAP  | mAP@50 | mAP@25 |
-    | ----------------------------- | ---- | ---- | ------ | ------ |
-    | OneFormer3D (paper)           | 71.9 | 58.0 | 72.7   | 80.6   |
-    | torch-pointcloud (unaligned)  | 68.2 | TBD  | TBD    | TBD    |
-
-The instance mAP columns are pending a GPU run on aligned rooms.
+    | Source              | mIoU | mAP  | mAP@50 | mAP@25 |
+    | ------------------- | ---- | ---- | ------ | ------ |
+    | OneFormer3D (paper) | 71.9 | 58.0 | 72.7   | 80.6   |
 
 Usage:
     uv run --no-sync python examples/oneformer3d_benchmark_s3dis.py --limit 5

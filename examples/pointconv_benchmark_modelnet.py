@@ -1,12 +1,9 @@
 """Evaluate the PointConv ModelNet40 classifier (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's
-registered eval transform.
-
 Results vs reference (ModelNet40 overall accuracy):
 
-    | Variant                           | reference | torch-pointcloud |
-    | --------------------------------- | --------- | ---------------- |
+    | Variant                                      | reference | torch-pointcloud |
+    | -------------------------------------------- | --------- | ---------------- |
     | pointconv-density-base.modelnet40.wenxuan-wu | 92.5      | 92.02            |
 
 Usage:

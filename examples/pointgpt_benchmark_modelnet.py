@@ -1,8 +1,7 @@
 """Evaluate the PointGPT ModelNet40 classifiers (single-pass, no voting).
 
-`ModelNetNormalResampled` -> `PointCloudDataLoader` -> model -> argmax -> overall accuracy. PointGPT
-patchifies the cloud (FPS centers + kNN groups), Morton-sorts the patches, and runs the GPT extractor as
-the classification backbone.
+NOTE: The columns are not protocol-comparable (the paper numbers are vote-best); the S / L gap is FPS
+sampling variance, not an architecture difference (B matches to 0.03 and the logits are bit-exact).
 
 Results vs reference (ModelNet40 overall accuracy):
 
@@ -12,13 +11,6 @@ Results vs reference (ModelNet40 overall accuracy):
     | pointgpt-b.modelnet40.guangyan-chen    | 94.4              | 94.37                          |
     | pointgpt-l.modelnet40.guangyan-chen    | 94.7              | 93.88                          |
     | pointgpt-s.modelnet40-8k.guangyan-chen | 94.2              | 93.76                          |
-
-The columns are not protocol-comparable: the paper numbers are the vote-best protocol (best of
-multi-crop voting), ours are single-pass. A reference-env single-pass measurement (the reference
-repo's eval with voting disabled) is pending. The S/L gap (~0.7) is the FPS-tokenizer residual
-(reference CUDA FPS vs torch_cluster FPS resample a different subset) plus the paper's voting; B
-matches to 0.03 and the logits are bit-exact, so this is sampling variance, not an architecture
-difference.
 
 Usage:
     uv run --no-sync python examples/pointgpt_benchmark_modelnet.py --model pointgpt-b.modelnet40.guangyan-chen

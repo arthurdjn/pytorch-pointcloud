@@ -1,12 +1,9 @@
 """Evaluate the DGCNN ScanNet-V2 semantic-segmentation model on the val split.
 
-`ScanNet20` scenes -> sliding $1.5$ m blocks of $8192$ points -> model -> argmax -> confusion matrix over
-all scenes (antao97's block-based eval protocol, rebuilt on the repo dataset).
+Results vs reference (ScanNet val mIoU):
 
-Results vs reference (ScanNet val mIoU; reference is the antao97 repo's ScanNet section):
-
-    | Variant               | reference | torch-pointcloud |
-    | --------------------- | --------- | ---------------- |
+    | Variant                | reference | torch-pointcloud |
+    | ---------------------- | --------- | ---------------- |
     | dgcnn.scannet20.an-tao | 49.6      | 50.58            |
 
 Usage:

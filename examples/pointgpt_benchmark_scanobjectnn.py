@@ -1,14 +1,9 @@
 """Evaluate the PointGPT ScanObjectNN classifiers (single-pass, no voting).
 
-`ScanObjectNN` -> `PointCloudDataLoader` -> model -> argmax -> overall accuracy, across the OBJ_BG /
-OBJ_ONLY / PB_T50_RS (hardest) splits. PointGPT patchifies (FPS + kNN), Morton-sorts the patches, and runs
-the GPT extractor as the classification backbone. Inputs are already 2048 points, so FPS-to-2048 is
-near-identity and the numbers track the paper closely.
-
 Results vs reference (ScanObjectNN overall accuracy):
 
-    | Variant                                   | paper | torch-pointcloud |
-    | ----------------------------------------- | ----- | ---------------- |
+    | Variant                                       | paper | torch-pointcloud |
+    | --------------------------------------------- | ----- | ---------------- |
     | pointgpt-s.scanobjectnn-hardest.guangyan-chen | 86.9  | 86.95            |
     | pointgpt-b.scanobjectnn-hardest.guangyan-chen | 91.9  | 91.92            |
     | pointgpt-l.scanobjectnn-hardest.guangyan-chen | 93.4  | 93.75            |

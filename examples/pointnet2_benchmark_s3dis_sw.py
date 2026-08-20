@@ -1,12 +1,8 @@
 r"""Reproduce `pointnet2.s3dis-area5.xu-yan` numbers on S3DIS Area-5.
 
-Follows the upstream evaluation protocol:
-
-- https://github.com/yanx27/Pointnet_Pointnet2_pytorch/blob/master/test_semseg.py
-
-| Model                          | Paper        | This script                                 |
-| ------------------------------ | ------------ | ------------------------------------------- |
-| `pointnet2.s3dis-area5.xu-yan` | 53.5 % mIoU  | 54.77% mIoU / 83.51% OA (seed=42, 1 vote)   |
+| Model                          | Paper       | This script                               |
+| ------------------------------ | ----------- | ----------------------------------------- |
+| `pointnet2.s3dis-area5.xu-yan` | 53.5 % mIoU | 54.77% mIoU / 83.51% OA (seed=42, 1 vote) |
 
 Usage:
 

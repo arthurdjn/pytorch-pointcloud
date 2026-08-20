@@ -1,18 +1,14 @@
 """Evaluate the PointMLP ScanObjectNN (PB_T50_RS) classifiers (single-pass, no voting).
 
-`ScanObjectNN` -> `DataLoader` -> model -> argmax -> overall accuracy, with the model's registered eval
-transform.
+NOTE: the shipped checkpoints predate the repo's std-normalization fix and re-evaluate at ~77 OA in the
+reference code as well; the README numbers require the post-fix checkpoints, whose download links are dead.
 
 Results vs reference (ScanObjectNN hardest-variant overall accuracy):
 
-    | Variant                     | README | torch-pointcloud |
-    | --------------------------- | ------ | ---------------- |
+    | Variant                           | README | torch-pointcloud |
+    | --------------------------------- | ------ | ---------------- |
     | pointmlp-base.scanobjectnn.xu-ma  | 86.1   | 77.24            |
     | pointmlp-elite.scanobjectnn.xu-ma | 84.1   | 75.33            |
-
-The shipped checkpoints predate the PointMLP repo's std-normalization fix and re-evaluate at ~77 OA in
-the reference code as well; the README numbers require the post-fix checkpoints, whose download links
-are dead.
 
 Usage:
     uv run --no-sync python examples/pointmlp_benchmark_scanobjectnn.py --download

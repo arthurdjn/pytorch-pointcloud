@@ -1,23 +1,10 @@
 """Evaluate the OctFormer ModelNet40 classifier (single-pass, no voting).
 
-`ModelNet40` meshes -> frozen once-sampled eval set -> `DataLoader` -> model -> argmax -> overall
-accuracy. The reference protocol evaluates a frozen point set sampled once from the meshes
-(area-weighted surface sampling with face normals, bbox-normalized to $[-1, 1]$), clipped to the
-$[-0.99, 0.99]$ box before the octree build. This script follows that protocol: the sampled set is
-cached under the dataset's processed directory on first run and reused across runs
-(`--force-process` regenerates it), and the box clip is enabled. Pass `--fresh-sampling` for the
-non-reference variant that resamples surface points from the meshes on every run without the box
-clip (the model's registered eval transform).
+Results vs reference (ModelNet40 overall accuracy):
 
-Results vs reference (ModelNet40 overall accuracy; octree-nn repo eval of the released checkpoint):
-
-    | Variant                             | reference | torch-pointcloud            |
-    | ----------------------------------- | --------- | --------------------------- |
-    | octformer-base.modelnet40.octree-nn | 92.7      | 89.02 (pre-fix, re-measure) |
-
-The torch-pointcloud number was measured before this script implemented the frozen protocol (fresh
-sampling per run without the box clip; seeds 42/0/1/123 all scored 88.4-89.1, so the gap is
-systematic, not sampling luck). Re-measurement on the frozen once-sampled protocol is pending.
+    | Variant                             | reference |
+    | ----------------------------------- | --------- |
+    | octformer-base.modelnet40.octree-nn | 92.7      |
 
 Usage:
     uv run --no-sync python examples/octformer_benchmark_modelnet.py

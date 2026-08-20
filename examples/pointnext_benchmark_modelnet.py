@@ -1,18 +1,10 @@
 """Evaluate the PointNeXt ModelNet40 classifier (single-pass, no voting).
 
-`ModelNet40Hdf5` -> `DataLoader` -> model -> argmax -> overall accuracy, following the reference
-protocol: take the first 1024 points of each pre-shuffled 2048-point HDF5 cloud (no FPS).
+Results vs reference (ModelNet40 overall accuracy):
 
-Results vs reference (ModelNet40 overall accuracy; reference is the model-zoo best-seed checkpoint eval,
-paper mean 93.7 +- 0.3):
-
-    | Variant                                | reference | torch-pointcloud            |
-    | -------------------------------------- | --------- | --------------------------- |
-    | pointnext-sm-c64.modelnet40.openpoints | 94.0      | 92.10 (pre-fix, re-measure) |
-
-The torch-pointcloud number was measured before this script switched to the reference protocol
-(FPS on the normal-resampled dataset; the fixed ball-query radii make PointNeXt sensitive to that
-shift in point distribution). Re-measurement on the HDF5 first-1024 protocol is pending.
+    | Variant                                | reference |
+    | -------------------------------------- | --------- |
+    | pointnext-sm-c64.modelnet40.openpoints | 94.0      |
 
 Usage:
     uv run --no-sync python examples/pointnext_benchmark_modelnet.py --download

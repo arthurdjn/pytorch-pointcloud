@@ -1,38 +1,19 @@
 """Evaluate `voxelnext.nuscenes.openpcdet` on nuScenes with the official detection metrics.
 
-`NuScenesMini` -> `PointCloudDataLoader` -> model -> `model.decode` -> `nms3d` -> `nuscenes_detection_metrics`.
-
-VoxelNeXt is a fully sparse detector: the sparse 3D backbone collapses to a 2D BEV sparse tensor and a
-fully sparse multi-group head predicts boxes directly on voxels (no dense BEV map). The dataset aggregates
-`max_sweeps` LiDAR sweeps per keyframe and converts the global-frame annotations to LiDAR boxes with
-per-box velocity, point count and attribute. Scoring follows the official nuScenes protocol
-(https://arxiv.org/abs/1903.11027): class-range and zero-point GT filtering, the 500-box per-sample cap,
-BEV-center-distance AP averaged over the 0.5 / 1 / 2 / 4 m thresholds, the five TP errors and the NDS.
-Predicted velocities come from the decoded boxes; predicted attributes are derived from them with the
-standard heuristic (above `SPEED_THRESHOLD` BEV speed a box gets its class's moving attribute, below it the
-parked / stopped / standing default) and the GT attributes come from the dataset. `--legacy-map` scores with
-the generic oriented-3D IoU mAP instead (the non-reference pre-fix protocol). Defaults to the `v1.0-mini`
-split (404 keyframes): mini-split numbers are smoke checks, the full `val` split is the run comparable to
-published results.
+NOTE: defaults to the `v1.0-mini` split (404 keyframes); mini-split numbers are smoke checks, the full
+`val` split is the run comparable to published results.
 
 Results vs reference (official protocol, nuScenes val):
 
-    | Source                             | mAP   | NDS   |
-    | ---------------------------------- | ----- | ----- |
-    | reference implementation model zoo | 60.5  | 66.6  |
-
-Measured pre-fix (nuScenes v1.0-mini, generic oriented-3D IoU mAP, now behind `--legacy-map`; the port is
-bit-exact vs the reference forward to ~1e-6):
-
-    mAP@0.25 = 58.24    mAP@0.5 = 38.55
-
-Official-protocol numbers for this port are pending re-measurement.
+    | Source                             | mAP  | NDS  |
+    | ---------------------------------- | ---- | ---- |
+    | reference implementation model zoo | 60.5 | 66.6 |
 
 Usage:
     uv run --no-sync python examples/voxelnext_benchmark_nuscenes.py --root "/path/to/parent"
 
-Note: nuScenes is not bundled. Process the dataset first (see the NuScenes dataset docs); the script
-needs `NuScenesMini/` under `--root`.
+Note: nuScenes is not bundled; process the dataset first (see the NuScenes dataset docs). The script needs
+`NuScenesMini/` under `--root`.
 """
 
 import os
@@ -204,7 +185,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--legacy-map",
         action="store_true",
-        help="Score with the generic oriented-3D IoU mAP (the non-reference pre-fix protocol) instead.",
+        help="Score with the generic oriented-3D IoU mAP (the non-reference legacy protocol) instead.",
     )
     parser.add_argument("--ap-iou", type=float, nargs="+", default=[0.25, 0.5], help="--legacy-map IoU thresholds.")
     parser.add_argument("--batch-size", type=int, default=2)

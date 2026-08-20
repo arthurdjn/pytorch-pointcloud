@@ -1,18 +1,16 @@
 """Evaluate the Point-MAE ScanObjectNN classifiers (single-pass, no voting).
 
-`ScanObjectNN` (variant selected per model) -> `DataLoader` -> model -> argmax -> overall accuracy, with
-the model's registered eval transform.
+Results vs reference (ScanObjectNN overall accuracy):
 
-Results vs reference (ScanObjectNN overall accuracy, paper Tab. 1):
-
-    | Variant                             | reference | torch-pointcloud |
-    | ----------------------------------- | --------- | ---------------- |
+    | Variant                                         | reference | torch-pointcloud |
+    | ----------------------------------------------- | --------- | ---------------- |
     | point-mae-base.scanobjectnn-objbg.yatian-pang   | 90.02     | 90.19            |
     | point-mae-base.scanobjectnn-objonly.yatian-pang | 88.29     | 88.30            |
     | point-mae-base.scanobjectnn-hardest.yatian-pang | 85.18     | 85.05            |
 
 Usage:
-    uv run --no-sync python examples/point_mae_benchmark_scanobjectnn.py --model point-mae-base.scanobjectnn-objbg.yatian-pang
+    uv run --no-sync python examples/point_mae_benchmark_scanobjectnn.py \
+        --model point-mae-base.scanobjectnn-objbg.yatian-pang
 """
 
 import os
