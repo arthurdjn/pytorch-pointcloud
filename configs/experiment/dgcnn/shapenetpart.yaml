@@ -3,9 +3,12 @@
 # Train: uv run --no-sync python train.py experiment=dgcnn/shapenetpart
 # Benchmark: uv run --no-sync python test.py experiment=dgcnn/shapenetpart
 #
-# | model.name               | ins_mIoU | cls_mIoU |
-# | ------------------------ | -------- | -------- |
-# | dgcnn.shapenetpart.an-tao | 0.8522   | 0.8092   |
+# NOTE: The reference publishes instance mIoU only.
+#
+# | model.name                | ins_mIoU | cls_mIoU | reference |
+# | ------------------------- | -------- | -------- | --------- |
+# | dgcnn.shapenetpart.an-tao | 0.8522   | 0.8092   | 0.852     |
+
 defaults:
   - override /datamodule: shapenetpart
   - override /model: segmentation

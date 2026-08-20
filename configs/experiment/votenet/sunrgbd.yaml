@@ -2,7 +2,11 @@
 # VoteNet 3D object detection on SUN RGB-D.
 # Train: uv run --no-sync python train.py experiment=votenet/sunrgbd
 # Benchmark: uv run --no-sync python test.py experiment=votenet/sunrgbd
-# Measured: deferred (exceeds the 5-minute run budget)
+#
+# | model.name           | mAP@0.25 | mAP@0.5 | reference     |
+# | -------------------- | -------- | ------- | ------------- |
+# | votenet.sunrgbd.fair | 0.5838   | 0.3413  | 0.577 / 0.320 |
+
 defaults:
   - override /datamodule: sunrgbd
   - override /model: detection

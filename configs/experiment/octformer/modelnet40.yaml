@@ -3,9 +3,12 @@
 # Train: uv run --no-sync python train.py experiment=octformer/modelnet40
 # Benchmark: uv run --no-sync python test.py experiment=octformer/modelnet40
 #
-# | model.name                | accuracy |
-# | ------------------------- | -------- |
-# | octformer-base.modelnet40.octree-nn | 0.8902   |
+# NOTE: The reference scores a fixed once-sampled point set per mesh; the gap to it is systematic (different sampler).
+#
+# | model.name                          | accuracy | reference |
+# | ----------------------------------- | -------- | --------- |
+# | octformer-base.modelnet40.octree-nn | 0.8861   | 0.927     |
+
 defaults:
   - override /datamodule: modelnet40
   - override /model: classification
@@ -36,3 +39,39 @@ model:
 datamodule:
   train_dataset:
     transform: null
+  val_dataset:
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.RandomSampleFaceVertices
+          keys: pos
+          face_key: face
+          normal_key: normal
+          num_samples: 8000
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+        - _target_: torch_pointcloud.transforms.Rescale
+          keys: pos
+          method: bbox
+        - _target_: torch_pointcloud.transforms.BoxMask
+          keys: pos
+          bbox: [-0.99, -0.99, -0.99, 0.99, 0.99, 0.99]
+          dst_keys: box_mask
+        - _target_: torch_pointcloud.transforms.ApplyMask
+          keys: [pos, normal]
+          mask_key: box_mask
+        - _target_: torch_pointcloud.transforms.Abs
+          keys: normal
+        - _target_: torch_pointcloud.transforms.BuildOctree
+          pos_key: pos
+          octree_key: octree
+          depth: 6
+          full_depth: 2
+          batch_size: 1
+          normal_key: normal
+        - _target_: torch_pointcloud.transforms.OctreeFeatures
+          keys: octree
+          features_type: ND
+          nempty: false
+          dst_keys: x

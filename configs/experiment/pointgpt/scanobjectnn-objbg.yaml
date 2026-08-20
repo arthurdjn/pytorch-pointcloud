@@ -2,11 +2,12 @@
 # PointGPT classification on ScanObjectNN OBJ_BG (with background).
 # Benchmark: uv run --no-sync python test.py experiment=pointgpt/scanobjectnn-objbg
 #
-# | model.name                              | accuracy |
-# | --------------------------------------- | -------- |
-# | pointgpt-s.scanobjectnn-objbg.guangyan-chen | 0.9157   |
-# | pointgpt-b.scanobjectnn-objbg.guangyan-chen | 0.9707   |
-# | pointgpt-l.scanobjectnn-objbg.guangyan-chen | 0.9845   |
+# | model.name                                  | accuracy | reference |
+# | ------------------------------------------- | -------- | --------- |
+# | pointgpt-s.scanobjectnn-objbg.guangyan-chen | 0.9157   | 0.916     |
+# | pointgpt-b.scanobjectnn-objbg.guangyan-chen | 0.9707   | 0.958     |
+# | pointgpt-l.scanobjectnn-objbg.guangyan-chen | 0.9845   | 0.972     |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

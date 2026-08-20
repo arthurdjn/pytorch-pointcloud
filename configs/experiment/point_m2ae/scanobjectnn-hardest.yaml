@@ -2,9 +2,10 @@
 # Point-M2AE classification on ScanObjectNN PB_T50_RS (hardest).
 # Benchmark: uv run --no-sync python test.py experiment=point_m2ae/scanobjectnn-hardest
 #
-# | model.name                           | accuracy |
-# | ------------------------------------ | -------- |
-# | point-m2ae-base.scanobjectnn-hardest.renrui-zhang | 0.8654   |
+# | model.name                                        | accuracy | reference |
+# | ------------------------------------------------- | -------- | --------- |
+# | point-m2ae-base.scanobjectnn-hardest.renrui-zhang | 0.8654   | 0.8643    |
+
 defaults:
   - override /datamodule: scanobjectnn
   - override /model: classification

@@ -2,12 +2,11 @@
 # 3DETR 3D object detection on ScanNet-V2 (18-class).
 # Benchmark: uv run --no-sync python test.py experiment=3detr/scannet
 #
-# | model.name           | mAP@0.25 | mAP@0.5 |
-# | -------------------- | -------- | ------- |
-# | 3detr-m.scannet.fair | 0.6544   | 0.4809  |
-# | 3detr.scannet.fair   | 0.6179   | 0.3830  |
-# Pre-fix numbers, measured WITHOUT the reference test-protocol filters (min_points, score_threshold);
-# re-measure with the filters below in place.
+# | model.name           | mAP@0.25 | mAP@0.5 | reference     |
+# | -------------------- | -------- | ------- | ------------- |
+# | 3detr-m.scannet.fair | 0.6383   | 0.4733  | 0.650 / 0.470 |
+# | 3detr.scannet.fair   | 0.6093   | 0.3829  | 0.621 / 0.379 |
+
 defaults:
   - override /datamodule: scannet
   - override /model: detection
@@ -16,8 +15,6 @@ defaults:
 model:
   name: 3detr-m.scannet.fair
   input_keys: [x, pos, batch]
-  # RandomSample(40k) draw depends on seed and num_workers; seed=42 datamodule.num_workers=16 reproduces the
-  # example script bitwise (0.6676/0.4777 pre-fix, without the two filters below).
   score_threshold: 0.05
   nms_iou: 0.25
   min_points: 5
@@ -61,7 +58,8 @@ datamodule:
       transforms:
         - _target_: torch_pointcloud.transforms.Relabel
           keys: segment
-          labels: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+          labels:
+            [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
           default: -1
         - _target_: torch_pointcloud.transforms.InstanceToBox
           ignore_index: -1
@@ -80,7 +78,8 @@ datamodule:
       transforms:
         - _target_: torch_pointcloud.transforms.Relabel
           keys: segment
-          labels: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+          labels:
+            [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
           default: -1
         - _target_: torch_pointcloud.transforms.InstanceToBox
           ignore_index: -1

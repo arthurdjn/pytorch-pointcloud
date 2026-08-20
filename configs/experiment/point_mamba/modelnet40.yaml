@@ -3,9 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=point_mamba/modelnet40
 # Benchmark: uv run --no-sync python test.py experiment=point_mamba/modelnet40
 #
-# | model.name                  | accuracy |
-# | --------------------------- | -------- |
-# | point-mamba-base.modelnet40.dingkang-liang | 0.9364   |
+# | model.name                                 | accuracy | reference |
+# | ------------------------------------------ | -------- | --------- |
+# | point-mamba-base.modelnet40.dingkang-liang | 0.9364   | 0.936     |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification

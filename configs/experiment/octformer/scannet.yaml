@@ -3,9 +3,10 @@
 # Train: uv run --no-sync python train.py experiment=octformer/scannet
 # Benchmark: uv run --no-sync python test.py experiment=octformer/scannet
 #
-# | model.name               | mIoU   |
-# | ------------------------ | ------ |
-# | octformer-base.scannet20.octree-nn | 0.7478 |
+# | model.name                         | mIoU   | reference |
+# | ---------------------------------- | ------ | --------- |
+# | octformer-base.scannet20.octree-nn | 0.7478 | 0.748     |
+
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation

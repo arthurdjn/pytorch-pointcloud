@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Iterator
+from typing import Dict, Iterator, Optional
 
 import pytest
 
@@ -87,10 +87,12 @@ EXPERIMENTS = (
     "second/kitti",
     "second/nuscenes",
     "sonata/scannet",
+    "spformer_unet/scannet",
     "sphereformer/semantickitti",
     "spunet/scannet",
     "spvcnn/semantickitti",
     "utonia/scannet",
+    "votenet/scannet",
     "votenet/sunrgbd",
     "voxelnext/nuscenes",
 )
@@ -170,9 +172,19 @@ def test_experiment_composes_for_test_entrypoint(experiment: str) -> None:
         assert "train_dataset" in cfg.datamodule
 
 
-def test_inferer_group_composes_into_model() -> None:
-    """The `inferer` config group packages into `model.inferer` on top of any segmentation experiment,
-    and the TTA variant keeps its pass transforms mandatory."""
+@pytest.mark.parametrize(
+    ("inferer", "target", "required"),
+    [
+        pytest.param("simple", "SimpleInferer", None, id="simple"),
+        pytest.param("sliding_window", "SlidingWindowInferer", "block_size", id="sliding_window"),
+        pytest.param("voxel_partition", "VoxelPartitionInferer", "voxel_size", id="voxel_partition"),
+        pytest.param("knn_window", "KNNWindowInferer", "roi_num_points", id="knn_window"),
+        pytest.param("tta", "TTAInferer", "transforms", id="tta"),
+    ],
+)
+def test_inferer_group_composes_into_model(inferer: str, target: str, required: Optional[str]) -> None:
+    """The `inferer` config group packages into `model.inferer` on top of any experiment; every member keeps
+    its protocol-specific knob mandatory so an experiment (or the CLI) has to set it."""
     from hydra import compose, initialize_config_dir
     from hydra.core.hydra_config import HydraConfig
     from omegaconf import MissingMandatoryValue, OmegaConf
@@ -180,23 +192,16 @@ def test_inferer_group_composes_into_model() -> None:
     with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
         cfg = compose(
             config_name="train",
-            overrides=["experiment=pvcnn/s3dis", "inferer=sliding_window", "model.inferer.block_size=2.0"],
+            overrides=["experiment=dgcnn/s3dis", f"inferer={inferer}"],
             return_hydra_config=True,
         )
         HydraConfig.instance().set_config(cfg)
-        assert cfg.model.inferer._target_ == "torch_pointcloud.inferers.SlidingWindowInferer"
-        assert cfg.model.inferer.block_size == 2.0
-
-    with initialize_config_dir(config_dir=str(CONFIGS_DIR), version_base=None):
-        cfg = compose(
-            config_name="train",
-            overrides=["experiment=pvcnn/s3dis", "inferer=tta"],
-            return_hydra_config=True,
-        )
-        HydraConfig.instance().set_config(cfg)
-        assert cfg.model.inferer._target_ == "torch_pointcloud.inferers.TTAInferer"
-        with pytest.raises(MissingMandatoryValue):
+        assert cfg.model.inferer._target_ == f"torch_pointcloud.inferers.{target}"
+        if required is None:
             OmegaConf.to_container(cfg.model.inferer, resolve=True, throw_on_missing=True)
+        else:
+            with pytest.raises(MissingMandatoryValue, match=required):
+                OmegaConf.to_container(cfg.model.inferer, resolve=True, throw_on_missing=True)
 
 
 # The LightningModule `_target_` implies the registry task it builds its model under.

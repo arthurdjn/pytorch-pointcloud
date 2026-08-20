@@ -1,20 +1,13 @@
 # @package _global_
-# SECOND 3D object detection on KITTI val (FOV, moderate difficulty).
+# SECOND 3D object detection on KITTI val (FOV, moderate difficulty, official R11 interpolation).
 # Benchmark: uv run --no-sync python test.py experiment=second/kitti
 #
-# | model.name             | AP/Car | AP/Pedestrian | AP/Cyclist | mAP    |
-# | ---------------------- | ------ | ------------- | ---------- | ------ |
-# | second.kitti.openpcdet | 0.8038 | 0.5099        | 0.6696     | 0.6611 |
-#
-# Reference: OpenPCDet model zoo (val, moderate R11): Car 78.62, Pedestrian 52.98, Cyclist 67.15 (mAP 66.25).
-# The paper's KITTI test-split numbers are not like-for-like with this val protocol. Matching is
-# detection-centric (each prediction greedily takes its best unused GT, not the reference GT-centric
-# assignment) and the NMS is axis-aligned rather than rotated-BEV; both only act on borderline overlaps.
-# This Lightning eval keeps the all-point AP, per-class NMS, and no min-height prediction filter; the
-# benchmark script (examples/second_benchmark_kitti.py) implements the full R11 protocol.
-# For Easy / Hard, change the `RelabelBoxes` ignore rule (Easy: occlusion <= 0, truncation <= 0.15,
-# bbox_height >= 40; Hard: occlusion <= 2, truncation <= 0.5, bbox_height >= 25).
+# | model.name             | reference (Car / Ped / Cyc / mAP) |
+# | ---------------------- | --------------------------------- |
+# | second.kitti.openpcdet | 0.7862 / 0.5298 / 0.6715 / 0.6625 |
+
 defaults:
+  - /metric@callbacks.val_ap.metric: kitti_r11
   - override /datamodule: kitti
   - override /model: detection
   - override /callbacks: detection_ap
@@ -28,6 +21,7 @@ model:
   input_keys: [voxel, pos_voxel, voxel_num_points, batch_pos_voxel]
   score_threshold: 0.1
   nms_iou: 0.01
+  nms_rotated: true
   ignore_mask_key: ignore_mask
   scheduler_interval: step
   criterion:
@@ -63,16 +57,12 @@ model:
     base_momentum: 0.85
     max_momentum: 0.95
 
-# Official KITTI 3D IoU thresholds: Car @ 0.7, Pedestrian / Cyclist @ 0.5.
-callbacks:
-  val_ap:
-    metric:
-      iou_per_class: { 0: 0.7, 1: 0.5, 2: 0.5 }
-      class_names: [Car, Pedestrian, Cyclist]
-
 datamodule:
   # Keep the ragged GT boxes and the voxel grid indices packed (collate emits batch_box / batch_pos_voxel).
   cat_keys: [box, pos_voxel]
+  # Per-frame calib / image shape for the KITTI min-height rule (absent from the train samples,
+  # so the train loader ignores them).
+  stack_keys: [calib, image_shape]
 
   train_dataset:
     transform:
@@ -101,6 +91,7 @@ datamodule:
           max_num_voxels: 40000
 
   val_dataset:
+    return_calib: true
     transform:
       _target_: torch_pointcloud.transforms.Compose
       transforms:

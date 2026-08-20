@@ -2,12 +2,12 @@
 # Point Transformer V2 semantic segmentation on ScanNet20.
 # Train: uv run --no-sync python train.py experiment=point_transformer_v2/scannet
 # Benchmark: uv run --no-sync python test.py experiment=point_transformer_v2/scannet
-#
-# Measured: deferred (training campaign pending)
+
 defaults:
   - override /datamodule: scannet
   - override /model: segmentation
   - override /callbacks: segmentation
+  - override /inferer: tta_rotations_scales
 
 trainer:
   max_epochs: 800
@@ -22,6 +22,20 @@ model:
   pretrained: false
   input_keys: [x, pos, batch]
   target_key: segment
+  inferer:
+    base:
+      voxel_size: 0.02
+      transform:
+        _target_: torch_pointcloud.transforms.Compose
+        transforms:
+          - _target_: torch_pointcloud.transforms.Shift
+            keys: pos
+            method: bbox
+            axes: [0, 1]
+          - _target_: torch_pointcloud.transforms.Cat
+            keys: [pos, color, normal]
+            dst_key: x
+            dim: 1
   criterion:
     _target_: torch.nn.CrossEntropyLoss
     ignore_index: -1
@@ -34,6 +48,7 @@ model:
 datamodule:
   # Full ScanNet scenes (~50-80k points) are memory-heavy.
   batch_size: 1
+  eval_batch_size: 1
   train_dataset:
     transform:
       _target_: torch_pointcloud.transforms.Compose
@@ -125,6 +140,30 @@ datamodule:
           dim: 1
 
   val_dataset:
-    # The benchmark script evaluates the aligned frame; the eval transform is the model's registered pipeline.
-    use_axis_alignment: true
+    use_axis_alignment: false
     transform: null
+
+  test_dataset:
+    _target_: torch_pointcloud.datasets.ScanNet20
+    root: ${paths.data_dir}
+    split: val
+    use_axis_alignment: false
+    transform:
+      _target_: torch_pointcloud.transforms.Compose
+      transforms:
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: bbox
+          axes: [0, 1]
+        - _target_: torch_pointcloud.transforms.Shift
+          keys: pos
+          method: min
+          axes: [2]
+        - _target_: torch_pointcloud.transforms.Relabel
+          keys: segment
+          labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+          default: -1
+        - _target_: torch_pointcloud.transforms.Normalize
+          keys: color
+          mean: [0.0, 0.0, 0.0]
+          std: [255.0, 255.0, 255.0]

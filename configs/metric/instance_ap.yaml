@@ -1,0 +1,9 @@
+# Indoor instance-segmentation protocol: point-mask AP averaged over the [0.5:0.95:0.05] IoU grid,
+# plus mAP@0.5 / mAP@0.25 (the ScanNet / S3DIS convention). `update` consumes one per-scene
+# `instance_matches` record; `num_classes` (and usually `class_names`) is dataset-specific and set by
+# the experiment.
+
+_target_: torch_pointcloud.lightning.InstanceAveragePrecision
+num_classes: ???
+class_names: null
+min_points: 100

@@ -3,11 +3,11 @@
 # Train: uv run --no-sync python train.py experiment=pointmlp/modelnet40
 # Benchmark: uv run --no-sync python test.py experiment=pointmlp/modelnet40
 #
-# | model.name                | accuracy |
-# | ------------------------- | -------- |
-# | pointmlp-base.modelnet40.xu-ma  | 0.9352   |
-# | pointmlp-elite.modelnet40.xu-ma | 0.9246   |
-# (exact at precision=32-true datamodule.batch_size=16)
+# | model.name                      | accuracy | reference |
+# | ------------------------------- | -------- | --------- |
+# | pointmlp-base.modelnet40.xu-ma  | 0.9340   | 0.941     |
+# | pointmlp-elite.modelnet40.xu-ma | 0.9267   | 0.936     |
+
 defaults:
   - override /datamodule: modelnet40_normal_resampled
   - override /model: classification
@@ -34,6 +34,7 @@ model:
     T_max: ${trainer.max_epochs}
 
 datamodule:
+  eval_batch_size: 16
   train_dataset:
     transform:
       _target_: torch_pointcloud.transforms.Compose
