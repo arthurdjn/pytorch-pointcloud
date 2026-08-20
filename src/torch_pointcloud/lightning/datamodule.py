@@ -91,7 +91,9 @@ class PointCloudDataModule(LightningDataModule):
         """Apply the model's registered evaluation transform to any dataset that has none.
 
         The LightningModule (built from the registry) carries its `transform`; an experiment leaves
-        a dataset's `transform` as `None` to use it, or sets one explicitly for custom augmentation.
+        a dataset's `transform` as `None` to use it, or sets one explicitly for custom augmentation. A
+        wrapper dataset (e.g. `MixDataset`) whose wrapped `dataset` already carries a transform is left
+        alone: the recipe lives on the wrapped dataset and must not be applied a second time on its output.
         """
         trainer = getattr(self, "trainer", None)
         lit_model = getattr(trainer, "lightning_module", None)
@@ -100,8 +102,12 @@ class PointCloudDataModule(LightningDataModule):
             return
 
         for dataset in (self.train_dataset, self.val_dataset, self.test_dataset):
-            if dataset is not None and getattr(dataset, "transform", None) is None:
-                dataset.transform = transform  # type: ignore[attr-defined]
+            if dataset is None or getattr(dataset, "transform", None) is not None:
+                continue
+            wrapped = getattr(dataset, "dataset", None)
+            if wrapped is not None and getattr(wrapped, "transform", None) is not None:
+                continue
+            dataset.transform = transform  # type: ignore[attr-defined]
 
     def configure_dataloader(
         self,
