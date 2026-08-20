@@ -131,6 +131,24 @@ def test_setup_applies_model_transform_to_datasets_without_one() -> None:
     assert val.transform is existing
 
 
+def test_setup_leaves_wrapper_alone_when_wrapped_dataset_has_a_transform() -> None:
+    """A `MixDataset` over a dataset that already carries the recipe keeps its own `transform` unset, so the
+    registered transform is not applied a second time on the mixed output."""
+    from torch_pointcloud.datasets import MixDataset
+    from torch_pointcloud.lightning import PointCloudDataModule
+
+    inner = DummySegmentationDataset(2)
+    inner.transform = Mock()
+    mixed = MixDataset(inner, mix=Mock())
+    bare = MixDataset(DummySegmentationDataset(2), mix=Mock())
+    dm = PointCloudDataModule(train_dataset=mixed, val_dataset=bare, batch_size=1, num_workers=0)
+    transform = Mock()
+    dm.trainer = Mock(lightning_module=Mock(transform=transform))
+    dm.setup("fit")
+    assert mixed.transform is None
+    assert bare.transform is transform
+
+
 def test_setup_without_model_transform_is_noop() -> None:
     from torch_pointcloud.lightning import PointCloudDataModule
 
