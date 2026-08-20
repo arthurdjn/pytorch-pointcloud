@@ -261,6 +261,18 @@ def test_package_available_ignores_namespace_shadow(tmp_path: Path, monkeypatch:
         package_available.cache_clear()
 
 
+def test_isinstance_on_unimported_proxy_does_not_import(lazy_module_factory: Callable[[str, str], str]) -> None:
+    """`isinstance` against a proxy of a never-imported module is `False` without forcing the import
+    (forcing it can initialize CUDA inside forked dataloader workers)."""
+    module_name = lazy_module_factory("lazy_probe_isinstance", "class Base:\n    pass\n")
+    base_proxy, is_available = optional_import(module_name, "Base")
+    assert is_available is True
+    assert not isinstance(object(), base_proxy)
+    assert module_name not in sys.modules
+    module = importlib.import_module(module_name)
+    assert isinstance(module.Base(), base_proxy)
+
+
 def test_lazy_proxy_subclassing_unresolvable_target_defers_error() -> None:
     """Subclassing a proxy whose target cannot resolve must not fail at class-definition (import) time;
     the informative `ImportError` surfaces when the subclass is instantiated."""
