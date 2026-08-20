@@ -277,6 +277,11 @@ class KITTI(PointCloudDataset):
         split_file: Optional text file of frame ids (one per line) selecting which cached frames to load;
             defaults to every processed frame.
         fov: Restrict points to the front-camera field of view (requires `image_2/`). Baked into the cache.
+        return_calib: Also emit the `calib` (the composed $(3, 4)$ LiDAR-to-image matrix
+            $P_2 [R_0 T_\text{velo}]$ with the perspective-divide row from $R_0 T_\text{velo}$, the
+            `projected_ignore_mask` contract) and `image_shape` (image `(height, width)`) keys, read
+            lazily at access time from the raw `calib/` txt and the `image_2/` PNG header
+            (both must be present in the raw split).
         transform: Callable applied to each sample dict (e.g. `RelabelBoxes` + the model's transform).
         download: Unsupported; raises a `RuntimeError` pointing at the manual download page when set.
         force_download: Unsupported; raises like `download`.
@@ -306,6 +311,7 @@ class KITTI(PointCloudDataset):
         train: bool = True,
         split_file: Optional[PathLike] = None,
         fov: bool = True,
+        return_calib: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,
         force_download: bool = False,
@@ -318,6 +324,7 @@ class KITTI(PointCloudDataset):
         self._split = "training" if train else "testing"
         self.split_file = split_file
         self.fov = fov
+        self.return_calib = return_calib
         self.transform = transform
         self.show_progress = show_progress
         self.num_workers = num_workers
@@ -507,6 +514,21 @@ class KITTI(PointCloudDataset):
             DataKeys.BBOX_HEIGHT: torch.from_numpy(np.load(frame_dir / "bbox_height.npy")),
             DataKeys.FRAME: frame,
         }
+
+        if self.return_calib:
+            calib = load_kitti_calib(self.raw_split_dir / "calib" / f"{frame}.txt")
+            height, width = _read_image_shape(self.raw_split_dir / "image_2" / f"{frame}.png")
+            # P2 . [R0 Tr_velo; 0 0 0 1]
+            rect = np.vstack(
+                (
+                    calib["R0_rect"] @ calib["Tr_velo_to_cam"],
+                    np.array([[0.0, 0.0, 0.0, 1.0]], dtype=np.float32),
+                )
+            )
+            projection = calib["P2"] @ rect
+            projection[2] = rect[2]
+            data[DataKeys.CALIB] = torch.from_numpy(projection)
+            data[DataKeys.IMAGE_SHAPE] = torch.tensor([height, width], dtype=torch.int64)
 
         if self.transform is not None:
             data = self.transform(data)

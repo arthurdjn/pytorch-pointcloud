@@ -10,7 +10,14 @@ import pytest
 import torch
 
 from torch_pointcloud.datasets import KITTI
-from torch_pointcloud.datasets.kitti import KITTI_CLASSES, fov_flag, lidar_to_rect, load_kitti_calib, rect_to_lidar
+from torch_pointcloud.datasets.kitti import (
+    KITTI_CLASSES,
+    fov_flag,
+    lidar_to_rect,
+    load_kitti_calib,
+    rect_to_img,
+    rect_to_lidar,
+)
 from torch_pointcloud.utils.data import DataKeys
 
 _IDENTITY_CALIB = "P2: 1 0 0 0 0 1 0 0 0 0 1 0\nR0_rect: 1 0 0 0 1 0 0 0 1\nTr_velo_to_cam: 1 0 0 0 0 1 0 0 0 0 1 0\n"
@@ -93,6 +100,38 @@ def test_kitti_dataset_raw_boxes_and_fields(datasets_dir_factory: Callable[..., 
     assert sample[DataKeys.BBOX_HEIGHT].item() == pytest.approx(164.92, abs=1e-2)
     assert sample[DataKeys.OCCLUSION].dtype == torch.int64
     assert sample[DataKeys.TRUNCATION].dtype == torch.float32
+
+
+def test_kitti_dataset_return_calib_off_keys_unchanged(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Without `return_calib` the sample keys are exactly the pre-flag set."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    sample = KITTI(root=datasets_dir, train=True, fov=False)[0]
+    assert set(sample.keys()) == {
+        DataKeys.POS,
+        DataKeys.INTENSITY,
+        DataKeys.BOX,
+        DataKeys.LABEL,
+        DataKeys.TRUNCATION,
+        DataKeys.OCCLUSION,
+        DataKeys.BBOX_HEIGHT,
+        DataKeys.FRAME,
+    }
+
+
+def test_kitti_dataset_return_calib(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`return_calib=True` adds the composed LiDAR-to-image matrix and the PNG-header image shape."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    sample = KITTI(root=datasets_dir, train=True, fov=False, return_calib=True)[0]
+    assert sample[DataKeys.CALIB].dtype == torch.float32
+    assert sample[DataKeys.CALIB].shape == (3, 4)
+    calib = load_kitti_calib(datasets_dir / "KITTI" / "raw" / "training" / "calib" / "000000.txt")
+    points = np.array([[10.0, 1.0, -0.5], [20.0, -4.0, 0.5]], dtype=np.float32)
+    expected_pixels, _ = rect_to_img(lidar_to_rect(points, calib), calib)
+    hom = np.hstack((points, np.ones((2, 1), dtype=np.float32)))
+    projected = hom @ sample[DataKeys.CALIB].numpy().T
+    assert np.allclose(projected[:, :2] / projected[:, 2:], expected_pixels, atol=1e-4)
+    assert sample[DataKeys.IMAGE_SHAPE].dtype == torch.int64
+    assert sample[DataKeys.IMAGE_SHAPE].tolist() == [370, 1224]  # frame 000000 (height, width)
 
 
 def test_kitti_dataset_caches_npy(datasets_dir_factory: Callable[..., Path]) -> None:

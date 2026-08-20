@@ -15,6 +15,7 @@ from torch_pointcloud.utils.metrics import (
     instance_matches,
     mean_average_precision3d,
     nuscenes_detection_metrics,
+    nuscenes_velocity_attributes,
     overall_accuracy,
     part_iou,
     part_mean_iou,
@@ -936,3 +937,47 @@ def test_instance_average_precision_empty_edges() -> None:
     )
     out = instance_average_precision([no_gt], num_classes=1, min_points=1)
     assert out == {"mAP": 0.0, "mAP@0.5": 0.0, "mAP@0.25": 0.0}
+
+
+def test_nuscenes_velocity_attributes_hand_derived_case() -> None:
+    """Hand-derived against the official tables: moving above 1 m/s BEV speed (strictly), the parked /
+    stopped / standing default at or below it, and no attribute (-1) for `barrier` / `traffic_cone`."""
+    class_names = (
+        "car",
+        "truck",
+        "construction_vehicle",
+        "bus",
+        "trailer",
+        "barrier",
+        "motorcycle",
+        "bicycle",
+        "pedestrian",
+        "traffic_cone",
+    )
+    labels = torch.tensor([0, 0, 3, 8, 8, 7, 5, 9])
+    velocity = torch.tensor(
+        [
+            [3.0, 4.0],
+            [1.0, 0.0],
+            [0.3, 0.0],
+            [0.8, 0.9],
+            [0.5, 0.5],
+            [0.0, 0.0],
+            [9.0, 0.0],
+            [9.0, 0.0],
+        ],
+    )
+    out = nuscenes_velocity_attributes(labels, velocity, class_names=class_names)
+    # car@5 -> vehicle.moving (0); car@1.0 is not strictly moving -> vehicle.parked (2); bus@0.3 ->
+    # vehicle.stopped (1); pedestrian@1.2 -> pedestrian.moving (7); pedestrian@0.7 -> pedestrian.standing
+    # (6); bicycle@0 -> cycle.without_rider (4); barrier / traffic_cone -> -1.
+    assert out.dtype == torch.long
+    assert out.tolist() == [0, 2, 1, 7, 6, 4, -1, -1]
+
+
+def test_nuscenes_velocity_attributes_speed_threshold() -> None:
+    """Lowering `speed_threshold` flips a borderline box to its class's moving attribute."""
+    labels = torch.tensor([0])
+    velocity = torch.tensor([[1.0, 0.0]])
+    assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",)).tolist() == [2]
+    assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",), speed_threshold=0.5).tolist() == [0]

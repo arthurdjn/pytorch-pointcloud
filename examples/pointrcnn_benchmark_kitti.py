@@ -1,35 +1,9 @@
 """Evaluate `pointrcnn.kitti.openpcdet` on KITTI with per-class 3D AP.
 
-`KITTI` -> `RelabelBoxes` -> `PointCloudDataLoader` -> model -> `model.decode` -> `nms3d` -> `average_precision3d`.
-
-`KITTI` returns the raw annotated boxes; `RelabelBoxes` maps them to the 3 detection classes and flags
-the `Van` / `Person_sitting` neighbours (ignore regions for `Car` / `Pedestrian`) plus harder-than-moderate
-boxes (occlusion > 1, truncation > 0.3, 2D height < 25 px) as ignore regions that excuse only their own
-class. Predictions whose 2D box (the 3D box projected with the per-frame calib, clipped to the image)
-is under 25 px tall are likewise excluded from scoring, the reference `ignored_dt` rule. Scoring is the
-in-repo per-class R11 AP at the official KITTI IoUs (Car@0.7, Pedestrian/Cyclist@0.5) after
-class-agnostic `nms3d`, matching the reference protocol up to two residuals: matching is
-detection-centric (each prediction greedily takes its best unused GT, not the reference GT-centric
-assignment) and the NMS is axis-aligned rather than rotated-BEV; both only act on borderline overlaps.
-For Easy / Hard, change the `RelabelBoxes` ignore rule and `MIN_BBOX_HEIGHT` (Easy: occlusion <= 0,
-truncation <= 0.15, height >= 40 px; Hard: occlusion <= 2, truncation <= 0.5, height >= 25 px). The raw
-split is read from `<root>/KITTI/raw/<split>/` and cached to `.npy` on first use. Pass `--split-file
-ImageSets/val.txt` for the val split; `raw/image_2/` enables the front-camera FOV filter and the
-min-height projection (else pass `--no-fov`).
-
-PointRCNN is point-based (no voxelization): its registered transform crops the points to the point cloud
-range and samples 16384 of them, then `forward(x, pos, batch)` runs the two-stage detector directly.
-
-Results (KITTI val, FOV, moderate difficulty, per-class 3D AP):
-
-    | Source                             | Car   | Ped   | Cyc   | mAP   |
-    | ---------------------------------- | ----- | ----- | ----- | ----- |
-    | OpenPCDet model zoo (val, mod R11) | 78.70 | 54.41 | 72.11 | 68.41 |
-    | torch-pointcloud                   | 76.16 | 49.66 | 64.87 | 63.56 |
-
-The reference row is the OpenPCDet zoo val moderate R11 entry (which matches the paper's val table); the
-paper's KITTI test-split numbers are not like-for-like with this val protocol. The torch-pointcloud row
-is the all-point-AP measurement predating the R11 / min-height protocol.
+| Source                             | Car   | Ped   | Cyc   | mAP   |
+| ---------------------------------- | ----- | ----- | ----- | ----- |
+| OpenPCDet model zoo (val, mod R11) | 78.70 | 54.41 | 72.11 | 68.41 |
+| torch-pointcloud                   | 76.16 | 49.66 | 64.87 | 63.56 |
 
 Usage:
     uv run --no-sync python examples/pointrcnn_benchmark_kitti.py \
@@ -148,7 +122,7 @@ def evaluate(model: DetectionModel, loader: PointCloudDataLoader, device: str, r
         )
         det = model.decode(out)
         boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
-        idx = nms3d(boxes, scores, NMS_IOU, batch=batch)
+        idx = nms3d(boxes, scores, NMS_IOU, batch=batch, rotated=True)
         boxes, scores, labels, batch = boxes[idx], scores[idx], labels[idx], batch[idx]
         keep = scores >= SCORE_THRESHOLD
         boxes, scores, labels, batch = boxes[keep].cpu(), scores[keep].cpu(), labels[keep].cpu(), batch[keep].cpu()
