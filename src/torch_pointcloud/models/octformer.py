@@ -456,6 +456,7 @@ class OctFormerClassification(ClassificationModel):
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
+        head_act: Union[str, Callable, None] = "gelu",
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
@@ -485,6 +486,7 @@ class OctFormerClassification(ClassificationModel):
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
+        self.head_act = head_act
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
@@ -542,7 +544,7 @@ class OctFormerClassification(ClassificationModel):
         biases = [False] * max(0, len(channels) - 2) + [True]
         return MLP(
             channels,
-            act=self.act,
+            act=self.head_act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
@@ -556,9 +558,10 @@ class OctFormerClassification(ClassificationModel):
     def embedding_dim(self) -> int:
         return self.encoder_channels[-1]
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "mean", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -658,6 +661,7 @@ class OctFormerSegmentation(SegmentationModel):
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
+        head_act: Union[str, Callable, None] = "gelu",
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
@@ -687,6 +691,7 @@ class OctFormerSegmentation(SegmentationModel):
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
+        self.head_act = head_act
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
@@ -757,7 +762,7 @@ class OctFormerSegmentation(SegmentationModel):
         channels = [self.embedding_dim, *self.head_channels, self.num_classes]
         return MLP(
             channels,
-            act=self.act,
+            act=self.head_act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
@@ -855,25 +860,24 @@ class OctFormerSegmentation(SegmentationModel):
 
 
 def _octformer_base_clf(**hparams: Any) -> OctFormerClassification:
+    # The original OctFormer for classification uses a hard-coded ReLU activation in the stem and head.
+    # The head gets it via `head_act` (so `reset_classifier` keeps it); the stem is overridden manually.
+    hparams.setdefault("head_act", "relu")
     model = OctFormerClassification(**hparams)
 
-    # The original OctFormer for classification uses a hard-coded ReLU activation in the stem and head.
-    # For exact reproducibility we override these activations manually.
     for name, _ in model.stem.named_modules():
         if name.endswith(".act"):
             model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
 
     return model
 
 
 def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
+    # The original OctFormer for segmentation uses a hard-coded ReLU activation in the stem, decoder and head.
+    # The head gets it via `head_act` (so `reset_classifier` keeps it); stem and decoder are overridden manually.
+    hparams.setdefault("head_act", "relu")
     model = OctFormerSegmentation(**hparams)
 
-    # The original OctFormer for segmentation uses a hard-coded ReLU activation in the stem, decoder and head.
-    # For exact reproducibility we override these activations manually.
     for name, _ in model.stem.named_modules():
         if name.endswith(".act"):
             model.set_submodule(f"stem.{name}", nn.ReLU(inplace=True))
@@ -881,9 +885,6 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     for name, _ in model.decoder.named_modules():
         if name.endswith(".act"):
             model.set_submodule(f"decoder.{name}", nn.ReLU(inplace=True))
-
-    if hasattr(model.head, "act"):
-        model.head.act = nn.ReLU(inplace=True)
 
     return model
 

@@ -1037,6 +1037,50 @@ def _color_max(color: Tensor, int_color: bool) -> float:
     return 1.0
 
 
+def color_jitter(
+    color: Tensor,
+    brightness: Optional[float] = None,
+    contrast: Optional[float] = None,
+    saturation: Optional[float] = None,
+    int_color: bool = False,
+) -> Tensor:
+    """Apply brightness, contrast, and saturation factors to colors, in that order.
+
+    Each factor multiplies its component directly (`1.0` is identity); `None`
+    skips the component entirely.
+
+    Args:
+        color: Color tensor of shape `(N, 3)`.
+        brightness: Multiplicative brightness factor (e.g. `1.2` brightens by 20%).
+        contrast: Contrast factor, scaling the deviation from the per-channel mean.
+        saturation: Saturation factor, scaling the deviation from the per-point
+            grayscale luminance.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag.
+
+    Returns:
+        Jittered colors with the same shape and dtype as `color`.
+
+    Raises:
+        ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
+    """
+    max_val = _color_max(color, int_color)
+    out = color.float() / max_val
+
+    if brightness is not None:
+        out = out * brightness
+    if contrast is not None:
+        mean = out.mean(dim=0, keepdim=True)
+        out = (out - mean) * contrast + mean
+    if saturation is not None:
+        # Luminance per point, broadcast across channels.
+        gray = (out * torch.tensor([0.299, 0.587, 0.114], device=out.device)).sum(dim=-1, keepdim=True)
+        out = (out - gray) * saturation + gray
+
+    out = out.clamp(0.0, 1.0) * max_val
+    return out.to(color.dtype)
+
+
 def random_color_jitter(
     color: Tensor,
     brightness: float = 0.0,
@@ -1048,7 +1092,7 @@ def random_color_jitter(
     """Jitter colors by brightness, contrast, and saturation, in that order.
 
     Each strength is a relative delta sampled uniformly from `[-x, x]` and
-    applied multiplicatively (`out = x * factor`).
+    applied multiplicatively (`out = x * factor`) via `color_jitter`.
 
     Args:
         color: Color tensor of shape `(N, 3)`.
@@ -1066,24 +1110,10 @@ def random_color_jitter(
     Raises:
         ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
     """
-    max_val = _color_max(color, int_color)
-    out = color.float() / max_val
-
-    if brightness > 0:
-        b = torch.empty(1).uniform_(1 - brightness, 1 + brightness, generator=generator).item()
-        out = out * b
-    if contrast > 0:
-        c = torch.empty(1).uniform_(1 - contrast, 1 + contrast, generator=generator).item()
-        mean = out.mean(dim=0, keepdim=True)
-        out = (out - mean) * c + mean
-    if saturation > 0:
-        s = torch.empty(1).uniform_(1 - saturation, 1 + saturation, generator=generator).item()
-        # Luminance per point, broadcast across channels.
-        gray = (out * torch.tensor([0.299, 0.587, 0.114], device=out.device)).sum(dim=-1, keepdim=True)
-        out = (out - gray) * s + gray
-
-    out = out.clamp(0.0, 1.0) * max_val
-    return out.to(color.dtype)
+    b = torch.empty(1).uniform_(1 - brightness, 1 + brightness, generator=generator).item() if brightness > 0 else None
+    c = torch.empty(1).uniform_(1 - contrast, 1 + contrast, generator=generator).item() if contrast > 0 else None
+    s = torch.empty(1).uniform_(1 - saturation, 1 + saturation, generator=generator).item() if saturation > 0 else None
+    return color_jitter(color, brightness=b, contrast=c, saturation=s, int_color=int_color)
 
 
 def random_color_drop(

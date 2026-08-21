@@ -1934,7 +1934,11 @@ class Voxelize(DictTransform):
         if reduce == "first":
             return tensor[perm]
 
-        # Scatter reductions need float input (mean on long fails); cast back so integer keys stay integer.
+        # Integer min/max/sum scatter natively; the float32 round trip below corrupts values above 2^24.
+        if not tensor.is_floating_point() and tensor.dtype != torch.bool and reduce != "mean":
+            return scatter(tensor, cluster, dim=0, reduce=reduce)
+
+        # Mean (and any bool reduction) needs float input; cast back so the key keeps its dtype.
         out = scatter(tensor.float(), cluster, dim=0, reduce=reduce)
         return out if tensor.is_floating_point() else out.to(tensor.dtype)
 
@@ -2494,6 +2498,11 @@ class RandomScale(DictTransform):
             data[self.dst_box_key] = F.scale_boxes(data[box_key], scale.to(data[box_key]))
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
+            if self.anisotropic and x.shape[-1] != scale.numel():
+                raise ValueError(
+                    f"RandomScale(anisotropic=True) draws one factor per channel of the first key "
+                    f"({scale.numel()}); key '{key}' has {x.shape[-1]} channels."
+                )
             data[dst_key] = x * scale.to(x.dtype).to(x.device)
         return data
 
@@ -2676,6 +2685,11 @@ class RandomShift(DictTransform):
             data[self.dst_box_key] = F.shift_boxes(data[box_key], shift[:3])
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
+            if x.shape[-1] != shift.numel():
+                raise ValueError(
+                    f"RandomShift draws one offset per channel of the first key ({shift.numel()}); "
+                    f"key '{key}' has {x.shape[-1]} channels."
+                )
             data[dst_key] = x + shift.to(x.dtype).to(x.device)
         return data
 
@@ -2733,11 +2747,11 @@ class RandomDropout(DictTransform):
 class RandomColorJitter(DictTransform):
     """Jitter colors by brightness, contrast, and saturation strengths.
 
-    Each strength is a relative delta uniformly sampled from `[-x, x]`. Same
-    factors are applied to every listed key in one call.
+    Each strength is a relative delta uniformly sampled from `[-x, x]`. Sampling
+    is once per call, so the same factors are applied to every listed key.
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_color_jitter`
+        `torch_pointcloud.transforms.functional.color_jitter`
 
     Args:
         keys: Color keys to jitter, shape `(N, 3)`.
@@ -2781,14 +2795,17 @@ class RandomColorJitter(DictTransform):
         data = dict(data)
         if torch.rand(1, generator=self.generator).item() >= self.p:
             return data
+        b, c, s = self.brightness, self.contrast, self.saturation
+        brightness = torch.empty(1).uniform_(1 - b, 1 + b, generator=self.generator).item() if b > 0 else None
+        contrast = torch.empty(1).uniform_(1 - c, 1 + c, generator=self.generator).item() if c > 0 else None
+        saturation = torch.empty(1).uniform_(1 - s, 1 + s, generator=self.generator).item() if s > 0 else None
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.random_color_jitter(
+            data[dst_key] = F.color_jitter(
                 data[key],
-                brightness=self.brightness,
-                contrast=self.contrast,
-                saturation=self.saturation,
+                brightness=brightness,
+                contrast=contrast,
+                saturation=saturation,
                 int_color=self.int_color,
-                generator=self.generator,
             )
         return data
 

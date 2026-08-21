@@ -77,3 +77,8 @@ class MessagePassingParams(TypedDict):
 class StrEnum(str, Enum):
     def __str__(self) -> str:
         return self.value
+
+    def __repr__(self) -> str:
+        # Members are used as dict keys next to plain strings (e.g. `collate` inserting `DataKeys.BATCH`);
+        # the default `<DataKeys.BATCH: 'batch'>` repr makes such dicts print inconsistently.
+        return repr(self.value)

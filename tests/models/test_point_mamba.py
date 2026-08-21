@@ -8,6 +8,7 @@ from torch_pointcloud.models.point_mamba import (
     PointMambaDecoderMAE,
     PointMambaEncoder,
     PointMambaMAE,
+    order_sort,
 )
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
@@ -26,6 +27,14 @@ pytestmark = [
 # The mamba_ssm selective-scan kernels only run on CUDA tensors, so every test that calls a
 # forward pass is gated; construction-only tests run on CPU.
 requires_cuda = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="mamba_ssm kernels require CUDA")
+
+
+def test_order_sort_negative_grid_raises() -> None:
+    """Negative grid coordinates would silently wrap to valid codes; order_sort rejects them."""
+    grid = torch.tensor([[-1, 0, 0], [1, 2, 3]], dtype=torch.long)
+    batch = torch.zeros(2, dtype=torch.long)
+    with pytest.raises(ValueError, match="non-negative"):
+        order_sort(grid, batch, order="hilbert")
 
 
 @requires_cuda

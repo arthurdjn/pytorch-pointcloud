@@ -9,6 +9,7 @@ from torch import Tensor
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.lion import (
+    FlattenedWindowMapping,
     LION3DBackbone,
     LIONDetection,
     PatchMerging3D,
@@ -161,6 +162,29 @@ def test_lion_head_local_max_classes_decode() -> None:
     det = head.decode(out)
     assert det["boxes"].shape[1] == 7
     assert torch.isfinite(det["boxes"]).all()
+
+
+def test_lion_window_mapping_empty_batch_element() -> None:
+    torch.manual_seed(0)
+    pos = torch.cat(
+        [
+            torch.stack(
+                [
+                    torch.full((n,), b, dtype=torch.long),
+                    torch.randint(0, 8, (n,)),
+                    torch.randint(0, 32, (n,)),
+                    torch.randint(0, 32, (n,)),
+                ],
+                dim=1,
+            )
+            for b, n in [(0, 30), (2, 40)]
+        ]
+    )
+    mapping = FlattenedWindowMapping(window_shape=[13, 13, 32], group_size=16, shift=False)
+
+    out = mapping(pos, batch_size=3, sparse_shape=(8, 32, 32))
+    assert out["win2flat"].shape == (70,)
+    assert out["flat2win"].shape == (80,)  # 30 and 40 voxels each padded up to a multiple of group_size
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")

@@ -162,3 +162,12 @@ def test_octformer_segmentation_forward_features_decoder_head(
     x = model_seg.forward_decoder(x, data["octree"], data["depth"], intermediates)
     logits = model_seg.forward_head(x, data["octree"], data["depth"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_octformer_reset_classifier_keeps_head_act(model_clf: OctFormerClassification) -> None:
+    """The registered factories set `head_act="relu"`; a reset must rebuild the head with the same act."""
+    model_clf.head_act = "relu"
+    model_clf.reset_classifier(10)
+    assert type(model_clf.head.act).__name__ == "ReLU"
+    model_clf.reset_classifier(5)
+    assert type(model_clf.head.act).__name__ == "ReLU"

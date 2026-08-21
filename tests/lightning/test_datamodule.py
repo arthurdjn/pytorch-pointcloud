@@ -177,3 +177,25 @@ def test_train_ratios_yields_single_dataset_batches() -> None:
     assert len(batches) == 4
     for batch in batches:
         assert batch["x"].unique().numel() == 1
+
+
+def test_setup_threads_transform_through_repeat_and_concat_wrappers() -> None:
+    """`RepeatDataset` / `ConcatDataset` apply no transform themselves, so the registered transform must
+    land on the wrapped datasets that actually run it."""
+    from torch_pointcloud.datasets import ConcatDataset, RepeatDataset
+    from torch_pointcloud.lightning import PointCloudDataModule
+
+    inner = DummySegmentationDataset(2)
+    first, second = DummySegmentationDataset(2), DummySegmentationDataset(2)
+    dm = PointCloudDataModule(
+        train_dataset=RepeatDataset(inner, loop=2),
+        val_dataset=ConcatDataset([first, second]),
+        batch_size=1,
+        num_workers=0,
+    )
+    transform = Mock()
+    dm.trainer = Mock(lightning_module=Mock(transform=transform))
+    dm.setup("fit")
+    assert inner.transform is transform
+    assert first.transform is transform
+    assert second.transform is transform
