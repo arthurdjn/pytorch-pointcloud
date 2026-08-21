@@ -82,3 +82,22 @@ def test_part_refinement_validates_args_and_keys() -> None:
     del data[DataKeys.CATEGORY]
     with pytest.raises(KeyError, match="category"):
         PartRefinementInferer(SimpleInferer(), part_ids=_PART_IDS)(data, predictor=_label_predictor)
+
+
+def test_part_refinement_keeps_label_when_votes_all_zero() -> None:
+    """An isolated blob uniformly predicted one refined-away label has an all-zero vote row; it must keep
+    its label instead of falling through to class 0."""
+    pos = torch.cat([torch.rand(64, 3), torch.rand(32, 3) + 50.0])
+    labels = torch.cat([torch.full((64,), 1, dtype=torch.long), torch.full((32,), 4, dtype=torch.long)])
+    scores = torch.nn.functional.one_hot(labels, num_classes=6).float()
+
+    def predictor(data: Dict[str, Any]) -> Tensor:
+        return scores
+
+    data: Dict[str, Any] = {
+        DataKeys.POS: pos,
+        DataKeys.BATCH: torch.zeros(96, dtype=torch.long),
+        DataKeys.CATEGORY: torch.tensor([0]),
+    }
+    out = part_refinement_inference(data, predictor=predictor, part_ids=[[1, 2]], num_neighbors=8, min_count=10)
+    assert bool((out[64:].argmax(dim=-1) == 4).all())

@@ -100,7 +100,10 @@ def part_refinement_inference(
             neighbors = torch.cdist(pos_b[rows], pos_b).topk(k, dim=1, largest=False).indices  # (M, k)
             votes = torch.nn.functional.one_hot(labels_b[neighbors], num_classes=num_classes).sum(dim=1)
             votes[:, label] = 0
-            labels_b[rows] = votes.argmax(dim=1)
+            # A row whose neighbours all carry `label` has no votes left; keep its label instead of
+            # letting argmax fall through to class 0.
+            has_votes = votes.sum(dim=1) > 0
+            labels_b[rows[has_votes]] = votes.argmax(dim=1)[has_votes]
 
         labels[idx_b] = labels_b
 
