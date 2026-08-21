@@ -2,6 +2,7 @@ import hashlib
 import json
 import shutil
 import tarfile
+import warnings
 import zipfile
 from pathlib import Path
 from ssl import SSLContext, create_default_context
@@ -84,6 +85,7 @@ def download_url(
     description: str = "Downloading",
     show_progress: bool = True,
     overwrite: Union[bool, Literal["incomplete"]] = False,
+    timeout: float = 30.0,
 ) -> str:
     """Download a file from a URL to a local path.
 
@@ -98,6 +100,8 @@ def download_url(
             even if it already exists. If `'incomplete'`, the local file will be overwritten if it already exists and its
             size does not match the expected size (when the remote size is unknown, the local file is kept). If `False`,
             the local file will not be overwritten if it already exists.
+        timeout: Timeout in seconds passed to `urlopen`, covering the connection and each blocking read, so a
+            stalled server raises instead of hanging forever.
 
     Returns:
         The local path to the downloaded file.
@@ -114,12 +118,12 @@ def download_url(
     if file_path.exists() and not overwrite:
         return file_path.as_posix()
     if file_path.exists() and overwrite == "incomplete":
-        expected_size = urlsize(url)
+        expected_size = urlsize(url, timeout=timeout)
         if expected_size is None or file_path.stat().st_size == expected_size:
             return file_path.as_posix()
 
     part_path = file_path.with_name(file_path.name + ".part")
-    with urlopen(Request(url, headers={"User-Agent": USER_AGENT})) as response:
+    with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout) as response:
         with open(part_path, "wb") as fh:
             with tqdm(
                 total=response.length,
@@ -277,8 +281,9 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
 
     Args:
         file_path: The path to the file to check the hash of.
-        expected_hash: The expected hash of the file.
-        hash_type: The type of hash to use for the comparison.
+        expected_hash: The expected hash of the file. When `None`, a `UserWarning` is emitted and the
+            check passes without verifying the file.
+        hash_type: The type of hash to use for the comparison. Prefer `sha256` for new datasets.
 
     Returns:
         True if the hash of the file matches the expected hash, False otherwise.
@@ -291,6 +296,10 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
     """
 
     if expected_hash is None:
+        warnings.warn(
+            f"No checksum provided for {Path(file_path).as_posix()!r}; the file is not verified.",
+            stacklevel=2,
+        )
         return True
 
     if hash_type not in SUPPORTED_HASH_TYPES:

@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Callable
 from unittest.mock import Mock
 
+import numpy as np
+import plyfile
 import pytest
 import torch
 
@@ -13,6 +15,7 @@ from torch_pointcloud.datasets.toronto3d import (
     TORONTO3D_UTM_OFFSET,
     load_toronto3d_data,
 )
+from torch_pointcloud.utils.data import DataKeys
 
 # Must match generate.py's `--num-points` default.
 NUM_POINTS_PER_SCAN = 1024
@@ -185,3 +188,28 @@ def test_toronto3d_dataset_download_unsupported(datasets_dir_factory: Callable[.
     dataset = Toronto3D(root=datasets_dir, split="all")
     with pytest.raises(RuntimeError, match="does not support automatic download"):
         dataset.download()
+
+
+def test_load_toronto3d_data_subtracts_offset_before_float32_cast(tmp_path: Path) -> None:
+    """Raw UTM coordinates are ~4.8e6 where float32 resolution is 0.5 m; the offset must be removed in
+    float64 or the positions quantize to a half-meter grid."""
+
+    vertex = np.array(
+        [(627285.12, 4841950.37, 91.03, 200, 100, 50, 0.5, 1.0, 3.0)],
+        dtype=[
+            ("x", "f8"),
+            ("y", "f8"),
+            ("z", "f8"),
+            ("red", "u1"),
+            ("green", "u1"),
+            ("blue", "u1"),
+            ("scalar_Intensity", "f8"),
+            ("scalar_GPSTime", "f8"),
+            ("scalar_Label", "f8"),
+        ],
+    )
+    ply_path = tmp_path / "cloud.ply"
+    plyfile.PlyData([plyfile.PlyElement.describe(vertex, "vertex")]).write(str(ply_path))
+
+    data = load_toronto3d_data(ply_path, utm_offset=(627285.0, 4841948.0, 0.0))
+    assert torch.allclose(data[DataKeys.POS][0], torch.tensor([0.12, 2.37, 91.03]), atol=1e-4)

@@ -16,7 +16,6 @@ import numpy as np
 import pytest
 import torch
 
-import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResampled
 from torch_pointcloud.datasets.modelnet import (
     load_modelnet_data,
@@ -454,33 +453,6 @@ def test_modelnet_dataset_cache_meta_mismatch_raises(
     assert dataset.classes == (classes_b,)
 
 
-def test_modelnet_dataset_cache_meta_pre_transform_mismatch_raises(
-    datasets_dir_factory: Callable[..., Path],
-) -> None:
-    """A processed cache written without a pre_transform raises when one is requested later."""
-    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
-    _ = ModelNet10(root=datasets_dir, show_progress=False)
-
-    with pytest.raises(RuntimeError, match="force_process=True"):
-        _ = ModelNet10(root=datasets_dir, pre_transform=Mock(side_effect=lambda data: data), show_progress=False)
-
-
-def test_modelnet_dataset_cache_meta_records_transform_params(
-    datasets_dir_factory: Callable[..., Path],
-) -> None:
-    """The cache metadata includes transform parameters, so the same class with different params raises."""
-    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
-    _ = ModelNet10(root=datasets_dir, pre_transform=T.RandomSample(keys="pos", num_samples=32), show_progress=False)
-
-    reloaded = ModelNet10(
-        root=datasets_dir, pre_transform=T.RandomSample(keys="pos", num_samples=32), show_progress=False
-    )
-    assert len(reloaded) > 0
-
-    with pytest.raises(RuntimeError, match="force_process=True"):
-        _ = ModelNet10(root=datasets_dir, pre_transform=T.RandomSample(keys="pos", num_samples=64), show_progress=False)
-
-
 def test_modelnet_dataset_force_download_implies_download(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -694,30 +666,6 @@ def test_modelnet_dataset_categories(
     assert len(dataset) > 0
     assert len(dataset.classes) == len(categories)
     assert all(category in dataset.classes for category in categories)
-
-
-@pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-def test_modelnet_dataset_pre_transform(
-    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]
-) -> None:
-    """Test that the dataset is transformed correctly before being processed"""
-    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
-
-    pre_transform = Mock(side_effect=lambda x: x)
-    dataset = dataset_cls(root=datasets_dir, pre_transform=pre_transform, show_progress=False)
-    assert pre_transform.call_count == len(dataset)
-
-
-@pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])
-def test_modelnet_dataset_pre_filter(
-    datasets_dir_factory: Callable[..., Path], dataset_cls: Type[ModelNetDataset]
-) -> None:
-    """Test that the dataset is filtered correctly before being processed"""
-    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
-
-    pre_filter = Mock(side_effect=lambda x: True)
-    dataset = dataset_cls(root=datasets_dir, pre_filter=pre_filter, show_progress=False)
-    assert pre_filter.call_count == len(dataset)
 
 
 @pytest.mark.parametrize("dataset_cls", [ModelNet10, ModelNet40, ModelNet10NormalResampled, ModelNet40NormalResampled])

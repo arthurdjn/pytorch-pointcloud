@@ -251,7 +251,7 @@ def tile_s3dis_room(
                     block[key] = val
 
             # Store the room maximum coordinates for normalization (might be used in transforms)
-            block[DataKeys.ROOM_MAX] = room_max
+            block[DataKeys.ROOM_MAX] = room_max.clone()
             blocks.append(block)
 
     return blocks
@@ -552,11 +552,20 @@ class S3DIS(PointCloudDataset):
             sizes = np.array([r["pos"].shape[0] for r in rooms], dtype=np.int64)
             offsets = np.concatenate(([0], np.cumsum(sizes))).astype(np.int64)
 
-            np.save(area_dir / "pos.npy", np.concatenate([r["pos"] for r in rooms], dtype=np.float32))
-            np.save(area_dir / "color.npy", np.concatenate([r["color"] for r in rooms], dtype=np.uint8))
-            np.save(area_dir / "segment.npy", np.concatenate([r["segment"] for r in rooms], dtype=np.int16))
-            np.save(area_dir / "instance.npy", np.concatenate([r["instance"] for r in rooms], dtype=np.int16))
-            np.save(area_dir / "offset.npy", offsets)
+            arrays: list[tuple[str, np.ndarray]] = [
+                ("pos.npy", np.concatenate([r["pos"] for r in rooms], dtype=np.float32)),
+                ("color.npy", np.concatenate([r["color"] for r in rooms], dtype=np.uint8)),
+                ("segment.npy", np.concatenate([r["segment"] for r in rooms], dtype=np.int16)),
+                ("instance.npy", np.concatenate([r["instance"] for r in rooms], dtype=np.int16)),
+                ("offset.npy", offsets),
+            ]
+            # Write through a tmp file and keep `offset.npy` last: `is_area_processed` must never
+            # accept an area whose save was interrupted.
+            for name, array in arrays:
+                tmp_path = area_dir / (name + ".tmp")
+                with open(tmp_path, "wb") as f:
+                    np.save(f, array)
+                tmp_path.replace(area_dir / name)
 
     def load(
         self,
@@ -773,7 +782,9 @@ class S3DISHdf5(PointCloudDataset):
                     f"File corrupted: MD5 hash mismatch for {resource_path.as_posix()!r} after re-download."
                 )
 
-        extract_zip(resource_path, self.raw_dir, show_progress=show_progress)
+        # Every archive member is prefixed `indoor3d_sem_seg_hdf5_data/`, which is already the last
+        # component of `raw_dir`; extracting without `relative_to` would double-nest the files.
+        extract_zip(resource_path, self.raw_dir, relative_to=resource_path.stem, show_progress=show_progress)
 
         # Cleanup the downloaded zipped file
         resource_path.unlink()
