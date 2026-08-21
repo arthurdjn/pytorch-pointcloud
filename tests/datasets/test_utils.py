@@ -124,6 +124,12 @@ def test_download_url_with_progress(mock_urlopen: Mock, tmp_path: Path, capsys: 
     assert "Downloading" in captured.err
 
 
+def test_download_url_passes_timeout(mock_urlopen: Mock, tmp_path: Path) -> None:
+    """The timeout is forwarded to `urlopen` so a stalled server raises instead of hanging."""
+    download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=False, timeout=5.0)
+    assert mock_urlopen.call_args.kwargs["timeout"] == 5.0
+
+
 def test_extract_zip(tmp_path: Path) -> None:
     """Test that the zip file is extracted to the correct directory."""
     zip_path = create_zip(tmp_path)
@@ -237,9 +243,10 @@ def test_is_hash_valid_nonexistent_file() -> None:
     assert not is_hash_valid("nonexistent_file.txt", "some_hash", "md5")
 
 
-def test_is_hash_valid_none_hash() -> None:
-    """Test that validation is skipped when expected hash is None."""
-    assert is_hash_valid("nonexistent_file.txt", None)
+def test_is_hash_valid_none_hash_warns_and_passes() -> None:
+    """A missing expected hash skips validation but warns that the file is not verified."""
+    with pytest.warns(UserWarning, match="No checksum provided"):
+        assert is_hash_valid("nonexistent_file.txt", None)
 
 
 def test_urlsize_returns_content_length(mock_urlopen: Mock, mock_response: Mock) -> None:

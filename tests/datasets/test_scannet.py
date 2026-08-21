@@ -406,6 +406,7 @@ def test_scannet200_classes_from_fixture(datasets_dir_factory: Callable[..., Pat
     assert dataset.classes[2] == "chair"  # TSV id 2
     assert dataset.classes[3] == "floor"  # TSV id 3
     assert dataset.classes[-1] == "mattress"  # TSV id 1191
+    assert dataset.classes[SCANNET200_LABELS.index(1163)] == "object"  # first TSV row wins over the later `stick` row
     assert dataset.class_to_idx["chair"] == SCANNET200_LABELS.index(2)
 
     for data in dataset:
@@ -585,6 +586,17 @@ def test_tile_scannet_scene_oversamples_small_blocks() -> None:
     assert len(blocks) == 1
     assert blocks[0][DataKeys.POS].shape == (128, 3)
     assert blocks[0][DataKeys.POINT_INDICES].unique().numel() <= 60
+
+
+def test_tile_scannet_scene_blocks_own_their_scene_max() -> None:
+    """Editing one block's `scene_max` in place must not leak into the other blocks"""
+    scene = _synthetic_scene()
+    blocks = tile_scannet_scene(scene, block_size=1.5, block_stride=0.75, num_nodes=64, min_num_nodes=1)
+
+    assert len(blocks) > 1
+    expected = blocks[1][DataKeys.SCENE_MAX].clone()
+    blocks[0][DataKeys.SCENE_MAX].mul_(0.0)
+    assert torch.equal(blocks[1][DataKeys.SCENE_MAX], expected)
 
 
 def _synthetic_labels() -> pd.DataFrame:

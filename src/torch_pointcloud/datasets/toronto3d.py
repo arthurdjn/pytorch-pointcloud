@@ -81,8 +81,10 @@ def load_toronto3d_data(path: PathLike, /, utm_offset: Sequence[float] = TORONTO
     # Per-property arrays returned by `plyfile` are non-contiguous views into the
     # interleaved buffer; copy via `np.ascontiguousarray` before the dtype cast so
     # `torch.from_numpy` can take ownership without re-strided slices.
-    pos = np.ascontiguousarray(np.stack([v["x"], v["y"], v["z"]], axis=1)).astype(np.float32)
-    pos = pos - np.asarray(utm_offset, dtype=np.float32)
+    # Subtract the UTM offset in float64 before the float32 cast: raw UTM coordinates are ~4.8e6,
+    # where float32 resolution is 0.5 m, so casting first quantizes the positions.
+    pos = np.stack([v["x"], v["y"], v["z"]], axis=1) - np.asarray(utm_offset, dtype=np.float64)
+    pos = np.ascontiguousarray(pos.astype(np.float32))
     color = np.ascontiguousarray(np.stack([v["red"], v["green"], v["blue"]], axis=1)).astype(np.uint8)
     intensity = np.ascontiguousarray(v["scalar_Intensity"]).astype(np.float32).reshape(-1, 1)
     gps_time = np.ascontiguousarray(v["scalar_GPSTime"]).astype(np.float32).reshape(-1, 1)

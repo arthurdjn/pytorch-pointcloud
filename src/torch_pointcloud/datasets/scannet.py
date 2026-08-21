@@ -642,7 +642,7 @@ def tile_scannet_scene(
                 else:
                     block[key] = val
 
-            block[DataKeys.SCENE_MAX] = pos_max
+            block[DataKeys.SCENE_MAX] = pos_max.clone()
             block[DataKeys.BLOCK_CENTER] = torch.tensor(
                 [s_x + block_size / 2.0, s_y + block_size / 2.0, 0.0], dtype=pos.dtype
             )
@@ -1370,9 +1370,11 @@ class ScanNet200(ScanNet):
     @override
     @cached_property
     def classes(self) -> List[str]:
-        # The TSV `category` column is constant per `id` and names it (e.g. rows `books` and `book`
-        # both carry id 22 / category `book`), so it yields one canonical name per benchmark id.
-        id_to_name = {int(label): str(name) for label, name in zip(self.labels[self.label_id], self.labels["category"])}
+        # The TSV `category` column is not constant per `id` (id 1163 has rows `object` then `stick`);
+        # the official ScanNet200 class list names each benchmark id after its first row, so keep that one.
+        id_to_name: Dict[int, str] = {}
+        for label, name in zip(self.labels[self.label_id], self.labels["category"]):
+            id_to_name.setdefault(int(label), str(name))
         return [self.unk_cls, *(id_to_name[label] for label in SCANNET200_LABELS[1:])]
 
     @override
