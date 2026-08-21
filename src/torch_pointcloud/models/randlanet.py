@@ -572,9 +572,10 @@ class RandLANetClassification(ClassificationModel):
         self.dropout = dropout
         self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.embedding_dim, num_classes)
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     @overload
@@ -744,6 +745,8 @@ class RandLANetSegmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         # Per-point seg head: hidden layers carry `Linear(bias=`self.bias`)+norm+act+Dropout`,
         # the final `plain_last` layer is a bare `Linear(bias=True)`: its bias is
         # meaningful since it sees no normalization.
@@ -760,7 +763,7 @@ class RandLANetSegmentation(SegmentationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.head = self.configure_head()
 

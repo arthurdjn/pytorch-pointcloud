@@ -650,7 +650,7 @@ class PointTransformerV2Classification(ClassificationModel):
 
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
@@ -659,7 +659,12 @@ class PointTransformerV2Classification(ClassificationModel):
     def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
         return create_encoder_blocks(*args, **kwargs)
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.embedding_dim, self.num_classes)
+
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
 
         Note:
@@ -667,12 +672,13 @@ class PointTransformerV2Classification(ClassificationModel):
 
         Args:
             num_classes: Number of output classes.
-            global_pool: Pooling method to aggregate point x ("max" or "mean").
+            global_pool: Pooling method to aggregate point x ("max" or "mean"). If `None`, keeps the current pooling.
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -872,7 +878,7 @@ class PointTransformerV2Segmentation(SegmentationModel):
         )
 
         self.dropout = dropout
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
@@ -888,6 +894,11 @@ class PointTransformerV2Segmentation(SegmentationModel):
     def configure_decoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
         return create_decoder_blocks(*args, **kwargs)
 
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.out_channels, self.num_classes)
+
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         """Resets the head with new class parameters.
 
@@ -899,7 +910,7 @@ class PointTransformerV2Segmentation(SegmentationModel):
             **kwargs: Additional keyword arguments to pass to the segmentation head.
         """
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(

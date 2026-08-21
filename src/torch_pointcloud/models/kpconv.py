@@ -804,7 +804,7 @@ class KPFCNNClassification(ClassificationModel):
             return nn.Identity()
         return nn.Linear(self.embedding_dim, self.num_classes)
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
 
         Note:
@@ -812,11 +812,13 @@ class KPFCNNClassification(ClassificationModel):
 
         Args:
             num_classes: Number of output classes.
-            global_pool: Pooling method to aggregate point features ("max" or "mean").
+            global_pool: Pooling method to aggregate point features ("max" or "mean"). If `None`, keeps the current
+                pooling.
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
