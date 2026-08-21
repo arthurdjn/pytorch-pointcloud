@@ -191,10 +191,28 @@ def test_randlanet_classification_reset_classifier(model_clf: RandLANetClassific
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
 
 
+def test_randlanet_classification_reset_classifier_keeps_current_pooling(model_clf: RandLANetClassification) -> None:
+    model_clf.reset_classifier(10, global_pool="mean")
+    pool = model_clf.global_pool
+    model_clf.reset_classifier(7)
+    assert model_clf.global_pool is pool
+    assert type(pool).__name__ == "MeanPool"
+
+
 def test_randlanet_segmentation_reset_classifier(model_seg: RandLANetSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.reset_classifier(num_classes=42)
     logits = model_seg(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], 42)
+
+
+def test_randlanet_segmentation_reset_classifier_ignores_extra_kwargs(model_seg: RandLANetSegmentation) -> None:
+    model_seg.reset_classifier(num_classes=7, global_pool="mean")
+    assert model_seg.num_classes == 7
+
+
+def test_randlanet_segmentation_num_classes_zero_head_is_identity(model_seg: RandLANetSegmentation) -> None:
+    model_seg.reset_classifier(num_classes=0)
+    assert isinstance(model_seg.head, torch.nn.Identity)
 
 
 def test_randlanet_segmentation_no_stem(data: Dict[str, Tensor]) -> None:

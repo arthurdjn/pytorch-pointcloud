@@ -270,6 +270,14 @@ def test_kpconv_clf_reset_classifier(model_clf: KPFCNNClassification, data: Dict
     assert logits.shape == (data["batch"].max() + 1, new_num_classes)
 
 
+def test_kpconv_clf_reset_classifier_keeps_current_pooling(model_clf: KPFCNNClassification) -> None:
+    model_clf.reset_classifier(10, global_pool="mean")
+    pool = model_clf.global_pool
+    model_clf.reset_classifier(7)
+    assert model_clf.global_pool is pool
+    assert type(pool).__name__ == "MeanPool"
+
+
 def test_kpconv_clf_forward_features(model_clf: KPFCNNClassification, data: Dict[str, Tensor]) -> None:
     out_x, out_pos, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])
     assert out_x.dim() == 2

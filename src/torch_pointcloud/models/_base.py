@@ -44,6 +44,14 @@ class ClassificationModel(nn.Module, metaclass=ABCMeta):
         self.in_channels = in_channels
         self.num_classes = num_classes
 
+    def configure_head(self) -> nn.Module:
+        r"""Build and return the classification head for the current `num_classes` (`nn.Identity` when 0).
+
+        Called from both `__init__` and `reset_classifier` so the two always build the same module;
+        models without a rebuildable head raise `NotImplementedError`.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement `configure_head`.")
+
     def reset_classifier(self, num_classes: int) -> None:
         r"""Replace the classification head for `num_classes` outputs.
 
@@ -94,6 +102,14 @@ class SegmentationModel(nn.Module, metaclass=ABCMeta):
         super().__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
+
+    def configure_head(self) -> nn.Module:
+        r"""Build and return the segmentation head for the current `num_classes` (`nn.Identity` when 0).
+
+        Called from both `__init__` and `reset_classifier` so the two always build the same module;
+        models without a rebuildable head raise `NotImplementedError`.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement `configure_head`.")
 
     def reset_classifier(self, num_classes: int) -> None:
         r"""Replace the segmentation head for `num_classes` outputs.
