@@ -305,6 +305,8 @@ def create_model(
 
     Raises:
         ValueError: If `task` or `name` is unknown, or both `pretrained` and `checkpoint_path` are passed.
+        TypeError: If the entry registers architecture hparams only and the data-dependent arguments
+            (typically `in_channels` and `num_classes`) are not passed.
         FileNotFoundError: If the weight or checkpoint file does not exist.
 
     Building a registered model, overriding its registered hparams, and inspecting its registry entry:
@@ -326,12 +328,12 @@ def create_model(
     model_info = _REGISTERED_MODELS[task].get(name)
     if model_info is None:
         message = f"Model {name!r} not found in the {task!r} registry."
+        other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
+        for other in other_tasks:
+            message += f" Model {name!r} is registered under task {other!r}; pass task={other!r}."
         matches = difflib.get_close_matches(name, _REGISTERED_MODELS[task], n=3)
         if matches:
             message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
-        other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
-        if other_tasks:
-            message += " The name is registered under task " + " and ".join(f"{t!r}" for t in other_tasks) + "."
         message += f" Use `list_models(task={task!r})` to list the registered names."
         raise ValueError(message)
 
@@ -344,7 +346,15 @@ def create_model(
     # caller (e.g. a LightningModule) can log exactly what built the model.
     hparams = {**model_info["hparams"], **kwargs}
     model_info["hparams"] = hparams
-    model = model_fn(**hparams)
+    try:
+        model = model_fn(**hparams)
+    except TypeError as err:
+        if "required positional argument" not in str(err) and "required keyword-only argument" not in str(err):
+            raise
+        raise TypeError(
+            f"Model {name!r} registers architecture hparams only; pass the data-dependent arguments to "
+            f"`create_model` (e.g. `in_channels=`, `num_classes=`). Original error: {err}"
+        ) from err
 
     if pretrained:
         weights = model_info["weights"]
@@ -353,9 +363,16 @@ def create_model(
         else:
             parsed = urlparse(weights["url"])
             local_path = Path(MODELS_DIR, parsed.path.lstrip("/"))
+            if not local_path.resolve().is_relative_to(Path(MODELS_DIR).resolve()):
+                raise ValueError(
+                    f"Cannot load weights for {name!r}: the local cache path derived from {weights['url']!r} "
+                    f"resolves to {local_path.resolve().as_posix()}, outside the models cache directory "
+                    f"({Path(MODELS_DIR).as_posix()})."
+                )
             if not local_path.exists():
                 raise FileNotFoundError(
-                    f"Model weights not found at {local_path.as_posix()}. Download the weights first."
+                    f"Model weights for {name!r} not found at {local_path.as_posix()}. Download the weights at "
+                    f"{weights['url']!r} and place them in the models cache directory ({Path(MODELS_DIR).as_posix()})."
                 )
             load_state_dict(model, read_state_dict(local_path), source=weights["url"])
     elif checkpoint_path is not None:
