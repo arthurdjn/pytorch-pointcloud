@@ -46,7 +46,6 @@ class PointCNNEncoderBlock(nn.Module):
         bias: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        add_self_loops: bool = False,
         downsample: Optional[Callable[[Tensor, Tensor], Tensor]] = None,
     ) -> None:
         super().__init__()
@@ -59,7 +58,6 @@ class PointCNNEncoderBlock(nn.Module):
             hidden_channels=hidden_channels,
             dilation=dilation,
             bias=bias,
-            add_self_loops=add_self_loops,
         )
         self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
@@ -91,7 +89,6 @@ class PointCNNDecoderBlock(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        add_self_loops: bool = False,
     ):
         super().__init__()
         self.conv = XConv(
@@ -102,7 +99,6 @@ class PointCNNDecoderBlock(nn.Module):
             hidden_channels=hidden_channels,
             dilation=dilation,
             bias=bias,
-            add_self_loops=add_self_loops,
         )
         self.fuse = MLP(
             [out_channels + skip_channels, out_channels],
@@ -143,10 +139,8 @@ class PointCNNEncoder(nn.Module):
         bias: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        add_self_loops: bool = False,
     ) -> None:
         super().__init__()
-        self.add_self_loops = add_self_loops
         self.channels = ensure_tuple(channels)
 
         depth = len(self.channels) - 1
@@ -176,7 +170,6 @@ class PointCNNEncoder(nn.Module):
                 bias=bias,
                 act=act,
                 act_kwargs=act_kwargs,
-                add_self_loops=self.add_self_loops,
                 downsample=downsample,
             )
             self.blocks.append(block)
@@ -231,10 +224,8 @@ class PointCNNDecoder(nn.Module):
         bias: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        add_self_loops: bool = False,
     ) -> None:
         super().__init__()
-        self.add_self_loops = add_self_loops
         self.channels = ensure_tuple(channels)
 
         depth = len(self.channels) - 1
@@ -261,7 +252,6 @@ class PointCNNDecoder(nn.Module):
                 bias=bias,
                 act=act,
                 act_kwargs=act_kwargs,
-                add_self_loops=self.add_self_loops,
             )
             self.blocks.append(block)
 
@@ -306,7 +296,6 @@ class PointCNNClassification(ClassificationModel):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        add_self_loops: bool = False,
         dropout: float = 0.0,
         head_channels: Optional[Union[int, Sequence[int]]] = None,
         global_pool: PoolLike = "max",
@@ -325,7 +314,6 @@ class PointCNNClassification(ClassificationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
-        self.add_self_loops = add_self_loops
         self.dropout = dropout
 
         self.encoder = self.configure_encoder()
@@ -347,10 +335,11 @@ class PointCNNClassification(ClassificationModel):
             bias=self.bias,
             act=self.act,
             act_kwargs=self.act_kwargs,
-            add_self_loops=self.add_self_loops,
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
@@ -368,9 +357,10 @@ class PointCNNClassification(ClassificationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -437,7 +427,6 @@ class PointCNNSegmentation(SegmentationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        add_self_loops: bool = False,
         dropout: float = 0.0,
         head_channels: Optional[Union[int, Sequence[int]]] = None,
     ):
@@ -455,7 +444,6 @@ class PointCNNSegmentation(SegmentationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
-        self.add_self_loops = add_self_loops
         self.dropout = dropout
 
         self.encoder = self.configure_encoder()
@@ -477,7 +465,6 @@ class PointCNNSegmentation(SegmentationModel):
             bias=self.bias,
             act=self.act,
             act_kwargs=self.act_kwargs,
-            add_self_loops=self.add_self_loops,
         )
 
     def configure_decoder(self) -> PointCNNDecoder:
@@ -507,10 +494,11 @@ class PointCNNSegmentation(SegmentationModel):
             bias=self.bias,
             act=self.act,
             act_kwargs=self.act_kwargs,
-            add_self_loops=self.add_self_loops,
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
