@@ -30,11 +30,6 @@ from torch_pointcloud.utils.random import seed_everything  # noqa: E402
 
 log = logging.getLogger(__name__)
 
-# `${eval:"<expr>"}` for inline arithmetic in YAML (e.g. compute total_steps from
-# epoch count, scene count, batch size). Executes a Python expression at compose
-# time, so only pass trusted configs.
-OmegaConf.register_new_resolver("eval", eval, replace=True)
-
 
 @hydra.main(config_path="configs", config_name="train", version_base=None)
 def main(cfg: DictConfig) -> None:
