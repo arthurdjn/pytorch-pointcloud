@@ -338,6 +338,39 @@ def test_nuscenes_detection_matches_functional_across_updates() -> None:
     assert out == expected
 
 
+def test_nuscenes_detection_all_or_none_guard_leaves_metric_usable() -> None:
+    """A violating update raises before appending any state, so the same update passed correctly
+    afterwards still works without a `reset`."""
+    preds: Detection3D = {
+        "boxes": torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    target: Boxes3D = {
+        "boxes": torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    metric = NuScenesDetection(class_names=("car",))
+    metric.update(preds, target, num_points=torch.tensor([5]))
+    with pytest.raises(ValueError, match="num_points"):
+        metric.update(preds, target)
+    assert len(metric.gt_boxes) == 1
+    assert len(metric.gt_num_points) == 1
+    metric.update(preds, target, num_points=torch.tensor([5]))
+    out = metric.compute()
+    assert out["mAP"] == pytest.approx(1.0)
+
+
+def test_instance_part_mean_iou_compute_before_update_returns_zeros() -> None:
+    metric = InstancePartMeanIoU()
+    with pytest.warns(UserWarning):
+        out = metric.compute()
+    assert out["ins_mIoU"] == 0.0
+    assert out["cls_mIoU"] == 0.0
+
+
 def test_nuscenes_detection_reset_restarts_sample_offsets() -> None:
     """`reset` clears the accumulated batches and the sample counter, so scene indices restart at zero."""
     preds: Detection3D = {
@@ -436,3 +469,28 @@ def test_instance_average_precision_matches_functional_across_updates() -> None:
     assert out == expected
     assert "AP/chair" in out
     assert "AP/table" in out
+
+
+def test_nuscenes_detection_compute_without_updates() -> None:
+    metric = NuScenesDetection(class_names=["car", "truck"])
+    out = metric.compute()
+    assert out["mAP"] == 0.0
+    assert out["NDS"] == 0.0
+
+
+def test_nuscenes_detection_rejects_intermittent_extras() -> None:
+    metric = NuScenesDetection(class_names=["car"])
+    preds: Detection3D = {
+        "boxes": torch.rand(2, 7),
+        "scores": torch.rand(2),
+        "labels": torch.zeros(2, dtype=torch.long),
+        "batch": torch.zeros(2, dtype=torch.long),
+    }
+    target: Boxes3D = {
+        "boxes": torch.rand(1, 7),
+        "labels": torch.zeros(1, dtype=torch.long),
+        "batch": torch.zeros(1, dtype=torch.long),
+    }
+    metric.update(preds, target, num_points=torch.tensor([5]))
+    with pytest.raises(ValueError, match="every update"):
+        metric.update(preds, target)

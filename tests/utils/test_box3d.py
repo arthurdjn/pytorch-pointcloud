@@ -305,8 +305,12 @@ def test_nms3d_degenerate_boxes_both_modes() -> None:
     scores = torch.tensor([0.9, 0.8])
     assert nms3d(flat, scores, 0.3).tolist() == [0]
     assert nms3d(flat, scores, 0.3, rotated=True).tolist() == [0]
-    # Fully zero-extent coincident boxes: zero volume and zero footprint give an effectively zero IoU in
-    # both modes, so nothing is suppressed and no NaN is produced.
+    # Fully zero-extent coincident boxes: the floored extents give a self-IoU of 1 in both modes, so the
+    # duplicate is suppressed and no NaN is produced.
     point = _boxes([[0.0, 0, 0, 0, 0, 0, 0], [0.0, 0, 0, 0, 0, 0, 0]])
-    assert nms3d(point, scores, 0.3).tolist() == [0, 1]
-    assert nms3d(point, scores, 0.3, rotated=True).tolist() == [0, 1]
+    assert nms3d(point, scores, 0.3).tolist() == [0]
+    assert nms3d(point, scores, 0.3, rotated=True).tolist() == [0]
+    # Separated zero-extent boxes do not overlap even with floored extents, so both are kept.
+    apart = _boxes([[0.0, 0, 0, 0, 0, 0, 0], [1.0, 0, 0, 0, 0, 0, 0]])
+    assert nms3d(apart, scores, 0.3).tolist() == [0, 1]
+    assert nms3d(apart, scores, 0.3, rotated=True).tolist() == [0, 1]

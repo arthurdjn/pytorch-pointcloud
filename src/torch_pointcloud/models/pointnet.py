@@ -306,18 +306,20 @@ class PointNetClassification(ClassificationModel):
     def reset_classifier(
         self,
         num_classes: int,
-        global_pool: PoolLike = "max",
+        global_pool: Optional[PoolLike] = None,
         **kwargs: Any,
     ) -> None:
         """Resets the classification head with new parameters.
 
         Args:
             num_classes: Number of output classes.
-            global_pool: Pooling method to aggregate point features ("max" or "mean").
+            global_pool: Pooling method to aggregate point features ("max" or "mean"); `None` keeps the
+                current pooling.
             **kwargs: Additional keyword arguments to pass to the classification head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     def forward_features(
@@ -488,18 +490,20 @@ class PointNetSegmentation(SegmentationModel):
     def reset_classifier(
         self,
         num_classes: int,
-        global_pool: PoolLike = "max",
+        global_pool: Optional[PoolLike] = None,
         **kwargs: Any,
     ) -> None:
         """Resets the segmentation head with new parameters.
 
         Args:
             num_classes: Number of output classes.
-            global_pool: Pooling method for global features ("max" or "mean").
+            global_pool: Pooling method for global features ("max" or "mean"); `None` keeps the current
+                pooling.
             **kwargs: Additional keyword arguments to pass to the segmentation head.
         """
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         if "dims" in kwargs:
             self.seg_head_dims = list(kwargs["dims"])
         self.head = self.configure_head()

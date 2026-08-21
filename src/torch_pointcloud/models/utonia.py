@@ -30,7 +30,8 @@ class UtoniaSegmentation(SegmentationModel):
     Note:
         The default (and registered) configuration enables flash attention (`use_flash_attn=True`),
         which requires the `flash-attn` package and a CUDA device; pass `use_flash_attn=False` to
-        run without it (e.g. on CPU).
+        run without it. The xCPE sparse convolution still needs a `spconv` build matching the
+        device; the standard CUDA wheel cannot run the forward on CPU.
     """
 
     def __init__(

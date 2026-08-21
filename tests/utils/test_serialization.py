@@ -97,3 +97,8 @@ def test_batch_shift_zero_batch_supports_full_depth(grid_coords: Tensor) -> None
     batch = torch.zeros(2, dtype=torch.long)
     code = serialize_coords(grid_coords, batch, depth=21, order="hilbert")
     assert bool((code >= 0).all())
+
+
+def test_z_order_depth_above_max_raises() -> None:
+    with pytest.raises(ValueError, match="z-order maximum"):
+        serialize_coords(torch.tensor([[1, 2, 3]]), None, depth=17, order="z")

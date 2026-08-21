@@ -49,7 +49,10 @@ def serialize_coords(
         >>> inverse = torch.argsort(order)  # doctest: +SKIP
 
     Args:
-        grid_coords: A int tensor of shape $(N, 3)$ containing the grid coordinates.
+        grid_coords: A int tensor of shape $(N, 3)$ containing the grid coordinates. Every coordinate must lie
+            in $[0, 2^{depth})$ per axis: the encoders keep only the low `depth` bits, so out-of-range values
+            (e.g. a negative coordinate) silently wrap around to a valid code. Grids produced by `Voxelize` or
+            `Quantize` are shifted by the per-axis minimum and satisfy this.
         batch_idx: A int tensor of contiguous values from 0 to $B - 1$ of shape $(N)$ containing the batch $B$ indices.
         depth: The depth of the serialization cube.
         order: The serialization order. Available orders are:
@@ -71,6 +74,12 @@ def serialize_coords(
     if order not in SERIALIZATION_ORDERS:
         expected_orders = ", ".join(SERIALIZATION_ORDERS)
         raise ValueError(f"Unsupported serialization order: {order}. Expected one of: {expected_orders}")
+    # ocnn's key tables stop at depth 16; hilbert supports up to 21 and validates itself.
+    if order in ("z", "z-trans") and depth > MAX_DEPTH:
+        raise ValueError(
+            f"Serialization depth {depth} exceeds the z-order maximum of {MAX_DEPTH} (grid extents above "
+            f"2**{MAX_DEPTH} cells per axis). Increase the grid size or use a hilbert order."
+        )
 
     if order == "z":
         serialized_code = _z_order_encode(grid_coords, depth=depth)

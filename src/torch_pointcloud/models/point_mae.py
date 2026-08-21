@@ -484,6 +484,10 @@ class PointMAESegmentation(SegmentationModel):
         spatial_dim: int = 3,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if max(self.fetch_idx) >= depth:
+            raise ValueError(
+                f"`fetch_idx` {self.fetch_idx} requires at least {max(self.fetch_idx) + 1} blocks; got depth={depth}."
+            )
         self.num_categories = num_categories
         self.embed_dim = embed_dim
         self.depth = depth
@@ -542,6 +546,8 @@ class PointMAESegmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         return MLP(
             [1024 + 3 * self.embed_dim * 2 + 64, 512, 256, self.num_classes],
             act="relu",

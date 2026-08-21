@@ -169,7 +169,7 @@ class DETR3DLoss(nn.Module):
 
         num_boxes = targets.nactual.sum().clamp(min=1).to(point_cloud_dims[0].dtype)
         has_gt = bool(targets.nactual.sum() > 0)
-        rotated = bool(torch.any(targets.angle * targets.present > 0))
+        rotated = bool(torch.any(targets.angle * targets.present != 0))
 
         total = point_cloud_dims[0].new_zeros(())
         components = {name: point_cloud_dims[0].new_zeros(()) for name in _COMPONENT_NAMES}

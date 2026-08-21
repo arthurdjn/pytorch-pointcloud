@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Sequence, Union
 
 from torch.utils.data import DataLoader, Dataset, Sampler
 
@@ -10,6 +10,29 @@ if TYPE_CHECKING:
     from lightning.pytorch import LightningDataModule
 else:
     LightningDataModule, _ = optional_import("lightning.pytorch", "LightningDataModule", url=_LIGHTNING_GITHUB_URL)
+
+
+def _set_dataset_transform(dataset: Dataset, transform: Callable[..., Any]) -> None:
+    children = getattr(dataset, "datasets", None)
+    if children is not None:
+        for child in children:
+            _set_dataset_transform(child, transform)
+        return
+
+    if not hasattr(dataset, "transform"):
+        wrapped = getattr(dataset, "dataset", None)
+        if wrapped is not None:
+            _set_dataset_transform(wrapped, transform)
+        return
+
+    if getattr(dataset, "transform", None) is not None:
+        return
+
+    wrapped = getattr(dataset, "dataset", None)
+    if wrapped is not None and getattr(wrapped, "transform", None) is not None:
+        return
+
+    dataset.transform = transform
 
 
 class PointCloudDataModule(LightningDataModule):
@@ -73,7 +96,6 @@ class PointCloudDataModule(LightningDataModule):
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
-
         self.train_ratios = train_ratios
         self.stack_keys = stack_keys
         self.cat_keys = cat_keys
@@ -94,6 +116,8 @@ class PointCloudDataModule(LightningDataModule):
         a dataset's `transform` as `None` to use it, or sets one explicitly for custom augmentation. A
         wrapper dataset (e.g. `MixDataset`) whose wrapped `dataset` already carries a transform is left
         alone: the recipe lives on the wrapped dataset and must not be applied a second time on its output.
+        Wrappers that apply no transform of their own (`RepeatDataset`, `ConcatDataset`) are traversed so
+        the transform lands on the wrapped datasets that actually run it.
         """
         trainer = getattr(self, "trainer", None)
         lit_model = getattr(trainer, "lightning_module", None)
@@ -102,12 +126,8 @@ class PointCloudDataModule(LightningDataModule):
             return
 
         for dataset in (self.train_dataset, self.val_dataset, self.test_dataset):
-            if dataset is None or getattr(dataset, "transform", None) is not None:
-                continue
-            wrapped = getattr(dataset, "dataset", None)
-            if wrapped is not None and getattr(wrapped, "transform", None) is not None:
-                continue
-            dataset.transform = transform  # type: ignore[attr-defined]
+            if dataset is not None:
+                _set_dataset_transform(dataset, transform)
 
     def configure_dataloader(
         self,
@@ -156,10 +176,18 @@ class PointCloudDataModule(LightningDataModule):
             if sizes is None:
                 raise ValueError("train_ratios requires train_dataset to be a ConcatDataset exposing `sizes`.")
             batch_sampler = SingleDatasetBatchSampler(
-                sizes, ratios=self.train_ratios, batch_size=self.batch_size, shuffle=True, drop_last=self.drop_last
+                sizes,
+                ratios=self.train_ratios,
+                batch_size=self.batch_size,
+                shuffle=True,
+                drop_last=self.drop_last,
             )
+
         return self.configure_dataloader(
-            self.train_dataset, shuffle=True, drop_last=self.drop_last, batch_sampler=batch_sampler
+            self.train_dataset,
+            shuffle=True,
+            drop_last=self.drop_last,
+            batch_sampler=batch_sampler,
         )
 
     def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -167,7 +195,10 @@ class PointCloudDataModule(LightningDataModule):
         if self.val_dataset is None:
             return []
         return self.configure_dataloader(
-            self.val_dataset, shuffle=False, drop_last=False, batch_size=self.eval_batch_size
+            self.val_dataset,
+            shuffle=False,
+            drop_last=False,
+            batch_size=self.eval_batch_size,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -175,4 +206,9 @@ class PointCloudDataModule(LightningDataModule):
         # held-out split is the validation set, so `Trainer.test` (e.g. a pretrained-weight benchmark)
         # evaluates on it without the experiment having to duplicate the dataset as `test_dataset`.
         dataset = self.test_dataset if self.test_dataset is not None else self.val_dataset
-        return self.configure_dataloader(dataset, shuffle=False, drop_last=False, batch_size=self.eval_batch_size)
+        return self.configure_dataloader(
+            dataset,
+            shuffle=False,
+            drop_last=False,
+            batch_size=self.eval_batch_size,
+        )

@@ -49,7 +49,13 @@ RADIUS = 0.03162277660168379  # sqrt(1e-3)
 
 
 def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Tensor:
-    depth = int(pos_grid.max()).bit_length()
+    if pos_grid.numel() and bool(pos_grid.min() < 0):
+        raise ValueError(
+            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
+            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
+        )
+    # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
+    depth = max(int(pos_grid.max()).bit_length(), 1)
     serialized_code = serialize_coords(pos_grid, batch, depth=depth, order=order)
     serialized_order = torch.argsort(serialized_code)
     return serialized_order

@@ -239,6 +239,18 @@ class NuScenesDetection(Metric):
             attribute: Optional ground-truth per-box attribute id, shape $(K,)$; a negative id marks a
                 box without an attribute.
         """
+        # Validate the all-or-none rule before touching any state, so a raising update leaves the
+        # metric usable instead of permanently length-mismatched until `reset()`.
+        num_updates = len(self.gt_boxes) + 1
+        for name, state, value in (
+            ("num_points", self.gt_num_points, num_points),
+            ("attribute", self.gt_attributes, attribute),
+        ):
+            count = len(state) + (value is not None)
+            if count not in (0, num_updates):
+                raise ValueError(
+                    f"`{name}` must be passed on every update or on none; got it on {count} of {num_updates} updates."
+                )
         offset = int(self.num_samples.item())
         boxes = preds["boxes"]
         pred_velocity = preds.get("velocity")
@@ -263,8 +275,11 @@ class NuScenesDetection(Metric):
         self.num_samples += max(pred_samples, gt_samples)
 
     def compute(self) -> Dict[str, float]:
-        pred_boxes = torch.cat(self.pred_boxes)
-        pred_labels = torch.cat(self.pred_labels)
+        device = self.num_samples.device
+        empty_boxes = torch.zeros((0, 7), device=device)
+        empty_ids = torch.zeros((0,), dtype=torch.long, device=device)
+        pred_boxes = torch.cat(self.pred_boxes) if self.pred_boxes else empty_boxes
+        pred_labels = torch.cat(self.pred_labels) if self.pred_labels else empty_ids
         pred_attributes = None
         if pred_boxes.shape[1] >= 9:
             pred_attributes = nuscenes_velocity_attributes(
@@ -273,12 +288,12 @@ class NuScenesDetection(Metric):
 
         return nuscenes_detection_metrics(
             pred_boxes,
-            torch.cat(self.pred_scores),
+            torch.cat(self.pred_scores) if self.pred_scores else empty_boxes.new_zeros((0,)),
             pred_labels,
-            torch.cat(self.pred_batch),
-            torch.cat(self.gt_boxes),
-            torch.cat(self.gt_labels),
-            torch.cat(self.gt_batch),
+            torch.cat(self.pred_batch) if self.pred_batch else empty_ids,
+            torch.cat(self.gt_boxes) if self.gt_boxes else empty_boxes,
+            torch.cat(self.gt_labels) if self.gt_labels else empty_ids,
+            torch.cat(self.gt_batch) if self.gt_batch else empty_ids,
             class_names=self.class_names,
             gt_num_points=torch.cat(self.gt_num_points) if self.gt_num_points else None,
             pred_attributes=pred_attributes,
@@ -415,6 +430,9 @@ class InstancePartMeanIoU(Metric):
 
     def compute(self) -> Dict[str, Tensor]:
         present = self.count > 0
+        if not bool(present.any()):
+            zero = self.iou_sum.sum()
+            return {"ins_mIoU": zero, "cls_mIoU": zero.clone()}
         ins_miou = self.iou_sum.sum() / self.count.sum()
         cls_miou = (self.iou_sum[present] / self.count[present]).mean()
         return {"ins_mIoU": ins_miou, "cls_mIoU": cls_miou}

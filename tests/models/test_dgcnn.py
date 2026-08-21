@@ -74,6 +74,29 @@ def model_seg() -> DGCNNSegmentation:
     )
 
 
+def test_dgcnn_head_dropout_placement_matches_reference() -> None:
+    """Classification regularizes every hidden layer, semantic segmentation only its last hidden layer,
+    part segmentation every hidden layer except the last one."""
+    clf = DGCNNClassification(
+        in_channels=3, num_classes=10, channels=[32, 64], head_channels=[32, 16], num_neighbors=8, dropout=0.5
+    )
+    assert clf.head.dropout == [0.5, 0.5, 0.0]
+    seg = DGCNNSegmentation(
+        in_channels=3, num_classes=10, channels=[32, 64], head_channels=[32, 16], num_neighbors=8, dropout=0.5
+    )
+    assert seg.head.dropout == [0.0, 0.5, 0.0]
+    part = DGCNNPartSegmentation(
+        in_channels=3,
+        num_classes=10,
+        num_categories=4,
+        channels=[32, 64],
+        head_channels=[32, 16, 8],
+        num_neighbors=8,
+        dropout=0.5,
+    )
+    assert part.head.dropout == [0.5, 0.5, 0.0, 0.0]
+
+
 def test_dgcnn_classification_forward(model_clf: DGCNNClassification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
@@ -199,3 +222,11 @@ def test_dgcnn_part_segmentation_forward_head_pre_logits(
     feats = model_partseg.forward_head(x, batch, pre_logits=True)
     assert torch.equal(feats, x)
     assert feats.shape[1] == model_partseg.embedding_dim
+
+
+def test_dgcnn_reset_classifier_keeps_current_pooling(model_clf: DGCNNClassification) -> None:
+    model_clf.reset_classifier(10, global_pool=("max", "mean"))
+    pool = model_clf.global_pool
+    model_clf.reset_classifier(5)
+    assert model_clf.global_pool is pool
+    assert type(pool).__name__ == "CatPool"

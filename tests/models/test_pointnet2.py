@@ -74,6 +74,31 @@ def model_seg() -> PointNet2Segmentation:
     )
 
 
+def test_pointnet2_classification_head_per_layer_dropout() -> None:
+    model = PointNet2Classification(
+        in_channels=6,
+        num_classes=10,
+        sa_channels=[[32, 64], [64, 128]],
+        ratios=[0.5, 0.5],
+        radii=[0.2, 0.4],
+        num_neighbors=[16, 16],
+        head_channels=[64, 32],
+        dropout=[0.4, 0.5],
+    )
+    assert model.head.dropout == [0.4, 0.5, 0.0]
+    with pytest.raises(ValueError, match="one rate per head layer"):
+        PointNet2Classification(
+            in_channels=6,
+            num_classes=10,
+            sa_channels=[[32, 64], [64, 128]],
+            ratios=[0.5, 0.5],
+            radii=[0.2, 0.4],
+            num_neighbors=[16, 16],
+            head_channels=[64, 32],
+            dropout=[0.4],
+        )
+
+
 def test_pointnet2_classification_forward(model_clf: PointNet2Classification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
@@ -159,3 +184,11 @@ def test_pointnet2_classification_num_classes_zero_returns_features(data: Dict[s
     assert isinstance(model.head, torch.nn.Identity)
     out = model(data["x"], data["pos"], data["batch"])
     assert out.shape == (int(data["batch"].max()) + 1, model.embedding_dim)
+
+
+def test_pointnet2_reset_classifier_keeps_current_pooling(model_clf: PointNet2Classification) -> None:
+    model_clf.reset_classifier(10, global_pool="mean")
+    pool = model_clf.global_pool
+    model_clf.reset_classifier(5)
+    assert model_clf.global_pool is pool
+    assert type(pool).__name__ == "MeanPool"
