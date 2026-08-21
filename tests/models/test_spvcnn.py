@@ -152,6 +152,14 @@ def test_spvcnn_classification_reset_classifier_zero(model_clf: SPVCNNClassifica
     assert isinstance(model_clf.head, torch.nn.Identity)
 
 
+def test_spvcnn_classification_reset_classifier_keeps_current_pooling(model_clf: SPVCNNClassification) -> None:
+    model_clf.reset_classifier(10, global_pool="mean")
+    pool = model_clf.global_pool
+    model_clf.reset_classifier(7)
+    assert model_clf.global_pool is pool
+    assert type(pool).__name__ == "MeanPool"
+
+
 def test_spvcnn_decoder_block_threads_act_norm_dropout() -> None:
     decoder = SPVCNNDecoder(
         depths=(1,),

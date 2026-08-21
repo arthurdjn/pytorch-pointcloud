@@ -89,6 +89,16 @@ def test_pt_v2_classification_reset_classifier(
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
 
 
+def test_pt_v2_classification_reset_classifier_keeps_current_pooling(
+    model_clf: PointTransformerV2Classification,
+) -> None:
+    model_clf.reset_classifier(10, global_pool="mean")
+    pool = model_clf.global_pool
+    model_clf.reset_classifier(7)
+    assert model_clf.global_pool is pool
+    assert type(pool).__name__ == "MeanPool"
+
+
 def test_pt_v2_segmentation_forward(model_seg: PointTransformerV2Segmentation, data: Dict[str, Tensor]) -> None:
     logits = model_seg(data["x"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)

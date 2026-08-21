@@ -322,8 +322,10 @@ class PVCNNSegmentation(SegmentationModel):
         )
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         if not self.head_channels:
-            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.embedding_dim, self.num_classes)
 
         channels = [self.embedding_dim, *self.head_channels, self.num_classes]
         dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]

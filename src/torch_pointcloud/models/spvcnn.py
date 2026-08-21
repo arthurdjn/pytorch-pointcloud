@@ -759,12 +759,18 @@ class SPVCNNClassification(ClassificationModel):
         )
 
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.embedding_dim, self.num_classes)
+
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
 
     def forward_features(self, x: Optional[Tensor], pos: Tensor, batch: Tensor) -> Tensor:
         x = pos.float() if x is None else x
@@ -874,11 +880,16 @@ class SPVCNNSegmentation(SegmentationModel):
             norm_kwargs=norm_kwargs,
         )
 
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     def forward_features(
         self,
