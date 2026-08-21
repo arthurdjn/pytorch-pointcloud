@@ -29,7 +29,7 @@ def main() -> None:
     print("Loading model, optimizer, and scheduler...", end=" ")
     model = RandLANetClassification(
         in_channels=6,
-        num_classes=10,
+        num_classes=args.num_classes,
         stem_channels=8,
         encoder_channels=[32, 128],
         num_neighbors=[16, 16],
@@ -64,16 +64,20 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="modelnet10", choices=["modelnet10", "modelnet40"])
-    parser.add_argument("--num_points", type=int, default=1024)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--num-classes", type=int, default=None)
+    parser.add_argument("--num-points", type=int, default=1024)
+    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--num_workers", type=int, default=6)
+    parser.add_argument("--num-workers", type=int, default=6)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--limit-train-batches", type=int, default=None)
     parser.add_argument("--limit-test-batches", type=int, default=None)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.num_classes is None:
+        args.num_classes = 10 if args.dataset == "modelnet10" else 40
+    return args
 
 
 def train_one_epoch(
