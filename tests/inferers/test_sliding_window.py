@@ -484,3 +484,42 @@ def test_sliding_window_empty_scene_returns_zero_by_zero() -> None:
 
     out = sliding_window_inference(data, predictor=predictor, block_size=1.0)
     assert out.shape == (0, 0)
+
+
+def test_sliding_window_integer_boundary_points_match_interior_vote_count() -> None:
+    """Blocks are half-open at the top: on an integer grid with `overlap=0.5`, a point sitting exactly on a
+    block edge belongs to the same number of blocks as an interior point."""
+    grid = torch.stack(torch.meshgrid(torch.arange(5.0), torch.arange(5.0), indexing="ij"), dim=-1).reshape(-1, 2)
+    pos = torch.cat([grid, torch.zeros(len(grid), 1)], dim=1)
+    counts = torch.zeros(len(pos))
+    data = {"pos": pos, "batch": torch.zeros(len(pos), dtype=torch.long), "idx": torch.arange(len(pos))}
+
+    def predictor(block: Dict[str, Any]) -> Tensor:
+        counts[block["idx"]] += 1
+        return torch.zeros(block["pos"].size(0), 4)
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, dims=(0, 1))
+    assert out.shape == (len(pos), 4)
+    boundary = counts[(pos[:, 0] == 2.0) & (pos[:, 1] == 2.0)]
+    interior = counts[(pos[:, 0] == 1.0) & (pos[:, 1] == 1.0)]
+    assert torch.equal(boundary, interior)
+    assert float(counts.min()) >= 1
+
+
+def test_sliding_window_non_representable_grid_covers_every_point_exactly_once() -> None:
+    """`k * 0.1` grid coordinates are not exactly representable in float32, so `(p - lo) / step` can round
+    across an integer and land a point exactly on a bound of its own block. Every point must still be
+    predicted, and with `overlap=0` exactly once."""
+    generator = torch.Generator().manual_seed(0)
+    base = torch.rand((1,), generator=generator) * 10
+    pos = base + torch.randint(0, 100, (300, 3), generator=generator).float() * 0.1
+    counts = torch.zeros(len(pos))
+    data = {"pos": pos, "batch": torch.zeros(len(pos), dtype=torch.long), "idx": torch.arange(len(pos))}
+
+    def predictor(block: Dict[str, Any]) -> Tensor:
+        counts[block["idx"]] += 1
+        return torch.ones(block["pos"].size(0), 4)
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=1.0, overlap=0.0, softmax=False)
+    assert torch.allclose(out, torch.ones_like(out))
+    assert torch.equal(counts, torch.ones_like(counts))

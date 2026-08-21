@@ -206,11 +206,18 @@ def knn_window_inference(
                     wd[batch_key] = torch.full((k,), w_i, device=device, dtype=torch.long)
                     if transform is not None:
                         wd = transform(wd)
+                        if int(wd[pos_key].size(0)) != k:
+                            raise ValueError(
+                                f"`transform` must preserve each window's row count; got {k} -> "
+                                f"{int(wd[pos_key].size(0))} rows."
+                            )
+
                     per_window_dicts.append(wd)
+
                 window_data: Dict[str, Any] = {}
                 for key in per_window_dicts[0]:
                     values = [wd[key] for wd in per_window_dicts]
-                    if torch.is_tensor(values[0]) and values[0].size(0) == k:
+                    if torch.is_tensor(values[0]) and values[0].dim() > 0 and values[0].size(0) == k:
                         window_data[key] = torch.cat(values, dim=0)
                     else:
                         window_data[key] = values[0]
