@@ -29,13 +29,14 @@ CAUSAL_CONV1D_FORCE_BUILD=TRUE uv pip install --no-config --no-deps --no-cache-d
 MAMBA_FORCE_BUILD=TRUE uv pip install --no-config --no-deps --no-cache-dir --no-build-isolation mamba-ssm
 
 echo ">>> Installing flash-attn (prebuilt wheel)"
-# Official from-source build (slow; needs nvcc + the real torch). Use if the prebuilt wheel above is unavailable:
+# Third-party prebuilt wheel from mjun0812/flash-attention-prebuild-wheels, not an official upstream artifact.
+# Official from-source build (slow; needs nvcc + the real torch). Use if the prebuilt wheel below is unavailable:
 # uv pip install --no-config --no-deps --no-cache-dir --no-build-isolation flash-attn
 uv pip install --no-config --no-deps --no-cache-dir \
   "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3%2Bcu128torch2.10-cp310-cp310-linux_x86_64.whl"
 
 echo ">>> Installing dwconv"
-uv pip install --no-config --no-cache-dir --no-build-isolation "dwconv @ git+https://github.com/octree-nn/dwconv.git"
+uv pip install --no-config --no-cache-dir --no-build-isolation "dwconv @ git+https://github.com/octree-nn/dwconv.git@ae53057eaf36dab01aa2727fcc93a749fd995af5"
 
 echo ">>> Installing torchsparse"
 uv pip install --no-config --no-deps --no-cache-dir --no-build-isolation "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git@385f5ce8718fcae93540511b7f5832f4e71fd835"
