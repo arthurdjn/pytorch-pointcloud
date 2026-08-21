@@ -125,6 +125,7 @@ def _assign_point_blocks(
         valid = (i <= i_hi).all(dim=1)
         if not valid.any():
             continue
+
         block_lo = lo + i.to(pos.dtype) * step
         # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
         # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
@@ -136,6 +137,7 @@ def _assign_point_blocks(
         valid = valid & inside
         if not valid.any():
             continue
+
         i_v = i[valid]
         if mode == "gaussian":
             centres_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)

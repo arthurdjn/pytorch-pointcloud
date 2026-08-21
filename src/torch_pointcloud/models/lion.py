@@ -213,7 +213,8 @@ class FlattenedWindowMapping(nn.Module):
 
     def forward(self, pos: Tensor, batch_size: int, sparse_shape: Sequence[int]) -> Dict[str, Tensor]:
         pos = pos.long()
-        _, num_per_batch = torch.unique(pos[:, 0], sorted=False, return_counts=True)
+        # bincount keeps a zero count for batch elements with no voxels, which torch.unique would drop.
+        num_per_batch = torch.bincount(pos[:, 0], minlength=batch_size)
         batch_start_indices = F.pad(torch.cumsum(num_per_batch, dim=0), (1, 0))
         num_per_batch_p = (
             torch.div(
@@ -242,7 +243,7 @@ class FlattenedWindowMapping(nn.Module):
                     ]
                     if (batch_start_indices_p[i + 1] - batch_start_indices_p[i]) - self.group_size != 0
                     else win2flat[batch_start_indices[i] : batch_start_indices[i + 1]].repeat(
-                        (batch_start_indices_p[i + 1] - batch_start_indices_p[i]) // num_per_batch[i] + 1
+                        int((batch_start_indices_p[i + 1] - batch_start_indices_p[i]) // num_per_batch[i]) + 1
                     )[: self.group_size - (num_per_batch[i] % self.group_size)]
                     + bias_index
                 )

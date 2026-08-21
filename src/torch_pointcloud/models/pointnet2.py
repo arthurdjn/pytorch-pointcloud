@@ -309,7 +309,8 @@ class PointNet2Classification(ClassificationModel):
         bias: Whether to use bias in linear layers.
         use_pos: Whether to concatenate per-point relative positions to `x`.
         pool: Pooling operation for SA blocks.
-        dropout: Dropout rate for classification head.
+        dropout: Dropout for the classification head: a single rate shared by every hidden layer, or one
+            rate per hidden layer.
         global_pool: Global pooling operation.
     """
 
@@ -336,7 +337,7 @@ class PointNet2Classification(ClassificationModel):
         use_pos: bool = True,
         normalize_pos: bool = True,
         pool: PoolLike = "max",
-        dropout: float = 0.0,
+        dropout: Union[float, Sequence[float]] = 0.0,
         global_pool: PoolLike = "max",
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
@@ -399,7 +400,15 @@ class PointNet2Classification(ClassificationModel):
             return nn.Linear(self.embedding_dim, self.num_classes)
 
         channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
-        dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
+        if isinstance(self.dropout, (int, float)):
+            dropout_list = [float(self.dropout)] * (len(channels_list) - 2) + [0.0]
+        else:
+            if len(self.dropout) != len(channels_list) - 2:
+                raise ValueError(
+                    f"`dropout` must provide one rate per head layer ({len(channels_list) - 2}); "
+                    f"got {len(self.dropout)}."
+                )
+            dropout_list = [float(rate) for rate in self.dropout] + [0.0]
         return MLP(
             channels_list,
             act=self.act,
@@ -412,9 +421,10 @@ class PointNet2Classification(ClassificationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "max", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.global_pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -460,8 +470,10 @@ class PointNet2Classification(ClassificationModel):
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
-        if self.dropout and not self.head_channels:
-            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        if not self.head_channels:
+            rate = self.dropout if isinstance(self.dropout, (int, float)) else next(iter(self.dropout), 0.0)
+            if rate:
+                x = F.dropout(x, p=float(rate), training=self.training)
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -765,7 +777,7 @@ def pointnet2_yanx27_ssg_modelnet40(**hparams: Any) -> PointNet2Classification:
         use_pos=True,
         normalize_pos=False,
         bias=True,
-        dropout=0.4,
+        dropout=[0.4, 0.5],
     ),
     transform=T.Compose(
         [

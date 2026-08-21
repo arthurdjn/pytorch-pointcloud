@@ -1,5 +1,6 @@
 import pytest
 import torch
+from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import TransformerBlock
 from torch_pointcloud.models.point_bert import (
@@ -250,3 +251,23 @@ def test_point_bert_dvae_basic() -> None:
     assert out["logits"].shape == (2, 64, 8192)
     assert out["fine"].shape == (2, 64, 32, 3)
     assert out["coarse"].shape == (2, 64, 8, 3)
+
+
+def test_point_bert_reset_classifier_keeps_head_configuration() -> None:
+    model = PointBERTClassification(
+        in_channels=0,
+        num_classes=40,
+        embed_dim=96,
+        depth=2,
+        num_heads=2,
+        num_group=8,
+        group_size=4,
+        encoder_dims=64,
+        head_channels=64,
+        dropout=0.2,
+    )
+    model.reset_classifier(10)
+    assert model.head_channels == [64]
+    assert model.dropout == 0.2
+    assert isinstance(model.head, MLP)
+    assert model.head.channel_list[-1] == 10

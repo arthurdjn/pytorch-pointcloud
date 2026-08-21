@@ -105,7 +105,13 @@ def serialize(
         perm = torch.randperm(len(orders))
         orders = [orders[i] for i in perm]
 
-    depth = int(pos_grid.max()).bit_length()
+    if pos_grid.numel() and bool(pos_grid.min() < 0):
+        raise ValueError(
+            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
+            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
+        )
+    # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
+    depth = max(int(pos_grid.max()).bit_length(), 1)
     serialized_code = torch.stack([serialize_coords(pos_grid, batch, depth=depth, order=order) for order in orders])
     serialized_order = torch.argsort(serialized_code, dim=1)
     serialized_inverse = torch.argsort(serialized_order, dim=1)
@@ -545,7 +551,8 @@ class PointTransformerV3Encoder(nn.Module):
             real-valued `pos` argument at forward time.
         use_flash_attn: Use Flash Attention. The registered configurations construct with
             `use_flash_attn=True`, which requires `flash-attn` and a CUDA device; pass
-            `use_flash_attn=False` to run without it (e.g. on CPU).
+            `use_flash_attn=False` to run without it (the xCPE sparse convolution still needs a
+            `spconv` build matching the device; the standard CUDA wheel cannot run on CPU).
         upcast_attn: Upcast attention to fp32.
         upcast_softmax: Upcast softmax to fp32.
         pooling: Pooling strategy: `"serialized"` (code-space bit-shift) or
@@ -1034,7 +1041,8 @@ class PointTransformerV3Classification(ClassificationModel):
         This model requires `spconv`, `torch-scatter` to be installed.
         It is also recommended to install `flash-attn` for faster attention. The registered
         configurations construct with `use_flash_attn=True`, which requires `flash-attn` and a CUDA
-        device; pass `use_flash_attn=False` to run without it (e.g. on CPU).
+        device; pass `use_flash_attn=False` to run without it. The xCPE sparse convolution still
+        needs a `spconv` build matching the device; the standard CUDA wheel cannot run on CPU.
         In addition, it is recommended to install `ocnn` if you want to use more serialization orders.
 
     Args:
@@ -1149,11 +1157,16 @@ class PointTransformerV3Classification(ClassificationModel):
         )
         self.dropout = dropout
         self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         return self.encoder.embedding_dim
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -1170,7 +1183,7 @@ class PointTransformerV3Classification(ClassificationModel):
         self.num_classes = num_classes
         if global_pool is not None:
             self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -1287,7 +1300,8 @@ class PointTransformerV3Segmentation(SegmentationModel):
         rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
         use_flash_attn: Whether to use flash attention. The registered configurations construct
             with `use_flash_attn=True`, which requires `flash-attn` and a CUDA device; pass
-            `use_flash_attn=False` to run without it (e.g. on CPU).
+            `use_flash_attn=False` to run without it (the xCPE sparse convolution still needs a
+            `spconv` build matching the device; the standard CUDA wheel cannot run on CPU).
         upcast_attn: Whether to upcast the attention.
         upcast_softmax: Whether to upcast the softmax.
         dropout: Dropout on the per-point logits.
@@ -1392,7 +1406,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
             legacy=legacy,
         )
         self.dropout = dropout
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
+        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
@@ -1401,6 +1415,11 @@ class PointTransformerV3Segmentation(SegmentationModel):
     @property
     def out_channels(self) -> int:
         return self.decoder.out_channels
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return nn.Linear(self.out_channels, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         """Resets the segmentation head with new parameters.
@@ -1413,7 +1432,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
             **kwargs: Additional keyword arguments to pass to the segmentation head.
         """
         self.num_classes = num_classes
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.out_channels, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(

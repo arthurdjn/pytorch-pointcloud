@@ -425,7 +425,11 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
     """Greedy 3D NMS within a single scene; see `nms3d`."""
     if rotated:
         # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
-        iou_bev = boxes_iou_bev(boxes, boxes)
+        # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
+        # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
+        boxes_bev = boxes.clone()
+        boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
+        iou_bev = boxes_iou_bev(boxes_bev, boxes_bev)
         order = scores.argsort(descending=True)
         keep = []
 
@@ -442,8 +446,9 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
     corners = box_corners(boxes)
     lo, hi = corners.amin(dim=1), corners.amax(dim=1)
     # Floor degenerate (zero-extent) sides so flat boxes still produce a nonzero self-overlap and
-    # coincident duplicates suppress instead of comparing NaN/0-volume IoUs.
-    hi = torch.maximum(hi, lo + 1e-6)
+    # coincident duplicates suppress: 1e-2 per side keeps the floored volume (1e-6) at or above the
+    # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
+    hi = torch.maximum(hi, lo + 1e-2)
     volume = (hi - lo).prod(dim=-1)
     order = scores.argsort(descending=True)
     keep = []

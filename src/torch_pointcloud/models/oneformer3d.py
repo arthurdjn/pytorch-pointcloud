@@ -683,7 +683,7 @@ class OneFormer3DSegmentation(SegmentationModel):
             scores_q = scores_q * objectness
         num_classes = self.num_instance_classes
         labels = torch.arange(num_classes, device=scores_q.device).unsqueeze(0).repeat(len(cls_preds), 1).flatten(0, 1)
-        scores_flat, topk_idx = scores_q.flatten(0, 1).topk(topk, sorted=False)
+        scores_flat, topk_idx = scores_q.flatten(0, 1).topk(min(topk, scores_q.numel()), sorted=False)
         labels = labels[topk_idx]
         topk_idx = torch.div(topk_idx, num_classes, rounding_mode="floor")
         mask_pred = pred_masks[topk_idx]

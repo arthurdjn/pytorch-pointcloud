@@ -247,9 +247,9 @@ class DGCNNClassification(ClassificationModel):
         if self.num_classes == 0:
             return nn.Identity()
         channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
-        dropout_list = [0.0] * (len(channels_list) - 1)
-        if len(channels_list) > 2:
-            dropout_list[-2] = self.dropout
+        # The original classification head regularizes after every hidden layer, not only the last one.
+        dropout_list = [self.dropout] * (len(channels_list) - 1)
+        dropout_list[-1] = 0.0
 
         return MLP(
             channels_list,
@@ -266,11 +266,12 @@ class DGCNNClassification(ClassificationModel):
     def reset_classifier(
         self,
         num_classes: int,
-        global_pool: PoolLike | Sequence[PoolLike] = "max",
+        global_pool: PoolLike | Sequence[PoolLike] | None = None,
         **kwargs: Any,
     ) -> None:
         self.num_classes = num_classes
-        self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
+        if global_pool is not None:
+            self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
         self.head = self.configure_head()
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -412,15 +413,20 @@ class DGCNNSegmentation(SegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        # The original semantic segmentation head regularizes only its last hidden layer.
+        dropout_list = [0.0] * (len(channels_list) - 1)
+        if len(channels_list) > 2:
+            dropout_list[-2] = self.dropout
         return MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
+            channels_list,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            dropout=self.dropout,
+            dropout=dropout_list,
             plain_last=True,
         )
 
@@ -581,15 +587,19 @@ class DGCNNPartSegmentation(SegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        # The original part segmentation head regularizes every hidden layer except the last one.
+        dropout_list = [self.dropout] * (len(channels_list) - 1)
+        dropout_list[-2:] = [0.0] * len(dropout_list[-2:])
         return MLP(
-            [self.embedding_dim] + self.head_channels + [self.num_classes],
+            channels_list,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            dropout=self.dropout,
+            dropout=dropout_list,
             plain_last=True,
         )
 

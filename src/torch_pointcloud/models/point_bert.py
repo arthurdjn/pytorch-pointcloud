@@ -321,15 +321,8 @@ class PointBERTClassification(ClassificationModel):
             plain_last=True,
         )
 
-    def reset_classifier(
-        self,
-        num_classes: int,
-        head_channels: Optional[Union[int, Sequence[int]]] = 256,
-        dropout: float = 0.5,
-    ) -> None:
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.head_channels = ensure_list(head_channels, none_as_empty=True)
-        self.dropout = dropout
         self.head = self.configure_head()
 
     @overload

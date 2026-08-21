@@ -242,3 +242,13 @@ def test_point_mae_segmentation_accepts_features() -> None:
     out_b = model(x_b, pos, batch, category)
     assert out_a.shape == (4096, 50)
     assert not torch.allclose(out_a, out_b)
+
+
+def test_point_mae_segmentation_num_classes_zero_head_is_identity() -> None:
+    model = PointMAESegmentation(in_channels=0, num_classes=0, embed_dim=96, num_heads=2, num_group=8, group_size=4)
+    assert isinstance(model.head, torch.nn.Identity)
+
+
+def test_point_mae_segmentation_validates_fetch_idx_against_depth() -> None:
+    with pytest.raises(ValueError, match="fetch_idx"):
+        PointMAESegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)
