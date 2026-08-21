@@ -18,23 +18,25 @@ def test_fps_with_ratio_and_num_nodes() -> None:
 @patch("torch_pointcloud.utils.cluster.torch_cluster.fps")
 def test_fps_with_ratio(mock_fps: Mock) -> None:
     """Test that the utility fps wraps the torch_cluster.fps function and passes the correct arguments."""
+    src = torch.randn(6, 3)
+    batch = torch.zeros(6, dtype=torch.long)
     out = fps(
-        sentinel.src,
-        batch=sentinel.batch,
+        src,
+        batch=batch,
         ratio=sentinel.ratio,
         batch_size=sentinel.batch_size,
         ptr=sentinel.ptr,
         random_start=sentinel.random_start,
     )
 
-    mock_fps.assert_called_once_with(
-        sentinel.src,
-        batch=sentinel.batch,
-        ratio=sentinel.ratio,
-        random_start=sentinel.random_start,
-        batch_size=sentinel.batch_size,
-        ptr=sentinel.ptr,
-    )
+    mock_fps.assert_called_once()
+    call = mock_fps.call_args
+    assert call.args[0] is src
+    assert call.kwargs["batch"] is batch
+    assert call.kwargs["ratio"] is sentinel.ratio
+    assert call.kwargs["random_start"] is sentinel.random_start
+    assert call.kwargs["batch_size"] is sentinel.batch_size
+    assert call.kwargs["ptr"] is sentinel.ptr
     assert out is mock_fps.return_value
 
 
@@ -116,6 +118,18 @@ def test_group_scene_smaller_than_num_group() -> None:
 
 
 @pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+def test_group_scene_smaller_than_group_size_raises() -> None:
+    """A scene with fewer points than group_size cannot yield full k-NN neighborhoods, so group
+    raises a clear ValueError instead of a reshape RuntimeError."""
+    torch.manual_seed(0)
+    pos = torch.cat([torch.randn(20, 3), torch.randn(1024, 3)])
+    batch = torch.cat([torch.zeros(20), torch.ones(1024)]).long()
+
+    with pytest.raises(ValueError, match="group_size"):
+        group(pos, batch, num_group=64, group_size=32)
+
+
+@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
 def test_group_deterministic_without_random_start() -> None:
     """random_start=False makes the grouping reproducible run-to-run."""
     torch.manual_seed(0)
@@ -185,6 +199,41 @@ def test_radius_unsorted_batch_raises() -> None:
     batch = torch.tensor([0, 1, 0, 1, 0, 1])
     with pytest.raises(ValueError, match="`batch_x` must be sorted"):
         radius(pos, pos, r=1.0, batch_x=batch, batch_y=torch.zeros(6, dtype=torch.long))
+
+
+def test_cluster_ops_reject_padded_input() -> None:
+    """A padded $(B, N, D)$ tensor must raise a packed-layout error, not fail deep inside torch-cluster."""
+    padded = torch.randn(2, 8, 3)
+    batch = torch.zeros(16, dtype=torch.long)
+    with pytest.raises(ValueError, match="packed 2D tensor"):
+        knn(padded, padded, k=2)
+    with pytest.raises(ValueError, match="packed 2D tensor"):
+        knn_graph(padded, k=2)
+    with pytest.raises(ValueError, match="packed 2D tensor"):
+        fps(padded, batch, num_nodes=4)
+    with pytest.raises(ValueError, match="packed 2D tensor"):
+        radius(padded, padded, r=1.0)
+
+
+def test_fps_empty_sample_raises() -> None:
+    """A `batch` whose id range skips a sample (e.g. 1-based ids, or a cloud emptied by a mask) must raise a
+    contiguity error instead of failing deep inside torch-cluster."""
+    pos = torch.randn(8, 3)
+    with pytest.raises(ValueError, match="no points for sample 0"):
+        fps(pos, torch.ones(8, dtype=torch.long), num_nodes=2)
+    with pytest.raises(ValueError, match="no points for sample 1"):
+        fps(pos, torch.tensor([0, 0, 0, 0, 2, 2, 2, 2]), ratio=0.5)
+
+
+def test_fps_src_batch_length_mismatch_raises() -> None:
+    """A `src` / `batch` length mismatch must raise a ValueError naming both lengths, on the `ratio` path
+    too, instead of a bare AssertionError deep inside torch-cluster."""
+    src = torch.randn(100, 3)
+    batch = torch.zeros(90, dtype=torch.long)
+    with pytest.raises(ValueError, match=r"Size of `src` \(100\) must match size of `batch` \(90\)"):
+        fps(src, batch=batch, ratio=0.5)
+    with pytest.raises(ValueError, match=r"Size of `src` \(100\) must match size of `batch` \(90\)"):
+        fps(src, batch=batch, num_nodes=10)
 
 
 def _edge_set(edge_index: Tensor) -> set:

@@ -22,6 +22,15 @@ def _check_sorted_batch(batch: Tensor, name: str) -> None:
         raise ValueError(f"`{name}` must be sorted in non-decreasing order.")
 
 
+def _check_packed_2d(src: Tensor, name: str) -> None:
+    if src.dim() != 2:
+        raise ValueError(
+            f"`{name}` must be a packed 2D tensor of shape (N, D); got shape {tuple(src.shape)}. Point clouds "
+            "are never padded to (B, N, D): concatenate the clouds along the first dimension and pass a "
+            "`batch` index of shape (N,) instead."
+        )
+
+
 def knn(
     x: Tensor,
     y: Tensor,
@@ -58,6 +67,8 @@ def knn(
     Returns:
         The nearest neighbors of shape $(2, M*k)$.
     """
+    _check_packed_2d(x, "x")
+    _check_packed_2d(y, "y")
     if batch_x is not None:
         _check_sorted_batch(batch_x, "batch_x")
     if batch_y is not None:
@@ -148,6 +159,7 @@ def knn_graph(
     Returns:
         Edge index of shape $(2, k \cdot N)$.
     """
+    _check_packed_2d(x, "x")
     if batch is not None:
         _check_sorted_batch(batch, "batch")
 
@@ -235,7 +247,9 @@ def fps(
         src: The source tensor to sample from of shape $(N, *)$.
         batch: The batch tensor to sample from of shape $(N,)$.
         ratio: The sampling ratio.
-        num_nodes: The number of nodes to sample.
+        num_nodes: The number of nodes to sample. When a sample holds fewer than `num_nodes` points, indices
+            repeat (sampling with replacement, matching the reference CUDA FPS), so the output always holds
+            `num_nodes` indices per sample and downstream shapes stay stable.
         random_start: Whether to start the sampling randomly.
         batch_size: The batch size.
         ptr: The pointer tensor to sample from.
@@ -258,6 +272,19 @@ def fps(
         raise ValueError("Either `ratio` or `num_nodes` must be provided.")
     if ratio is not None and num_nodes is not None:
         raise ValueError("Only one of `ratio` or `num_nodes` can be provided.")
+    _check_packed_2d(src, "src")
+    if batch is not None and src.size(0) != batch.numel():
+        raise ValueError(f"Size of `src` ({src.size(0)}) must match size of `batch` ({batch.numel()}).")
+
+    if batch is not None and batch.numel() > 0:
+        sample_counts = batch.bincount()
+        if bool((sample_counts == 0).any()):
+            empty = int((sample_counts == 0).nonzero()[0].item())
+            raise ValueError(
+                f"`batch` has no points for sample {empty}: batch ids must be contiguous integers 0..B-1 with "
+                "at least one point per sample."
+            )
+
     if ratio is not None:
         return torch_cluster.fps(
             src,
@@ -277,8 +304,6 @@ def fps(
         if batch is not None:
             if batch_size is None:
                 batch_size = int(batch.max()) + 1
-            if src.size(0) != batch.numel():
-                raise ValueError(f"Size of `src` ({src.size(0)}) must match size of `batch` ({batch.numel()}).")
 
             node_counts = batch.bincount(minlength=batch_size)
             ptr = torch.cat([torch.zeros(1, dtype=torch.long, device=src.device), node_counts.cumsum(0)])
@@ -382,6 +407,8 @@ def radius(
         Centroids with no in-ball neighbors emit zero edges; pooling leaves those
         rows at the reduction identity.
     """
+    _check_packed_2d(x, "x")
+    _check_packed_2d(y, "y")
     if batch_x is not None:
         _check_sorted_batch(batch_x, "batch_x")
     if batch_y is not None:
@@ -504,6 +531,14 @@ def group(
         ```
     """
     batch_size = int(batch.max().item()) + 1
+    # Fewer points than `num_group` is fine (fps repeats indices), but knn cannot return more
+    # neighbors than a sample has points, which would break the dense (B, G, k, 3) reshape.
+    min_points = int(batch.bincount(minlength=batch_size).min())
+    if min_points < group_size:
+        raise ValueError(
+            f"`group` requires at least `group_size` ({group_size}) points per sample to gather `num_group` "
+            f"({num_group}) full k-NN neighborhoods, but the smallest sample has {min_points} points."
+        )
 
     idx_center = fps(pos, batch, num_nodes=num_group, random_start=random_start)
     center = pos[idx_center]
