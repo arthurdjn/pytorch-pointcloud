@@ -99,14 +99,6 @@ EXPERIMENTS = (
 
 
 @pytest.fixture(autouse=True)
-def _register_eval_resolver() -> None:
-    """train.py registers this at startup; tests need it too."""
-    from omegaconf import OmegaConf
-
-    OmegaConf.register_new_resolver("eval", eval, replace=True)
-
-
-@pytest.fixture(autouse=True)
 def _clear_hydra() -> Iterator[None]:
     """Hydra refuses to initialize twice in the same process."""
     from hydra.core.global_hydra import GlobalHydra
