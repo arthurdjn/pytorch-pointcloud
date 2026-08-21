@@ -25,7 +25,7 @@ class Voxelization(nn.Module):
 
         if self.normalize:
             pos_norm = torch.norm(pos_centered, dim=1, keepdim=True)
-            pos_norm_max = scatter(pos_norm.squeeze(), batch, dim=0, reduce="max", dim_size=batch_size)
+            pos_norm_max = scatter(pos_norm.squeeze(-1), batch, dim=0, reduce="max", dim_size=batch_size)
             pos_norm_max = pos_norm_max[batch].unsqueeze(1)
             norm_coords = pos_centered / (pos_norm_max * 2.0 + 1e-6) + 0.5
         else:

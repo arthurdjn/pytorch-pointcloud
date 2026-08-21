@@ -816,6 +816,24 @@ def test_voxelize_integer_key_non_first_reduce_stays_integer() -> None:
     not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
     reason="torch-cluster or torch-scatter is not installed",
 )
+def test_voxelize_integer_min_max_exact_above_float32_precision() -> None:
+    """Integer min/max reduce natively; a float32 detour would collapse values above $2^{24}$."""
+    pos = torch.zeros(2, 3)
+    result = T.Voxelize(pos_key="pos", pos_reduce="mean", size=1.0, keys=["segment"], reduce="min")(
+        {"pos": pos, "segment": torch.tensor([2**24 + 1, 2**24 + 2])}
+    )
+    assert result["segment"].dtype == torch.int64
+    assert result["segment"].tolist() == [2**24 + 1]
+    result = T.Voxelize(pos_key="pos", pos_reduce="mean", size=1.0, keys=["segment"], reduce="max")(
+        {"pos": pos, "segment": torch.tensor([2**24, 2**24 + 1])}
+    )
+    assert result["segment"].tolist() == [2**24 + 1]
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_voxelize_first_reduce_picks_first_occurrence_in_input_order() -> None:
     """`first` is the stable first point per voxel, even when voxel members are interleaved."""
     pos = torch.tensor([[0.1, 0.0, 0.0], [1.2, 0.0, 0.0], [0.3, 0.0, 0.0], [1.4, 0.0, 0.0]])
@@ -1134,6 +1152,16 @@ def test_random_color_jitter_preserves_dtype_and_range() -> None:
     assert out["color"].dtype == color.dtype
     assert out["color"].min().item() >= 0.0
     assert out["color"].max().item() <= 1.0
+
+
+def test_random_color_jitter_applies_same_factors_to_all_keys() -> None:
+    """The factors are sampled once per call, so identical inputs under different keys jitter identically."""
+    color = torch.rand(50, 3)
+    g = torch.Generator().manual_seed(0)
+    transform = T.RandomColorJitter(keys=["color", "color2"], brightness=0.4, contrast=0.4, saturation=0.2, generator=g)
+    out = transform({"color": color.clone(), "color2": color.clone()})
+    assert not torch.equal(out["color"], color)
+    assert torch.equal(out["color"], out["color2"])
 
 
 def test_random_color_drop_replaces_with_fill() -> None:
@@ -1638,3 +1666,15 @@ def mesh_scene(index: int) -> Dict[str, Any]:
         "label": torch.tensor(index, dtype=torch.long),
         "name": f"mesh_{index:04d}",
     }
+
+
+def test_random_scale_anisotropic_rejects_mismatched_key_widths() -> None:
+    t = T.RandomScale(keys=["pos", "intensity"], scale_range=(0.9, 1.1), anisotropic=True, p=1.0)
+    with pytest.raises(ValueError, match="one factor per channel"):
+        t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})
+
+
+def test_random_shift_rejects_mismatched_key_widths() -> None:
+    t = T.RandomShift(keys=["pos", "intensity"], shift_range=(-0.1, 0.1), p=1.0)
+    with pytest.raises(ValueError, match="one offset per channel"):
+        t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})

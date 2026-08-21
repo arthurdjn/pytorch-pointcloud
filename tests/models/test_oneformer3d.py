@@ -359,3 +359,19 @@ def test_oneformer3d_predict_instance_filters() -> None:
     assert masks.shape[0] == 0
     masks, _, _ = model.predict_instance(output, superpoint_per_point, topk=4, score_threshold=0.05, npoint_threshold=3)
     assert masks.shape[0] == 2
+
+
+def test_oneformer3d_predict_instance_topk_above_pair_count() -> None:
+    """`topk` larger than `num_queries x num_instance_classes` (small scenes) must clamp, not raise."""
+    model = _make_decode_model()
+    output: OneFormer3DOutput = {
+        "cls_preds": [torch.tensor([[10.0, 0.0, -10.0], [0.0, 10.0, -10.0]])],
+        "masks": [torch.tensor([[5.0, 5.0, -5.0, -5.0], [-5.0, -5.0, 5.0, 5.0]])],
+        "scores": [None],
+    }
+    superpoint_per_point = torch.tensor([0, 0, 1, 1, 2, 2, 3, 3])
+    masks, labels, scores = model.predict_instance(
+        output, superpoint_per_point, topk=600, score_threshold=0.05, npoint_threshold=0
+    )
+    assert masks.shape == (2, 8)
+    assert sorted(labels.tolist()) == [0, 1]

@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers.rope import Point3DRoPE
-from torch_pointcloud.transforms.functional import divisible_pad, split_batch
+from torch_pointcloud.transforms.functional import PadMode, divisible_pad, split_batch
 from torch_pointcloud.utils.conversion import batch_to_offset
 from torch_pointcloud.utils.imports import _FLASH_ATTN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
@@ -46,12 +46,6 @@ class RelativePositionalEncoding(nn.Module):
 
     def extra_repr(self) -> str:
         return f"patch_size={self.patch_size}, num_heads={self.num_heads}"
-
-
-def _clamped_patch_size(batch: Tensor, patch_size: int) -> int:
-    """Clamp `patch_size` to the smallest batch size, tolerating non-consecutive batch ids."""
-    counts = torch.unique_consecutive(batch, return_counts=True)[1]
-    return min(int(counts.min().item()), patch_size)
 
 
 def _flash_attend_qkv(
@@ -143,10 +137,15 @@ class SerializedAttention(nn.Module):
         pos: OptTensor = None,
     ) -> Tensor:
         H, C = self.num_heads, self.channels
-        patch_size = self.patch_size if self.use_flash_attn else _clamped_patch_size(batch, self.patch_size)
+        patch_size = self.patch_size
+        # Flash attention handles a sample smaller than the patch as a short varlen patch, so it only
+        # pads samples at or above the patch size; the dense reshape needs every sample padded to a
+        # full patch instead. Padding, never shrinking, keeps one sample's output independent of its
+        # co-batched neighbors.
+        pad_mode: PadMode = "above" if self.use_flash_attn else "all"
 
         padded_indices, unpadded_indices, padded_batch = divisible_pad(
-            batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
+            batch, patch_size, mode=pad_mode, pad_fill="replicate", return_inverse=True
         )
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
@@ -231,10 +230,10 @@ class SerializedAttentionRPE(nn.Module):
             raise ValueError("`pos_grid` must be provided for SerializedAttentionRPE.")
 
         H, C = self.num_heads, self.channels
-        patch_size = _clamped_patch_size(batch, self.patch_size)
+        patch_size = self.patch_size
 
         padded_indices, unpadded_indices, _ = divisible_pad(
-            batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
+            batch, patch_size, mode="all", pad_fill="replicate", return_inverse=True
         )
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
@@ -331,10 +330,11 @@ class SerializedAttentionRoPE(nn.Module):
             raise ValueError("`pos` must be provided for SerializedAttentionRoPE.")
 
         H, C = self.num_heads, self.channels
-        patch_size = self.patch_size if self.use_flash_attn else _clamped_patch_size(batch, self.patch_size)
+        patch_size = self.patch_size
+        pad_mode: PadMode = "above" if self.use_flash_attn else "all"
 
         padded_indices, unpadded_indices, padded_batch = divisible_pad(
-            batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True
+            batch, patch_size, mode=pad_mode, pad_fill="replicate", return_inverse=True
         )
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices

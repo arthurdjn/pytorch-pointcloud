@@ -1,6 +1,7 @@
 import math
-from typing import Any, Dict
+from typing import Any, Dict, List
 
+import pytest
 import torch
 from torch import Tensor
 
@@ -162,3 +163,21 @@ def test_detr3d_loss_backward() -> None:
     assert layer["sem_cls_logits"].grad is not None
     grad = layer["center_normalized"].grad
     assert grad is not None and torch.isfinite(grad).all()
+
+
+def test_detr3d_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CCW library headings are negated into native space, so an all-positive batch must still take the
+    rotated GIoU branch."""
+    headings = torch.tensor([0.8, 1.2])
+    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12, loss_giou_weight=1.0)
+    layer = _perfect_layer(_CENTERS, _SIZES, -headings, _LABELS, num_queries=4, num_angle_bin=12)
+    seen: List[bool] = []
+    original = DETR3DLoss._giou3d
+
+    def spy(self: DETR3DLoss, layer: Dict[str, Tensor], targets: Any, rotated: bool) -> Tensor:
+        seen.append(rotated)
+        return original(self, layer, targets, rotated)
+
+    monkeypatch.setattr(DETR3DLoss, "_giou3d", spy)
+    loss_fn(_output(layer), _batch(_CENTERS, _SIZES, headings, _LABELS))
+    assert seen == [True]

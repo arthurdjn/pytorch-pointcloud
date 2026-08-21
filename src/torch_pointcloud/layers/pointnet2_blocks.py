@@ -29,7 +29,8 @@ class SAModule(nn.Module):
     Args:
         ratio: Fractional farthest-point-sampling rate. Mutually exclusive with `num_points`.
         num_points: Absolute number of centroids to sample (e.g. VoteNet's fixed $2048, 1024, \ldots$).
-            Exactly one of `ratio` / `num_points` must be given.
+            Exactly one of `ratio` / `num_points` must be given. A sample with fewer than `num_points`
+            points yields repeated centroids (FPS samples with replacement to keep shapes stable).
         pos_first: Concatenate the relative position *before* the grouped features
             (`cat([rel_pos, x])`) instead of after. VoteNet and the reference PointNet++ kernels use
             this order; keeping it a flag lets weights convert as a pure rename without a column swap.

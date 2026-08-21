@@ -212,9 +212,10 @@ class PointConvDensityClassification(ClassificationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, global_pool: PoolLike = "mean", **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
-        self.encoder.layers[-1].pool = create_pool(global_pool)
+        if global_pool is not None:
+            self.encoder.layers[-1].pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload

@@ -145,6 +145,33 @@ def test_serialized_attention_rope_batched_matches_per_scene() -> None:
     torch.testing.assert_close(out[n1:], out2)
 
 
+def test_serialized_attention_output_independent_of_co_batched_small_scene() -> None:
+    """A scene at or above the patch size gives the same output whether it is batched alone or with a
+    scene smaller than the patch: small scenes pad up to a full patch, they never shrink every scene's
+    attention window."""
+    torch.manual_seed(0)
+    variants = [
+        SerializedAttention(channels=24, num_heads=2, patch_size=8, use_flash_attn=False),
+        SerializedAttentionRPE(channels=24, num_heads=2, patch_size=8),
+        SerializedAttentionRoPE(channels=24, num_heads=2, patch_size=8, use_flash_attn=False),
+    ]
+    big = torch.randn(40, 24)
+    small = torch.randn(3, 24)
+    x = torch.cat([big, small])
+    pos = torch.randn(43, 3)
+    pos_grid = torch.randint(0, 16, (43, 3))
+    batch = torch.cat([torch.zeros(40), torch.ones(3)]).long()
+    solo_batch = torch.zeros(40, dtype=torch.long)
+
+    for attn in variants:
+        attn.eval()
+        with torch.no_grad():
+            out_cobatch = attn(x, pos_grid, batch, pos=pos)
+            out_solo = attn(big, pos_grid[:40], solo_batch, pos=pos[:40])
+        assert out_cobatch.shape == (43, 24)
+        assert torch.equal(out_cobatch[:40], out_solo)
+
+
 def test_serialized_attention_variants_accept_non_consecutive_batch_ids() -> None:
     """Batch ids {0, 2} behave exactly like {0, 1}; bincount over raw ids used to yield a zero patch size."""
     torch.manual_seed(0)

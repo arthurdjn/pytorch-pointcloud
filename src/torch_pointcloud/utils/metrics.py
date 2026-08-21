@@ -146,9 +146,11 @@ def compute_mean_iou(
     r"""Compute the mean Intersection over Union (mIoU).
 
     Averages IoU over all classes except `ignore_index`; a class absent from the whole input
-    (zero union) counts as IoU $0$. With `batch`, each sample is averaged only over the classes
-    present in it (nonzero union), so a perfect prediction scores $1$ regardless of how many of
-    the dataset's classes the sample contains.
+    (zero union) counts as IoU $0$, matching sklearn's `jaccard_score(zero_division=0)`. Toolboxes
+    that average only over present classes (a nanmean over nonzero unions) report a higher value
+    on splits missing a class, so compare published numbers accordingly. With `batch`, each sample
+    is averaged only over the classes present in it (nonzero union), so a perfect prediction
+    scores $1$ regardless of how many of the dataset's classes the sample contains.
 
     Args:
         preds: Predicted class indices, shape $(N,)$.
