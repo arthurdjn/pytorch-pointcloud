@@ -40,6 +40,7 @@ def _next_sphere(
     return torch.where((pos_b - centre).square().sum(dim=-1) < radius_sq)[0], centre
 
 
+@torch.no_grad()
 def potential_sphere_inference(
     data: Dict[str, Any],
     *,
@@ -194,6 +195,11 @@ def potential_sphere_inference(
                 pbar.set_postfix({"min_potential": f"{float(potentials.min().item()):.2f}"})
 
         if scores_b is None:
+            if n_b > 0:
+                raise ValueError(
+                    f"No sphere with at least 2 points was drawn for batch element {int(b)} (radius={radius}), so "
+                    "its scores would silently stay all-zero. Increase `radius` or check the scale of `pos`."
+                )
             continue
 
         if output is None:
@@ -202,6 +208,11 @@ def potential_sphere_inference(
         output[idx_b] = scores_b
 
     if output is None:
+        if n > 0:
+            raise ValueError(
+                f"No sphere with at least 2 points was drawn for any batch element (radius={radius}), so the "
+                "class count is unknown. Increase `radius` or check the scale of `pos`."
+            )
         return pos.new_zeros((0, 0))
     return output
 

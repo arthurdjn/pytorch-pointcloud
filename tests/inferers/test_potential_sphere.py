@@ -140,3 +140,33 @@ def test_potential_sphere_validates_args() -> None:
         )
     with pytest.raises(KeyError, match="batch"):
         potential_sphere_inference({DataKeys.POS: torch.zeros(1, 3)}, predictor=_left_right_predictor, radius=1.0)
+
+
+def test_potential_sphere_free_function_is_no_grad() -> None:
+    data = _room(200)
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return torch.randn(window[DataKeys.POS].size(0), 3, requires_grad=True)
+
+    out = potential_sphere_inference(data, predictor=predictor, radius=1.5, num_votes=2.0, seed=0)
+    assert not out.requires_grad
+
+
+def test_potential_sphere_unreachable_scene_raises() -> None:
+    """A scene where every sphere draw is skipped cannot produce scores of a known class count."""
+    data: Dict[str, Any] = {DataKeys.POS: torch.zeros(1, 3), DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}
+    with pytest.raises(ValueError, match="at least 2 points"):
+        potential_sphere_inference(data, predictor=_left_right_predictor, radius=0.5, num_votes=2.0, seed=0)
+
+
+def test_potential_sphere_unreachable_batch_element_raises() -> None:
+    """A batch element none of whose spheres reaches 2 points raises instead of silently keeping all-zero
+    scores (and argmax class 0) while the other elements succeed."""
+    room = _room(n=200)
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.cat([room[DataKeys.POS], torch.full((1, 3), 100.0)]),
+        DataKeys.BATCH: torch.cat([room[DataKeys.BATCH], torch.ones(1, dtype=torch.long)]),
+        "x": torch.cat([room["x"], torch.zeros(1, 2)]),
+    }
+    with pytest.raises(ValueError, match=r"batch element 1 \(radius=1\.5\)"):
+        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.5, num_votes=2.0, seed=0)
