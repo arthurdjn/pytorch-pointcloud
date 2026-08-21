@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.utils import add_self_loops, remove_self_loops
 
 from torch_pointcloud.layers.view import View
 from torch_pointcloud.utils.types import OptTensor, PairTensor
@@ -38,7 +37,6 @@ class XConv(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
-        add_self_loops: bool = False,
     ):
         super().__init__()
         act_kwargs = act_kwargs or {}
@@ -56,7 +54,6 @@ class XConv(nn.Module):
         self.spatial_dim = spatial_dim
         self.kernel_size = kernel_size
         self.dilation = dilation
-        self.add_self_loops = add_self_loops
 
         self.mlp1 = nn.Sequential(
             nn.Linear(self.spatial_dim, self.hidden_channels),
@@ -107,20 +104,15 @@ class XConv(nn.Module):
 
     def forward(
         self,
-        x: Union[Tensor, Tuple[Tensor, OptTensor]],
+        x: Union[OptTensor, Tuple[OptTensor, OptTensor]],
         pos: Union[Tensor, PairTensor],
         edge_index: Tensor,
     ) -> Tensor:
-        if isinstance(x, Tensor):
+        if not isinstance(x, tuple):
             x = (x, None)
 
         if isinstance(pos, Tensor):
             pos = (pos, pos)
-
-        if self.add_self_loops:
-            edge_index, _ = remove_self_loops(edge_index)
-            edge_index, _ = add_self_loops(edge_index, num_nodes=min(pos[0].size(0), pos[1].size(0)))
-            # TODO: @adu add supports for sparse tensors
 
         num_expected = pos[1].size(0) * self.kernel_size * self.dilation
         if edge_index.size(1) != num_expected:
@@ -162,8 +154,7 @@ class XConv(nn.Module):
     def extra_repr(self) -> str:
         return (
             f"in_channels={self.in_channels}, hidden_channels={self.hidden_channels}, out_channels={self.out_channels}, "
-            f"spatial_dim={self.spatial_dim}, kernel_size={self.kernel_size}, dilation={self.dilation}, "
-            f"add_self_loops={self.add_self_loops!r}"
+            f"spatial_dim={self.spatial_dim}, kernel_size={self.kernel_size}, dilation={self.dilation}"
         )
 
     def __repr__(self) -> str:
