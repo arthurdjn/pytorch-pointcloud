@@ -6,7 +6,14 @@ import torch
 from safetensors.torch import save_file
 from torch import Tensor, nn
 
-from torch_pointcloud.models import ClassificationModel, WeightsDict, create_model, list_models, register_model
+from torch_pointcloud.models import (
+    ClassificationModel,
+    SegmentationModel,
+    WeightsDict,
+    create_model,
+    list_models,
+    register_model,
+)
 from torch_pointcloud.models._registry import _REGISTERED_MODELS
 
 
@@ -20,8 +27,21 @@ class DummyClassificationModel(ClassificationModel):
         return self.fc(self.encoder(x))
 
 
+class DummySegmentationModel(SegmentationModel):
+    def __init__(self, in_channels: int = 3, num_classes: int = 5) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.fc = nn.Linear(in_channels, num_classes)
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        return self.fc(x)
+
+
 def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
     return DummyClassificationModel(**kwargs)
+
+
+def _dummy_segmentation(**kwargs: Any) -> DummySegmentationModel:
+    return DummySegmentationModel(**kwargs)
 
 
 @pytest.fixture(autouse=True)
@@ -86,8 +106,17 @@ def test_create_model_unknown_name_suggests_close_matches() -> None:
 
 
 def test_create_model_unknown_name_hints_other_task() -> None:
-    with pytest.raises(ValueError, match="registered under task 'classification'"):
+    with pytest.raises(ValueError, match="registered under task 'classification'; pass task='classification'"):
         create_model("dummy.classification", task="segmentation")
+
+
+def test_create_model_segmentation_name_as_classification_hints_task() -> None:
+    register_model("dummy-seg-only.segmentation", task="segmentation")(_dummy_segmentation)
+    try:
+        with pytest.raises(ValueError, match="registered under task 'segmentation'; pass task='segmentation'"):
+            create_model("dummy-seg-only.segmentation", task="classification")
+    finally:
+        _REGISTERED_MODELS["segmentation"].pop("dummy-seg-only.segmentation", None)
 
 
 def test_register_model_returns_the_registered_callable() -> None:
@@ -213,3 +242,27 @@ def test_create_model_pretrained_and_checkpoint_path_raise(tmp_path: Path) -> No
         create_model(
             "dummy.classification", task="classification", pretrained=True, checkpoint_path=tmp_path / "any.pt"
         )
+
+
+def test_create_model_arch_only_entry_raises_actionable_type_error() -> None:
+    """Arch-only entries register no `in_channels` / `num_classes`; the bare call must say what to pass."""
+    with pytest.raises(TypeError, match="in_channels"):
+        create_model("pointnext-sm", task="classification")
+    model = create_model("pointnext-sm", task="classification", in_channels=4, num_classes=15)
+    assert model.num_classes == 15
+
+
+def test_create_model_pretrained_rejects_weight_path_escaping_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
+    register_model(
+        "dummy-escape.classification",
+        task="classification",
+        weights="hf://torch-pointcloud/../outside/dummy-escape.pt",
+    )(_dummy_classification)
+    try:
+        with pytest.raises(ValueError, match="outside the models cache"):
+            create_model("dummy-escape.classification", task="classification", pretrained=True)
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-escape.classification", None)
