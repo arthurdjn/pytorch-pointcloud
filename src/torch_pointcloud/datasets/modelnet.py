@@ -12,7 +12,6 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
-from torch_pointcloud.transforms import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.io import load_off
@@ -100,30 +99,6 @@ def load_modelnet_normal_resampled_data(file_path: PathLike, target: int) -> Dic
     }
 
 
-def _transform_name(transform: Optional[Callable[..., Any]]) -> Optional[str]:
-    # `Transform` reprs are deterministic and include the constructor parameters, so `SamplePoints(1024)`
-    # and `SamplePoints(4096)` produce distinct cache metadata; arbitrary callables fall back to their
-    # qualified name (their default repr embeds a memory address, which would differ on every run).
-    if transform is None:
-        return None
-    if isinstance(transform, Transform):
-        return repr(transform)
-    return f"{type(transform).__module__}.{type(transform).__qualname__}"
-
-
-def _cache_meta(
-    classes: Sequence[str],
-    pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]],
-    pre_filter: Optional[Callable[[Dict[str, Any]], bool]],
-) -> Dict[str, Any]:
-    """Snapshot of the constructor parameters the processed cache content depends on."""
-    return {
-        "classes": list(classes),
-        "pre_transform": _transform_name(pre_transform),
-        "pre_filter": _transform_name(pre_filter),
-    }
-
-
 class _ModelNet(PointCloudDataset):
     data_url: str
     resource: str
@@ -136,8 +111,6 @@ class _ModelNet(PointCloudDataset):
         train: bool = True,
         classes: Union[str, Sequence[str]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
-        pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
-        pre_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
         download: bool = False,
         force_download: bool = False,
         force_process: bool = False,
@@ -150,8 +123,6 @@ class _ModelNet(PointCloudDataset):
         self._split = "train" if train else "test"
         self.classes = tuple(sorted(classes))
         self.transform = transform
-        self.pre_transform = pre_transform
-        self.pre_filter = pre_filter
         self.show_progress = show_progress
         self.num_workers = num_workers
 
@@ -236,10 +207,9 @@ class _ModelNet(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
         meta_path = dst_path.with_suffix(".meta.json")
         meta_tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-        meta_tmp_path.write_text(json.dumps(meta))
+        meta_tmp_path.write_text(json.dumps({"classes": list(self.classes)}))
         meta_tmp_path.replace(meta_path)
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
@@ -248,20 +218,11 @@ class _ModelNet(PointCloudDataset):
         if target is None:
             return None
 
-        data = load_modelnet_data(file_path, target)
-
-        if self.pre_filter is not None and not self.pre_filter(data):
-            return None
-
-        if self.pre_transform is not None:
-            data = self.pre_transform(data)
-
-        return data
+        return load_modelnet_data(file_path, target)
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
         file_path = Path(self.processed_dir, f"{self._split}.pt")
-        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
-        check_cache_meta(file_path.with_suffix(".meta.json"), meta)
+        check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)
@@ -290,8 +251,6 @@ class ModelNet10(_ModelNet):
         train: If `True`, loads the training set, otherwise the test set.
         classes: The class names to include in the dataset. If `"all"`, all classes are included.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
-        pre_transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
-        pre_filter: A function that takes in a dictionary containing the data and returns a boolean value indicating whether the data should be included in the dataset.
         download: If `True`, downloads the dataset from the internet and puts it in `root`.
         force_download: If `True`, forces to download the dataset from the internet, even if it is already downloaded.
         force_process: If `True`, forces to process the dataset, even if it is already processed.
@@ -328,8 +287,6 @@ class ModelNet40(_ModelNet):
         train: If `True`, loads the training set, otherwise the test set.
         classes: The class names to include in the dataset. If `"all"`, all classes are included.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
-        pre_transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
-        pre_filter: A function that takes in a dictionary containing the data and returns a boolean value indicating whether the data should be included in the dataset.
         download: If `True`, downloads the dataset from the internet and puts it in `root`.
         force_download: If `True`, forces to download the dataset from the internet, even if it is already downloaded.
         force_process: If `True`, forces to process the dataset, even if it is already processed.
@@ -369,8 +326,6 @@ class ModelNetNormalResampled(PointCloudDataset):
         train: If `True`, loads the training set, otherwise the test set.
         classes: The class names to include in the dataset. If `"all"`, all classes are included.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
-        pre_transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
-        pre_filter: A function that takes in a dictionary containing the data and returns a boolean value indicating whether the data should be included in the dataset.
         download: If `True`, downloads the dataset from the internet and puts it in `root`.
         force_download: If `True`, forces to download the dataset from the internet, even if it is already downloaded.
         force_process: If `True`, forces to process the dataset, even if it is already processed.
@@ -402,8 +357,6 @@ class ModelNetNormalResampled(PointCloudDataset):
         train: bool = True,
         classes: Union[str, Sequence[str]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
-        pre_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
-        pre_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
         download: bool = False,
         force_download: bool = False,
         force_process: bool = False,
@@ -420,8 +373,6 @@ class ModelNetNormalResampled(PointCloudDataset):
         classes = self.original_classes if classes == "all" else ensure_tuple(classes)
         self.classes = tuple(sorted(classes))
         self.transform = transform
-        self.pre_transform = pre_transform
-        self.pre_filter = pre_filter
         self.show_progress = show_progress
         self.num_workers = num_workers
 
@@ -500,7 +451,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         pbar = tqdm(file_paths, desc="Processing", disable=not self.show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
         data_list = parallel_map(func, pbar, num_workers=self.num_workers)
-        # Ignore None data (could have been discarded, filtered, etc. with `pre_transform` or `pre_filter`)
+        # Ignore None data (samples whose class is outside the selected `classes` subset)
         data_list = [data for data in data_list if data is not None]
 
         dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
@@ -508,10 +459,9 @@ class ModelNetNormalResampled(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
         meta_path = dst_path.with_suffix(".meta.json")
         meta_tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-        meta_tmp_path.write_text(json.dumps(meta))
+        meta_tmp_path.write_text(json.dumps({"classes": list(self.classes)}))
         meta_tmp_path.replace(meta_path)
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
@@ -520,15 +470,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         if target is None:
             return None
 
-        data = load_modelnet_normal_resampled_data(file_path, target)
-
-        if self.pre_filter is not None and not self.pre_filter(data):
-            return None
-
-        if self.pre_transform is not None:
-            data = self.pre_transform(data)
-
-        return data
+        return load_modelnet_normal_resampled_data(file_path, target)
 
     def _load_processed_data(self) -> List[Dict[str, Any]]:
         file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
@@ -537,8 +479,7 @@ class ModelNetNormalResampled(PointCloudDataset):
                 f"Stale processed cache at {file_path.as_posix()!r}: it was written with pickle by an older "
                 "version of this dataset. Pass force_process=True to regenerate it."
             )
-        meta = _cache_meta(self.classes, self.pre_transform, self.pre_filter)
-        check_cache_meta(file_path.with_suffix(".meta.json"), meta)
+        check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)

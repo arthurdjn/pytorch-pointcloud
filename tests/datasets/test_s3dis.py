@@ -1,4 +1,6 @@
 # mypy: disable-error-code="arg-type,call-overload,attr-defined"
+import shutil
+import zipfile
 from pathlib import Path
 from typing import Any, Callable, Iterator
 from unittest.mock import Mock, patch
@@ -7,7 +9,7 @@ import pytest
 import torch
 
 from torch_pointcloud.datasets import S3DIS, S3DISHdf5
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, load_s3dis_room
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, load_s3dis_room, tile_s3dis_room
 
 
 def test_load_s3dis_room(datasets_dir: Path) -> None:
@@ -254,6 +256,28 @@ def test_s3dis_tile_blocks_preserves_cache(datasets_dir_factory: Callable[..., P
     assert len(dataset_a) != len(dataset_b) or dataset_a[0]["pos"].shape != dataset_b[0]["pos"].shape
 
 
+def test_s3dis_tile_room_blocks_own_their_room_max() -> None:
+    """Editing one block's `room_max` in place must not leak into the other blocks"""
+    generator = torch.Generator().manual_seed(0)
+    room = {"pos": torch.rand(300, 3, generator=generator) * torch.tensor([2.5, 2.5, 1.0])}
+    blocks = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=32, min_num_nodes=1)
+
+    assert len(blocks) > 1
+    expected = blocks[1]["room_max"].clone()
+    blocks[0]["room_max"].mul_(0.0)
+    assert torch.equal(blocks[1]["room_max"], expected)
+
+
+def test_s3dis_process_writes_final_files_only(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing an area leaves the five final `.npy` files and no `.tmp` leftovers"""
+    datasets_dir = datasets_dir_factory("S3DIS/raw/**/*")
+
+    dataset = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
+    area_dir = Path(dataset.processed_dir) / "Area_1"
+    names = sorted(p.name for p in area_dir.iterdir())
+    assert names == ["color.npy", "instance.npy", "offset.npy", "pos.npy", "segment.npy"]
+
+
 def test_s3dis_download_retries_corrupt_archive_with_overwrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A corrupt archive is re-downloaded with `overwrite=True` and a second MD5 mismatch raises"""
     calls: list[tuple[str, Any]] = []
@@ -347,6 +371,33 @@ def test_s3dis_hdf5_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = S3DISHdf5(root="not-found", show_progress=False)
     download_mock.assert_not_called()
+
+
+def test_s3dis_hdf5_download_extracts_flat_and_loads(
+    tmp_path: Path, datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real archive nests every member under `indoor3d_sem_seg_hdf5_data/`, which is already the last
+    component of `raw_dir`; extraction must land the files directly in `raw_dir` so a fresh
+    `download=True` construction loads without manual placement."""
+    fixture_dir = datasets_dir_factory(HDF5_GLOB) / "S3DIS" / "indoor3d_sem_seg_hdf5_data"
+    archive_path = tmp_path / "indoor3d_sem_seg_hdf5_data.zip"
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        for file_path in sorted(fixture_dir.iterdir()):
+            zf.write(file_path, arcname=f"indoor3d_sem_seg_hdf5_data/{file_path.name}")
+
+    def fake_download(url: str, file_path: Any = "", **kwargs: Any) -> str:
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(archive_path, file_path)
+        return str(file_path)
+
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", fake_download)
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.is_hash_valid", lambda *args, **kwargs: True)
+
+    root = tmp_path / "fresh"
+    dataset = S3DISHdf5(root=root, download=True, show_progress=False)
+    assert Path(dataset.raw_dir, "all_files.txt").exists()
+    assert not Path(dataset.raw_dir, "indoor3d_sem_seg_hdf5_data").exists()
+    assert len(dataset) > 0
 
 
 def test_s3dis_hdf5_force_download_implies_download(

@@ -586,7 +586,7 @@ id	raw_category	category	count	nyu40id	eigen13id	nyuClass	nyu40class	eigen13clas
 397	tank	tank	1	40	7		otherprop	Objects							objects	39
 643	mail tray	mail tray	1	40	7	mail tray	otherprop	Objects							objects	39
 551	centerpiece	centerpiece	1	40	7	centerpiece	otherprop	Objects					n02994419	centerpiece.n.02	objects	39
-1163	stick	object	1	40	7	stick	otherprop	Objects							objects	39
+1163	stick	stick	1	40	7	stick	otherprop	Objects							objects	39
 1347	closet floor	closet floor	1	2	5	floor	floor	Floor					n03365592	floor.n.01	floor	2
 1348	dryer sheets	dryer sheets	1	40	7		otherprop	Objects							objects	39
 803	bycicle	bycicle	1	40	7		otherprop	Objects							misc	40
