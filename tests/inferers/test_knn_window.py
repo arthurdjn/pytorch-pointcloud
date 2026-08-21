@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import pytest
 import torch
@@ -259,3 +259,45 @@ def test_knn_window_empty_scene_returns_zero_by_zero() -> None:
 
     out = knn_window_inference(data, predictor=predictor, roi_num_points=8)
     assert out.shape == (0, 0)
+
+
+def test_knn_window_scalar_metadata_flows_through_unchanged() -> None:
+    """A 0-dim tensor entry (scalar metadata) reaches the predictor untouched and leaves the output
+    bit-identical to the same seeded run without it."""
+    torch.manual_seed(0)
+    n = 256
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(n, 3) * 3,
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        pos = window[DataKeys.POS]
+        return pos.sum(dim=1, keepdim=True).expand(-1, 3).contiguous()
+
+    kwargs: Dict[str, Any] = dict(roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=1)
+    out_plain = knn_window_inference(data, predictor=predictor, **kwargs)
+
+    seen: List[Tensor] = []
+
+    def predictor_with_label(window: Dict[str, Any]) -> Tensor:
+        seen.append(window["label"])
+        return predictor(window)
+
+    label = torch.tensor(3)
+    out_label = knn_window_inference({**data, "label": label}, predictor=predictor_with_label, **kwargs)
+    assert seen and all(value is label for value in seen)
+    assert torch.equal(out_plain, out_label)
+
+
+def test_knn_window_rejects_row_altering_transform() -> None:
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(64, 3), DataKeys.BATCH: torch.zeros(64, dtype=torch.long)}
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return torch.zeros(window[DataKeys.POS].size(0), 3)
+
+    def drop_row(window: Dict[str, Any]) -> Dict[str, Any]:
+        return {key: value[:-1] if torch.is_tensor(value) else value for key, value in window.items()}
+
+    with pytest.raises(ValueError, match="row count"):
+        knn_window_inference(data, predictor=predictor, roi_num_points=16, transform=drop_row, seed=0)

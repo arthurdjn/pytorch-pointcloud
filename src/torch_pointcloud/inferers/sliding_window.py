@@ -126,7 +126,13 @@ def _assign_point_blocks(
         if not valid.any():
             continue
         block_lo = lo + i.to(pos.dtype) * step
-        inside = ((pos_tiled >= block_lo - padding) & (pos_tiled <= block_lo + block_size + padding)).all(dim=1)
+        # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
+        # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
+        # The float bound test alone is not enough: on grid-aligned coordinates `(p - lo) / step` can round
+        # across an integer in fp32, landing `p` exactly on a bound of its own `i_hi` block on either side.
+        # Membership of that block is forced by index identity so every point keeps at least one block.
+        inside = ((pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)).all(dim=1)
+        inside = inside | (i == i_hi).all(dim=1)
         valid = valid & inside
         if not valid.any():
             continue

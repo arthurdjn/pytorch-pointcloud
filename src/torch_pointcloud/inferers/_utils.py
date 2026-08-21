@@ -12,7 +12,7 @@ def index_select_dict(data: Dict[str, Any], idx: Tensor, n_points: int) -> Dict[
     """
     out: Dict[str, Any] = {}
     for key, value in data.items():
-        if torch.is_tensor(value) and value.size(0) == n_points:
+        if torch.is_tensor(value) and value.dim() > 0 and value.size(0) == n_points:
             out[key] = value[idx]
         else:
             out[key] = value
