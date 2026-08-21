@@ -36,8 +36,6 @@ from torch_pointcloud.utils.random import seed_everything, set_determinism  # no
 
 log = logging.getLogger(__name__)
 
-OmegaConf.register_new_resolver("eval", eval, replace=True)
-
 
 def _pretrained_experiments() -> List[str]:
     """Experiment ids (e.g. `spunet/scannet`) whose `model.name` ships registry weights."""

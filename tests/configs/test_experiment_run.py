@@ -487,13 +487,6 @@ def test_experiment_runs_cover_all_configs() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _register_eval_resolver() -> None:
-    from omegaconf import OmegaConf
-
-    OmegaConf.register_new_resolver("eval", eval, replace=True)
-
-
-@pytest.fixture(autouse=True)
 def _clear_hydra() -> Iterator[None]:
     from hydra.core.global_hydra import GlobalHydra
 
