@@ -127,6 +127,20 @@ def test_pvcnn_segmentation_reset_classifier_zero(model_seg: PVCNNSegmentation) 
     assert isinstance(model_seg.head, nn.Identity)
 
 
+def test_pvcnn_segmentation_num_classes_zero_head_is_identity_with_head_channels() -> None:
+    model = PVCNNSegmentation(
+        in_channels=6,
+        num_classes=0,
+        channels=[32, 64],
+        global_channels=[64, 32],
+        depths=[1, 1],
+        kernel_sizes=[3, 3],
+        resolutions=[8, 8],
+        head_channels=[64, 32],
+    )
+    assert isinstance(model.head, nn.Identity)
+
+
 def test_pvconv_voxel_branch_uses_generic_act_and_norm() -> None:
     """Default PVConv builds its voxel branch from the generic `act` / `norm` kwargs.
 
