@@ -27,7 +27,6 @@ def test_xconv_forward() -> None:
         norm="batch_norm",
         norm_kwargs=None,
         bias=True,
-        add_self_loops=False,
     )
     torch.manual_seed(0)
     pos = torch.randn(64, 3)

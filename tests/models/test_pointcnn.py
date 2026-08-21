@@ -41,7 +41,6 @@ def model_clf() -> PointCNNClassification:
         act_first=False,
         norm="batch_norm",
         norm_kwargs=None,
-        add_self_loops=False,
         dropout=0.0,
         head_channels=[64, 32],
         global_pool="max",
@@ -65,7 +64,6 @@ def model_seg() -> PointCNNSegmentation:
         norm="batch_norm",
         norm_kwargs=None,
         bias=True,
-        add_self_loops=False,
         dropout=0.0,
         head_channels=[64, 32],
     )
@@ -81,6 +79,34 @@ def test_pointcnn_classification_reset_classifier(model_clf: PointCNNClassificat
     model_clf.reset_classifier(num_classes=42)
     logits = model_clf(data["x"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
+
+
+def test_pointcnn_classification_forward_without_features(data: Dict[str, Tensor]) -> None:
+    model = PointCNNClassification(
+        in_channels=0,
+        num_classes=10,
+        channels=[32, 64],
+        kernel_sizes=[8, 8],
+        ratios=[0.0, 0.5],
+        hidden_channels=[16, 32],
+        dilations=[1, 1],
+    )
+    logits = model(None, data["pos"], data["batch"])
+    assert logits.shape == (int(data["batch"].max()) + 1, 10)
+
+
+def test_pointcnn_segmentation_forward_without_features(data: Dict[str, Tensor]) -> None:
+    model = PointCNNSegmentation(
+        in_channels=0,
+        num_classes=10,
+        channels=[32, 64],
+        kernel_sizes=[8, 8],
+        ratios=[0.0, 0.5],
+        hidden_channels=[16, 32],
+        dilations=[1, 1],
+    )
+    logits = model(None, data["pos"], data["batch"])
+    assert logits.shape == (data["pos"].shape[0], 10)
 
 
 def test_pointcnn_segmentation_forward(model_seg: PointCNNSegmentation, data: Dict[str, Tensor]) -> None:
@@ -136,3 +162,31 @@ def test_pointcnn_segmentation_forward_features_decoder_head(
     assert x.shape[0] == data["pos"].shape[0]
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_pointcnn_classification_num_classes_zero_head_is_identity() -> None:
+    model = PointCNNClassification(
+        in_channels=6,
+        num_classes=0,
+        spatial_dim=3,
+        channels=[32, 64, 128],
+        kernel_sizes=[8, 8, 8],
+        ratios=[0.0, 0.5, 0.5],
+        hidden_channels=[16, 32, 64],
+        dilations=[1, 1, 1],
+    )
+    assert isinstance(model.head, torch.nn.Identity)
+
+
+def test_pointcnn_segmentation_num_classes_zero_head_is_identity() -> None:
+    model = PointCNNSegmentation(
+        in_channels=6,
+        num_classes=0,
+        spatial_dim=3,
+        channels=[32, 64, 128],
+        kernel_sizes=[8, 8, 8],
+        ratios=[0.0, 0.5, 0.5],
+        hidden_channels=[16, 32, 64],
+        dilations=[1, 1, 1],
+    )
+    assert isinstance(model.head, torch.nn.Identity)
