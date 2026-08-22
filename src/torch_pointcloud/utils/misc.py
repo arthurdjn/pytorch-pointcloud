@@ -1,3 +1,5 @@
+"""Miscellaneous helpers for parallel mapping and nested attribute access."""
+
 from collections.abc import Mapping
 from typing import Any, Callable, Iterable, List, Optional, TypeVar
 

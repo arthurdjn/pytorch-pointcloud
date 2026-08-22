@@ -1,3 +1,5 @@
+"""SPVCNN classification and segmentation models."""
+
 from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
@@ -199,6 +201,11 @@ def voxel_to_point(x: "SparseTensor", z: "PointTensor", nearest: bool = False) -
 
 
 class BasicBlock(nn.Module):
+    """Sparse 3D convolution followed by normalization and activation.
+
+    Set `transposed=True` for an upsampling (inverse) convolution.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -234,6 +241,11 @@ class BasicBlock(nn.Module):
 
 
 class ResidualBlock(nn.Module):
+    """Residual block of two sparse 3D convolutions.
+
+    A pointwise convolution projects the skip connection when the channel count or stride changes.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -284,6 +296,11 @@ class ResidualBlock(nn.Module):
 
 
 class SPVFusionBlock(nn.Module):
+    """Point-voxel fusion: devoxelizes the sparse features and adds a linear projection of the point branch.
+
+    The fused point features are voxelized back so that both branches carry the fusion.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -309,6 +326,8 @@ class SPVFusionBlock(nn.Module):
 
 
 class SPVCNNUpsampleBlock(nn.Module):
+    """Transposed sparse convolution that doubles the resolution, then a residual block over the concatenated skip."""
+
     def __init__(
         self,
         in_channels: int,
@@ -353,6 +372,13 @@ class SPVCNNUpsampleBlock(nn.Module):
 
 
 class SPVCNNEncoderBlock(nn.Module):
+    """One encoder stage: an optional downsampling convolution, `depth` residual blocks, and an optional fusion block.
+
+    Args:
+        fusion: Point-voxel fusion applied after the residual blocks. Requires point features at forward time.
+        downsample: Strided convolution applied before the residual blocks.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -412,6 +438,13 @@ class SPVCNNEncoderBlock(nn.Module):
 
 
 class SPVCNNDecoderBlock(nn.Module):
+    """One decoder stage: an optional upsampling block, `depth` residual blocks, and an optional fusion block.
+
+    Args:
+        fusion: Point-voxel fusion applied after the residual blocks. Requires point features at forward time.
+        upsample: Upsampling block merging the encoder skip. Requires `x_voxels_skip` at forward time.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -490,11 +523,15 @@ class SPVCNNDecoderBlock(nn.Module):
 
 
 class SPVCNNIntermediateDict(TypedDict):
+    """Per-stage encoder features kept for the decoder skip connections."""
+
     x_voxels: "SparseTensor"
     x_points: "PointTensor"
 
 
 class SPVCNNEncoder(nn.Module):
+    """Stack of `SPVCNNEncoderBlock` stages, halving the resolution and fusing the point branch at selected stages."""
+
     block_name = "block{i}"
 
     def __init__(
@@ -608,6 +645,8 @@ class SPVCNNEncoder(nn.Module):
 
 
 class SPVCNNDecoder(nn.Module):
+    """Stack of `SPVCNNDecoderBlock` stages consuming the encoder intermediates from coarsest to finest resolution."""
+
     block_name = "block{i}"
 
     def __init__(
@@ -693,6 +732,33 @@ class SPVCNNDecoder(nn.Module):
 
 
 class SPVCNNClassification(ClassificationModel):
+    """SPVCNN classification model as described in the paper
+    :arxiv: [Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution](https://arxiv.org/abs/2007.16100)
+    by Haotian Tang, Zhijian Liu, Shengyu Zhao, Yujun Lin, Ji Lin, Hanrui Wang, Song Han.
+
+    Sparse voxel convolutions carry the coarse context while a parallel point branch keeps the fine geometry,
+    the two being merged at every fusion stage.
+
+    Args:
+        in_channels: Number of input channels. Falls back to `spatial_dim` when `None`.
+        num_classes: Number of output classes.
+        spatial_dim: Spatial dimensionality of the point clouds.
+        stem_channels: Number of channels of the two stem convolutions.
+        encoder_channels: Output channels of each encoder stage.
+        encoder_depths: Number of residual blocks in each encoder stage.
+        encoder_fusion_stages: Whether each encoder stage ends with a point-voxel fusion block.
+        kernel_size: Kernel size of the residual convolutions.
+        stride: Stride of the residual convolutions.
+        dilation: Dilation of the residual convolutions.
+        drop_path: Maximum stochastic depth rate, ramped linearly across the encoder blocks.
+        global_pool: Global pooling used to reduce the point features to one vector per cloud.
+        dropout: Dropout applied to the pooled features before the head.
+        act: Activation function.
+        act_kwargs: Optional keyword arguments for the activation factory.
+        norm: Normalization layer.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -801,6 +867,34 @@ class SPVCNNClassification(ClassificationModel):
 
 
 class SPVCNNSegmentation(SegmentationModel):
+    """SPVCNN segmentation model as described in the paper
+    :arxiv: [Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution](https://arxiv.org/abs/2007.16100)
+    by Haotian Tang, Zhijian Liu, Shengyu Zhao, Yujun Lin, Ji Lin, Hanrui Wang, Song Han.
+
+    A sparse voxel U-Net with skip connections, run alongside a point branch that the fusion stages
+    merge back into the voxel features. Per-point logits are read from the point branch.
+
+    Args:
+        in_channels: Number of input channels. Falls back to `spatial_dim` when `None`.
+        num_classes: Number of output classes.
+        spatial_dim: Spatial dimensionality of the point clouds.
+        stem_channels: Number of channels of the two stem convolutions.
+        encoder_channels: Output channels of each encoder stage.
+        encoder_depths: Number of residual blocks in each encoder stage.
+        encoder_fusion_stages: Whether each encoder stage ends with a point-voxel fusion block.
+        decoder_channels: Output channels of each decoder stage.
+        decoder_depths: Number of residual blocks in each decoder stage.
+        decoder_fusion_stages: Whether each decoder stage ends with a point-voxel fusion block.
+        kernel_size: Kernel size of the residual convolutions.
+        stride: Stride of the residual convolutions.
+        dilation: Dilation of the residual convolutions.
+        drop_path: Maximum stochastic depth rate, ramped linearly across the encoder blocks.
+        act: Activation function.
+        act_kwargs: Optional keyword arguments for the activation factory.
+        norm: Normalization layer.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
+    """
+
     def __init__(
         self,
         in_channels: int,

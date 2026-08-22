@@ -1,3 +1,5 @@
+"""Shared inferer helpers: dict indexing, chunk splitting, and Gaussian distance weighting."""
+
 from typing import Any, Dict, List, Optional, Union
 
 import torch

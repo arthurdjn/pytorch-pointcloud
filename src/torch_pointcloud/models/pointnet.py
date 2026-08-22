@@ -1,3 +1,5 @@
+"""PointNet classification and segmentation models."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -169,8 +171,8 @@ class PointNetEncoder(nn.Module):
                 where $N$ is the number of points and $C_2$ is the last dimension of the second MLP.
             (Tuple[Tensor, Tensor]): If `return_point_features=True`, a tuple of:
 
-                - $\mathbf{x}$ of shape $(N, C_2)$ where $C_2$ is the last dimension of the second MLP.
-                - $\mathbf{point\_features}$ of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
+                - `x` of shape $(N, C_2)$ where $C_2$ is the last dimension of the second MLP.
+                - `point_features` of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
         """
 
         xp = self.stnet(pos, batch)
@@ -328,28 +330,28 @@ class PointNetClassification(ClassificationModel):
         pos: torch.Tensor,
         batch: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass of the PointNet encoder, returning pre-pooling features.
+        r"""Forward pass of the PointNet encoder, returning pre-pooling features.
 
         Args:
-            x: Additional point features of shape $(N, in_channels)$.
-            pos: Point coordinates of shape $(N, spatial_dim)$.
+            x: Additional point features of shape $(N, \text{in\_channels})$.
+            pos: Point coordinates of shape $(N, \text{spatial\_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the number of points.
+            Pre-pooling features of shape $(N, \text{mlp2\_dims}[-1])$ where $N$ is the number of points.
         """
         return self.encoder(x, pos, batch)
 
     def forward_head(self, x: torch.Tensor, batch: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
-        """Forward pass of the classification head from pre-pooling features.
+        r"""Forward pass of the classification head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the number of points.
+            x: Pre-pooling features of shape $(N, \text{mlp2\_dims}[-1])$ where $N$ is the number of points.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
-            Classification logits of shape $(B, num_classes)$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x = self.global_pool(x, batch)
         return x if pre_logits else self.head(x)
@@ -360,15 +362,15 @@ class PointNetClassification(ClassificationModel):
         pos: torch.Tensor,
         batch: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass of the PointNet classification network.
+        r"""Forward pass of the PointNet classification network.
 
         Args:
-            x: Additional point features of shape $(N, in_channels)$.
-            pos: Point coordinates of shape $(N, spatial_dim)$.
+            x: Additional point features of shape $(N, \text{in\_channels})$.
+            pos: Point coordinates of shape $(N, \text{spatial\_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Classification logits of shape $(B, num_classes)$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
@@ -514,17 +516,17 @@ class PointNetSegmentation(SegmentationModel):
         pos: torch.Tensor,
         batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Forward pass of the PointNet encoder, returning pre-pooling features.
+        r"""Forward pass of the PointNet encoder, returning pre-pooling features.
 
         Args:
-            x: Additional point features of shape $(N, in_channels)$.
-            pos: Point coordinates of shape $(N, spatial_dim)$.
+            x: Additional point features of shape $(N, \text{in\_channels})$.
+            pos: Point coordinates of shape $(N, \text{spatial\_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            A tuple of $(pre_pooling_features, point_features)$
-                where `pre_pooling_features` is of shape $(N, mlp2_dims[-1])$
-                and `point_features` is of shape $(N, mlp1_dims[-1])$.
+            A tuple of `(pre_pooling_features, point_features)`
+                where `pre_pooling_features` is of shape $(N, \text{mlp2\_dims}[-1])$
+                and `point_features` is of shape $(N, \text{mlp1\_dims}[-1])$.
         """
         # TODO: Actually do the global pooling in the encoder
         x, point_features = self.encoder(x, pos, batch, return_point_features=True)
@@ -537,16 +539,16 @@ class PointNetSegmentation(SegmentationModel):
         batch: torch.Tensor,
         pre_logits: bool = False,
     ) -> torch.Tensor:
-        """Forward pass of the segmentation head from pre-pooling features.
+        r"""Forward pass of the segmentation head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, mlp2_dims[-1])$ where $N$ is the number of points.
-            point_features: Point features of shape $(N, mlp1_dims[-1])$.
+            x: Pre-pooling features of shape $(N, \text{mlp2\_dims}[-1])$ where $N$ is the number of points.
+            point_features: Point features of shape $(N, \text{mlp1\_dims}[-1])$.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
-            Per-point segmentation logits of shape $(N, num_classes)$.
+            Per-point segmentation logits of shape $(N, \text{num\_classes})$.
         """
         x_global = self.global_pool(x, batch)
         # Expand global features to match point features
@@ -561,15 +563,15 @@ class PointNetSegmentation(SegmentationModel):
         pos: torch.Tensor,
         batch: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass of the PointNet segmentation network.
+        r"""Forward pass of the PointNet segmentation network.
 
         Args:
-            x: Additional point features of shape $(N, in_channels)$.
-            pos: Point coordinates of shape $(N, spatial_dim)$.
+            x: Additional point features of shape $(N, \text{in\_channels})$.
+            pos: Point coordinates of shape $(N, \text{spatial\_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Per-point segmentation logits of shape $(N, num_classes)$.
+            Per-point segmentation logits of shape $(N, \text{num\_classes})$.
         """
         x, point_features = self.forward_features(x, pos, batch)
         return self.forward_head(x, point_features, batch)

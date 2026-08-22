@@ -1,3 +1,5 @@
+"""Inference strategies for scenes larger than one forward pass: tiling, windows, and refinement."""
+
 from .inferer import Inferer
 from .knn_window import KNNWindowInferer, knn_window_inference
 from .part_refinement import PartRefinementInferer, part_refinement_inference

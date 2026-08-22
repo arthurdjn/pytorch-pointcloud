@@ -1,3 +1,5 @@
+"""Optional dependency detection, lazy imports, and availability flags."""
+
 import importlib
 import sys
 from functools import lru_cache, partial
@@ -18,10 +20,13 @@ def package_available(package_name: str) -> bool:
         package_name: Name of the package to check (e.g. `os`)
 
     Examples:
+        ```pycon
         >>> package_available('os')
         True
         >>> package_available('bla')
         False
+
+        ```
     """
     try:
         spec = find_spec(package_name)
@@ -41,12 +46,15 @@ def module_available(module_path: str) -> bool:
         module_path: Path to the module to check (e.g. `os.bla`)
 
     Examples:
+        ```pycon
         >>> module_available('os')
         True
         >>> module_available('os.bla')
         False
         >>> module_available('bla.bla')
         False
+
+        ```
     """
     module_names = module_path.split(".")
     if not package_available(module_names[0]):
@@ -71,10 +79,13 @@ def check_requirement(requirement: str) -> bool:
         Boolean indicating if the requirement is satisfied
 
     Examples:
+        ```pycon
         >>> check_requirement("torch>=1.10.0")
         True
         >>> check_requirement("torch<1.10.0")
         False
+
+        ```
     """
     req = Requirement(requirement)
 
@@ -117,6 +128,8 @@ def _missing_import_proxy(msg: str) -> type:
             return msg
 
     class ModuleNotFoundProxy(metaclass=_Meta):
+        """Stand-in returned in place of an unavailable dependency, raising `ImportError` on any use."""
+
         def __getattr__(self, name: str) -> Any:
             return _getattr(name)
 
@@ -240,6 +253,7 @@ def optional_import(
         Imported module (or proxy) and boolean indicating availability
 
     Examples:
+        ```pycon
         >>> torch, IS_TORCH_AVAILABLE = optional_import("torch", requirement=">=2.5.0")
         >>> IS_TORCH_AVAILABLE
         True
@@ -248,6 +262,8 @@ def optional_import(
         False
         >>> pkg.some_function()  # doctest: +SKIP
         ImportError: Optional module 'missing_package' does not meet the requirement missing_package.
+
+        ```
     """
     package_name = module_path.split(".")[0]
     # In case the requirement is in the format "package>=1.0.0"

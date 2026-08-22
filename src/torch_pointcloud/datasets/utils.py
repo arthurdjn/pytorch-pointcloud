@@ -1,3 +1,5 @@
+"""Download, archive extraction, and hash verification helpers for disk-cached datasets."""
+
 import hashlib
 import json
 import shutil
@@ -35,10 +37,13 @@ def urltailname(url: str) -> str:
         The (decoded) name of the last segment of the URL.
 
     Examples:
+        ```pycon
         >>> urltailname("https://example.com/file.zip")
         'file.zip'
         >>> urltailname("https://example.com/path/to/my%20file.zip")
         'my file.zip'
+
+        ```
     """
     return unquote(urlparse(url).path.split("/")[-1])
 
@@ -67,8 +72,11 @@ def urlsize(
         The size of the URL in bytes, or `None` if the response has no `content-length` header.
 
     Examples:
+        ```pycon
         >>> urlsize("https://example.com/file.zip")  # doctest: +SKIP
         1024
+
+        ```
     """
     if context is None and (cafile or capath or cadefault):
         context = create_default_context(cafile=cafile, capath=capath)
@@ -107,10 +115,13 @@ def download_url(
         The local path to the downloaded file.
 
     Examples:
+        ```pycon
         >>> download_url("https://example.com/file.zip")  # doctest: +SKIP
         "file.zip"
         >>> download_url("https://example.com/my%20file.zip", "my_file.zip", show_progress=False)  # doctest: +SKIP
         "my_file.zip"
+
+        ```
     """
     file_path = Path(file_path if file_path else urltailname(url))
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -159,8 +170,11 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
         The path to the extracted directory.
 
     Examples:
+        ```pycon
         >>> extract_zip("A.zip", "A")  # doctest: +SKIP
         "A"
+
+        ```
     """
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -238,8 +252,11 @@ def compute_hash(file_path: PathLike, hash_type: HashType = "md5") -> str:
         The hex digest of the file's hash.
 
     Examples:
+        ```pycon
         >>> compute_hash("file.zip")  # doctest: +SKIP
         '9473fdd0d880a43c21b7778d34872157'
+
+        ```
     """
     file_hash = SUPPORTED_HASH_TYPES[hash_type]()
 
@@ -262,7 +279,10 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
         meta: The metadata the requested parameters would produce.
 
     Examples:
+        ```pycon
         >>> check_cache_meta("data/ModelNet10/processed/train.meta.json", {"classes": ["chair"]})  # doctest: +SKIP
+
+        ```
     """
     meta_path = Path(meta_path)
     if not meta_path.exists():
@@ -289,10 +309,13 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
         True if the hash of the file matches the expected hash, False otherwise.
 
     Examples:
+        ```pycon
         >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "md5")  # doctest: +SKIP
         False
         >>> is_hash_valid("file.zip", "f7f6b4e3a3e0f8e4e3e3e3e3e3e3", "sha256")  # doctest: +SKIP
         True
+
+        ```
     """
 
     if expected_hash is None:

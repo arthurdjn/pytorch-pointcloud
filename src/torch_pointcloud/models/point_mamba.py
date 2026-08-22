@@ -1,3 +1,5 @@
+"""Point-Mamba classification and masked autoencoder pretraining models."""
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -49,6 +51,19 @@ RADIUS = 0.03162277660168379  # sqrt(1e-3)
 
 
 def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Tensor:
+    """Sort points along a space-filling curve, so a state space model scans spatially close points in sequence.
+
+    Args:
+        pos_grid: Non-negative integer grid coordinates of shape $(N, 3)$.
+        batch: Per-point batch index of shape $(N,)$.
+        order: Space-filling curve to encode the coordinates along.
+
+    Returns:
+        The permutation of shape $(N,)$ that sorts the points by their serialization code.
+
+    Raises:
+        ValueError: If `pos_grid` holds a negative coordinate, which would silently wrap around to a valid code.
+    """
     if pos_grid.numel() and bool(pos_grid.min() < 0):
         raise ValueError(
             "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
@@ -437,7 +452,7 @@ class PointMambaEncoderMAE(nn.Module):
     Shape:
         - Input: $(N, C_\text{in})$ features (or `None`), $(N, 3)$ coordinates, and a $(N,)$ batch index.
         - Output: a dict with `x_vis` $(B, V, C)$, `pos_dense` $(B, P, 3)$, `target_pos_dense`
-          $(B, P, M, 3)$, `mask_idx` $(B, P - V)$, `vis_idx` $(B, V)$, and the number of patches `P`.
+          $(B, P, M, 3)$, `mask_idx` $(B, P - V)$, `vis_idx` $(B, V)$, and the number of patches $P$.
     """
 
     def __init__(
@@ -703,6 +718,7 @@ class PointMambaClassification(ClassificationModel):
         self.reset_parameters()
 
     def configure_encoder(self) -> PointMambaEncoder:
+        """Build the `PointMambaEncoder` backbone."""
         return PointMambaEncoder(
             in_channels=self.in_channels,
             embed_dim=self.embed_dim,
@@ -887,6 +903,7 @@ class PointMambaMAE(BaseModel):
         pass
 
     def configure_encoder(self) -> PointMambaEncoderMAE:
+        """Build the `PointMambaEncoderMAE` backbone, which encodes only the visible patches."""
         return PointMambaEncoderMAE(
             in_channels=self.in_channels,
             embed_dim=self.embed_dim,
@@ -908,6 +925,7 @@ class PointMambaMAE(BaseModel):
         )
 
     def configure_decoder(self) -> PointMambaDecoderMAE:
+        """Build the `PointMambaDecoderMAE` that reconstructs the masked patches."""
         return PointMambaDecoderMAE(
             embed_dim=self.embed_dim,
             depth=self.decoder_depth,

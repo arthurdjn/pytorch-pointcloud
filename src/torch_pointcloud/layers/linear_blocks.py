@@ -1,3 +1,5 @@
+"""Linear block with optional normalization and activation."""
+
 from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn

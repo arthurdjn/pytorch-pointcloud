@@ -1,3 +1,5 @@
+"""PyTorch library for 3D point cloud deep learning: models, datasets, transforms, and pretrained weights."""
+
 from importlib.metadata import version as _version
 
 from . import config, datasets, inferers, layers, losses, models, transforms, utils

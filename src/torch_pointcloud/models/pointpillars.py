@@ -1,3 +1,5 @@
+"""PointPillars detection models."""
+
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
@@ -22,7 +24,7 @@ from ._registry import WeightsDict, register_model
 
 
 class PFNLayer(nn.Module):
-    r"""Single pillar feature-net layer: a per-point [`MLP`][torch_geometric.nn.models.MLP] and pillar max-pool.
+    r"""Single pillar feature-net layer: a per-point PyG `MLP` and pillar max-pool.
 
     Mirrors the reference `PFNLayer`. For non-final layers the pooled feature is concatenated back
     onto every point (so the output width is doubled before the next layer).
@@ -212,7 +214,7 @@ class PointPillarsDetection(DetectionModel):
         num_classes: Number of foreground classes.
         voxel_size: Pillar size $(v_x, v_y, v_z)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the head.
@@ -320,7 +322,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
         num_classes: Number of foreground classes (10 for nuScenes).
         voxel_size: Pillar size $(v_x, v_y, v_z)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         head_class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`).
         anchor_rotations: Yaw angles (radians) shared by all classes.

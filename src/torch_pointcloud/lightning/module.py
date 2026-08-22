@@ -1,3 +1,5 @@
+"""Lightning modules for classification, segmentation, and detection training."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 
 import torch
@@ -117,6 +119,7 @@ class LitModel(LightningModule):
         return logits
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Tensor]:
+        """Predict the batch, log the criterion loss, and return the logits, targets and loss."""
         logits = self.predict(batch)
         target = batch[self.hparams["target_key"]].long()
 
@@ -127,12 +130,15 @@ class LitModel(LightningModule):
         return {"preds": logits, "target": target, "loss": loss}
 
     def training_step(self, batch: Dict[str, Any], batch_idx: int) -> Tensor:
+        """Run the shared `step` and return the loss to optimize."""
         return self.step(batch, "train")["loss"]
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
+        """Return the evaluation predictions and targets, plus the batch's `metric_input_keys`."""
         return self._attach_metric_inputs(self._eval_step(batch, "val"), batch)
 
     def test_step(self, batch: Dict[str, Any], batch_idx: int) -> Dict[str, Any]:
+        """Return the inferer's predictions and targets, plus the batch's `metric_input_keys`."""
         return self._attach_metric_inputs(self._eval_step(batch, "test"), batch)
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
@@ -153,6 +159,7 @@ class LitModel(LightningModule):
         return outputs
 
     def configure_optimizers(self) -> Any:
+        """Build the configured optimizer (over `param_groups` when given) and its optional scheduler."""
         if self._optimizer is None:
             raise RuntimeError(
                 "No `optimizer` was provided, so this module is evaluation-only (benchmark mode); "
@@ -346,6 +353,7 @@ class LitDetectionModel(LitModel):
         self.ignore_mask_key = ignore_mask_key
 
     def step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+        """Forward the batch, log every named loss component, and return the output and the total loss."""
         output = self.forward(batch)
         if self.criterion is None:
             if stage == "train":

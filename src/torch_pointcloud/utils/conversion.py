@@ -1,3 +1,5 @@
+"""Conversions between iterables, batch index representations (offset, bincount, cu_seqlens), and tensor formats."""
+
 from collections.abc import Iterable
 from enum import Enum
 from inspect import isclass
@@ -58,6 +60,20 @@ T = TypeVar("T", bound=Any)
 
 
 def ensure_iterable(value: Any, type: Type[T], recursive: bool = False, none_as_empty: bool = False) -> T:
+    """Convert a value to the given iterable type. If the value is a scalar, it will be wrapped in it.
+
+    Numpy arrays and torch tensors are converted to nested lists first, so their elements come back as
+    Python scalars.
+
+    Args:
+        value: The value to convert.
+        type: The iterable type to build (e.g. `list`, `tuple`).
+        recursive: If True, the function will recursively apply itself to the elements of the iterable.
+        none_as_empty: If True, and the value is None, an empty iterable will be returned.
+
+    Returns:
+        The value as an iterable of the given type.
+    """
     if none_as_empty and value is None:
         return type([])
     if isinstance(value, np.ndarray):
@@ -110,6 +126,7 @@ def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False
         The value as a list.
 
     Examples:
+        ```pycon
         >>> ensure_list(1)
         [1]
         >>> ensure_list([1, 2, 3])
@@ -122,6 +139,8 @@ def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False
         [None]
         >>> ensure_list(None, none_as_empty=True)
         []
+
+        ```
     """
     return ensure_iterable(value, list, recursive=recursive, none_as_empty=none_as_empty)
 
@@ -156,6 +175,7 @@ def ensure_tuple(value: Any, recursive: bool = False, none_as_empty: bool = Fals
         The value as a tuple.
 
     Examples:
+        ```pycon
         >>> ensure_tuple(1)
         (1,)
         >>> ensure_tuple([1, 2, 3])
@@ -166,6 +186,8 @@ def ensure_tuple(value: Any, recursive: bool = False, none_as_empty: bool = Fals
         (1, 2, 3)
         >>> ensure_tuple(torch.tensor([1, 2, 3], device="cuda"))  # doctest: +SKIP
         (1, 2, 3)
+
+        ```
     """
     return ensure_iterable(value, tuple, recursive=recursive, none_as_empty=none_as_empty)
 
@@ -192,6 +214,7 @@ def ensure_tuple_size(
         The value as a tuple of the given size.
 
     Examples:
+        ```pycon
         >>> ensure_tuple_size(1, 3)
         (1, 1, 1)
         >>> ensure_tuple_size([1, 2, 3], 3)
@@ -200,6 +223,8 @@ def ensure_tuple_size(
         (1, 2, 3)
         >>> ensure_tuple_size(np.array([1, 2, 3]), 3)
         (1, 2, 3)
+
+        ```
     """
     return ensure_iterable_size(
         value,
@@ -228,6 +253,7 @@ def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
         The option.
 
     Examples:
+        ```pycon
         >>> ensure_option("one", ["one", "two"])  # Ok
         'one'
         >>> ensure_option("one", Literal["one", "two"])  # Ok
@@ -238,6 +264,8 @@ def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
         Traceback (most recent call last):
             ...
         ValueError: Invalid option: 'three'. Valid options are: 'one', 'two'.
+
+        ```
     """
     if get_origin(options) is Literal:
         values = get_args(options)
@@ -265,10 +293,13 @@ def offset_to_bincount(offset: Tensor) -> Tensor:
         The bincount tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> offset = torch.tensor([4, 7, 12])
         >>> offset_to_bincount(offset)
         tensor([4, 3, 5])
+
+        ```
     """
     return torch.diff(offset, prepend=torch.tensor([0], device=offset.device, dtype=torch.long))
 
@@ -284,10 +315,13 @@ def offset_to_batch(offset: Tensor) -> Tensor:
         The batch index tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> offset = torch.tensor([4, 7, 12])
         >>> offset_to_batch(offset)
         tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
+
+        ```
     """
     device, dtype = offset.device, offset.dtype
     batch_sizes = offset_to_bincount(offset)
@@ -315,10 +349,13 @@ def offset_to_cu_seqlens(offset: Tensor) -> Tensor:
         The cumulative sequence lengths tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> offset = torch.tensor([4, 7, 12])
         >>> offset_to_cu_seqlens(offset)
         tensor([ 0,  4,  7, 12])
+
+        ```
     """
     device, dtype = offset.device, offset.dtype
     return torch.cat([torch.tensor([0], device=device, dtype=dtype), offset])
@@ -335,10 +372,13 @@ def batch_to_offset(batch: Tensor) -> Tensor:
         The offset tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
         >>> batch_to_offset(batch)
         tensor([ 4,  7, 12])
+
+        ```
     """
     bincount = torch.bincount(batch)
     return torch.cumsum(bincount, dim=0)
@@ -355,10 +395,13 @@ def batch_to_bincount(batch: Tensor) -> Tensor:
         The bincount tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
         >>> batch_to_bincount(batch)
         tensor([4, 3, 5])
+
+        ```
     """
     return torch.bincount(batch)
 
@@ -384,10 +427,13 @@ def batch_to_cu_seqlens(batch: Tensor) -> Tensor:
         The cumulative sequence lengths tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
         >>> batch_to_cu_seqlens(batch)
         tensor([ 0,  4,  7, 12])
+
+        ```
     """
     offset = batch_to_offset(batch)
     return offset_to_cu_seqlens(offset)
@@ -404,10 +450,13 @@ def bincount_to_offset(bincount: Tensor) -> Tensor:
         The offset tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> bincount = torch.tensor([4, 3, 5])
         >>> bincount_to_offset(bincount)
         tensor([ 4,  7, 12])
+
+        ```
     """
     return torch.cumsum(bincount, dim=0)
 
@@ -423,10 +472,13 @@ def bincount_to_batch(bincount: Tensor) -> Tensor:
         The batch index tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> bincount = torch.tensor([4, 3, 5])
         >>> bincount_to_batch(bincount)
         tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
+
+        ```
     """
     device, dtype = bincount.device, bincount.dtype
     return torch.repeat_interleave(torch.arange(len(bincount), device=device, dtype=dtype), bincount)
@@ -443,10 +495,13 @@ def bincount_to_cu_seqlens(bincount: Tensor) -> Tensor:
         The cumulative sequence lengths tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> bincount = torch.tensor([4, 3, 5])
         >>> bincount_to_cu_seqlens(bincount)
         tensor([ 0,  4,  7, 12])
+
+        ```
     """
     offset = bincount_to_offset(bincount)
     return offset_to_cu_seqlens(offset)
@@ -463,10 +518,13 @@ def cu_seqlens_to_offset(cu_seqlens: Tensor) -> Tensor:
         The offset tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> cu_seqlens = torch.tensor([0, 4, 7, 12])
         >>> cu_seqlens_to_offset(cu_seqlens)
         tensor([ 4,  7, 12])
+
+        ```
     """
     return cu_seqlens[1:]
 
@@ -482,10 +540,13 @@ def cu_seqlens_to_bincount(cu_seqlens: Tensor) -> Tensor:
         The bincount tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> cu_seqlens = torch.tensor([0, 4, 7, 12])
         >>> cu_seqlens_to_bincount(cu_seqlens)
         tensor([4, 3, 5])
+
+        ```
     """
     offset = cu_seqlens_to_offset(cu_seqlens)
     return offset_to_bincount(offset)
@@ -502,10 +563,13 @@ def cu_seqlens_to_batch(cu_seqlens: Tensor) -> Tensor:
         The batch index tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> cu_seqlens = torch.tensor([0, 4, 7, 12])
         >>> cu_seqlens_to_batch(cu_seqlens)
         tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2])
+
+        ```
     """
     offset = cu_seqlens_to_offset(cu_seqlens)
     return offset_to_batch(offset)
@@ -591,6 +655,7 @@ def convert_to_tensor(data: Any, /, strict: bool = True) -> Any:
         The converted data.
 
     Examples:
+        ```pycon
         >>> convert_to_tensor([1, 2, 3])
         tensor([1, 2, 3])
         >>> convert_to_tensor(np.array([1, 2, 3]))
@@ -607,6 +672,8 @@ def convert_to_tensor(data: Any, /, strict: bool = True) -> Any:
         None
         >>> convert_to_tensor("value", strict=False)
         'value'
+
+        ```
     """
     if isinstance(data, Tensor):
         return data
@@ -646,6 +713,7 @@ def convert_to_numpy(data: Any, /, strict: bool = True) -> Any:
         The converted data.
 
     Examples:
+        ```pycon
         >>> convert_to_numpy([1, 2, 3])
         array([1, 2, 3])
         >>> convert_to_numpy(np.array([1, 2, 3]))
@@ -662,6 +730,8 @@ def convert_to_numpy(data: Any, /, strict: bool = True) -> Any:
         None
         >>> convert_to_numpy("value", strict=False)
         'value'
+
+        ```
     """
     if isinstance(data, np.ndarray):
         return data

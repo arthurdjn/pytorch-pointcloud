@@ -1,3 +1,5 @@
+"""PointNeXt classification and segmentation models."""
+
 from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -22,12 +24,16 @@ from ._registry import WeightsDict, register_model
 
 
 class PointNeXtIntermediate(NamedTuple):
+    """Input features and point cloud of one encoder block, recorded before it downsamples."""
+
     x: Tensor
     pos: Tensor
     batch: Tensor
 
 
 class PointNeXtEncoderBlock(nn.Module):
+    """One encoder stage: an optional set-abstraction downsampling followed by `depth` inverted residual blocks."""
+
     def __init__(
         self,
         spatial_dim: int,
@@ -81,6 +87,35 @@ class PointNeXtEncoderBlock(nn.Module):
 
 
 class PointNeXtEncoder(nn.Module):
+    r"""Stack of `PointNeXtEncoderBlock` stages, each preceded by a set-abstraction downsampling.
+
+    When `return_intermediates=True` is passed to `forward`, the pre-downsampling features of every
+    stage are returned in coarse-to-fine order, ready to be consumed as decoder skips.
+
+    Note:
+        `radiuses` and `num_neighbors` hold one entry per channel: entry $i$ configures the
+        set-abstraction of block $i$ and entry $i+1$ its residual blocks.
+
+    Args:
+        channels: Channels of the stem output followed by the output of each encoder block.
+        spatial_dim: Spatial dimension of the input point cloud.
+        depths: Number of residual blocks in each encoder block.
+        expansion: Bottleneck expansion factor of the residual blocks.
+        ratios: Sampling ratio of the set-abstraction preceding each encoder block.
+        radiuses: Ball-query radius for each channel level.
+        num_neighbors: Maximum number of neighbors for each channel level.
+        sa_layers: Number of MLP layers inside each set-abstraction.
+        sa_use_res: Whether the set-abstractions use a residual connection.
+        act: Activation function to use for the encoder blocks.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Whether to apply the activation function before the normalization.
+        norm: Normalization function to use for the encoder blocks.
+        norm_kwargs: Keyword arguments for the normalization function.
+        bias: Whether to use a bias for the encoder blocks.
+        add_self_loops: Whether the neighborhood graphs include self-loops.
+        aggr: Aggregation used to pool neighbor features.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -528,6 +563,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder.channels[-1]
 
     def configure_head(self) -> nn.Module:
@@ -713,6 +749,7 @@ class PointNeXtClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ fed to the classification head, after the optional global set-abstraction."""
         return self._embedding_dim
 
     def configure_head(self) -> nn.Module:
@@ -919,6 +956,7 @@ class PointNeXtSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder.channels[-1]
 
     def configure_head(self) -> nn.Module:

@@ -1,3 +1,5 @@
+"""PointRCNN detection model."""
+
 import math
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 

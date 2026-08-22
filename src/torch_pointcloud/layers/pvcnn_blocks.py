@@ -1,3 +1,5 @@
+"""PVCNN building blocks: voxelization, squeeze-and-excitation, and point-voxel convolution."""
+
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -12,6 +14,21 @@ from torch_pointcloud.utils.voxelization import dense_voxelize, trilinear_dense_
 
 
 class Voxelization(nn.Module):
+    r"""Averages packed point features into a dense voxel grid.
+
+    Positions are centred per cloud and, when `normalize` is set, rescaled by the cloud's largest radius so
+    every cloud fills the grid. The continuous grid coordinates are returned alongside the voxels, for
+    trilinear devoxelization.
+
+    Shape:
+        Input: $(N, C)$ features, $(N, 3)$ positions, $(N,)$ batch index
+        Output: $(B, C, R, R, R)$ voxels, $(N, 3)$ grid coordinates
+
+    Args:
+        resolution: Grid resolution $R$ along each axis.
+        normalize: Whether to rescale each cloud to the unit grid before voxelizing.
+    """
+
     def __init__(self, resolution: int, normalize: bool = True):
         super().__init__()
         self.resolution = resolution
@@ -39,6 +56,22 @@ class Voxelization(nn.Module):
 
 
 class SE3d(nn.Module):
+    r"""Squeeze-and-excitation gate for dense voxel grids.
+
+    Global-average-pools each channel, passes it through a bottleneck MLP, and rescales the grid by the
+    resulting per-channel gate.
+
+    Shape:
+        Input: $(B, C, R, R, R)$
+        Output: $(B, C, R, R, R)$
+
+    Args:
+        channels: Number of channels $C$.
+        reduction: Bottleneck ratio of the squeeze layer.
+        act: Activation between the squeeze and excitation layers, name resolved by `create_act`.
+        act_kwargs: Extra kwargs for the activation.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -63,6 +96,29 @@ class SE3d(nn.Module):
 
 
 class PVConv(nn.Module):
+    r"""Point-voxel convolution: a dense 3D conv branch summed with a per-point MLP branch.
+
+    The voxel branch captures the neighborhood context at a coarse resolution and is devoxelized back with
+    trilinear interpolation, while the point branch keeps the fine per-point detail.
+
+    Shape:
+        Input: $(N, C_\text{in})$ features, $(N, 3)$ positions, $(N,)$ batch index
+        Output: $(N, C_\text{out})$
+
+    Args:
+        in_channels: Input channel count.
+        out_channels: Output channel count.
+        kernel_size: Kernel size of the voxel convolutions.
+        resolution: Voxel grid resolution $R$ along each axis.
+        use_se: Whether to gate the voxel branch with an `SE3d` block.
+        normalize: Whether to rescale each cloud to the unit grid before voxelizing.
+        act: Activation, name resolved by `create_act`. `None` disables.
+        act_first: If `True`, run activation before normalization.
+        act_kwargs: Extra kwargs for the activation.
+        norm: Normalization, name resolved by `create_norm`. `None` disables.
+        norm_kwargs: Extra kwargs for the normalization.
+    """
+
     def __init__(
         self,
         in_channels: int,

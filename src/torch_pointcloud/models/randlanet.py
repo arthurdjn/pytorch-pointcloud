@@ -1,3 +1,5 @@
+"""RandLA-Net classification and segmentation models."""
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -43,6 +45,8 @@ scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCAT
 
 
 class RandLANetIntermediate(NamedTuple):
+    """Per-stage encoder features, positions and batch index, kept for the decoder skip connections."""
+
     x: Tensor
     pos: Tensor
     batch: Tensor
@@ -56,6 +60,19 @@ def random_max_pool(
     num_neighbors: int,
     generator: Optional[torch.Generator] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Random sampling followed by a max-pool over the neighbors of each kept point.
+
+    Args:
+        features: Packed point features, shape $(N, C)$.
+        pos: Packed point positions, shape $(N, 3)$.
+        batch: Per-point batch index, shape $(N,)$.
+        factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
+        num_neighbors: Number of neighbors gathered around each kept point.
+        generator: Generator driving the random sampling.
+
+    Returns:
+        The pooled features, positions and batch index of the kept points.
+    """
     decim_idx, decim_batch = decimate_indices(batch, factor, generator=generator)
     pos_decim = pos[decim_idx]
     edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
@@ -149,7 +166,7 @@ class AttentivePooling(nn.Module):
 
 
 class LocalFeatureAggregation(nn.Module):
-    """Local Feature Aggregation module (RandLA-Net Section 3.4).
+    r"""Local Feature Aggregation module (RandLA-Net Section 3.4).
 
     Stacks two `LocalSpatialEncoding` + `AttentivePooling` units to progressively grow
     the receptive field, doubling a per-point feature of dim $d_\text{out} / 2$ to
@@ -214,9 +231,9 @@ class LocalFeatureAggregation(nn.Module):
 
 
 class DilatedResidualBlock(nn.Module):
-    """RandLA-Net dilated residual block (Fig. 3 of the paper).
+    r"""RandLA-Net dilated residual block (Fig. 3 of the paper).
 
-    Maps `d_in` channels to $2 \\cdot d_\\text{out}$ via a residual path of
+    Maps `d_in` channels to $2 \cdot d_\text{out}$ via a residual path of
     `MLP -> LocalFeatureAggregation -> MLP` plus a parallel `Linear+norm` shortcut.
     The sum is activated by the configured activation. `mlp2` and `shortcut` skip the
     activation (paper-mandated: `Conv2d(activation=False)` upstream); the configured
@@ -224,7 +241,7 @@ class DilatedResidualBlock(nn.Module):
 
     Args:
         d_in: Number of input channels.
-        d_out: "Configuration" channel count; the block actually outputs $2 \\cdot d_\\text{out}$.
+        d_out: "Configuration" channel count; the block actually outputs $2 \cdot d_\text{out}$.
         num_neighbors: Number of neighbors for the local feature aggregation.
     """
 

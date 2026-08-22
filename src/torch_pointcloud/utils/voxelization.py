@@ -1,3 +1,5 @@
+"""Dense and sparse voxelization with trilinear devoxelization for packed point clouds."""
+
 import functools
 from typing import TYPE_CHECKING, Literal, Sequence, Tuple, overload
 
@@ -16,6 +18,18 @@ else:
 
 
 def dense_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int, reduce: str = "mean") -> Tensor:
+    r"""Pool packed point features into a dense voxel grid, one grid per point cloud.
+
+    Args:
+        x: Packed point features $(N, C)$.
+        pos: Packed grid coordinates $(N, 3)$, clamped to $[0, \text{resolution} - 1)$.
+        batch: Per-point batch index $(N,)$.
+        resolution: Number of voxels $R$ per axis.
+        reduce: Scatter reduction applied to the points of a voxel (e.g. `mean`, `max`).
+
+    Returns:
+        The voxel grid $(B, C, R, R, R)$, zero where a voxel holds no point.
+    """
     R = resolution
     if pos.shape[1] != 3:
         raise ValueError(f"Position tensor must be 3D, but got a {pos.shape[1]}-D tensor.")
@@ -40,6 +54,17 @@ def dense_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int, reduc
 
 # Adapted from: https://github.com/mit-han-lab/pvcnn/blob/master/modules/functional/src/interpolate/trilinear_devox.cu
 def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, resolution: int) -> Tensor:
+    r"""Interpolate a dense voxel grid back to packed point features, trilinearly.
+
+    Args:
+        x_voxel: Voxel grid $(B, C, R, R, R)$.
+        pos: Packed grid coordinates $(N, 3)$, clamped to $[0, \text{resolution} - 1)$.
+        batch: Per-point batch index $(N,)$.
+        resolution: Number of voxels $R$ per axis. Must match the grid.
+
+    Returns:
+        The interpolated point features $(N, C)$.
+    """
     device = pos.device
     N, _ = pos.shape
     B, C, R, R1, R2 = x_voxel.shape
@@ -144,6 +169,20 @@ def sparse_voxelize(
     reduce: str = "mean",
     return_inverse: bool = False,
 ) -> Tuple[Tensor, ...]:
+    r"""Pool packed point features into sparse voxels of a regular grid.
+
+    Args:
+        x: Packed point features $(N, C)$.
+        pos: Packed point coordinates $(N, 3)$.
+        batch: Per-point batch index $(N,)$.
+        voxel_size: Edge length of a voxel, in the units of `pos`.
+        reduce: Scatter reduction applied to the points of a voxel (e.g. `mean`, `max`).
+        return_inverse: Also return the per-point voxel index, to broadcast voxel values back to the points.
+
+    Returns:
+        The voxel features $(V, C)$, their integer coordinates $(V, 3)$ and batch index $(V,)$, plus the
+        per-point voxel index $(N,)$ when `return_inverse` is `True`.
+    """
     # Ensure the position is float
     pos = pos.float()
     start = pos.min(0)[0]

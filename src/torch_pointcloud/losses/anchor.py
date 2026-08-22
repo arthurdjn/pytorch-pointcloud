@@ -40,11 +40,14 @@ def sigmoid_focal_loss(preds: Tensor, targets: Tensor, weights: Tensor, *, alpha
         - output: $(B, A, C)$
 
     Example:
+        ```pycon
         >>> preds = torch.zeros(1, 2, 3)
         >>> targets = torch.tensor([[[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]]])
         >>> weights = torch.ones(1, 2)
         >>> sigmoid_focal_loss(preds, targets, weights, alpha=0.25, gamma=2.0).shape
         torch.Size([1, 2, 3])
+
+        ```
     """
     pred_sigmoid = preds.sigmoid()
     alpha_weight = targets * alpha + (1.0 - targets) * (1.0 - alpha)
@@ -72,8 +75,11 @@ def one_hot_foreground(box_cls_labels: Tensor, num_classes: int) -> Tensor:
         - output: $(B, A, C)$
 
     Example:
+        ```pycon
         >>> one_hot_foreground(torch.tensor([[2, 0, -1]]), 3).tolist()
         [[[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+
+        ```
     """
     cared = box_cls_labels >= 0
     cls_targets = box_cls_labels * cared.to(box_cls_labels.dtype)
@@ -108,7 +114,7 @@ class AnchorLoss(nn.Module):
         num_classes: Number of foreground classes.
         voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         feature_map_stride: BEV feature-map stride of the head.
         matched_thresholds: Per-class IoU at or above which an anchor is a positive.
@@ -329,7 +335,7 @@ class MultiHeadAnchorLoss(nn.Module):
             enumerate the classes $0 \ldots C - 1$ in ascending order (the anchor / head layout).
         voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         feature_map_stride: BEV feature-map stride of the head.
         matched_thresholds: Per-class IoU at or above which an anchor is a positive.

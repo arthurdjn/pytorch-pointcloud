@@ -5,7 +5,7 @@ A packed-format port of the anchor head from
 
 - [`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors]: axis-aligned anchor
   generation; residuals are decoded with
-  [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals].
+  `decode_box_residuals`.
 - [`AnchorHeadSingle`][torch_pointcloud.layers.anchors.AnchorHeadSingle]: the single-stage anchor
   head (per-anchor class logits, box residuals and a direction bin).
 - [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]: the multi-group
@@ -61,7 +61,7 @@ def generate_anchors(
     Args:
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         feature_map_size: BEV feature map size $(n_x, n_y)$.
-        anchor_sizes: Box sizes $(dx, dy, dz)$, one row per size template.
+        anchor_sizes: Box sizes $(d_x, d_y, d_z)$, one row per size template.
         anchor_rotations: Yaw angles (radians).
         anchor_bottom_heights: Anchor bottom $z$ per height template.
         dtype: Anchor dtype.
@@ -120,7 +120,7 @@ def assign_anchor_targets(
     between is ignored. Each ground-truth box additionally force-matches its single highest-IoU anchor, so a
     box with no anchor above threshold still receives one positive. Positive anchors' regression targets are
     the residual encoding of their matched box against the anchor (the inverse of
-    [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals]).
+    `decode_box_residuals`).
 
     Callers with several class groups (one anchor set per class) invoke this once per group with that class's
     anchors, ground truth, and thresholds, then concatenate the results.
@@ -145,12 +145,15 @@ def assign_anchor_targets(
         - box_reg_targets: $(A, 7)$
 
     Example:
+        ```pycon
         >>> anchors = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0], [20.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> gt_boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> gt_labels = torch.tensor([1])
         >>> out = assign_anchor_targets(anchors, gt_boxes, gt_labels, matched_threshold=0.6, unmatched_threshold=0.45)
         >>> out["cls_labels"].tolist()
         [1, 0]
+
+        ```
     """
     num_anchors = anchors.shape[0]
     num_gt = gt_boxes.shape[0]
@@ -198,7 +201,7 @@ class AnchorHeadSingle(nn.Module):
         num_classes: Number of foreground classes.
         grid_size: Full voxel grid size $(n_x, n_y)$ (before the head feature-map stride).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, shape $(\text{num\_classes}, 3)$.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, shape $(\text{num\_classes}, 3)$.
         anchor_bottom_heights: Per-class anchor bottom $z$, shape $(\text{num\_classes},)$.
         anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the head.
@@ -363,9 +366,12 @@ def separate_branch(
         - Output: $(B, C_\text{out}, H, W)$
 
     Example:
+        ```pycon
         >>> branch = separate_branch(64, 2, num_middle_conv=1, num_middle_filter=64)
         >>> branch(torch.rand(2, 64, 16, 16)).shape
         torch.Size([2, 2, 16, 16])
+
+        ```
     """
     layers: List[nn.Module] = []
     c_in = in_channels
@@ -481,7 +487,7 @@ class AnchorHeadMulti(nn.Module):
 
     A shared conv feeds several [`MultiGroupSingleHead`][torch_pointcloud.layers.anchors.MultiGroupSingleHead]s,
     one per class group. Anchors (7-DoF, padded to the box-code size) are decoded with
-    [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals] (sincos heading,
+    `decode_box_residuals` (sincos heading,
     velocity deltas); per-head class scores stay separate (with their global label mapping) for
     class-wise NMS downstream.
 
@@ -490,7 +496,7 @@ class AnchorHeadMulti(nn.Module):
         num_classes: Number of foreground classes.
         grid_size: Full voxel grid size $(n_x, n_y)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, shape $(\text{num\_classes}, 3)$.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, shape $(\text{num\_classes}, 3)$.
         anchor_bottom_heights: Per-class anchor bottom $z$, shape $(\text{num\_classes},)$.
         head_class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`); the
             classes in each group share one `SeparateHead`.

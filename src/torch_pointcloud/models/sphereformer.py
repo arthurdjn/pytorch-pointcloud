@@ -1,3 +1,5 @@
+"""SphereFormer segmentation model."""
+
 from collections import OrderedDict
 from functools import partial
 from typing import (
@@ -62,11 +64,14 @@ def cart2sphere(pos: Tensor) -> Tensor:
         - Output: $(N, 3)$
 
     Example:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.models.sphereformer import cart2sphere
         >>> sphere = cart2sphere(torch.randn(8, 3))
         >>> sphere.shape
         torch.Size([8, 3])
+
+        ```
     """
     x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
     theta = (torch.atan2(y, x) + np.pi) * 180 / np.pi
@@ -574,6 +579,7 @@ class SphereFormerSegmentation(SegmentationModel):
         act_kwargs: Extra keyword arguments for the activation.
 
     Example:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.models import create_model
         >>> model = create_model("sphereformer.semantickitti", task="segmentation").eval()  # doctest: +SKIP
@@ -584,6 +590,8 @@ class SphereFormerSegmentation(SegmentationModel):
         >>> logits = model(x, pos, pos_grid, batch)  # doctest: +SKIP
         >>> logits.shape  # doctest: +SKIP
         torch.Size([1000, 19])
+
+        ```
     """
 
     def __init__(

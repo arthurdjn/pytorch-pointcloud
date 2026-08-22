@@ -1,3 +1,5 @@
+"""Octree construction, interpolation, and upsampling helpers built on `ocnn`."""
+
 # Imports annotations to support string based types (Octree, Points, etc.) in case ocnn is not installed.
 from __future__ import annotations
 
@@ -88,10 +90,13 @@ def build_octree(
         The octree, or the tuple `(octree, points)` when `return_points` is `True`.
 
     Example:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.utils.octree import build_octree
         >>> pos = torch.rand(100, 3) * 2 - 1
         >>> octree = build_octree(pos, depth=5, full_depth=2)  # doctest: +SKIP
+
+        ```
     """
     points = Points(
         points=pos,

@@ -41,10 +41,13 @@ def gaussian_radius(height: Tensor, width: Tensor, min_overlap: float = 0.5) -> 
         - output: $(N,)$
 
     Example:
+        ```pycon
         >>> import torch
         >>> r = gaussian_radius(torch.tensor([4.0, 8.0]), torch.tensor([2.0, 4.0]))
         >>> bool(r[1] > r[0])
         True
+
+        ```
     """
     a1 = 1.0
     b1 = height + width
@@ -105,11 +108,14 @@ def draw_gaussian_to_heatmap(
         - output: $(H, W)$
 
     Example:
+        ```pycon
         >>> import torch
         >>> hm = torch.zeros(10, 10)
         >>> _ = draw_gaussian_to_heatmap(hm, torch.tensor([5.0, 4.0]), radius=2)
         >>> float(hm[4, 5])
         1.0
+
+        ```
     """
     radius = int(radius)
     diameter = 2 * radius + 1
@@ -177,6 +183,7 @@ def draw_heatmap_targets(
         - heatmap: $(\text{num\_classes}, H, W)$
 
     Example:
+        ```pycon
         >>> import torch
         >>> boxes = torch.tensor([[0.0, 0.0, -1.0, 4.0, 2.0, 1.5, 0.3]])
         >>> labels = torch.tensor([0])
@@ -187,6 +194,8 @@ def draw_heatmap_targets(
         ... )
         >>> float(hm.max()), int(mask.sum())
         (1.0, 1)
+
+        ```
     """
     width, height = feature_map_size
     code_size = boxes.shape[-1] + 1
@@ -254,11 +263,14 @@ def transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
         - output: $(B, M, C)$
 
     Example:
+        ```pycon
         >>> import torch
         >>> feat = torch.arange(16.0).reshape(1, 1, 4, 4)
         >>> transpose_gather(feat, torch.tensor([[5, 10]]))
         tensor([[[ 5.],
                  [10.]]])
+
+        ```
     """
     b, c = feat.shape[0], feat.shape[1]
     feat = feat.permute(0, 2, 3, 1).reshape(b, -1, c)

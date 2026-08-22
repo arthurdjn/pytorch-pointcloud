@@ -1,3 +1,5 @@
+"""Model architectures, the `create_model` factory, and the pretrained weight registry."""
+
 from ._base import BaseModel, ClassificationModel, DetectionModel, SegmentationModel
 from ._registry import ModelDict, Task, WeightsDict, create_model, list_models, register_model
 from .concerto import ConcertoSegmentation

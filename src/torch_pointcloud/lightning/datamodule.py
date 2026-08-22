@@ -1,3 +1,5 @@
+"""Lightning datamodule wrapping point cloud datasets with the packed-batch collate."""
+
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Sequence, Union
 
 from torch.utils.data import DataLoader, Dataset, Sampler
@@ -139,6 +141,7 @@ class PointCloudDataModule(LightningDataModule):
         sampler: Optional[Union[Sampler, Iterable]] = None,
         batch_sampler: Optional[Union[Sampler, Iterable]] = None,
     ) -> DataLoader:
+        """Build a `PointCloudDataLoader` over the dataset with the module's collation and worker settings."""
         if dataset is None:
             raise ValueError("Requested a dataloader for a dataset that was not provided.")
 
@@ -170,6 +173,7 @@ class PointCloudDataModule(LightningDataModule):
         )
 
     def train_dataloader(self) -> DataLoader:
+        """Build the shuffled train loader, drawing single-dataset batches when `train_ratios` is set."""
         batch_sampler: Optional[SingleDatasetBatchSampler] = None
         if self.train_ratios is not None:
             sizes = getattr(self.train_dataset, "sizes", None)
@@ -191,6 +195,7 @@ class PointCloudDataModule(LightningDataModule):
         )
 
     def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+        """Build the unshuffled validation loader, or an empty list when no validation set was given."""
         # An empty list tells Lightning to skip validation, so a train-only experiment fits cleanly.
         if self.val_dataset is None:
             return []
@@ -202,6 +207,7 @@ class PointCloudDataModule(LightningDataModule):
         )
 
     def test_dataloader(self) -> DataLoader:
+        """Build the unshuffled test loader, falling back to the validation set when no test set was given."""
         # Fall back to the validation set when no dedicated test set is given: for these benchmarks the
         # held-out split is the validation set, so `Trainer.test` (e.g. a pretrained-weight benchmark)
         # evaluates on it without the experiment having to duplicate the dataset as `test_dataset`.

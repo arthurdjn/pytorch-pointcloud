@@ -1,3 +1,5 @@
+"""Shared type aliases, `TypedDict` definitions, and enums used across the package."""
+
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Sequence, Tuple, TypedDict, TypeVar, Union
@@ -67,6 +69,8 @@ AggrType = Literal["add", "mean", "max"]
 
 
 class MessagePassingParams(TypedDict):
+    """Keyword arguments a message-passing layer forwards to its `MessagePassing` base class."""
+
     aggr: NotRequired[AggrType]
     aggr_kwargs: NotRequired[Optional[Dict[str, Any]]]
     flow: NotRequired[FlowType]
@@ -75,6 +79,8 @@ class MessagePassingParams(TypedDict):
 
 
 class StrEnum(str, Enum):
+    """Enum whose members are plain strings, so they compare, print and hash like their value."""
+
     def __str__(self) -> str:
         return self.value
 

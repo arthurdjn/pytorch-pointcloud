@@ -335,6 +335,17 @@ class DictTransform(Transform, metaclass=ABCMeta):
         *extra_iterables: Iterable[Any],
         extra_msg: str = "",
     ) -> Generator[Any, None, None]:
+        """Iterate over `self.keys` present in the data, honoring `allow_missing_keys`.
+
+        Args:
+            data: The dictionary data the transform is applied to.
+            *extra_iterables: Per-key values (e.g. one output key per input key) zipped with `self.keys`.
+            extra_msg: Message appended to the `KeyError` raised on a missing key.
+
+        Returns:
+            A generator yielding each present key, or a tuple of the key and its values from
+            `extra_iterables` when any is given.
+        """
         # inspired by: https://github.com/Project-MONAI/MONAI/blob/main/monai/transforms/transform.py#L456
         # if no extra iterables given, create a dummy list of Nones
         ex_iters: Iterable[Any] = extra_iterables or [[None] * len(self.keys)]
@@ -356,6 +367,14 @@ class RandomSample(DictTransform):
 
     If multiple keys are provided, the same indices are used for all keys, ensuring
     correspondence between the sampled values.
+
+    === "Object"
+
+        ![RandomSample on an object](../../assets/transforms/random_sample.png)
+
+    === "Scene"
+
+        ![RandomSample on a room](../../assets/transforms/random_sample_scene.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.random_sample`
@@ -426,6 +445,14 @@ class DivisiblePad(DictTransform):
     stored tensor always maps from the outermost source space to the current
     predictor space. Consumers such as `SlidingWindowInferer` read this key
     once and gather predictions back to the source rows.
+
+    === "Object"
+
+        ![DivisiblePad on an object](../../assets/transforms/divisible_pad.png)
+
+    === "Scene"
+
+        ![DivisiblePad on a room](../../assets/transforms/divisible_pad_scene.png)
 
     Args:
         num_samples: Target chunk size $k$ for divisibility.
@@ -509,6 +536,8 @@ class DivisiblePad(DictTransform):
 class RandomSampleFaceVertices(DictTransform):
     """Randomly sample a fixed number of vertices from a 3D mesh stored in a dictionary.
 
+    ![RandomSampleFaceVertices before / after](../../assets/transforms/random_sample_face_vertices.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.random_sample_face_vertices`
 
@@ -563,6 +592,14 @@ class EstimateNormals(DictTransform):
     See Also:
         `torch_pointcloud.transforms.functional.estimate_normals`
 
+    === "Object"
+
+        ![EstimateNormals on an object](../../assets/transforms/estimate_normals.png)
+
+    === "Scene"
+
+        ![EstimateNormals on a room](../../assets/transforms/estimate_normals_scene.png)
+
     Args:
         keys: Coordinate keys to estimate normals from.
         normal_key: Keys under which to store the normals (one per coordinate key). Defaults to `normal`.
@@ -604,6 +641,14 @@ class FarthestPointSample(DictTransform):
     Iteratively picks the point that maximizes the minimum distance to the
     already-selected set, producing a well-distributed subset. Matches the FPS
     convention used by PointNet++, PointNeXt, KPConv, and others.
+
+    === "Object"
+
+        ![FarthestPointSample on an object](../../assets/transforms/farthest_point_sample.png)
+
+    === "Scene"
+
+        ![FarthestPointSample on a room](../../assets/transforms/farthest_point_sample_scene.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.farthest_point_sample`
@@ -668,6 +713,18 @@ class Rescale(DictTransform):
 
     Empty inputs (`N=0`) are returned unchanged.
 
+    === "method=centroid"
+
+        ![Rescale method=centroid on an object](../../assets/transforms/rescale_centroid.png)
+
+    === "method=bbox"
+
+        ![Rescale method=bbox on an object](../../assets/transforms/rescale_bbox.png)
+
+    === "method=linear"
+
+        ![Rescale method=linear on an object](../../assets/transforms/rescale_linear.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.rescale`
 
@@ -699,6 +756,14 @@ class Rescale(DictTransform):
 
 class RemoveNearOrigin(DictTransform):
     """Remove points that are within a given radius of the origin from dictionary entries.
+
+    === "Object"
+
+        ![RemoveNearOrigin on an object](../../assets/transforms/remove_near_origin.png)
+
+    === "Scene"
+
+        ![RemoveNearOrigin on a room](../../assets/transforms/remove_near_origin_scene.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.remove_near_origin`
@@ -742,6 +807,14 @@ class Abs(DictTransform):
     See Also:
         `torch_pointcloud.transforms.functional.abs`
 
+    === "Object"
+
+        ![Abs on an object](../../assets/transforms/abs.png)
+
+    === "Scene"
+
+        ![Abs on a room](../../assets/transforms/abs_scene.png)
+
     Args:
         keys: The keys to make absolute.
         inplace: Whether to perform the operation in place.
@@ -775,6 +848,14 @@ class BoxMask(DictTransform):
 
     - `CubeMask` - L∞ ball (center + radius)
     - `SphereMask` - L2 ball (center + radius)
+
+    === "Object"
+
+        ![BoxMask on an object](../../assets/transforms/box_mask.png)
+
+    === "Scene"
+
+        ![BoxMask on a room](../../assets/transforms/box_mask_scene.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.box_mask`
@@ -817,6 +898,14 @@ class ApplyMask(DictTransform):
     See Also:
         `torch_pointcloud.transforms.functional.apply_mask`
 
+    === "Object"
+
+        ![ApplyMask on an object](../../assets/transforms/apply_mask.png)
+
+    === "Scene"
+
+        ![ApplyMask on a room](../../assets/transforms/apply_mask_scene.png)
+
     Args:
         keys: The keys to apply the mask to.
         mask_key: The key containing the mask.
@@ -853,6 +942,8 @@ class SetValue(DictTransform):
     Unlike most `DictTransform` subclasses, `SetValue` does not read existing
     values, so `allow_missing_keys` has no meaning and is not accepted.
 
+    ![SetValue diagram](../../assets/transforms/set_value.png)
+
     Args:
         keys: The keys to set.
         values: The values to set. Either a single value broadcast to every key,
@@ -872,6 +963,14 @@ class SetValue(DictTransform):
 
 class Scale(DictTransform):
     """Multiply dictionary tensor entries by a scale factor.
+
+    === "Object"
+
+        ![Scale on an object](../../assets/transforms/scale.png)
+
+    === "Scene"
+
+        ![Scale on a room](../../assets/transforms/scale_scene.png)
 
     Args:
         keys: The keys to scale.
@@ -897,6 +996,14 @@ class Scale(DictTransform):
 
 class Divide(DictTransform):
     """Divide dictionary tensor entries by a divisor.
+
+    === "Object"
+
+        ![Divide on an object](../../assets/transforms/divide.png)
+
+    === "Scene"
+
+        ![Divide on a room](../../assets/transforms/divide_scene.png)
 
     Args:
         keys: The keys to divide.
@@ -927,6 +1034,8 @@ class ToFloat(DictTransform):
     colors) and need to be promoted to floating point before arithmetic
     transforms like `Divide` or `Normalize`.
 
+    ![ToFloat diagram](../../assets/transforms/to_float.png)
+
     Args:
         keys: The keys to cast.
         allow_missing_keys: If `True`, missing keys are silently ignored.
@@ -948,6 +1057,8 @@ class ToFloat(DictTransform):
 
 class Normalize(DictTransform):
     r"""Normalize dictionary tensor entries: $x' = (x - \mu) / \max(\sigma, \epsilon)$.
+
+    ![Normalize before / after](../../assets/transforms/normalize.png)
 
     Args:
         keys: The keys to standardize.
@@ -990,6 +1101,22 @@ class Shift(DictTransform):
     | `"min"`      | Per-axis minimum (shifts to the positive octant) |
 
     On empty inputs (size $0$ along `dim`) the tensor is returned unchanged.
+
+    === "method=centroid"
+
+        ![Shift method=centroid on an object](../../assets/transforms/shift_centroid.png)
+
+    === "method=bbox"
+
+        ![Shift method=bbox on an object](../../assets/transforms/shift_bbox.png)
+
+    === "method=min"
+
+        ![Shift method=min on an object](../../assets/transforms/shift_min.png)
+
+    === "axes"
+
+        ![Shift restricted to a subset of axes, on an object](../../assets/transforms/shift_axes.png)
 
     Args:
         keys: The keys to shift.
@@ -1055,6 +1182,14 @@ class AlignAxis(DictTransform):
 
     Empty inputs (`N=0`) are returned unchanged.
 
+    === "Object"
+
+        ![AlignAxis on an object](../../assets/transforms/align_axis.png)
+
+    === "Scene"
+
+        ![AlignAxis on a room](../../assets/transforms/align_axis_scene.png)
+
     Args:
         keys: The keys to align.
         dim: The coordinate axis to align.
@@ -1111,6 +1246,14 @@ class CubeMask(DictTransform):
     with edge $2r$ aligned to the axes. Pair with `SphereMask` (L2) and
     `BoxMask` (AABB) for the mask family.
 
+    === "Object"
+
+        ![CubeMask on an object](../../assets/transforms/cube_mask.png)
+
+    === "Scene"
+
+        ![CubeMask on a room](../../assets/transforms/cube_mask_scene.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.cube_mask`
 
@@ -1163,6 +1306,14 @@ class SphereMask(DictTransform):
     `RemoveNearOrigin(radius=r)` is equivalent to
     `Compose([SphereMask(center=(0,0,0), radius=r, invert=True), ApplyMask(...)])`.
 
+    === "Object"
+
+        ![SphereMask on an object](../../assets/transforms/sphere_mask.png)
+
+    === "Scene"
+
+        ![SphereMask on a room](../../assets/transforms/sphere_mask_scene.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.sphere_mask`
 
@@ -1204,6 +1355,8 @@ class SphereMask(DictTransform):
 
 class ToDevice(DictTransform):
     """Convert dictionary tensor entries to the given device.
+
+    ![ToDevice diagram](../../assets/transforms/to_device.png)
 
     Args:
         keys: The keys to convert the tensors to the given device.
@@ -1258,6 +1411,14 @@ class ToDevice(DictTransform):
 
 class BuildOctree(DictTransform):
     """Build an octree from positions stored in a dictionary.
+
+    === "Object"
+
+        ![BuildOctree on an object](../../assets/transforms/build_octree.png)
+
+    === "Scene"
+
+        ![BuildOctree on a room](../../assets/transforms/build_octree_scene.png)
 
     Args:
         pos_key: Key holding the point positions.
@@ -1337,13 +1498,21 @@ class HardVoxelize(DictTransform):
     The model then receives already-voxelized input and focuses on the network math.
 
     Reads `pos_key` (and optionally `feat_key`), runs
-    [`hard_voxelize`][torch_pointcloud.utils.voxelization.hard_voxelize] on the single sample (the
+    `hard_voxelize` on the single sample (the
     batch index is all zeros), and adds three keys while keeping `pos` / `x`:
 
     - `voxel_key`: the per-voxel point stack.
     - `pos_voxel_key`: integer voxel grid indices $(z, y, x)$ (the single-sample batch column is dropped;
       the per-voxel scene index is synthesized at collation).
     - `num_points_key`: the per-voxel point counts.
+
+    === "Object"
+
+        ![HardVoxelize on an object](../../assets/transforms/hard_voxelize.png)
+
+    === "Scene"
+
+        ![HardVoxelize on a room](../../assets/transforms/hard_voxelize_scene.png)
 
     Args:
         pos_key: Key holding the point positions $(N, 3)$.
@@ -1366,19 +1535,18 @@ class HardVoxelize(DictTransform):
         ```python
         import torch
         import torch_pointcloud.transforms as T
-        from torch_pointcloud.utils.data import DataKeys
 
-        data = {DataKeys.POS: torch.rand(1000, 3) * 50.0, DataKeys.X: torch.rand(1000, 1)}
+        data = {"pos": torch.rand(1000, 3) * 50.0, "x": torch.rand(1000, 1)}
         transform = T.HardVoxelize(
-            pos_key=DataKeys.POS,
-            feat_key=DataKeys.X,
+            pos_key="pos",
+            feat_key="x",
             voxel_size=(0.16, 0.16, 4.0),
             point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
             max_num_points=32,
             max_num_voxels=40000,
         )
         data = transform(data)
-        print(data[DataKeys.VOXEL].shape, data[DataKeys.POS_VOXEL].shape, data[DataKeys.VOXEL_NUM_POINTS].shape)
+        print(data["voxel"].shape, data["pos_voxel"].shape, data["voxel_num_points"].shape)
         ```
     """
 
@@ -1429,6 +1597,14 @@ class HardVoxelize(DictTransform):
 class OctreeFeatures(DictTransform):
     """Extract per-node features from an octree via `octree.get_input_feature`.
 
+    === "Object"
+
+        ![OctreeFeatures on an object](../../assets/transforms/octree_features.png)
+
+    === "Scene"
+
+        ![OctreeFeatures on a room](../../assets/transforms/octree_features_scene.png)
+
     Args:
         keys: Keys holding `Octree` instances to extract features from.
         features_type: Feature spec passed to `octree.get_input_feature` (e.g.
@@ -1471,6 +1647,8 @@ class Relabel(DictTransform):
       (e.g. SemanticKITTI's `moving-car` and `car` both → 0).
 
     Source values not listed in `labels` are set to `default`.
+
+    ![Relabel before / after](../../assets/transforms/relabel.png)
 
     Args:
         keys: Keys holding label tensors to remap.
@@ -1549,6 +1727,8 @@ class RelabelBoxes(DictTransform):
     boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`, which
     excuse an unmatched prediction only on ignore boxes labelled with the evaluated class.
 
+    ![RelabelBoxes before / after](../../assets/transforms/relabel_boxes.png)
+
     Args:
         keys: Per-box tensors to filter together (e.g. `DataKeys.BOX`, `DataKeys.LABEL`,
             `DataKeys.TRUNCATION`, `DataKeys.OCCLUSION`). Must include `label_key` and every key
@@ -1566,19 +1746,18 @@ class RelabelBoxes(DictTransform):
     Example:
         ```python
         import torch_pointcloud.transforms as T
-        from torch_pointcloud.utils.data import DataKeys
 
         # KITTI: raw 8-class boxes -> 3 detection classes, Van / Person_sitting as ignore regions
         # for Car / Pedestrian, moderate difficulty (occlusion <= 1, truncation <= 0.3,
         # height >= 25 px) as ignore.
         T.RelabelBoxes(
-            keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
+            keys=("box", "label", "truncation", "occlusion", "bbox_height"),
             mapping={0: 0, 3: 1, 5: 2},
             ignore_mapping={1: 0, 4: 1},
             ignore_fields={
-                DataKeys.OCCLUSION: (None, 1),
-                DataKeys.TRUNCATION: (None, 0.3),
-                DataKeys.BBOX_HEIGHT: (25, None),
+                "occlusion": (None, 1),
+                "truncation": (None, 0.3),
+                "bbox_height": (25, None),
             },
         )
         ```
@@ -1636,6 +1815,8 @@ class RelabelBoxes(DictTransform):
 class RenameItems(DictTransform):
     """Rename keys in the dictionary.
 
+    ![RenameItems diagram](../../assets/transforms/rename_items.png)
+
     Args:
         keys: Source keys to rename.
         names: New key names (same length as `keys`).
@@ -1660,6 +1841,8 @@ class RenameItems(DictTransform):
 
 class CopyItems(DictTransform):
     """Copy values from source keys to new destination keys.
+
+    ![CopyItems diagram](../../assets/transforms/copy_items.png)
 
     Args:
         keys: Source keys to copy from.
@@ -1694,6 +1877,14 @@ class SubtractKey(DictTransform):
     Computes `data[key] = data[key] - data[sub_key]` for each key. With `axes`
     set, only the listed last-dim indices are subtracted; the other components
     pass through unchanged (useful to shift only XY while keeping Z absolute).
+
+    === "Object"
+
+        ![SubtractKey on an object](../../assets/transforms/subtract_key.png)
+
+    === "Scene"
+
+        ![SubtractKey on a room](../../assets/transforms/subtract_key_scene.png)
 
     Args:
         keys: Keys whose tensors are modified (subtracted from).
@@ -1738,6 +1929,14 @@ class BBoxCenter(DictTransform):
     the per-axis midpoint $(\min + \max) / 2$ (shape $(D,)$) at the matching
     destination key.
 
+    === "Object"
+
+        ![BBoxCenter on an object](../../assets/transforms/bbox_center.png)
+
+    === "Scene"
+
+        ![BBoxCenter on a room](../../assets/transforms/bbox_center_scene.png)
+
     Args:
         keys: Source keys holding flat bbox tensors of shape $(2D,)$.
         dst_keys: Destination keys for the centers. Defaults to overwriting
@@ -1779,6 +1978,8 @@ class DivideKey(DictTransform):
 
     Computes `data[key] = data[key] / data[div_key]` for each key.
 
+    ![DivideKey diagram](../../assets/transforms/divide_key.png)
+
     Args:
         keys: Keys whose tensors are divided.
         div_keys: Keys whose values are used as the divisors.
@@ -1806,6 +2007,8 @@ class DivideKey(DictTransform):
 
 class ToTensor(DictTransform):
     """Convert dictionary entries to tensors.
+
+    ![ToTensor diagram](../../assets/transforms/to_tensor.png)
 
     Args:
         keys: The keys to convert.
@@ -1848,6 +2051,14 @@ class Voxelize(DictTransform):
     invertible transform), the new map composes with it via gather, so the
     stored tensor always maps from the outermost source space to the current
     predictor space.
+
+    === "Object"
+
+        ![Voxelize on an object](../../assets/transforms/voxelize.png)
+
+    === "Scene"
+
+        ![Voxelize on a room](../../assets/transforms/voxelize_scene.png)
 
     Args:
         pos_key: Key holding the positions to sub-sample.
@@ -2001,6 +2212,14 @@ class Quantize(DictTransform):
     sub-cloud holds one point per voxel, so its rows are exactly the voxels), and how test-time views recompute
     grid coordinates after rotating or scaling the positions.
 
+    === "Object"
+
+        ![Quantize on an object](../../assets/transforms/quantize.png)
+
+    === "Scene"
+
+        ![Quantize on a room](../../assets/transforms/quantize_scene.png)
+
     Args:
         keys: Keys holding point positions of shape $(N, D)$.
         size: Voxel side length in the units of the positions.
@@ -2041,6 +2260,8 @@ class Quantize(DictTransform):
 
 class OnesLike(DictTransform):
     """Adds a tensor of ones shaped like existing dictionary entries.
+
+    ![OnesLike diagram](../../assets/transforms/ones_like.png)
 
     Args:
         keys: Reference keys used to determine tensor shape.
@@ -2111,6 +2332,14 @@ class AxisMinOffset(DictTransform):
     reduced to size 1 (e.g. $(N, 3) \to (N, 1)$ or $(B, N, 3) \to (B, N, 1)$).
     For batched inputs, the minimum is computed per-sample.
 
+    === "Object"
+
+        ![AxisMinOffset on an object](../../assets/transforms/axis_min_offset.png)
+
+    === "Scene"
+
+        ![AxisMinOffset on a room](../../assets/transforms/axis_min_offset_scene.png)
+
     Args:
         keys: Keys holding point positions of shape $(N, D)$.
         axis: Coordinate axis $a$ along which to compute the offset.
@@ -2121,7 +2350,7 @@ class AxisMinOffset(DictTransform):
         allow_missing_keys: If True, skip missing keys instead of raising.
 
     Example:
-        Let's say you have a point cloud with positions `(N, 3)` in XYZ order
+        Let's say you have a point cloud with positions $(N, 3)$ in XYZ order
         and you want to compute the offset from the minimum along the z-axis,
         i.e. computing the height above the local floor.
 
@@ -2135,7 +2364,7 @@ class AxisMinOffset(DictTransform):
         data = transform(data)
         ```
 
-        Now, the data dictionary will contain the key `pos_offset` with the shape `(N, 1)`.
+        Now, the data dictionary will contain the key `pos_offset` with the shape $(N, 1)$.
     """
 
     def __init__(
@@ -2167,6 +2396,8 @@ class Cat(DictTransform):
     Integer inputs are cast to `float32`; floating inputs keep their dtype. When the inputs mix
     floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast).
 
+    ![Cat diagram](../../assets/transforms/cat.png)
+
     Args:
         keys: Keys whose tensors are concatenated (in order).
         dst_key: Key under which the result is stored.
@@ -2189,7 +2420,7 @@ class Cat(DictTransform):
         data = transform(data)
         ```
 
-        Now, the data dictionary will contain the key `x` with the shape `(10, 9)`.
+        Now, the data dictionary will contain the key `x` with the shape $(10, 9)$.
     """
 
     def __init__(
@@ -2220,6 +2451,8 @@ class OneHot(DictTransform):
 
     Wraps `torch.nn.functional.one_hot` and casts the result to float so the
     output is ready to feed into a model.
+
+    ![OneHot diagram](../../assets/transforms/one_hot.png)
 
     Args:
         keys: Keys holding integer (long) class indices.
@@ -2261,6 +2494,8 @@ class Reduce(DictTransform):
 
     Useful for capturing per-sample statistics (e.g. axis-wise scene maxima or
     centroids) as standalone keys that downstream transforms can reference.
+
+    ![Reduce diagram](../../assets/transforms/reduce.png)
 
     Args:
         keys: Keys to reduce.
@@ -2322,6 +2557,8 @@ class KeepItems(DictTransform):
         This transform is useful if during augmentation process you constructed multiple tensors and want
         to drop intermediate tensors for memory efficiency.
 
+    ![KeepItems diagram](../../assets/transforms/keep_items.png)
+
     Args:
         keys: The keys to keep in the data dictionary.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
@@ -2359,13 +2596,25 @@ class KeepItems(DictTransform):
 
 
 class RandomRotate(DictTransform):
-    """Rotate one or more keys (and optionally oriented boxes) by a uniformly random angle around an axis.
+    r"""Rotate one or more keys (and optionally oriented boxes) by a uniformly random angle around an axis.
 
     Sampling is done once per call: every listed key and the optional box get the same rotation. Each key is a
-    `(..., 3)` field or a packed `(N, 3 G)` field of tiled 3D offsets (e.g. VoteNet votes). Pair
+    $(\ldots, 3)$ field or a packed $(N, 3G)$ field of tiled 3D offsets (e.g. VoteNet votes). Pair
     `keys=("pos", "normal")` to keep positions and normals consistent, or pass `box_key` to also rotate a
-    `(K, 7)` oriented-box tensor (centers rotated, heading incremented). Box headings are counterclockwise
+    $(K, 7)$ oriented-box tensor (centers rotated, heading incremented). Box headings are counterclockwise
     yaw about the up axis, so `box_key` requires `axis=2`.
+
+    === "Object"
+
+        ![RandomRotate on an object](../../assets/transforms/random_rotate.png)
+
+    === "Scene"
+
+        ![RandomRotate on a room](../../assets/transforms/random_rotate_scene.png)
+
+    === "Per axis"
+
+        ![RandomRotate around each axis on an object](../../assets/transforms/rotate_axes.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.rotate_vectors`,
@@ -2373,11 +2622,11 @@ class RandomRotate(DictTransform):
         `torch_pointcloud.transforms.functional.rotation_matrix`
 
     Args:
-        keys: Keys to rotate. Each must be a `(..., 3)` or `(N, 3 G)` vector field.
+        keys: Keys to rotate. Each must be a $(\ldots, 3)$ or $(N, 3G)$ vector field.
         angle_range: Min and max rotation angle, in **degrees**.
         axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
         p: Probability of applying the transform.
-        box_key: Optional key of a `(K, 7)` oriented-box tensor to rotate jointly (requires `axis=2`).
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to rotate jointly (requires `axis=2`).
         dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
         dst_box_key: Where to store the rotated boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
@@ -2430,13 +2679,21 @@ class RandomScale(DictTransform):
     """Scale one or more keys (and optionally oriented boxes) by a uniformly random factor.
 
     Sampling is done once per call: every listed key and the optional box are scaled by the same factor (or
-    per-axis factor vector when `anisotropic=True`). Pass `box_key` to also scale a `(K, 7)` oriented-box
+    per-axis factor vector when `anisotropic=True`). Pass `box_key` to also scale a $(K, 7)$ oriented-box
     tensor (centers and sizes). An oriented box has no per-axis scale, so `box_key` is incompatible with
     `anisotropic=True`.
 
     List only point-like keys. Do not list direction vectors such as `normal`: a scaled normal is no
     longer unit length, while a true surface normal is unchanged by an isotropic scale (and an
     anisotropic scale would require the inverse-transpose rule). Simply omit normal keys.
+
+    === "Object"
+
+        ![RandomScale on an object](../../assets/transforms/random_scale.png)
+
+    === "Scene"
+
+        ![RandomScale on a room](../../assets/transforms/random_scale_scene.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.scale_boxes`
@@ -2446,7 +2703,7 @@ class RandomScale(DictTransform):
         scale_range: Min and max scaling factor.
         anisotropic: If `True`, sample a separate scale per axis of the last dim (incompatible with `box_key`).
         p: Probability of applying the transform.
-        box_key: Optional key of a `(K, 7)` oriented-box tensor to scale jointly.
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to scale jointly.
         dst_keys: Where to store the scaled tensors.
         dst_box_key: Where to store the scaled boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
@@ -2508,21 +2765,33 @@ class RandomScale(DictTransform):
 
 
 class RandomFlip(DictTransform):
-    """Flip listed axes (and optionally oriented boxes) with probability `p` each.
+    r"""Flip listed axes (and optionally oriented boxes) with probability `p` each.
 
     Sampling is done once per call: every listed key and the optional box are flipped on the same axes. Each
-    key is a `(..., 3)` field or a packed `(N, 3 G)` field of tiled 3D offsets (e.g. VoteNet votes). Pass
-    `box_key` to also flip a `(K, 7)` oriented-box tensor (centers negated, heading remapped).
+    key is a $(\ldots, 3)$ field or a packed $(N, 3G)$ field of tiled 3D offsets (e.g. VoteNet votes). Pass
+    `box_key` to also flip a $(K, 7)$ oriented-box tensor (centers negated, heading remapped).
+
+    === "Object"
+
+        ![RandomFlip on an object](../../assets/transforms/random_flip.png)
+
+    === "Scene"
+
+        ![RandomFlip on a room](../../assets/transforms/random_flip_scene.png)
+
+    === "Per axis"
+
+        ![RandomFlip across each axis on an object](../../assets/transforms/flip_axes.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.flip_vectors`,
         `torch_pointcloud.transforms.functional.flip_boxes`
 
     Args:
-        keys: Keys to flip. Each must be a `(..., 3)` or `(N, 3 G)` vector field.
+        keys: Keys to flip. Each must be a $(\ldots, 3)$ or $(N, 3G)$ vector field.
         axes: Axis indices (into each 3D triple) to consider for flipping.
         p: Per-axis flip probability.
-        box_key: Optional key of a `(K, 7)` oriented-box tensor to flip jointly.
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to flip jointly.
         dst_keys: Where to store the flipped tensors.
         dst_box_key: Where to store the flipped boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
@@ -2580,6 +2849,14 @@ class RandomJitter(DictTransform):
     Each key gets its own independent noise tensor (because the noise shape
     matches the key shape). Pair-rotation-style consistency does not apply here.
 
+    === "Object"
+
+        ![RandomJitter on an object](../../assets/transforms/random_jitter.png)
+
+    === "Scene"
+
+        ![RandomJitter on a room](../../assets/transforms/random_jitter_scene.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.random_jitter`
 
@@ -2626,11 +2903,19 @@ class RandomShift(DictTransform):
     """Translate listed keys (and optionally oriented boxes) by a uniformly random vector.
 
     Sampling is done once per call: all listed keys and the optional box are shifted by the same
-    translation vector. Pass `box_key` to also shift a `(K, 7)` oriented-box tensor (centers only;
+    translation vector. Pass `box_key` to also shift a $(K, 7)$ oriented-box tensor (centers only;
     sizes and heading unchanged).
 
     List only point-like keys. Do not list direction vectors such as `normal`: directions are
     translation-invariant, so a shifted normal is wrong. Simply omit normal keys.
+
+    === "Object"
+
+        ![RandomShift on an object](../../assets/transforms/random_shift.png)
+
+    === "Scene"
+
+        ![RandomShift on a room](../../assets/transforms/random_shift_scene.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.shift_boxes`
@@ -2639,7 +2924,7 @@ class RandomShift(DictTransform):
         keys: Keys to shift. Point-like keys only; do not list direction vectors such as `normal`.
         shift_range: Min and max per-axis translation.
         p: Probability of applying the transform.
-        box_key: Optional key of a `(K, 7)` oriented-box tensor to shift jointly.
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to shift jointly.
         dst_keys: Where to store the shifted tensors.
         dst_box_key: Where to store the shifted boxes. Defaults to `box_key` (in-place).
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
@@ -2700,11 +2985,19 @@ class RandomDropout(DictTransform):
     The same boolean keep-mask is applied to every key so per-point
     correspondence is preserved. Sampling is once per call.
 
+    === "Object"
+
+        ![RandomDropout on an object](../../assets/transforms/random_dropout.png)
+
+    === "Scene"
+
+        ![RandomDropout on a room](../../assets/transforms/random_dropout_scene.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.random_dropout_mask`
 
     Args:
-        keys: Keys to subset. All must share the same leading dimension `N`.
+        keys: Keys to subset. All must share the same leading dimension $N$.
         p_drop: Fraction of points to drop per call (uniform across points).
             Must lie in $[0, 1)$.
         p: Probability of applying the transform.
@@ -2750,11 +3043,13 @@ class RandomColorJitter(DictTransform):
     Each strength is a relative delta uniformly sampled from `[-x, x]`. Sampling
     is once per call, so the same factors are applied to every listed key.
 
+    ![RandomColorJitter before / after](../../assets/transforms/color_jitter.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.color_jitter`
 
     Args:
-        keys: Color keys to jitter, shape `(N, 3)`.
+        keys: Color keys to jitter, shape $(N, 3)$.
         brightness: Max relative brightness change in $[0, 1]$.
         contrast: Max relative contrast change in $[0, 1]$.
         saturation: Max relative saturation change in $[0, 1]$.
@@ -2813,6 +3108,8 @@ class RandomColorJitter(DictTransform):
 class RandomColorDrop(DictTransform):
     """Replace colors with a constant gray value with probability `p`.
 
+    ![RandomColorDrop before / after](../../assets/transforms/color_drop.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.random_color_drop`
 
@@ -2862,11 +3159,13 @@ class RandomColorDrop(DictTransform):
 class RandomColorGrayScale(DictTransform):
     """Convert listed color keys to grayscale (BT.601 luminance) with probability `p`.
 
+    ![RandomColorGrayScale before / after](../../assets/transforms/color_grayscale.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.color_grayscale`
 
     Args:
-        keys: Color keys, shape `(N, 3)`.
+        keys: Color keys, shape $(N, 3)$.
         int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
         p: Probability of converting to grayscale.
         dst_keys: Where to store the result.
@@ -2904,11 +3203,13 @@ class RandomColorGrayScale(DictTransform):
 class RandomColorAutoContrast(DictTransform):
     """Stretch per-cloud color range to the full extent, then blend back, with probability `p`.
 
+    ![RandomColorAutoContrast before / after](../../assets/transforms/color_auto_contrast.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.color_auto_contrast`
 
     Args:
-        keys: Color keys, shape `(N, 3)`.
+        keys: Color keys, shape $(N, 3)$.
         blend: Blend weight in `[0, 1]`. `1.0` is fully auto-contrasted; `0.0` is the input.
         int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
             `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
@@ -2957,6 +3258,14 @@ class SphereCrop(DictTransform):
 
     When `max_nodes` is set and the sphere holds more than `max_nodes` points,
     only the `max_nodes` nearest the center are kept, bounding memory on large scenes.
+
+    === "Object"
+
+        ![SphereCrop on an object](../../assets/transforms/sphere_crop.png)
+
+    === "Scene"
+
+        ![SphereCrop on a room](../../assets/transforms/sphere_crop_scene.png)
 
     Args:
         pos_key: Key with positions used to compute the mask.
@@ -3036,6 +3345,8 @@ class Slice(DictTransform):
     Useful for taking the first $N$ rows (e.g. on FPS-sorted point clouds), or extracting a
     single column of `pos` into a separate key (set `dim=1` with `start=axis, stop=axis+1`).
 
+    ![Slice diagram](../../assets/transforms/slice.png)
+
     Args:
         keys: Keys to slice.
         start: Start index (inclusive). `None` is equivalent to `0`.
@@ -3095,8 +3406,16 @@ class ShufflePoint(DictTransform):
     See Also:
         `torch_pointcloud.transforms.functional.shuffle_indices`
 
+    === "Object"
+
+        ![ShufflePoint on an object](../../assets/transforms/shuffle_point.png)
+
+    === "Scene"
+
+        ![ShufflePoint on a room](../../assets/transforms/shuffle_point_scene.png)
+
     Args:
-        keys: Keys to permute. All must share the same leading dimension `N`.
+        keys: Keys to permute. All must share the same leading dimension $N$.
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
             multi-worker caveat.
@@ -3132,6 +3451,14 @@ class ShufflePoint(DictTransform):
 
 class Clamp(DictTransform):
     """Clamp tensor entries to a range (a thin wrapper over `torch.clamp`).
+
+    === "Object"
+
+        ![Clamp on an object](../../assets/transforms/clamp.png)
+
+    === "Scene"
+
+        ![Clamp on a room](../../assets/transforms/clamp_scene.png)
 
     Args:
         keys: Keys to clamp.
@@ -3173,6 +3500,14 @@ class RandomRotateChoice(DictTransform):
     See Also:
         `torch_pointcloud.transforms.functional.rotation_matrix`,
         `torch_pointcloud.transforms.functional.rotate_vectors`
+
+    === "Object"
+
+        ![RandomRotateChoice on an object](../../assets/transforms/random_rotate_choice.png)
+
+    === "Scene"
+
+        ![RandomRotateChoice on a room](../../assets/transforms/random_rotate_choice_scene.png)
 
     Args:
         keys: Keys to rotate. Each must have shape `(..., 3)`.
@@ -3226,11 +3561,13 @@ class RandomColorShift(DictTransform):
     and add it to every point's value. Sampling is once per call (same shift
     across all listed keys). Result is clamped to the valid color range.
 
+    ![RandomColorShift before / after](../../assets/transforms/color_shift.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.color_shift`
 
     Args:
-        keys: Color keys to shift, shape `(N, 3)`.
+        keys: Color keys to shift, shape $(N, 3)$.
         shift_range: Min and max per-channel offset (in the same range as the colors).
         int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
             `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
@@ -3282,12 +3619,20 @@ class RandomElasticDistortion(DictTransform):
     For multi-scale distortion (the common default), compose two
     `RandomElasticDistortion` calls with different `granularity` / `magnitude`.
 
+    === "Object"
+
+        ![RandomElasticDistortion on an object](../../assets/transforms/random_elastic_distortion.png)
+
+    === "Scene"
+
+        ![RandomElasticDistortion on a room](../../assets/transforms/random_elastic_distortion_scene.png)
+
     See Also:
         `torch_pointcloud.transforms.functional.random_elastic_distortion`
 
     Args:
-        keys: Position keys to distort, shape `(N, 3)`. All listed keys must
-            share the same leading dimension `N`: the per-point displacement is
+        keys: Position keys to distort, shape $(N, 3)$. All listed keys must
+            share the same leading dimension $N$: the per-point displacement is
             computed once from the first present key and added to every key.
         granularity: Size of the displacement-field grid cells. Smaller values
             give higher-frequency distortion.
@@ -3347,6 +3692,8 @@ class InstanceToBox(DictTransform):
     unlabeled points and never form a box. Instances whose class equals `ignore_index` are dropped, so
     mapping the stuff / non-target semantics to `ignore_index` with a `Relabel` upstream filters the boxes
     down to the detection classes.
+
+    ![InstanceToBox before / after](../../assets/transforms/instance_to_box.png)
 
     Args:
         instance_key: Key of the $(N,)$ per-point instance ids.
@@ -3420,6 +3767,8 @@ class GenerateVoteLabels(DictTransform):
 
     See Also:
         `torch_pointcloud.transforms.functional.points_in_oriented_box`
+
+    ![GenerateVoteLabels before / after](../../assets/transforms/generate_vote_labels.png)
 
     Args:
         pos_key: Key of the $(N, 3)$ coordinate tensor.
@@ -3500,6 +3849,8 @@ class EncodeVoteNetTargets(DictTransform):
     See Also:
         `torch_pointcloud.transforms.functional.angle_to_class`,
         `torch_pointcloud.transforms.functional.class_to_size`
+
+    ![EncodeVoteNetTargets before / after](../../assets/transforms/encode_votenet_targets.png)
 
     Args:
         box_key: Key of the $(K, 7)$ box tensor (full extents).
@@ -3613,6 +3964,8 @@ class Mix3D(Transform):
     Unlike the other pairwise mixes, `Mix3D` keeps all points of both scenes, so the mixed scene has
     roughly twice as many points as either input.
 
+    ![Mix3D before / after](../../assets/transforms/mix3d.png)
+
     Args:
         keys: Point-aligned keys concatenated jointly (e.g. `pos`, `color`, `normal`, `segment`).
         instance_key: Key of per-point instance ids to offset, or `None` to skip instance handling.
@@ -3685,6 +4038,8 @@ class LaserMix(Transform):
     See Also:
         `torch_pointcloud.transforms.functional.laser_mix_masks`
 
+    ![LaserMix before / after](../../assets/transforms/laser_mix.png)
+
     Args:
         keys: Point-aligned keys masked jointly (must include `pos_key`).
         num_areas: Candidate band counts; one is sampled uniformly per call.
@@ -3754,6 +4109,8 @@ class PolarMix(Transform):
 
     See Also:
         `torch_pointcloud.transforms.functional.polar_mix_masks`
+
+    ![PolarMix before / after](../../assets/transforms/polar_mix.png)
 
     Args:
         keys: Point-aligned keys masked and concatenated jointly (must include `pos_key`).

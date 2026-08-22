@@ -1,3 +1,5 @@
+"""KITTI 3D object detection dataset with calibration loading and coordinate-frame conversion helpers."""
+
 import json
 import shutil
 from pathlib import Path
@@ -338,19 +340,23 @@ class KITTI(PointCloudDataset):
     @property
     @override
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, suffixed `_fov` when the clouds are cropped to the camera view."""
         suffix = "processed_fov" if self.fov else "processed"
         return Path(self.data_dir, suffix).absolute().as_posix()
 
     @property
     def raw_split_dir(self) -> Path:
+        """Path to the split's raw directory."""
         return Path(self.raw_dir, self._split)
 
     @property
     def processed_split_dir(self) -> Path:
+        """Path to the split's processed cache directory."""
         return Path(self.processed_dir, self._split)
 
     @property
     def frame_ids(self) -> List[str]:
+        """Frame ids of the loaded samples, in dataset order."""
         return [frame for _, frame in self.frames]
 
     @override
