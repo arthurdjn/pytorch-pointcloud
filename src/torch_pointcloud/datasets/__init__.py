@@ -13,7 +13,6 @@ from .scannet import ScanNet, ScanNet20, ScanNet200
 from .scanobjectnn import ScanObjectNN
 from .semantic3d import Semantic3D
 from .semantickitti import SemanticKITTI
-from .shapenet import XCubeShapeNet
 from .shapenetpart import ShapeNetPart
 from .sunrgbd import SunRGBD
 from .toronto3d import Toronto3D
