@@ -21,7 +21,7 @@
 
 ## 🎉 Highlights
 
-- **37 architectures** for classification, segmentation, detection, and self-supervised pretraining:
+- **36 architectures** for classification, segmentation, detection, and self-supervised pretraining:
   PointNet, PointNet++, DGCNN, KPConv, RandLA-Net, PointNeXt, PointMLP, Point Transformer V1/V2/V3, SpUNet, SPVCNN, OctFormer, SphereFormer, OneFormer3D, Sonata, Point-MAE, VoteNet, 3DETR, PointPillars, SECOND, and more.
 - **Pretrained weights** verified against the reference implementations.
 - **Datasets** with download and preprocessing: ModelNet, ScanNet, S3DIS, ScanObjectNN, ShapeNetPart, SemanticKITTI, SunRGBD, Toronto3D, and more.

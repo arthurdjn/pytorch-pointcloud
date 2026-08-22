@@ -225,7 +225,7 @@ def test_import_does_not_load_lazy_optional_dependencies() -> None:
     code = (
         "import sys\n"
         "import torch_pointcloud\n"
-        "loaded = [m for m in ('dwconv', 'flash_attn', 'fvdb', 'mamba_ssm', 'sptr') if m in sys.modules]\n"
+        "loaded = [m for m in ('dwconv', 'flash_attn', 'mamba_ssm', 'sptr') if m in sys.modules]\n"
         "print(','.join(loaded))\n"
     )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)

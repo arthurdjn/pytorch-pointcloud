@@ -3,7 +3,7 @@ r"""Denoising diffusion schedules and samplers.
 Minimal, dependency-free implementation of the DDIM sampler from
 :arxiv: [Denoising Diffusion Implicit Models](https://arxiv.org/abs/2010.02502), matching the
 `diffusers`-style API (`add_noise` / `get_velocity` / `set_timesteps` / `step`) used by latent diffusion
-models such as XCube.
+models.
 """
 
 from typing import Optional, Union

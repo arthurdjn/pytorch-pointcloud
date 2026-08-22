@@ -24,7 +24,6 @@ updates accordingly. Options without a matching wheel are greyed out. `flash-att
 | `ocnn`        | OctFormer (installed together with `dwconv`)                          |
 | `torchsparse` | SPVCNN                                                                |
 | `sptr`        | SphereFormer                                                          |
-| `fvdb-core`   | XCube                                                                 |
 | `lightning`   | The Lightning training modules                                        |
 
 <div class="install-selector" id="install-selector" markdown="0">
@@ -55,7 +54,6 @@ updates accordingly. Options without a matching wheel are greyed out. `flash-att
     <button data-dim="extra" data-val="ocnn">ocnn</button>
     <button data-dim="extra" data-val="torchsparse">torchsparse</button>
     <button data-dim="extra" data-val="sptr">sptr</button>
-    <button data-dim="extra" data-val="fvdb">fvdb-core</button>
     <button data-dim="extra" data-val="lightning">lightning</button>
   </span></div>
   <div class="isel-output">
