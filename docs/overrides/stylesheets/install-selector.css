@@ -1,0 +1,45 @@
+.install-selector {
+  border: .05rem solid var(--md-default-fg-color--lightest, #ddd);
+  border-radius: .2rem; padding: .8rem 1rem 1rem; margin: 1em 0;
+}
+.install-selector .isel-row { display: flex; align-items: flex-start; gap: .5rem; margin: .5rem 0; flex-wrap: wrap; }
+.install-selector .isel-label { min-width: 8.2rem; font-weight: 700; font-size: .65rem; flex-shrink: 0; padding-top: .32rem; }
+.install-selector .isel-opts { display: flex; gap: .5rem; flex-wrap: wrap; flex: 1; }
+.install-selector button {
+  border: .05rem solid var(--md-default-fg-color--lighter, #ccc);
+  background: transparent;
+  color: var(--md-default-fg-color, #222);
+  padding: .28rem .65rem; border-radius: .2rem; cursor: pointer;
+  font-size: .65rem; font-family: inherit;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.install-selector button:hover {
+  border-color: var(--md-accent-fg-color, #526cfe);
+  color: var(--md-accent-fg-color, #526cfe);
+}
+.install-selector button.isel-active, .install-selector button.isel-active:hover {
+  border-color: var(--md-accent-fg-color, #526cfe);
+  background: var(--md-accent-fg-color, #526cfe);
+  color: var(--md-accent-bg-color, #fff);
+}
+.install-selector button.isel-disabled, .install-selector button.isel-disabled:hover {
+  opacity: .4; cursor: not-allowed;
+  border-color: var(--md-default-fg-color--lighter, #ccc);
+  color: var(--md-default-fg-color, #222);
+  background: transparent;
+}
+.install-selector .isel-output { position: relative; margin: .9rem 0 0; }
+.install-selector .isel-output pre { margin: 0; }
+.install-selector .isel-output pre code { padding-right: 2.4rem; }
+.install-selector .md-clipboard, .install-selector .md-code__button { display: none; }
+.install-selector .isel-copy {
+  position: absolute; top: .5rem; right: .5rem; z-index: 1;
+  border: none; padding: .2rem; background: transparent;
+  color: var(--md-default-fg-color--light, #888); cursor: pointer;
+}
+.install-selector .isel-copy:hover, .install-selector .isel-copy.isel-copied {
+  color: var(--md-accent-fg-color, #526cfe);
+}
+.install-selector button:focus-visible {
+  outline: .1rem solid var(--md-accent-fg-color, #526cfe); outline-offset: .1rem;
+}

@@ -53,6 +53,7 @@ site_dir = "site"
 # Read more: https://zensical.org/docs/customization/#additional-css
 extra_css = [
     "overrides/stylesheets/extra.css",
+    "overrides/stylesheets/install-selector.css",
     "https://unpkg.com/katex@0/dist/katex.min.css",
 ]
 
@@ -64,8 +65,10 @@ extra_css = [
 # Read more: https://zensical.org/docs/customization/#additional-javascript
 extra_javascript = [
     "overrides/javascripts/extra.js",
+    "overrides/javascripts/install-selector.js",
     "overrides/javascripts/links.js",
     "overrides/javascripts/tablesort.js",
+    "overrides/javascripts/table-wordbreak.js",
     "overrides/javascripts/katex.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
@@ -84,9 +87,39 @@ nav = [
         { "Installation" = "installation.md" },
         { "Quick Start" = "get-started.md" },
     ] },
-    { "Models" = "models/overview.md" },
-    { "Datasets" = "datasets/overview.md" },
-    { "Transforms" = "transforms/overview.md" },
+    { "Models" = [
+        { "Overview" = "models/overview.md" },
+    ] },
+    { "Datasets" = [
+        { "Overview" = "datasets/overview.md" },
+    ] },
+    { "Transforms" = [
+        { "Overview" = "transforms/overview.md" },
+        { "Sampling" = "transforms/sampling.md" },
+        { "Geometric" = "transforms/geometric.md" },
+        { "Cropping" = "transforms/cropping.md" },
+        { "Color" = "transforms/color.md" },
+        { "Augmentation" = "transforms/augmentation.md" },
+        { "Utilities" = "transforms/utilities.md" },
+    ] },
+    { "Inferers" = [
+        { "Overview" = "inferers/overview.md" },
+        { "SimpleInferer" = "inferers/simple.md" },
+        { "SlidingWindowInferer" = "inferers/sliding-window.md" },
+        { "KNNWindowInferer" = "inferers/knn-window.md" },
+        { "VoxelPartitionInferer" = "inferers/voxel-partition.md" },
+        { "TTAInferer" = "inferers/tta.md" },
+        { "PotentialSphereInferer" = "inferers/potential-sphere.md" },
+        { "PartRefinementInferer" = "inferers/part-refinement.md" },
+    ] },
+    { "Tutorials" = [
+        { "Overview" = "examples/index.md" },
+        { "Quickstart" = "examples/01-quickstart.md" },
+        { "Segment a Scene" = "examples/02-segmentation-inference.md" },
+        { "Preprocessing Pipelines" = "examples/03-transforms.md" },
+        { "Use Your Own Data" = "examples/04-custom-dataset.md" },
+        { "Train a Model" = "examples/05-training.md" },
+    ] },
     { "API Reference" = [
         { "Overview" = "api/index.md" },
         { "config" = "api/config.md" },
@@ -111,8 +144,6 @@ nav = [
             { "fps" = "api/layers/fps.md" },
             { "geometric_affine" = "api/layers/geometric_affine.md" },
             { "grid_pool" = "api/layers/grid_pool.md" },
-            { "heads" = "api/layers/heads.md" },
-            { "layer_container" = "api/layers/layer_container.md" },
             { "linear_blocks" = "api/layers/linear_blocks.md" },
             { "octree_attention" = "api/layers/octree_attention.md" },
             { "octree_blocks" = "api/layers/octree_blocks.md" },
@@ -121,7 +152,6 @@ nav = [
             { "pointnet2_blocks" = "api/layers/pointnet2_blocks.md" },
             { "pointnext_blocks" = "api/layers/pointnext_blocks.md" },
             { "pools" = "api/layers/pools.md" },
-            { "reshape" = "api/layers/reshape.md" },
             { "rope" = "api/layers/rope.md" },
             { "serialized_attention" = "api/layers/serialized_attention.md" },
             { "serialized_pool" = "api/layers/serialized_pool.md" },
@@ -149,7 +179,7 @@ nav = [
             { "pvcnn" = "api/models/pvcnn.md" },
             { "pvcnn2" = "api/models/pvcnn2.md" },
             { "randlanet" = "api/models/randlanet.md" },
-            { "sontata" = "api/models/sontata.md" },
+            { "sonata" = "api/models/sonata.md" },
             { "spunet" = "api/models/spunet.md" },
             { "spvcnn" = "api/models/spvcnn.md" },
             { "utonia" = "api/models/utonia.md" },
@@ -167,7 +197,6 @@ nav = [
             { "geometry" = "api/utils/geometry.md" },
             { "hilbert" = "api/utils/hilbert.md" },
             { "imports" = "api/utils/imports.md" },
-            { "inference" = "api/utils/inference.md" },
             { "io" = "api/utils/io.md" },
             { "metrics" = "api/utils/metrics.md" },
             { "misc" = "api/utils/misc.md" },
@@ -293,7 +322,6 @@ features = [
     # When section index pages are enabled, documents can be directly attached
     # to sections, which is particularly useful for providing overview pages.
     # https://zensical.org/docs/setup/navigation/#section-index-pages
-    "navigation.indexes",
 
     # When instant navigation is enabled, clicks on all internal links will be
     # intercepted and dispatched via XHR without fully reloading the page.
@@ -412,7 +440,7 @@ code = "Jetbrains Mono"
 # - https://zensical.org/docs/authoring/icons-emojis/#search
 # ----------------------------------------------------------------------------
 [project.theme.icon]
-logo = "pytorch"
+logo = "pytorch-pointcloud-mini"
 repo = "fontawesome/brands/git-alt"
 edit = "material/pencil"
 view = "material/eye"
@@ -434,6 +462,7 @@ link = "https://github.com/arthurdjn/pytorch-pointcloud"
 [project.markdown_extensions.md_in_html]
 [project.markdown_extensions.toc]
 title = "On this page"
+toc_depth = 3
 permalink = true
 permalink_title = "Anchor link to this section"
 
@@ -464,6 +493,7 @@ paths = ["src"]
 [project.plugins.mkdocstrings.handlers.python.options]
 docstring_section_style = "list"
 docstring_style = "google"
+filters = ["!^_", "!^extra_repr$"]
 inherited_members = true
 members_order = "source"
 merge_init_into_class = true

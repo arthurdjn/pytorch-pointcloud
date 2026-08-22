@@ -1,6 +1,6 @@
 # Inferers
 
-`torch-pointcloud.inferers` is the test-time inference layer. It mirrors [MONAI's `monai.inferers`](https://docs.monai.io/en/stable/inferers.html): one `Inferer` ABC, several concrete strategies, and a wrap-and-compose pattern so that test-time augmentation (TTA) layers on top of any base inferer.
+:pytorch-pointcloud-mini: `torch-pointcloud.inferers` is the test-time inference layer. it contains an abstract base `Inferer`, several concrete strategies, and a wrap-and-compose pattern so that test-time augmentation (TTA) layers can be added on top of any base inferer.
 
 ```{.python notest}
 from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
@@ -30,7 +30,3 @@ probs = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
 | `PotentialSphereInferer` | radius spheres drawn from a coarse potential grid, EMA of softmax                           | potential sphere voting (KPConv)                                         |
 | `TTAInferer`             | any base inferer under enumerated or random views (`include_identity` adds a clean pass)    | test-time augmentation and voting                                        |
 | `PartRefinementInferer`  | any base inferer, then a nearest-neighbour majority over rare / foreign part labels         | part-segmentation label refinement                                       |
-
-Every `Lit*Model` runs its test batches through `model.inferer` (a `SimpleInferer` unless the experiment sets one); the
-Hydra group `configs/inferer/` holds the presets, so an experiment picks its protocol with `override /inferer: <name>`
-and the CLI can swap it (`test.py experiment=... inferer=simple`).
