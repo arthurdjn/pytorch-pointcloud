@@ -1,4 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>pytorch-pointcloud - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
     <circle class="dot" cx="54.13" cy="97.53" r="7.66" />
     <circle class="dot" cx="30.89" cy="120.77" r="7.66" />
     <circle class="dot" cx="54.13" cy="120.77" r="10.21" />

@@ -1,6 +1,6 @@
 # Transforms
 
-`torch-pointcloud.transforms` is the preprocessing layer. It is modelled on :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions: every transform operates on a `Dict[str, Tensor]` representing a **single scene** (one sample, pre-collate), and transforms chain via `Compose`.
+:pytorch-pointcloud-mini: `torch-pointcloud.transforms` is the preprocessing layer. It is modelled on :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions: every transform operates on a `Dict[str, Tensor]` representing a **single scene** (one sample, pre-collate), and transforms chain via `Compose`.
 
 ```python
 import torch
