@@ -1,5 +1,7 @@
 r"""3DETR: an end-to-end transformer detector for 3D point clouds.
 
+{{ paper("2109.08141") }}
+
 Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
 Reference implementation: :github: [facebookresearch/3detr](https://github.com/facebookresearch/3detr).
 """

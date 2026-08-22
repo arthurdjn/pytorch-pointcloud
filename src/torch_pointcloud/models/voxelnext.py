@@ -1,4 +1,7 @@
-"""VoxelNeXt detection model."""
+"""VoxelNeXt detection model.
+
+{{ paper("2303.11301") }}
+"""
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 

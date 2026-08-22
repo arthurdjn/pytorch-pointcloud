@@ -1,4 +1,7 @@
-"""Point-MAE classification, segmentation, and masked autoencoder pretraining models."""
+"""Point-MAE classification, segmentation, and masked autoencoder pretraining models.
+
+{{ paper("2203.06604") }}
+"""
 
 from typing import (
     Any,

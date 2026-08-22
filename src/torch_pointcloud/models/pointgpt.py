@@ -1,4 +1,7 @@
-"""PointGPT classification and generative pretraining models."""
+"""PointGPT classification and generative pretraining models.
+
+{{ paper("2305.11487") }}
+"""
 
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 

@@ -1,4 +1,7 @@
-"""OneFormer3D unified semantic and instance segmentation model."""
+"""OneFormer3D unified semantic and instance segmentation model.
+
+{{ paper("2311.14405") }}
+"""
 
 from typing import (
     TYPE_CHECKING,

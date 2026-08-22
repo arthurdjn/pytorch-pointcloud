@@ -1,4 +1,7 @@
-"""ModelNet10/40 shape classification datasets, including normal-resampled and HDF5 variants."""
+"""ModelNet10/40 shape classification datasets, including normal-resampled and HDF5 variants.
+
+{{ paper("1406.5670") }}
+"""
 
 import json
 import shutil

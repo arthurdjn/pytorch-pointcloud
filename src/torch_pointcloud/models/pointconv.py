@@ -1,4 +1,7 @@
-"""PointConv classification model."""
+"""PointConv classification model.
+
+{{ paper("1811.07246") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Type, Union, overload
 

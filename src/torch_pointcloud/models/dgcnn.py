@@ -1,4 +1,7 @@
-"""DGCNN classification and segmentation models."""
+"""DGCNN classification and segmentation models.
+
+{{ paper("1801.07829") }}
+"""
 
 from typing import Any, Callable, Dict, NamedTuple, Optional, Sequence, Tuple, Union
 

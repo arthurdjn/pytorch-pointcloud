@@ -67,9 +67,20 @@ examples: ## Render example notebooks to Markdown (docs/examples/*.md)
 api: ## Regenerate the per-module API reference stubs (docs/api/)
 	$(CMD) python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
 
+.PHONY: assets
+assets: ## Embed author / license metadata in the committed documentation assets
+	$(CMD) python docs/scripts/stamp_asset_metadata.py
+
+.PHONY: papers
+papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
+	$(CMD) python docs/scripts/build_paper_cards.py
+	@# The macro reads the metadata at build time, but zensical's cache keys on the
+	@# page source (unchanged), so drop the cache to pick up new previews.
+	rm -rf .cache
+
 .PHONY: docs
 docs: tables examples api ## Generate documentation
-	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical build
+	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical build --strict
 
 .PHONY: serve
 serve: tables examples api ## Serve documentation

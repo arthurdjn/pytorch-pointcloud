@@ -1,4 +1,7 @@
-"""Point Transformer V3 classification and segmentation models."""
+"""Point Transformer V3 classification and segmentation models.
+
+{{ paper("2312.10035") }}
+"""
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

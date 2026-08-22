@@ -1,5 +1,7 @@
 """The Paris-Lille-3D (NPM3D) dataset.
 
+{{ paper("1712.00032") }}
+
 :arxiv: [Paris-Lille-3D: A Point Cloud Dataset for Urban Scene Segmentation and Classification](https://arxiv.org/abs/1712.00032)
 by Roynard, Deschaud and Goulette (2018).
 

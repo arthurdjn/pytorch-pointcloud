@@ -1,4 +1,7 @@
-"""SphereFormer segmentation model."""
+"""SphereFormer segmentation model.
+
+{{ paper("2303.12766") }}
+"""
 
 from collections import OrderedDict
 from functools import partial

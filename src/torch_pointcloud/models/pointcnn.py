@@ -1,4 +1,7 @@
-"""PointCNN classification and segmentation models."""
+"""PointCNN classification and segmentation models.
+
+{{ paper("1801.07791") }}
+"""
 
 from typing import (
     Any,

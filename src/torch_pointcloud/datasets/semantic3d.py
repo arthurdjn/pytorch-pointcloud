@@ -1,5 +1,7 @@
 """The Semantic3D dataset.
 
+{{ paper("1704.03847") }}
+
 :arxiv: [Semantic3D.net: A new Large-scale Point Cloud Classification Benchmark](https://arxiv.org/abs/1704.03847)
 by Hackel, Savinov, Ladicky, Wegner, Schindler and Pollefeys (2017).
 

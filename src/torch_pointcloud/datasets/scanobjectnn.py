@@ -1,4 +1,7 @@
-"""ScanObjectNN real-world object classification dataset with its background and perturbation variants."""
+"""ScanObjectNN real-world object classification dataset with its background and perturbation variants.
+
+{{ paper("1908.04616") }}
+"""
 
 from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Sequence, Union

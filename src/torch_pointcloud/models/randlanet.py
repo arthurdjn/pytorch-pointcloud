@@ -1,4 +1,7 @@
-"""RandLA-Net classification and segmentation models."""
+"""RandLA-Net classification and segmentation models.
+
+{{ paper("1911.11236") }}
+"""
 
 from typing import (
     TYPE_CHECKING,

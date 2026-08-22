@@ -1,4 +1,7 @@
-"""nuScenes mini 3D object detection dataset with sweep aggregation and annotation loading helpers."""
+"""nuScenes mini 3D object detection dataset with sweep aggregation and annotation loading helpers.
+
+{{ paper("1903.11027") }}
+"""
 
 import json
 from pathlib import Path
