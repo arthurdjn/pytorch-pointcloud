@@ -209,7 +209,7 @@ a.pill.hero-pill {
 }
 .doc-heading .doc-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
 }
 .doc-heading code.doc-symbol {
   padding: 0 0.4em;
@@ -268,6 +268,23 @@ a.pill.hero-pill {
 }
 .md-typeset__table table tbody tr:hover {
   background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 25%, transparent) !important;
+}
+/* Cells are mostly identifiers, so never split one mid-token: a column that cannot fit its longest
+   word widens the table and the wrapper scrolls, which stays readable where a broken name does not */
+.md-typeset__table table th, .md-typeset__table table td {
+  overflow-wrap: normal;
+}
+/* Catalog tables (a badged paper title in column two) carry full paper names. Auto layout hands the
+   width to whichever column has the longest unbreakable run, so pin the split and let titles wrap */
+.md-typeset__table table:has(td:nth-child(2) > .twemoji) {
+  table-layout: fixed;
+  width: 100%;
+}
+.md-typeset__table table:has(td:nth-child(2) > .twemoji) th:first-child {
+  width: 24%;
+}
+.md-typeset__table table:has(td:nth-child(2) > .twemoji) th:nth-child(2) {
+  width: 46%;
 }
 /* ----------- End Table format like GitHub ----------- */
 
@@ -344,3 +361,173 @@ a.pill.hero-pill {
   color: var(--admonition-fg-color) !important;
 }
 /* ----------- End Admonition ----------- */
+
+/* ----------- Start Cards ----------- */
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid.cards > ul > li {
+  position: relative;
+}
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li:hover,
+.md-typeset .grid.cards > ul > li:hover {
+  box-shadow: none;
+}
+.md-typeset .grid.cards > ol > li:hover,
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+}
+.md-typeset .grid.cards > ol > li:hover .twemoji,
+.md-typeset .grid.cards > ul > li:hover .twemoji,
+.md-typeset .grid.cards > ol > li:hover a,
+.md-typeset .grid.cards > ul > li:hover a {
+  color: var(--md-accent-fg-color) !important;
+}
+/* The first link stretches over the card, so the whole card is the click target */
+.md-typeset .grid.cards > ol > li a:first-of-type::after,
+.md-typeset .grid.cards > ul > li a:first-of-type::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+/* ----------- End Cards ----------- */
+
+/* ----------- Start Paper card ----------- */
+/* Reads as an embedded external artifact: the code surface is never used by prose */
+.md-typeset .paper-card {
+  position: relative;
+  margin: 1.6em 0;
+  padding: 0.9rem 1rem;
+  background-color: var(--md-code-bg-color);
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  border-radius: 0.2rem;
+}
+.md-typeset .paper-card::after {
+  content: "\2197";
+  position: absolute;
+  top: 0.7rem;
+  right: 0.9rem;
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--lighter);
+}
+.md-typeset .paper-card:hover::after,
+.md-typeset .paper-card:hover a {
+  color: var(--md-accent-fg-color) !important;
+}
+.md-typeset .paper-card > p {
+  margin: 0;
+}
+.md-typeset .paper-card__meta {
+  font-size: 0.6rem;
+  color: var(--md-default-fg-color--lighter);
+}
+/* Material forces code down to 0.9em, which drops it off the line's baseline */
+.md-typeset .paper-card__meta code {
+  padding: 0;
+  border: none !important;
+  background: none;
+  font-size: inherit !important;
+  color: inherit;
+}
+.md-typeset .paper-card__meta .twemoji {
+  width: auto;
+  height: 1.5em;
+  margin-right: 0.5em;
+  vertical-align: -0.4em;
+}
+/* Material pins every icon to a 1.125em square, which squashes the arXiv wordmark */
+.md-typeset .paper-card__meta .twemoji svg {
+  width: auto;
+  height: 100%;
+}
+.md-typeset .paper-card__title {
+  margin-top: 0.7em !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.md-typeset .paper-card a {
+  text-decoration: none;
+}
+.md-typeset .paper-card__authors {
+  margin-top: 0.2em !important;
+  font-size: 0.64rem;
+  color: var(--md-default-fg-color--lighter);
+}
+.md-typeset .paper-card__abstract {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.5em !important;
+  font-size: 0.64rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color--light);
+}
+/* Each card holds exactly one link, and it stretches over the card as the click target */
+.md-typeset .paper-card a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.md-typeset .paper-card--preview::after {
+  content: none;
+}
+.md-typeset .paper-card--preview > p:first-child {
+  margin: 0 0 0.9rem 0;
+}
+/* Blending drops the page white into the card surface, so only the ink is left */
+.md-typeset .paper-card__header {
+  display: block;
+  width: calc(100% + 2rem);
+  margin-left: -1rem;
+  mix-blend-mode: darken;
+}
+[data-md-color-scheme="slate"] .md-typeset .paper-card__header {
+  filter: invert(1);
+  mix-blend-mode: lighten;
+}
+.md-typeset .paper-card--page > p:first-child {
+  margin: 0;
+}
+.md-typeset .paper-card__page {
+  display: block;
+  width: 100%;
+  background-color: #fff;
+  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 68%, transparent 97%);
+}
+[data-md-color-scheme="slate"] .md-typeset .paper-card__page {
+  filter: brightness(0.92);
+}
+.md-typeset .paper-card--page .paper-card__meta {
+  padding: 0 1rem 0.85rem 1rem;
+}
+.md-typeset .paper-card--page::after {
+  top: auto;
+  bottom: 0.75rem;
+}
+
+/* A real page: the top of page 1, its fade baked into the asset's alpha so no
+   runtime mask, blend or filter is needed (all three cost a repaint per scroll) */
+.md-typeset .paper-card--page {
+  padding: 0;
+  overflow: hidden;
+}
+.md-typeset .paper-card--page > p:first-child {
+  margin: 0;
+}
+.md-typeset .paper-card__page {
+  display: block;
+  width: 100%;
+}
+.md-typeset .paper-card--page .paper-card__meta {
+  padding: 0 1rem 0.85rem 1rem;
+}
+.md-typeset .paper-card--page::after {
+  top: auto;
+  bottom: 0.75rem;
+}
+
+/* ----------- End Paper card ----------- */

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 197">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>pytorch-pointcloud-mini - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g fill="#EE4C2C">
+        <circle class="dot" cx="86" cy="11" r="11" />
+        <circle class="dot" cx="61" cy="36" r="11" />
+        <circle class="dot" cx="111" cy="36" r="11" />
+        <circle class="dot" cx="36" cy="61" r="11" />
+        <circle class="dot" cx="11" cy="86" r="11" />
+        <circle class="dot" cx="161" cy="86" r="11" />
+        <circle class="dot" cx="11" cy="111" r="11" />
+        <circle class="dot" cx="161" cy="111" r="11" />
+        <circle class="dot" cx="11" cy="136" r="11" />
+        <circle class="dot" cx="161" cy="136" r="11" />
+        <circle class="dot" cx="36" cy="161" r="11" />
+        <circle class="dot" cx="136" cy="161" r="11" />
+        <circle class="dot" cx="61" cy="186" r="11" />
+        <circle class="dot" cx="86" cy="186" r="11" />
+        <circle class="dot" cx="111" cy="186" r="11" />
+    </g>
+</svg>
