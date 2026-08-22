@@ -1,3 +1,5 @@
+"""PointConv classification model."""
+
 from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Type, Union, overload
 
 import torch.nn as nn
@@ -22,12 +24,20 @@ from ._registry import WeightsDict, register_model
 
 
 class PointConvIntermediate(NamedTuple):
+    """Input features and point cloud of one set-abstraction stage, recorded before it downsamples."""
+
     x: Tensor
     pos: Tensor
     batch: Tensor
 
 
 class PointConvDensityEncoder(nn.Module):
+    """Stack of density-reweighted set-abstraction stages, each sampling centroids with FPS.
+
+    When `global_pool` is given, the last stage becomes a `PointConvDensityGlobalSetAbstraction` and
+    collapses the cloud to one feature vector per sample.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -176,9 +186,11 @@ class PointConvDensityClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder.layers[-1].fc.stem.out_features  # type: ignore[return-value,union-attr]
 
     def configure_encoder(self) -> PointConvDensityEncoder:
+        """Build the `PointConvDensityEncoder` backbone."""
         return PointConvDensityEncoder(
             in_channels=self.in_channels,
             channels=self.channels,

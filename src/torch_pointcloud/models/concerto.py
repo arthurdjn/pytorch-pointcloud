@@ -1,3 +1,5 @@
+"""Concerto pretrained encoders and linear-probing segmentation model."""
+
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -104,6 +106,7 @@ class ConcertoSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ entering the head: every encoder stage unpooled and concatenated."""
         return sum(self.encoder_channels)
 
     def configure_head(self) -> nn.Module:

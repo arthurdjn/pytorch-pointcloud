@@ -1,3 +1,5 @@
+"""File reading and writing for point cloud data: JSON, OFF meshes, and safetensors."""
+
 import json
 import re
 from typing import Any, Dict, Mapping, Tuple
@@ -11,11 +13,27 @@ from .types import PathLike
 
 
 def load_json(file_path: PathLike) -> Dict[str, Any]:
+    """Read a JSON file.
+
+    Args:
+        file_path: Path to the JSON file.
+
+    Returns:
+        The decoded JSON object.
+    """
     with open(file_path) as f:
         return json.load(f)
 
 
 def load_off(file_path: PathLike) -> Tuple[np.ndarray, np.ndarray]:
+    r"""Read an OFF mesh, triangulating its quadrilateral faces.
+
+    Args:
+        file_path: Path to the OFF file.
+
+    Returns:
+        The vertices $(V, 3)$ and the triangle indices $(F, 3)$.
+    """
     with open(file_path, "r") as f:
         file_content = f.read()
 
@@ -65,6 +83,12 @@ def load_off(file_path: PathLike) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def save_safetensors(file_path: PathLike, data: Mapping[str, Any]) -> None:
+    """Write a mapping to a safetensors file, storing its string entries as metadata.
+
+    Args:
+        file_path: Path to the safetensors file to write.
+        data: Mapping of names to tensors, scalars (wrapped in a tensor) or strings.
+    """
     data = {k: torch.tensor(v) if isinstance(v, (int, float, bool)) else v for k, v in data.items()}
     metadata = {k: v for k, v in data.items() if isinstance(v, str)}
     tensors = {k: v.contiguous() for k, v in data.items() if isinstance(v, Tensor)}
@@ -72,6 +96,14 @@ def save_safetensors(file_path: PathLike, data: Mapping[str, Any]) -> None:
 
 
 def load_safetensors(file_path: PathLike) -> Dict[str, Tensor | str]:
+    """Read a safetensors file, merging its metadata back into the tensor mapping.
+
+    Args:
+        file_path: Path to the safetensors file.
+
+    Returns:
+        The file's tensors and string metadata, keyed by name.
+    """
     with safe_open(file_path, framework="pt") as f:  # type: ignore[no-untyped-call]
         metadata = f.metadata()
         tensors = {k: f.get_tensor(k) for k in f.keys()}

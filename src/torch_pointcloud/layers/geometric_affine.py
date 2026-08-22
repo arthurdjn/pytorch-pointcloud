@@ -1,3 +1,5 @@
+"""PointMLP grouping convolution with geometric affine neighborhood normalization."""
+
 from typing import TYPE_CHECKING, Literal, Union
 
 import torch

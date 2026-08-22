@@ -1,3 +1,5 @@
+"""Prompt-driven normalization (PDNorm) routing each batch through a per-condition norm."""
+
 from typing import Any, Callable, Optional, Sequence, Union
 
 import torch.nn as nn

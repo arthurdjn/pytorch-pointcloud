@@ -1,3 +1,5 @@
+"""Point-M2AE classification, segmentation, and masked autoencoder pretraining models."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -963,6 +965,14 @@ class HierarchicalEncoderMAE(nn.Module):
         self.encoder_norms = nn.ModuleList([nn.LayerNorm(d) for d in self.encoder_dims])
 
     def rand_mask(self, center: Tensor) -> Tensor:
+        """Draw a random mask hiding `mask_ratio` of the coarsest-stage tokens, independently for every sample.
+
+        Args:
+            center: Token centers of shape $(B, G, 3)$.
+
+        Returns:
+            A boolean mask of shape $(B, G)$, `True` where the token is masked out.
+        """
         B, G, _ = center.shape
         num_mask = int(self.mask_ratio * G)
         overall_mask = torch.zeros(B, G, device=center.device)

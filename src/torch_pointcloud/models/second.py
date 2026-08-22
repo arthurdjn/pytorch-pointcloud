@@ -1,3 +1,5 @@
+"""SECOND detection models."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -114,7 +116,7 @@ class SECONDDetection(DetectionModel):
         num_classes: Number of foreground classes.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the head.
@@ -366,7 +368,7 @@ class SECONDMultiHeadDetection(DetectionModel):
         num_classes: Number of foreground classes (10 for nuScenes).
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(dx, dy, dz)$, one row per class.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         head_class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`).
         anchor_rotations: Yaw angles (radians) shared by all classes.

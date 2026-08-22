@@ -1,3 +1,5 @@
+"""Hilbert curve encoding and decoding between coordinates and curve indices."""
+
 # Mostly copied from https://github.com/Pointcept/Pointcept/blob/main/pointcept/models/utils/serialization/hilbert.py
 # Original code from https://github.com/PrincetonLIPS/numpy-hilbert-curve
 
@@ -6,6 +8,16 @@ from torch import Tensor
 
 
 def right_shift(binary: Tensor, k: int = 1, axis: int = -1) -> Tensor:
+    """Shift a tensor of bits right by `k` positions, padding the vacated positions with zeros.
+
+    Args:
+        binary: Tensor of bits, most significant bit first along `axis`.
+        k: Number of positions to shift by.
+        axis: Axis holding the bits.
+
+    Returns:
+        The shifted bits, same shape as `binary`.
+    """
     # If we're shifting the whole thing, just return zeros.
     if binary.shape[axis] <= k:
         return torch.zeros_like(binary)
@@ -19,6 +31,15 @@ def right_shift(binary: Tensor, k: int = 1, axis: int = -1) -> Tensor:
 
 
 def binary2gray(binary: Tensor, axis: int = -1) -> Tensor:
+    """Convert bits from the binary code to the Gray code.
+
+    Args:
+        binary: Tensor of bits, most significant bit first along `axis`.
+        axis: Axis holding the bits.
+
+    Returns:
+        The Gray-coded bits, same shape as `binary`.
+    """
     shifted = right_shift(binary, axis=axis)
 
     # Do the X ^ (X >> 1) trick.
@@ -28,6 +49,15 @@ def binary2gray(binary: Tensor, axis: int = -1) -> Tensor:
 
 
 def gray2binary(gray: Tensor, axis: int = -1) -> Tensor:
+    """Convert bits from the Gray code back to the binary code.
+
+    Args:
+        gray: Tensor of Gray-coded bits, most significant bit first along `axis`.
+        axis: Axis holding the bits.
+
+    Returns:
+        The binary bits, same shape as `gray`.
+    """
     # Loop the log2(bits) number of times necessary, with shift and xor.
     shift = int(2 ** (torch.tensor(gray.shape[axis], dtype=torch.float32).log2().ceil().int() - 1))
     while shift > 0:
@@ -37,6 +67,16 @@ def gray2binary(gray: Tensor, axis: int = -1) -> Tensor:
 
 
 def encode(locs: Tensor, num_dims: int, num_bits: int) -> Tensor:
+    r"""Encode integer grid coordinates into their Hilbert curve indices.
+
+    Args:
+        locs: Integer coordinates $(N, \text{num\_dims})$, each in $[0, 2^{\text{num\_bits}})$.
+        num_dims: Number of dimensions of the grid.
+        num_bits: Number of bits per dimension. `num_dims` times `num_bits` must fit in an `int64`.
+
+    Returns:
+        The Hilbert indices, shape $(N,)$ and dtype `int64`.
+    """
     # Keep around the original shape for later.
     orig_shape = locs.shape
     bitpack_mask = 1 << torch.arange(0, 8).to(locs.device)
@@ -100,6 +140,16 @@ def encode(locs: Tensor, num_dims: int, num_bits: int) -> Tensor:
 
 
 def decode(hilberts: Tensor, num_dims: int, num_bits: int) -> Tensor:
+    r"""Decode Hilbert curve indices back into integer grid coordinates.
+
+    Args:
+        hilberts: Hilbert indices $(N,)$.
+        num_dims: Number of dimensions of the grid.
+        num_bits: Number of bits per dimension. `num_dims` times `num_bits` must fit in an `int64`.
+
+    Returns:
+        The integer coordinates, shape $(N, \text{num\_dims})$ and dtype `int64`.
+    """
     if num_dims * num_bits > 63:
         raise ValueError(
             f"Got num_dims={num_dims} and num_bits={num_bits} for {num_dims * num_bits} bits total, "

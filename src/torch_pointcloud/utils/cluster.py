@@ -1,3 +1,5 @@
+"""Neighbor search and grouping: kNN, FPS, radius queries, and local grids."""
+
 from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Union, overload
 
 import torch
@@ -65,7 +67,7 @@ def knn(
         batch_size: The batch size to use for the computation.
 
     Returns:
-        The nearest neighbors of shape $(2, M*k)$.
+        The nearest neighbors of shape $(2, M \cdot k)$.
     """
     _check_packed_2d(x, "x")
     _check_packed_2d(y, "y")
@@ -258,6 +260,7 @@ def fps(
         The sampled indices of shape $(M,)$.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.utils.cluster import fps
         >>> src = torch.randn(100, 3)
@@ -265,6 +268,8 @@ def fps(
         >>> idx = fps(src, batch, num_nodes=10)  # doctest: +SKIP
         >>> print(idx.shape)  # doctest: +SKIP
         torch.Size([10])
+
+        ```
     """
     random_start = random_start if FPS_RANDOM_START is None else FPS_RANDOM_START
 
@@ -351,11 +356,14 @@ def local_grid(src: Tensor, size: float, batch: Tensor | None = None) -> Tensor:
         The quantized source tensor of shape $(N, *)$.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.utils.cluster import local_grid
         >>> src = torch.randn(100, 3)
         >>> batch = torch.cat([torch.zeros(50), torch.ones(50)]).long()
         >>> src_grid = local_grid(src, size=1.0, batch=batch)  # doctest: +SKIP
+
+        ```
     """
 
     src_quantized = torch.div(src, size, rounding_mode="floor").long()

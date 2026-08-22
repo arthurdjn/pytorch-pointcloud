@@ -1,3 +1,5 @@
+"""Gaussian kernel density estimation over packed batches."""
+
 import torch
 from torch import Tensor
 from torch_geometric.utils import to_dense_batch

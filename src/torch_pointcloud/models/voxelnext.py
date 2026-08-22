@@ -1,3 +1,5 @@
+"""VoxelNeXt detection model."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
@@ -55,7 +57,7 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
     outputs are folded back onto the stage-4 sparse tensor (their indices rescaled by $2$ and $4$), so
     the receptive field grows without densifying. The merged 3D sparse tensor is then collapsed along
     height into a 2D BEV sparse tensor (`bev_out`), refined by a 2D `conv_out` + `shared_conv`, and
-    returned as a 2D [`spconv.SparseConvTensor`][] for the fully sparse head (no dense BEV map).
+    returned as a 2D `spconv.SparseConvTensor` for the fully sparse head (no dense BEV map).
 
     Args:
         in_channels: Input voxel feature channels ($5$ for nuScenes $x, y, z, \text{intensity}, \Delta t$).
@@ -150,6 +152,7 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
         self.out_channels = out_channels
 
     def bev_out(self, x_conv: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
+        """Collapses the height axis by summing the features of every voxel sharing the same BEV cell."""
         features_cat = x_conv.features
         indices_cat = x_conv.indices[:, [0, 2, 3]]
         spatial_shape = x_conv.spatial_shape[1:]

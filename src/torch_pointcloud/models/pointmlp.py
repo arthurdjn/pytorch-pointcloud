@@ -1,3 +1,5 @@
+"""PointMLP classification and segmentation models."""
+
 from typing import (
     Any,
     Callable,
@@ -37,6 +39,8 @@ from ._base import ClassificationModel, SegmentationModel
 
 
 class PointMLPIntermediate(NamedTuple):
+    """Input features and point cloud of one encoder block, recorded before it downsamples."""
+
     x: Tensor
     pos: Tensor
     batch: Tensor
@@ -64,6 +68,7 @@ class ResidualLinearBlock(nn.Module):
         bias: Whether to use a bias for the linear layers.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.models.pointmlp import ResidualLinearBlock
         >>> block = ResidualLinearBlock(64, expansion=2, act="relu", norm="batch_norm", bias=False)
@@ -71,6 +76,8 @@ class ResidualLinearBlock(nn.Module):
         >>> y = block(x)
         >>> print(y.shape)
         torch.Size([32, 64])
+
+        ```
     """
 
     def __init__(
@@ -124,6 +131,13 @@ class ResidualLinearBlock(nn.Module):
 
 
 class PointMLPEncoderBlock(nn.Module):
+    r"""One encoder stage: optional FPS downsampling, then a geometric affine $k$-NN aggregation.
+
+    A pre-aggregation MLP of `num_pre_blocks` residual blocks lifts the grouped features to
+    `out_channels`, and a post-aggregation MLP of `num_pos_blocks` residual blocks refines the
+    max-pooled result.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -134,7 +148,6 @@ class PointMLPEncoderBlock(nn.Module):
         num_pos_blocks: int = 2,
         normalize: Literal["center", "anchor"] = "center",
         res_expansion: float = 1.0,
-        dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -202,6 +215,10 @@ class PointMLPEncoderBlock(nn.Module):
 
 
 class ResidualFeaturePropagation(torch.nn.Module):
+    r"""Feature propagation block: $k$-NN interpolation to the skip resolution, concatenation with the
+    skip features, then a `LinearBlock` followed by `num_layers` `ResidualLinearBlock` units.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -250,6 +267,13 @@ class ResidualFeaturePropagation(torch.nn.Module):
 
 
 class PointMLPEncoder(nn.Module):
+    """Stack of `PointMLPEncoderBlock` stages that progressively decimate the cloud with FPS.
+
+    A stage with a ratio of `0` keeps every point and only transforms features. When
+    `return_intermediates=True` is passed to `forward`, the pre-downsampling features of every stage
+    are returned in coarse-to-fine order, ready to be consumed as decoder skips.
+    """
+
     def __init__(
         self,
         *,
@@ -308,6 +332,7 @@ class PointMLPEncoder(nn.Module):
             self.blocks.append(block)
 
     def configure_block(self, index: int) -> nn.Module:
+        """Build the `PointMLPEncoderBlock` for stage `index`, with an FPS sampler when its ratio is non-zero."""
         downsample: Optional[nn.Module] = None
         if self.ratios[index]:
             downsample = FPS(ratio=self.ratios[index], random_start=self.fps_random_start)
@@ -371,6 +396,8 @@ class PointMLPEncoder(nn.Module):
 
 
 class PointMLPDecoder(nn.Module):
+    """Stack of `ResidualFeaturePropagation` blocks that walk the encoder intermediates back to full resolution."""
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -407,6 +434,7 @@ class PointMLPDecoder(nn.Module):
             self.blocks.append(block)
 
     def configure_block(self, index: int) -> nn.Module:
+        """Build the `ResidualFeaturePropagation` block for stage `index`."""
         in_channels = self.channels[index] + self.skip_channels[index]
         return ResidualFeaturePropagation(
             in_channels=in_channels,
@@ -498,9 +526,11 @@ class PointMLPClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder_channels[-1]
 
     def configure_stem(self) -> nn.Module:
+        """Build the linear stem lifting the input features to the first encoder channel."""
         return MLP(
             [self.in_channels, self.encoder_channels[0]],
             dropout=0.0,
@@ -514,6 +544,7 @@ class PointMLPClassification(ClassificationModel):
         )
 
     def configure_encoder(self) -> PointMLPEncoder:
+        """Build the `PointMLPEncoder` backbone."""
         return PointMLPEncoder(
             channels=self.encoder_channels,
             spatial_dim=self.spatial_dim,
@@ -658,9 +689,11 @@ class PointMLPSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder_channels[-1]
 
     def configure_stem(self) -> nn.Module:
+        """Build the linear stem lifting the input features to the first encoder channel."""
         return MLP(
             [self.in_channels, self.encoder_channels[0]],
             dropout=0.0,
@@ -674,6 +707,7 @@ class PointMLPSegmentation(SegmentationModel):
         )
 
     def configure_encoder(self) -> PointMLPEncoder:
+        """Build the `PointMLPEncoder` backbone."""
         return PointMLPEncoder(
             channels=self.encoder_channels,
             spatial_dim=self.spatial_dim,
@@ -694,6 +728,7 @@ class PointMLPSegmentation(SegmentationModel):
         )
 
     def configure_decoder(self) -> PointMLPDecoder:
+        """Build the `PointMLPDecoder`, mirroring the encoder channels in reverse."""
         return PointMLPDecoder(
             channels=[self.encoder_channels[-1]] + self.decoder_channels,
             skip_channels=self.encoder_channels[:-1][::-1] + [self.in_channels],

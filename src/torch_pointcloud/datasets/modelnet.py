@@ -1,3 +1,5 @@
+"""ModelNet10/40 shape classification datasets, including normal-resampled and HDF5 variants."""
+
 import json
 import shutil
 import zipfile
@@ -79,6 +81,15 @@ MODELNET40_CLASSES = (
 
 
 def load_modelnet_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
+    r"""Load one ModelNet mesh from a raw OFF file.
+
+    Args:
+        file_path: Path to a raw `<class>/<split>/<model_id>.off` mesh.
+        target: Label index of the shape.
+
+    Returns:
+        The mesh's `pos` $(N, 3)$ vertices, `face` $(F, 3)$ triangles and scalar `label`.
+    """
     pos, face = load_off(file_path)
     return {
         DataKeys.POS: torch.from_numpy(pos).float(),
@@ -88,6 +99,15 @@ def load_modelnet_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
 
 
 def load_modelnet_normal_resampled_data(file_path: PathLike, target: int) -> Dict[str, Tensor]:
+    r"""Load one ModelNet shape from a raw normal-resampled `.txt` file.
+
+    Args:
+        file_path: Path to a raw `<class>/<model_id>.txt` shape.
+        target: Label index of the shape.
+
+    Returns:
+        The shape's `pos` $(N, 3)$, `normal` $(N, 3)$ and scalar `label`.
+    """
     data = np.loadtxt(file_path, delimiter=",").astype(np.float32)
 
     # NOTE: we could directly return the data in numpy-format but for consistency
@@ -385,10 +405,12 @@ class ModelNetNormalResampled(PointCloudDataset):
 
     @property
     def original_classes(self) -> Tuple[str, ...]:
+        """Class names of the variant, in the original release order."""
         return MODELNET10_CLASSES if self.variant == "10" else MODELNET40_CLASSES
 
     @property
     def class_to_idx(self) -> dict[str, int]:
+        """Mapping from class name to label index."""
         return {label: target for target, label in enumerate(self.classes)}
 
     @override
@@ -564,6 +586,7 @@ class ModelNet40Hdf5(PointCloudDataset):
 
     @property
     def split_file(self) -> str:
+        """Path to the raw file list of the split."""
         return Path(self.raw_dir, f"{self._split}_files.txt").as_posix()
 
     def _shard_paths(self) -> List[Path]:

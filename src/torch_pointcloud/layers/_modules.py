@@ -1,3 +1,5 @@
+"""Registry-based module instantiation shared by the `create_*` layer factories."""
+
 from functools import partial
 from typing import Any, Callable, Dict, Type, TypeVar, Union
 

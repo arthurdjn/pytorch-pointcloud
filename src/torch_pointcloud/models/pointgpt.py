@@ -1,3 +1,5 @@
+"""PointGPT classification and generative pretraining models."""
+
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch

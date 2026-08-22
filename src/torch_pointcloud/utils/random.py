@@ -1,3 +1,5 @@
+"""Random seeding and determinism control."""
+
 import logging
 import random
 from typing import Optional
@@ -50,9 +52,12 @@ def set_determinism(*, tf32: bool = False) -> None:
         tf32: Allow TensorFloat-32 in fp32 CUDA matmul and cuDNN convolutions.
 
     Example:
+        ```pycon
         >>> set_determinism(tf32=False)
         >>> torch.backends.cudnn.allow_tf32
         False
+
+        ```
     """
     torch.backends.cuda.matmul.allow_tf32 = tf32
     torch.backends.cudnn.allow_tf32 = tf32

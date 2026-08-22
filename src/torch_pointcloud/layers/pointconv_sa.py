@@ -1,3 +1,5 @@
+"""PointConv set abstraction modules for hierarchical and global feature extraction."""
+
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch

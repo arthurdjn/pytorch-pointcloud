@@ -1,3 +1,5 @@
+"""PointConv message-passing convolutions, with and without density reweighting."""
+
 from typing import TYPE_CHECKING, Union
 
 import torch
@@ -21,6 +23,20 @@ scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCAT
 
 
 class PointConv(MessagePassing):
+    r"""PointConv message passing: a per-edge feature outer-producted with a learned continuous weight.
+
+    `local_nn` embeds the relative position concatenated with the neighbor feature, `weight_nn` turns the
+    relative position alone into the convolution weights, and their outer product is summed over the
+    neighbors of each point.
+
+    Args:
+        local_nn: Network embedding the relative positions and neighbor features.
+        weight_nn: Network mapping a relative position to the convolution weights.
+        add_self_loops: Whether to add a self loop to every point before propagating.
+        eps: Numerical stability constant.
+        **kwargs: Extra arguments for `MessagePassing`.
+    """
+
     def __init__(
         self,
         local_nn: nn.Module,
@@ -69,6 +85,20 @@ class PointConv(MessagePassing):
 
 
 class PointConvDensity(MessagePassing):
+    r"""`PointConv` with inverse density reweighting.
+
+    Each neighbor's embedded feature is scaled by `density_nn` applied to its density relative to the
+    densest neighbor, so that densely sampled regions do not dominate the sum.
+
+    Args:
+        local_nn: Network embedding the relative positions and neighbor features.
+        weight_nn: Network mapping a relative position to the convolution weights.
+        density_nn: Network mapping a relative density to a per-edge scale.
+        add_self_loops: Whether to add a self loop to every point before propagating.
+        eps: Numerical stability constant.
+        **kwargs: Extra arguments for `MessagePassing`.
+    """
+
     def __init__(
         self,
         local_nn: nn.Module,

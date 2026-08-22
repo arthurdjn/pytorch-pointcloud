@@ -1,3 +1,5 @@
+"""PVCNN classification and segmentation models."""
+
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -20,6 +22,11 @@ from ._registry import WeightsDict, register_model
 
 
 class PVConvBlock(nn.Module):
+    """Stack of `depth` point-voxel convolutions, all at the same voxel resolution.
+
+    A `resolution` of $0$ or `None` disables voxelization and falls back to per-point MLP layers.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -96,6 +103,32 @@ class PVConvBlock(nn.Module):
 
 
 class PVCNNClassification(ClassificationModel):
+    r"""PVCNN classification model from
+    :arxiv: [Point-Voxel CNN for Efficient 3D Deep Learning](https://arxiv.org/abs/1907.03739)
+    by Zhijian Liu, Haotian Tang, Yujun Lin, Song Han.
+
+    A flat stack of point-voxel conv blocks at decreasing voxel resolutions, followed by global pooling,
+    an optional global MLP and a linear head.
+
+    Args:
+        in_channels: Number of input feature channels.
+        num_classes: Number of output classes. $0$ replaces the head with `nn.Identity`.
+        channels: Output feature width of each block.
+        global_channels: MLP channels applied to the pooled feature. `None` skips the global MLP.
+        depths: Number of point-voxel conv layers per block.
+        kernel_sizes: Voxel conv kernel size per block.
+        resolutions: Voxel grid resolution per block; $0$ or `None` uses MLP layers instead.
+        use_se: Add a squeeze-and-excitation gate to every voxel branch.
+        normalize: Normalize coordinates into the unit voxel grid before voxelization.
+        dropout: Dropout applied to the pooled features before the head.
+        global_pool: Global pooling reducing the point features to one vector per cloud.
+        act: Activation function.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Apply the activation before the normalization.
+        norm: Normalization function.
+        norm_kwargs: Keyword arguments for the normalization function.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -139,11 +172,13 @@ class PVCNNClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
         if self.global_channels:
             return self.global_channels[-1]
         return self.channels[-1]
 
     def configure_blocks(self) -> nn.ModuleList:
+        """Builds the point-voxel conv blocks, one per entry of `depths`."""
         blocks = nn.ModuleList()
         for i in range(len(self.depths)):
             in_channels = self.channels[i]
@@ -166,6 +201,7 @@ class PVCNNClassification(ClassificationModel):
         return blocks
 
     def configure_global_mlp(self) -> Optional[MLP]:
+        """Builds the MLP applied to the pooled global feature, or `None` when `global_channels` is empty."""
         if not self.global_channels:
             return None
 
@@ -232,6 +268,36 @@ class PVCNNClassification(ClassificationModel):
 
 
 class PVCNNSegmentation(SegmentationModel):
+    r"""PVCNN segmentation model from
+    :arxiv: [Point-Voxel CNN for Efficient 3D Deep Learning](https://arxiv.org/abs/1907.03739)
+    by Zhijian Liu, Haotian Tang, Yujun Lin, Song Han.
+
+    The same flat stack of point-voxel conv blocks as `PVCNNClassification`, but every layer output is
+    kept at full point resolution and concatenated with the broadcast global feature, so no decoder is
+    needed to recover per-point logits.
+
+    Args:
+        in_channels: Number of input feature channels. Raised to `spatial_dim` when smaller.
+        num_classes: Number of output classes. $0$ replaces the head with `nn.Identity`.
+        channels: Output feature width of each block.
+        global_channels: MLP channels applied to the pooled feature. `None` skips the global MLP.
+        depths: Number of point-voxel conv layers per block.
+        kernel_sizes: Voxel conv kernel size per block.
+        resolutions: Voxel grid resolution per block; $0$ or `None` uses MLP layers instead.
+        spatial_dim: Spatial dimensionality of the point clouds.
+        use_se: Add a squeeze-and-excitation gate to every voxel branch.
+        normalize: Normalize coordinates into the unit voxel grid before voxelization.
+        dropout: Dropout applied to the concatenated point features before the head.
+        global_pool: Global pooling producing the cloud-level feature that is broadcast back to the points.
+        act: Activation function.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Apply the activation before the normalization.
+        norm: Normalization function.
+        norm_kwargs: Keyword arguments for the normalization function.
+        head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
+        head_dropout: Dropout between the hidden head layers.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -280,12 +346,14 @@ class PVCNNSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ entering the head: every layer output concatenated with the global feature."""
         embedding_dim = sum(channels * depth for channels, depth in zip(self.channels[1:], self.depths))
         if self.global_channels:
             return embedding_dim + self.global_channels[-1]
         return embedding_dim + self.channels[-1]
 
     def configure_blocks(self) -> nn.ModuleList:
+        """Builds the point-voxel conv blocks, one per entry of `depths`."""
         blocks = nn.ModuleList()
         for i in range(len(self.depths)):
             in_channels = self.channels[i]
@@ -308,6 +376,7 @@ class PVCNNSegmentation(SegmentationModel):
         return blocks
 
     def configure_global_mlp(self) -> Optional[MLP]:
+        """Builds the MLP applied to the pooled global feature, or `None` when `global_channels` is empty."""
         if not self.global_channels:
             return None
 

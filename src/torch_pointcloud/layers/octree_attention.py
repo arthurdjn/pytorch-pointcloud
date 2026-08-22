@@ -1,3 +1,5 @@
+"""OctFormer octree window attention with relative position encoding."""
+
 import inspect
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, ClassVar, List, Optional, Tuple, Type, Union
@@ -57,6 +59,7 @@ class OctreeT(_OctreeTBase):
     (i.e. all attention masks and relative positions) by calling the method `construct_all_attention_context()`.
 
     Example:
+        ```pycon
         >>> octree_t = OctreeT.from_octree(octree, patch_size=26, dilation=4)  # doctest: +SKIP
         >>> octree_t.construct_all_attention_context(  # doctest: +SKIP
         ...     nempty=True,
@@ -67,6 +70,8 @@ class OctreeT(_OctreeTBase):
         >>> octree_t.dilated_masks[6].shape  # doctest: +SKIP
         >>> octree_t.rel_pos[6].shape  # doctest: +SKIP
         >>> octree_t.dilated_rel_pos[6].shape  # doctest: +SKIP
+
+        ```
     """
 
     __signature__: ClassVar[inspect.Signature]
@@ -99,6 +104,7 @@ class OctreeT(_OctreeTBase):
 
     @property
     def block_size(self) -> int:
+        r"""Number of octree nodes a dilated patch spans, $\text{patch\_size} \cdot \text{dilation}$."""
         return self.patch_size * self.dilation
 
     def reset(self) -> None:
@@ -198,10 +204,12 @@ class OctreeT(_OctreeTBase):
         self.dilated_rel_pos[depth] = xyz.unsqueeze(2) - xyz.unsqueeze(1)
 
     def pad_to_patch_size(self, x: Tensor, depth: int, fill_value: float = 0) -> Tensor:
+        r"""Pads `x` along its first dimension so the node count at `depth` is a whole number of patches."""
         pad_size = int(self.nnum_a[depth] - self.nnum_t[depth])
         return pad_tail(x, pad_size, fill_value=fill_value, dim=0)
 
     def unpad(self, x: Tensor, depth: int) -> Tensor:
+        r"""Drops the padding added by `pad_to_patch_size`, restoring the real node count at `depth`."""
         original_size = self.nnum_t[depth]
         return x[:original_size]
 
@@ -243,6 +251,7 @@ class RPE(nn.Module):
         nn.init.trunc_normal_(self.rpe_table, std=0.02)
 
     def pos_to_idx(self, pos: Tensor) -> Tensor:
+        r"""Clamps the relative positions to $\pm$ `pos_bnd` and maps each axis to its slice of the RPE table."""
         mul = torch.arange(3, device=pos.device) * self.rpe_num
         pos = pos.clamp(-self.pos_bnd, self.pos_bnd)
         idx = pos + (self.pos_bnd + mul)
@@ -260,6 +269,24 @@ class RPE(nn.Module):
 
 
 class OctreeAttention(nn.Module):
+    r"""Multi-head self-attention restricted to windows of `patch_size` consecutive octree nodes.
+
+    A `dilation` above $1$ interleaves the nodes before windowing, so a patch spans a wider region at the
+    same cost. The attention masks and relative positions come from the `OctreeT`, which must have been
+    built with `construct_all_attention_context()`.
+
+    Args:
+        channels: Number of input and output channels.
+        patch_size: Number of octree nodes attending to each other.
+        num_heads: Number of attention heads.
+        dilation: Stride between the nodes of a patch.
+        qkv_bias: Whether to use a bias in the QKV projection.
+        qk_scale: Scaling factor for the QK matrix. Defaults to the inverse square root of the head dimension.
+        attn_drop: Dropout rate for the attention.
+        proj_drop: Dropout rate for the output projection.
+        use_rpe: Whether to add the relative position encoding to the attention logits.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -288,6 +315,7 @@ class OctreeAttention(nn.Module):
 
     @property
     def dilated(self) -> bool:
+        r"""Whether the patches interleave nodes rather than taking them consecutively."""
         return self.dilation > 1
 
     def forward(self, x: Tensor, octree: OctreeT, depth: int) -> Tensor:
@@ -298,6 +326,7 @@ class OctreeAttention(nn.Module):
         return x
 
     def forward_attn(self, x: Tensor, rel_pos: Tensor, mask: Tensor) -> Tensor:
+        r"""Runs the windowed attention on patched features of shape $(N, K, C)$, returning $(N \cdot K, C)$."""
         H, K, C = self.num_heads, self.patch_size, self.channels
 
         qkv = self.qkv(x).reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4)
@@ -313,11 +342,13 @@ class OctreeAttention(nn.Module):
         return x
 
     def forward_proj(self, x: Tensor) -> Tensor:
+        r"""Applies the output projection and its dropout."""
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
 
     def forward_rpe(self, attn: Tensor, rel_pos: Optional[Tensor] = None) -> Tensor:
+        r"""Adds the relative position bias to the attention logits, or returns them unchanged when `use_rpe` is off."""
         if not self.use_rpe:
             return attn
 

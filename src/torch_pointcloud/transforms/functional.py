@@ -1,3 +1,5 @@
+"""Pure tensor functions backing the dict transforms: sampling, masking, normalization, padding, and rotation."""
+
 import math
 from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
 
@@ -189,12 +191,15 @@ def farthest_point_sample(
         The indices of the sampled points.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.transforms.functional import farthest_point_sample
         >>> pos = torch.randn(100, 3)
         >>> idx = farthest_point_sample(pos, num_samples=10)  # doctest: +SKIP
         >>> print(idx.shape)  # doctest: +SKIP
         torch.Size([10])
+
+        ```
     """
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
@@ -529,10 +534,13 @@ def split_batch(batch: Tensor, max_size: int) -> Tensor:
         The sub-batch indices.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> batch = torch.tensor([0, 0, 0, 1, 1, 1, 1, 2, 2, 3])
         >>> split_batch(batch, max_size=2)
         tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])
+
+        ```
     """
     device = batch.device
     _, batch_counts = torch.unique(batch, return_counts=True)
@@ -595,11 +603,14 @@ def abs(x: Tensor, inplace: bool = False) -> Tensor:
         The absolute tensor.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> import torch_pointcloud.transforms.functional as F
         >>> x = torch.tensor([-1.0, 2.0, -3.0])
         >>> F.abs(x)
         tensor([1., 2., 3.])
+
+        ```
     """
     if inplace:
         x.abs_()
@@ -635,8 +646,8 @@ def box_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1, strict: bool = F
     With `strict=True` the inequalities are strict, so boundary points are excluded.
 
     Args:
-        x: The input tensor of shape `(..., D)` along `dim`.
-        bbox: AABB as a flat tuple `(*bbmin, *bbmax)` of length `2 * D`.
+        x: The input tensor of shape $(\ldots, D)$ along `dim`.
+        bbox: AABB as a flat tuple `(*bbmin, *bbmax)` of length $2 \cdot D$.
         dim: The dimension to compute the mask over.
         strict: If `True`, use strict inequalities (points exactly on the boundary are excluded).
 
@@ -676,8 +687,8 @@ def cube_mask(
     `box_mask` (explicit AABB).
 
     Args:
-        x: The input tensor of shape `(..., D)` along `dim`.
-        center: The center of the cube, shape `(D,)` or broadcastable.
+        x: The input tensor of shape $(\ldots, D)$ along `dim`.
+        center: The center of the cube, shape $(D,)$ or broadcastable.
         radius: The half-edge (radius) of the cube.
         dim: The dimension to reduce the per-axis comparison over.
 
@@ -705,8 +716,8 @@ def sphere_mask(
     Pair with `cube_mask` (L∞) and `box_mask` (explicit AABB).
 
     Args:
-        x: The input tensor of shape `(..., D)` along `dim`.
-        center: The center of the sphere, shape `(D,)` or broadcastable.
+        x: The input tensor of shape $(\ldots, D)$ along `dim`.
+        center: The center of the sphere, shape $(D,)$ or broadcastable.
         radius: The radius of the sphere.
         dim: The dimension to compute the Euclidean norm over.
 
@@ -728,12 +739,15 @@ def apply_mask(x: Tensor, mask: Tensor) -> Tensor:
         The tensor with the mask applied.
 
     Examples:
+        ```pycon
         >>> import torch
         >>> import torch_pointcloud.transforms.functional as F
         >>> x = torch.tensor([1.0, 2.0, 3.0])
         >>> mask = torch.tensor([True, False, True])
         >>> F.apply_mask(x, mask)
         tensor([1., 3.])
+
+        ```
     """
     return x[mask]
 
@@ -809,14 +823,14 @@ def axis_min_offset(x: Tensor, axis: int, quantile: Optional[float] = None) -> T
     "height above the local floor" as a per-point feature.
 
     Args:
-        x: Input tensor of shape `(N, D)`.
+        x: Input tensor of shape $(N, D)$.
         axis: Axis index in the last dimension.
         quantile: Optional quantile $q \in [0, 1]$ for the floor reference. When
             `None`, the strict per-axis minimum is used (equivalent to $q = 0$).
 
     Returns:
-        Tensor of shape `(N, 1)` with the same dtype as `x`. Returns an empty
-        `(0, 1)` tensor when `x` is empty.
+        Tensor of shape $(N, 1)$ with the same dtype as `x`. Returns an empty
+        $(0, 1)$ tensor when `x` is empty.
     """
     col = x[:, axis]
     if col.numel() == 0:
@@ -930,7 +944,7 @@ def relabel(
 
 
 def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] = None) -> Tensor:
-    r"""3x3 rotation matrix for `angle` radians around an axis-aligned axis.
+    r"""$3 \times 3$ rotation matrix for `angle` radians around an axis-aligned axis.
 
     Args:
         angle: Rotation angle in **radians**.
@@ -938,7 +952,7 @@ def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] 
         device: Output device. Defaults to CPU.
 
     Returns:
-        Rotation matrix of shape `(3, 3)`.
+        Rotation matrix of shape $(3, 3)$.
 
     Raises:
         ValueError: If `axis` is not in `{0, 1, 2}`.
@@ -994,7 +1008,7 @@ def random_dropout_mask(
         generator: Random generator for reproducibility.
 
     Returns:
-        Boolean tensor of shape `(n,)`.
+        Boolean tensor of shape $(n,)$.
 
     Raises:
         ValueError: If `p_drop` is not in `[0, 1)`.
@@ -1019,7 +1033,7 @@ def shuffle_indices(
         generator: Random generator for reproducibility.
 
     Returns:
-        Long tensor of shape `(n,)`.
+        Long tensor of shape $(n,)$.
     """
     device = device or torch.device("cpu")
     return torch.randperm(n, device=device, generator=generator)
@@ -1050,7 +1064,7 @@ def color_jitter(
     skips the component entirely.
 
     Args:
-        color: Color tensor of shape `(N, 3)`.
+        color: Color tensor of shape $(N, 3)$.
         brightness: Multiplicative brightness factor (e.g. `1.2` brightens by 20%).
         contrast: Contrast factor, scaling the deviation from the per-channel mean.
         saturation: Saturation factor, scaling the deviation from the per-point
@@ -1095,7 +1109,7 @@ def random_color_jitter(
     applied multiplicatively (`out = x * factor`) via `color_jitter`.
 
     Args:
-        color: Color tensor of shape `(N, 3)`.
+        color: Color tensor of shape $(N, 3)$.
         brightness: Max relative brightness change. `0.2` means ±20%.
         contrast: Max relative contrast change.
         saturation: Max relative saturation change. Saturation moves toward
@@ -1124,7 +1138,7 @@ def random_color_drop(
     """Replace colors with a constant gray value (drops chromatic information).
 
     Args:
-        color: Color tensor of shape `(N, 3)`.
+        color: Color tensor of shape $(N, 3)$.
         fill: Replacement value, expressed in the range implied by `int_color` (`[0, 1]` when
             `False`, `[0, 255]` when `True`). It is rescaled to the input's actual range when
             that differs, so the default `0.5` fills `127` on `uint8` colors.
@@ -1145,7 +1159,7 @@ def color_grayscale(color: Tensor, int_color: bool = False) -> Tensor:
     """Convert RGB colors to grayscale using the BT.601 luminance weights.
 
     Args:
-        color: Color tensor of shape `(N, 3)`.
+        color: Color tensor of shape $(N, 3)$.
         int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
 
     Returns:
@@ -1163,8 +1177,8 @@ def color_shift(color: Tensor, shift: Tensor, int_color: bool = False) -> Tensor
     """Add a per-channel offset to colors, clamped to the valid color range.
 
     Args:
-        color: Color tensor of shape `(N, 3)`.
-        shift: Per-channel offset of shape `(3,)`, in the same range as the colors.
+        color: Color tensor of shape $(N, 3)$.
+        shift: Per-channel offset of shape $(3,)$, in the same range as the colors.
         int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
             `uint8` colors are always treated as `[0, 255]` regardless of the flag.
 
@@ -1187,7 +1201,7 @@ def color_auto_contrast(color: Tensor, blend: float = 0.5, int_color: bool = Fal
     (`blend=1.0` is the fully stretched version, `blend=0.0` is the input).
 
     Args:
-        color: Color tensor of shape `(N, 3)`.
+        color: Color tensor of shape $(N, 3)$.
         blend: Blend weight in `[0, 1]`.
         int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
             `uint8` colors are always treated as `[0, 255]` regardless of the flag.
@@ -1216,17 +1230,17 @@ def random_elastic_distortion(
     magnitude: float = 0.4,
     generator: Optional[torch.Generator] = None,
 ) -> Tensor:
-    """Apply a smooth random displacement field to `pos`.
+    r"""Apply a smooth random displacement field to `pos`.
 
     Implements the elastic distortion recipe common in sparse-voxel indoor
     segmentation pipelines: sample Gaussian noise on a coarse 3D grid (cells of
-    side `granularity`), smooth it with two passes of a 3x3x3 mean filter,
+    side `granularity`), smooth it with two passes of a $3 \times 3 \times 3$ mean filter,
     trilinear-interpolate the smoothed displacement at each point, and add it
     to the position. Net effect is a locally-coherent, low-frequency
     deformation that preserves nearby-point relationships.
 
     Args:
-        pos: Input positions of shape `(N, 3)`.
+        pos: Input positions of shape $(N, 3)$.
         granularity: Size of the noise grid cells (in the same units as `pos`).
             Smaller values give higher-frequency distortion.
         magnitude: Standard deviation of the per-cell Gaussian noise (in the
@@ -1234,7 +1248,7 @@ def random_elastic_distortion(
         generator: Random generator for reproducibility.
 
     Returns:
-        Distorted positions of shape `(N, 3)`.
+        Distorted positions of shape $(N, 3)$.
     """
     if pos.shape[0] == 0:
         return pos

@@ -1,3 +1,5 @@
+"""The `create_model` factory, `register_model` decorator, and pretrained weight registry."""
+
 import difflib
 import fnmatch
 import warnings

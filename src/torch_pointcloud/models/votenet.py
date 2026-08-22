@@ -1,3 +1,5 @@
+"""VoteNet detection model."""
+
 import math
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
@@ -307,6 +309,21 @@ class VoteNetProposalModule(nn.Module):
         batch_aggr: Tensor,
         mean_sizes: Tensor,
     ) -> Dict[str, Tensor]:
+        r"""Splits the flat head output into the per-proposal box attributes.
+
+        Centers are predicted as offsets from the aggregation centroids, and heading and size residuals are
+        denormalized by the bin width and the size templates respectively.
+
+        Args:
+            preds: Flat head output, shape $(B \cdot Q, C)$.
+            pos_aggr: Aggregation centroid positions, shape $(B \cdot Q, 3)$.
+            batch_aggr: Per-centroid scene index, shape $(B \cdot Q,)$.
+            mean_sizes: Size templates, shape $(S, 3)$.
+
+        Returns:
+            The per-proposal objectness, center, heading, size and semantic predictions, each of shape
+            $(B, Q, \ldots)$.
+        """
         batch_size = int(batch_aggr.max().item()) + 1 if batch_aggr.numel() else 0
         num_proposal = self.num_proposal
         nh = self.num_heading_bin

@@ -1,3 +1,5 @@
+"""Checkpoint reading, adaptive `state_dict` loading, and key-mapping transforms."""
+
 import re
 import warnings
 from collections import OrderedDict

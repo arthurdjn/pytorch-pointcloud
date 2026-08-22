@@ -22,6 +22,16 @@ flash_attn, _FLASH_ATTN_AVAILABLE = optional_import("flash_attn", url=_FLASH_ATT
 
 
 class RelativePositionalEncoding(nn.Module):
+    r"""Table-based relative position bias added to the attention logits of a serialized patch.
+
+    Each axis of the clamped relative grid coordinates indexes its own slice of a shared table, and the three
+    per-head biases are summed.
+
+    Args:
+        patch_size: Number of points attending to each other, setting the clamping boundary.
+        num_heads: Number of attention heads.
+    """
+
     def __init__(self, patch_size: int, num_heads: int) -> None:
         super().__init__()
         self.patch_size = patch_size

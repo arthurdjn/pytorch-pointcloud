@@ -1,3 +1,5 @@
+"""SpUNet segmentation model."""
+
 from collections import OrderedDict
 from typing import (
     TYPE_CHECKING,
@@ -39,6 +41,11 @@ SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=
 
 
 class SparseBasicBlock(SparseModule):
+    """Residual block of two submanifold sparse convolutions.
+
+    A pointwise convolution projects the skip connection when the channel count changes.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -141,6 +148,11 @@ def _make_block_seq(
 
 
 class SparseUNetEncoder(nn.Module):
+    """Sparse convolutional stem followed by stages that halve the resolution and run `SparseBasicBlock` blocks.
+
+    The stem output and every stage output but the last are returned as decoder skips.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -266,6 +278,11 @@ class SparseUNetEncoder(nn.Module):
 
 
 class SparseUNetDecoder(nn.Module):
+    """Mirror of `SparseUNetEncoder`: each stage inverse-convolves, concatenates its skip, and runs residual blocks.
+
+    Stages are built shallowest-first but run deepest-first, so `channels` and `layers` are read back-to-front.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -358,6 +375,29 @@ class SparseUNetDecoder(nn.Module):
 
 
 class SparseUNetSegmentation(SegmentationModel):
+    r"""SpUNet segmentation model, a sparse residual U-Net in the spirit of
+    :arxiv: [4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural Networks](https://arxiv.org/abs/1904.08755)
+    by Christopher Choy, JunYoung Gwak, Silvio Savarese.
+
+    Voxelized coordinates enter a sparse convolutional stem, then a symmetric encoder-decoder of
+    submanifold residual blocks with skip connections. The head runs on the full-resolution decoder
+    output, whose rows stay aligned with the input points.
+
+    Args:
+        in_channels: Number of input feature channels. Positions are used as features when `x` is `None`.
+        num_classes: Number of output classes. $0$ replaces the head with `nn.Identity`.
+        base_channels: Number of channels of the stem, also the width of the shallowest skip.
+        channels: Feature width of every stage, encoder stages first then decoder stages. Must have even length.
+        layers: Number of residual blocks per stage, aligned with `channels`.
+        stem_kernel_size: Kernel size of the stem convolution.
+        kernel_size: Kernel size of the residual convolutions.
+        spatial_padding: Padding added to the sparse spatial shape, so that voxel indices stay in range.
+        act: Activation function.
+        act_kwargs: Keyword arguments for the activation function.
+        norm: Normalization function.
+        norm_kwargs: Keyword arguments for the normalization function.
+    """
+
     def __init__(
         self,
         in_channels: int,

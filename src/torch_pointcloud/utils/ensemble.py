@@ -58,6 +58,11 @@ def vote_ensemble(outputs: Sequence[Tensor], num_classes: int) -> Tensor:
 
 
 class Ensemble(metaclass=ABCMeta):
+    """Base class for the class form of a prediction reducer.
+
+    Subclasses implement `forward` to aggregate a sequence of per-point prediction tensors into one.
+    """
+
     def __init__(self) -> None:
         super().__init__()
 

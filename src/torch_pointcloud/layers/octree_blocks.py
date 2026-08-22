@@ -1,3 +1,5 @@
+"""Octree convolution and deconvolution blocks with normalization and activation."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 
 import torch.nn as nn

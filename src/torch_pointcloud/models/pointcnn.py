@@ -1,3 +1,5 @@
+"""PointCNN classification and segmentation models."""
+
 from typing import (
     Any,
     Callable,
@@ -29,12 +31,16 @@ from ._registry import register_model
 
 
 class PointCNNIntermediate(NamedTuple):
+    """Per-stage encoder features and the point cloud they live on, consumed as decoder skips."""
+
     x: Tensor
     pos: Tensor
     batch: Tensor
 
 
 class PointCNNEncoderBlock(nn.Module):
+    """Optional FPS downsampling followed by an `XConv` over the kNN graph of the sampled points."""
+
     def __init__(
         self,
         in_channels: int,
@@ -74,6 +80,8 @@ class PointCNNEncoderBlock(nn.Module):
 
 
 class PointCNNDecoderBlock(nn.Module):
+    """Upsamples features to the skip resolution with an `XConv`, then fuses them with the skip features via an MLP."""
+
     def __init__(
         self,
         in_channels: int,
@@ -128,6 +136,13 @@ class PointCNNDecoderBlock(nn.Module):
 
 
 class PointCNNEncoder(nn.Module):
+    """Stack of `PointCNNEncoderBlock` units that progressively decimate the cloud with FPS.
+
+    A stage with a ratio of `0` keeps every point and only transforms features. When
+    `return_intermediates=True` is passed to `forward`, the pre-downsampling features of each
+    decimating stage are returned in coarse-to-fine order for `PointCNNDecoder`.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -213,6 +228,8 @@ class PointCNNEncoder(nn.Module):
 
 
 class PointCNNDecoder(nn.Module):
+    """Stack of `PointCNNDecoderBlock` units that walk the encoder intermediates back to full resolution."""
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -322,9 +339,11 @@ class PointCNNClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.channels[-1]
 
     def configure_encoder(self) -> nn.Module:
+        """Build the `PointCNNEncoder` backbone."""
         return PointCNNEncoder(
             channels=[self.in_channels] + self.channels,
             kernel_sizes=self.kernel_sizes,
@@ -452,9 +471,11 @@ class PointCNNSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder.channels[-1]
 
     def configure_encoder(self) -> PointCNNEncoder:
+        """Build the `PointCNNEncoder` backbone."""
         return PointCNNEncoder(
             channels=[self.in_channels] + self.channels,
             kernel_sizes=self.kernel_sizes,
@@ -468,6 +489,7 @@ class PointCNNSegmentation(SegmentationModel):
         )
 
     def configure_decoder(self) -> PointCNNDecoder:
+        """Build the `PointCNNDecoder`, mirroring the decimating encoder stages in reverse."""
         channels = []
         skip_channels = []
         kernel_sizes = []

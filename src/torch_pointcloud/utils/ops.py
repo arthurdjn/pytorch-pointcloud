@@ -1,3 +1,5 @@
+"""Tensor operations on packed batches: safe division, softmax, voxel hashing, interpolation, and decimation."""
+
 from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
@@ -33,12 +35,15 @@ def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("
         The result of the division.
 
     Example:
+        ```pycon
         >>> safe_divide(torch.tensor([1.0, 2.0, 3.0]), torch.tensor([1.0, 0.0, 1.0]))
         tensor([1., nan, 3.])
         >>> safe_divide(torch.tensor([1.0, 2.0, 3.0]), torch.tensor([1.0, 0.0, 1.0]), default=0.0)
         tensor([1., 0., 3.])
         >>> safe_divide(torch.tensor([1, 2, 3]), torch.tensor([1, 0, 1]), default=torch.tensor([0, 0, 0]))
         tensor([1., 0., 3.])
+
+        ```
     """
     if not isinstance(default, Tensor):
         default = torch.full(a.shape, default, device=a.device)
@@ -51,21 +56,21 @@ def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("
 
 def softmax(x: Tensor, batch: Tensor, dim: int = 0) -> Tensor:
     """Apply softmax on a packed x tensor.
-    The x tensor is expected to be of shape `(N, *)`,
-    where `N` is the number of nodes and `*` is the feature size.
-    The `batch` tensor must be of shape `(N,)` and must be contiguous.
+    The x tensor is expected to be of shape $(N, *)$,
+    where $N$ is the number of nodes and $*$ is the feature size.
+    The `batch` tensor must be of shape $(N,)$ and must be contiguous.
 
     Note:
         This function is adapted from the `torch_geometric` package,
         and requires the `torch-scatter` package.
 
     Args:
-        x: The x tensor of shape `(N, *)`.
-        batch: The batch tensor of shape `(N,)`.
+        x: The x tensor of shape $(N, *)$.
+        batch: The batch tensor of shape $(N,)$.
         dim: The dimension along which to apply the softmax.
 
     Returns:
-        The softmaxed tensor of shape `(N, *)`.
+        The softmaxed tensor of shape $(N, *)$.
     """
     N = batch.max() + 1
     src_max = scatter(x.detach(), batch, dim, dim_size=N, reduce="max")
@@ -185,9 +190,12 @@ def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Te
         Long tensor of shape $(V,)$ holding, per cluster id, the smallest index in `cluster` with that id.
 
     Example:
+        ```pycon
         >>> cluster = torch.tensor([1, 0, 1, 2, 0])
         >>> first_permutation(cluster)
         tensor([1, 0, 3])
+
+        ```
     """
     n = cluster.numel()
     if num_clusters is None:
@@ -290,9 +298,12 @@ def decimate_indices(
         The decimated indices and the decimated batch indices.
 
     Examples:
+        ```pycon
         >>> batch = torch.tensor([0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3])
         >>> decimate_indices(batch, 2)  # doctest: +SKIP
         (tensor([ 0,  4,  7,  6,  9, 10]), tensor([0, 1, 2, 2, 3, 3]))
+
+        ```
     """
     if factor < 1:
         raise ValueError(
@@ -334,7 +345,7 @@ def decimate(
 
     Args:
         tensors: A tuple of tensors to decimate.
-        batch: The batch tensor of shape `(N,)`.
+        batch: The batch tensor of shape $(N,)$.
         factor: The factor to decimate the tensors by.
         generator: The generator to use for the random permutation.
 
@@ -342,6 +353,7 @@ def decimate(
         A tuple of decimated tensors and the decimated batch indices.
 
     Examples:
+        ```pycon
         >>> tensors = (torch.randn(10, 3), torch.randn(10, 4))
         >>> batch = torch.tensor([0, 1, 1, 1, 2, 2, 2, 2, 3, 3])
         >>> decimate(tensors, batch, 2)  # doctest: +SKIP
@@ -356,6 +368,8 @@ def decimate(
                 [ 0.4788,  1.3537, -0.1593, -0.4249],
                 [ 1.3065,  0.4598,  0.2618, -0.7599]])),
         tensor([0, 1, 2, 2, 3]))
+
+        ```
     """
     idx_decim, batch_decim = decimate_indices(batch, factor, generator=generator)
     tensors_decim = tuple(tensor[idx_decim] for tensor in tensors)
@@ -375,6 +389,7 @@ def pad_tail(tensor: Tensor, pad_size: int, dim: int, fill_value: float = 0) -> 
         The padded tensor.
 
     Examples:
+        ```pycon
         >>> tensor = torch.tensor([1, 2, 3])
         >>> pad_tail(tensor, pad_size=2, dim=0, fill_value=0)
         tensor([1, 2, 3, 0, 0])
@@ -390,6 +405,8 @@ def pad_tail(tensor: Tensor, pad_size: int, dim: int, fill_value: float = 0) -> 
         >>> pad_tail(tensor, pad_size=2, dim=1, fill_value=0)
         tensor([[1, 2, 3, 0, 0],
                 [4, 5, 6, 0, 0]])
+
+        ```
     """
     if pad_size < 0:
         raise ValueError(f"The padding size must be non-negative, but got {pad_size}.")

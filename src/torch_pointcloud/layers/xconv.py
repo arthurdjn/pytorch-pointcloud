@@ -1,3 +1,5 @@
+"""PointCNN XConv layer: convolution on X-transformed point neighborhoods."""
+
 import math
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -95,6 +97,7 @@ class XConv(nn.Module):
 
     @staticmethod
     def init_weights_(module: nn.Module) -> None:
+        """Applies Xavier normal initialization to `nn.Linear` and `nn.Conv1d` modules, zeroing their bias."""
         if not isinstance(module, (nn.Linear, nn.Conv1d)):
             return
 

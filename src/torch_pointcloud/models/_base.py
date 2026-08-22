@@ -1,3 +1,5 @@
+"""Abstract base classes for classification, segmentation, and detection models."""
+
 from abc import ABCMeta, abstractmethod
 from typing import Any
 

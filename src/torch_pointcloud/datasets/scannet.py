@@ -297,6 +297,8 @@ SCANNET200_LABELS = [
 
 
 class ScanNetData(TypedDict):
+    """Per-point arrays of one ScanNet scene, as returned by `load_scannet_scene`."""
+
     pos: Tensor
     color: Tensor
     normal: Tensor
@@ -315,9 +317,12 @@ def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[Tensor, Tensor]:
         The vertices and face.
 
     Examples:
+        ```pycon
         >>> vertices, face = load_scannet_scene_mesh(
         ...     "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00_vh_clean_2.ply"
         ... )  # doctest: +SKIP
+
+        ```
     """
     with open(file_path, "rb") as f:
         plydata = plyfile.PlyData.read(f)
@@ -337,6 +342,7 @@ def load_scannet_scene_metadata(meta_path: PathLike, /) -> Dict[str, Any]:
         The metadata.
 
     Examples:
+        ```pycon
         >>> meta = load_scannet_scene_metadata(
         ...     "data/ScanNet/raw/v2/scans/scene0000_00/scene0000_00.txt"
         ... )  # doctest: +SKIP
@@ -344,6 +350,8 @@ def load_scannet_scene_metadata(meta_path: PathLike, /) -> Dict[str, Any]:
         dict_keys(['axisAlignment', 'colorToDepthExtrinsics', 'colorHeight', 'colorWidth', 'depthHeight', 'depthWidth',
          'fx_color', 'fy_color', 'mx_color', 'my_color', 'numColorFrames', 'numDepthFrames', 'numIMUmeasurements',
          'sceneType'])
+
+        ```
     """
     with open(meta_path) as f:
         lines = f.readlines()
@@ -390,12 +398,15 @@ def load_scannet_scene_aggregation_and_segs(
         segment group) and labels.
 
     Examples:
+        ```pycon
         >>> scene_dir = "data/ScanNet/raw/v2/scans/scene0000_00"
         >>> instance, labels = load_scannet_scene_aggregation_and_segs(  # doctest: +SKIP
         ...     f"{scene_dir}/scene0000_00.aggregation.json",
         ...     f"{scene_dir}/scene0000_00.segs.json",
         ...     label_to_idx={"chair": 1, "floor": 2, "wall": 3},
         ... )
+
+        ```
     """
     aggregation = load_json(aggregation_path)
     segments = load_json(segs_path)
@@ -441,8 +452,11 @@ def load_scannet_labels(file_path: PathLike) -> pd.DataFrame:
         The labels as a `pandas.DataFrame` object.
 
     Examples:
+        ```pycon
         >>> file_path = "data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv"
         >>> labels = load_scannet_labels(file_path)  # doctest: +SKIP
+
+        ```
     """
     return pd.read_csv(file_path, sep="\t")
 
@@ -465,9 +479,12 @@ def select_scannet_classes(
         The selected classes.
 
     Examples:
+        ```pycon
         >>> labels = load_scannet_labels("data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv")  # doctest: +SKIP
         >>> classes = select_scannet_classes(labels, "raw_category", sort_by="id", values=["wall", "floor"])  # doctest: +SKIP
         >>> nyu40classes = select_scannet_classes(labels, "nyu40class", sort_by="nyu40id", values="all")  # doctest: +SKIP
+
+        ```
     """
     if sort_by is not None:
         labels = labels.sort_values(sort_by)
@@ -522,6 +539,7 @@ def load_scannet_scene(
         The loaded scene.
 
     Examples:
+        ```pycon
         >>> labels_path = "data/ScanNet/raw/metadata/scannetv2-labels.combined.tsv"
         >>> labels = load_scannet_labels(labels_path)  # doctest: +SKIP
         >>> label_to_idx = {label: idx for idx, label in enumerate(labels["raw_category"].unique())}  # doctest: +SKIP
@@ -536,12 +554,14 @@ def load_scannet_scene(
         >>> scene  # doctest: +SKIP
         {'points': tensor([[...]]), 'color': tensor([[...]]), 'normal': tensor([[...]]),
          'instance': tensor([...]), 'labels': tensor([...])}}
+
+        ```
     """
     label_to_idx = label_to_idx or {}
 
     # Load the points
     vertices, face = load_scannet_scene_mesh(mesh_path)
-    pos, color = vertices[:, :3], vertices[:, 3:6]
+    pos, color = vertices[:, :3], vertices[:, 3:6].to(torch.uint8)
 
     # Optionally transform the points with the axis alignment matrix
     if use_axis_alignment:
@@ -818,6 +838,7 @@ class ScanNet(PointCloudDataset):
 
     @cached_property
     def labels(self) -> pd.DataFrame:
+        """The raw label table, read from the version's combined labels TSV."""
         resource_path = self.label_resources[int(self.version == "v2")]
         resource_path = resource_path.format(version=self.version)
         labels_path = Path(self.raw_dir, resource_path)
@@ -831,14 +852,17 @@ class ScanNet(PointCloudDataset):
 
     @cached_property
     def classes(self) -> List[str]:
+        """Class names in label order."""
         return list(self._column_classes)
 
     @cached_property
     def class_to_idx(self) -> Dict[str, int]:
+        """Mapping from class name to label index."""
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     @cached_property
     def relabel(self) -> Optional[T.Relabel]:
+        """Transform remapping the raw segment ids to the benchmark ids, or `None` when they are used as-is."""
         return None
 
     def raw_files_exist(self) -> bool:
@@ -863,6 +887,7 @@ class ScanNet(PointCloudDataset):
 
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, suffixed `_noalign` when axis alignment is off."""
         base = Path(self.data_dir, "processed")
         if not self.use_axis_alignment:
             base = Path(str(base) + "_noalign")
@@ -870,12 +895,13 @@ class ScanNet(PointCloudDataset):
 
     @property
     def processed_files(self) -> List[Path]:
+        """Sorted list of the split's processed scene directories."""
         scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
     def _cache_meta(self) -> Dict[str, Any]:
         """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 1, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
+        return {"format_version": 2, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
 
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
@@ -1260,21 +1286,25 @@ class ScanNet20(ScanNet):
     @override
     @property
     def name(self) -> str:
+        """Name of the dataset directory (shared with `ScanNet`)."""
         return "ScanNet"
 
     @override
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, suffixed `_20` for the 20-class benchmark."""
         return super().processed_dir + "_20"
 
     @override
     @cached_property
     def classes(self) -> List[str]:
+        """Class names in label order."""
         return [self.unk_cls, *SCANNET20_CLASSES]
 
     @override
     @cached_property
     def relabel(self) -> T.Relabel:
+        """Transform remapping the raw segment ids to the 20 benchmark ids."""
         return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
 
 
@@ -1360,16 +1390,19 @@ class ScanNet200(ScanNet):
     @override
     @property
     def name(self) -> str:
+        """Name of the dataset directory (shared with `ScanNet`)."""
         return "ScanNet"
 
     @override
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, suffixed `_200` for the 200-class benchmark."""
         return super().processed_dir + "_200"
 
     @override
     @cached_property
     def classes(self) -> List[str]:
+        """Class names in label order."""
         # The TSV `category` column is not constant per `id` (id 1163 has rows `object` then `stick`);
         # the official ScanNet200 class list names each benchmark id after its first row, so keep that one.
         id_to_name: Dict[int, str] = {}
@@ -1380,6 +1413,7 @@ class ScanNet200(ScanNet):
     @override
     @cached_property
     def relabel(self) -> T.Relabel:
+        """Transform remapping the raw segment ids to the 200 benchmark ids."""
         # Caches without `meta.json` predate the positional segment ids and store raw TSV ids.
         if not Path(self.processed_dir, self.split, "meta.json").exists():
             return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)

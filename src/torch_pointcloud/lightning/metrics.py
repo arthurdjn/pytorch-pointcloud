@@ -1,3 +1,5 @@
+"""Evaluation metrics for 3D detection, instance segmentation, and part segmentation."""
+
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Sequence
 
 import torch
@@ -73,6 +75,7 @@ class MeanAveragePrecision3D(Metric):
         self.targets.append(target)
 
     def compute(self) -> Dict[str, float]:
+        """Score the accumulated batches and return one `mAP@t` entry per IoU threshold."""
         return mean_average_precision3d(
             self.preds,
             self.targets,
@@ -139,6 +142,7 @@ class AveragePrecision3D(Metric):
         self.targets.append(target)
 
     def compute(self) -> Dict[str, float]:
+        """Score the accumulated batches and return one `AP/<class>` entry per class plus their `mAP`."""
         return average_precision3d(
             self.preds,
             self.targets,
@@ -275,6 +279,7 @@ class NuScenesDetection(Metric):
         self.num_samples += max(pred_samples, gt_samples)
 
     def compute(self) -> Dict[str, float]:
+        """Score the accumulated samples and return the official nuScenes metrics, `NDS` included."""
         device = self.num_samples.device
         empty_boxes = torch.zeros((0, 7), device=device)
         empty_ids = torch.zeros((0,), dtype=torch.long, device=device)
@@ -352,6 +357,7 @@ class InstanceAveragePrecision(Metric):
         self.matches.append(match)
 
     def compute(self) -> Dict[str, float]:
+        """Score the accumulated scene records and return the per-class average precisions and their mean."""
         return instance_average_precision(
             self.matches,
             num_classes=self.num_classes,
@@ -408,7 +414,7 @@ class InstancePartMeanIoU(Metric):
         r"""Score one packed batch of shapes.
 
         Args:
-            preds: Predicted part indices $(N,)$, or logits / probabilities $(N, \text{num_classes})$.
+            preds: Predicted part indices $(N,)$, or logits / probabilities $(N, \text{num\_classes})$.
             target: Ground truth part indices, shape $(N,)$.
             batch: Per-point shape index, shape $(N,)$.
         """
@@ -429,6 +435,7 @@ class InstancePartMeanIoU(Metric):
         self.count += torch.bincount(category, minlength=self.count.numel())
 
     def compute(self) -> Dict[str, Tensor]:
+        """Reduce the accumulated per-category IoU sums into `ins_mIoU` and `cls_mIoU`."""
         present = self.count > 0
         if not bool(present.any()):
             zero = self.iou_sum.sum()

@@ -1,3 +1,5 @@
+"""Abstract base class for test-time inference strategies."""
+
 from abc import ABCMeta, abstractmethod
 from typing import Any, Callable, Dict
 
