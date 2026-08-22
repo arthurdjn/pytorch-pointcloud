@@ -1,4 +1,7 @@
-"""S3DIS indoor scene segmentation datasets with room loading, alignment, and tiling helpers."""
+"""S3DIS indoor scene segmentation datasets with room loading, alignment, and tiling helpers.
+
+{{ paper("s3dis-2016") }}
+"""
 
 import math
 from collections import defaultdict

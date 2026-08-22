@@ -1,4 +1,7 @@
-"""PointMLP classification and segmentation models."""
+"""PointMLP classification and segmentation models.
+
+{{ paper("2202.07123") }}
+"""
 
 from typing import (
     Any,

@@ -1,5 +1,7 @@
 """The Toronto-3D dataset.
 
+{{ paper("2003.08284") }}
+
 :arxiv: [Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways](https://arxiv.org/abs/2003.08284)
 by Tan, Ma, Liu, Bobkov, Pukhalskaya, Eichenberger, Tatarchenko, Kosinka, et al.
 

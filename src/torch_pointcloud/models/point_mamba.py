@@ -1,4 +1,7 @@
-"""Point-Mamba classification and masked autoencoder pretraining models."""
+"""Point-Mamba classification and masked autoencoder pretraining models.
+
+{{ paper("2402.10739") }}
+"""
 
 from typing import (
     TYPE_CHECKING,

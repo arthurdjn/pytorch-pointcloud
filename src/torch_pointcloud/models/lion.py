@@ -1,4 +1,7 @@
-"""LION detection model."""
+"""LION detection model.
+
+{{ paper("2407.18232") }}
+"""
 
 import math
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, TypedDict

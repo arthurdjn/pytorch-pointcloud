@@ -1,4 +1,7 @@
-"""PointRCNN detection model."""
+"""PointRCNN detection model.
+
+{{ paper("1812.04244") }}
+"""
 
 import math
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union

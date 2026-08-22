@@ -1,7 +1,7 @@
-"""
-The SUN RGB-D dataset for 3D object detection, as described in the paper
-:arxiv: [SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite](https://arxiv.org/abs/1505.05554).
+"""The SUN RGB-D dataset for 3D object detection, as described in the paper
+:arxiv: [SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite](https://openaccess.thecvf.com/content_cvpr_2015/html/Song_SUN_RGB-D_A_2015_CVPR_paper.html).
 
+{{ paper("sunrgbd-2015") }}
 """
 
 import io
@@ -206,7 +206,7 @@ def parse_boxes(gt: Any, class_to_idx: Dict[str, int]) -> np.ndarray:
 
 class SunRGBD(PointCloudDataset):
     r"""The SUN RGB-D dataset for 3D object detection, as described in the paper
-    :arxiv: [SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite](https://arxiv.org/abs/1505.05554).
+    :arxiv: [SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite](https://openaccess.thecvf.com/content_cvpr_2015/html/Song_SUN_RGB-D_A_2015_CVPR_paper.html).
 
     SUN RGB-D provides 10335 RGB-D frames with amodal oriented 3D bounding boxes. This dataset
     reconstructs the upright point cloud from the raw depth frames following the votenet recipe

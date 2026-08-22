@@ -1,4 +1,7 @@
-"""Sonata pretrained encoder and linear-probing segmentation model."""
+"""Sonata pretrained encoder and linear-probing segmentation model.
+
+{{ paper("2503.16429") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

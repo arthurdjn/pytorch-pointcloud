@@ -1,4 +1,7 @@
-"""SPFormer-UNet segmentation model."""
+"""SPFormer-UNet segmentation model.
+
+{{ paper("2211.15766") }}
+"""
 
 from collections import OrderedDict
 from typing import (
