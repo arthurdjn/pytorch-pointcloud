@@ -90,9 +90,20 @@ $N = N_1 + N_2 + \ldots + N_B$.
 
 <div class="grid cards" markdown>
 
--   :material-cube-outline: __[Models](models/overview.md)__: what's available, what each is good for
--   :material-database: __[Datasets](datasets/overview.md)__: built-in dataset loaders
--   :material-tune: __[Transforms](transforms/overview.md)__: composable preprocessing
--   :material-book-open-page-variant: __[API Reference](api/index.md)__: every public class and function
+-   :material-cube-outline: __[Models](models/overview.md)__
+
+    What's available, and what each architecture is good for.
+
+-   :material-database: __[Datasets](datasets/overview.md)__
+
+    Built-in loaders for the standard point cloud benchmarks.
+
+-   :material-tune: __[Transforms](transforms/overview.md)__
+
+    Composable preprocessing, from sampling to augmentation.
+
+-   :material-book-open-page-variant: __[API Reference](api/index.md)__
+
+    Every public class and function.
 
 </div>

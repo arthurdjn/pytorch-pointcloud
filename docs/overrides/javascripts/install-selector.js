@@ -12,24 +12,14 @@ function initInstallSelector() {
   var CUDA_DOT = { cu126: "12.6", cu128: "12.8", cu130: "13.0", cu132: "13.2" };
   var state = {
     pm: "uv", torch: "2.10", cuda: "cu128",
-    extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, fvdb: false, lightning: false }
+    extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, lightning: false }
   };
-  function fvdbPin() {
-    var m = {
-      "2.10": { ver: "0.4.2", pt: "pt210", cuda: ["cu128", "cu130"] },
-      "2.11": { ver: "0.5.1", pt: "pt211", cuda: ["cu128", "cu130"] }
-    };
-    var e = m[state.torch];
-    if (!e || e.cuda.indexOf(state.cuda) === -1) return null;
-    return "fvdb-core==" + e.ver + "+" + e.pt + "." + state.cuda;
-  }
   function disabledExtras() {
     var d = {};
     if (state.cuda === "cpu") { d.flash = "CUDA-only"; d.mamba = "CUDA-only"; d.torchsparse = "CUDA-only"; d.sptr = "CUDA-only"; }
     if (state.torch === "2.13") { d.flash = "no torch 2.13 wheels on the Astral index"; }
     if (state.torch === "2.12" || state.torch === "2.13") { d.mamba = "no torch " + state.torch + " wheels on the Astral index"; }
     if (state.cuda === "cu130" || state.cuda === "cu132") { d.spconv = "no CUDA 13 build"; }
-    if (!fvdbPin()) { d.fvdb = "no fvdb-core wheel for this torch/CUDA combination"; }
     return d;
   }
   function command() {
@@ -89,12 +79,6 @@ function initInstallSelector() {
       lines.push("", "# builds from source (SphereFormer attention kernels)");
       lines.push(pipish + " --no-build-isolation \\");
       lines.push('  "sptr @ git+https://github.com/JIA-Lab-research/SparseTransformer"');
-    }
-    var fvdb = fvdbPin();
-    if (state.extras.fvdb && fvdb) {
-      lines.push("", "# official fVDB index (XCube)");
-      lines.push(pipish + ' --no-deps "' + fvdb + '" \\');
-      lines.push("  --extra-index-url https://d36m13axqqhiit.cloudfront.net/simple");
     }
     if (state.extras.lightning) {
       lines.push("", "# Lightning training modules");
