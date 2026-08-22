@@ -1,4 +1,7 @@
-"""Utonia pretrained encoder and linear-probing segmentation model."""
+"""Utonia pretrained encoder and linear-probing segmentation model.
+
+{{ paper("2603.03283") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

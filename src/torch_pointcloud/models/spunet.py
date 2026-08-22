@@ -1,4 +1,7 @@
-"""SpUNet segmentation model."""
+"""SpUNet segmentation model.
+
+{{ paper("1904.08755") }}
+"""
 
 from collections import OrderedDict
 from typing import (

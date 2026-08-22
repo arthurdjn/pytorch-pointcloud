@@ -1,4 +1,7 @@
-"""KPConv classification and segmentation models."""
+"""KPConv classification and segmentation models.
+
+{{ paper("1904.08889") }}
+"""
 
 import math
 import random

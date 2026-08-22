@@ -1,4 +1,7 @@
-"""VoteNet detection model."""
+"""VoteNet detection model.
+
+{{ paper("1904.09664") }}
+"""
 
 import math
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union

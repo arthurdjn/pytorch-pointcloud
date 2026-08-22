@@ -1,4 +1,7 @@
-"""Concerto pretrained encoders and linear-probing segmentation model."""
+"""Concerto pretrained encoders and linear-probing segmentation model.
+
+{{ paper("2510.23607") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

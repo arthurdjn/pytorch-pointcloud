@@ -1,4 +1,7 @@
-"""PVCNN++ classification and segmentation models."""
+"""PVCNN++ classification and segmentation models.
+
+{{ paper("1907.03739") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

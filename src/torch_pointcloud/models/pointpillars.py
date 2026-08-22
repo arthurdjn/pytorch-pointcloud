@@ -1,4 +1,7 @@
-"""PointPillars detection models."""
+"""PointPillars detection models.
+
+{{ paper("1812.05784") }}
+"""
 
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 

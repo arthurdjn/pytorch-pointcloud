@@ -1,4 +1,7 @@
-"""PointNeXt classification and segmentation models."""
+"""PointNeXt classification and segmentation models.
+
+{{ paper("2206.04670") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
 
