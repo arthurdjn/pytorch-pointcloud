@@ -1,4 +1,6 @@
-# torch-pointcloud
+# PyTorch PointCloud
+
+![PyTorch-PointCloud](./assets/pytorch-pointcloud.png)
 
 A PyTorch library for deep learning on point clouds. Production-ready models for classification, segmentation, and detection, with a `create_model` factory, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
 
@@ -8,17 +10,24 @@ import torch_pointcloud as tp
 import torch_pointcloud.transforms as T
 
 # 1. Load a pretrained model
-model = tp.create_model("pointnext-sm.scanobjectnn.openpoints", task="classification", pretrained=True).eval()
+model = tp.create_model(
+    "pointnext-sm.scanobjectnn.openpoints", 
+    task="classification", 
+    pretrained=True,
+).eval()
 
 # 2. Build a transform pipeline
 transform = T.Compose([
     T.Rescale(keys="pos", method="centroid"),
-    T.RandomSample(keys=("pos", "color"), num_samples=1024),
+    T.RandomSample(keys="pos", num_samples=1024),
 ])
 
-# 3. Run inference
-data = transform({"pos": torch.randn(2048, 3), "color": torch.rand(2048, 3)})
-logits = model(data["color"], data["pos"], batch=torch.zeros(1024, dtype=torch.long))
+# 3. Run inference. The ScanObjectNN weights 
+# expect 4 input channels: xyz plus a height feature.
+data = transform({"pos": torch.randn(2048, 3)})
+pos = data["pos"]
+x = torch.cat([pos, pos[:, 1:2] - pos[:, 1].min()], dim=1)  # (N, 4)
+logits = model(x, pos, batch=torch.zeros(1024, dtype=torch.long))
 ```
 
 ## What's inside
@@ -39,7 +48,7 @@ logits = model(data["color"], data["pos"], batch=torch.zeros(1024, dtype=torch.l
 
 -   :material-tune: __[Transforms](transforms/overview.md)__
 
-    Composable, non-mutating dict transforms inspired by [MONAI](https://docs.monai.io/): `Compose`, `Rescale`, `Shift`, `Voxelize`, `FarthestPointSample`, mask family, and more.
+    Composable, non-mutating dict transforms inspired by :monai: [MONAI](https://docs.monai.io/): `Compose`, `Rescale`, `Shift`, `Voxelize`, `FarthestPointSample`, mask family, and more.
 
 -   :material-book-open-page-variant: __[API Reference](api/index.md)__
 
@@ -60,4 +69,4 @@ logits = model(data["color"], data["pos"], batch=torch.zeros(1024, dtype=torch.l
 
 ## License
 
-MIT. See [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
+Apache 2.0. See [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).

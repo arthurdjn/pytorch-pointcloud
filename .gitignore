@@ -164,19 +164,14 @@ cython_debug/
 weights/**
 data/**
 docs/api/**
+docs/examples/*
+!docs/examples/*.ipynb
+!docs/examples/index.md
 
 # Notebooks
 notebooks/**
 !notebooks/*.ipynb
 notebooks/**/\[WIP\]*.ipynb
-!tests/data
 
 # Git keep
 !.gitkeep
-outputs/
-.claude/
-# Docs content is local-only, but the build scripts must stay tracked (a bare `docs` rule would
-# exclude the directory itself, making any negation ineffective).
-docs/*
-!docs/scripts/
-DEBUG.ipynb
