@@ -1,3 +1,5 @@
+"""S3DIS indoor scene segmentation datasets with room loading, alignment, and tiling helpers."""
+
 import math
 from collections import defaultdict
 from functools import cached_property
@@ -68,6 +70,8 @@ S3DIS_UNK_IDX = S3DIS_CLASS_TO_IDX[S3DIS_UNK_CLS]
 
 
 class S3DISRoomData(TypedDict, total=False):
+    """Per-point arrays of one S3DIS room, as returned by `load_s3dis_room`."""
+
     pos: Tensor
     color: Tensor
     segment: Tensor
@@ -181,7 +185,7 @@ def tile_s3dis_room(
     r"""Split a single room dict into fixed-size spatial blocks.
 
     The algorithm shifts the room so that the minimum point is at the origin, then
-    sweeps a $\text{block_size} \times \text{block_size}$ window (full Z extent) over the room with
+    sweeps a $\text{block\_size} \times \text{block\_size}$ window (full Z extent) over the room with
     the given stride. This matches the procedure in multiple SOTA reference
     implementations (KPFCNN, ...).
 
@@ -189,7 +193,7 @@ def tile_s3dis_room(
         room: Dict with at least `DataKeys.POS` (float32, $(N, 3)$).
             All other tensors with a leading dimension of $N$ are sliced in parallel.
         block_size: Side length of each square block in meters.
-        block_stride: Step size for the sliding window in meters. Must be $\\leq$ `block_size`.
+        block_stride: Step size for the sliding window in meters. Must be $\leq$ `block_size`.
         num_nodes: Fixed number of nodes per block. Nodes are randomly subsampled
             (or duplicated if the block has fewer nodes).
         min_num_nodes: Minimum number of raw nodes for a block to be kept.
@@ -382,12 +386,14 @@ class S3DIS(PointCloudDataset):
 
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, suffixed `_aligned` when the rooms are axis-aligned."""
         if self.aligned:
             return Path(self.data_dir, "processed_aligned").absolute().as_posix()
         return Path(self.data_dir, "processed").absolute().as_posix()
 
     @cached_property
     def class_to_idx(self) -> dict[str, int]:
+        """Mapping from class name to label index."""
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     @override
@@ -415,6 +421,14 @@ class S3DIS(PointCloudDataset):
         return all(self.is_area_processed(area) for area in self.areas)
 
     def is_area_processed(self, area: str) -> bool:
+        """Check whether an area is fully packed in the processed cache.
+
+        Args:
+            area: Name of the area (e.g. `Area_1`).
+
+        Returns:
+            True if every packed file of the area exists, False otherwise.
+        """
         file_names = ["pos.npy", "color.npy", "segment.npy", "instance.npy", "offset.npy"]
         area_dir = Path(self.processed_dir, area)
         return all((area_dir / name).exists() for name in file_names)
@@ -575,13 +589,13 @@ class S3DIS(PointCloudDataset):
         min_num_nodes: int = 100,
         show_progress: bool = True,
     ) -> None:
-        """Load the processed dataset into memory.
+        r"""Load the processed dataset into memory.
         If the provided block_size is not `None` and greater than 0, the rooms will be split into fixed-size
         spatial blocks.
 
         Args:
             block_size: Side length of each square block in meters.
-            block_stride: Step size for the sliding window in meters. Must be $\\leq$ `block_size`.
+            block_stride: Step size for the sliding window in meters. Must be $\leq$ `block_size`.
             num_nodes: Fixed number of nodes per block. Nodes are randomly subsampled
                 (or duplicated if the block has fewer nodes).
             min_num_nodes: Minimum number of raw nodes for a block to be kept.
@@ -728,18 +742,22 @@ class S3DISHdf5(PointCloudDataset):
 
     @property
     def name(self) -> str:
+        """Name of the dataset directory (shared with `S3DIS`)."""
         return "S3DIS"
 
     @cached_property
     def class_to_idx(self) -> dict[str, int]:
+        """Mapping from class name to label index."""
         return {cls: idx for idx, cls in enumerate(self.classes)}
 
     @property
     def raw_dir(self) -> str:
+        """Path to the raw download directory."""
         return Path(self.root, self.name, "indoor3d_sem_seg_hdf5_data").as_posix()
 
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, which aliases `raw_dir` since the HDF5 blocks are read as-is."""
         return Path(self.root, self.name, "indoor3d_sem_seg_hdf5_data").as_posix()
 
     def raw_files_exist(self) -> bool:

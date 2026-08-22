@@ -1,3 +1,5 @@
+"""T-Net alignment modules predicting affine transforms for point and feature spaces."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 
 import torch

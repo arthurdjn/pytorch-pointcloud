@@ -1,3 +1,5 @@
+"""OctFormer classification and segmentation models."""
+
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
@@ -33,6 +35,8 @@ Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 class CPE(nn.Module):
+    """Conditional positional encoding: a depthwise octree convolution followed by batch normalization."""
+
     def __init__(
         self,
         in_channels: int,
@@ -72,6 +76,8 @@ class CPE(nn.Module):
 
 
 class OctFormerBlock(nn.Module):
+    """Transformer block over octree patches: a `CPE` residual, then octree attention and an MLP, both pre-normed."""
+
     def __init__(
         self,
         channels: int,
@@ -134,6 +140,12 @@ class OctFormerBlock(nn.Module):
 
 
 class OctFormerEncoderLayer(nn.Module):
+    """One encoder stage: an optional octree convolution downsampling followed by `num_blocks` `OctFormerBlock` units.
+
+    Blocks alternate between a dilation of `1` and the configured `dilation`, so consecutive blocks
+    attend to neighboring and to spread-out patches in turn.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -203,6 +215,12 @@ class OctFormerEncoderLayer(nn.Module):
 
 
 class OctFormerEncoder(nn.Module):
+    """Stack of `OctFormerEncoderLayer` stages, each running one octree depth coarser than the previous one.
+
+    When `return_intermediates=True` is passed to `forward`, the input features of every stage but
+    the first are returned in coarse-to-fine order, ready to be consumed by `OctFormerDecoder`.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -307,6 +325,10 @@ class OctFormerEncoder(nn.Module):
 
 
 class OctFormerDecoder(nn.Module):
+    """Feature pyramid decoder: projects every encoder stage to `fpn_channels`, merges them top-down, and
+    sums the results upsampled to the finest depth. `num_ups` octree deconvolutions then undo the stem strides.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -367,6 +389,8 @@ class OctFormerDecoder(nn.Module):
 
 
 class OctreePatchEmbed(nn.Module):
+    """Convolutional stem that embeds the octree signal, halving the resolution once per channel step."""
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -431,6 +455,15 @@ class OctreePatchEmbed(nn.Module):
 
 
 class OctFormerClassification(ClassificationModel):
+    r"""OctFormer classification model from
+    :arxiv: [OctFormer: Octree-based Transformers for 3D Point Clouds](https://arxiv.org/abs/2305.03045)
+    by Peng-Shuai Wang.
+
+    An octree convolution stem embeds the input signal, then attention runs over patches of equal
+    point count sorted along the octree's space-filling curve, one stage per octree depth. Point
+    features are pooled globally after the encoder for classification.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -498,6 +531,7 @@ class OctFormerClassification(ClassificationModel):
         self.head = self.configure_head()
 
     def configure_stem(self) -> nn.Module:
+        """Build the `OctreePatchEmbed` stem."""
         # NOTE: The original OctFormer stem uses hard-coded ReLU activation.
         # For reproducibility, we use ReLU also here.
         return OctreePatchEmbed(
@@ -512,6 +546,7 @@ class OctFormerClassification(ClassificationModel):
         )
 
     def configure_encoder(self) -> nn.Module:
+        """Build the `OctFormerEncoder` backbone."""
         return OctFormerEncoder(
             channels=self.encoder_channels,
             num_blocks=self.num_blocks,
@@ -556,6 +591,7 @@ class OctFormerClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder_channels[-1]
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
@@ -625,16 +661,40 @@ class OctFormerClassification(ClassificationModel):
         return self.forward_head(x, octree, min_depth)
 
     def get_encoder_depth(self, depth: int) -> int:
+        """Octree depth at which the first encoder stage runs, once the stem downsamplings are accounted for.
+
+        Args:
+            depth: Octree depth of the input signal.
+
+        Returns:
+            The octree depth of the encoder's first stage.
+        """
         stem_depth = len(self.stem_channels) - 1
         return depth - stem_depth
 
     def get_head_depth(self, depth: int) -> int:
+        """Octree depth of the encoder output, which is the depth the head pools over.
+
+        Args:
+            depth: Octree depth of the input signal.
+
+        Returns:
+            The octree depth of the encoder's last stage.
+        """
         max_depth = self.get_encoder_depth(depth)
         encoder_depth = len(self.encoder_channels) - 1
         return max_depth - encoder_depth
 
 
 class OctFormerSegmentation(SegmentationModel):
+    r"""OctFormer segmentation model from
+    :arxiv: [OctFormer: Octree-based Transformers for 3D Point Clouds](https://arxiv.org/abs/2305.03045)
+    by Peng-Shuai Wang.
+
+    The octree attention encoder is followed by a feature pyramid decoder that merges every stage at
+    `fpn_channels` and upsamples back to the input octree depth, then a per-point MLP head.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -703,6 +763,7 @@ class OctFormerSegmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def configure_stem(self) -> nn.Module:
+        """Build the `OctreePatchEmbed` stem."""
         # NOTE: The original OctFormer stem uses hard-coded ReLU activation.
         return OctreePatchEmbed(
             [self.in_channels, *self.stem_channels],
@@ -716,6 +777,7 @@ class OctFormerSegmentation(SegmentationModel):
         )
 
     def configure_encoder(self) -> nn.Module:
+        """Build the `OctFormerEncoder` backbone."""
         return OctFormerEncoder(
             channels=self.channels,
             num_blocks=self.num_blocks,
@@ -741,6 +803,7 @@ class OctFormerSegmentation(SegmentationModel):
         )
 
     def configure_decoder(self) -> nn.Module:
+        """Build the `OctFormerDecoder`, with one upsampling per stem downsampling."""
         # The original OctFormer decoder uses hard-coded ReLU activation.
         num_ups = len(self.stem_channels) - 1
         return OctFormerDecoder(
@@ -773,6 +836,7 @@ class OctFormerSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.fpn_channels
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:

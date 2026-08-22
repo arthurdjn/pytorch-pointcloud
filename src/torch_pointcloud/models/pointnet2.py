@@ -1,3 +1,5 @@
+"""PointNet++ classification and segmentation models."""
+
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch

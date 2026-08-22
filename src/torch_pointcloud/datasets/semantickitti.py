@@ -126,9 +126,9 @@ def _check_sequences(sequences: Sequence[str]) -> None:
 
 
 def load_semantickitti_scan(file_path: PathLike) -> tuple[Tensor, Tensor]:
-    """Load a single SemanticKITTI velodyne scan from a `.bin` file.
+    r"""Load a single SemanticKITTI velodyne scan from a `.bin` file.
 
-    Each `.bin` file contains a raw float32 array of shape $(N \\cdot 4,)$
+    Each `.bin` file contains a raw float32 array of shape $(N \cdot 4,)$
     interpreted as $(N, 4)$ points with columns `(x, y, z, intensity)`.
 
     Args:
@@ -319,11 +319,13 @@ class SemanticKITTI(PointCloudDataset):
 
     @property
     def sequences_dir(self) -> str:
+        """Path to the raw `sequences` directory."""
         return Path(self.raw_dir, "sequences").absolute().as_posix()
 
     @property
     @override
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, which aliases `raw_dir` since the scans are read as-is."""
         # SemanticKITTI is consumed directly from its raw form (no processing step),
         # so `processed_dir` aliases `raw_dir` rather than pointing to a non-existent
         # `<root>/SemanticKITTI/processed` location.

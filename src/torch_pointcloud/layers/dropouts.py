@@ -1,3 +1,5 @@
+"""Dropout layers: stochastic depth (`DropPath`) and the `create_dropout` factory."""
+
 from typing import Any, Dict, Literal, Union
 
 import torch.nn as nn
@@ -56,6 +58,17 @@ _DROPOUT_REGISTRY: Dict[DropoutName, RegisteredModuleLike] = dict(
 
 
 def create_dropout(name: Union[DropoutLike, float], *args: Any, **kwargs: Any) -> nn.Module:
+    """Resolve a dropout layer from a name, a class, an instance, or a probability.
+
+    Args:
+        name: Dropout name (e.g., `"dropout"`, `"drop_path"`), a class, an instance, or a float
+            probability, which is a shorthand for `nn.Dropout(p=name)`.
+        *args: Forwarded to the dropout constructor.
+        **kwargs: Forwarded to the dropout constructor (ignored if `name` is already an instance).
+
+    Returns:
+        The instantiated dropout module.
+    """
     if isinstance(name, (int, float)):
         return create_module("dropout", p=name, *args, registry=_DROPOUT_REGISTRY, **kwargs)
     return create_module(name, *args, registry=_DROPOUT_REGISTRY, **kwargs)

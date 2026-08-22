@@ -1,3 +1,5 @@
+"""SPFormer-UNet segmentation model."""
+
 from collections import OrderedDict
 from typing import (
     TYPE_CHECKING,
@@ -415,9 +417,11 @@ class SPFormerUNetSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ of the full-resolution decoder features entering the head."""
         return self.channels[0]
 
     def configure_encoder(self) -> SPFormerUNetEncoder:
+        """Builds the sparse encoder producing the bottleneck features and the per-stage skips."""
         return SPFormerUNetEncoder(
             self.in_channels,
             self.channels,
@@ -431,6 +435,7 @@ class SPFormerUNetSegmentation(SegmentationModel):
         )
 
     def configure_decoder(self) -> SPFormerUNetDecoder:
+        """Builds the sparse decoder upsampling the bottleneck back to full resolution."""
         return SPFormerUNetDecoder(
             self.channels,
             self.layers,

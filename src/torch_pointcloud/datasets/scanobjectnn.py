@@ -1,3 +1,5 @@
+"""ScanObjectNN real-world object classification dataset with its background and perturbation variants."""
+
 from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Sequence, Union
 
@@ -102,10 +104,12 @@ class ScanObjectNN(PointCloudDataset):
 
     @property
     def class_to_idx(self) -> Dict[str, int]:
+        """Mapping from class name to label index."""
         return {cls_name: cls_idx for cls_idx, cls_name in enumerate(self.classes)}
 
     @property
     def raw_file(self) -> str:
+        """Path to the raw HDF5 file of the split, partition and variant."""
         dir_name = f"{self.partition}"
         if self.partition == "main":
             dir_name += "_split"
@@ -121,6 +125,7 @@ class ScanObjectNN(PointCloudDataset):
 
     @property
     def processed_file(self) -> str:
+        """Path to the packed `.npz` cache mirroring `raw_file`."""
         raw_dir = Path(self.raw_dir).absolute()
         raw_file = Path(self.raw_file).absolute()
         processed_file = Path(self.processed_dir, raw_file.relative_to(raw_dir))

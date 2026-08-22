@@ -1,3 +1,5 @@
+"""PVCNN++ classification and segmentation models."""
+
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch.nn as nn
@@ -738,6 +740,7 @@ class PVCNN2Segmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ of the per-point decoder features entering the head."""
         return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:

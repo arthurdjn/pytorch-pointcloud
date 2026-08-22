@@ -1,3 +1,5 @@
+"""Benchmark point cloud datasets with disk caching and download helpers."""
+
 from .concat import ConcatDataset, SingleDatasetBatchSampler
 from .kitti import KITTI
 from .mix import MixDataset

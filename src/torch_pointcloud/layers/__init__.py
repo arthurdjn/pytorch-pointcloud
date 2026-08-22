@@ -1,3 +1,5 @@
+"""Reusable neural network blocks shared across the model architectures."""
+
 from ._modules import (
     ModuleLike,
     ModuleName,

@@ -332,6 +332,15 @@ class MaskedTransformerEncoder(nn.Module):
 
     @staticmethod
     def compute_mask(pos: Tensor, radius: float) -> Tensor:
+        r"""Builds the boolean attention mask hiding token pairs farther apart than `radius`.
+
+        Args:
+            pos: Dense token positions, shape $(B, P, 3)$.
+            radius: Attention radius.
+
+        Returns:
+            Mask of shape $(B, P, P)$, `True` where attention is blocked.
+        """
         with torch.no_grad():
             dist = torch.cdist(pos, pos, p=2)
             mask = dist >= radius
@@ -527,7 +536,7 @@ class DETR3DDetection(DetectionModel):
         num_queries: Number of object queries (decoded boxes) per scene.
         preenc_npoints: Token count after the set-abstraction tokenizer.
         encoder_type: `"vanilla"` (encoder keeps `preenc_npoints` tokens) or `"masked"` (3DETR-m: radius
-            attention masks plus one interim downsampling to `preenc_npoints // 2`).
+            attention masks plus one interim downsampling to $\text{preenc\_npoints} // 2$).
         encoder_embed_dim: Encoder token dimension.
         encoder_num_heads: Encoder attention heads.
         encoder_feedforward_channels: Encoder feed-forward width.
@@ -731,6 +740,17 @@ class DETR3DDetection(DetectionModel):
         batch: Tensor,
         idx: OptTensor = None,
     ) -> Tuple[Tensor, Tensor]:
+        r"""Tokenizes the point cloud with the pre-encoder and runs the masked transformer encoder.
+
+        Args:
+            x: Packed point features, shape $(N, C)$, or `None` to use the positions.
+            pos: Packed point positions, shape $(N, 3)$.
+            batch: Per-point scene index, shape $(N,)$.
+            idx: Optional pre-computed sampling indices for the pre-encoder.
+
+        Returns:
+            The token positions of shape $(B, P, 3)$ and the token features of shape $(P, B, C)$.
+        """
         x_tok, pos_tok, batch_tok, _ = self.pre_encoder(x, pos, batch, idx)
         num_tok = self.preenc_npoints
         enc_xyz = _to_dense(pos_tok, batch_tok, num_tok)
@@ -744,6 +764,16 @@ class DETR3DDetection(DetectionModel):
         point_cloud_dims: Tuple[Tensor, Tensor],
         query_idx: OptTensor = None,
     ) -> Tuple[Tensor, Tensor]:
+        r"""Samples the query positions among the encoder tokens and embeds them into decoder queries.
+
+        Args:
+            enc_xyz: Encoder token positions, shape $(B, P, 3)$.
+            point_cloud_dims: Per-scene minimum and maximum corners, used to normalize the positional embedding.
+            query_idx: Optional pre-computed query indices. Farthest point sampling is used when `None`.
+
+        Returns:
+            The query positions of shape $(B, Q, 3)$ and the query embeddings of shape $(B, C, Q)$.
+        """
         batch_size, num_enc = enc_xyz.shape[:2]
         if query_idx is None:
             flat = enc_xyz.reshape(batch_size * num_enc, 3)

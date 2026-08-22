@@ -1,3 +1,5 @@
+"""ShapeNetPart object part segmentation dataset."""
+
 import json
 import shutil
 from pathlib import Path
@@ -37,12 +39,23 @@ ShapeNetCategory = Literal[
 
 
 class ShapeNetPartData(TypedDict):
+    """Per-point arrays of one ShapeNetPart shape, as returned by `load_shapenet_part_data`."""
+
     pos: np.ndarray
     normal: np.ndarray
     segment: np.ndarray
 
 
 def load_shapenet_part_data(file_path: PathLike) -> Optional[ShapeNetPartData]:
+    r"""Load one ShapeNetPart shape from a raw `.txt` file.
+
+    Args:
+        file_path: Path to a raw `<category_id>/<model_id>.txt` shape.
+
+    Returns:
+        The shape's `pos` $(N, 3)$, `normal` $(N, 3)$ and part `segment` $(N,)$ arrays, or `None` when
+        the file holds no point.
+    """
     data = np.loadtxt(file_path, delimiter=" ")
     if data.shape[0] == 0:
         return None
@@ -151,23 +164,28 @@ class ShapeNetPart(PointCloudDataset):
     @override
     @property
     def data_dir(self) -> str:
+        """Path to the dataset directory `<root>/<name>`."""
         return Path(self.root, self.__class__.__name__).as_posix()
 
     @override
     @property
     def raw_dir(self) -> str:
+        """Path to the raw download directory."""
         return Path(self.data_dir, "raw").as_posix()
 
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory."""
         return Path(self.data_dir, "processed").as_posix()
 
     @property
     def category_to_id(self) -> Dict[str, int]:
+        """Mapping from category name to its index among the exposed categories."""
         return {cat: i for i, cat in enumerate(self.categories)}
 
     @property
     def seg_to_id(self) -> Dict[int, int]:
+        """Mapping from part label to its index among the exposed categories' parts."""
         segments = [seg for category in self.categories for seg in self.seg_ids[category]]
         return {seg: i for i, seg in enumerate(segments)}
 

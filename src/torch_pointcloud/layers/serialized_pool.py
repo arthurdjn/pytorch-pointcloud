@@ -1,3 +1,5 @@
+"""Pooling and upsampling driven by point cloud serialization codes."""
+
 import math
 from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Tuple, Union, overload
 
@@ -18,6 +20,24 @@ torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_UR
 
 
 class SerializedPool(nn.Module):
+    r"""Grid pooling driven by the serialization code: points sharing a coarser code are reduced to one.
+
+    Truncating the serialization code by $3 \cdot \log_2(\text{stride})$ bits is exactly a grid subsampling,
+    so no neighbor search is needed. Features are projected then reduced, positions are averaged, and the
+    coarsened code is returned so the next stage can pool again.
+
+    Args:
+        in_channels: Input channel count.
+        out_channels: Output channel count.
+        stride: Downsampling factor along each axis. Must be a power of $2$.
+        bias: Whether the projection has a bias term.
+        act: Activation, name resolved by `create_act`. `None` disables.
+        norm: Normalization, name resolved by `create_norm`. `None` disables.
+        act_kwargs: Extra kwargs for the activation.
+        norm_kwargs: Extra kwargs for the normalization.
+        reduce: Reduction applied within a cell: `"sum"`, `"mean"`, `"min"`, or `"max"`.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -106,6 +126,21 @@ class SerializedPool(nn.Module):
 
 
 class SerializedUpsample(nn.Module):
+    r"""Undoes a `SerializedPool` step: scatters the pooled features back and adds the projected skip.
+
+    Both branches get their own projection, normalization and activation before being summed.
+
+    Args:
+        in_channels: Channel count of the pooled features.
+        skip_channels: Channel count of the skip connection.
+        out_channels: Output channel count.
+        norm: Normalization, name resolved by `create_norm`. `None` disables.
+        act: Activation, name resolved by `create_act`. `None` disables.
+        act_kwargs: Extra kwargs for the activation.
+        norm_kwargs: Extra kwargs for the normalization.
+        bias: Whether the projections have a bias term.
+    """
+
     def __init__(
         self,
         in_channels: int,

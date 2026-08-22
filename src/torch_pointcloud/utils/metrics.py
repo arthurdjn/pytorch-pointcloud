@@ -1,3 +1,5 @@
+"""Segmentation, detection, and instance metrics: IoU, accuracy, and average precision variants."""
+
 import math
 from typing import Dict, List, Literal, Mapping, Optional, Sequence, Tuple
 
@@ -18,16 +20,16 @@ def confusion_matrix(
     num_classes: int,
     ignore_index: Optional[int] = None,
 ) -> Tensor:
-    """Compute the confusion matrix.
+    r"""Compute the confusion matrix.
 
     Args:
-        preds: Predicted class indices, shape `(N,)`.
-        target: Ground truth class indices, shape `(N,)`.
+        preds: Predicted class indices, shape $(N,)$.
+        target: Ground truth class indices, shape $(N,)$.
         num_classes: Total number of classes.
         ignore_index: Class index to exclude from computation.
 
     Returns:
-        Confusion matrix of shape `(num_classes, num_classes)` where
+        Confusion matrix of shape $(\text{num\_classes}, \text{num\_classes})$ where
         `cm[i, j]` is the number of points with true class `i`
         predicted as class `j`.
     """
@@ -61,8 +63,8 @@ def compute_intersection_union(
             intersection/union at this index are $0$.
 
     Returns:
-        Tuple $(\text{intersection}, \text{union})$, each of shape $(\text{num_classes},)$
-        or $(\text{batch_size}, \text{num_classes})$ if `batch` is provided.
+        Tuple $(\text{intersection}, \text{union})$, each of shape $(\text{num\_classes},)$
+        or $(\text{batch\_size}, \text{num\_classes})$ if `batch` is provided.
     """
     if batch is not None:
         batch = batch.long()
@@ -122,8 +124,8 @@ def compute_iou(
         default: Value returned for classes with zero union (avoids division by zero).
 
     Returns:
-        Per-class IoU tensor of shape $(\text{num_classes},)$
-        or $(\text{batch_size}, \text{num_classes})$ if `batch` is provided.
+        Per-class IoU tensor of shape $(\text{num\_classes},)$
+        or $(\text{batch\_size}, \text{num\_classes})$ if `batch` is provided.
     """
     inter, union = compute_intersection_union(
         preds=preds,
@@ -242,6 +244,7 @@ def part_mean_iou(
         A dict `{"ins_mIoU": ..., "cls_mIoU": ...}`.
 
     Example:
+        ```pycon
         >>> part_ids = [[0, 1], [2, 3]]
         >>> preds = torch.tensor([0, 1, 2, 2])
         >>> target = torch.tensor([0, 1, 2, 3])
@@ -249,6 +252,8 @@ def part_mean_iou(
         >>> batch = torch.tensor([0, 0, 1, 1])
         >>> part_mean_iou(preds, target, part_ids, category, batch)
         {'ins_mIoU': 0.625, 'cls_mIoU': 0.625}
+
+        ```
     """
     ious = part_iou(preds, target, part_ids, category, batch)
     category = category.long()
@@ -267,8 +272,8 @@ def overall_accuracy(
     """Compute the overall prediction accuracy.
 
     Args:
-        preds: Predicted class indices, shape `(N,)`.
-        target: Ground truth class indices, shape `(N,)`.
+        preds: Predicted class indices, shape $(N,)$.
+        target: Ground truth class indices, shape $(N,)$.
         ignore_index: Class index to exclude from computation.
 
     Returns:
@@ -291,18 +296,18 @@ def per_class_accuracy(
     ignore_index: Optional[int] = None,
     eps: float = 1e-10,
 ) -> Tensor:
-    """Compute the accuracy for each class.
+    r"""Compute the accuracy for each class.
 
     Args:
-        preds: Predicted class indices, shape `(N,)`.
-        target: Ground truth class indices, shape `(N,)`.
+        preds: Predicted class indices, shape $(N,)$.
+        target: Ground truth class indices, shape $(N,)$.
         num_classes: Total number of classes.
         ignore_index: Class index to exclude. The returned accuracy
             at this index will be `0`.
         eps: Small constant to avoid division by zero.
 
     Returns:
-        Per-class accuracy tensor of shape `(num_classes,)`.
+        Per-class accuracy tensor of shape $(\text{num\_classes},)$.
     """
     cm = confusion_matrix(preds, target, num_classes, ignore_index=ignore_index)
     per_class = cm.diag().float() / (cm.sum(dim=1).float() + eps)
@@ -665,9 +670,12 @@ def filter_boxes_by_range(boxes: Tensor, labels: Tensor, ranges: Sequence[float]
         Boolean keep mask of shape $(N,)$.
 
     Example:
+        ```pycon
         >>> boxes = torch.tensor([[3.0, 4, 0, 4, 2, 1.5, 0], [0, 41, 0, 0.5, 0.5, 1, 0]])
         >>> filter_boxes_by_range(boxes, torch.tensor([0, 1]), ranges=[50.0, 40.0])
         tensor([ True, False])
+
+        ```
     """
     limits = boxes.new_tensor(list(ranges))[labels.long()]
     return torch.linalg.norm(boxes[:, :2], dim=1) < limits
@@ -744,6 +752,7 @@ def nuscenes_detection_metrics(
         `mAVE`, `mAAE` and `NDS`.
 
     Example:
+        ```pycon
         >>> zero = torch.tensor([0])
         >>> pred_boxes = torch.tensor([[0.25, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> gt_boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
@@ -752,6 +761,8 @@ def nuscenes_detection_metrics(
         ... )
         >>> f"{metrics['AP/car']:.2f} {metrics['mATE']:.2f} {metrics['NDS']:.3f}"
         '1.00 0.25 0.775'
+
+        ```
     """
     if class_ranges is None:
         class_ranges = {
@@ -871,10 +882,13 @@ def nuscenes_velocity_attributes(
         - output: $(M,)$
 
     Example:
+        ```pycon
         >>> labels = torch.tensor([0, 0, 1])
         >>> velocity = torch.tensor([[3.0, 0.0], [0.5, 0.0], [2.0, 0.0]])
         >>> nuscenes_velocity_attributes(labels, velocity, class_names=("car", "barrier")).tolist()
         [0, 2, -1]
+
+        ```
     """
     attribute_names = (
         "vehicle.moving",
@@ -954,12 +968,15 @@ def instance_matches(
         same-class intersections as `pair_pred`, `pair_gt`, `pair_inter`.
 
     Example:
+        ```pycon
         >>> masks = torch.tensor([[True, True, True, True]])
         >>> match = instance_matches(
         ...     masks, torch.tensor([0]), torch.tensor([0.9]), torch.tensor([0, 0, 1, -1]), torch.tensor([0, 0, 0, -1])
         ... )
         >>> match["gt_counts"].tolist(), match["pair_inter"].tolist(), match["pred_void"].tolist()
         ([2, 1], [2, 1], [1])
+
+        ```
     """
     pred_masks = pred_masks.bool()
     pred_labels = pred_labels.long()
@@ -1130,6 +1147,7 @@ def instance_average_precision(
         `AP/<class>` is that class's AP averaged over the $0.5{:}0.05{:}0.9$ thresholds.
 
     Example:
+        ```pycon
         >>> masks = torch.tensor([[True, True, True, False], [False, False, False, True]])
         >>> match = instance_matches(
         ...     masks,
@@ -1141,6 +1159,8 @@ def instance_average_precision(
         >>> out = instance_average_precision([match], num_classes=2, min_points=1)
         >>> out["mAP"], out["mAP@0.5"], out["mAP@0.25"]
         (1.0, 1.0, 1.0)
+
+        ```
     """
     scenes = [{key: value.numpy() for key, value in match.items()} for match in matches]
     overlaps = np.append(np.arange(0.5, 0.95, 0.05), 0.25)

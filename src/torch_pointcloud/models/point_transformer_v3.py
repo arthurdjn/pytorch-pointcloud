@@ -1,3 +1,5 @@
+"""Point Transformer V3 classification and segmentation models."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -101,6 +103,21 @@ def serialize(
     orders: Sequence[SerializationOrder],
     shuffle: bool = False,
 ) -> Tuple[Tensor, Tensor, Tensor]:
+    """Encode voxel-grid coordinates along one or more space-filling curves and sort the points by each code.
+
+    Args:
+        pos_grid: Non-negative integer grid coordinates of shape $(N, 3)$.
+        batch: Per-point batch index of shape $(N,)$.
+        orders: The $L$ space-filling curves to encode along, one code row per order.
+        shuffle: Whether to permute `orders` before encoding, so consecutive blocks pick different curves.
+
+    Returns:
+        The serialization codes, the permutation sorting the points by code, and its inverse, each of
+        shape $(L, N)$.
+
+    Raises:
+        ValueError: If `pos_grid` holds a negative coordinate, which would silently wrap around to a valid code.
+    """
     if shuffle:
         perm = torch.randperm(len(orders))
         orders = [orders[i] for i in perm]
@@ -159,6 +176,10 @@ def _resolve_condition(
 
 
 class Block(nn.Module):
+    """Transformer block over serialized patches: an xCPE sparse-convolution residual, then pre-normed
+    patch attention and an MLP.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -268,6 +289,13 @@ class Block(nn.Module):
 
 
 class EncoderBlock(nn.Module):
+    """One encoder stage: an optional pooling downsampling, then `depth` `Block` units.
+
+    Consecutive blocks cycle through the available serialization orders, so each attends over a
+    differently ordered patch partition. Grid pooling re-serializes the pooled cloud, while
+    serialized pooling derives the coarser codes by bit-shifting the finer ones.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -420,6 +448,10 @@ class EncoderBlock(nn.Module):
 
 
 class DecoderBlock(nn.Module):
+    """One decoder stage: an optional upsampling onto the skip resolution, then `depth` `Block` units
+    cycling through the skip's serialization orders.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -522,7 +554,7 @@ class DecoderBlock(nn.Module):
 
 
 class PointTransformerV3Encoder(nn.Module):
-    """Point Transformer V3 encoder backbone.
+    r"""Point Transformer V3 encoder backbone.
 
     Encoder-only backbone for feature extraction from 3D point clouds.
     Supports both sparse convolution (PTV3 Mode 1) and linear (Sonata / Mode 2)
@@ -568,7 +600,7 @@ class PointTransformerV3Encoder(nn.Module):
             `legacy=True`; leave `False` (default) for new training.
 
     Inputs:
-        x: Float tensor of shape $(N, \\text{in\\_channels})$.
+        x: Float tensor of shape $(N, \text{in\_channels})$.
         pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
         batch: Long tensor of shape $(N,)$.
 
@@ -654,6 +686,7 @@ class PointTransformerV3Encoder(nn.Module):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.blocks[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
     def configure_stem(
@@ -667,6 +700,7 @@ class PointTransformerV3Encoder(nn.Module):
         bias: bool = True,
         stem_type: str = "sparse_conv",
     ) -> nn.Module:
+        """Build the embedding stem, either a `LinearBlock` or a `SubMConv3dBlock`."""
         if stem_type == "linear":
             return LinearBlock(
                 in_channels,
@@ -718,6 +752,7 @@ class PointTransformerV3Encoder(nn.Module):
         rope_base: float = 10.0,
         legacy: bool = False,
     ) -> nn.ModuleList:
+        """Build the `EncoderBlock` stages, giving every stage but the first a pooling downsampling."""
         depths = ensure_tuple(depths)
         n = len(depths)
         channels = ensure_tuple_size(channels, size=n)
@@ -946,6 +981,7 @@ class PointTransformerV3Decoder(nn.Module):
 
     @property
     def out_channels(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.blocks[-1].blocks[-1].mlp[0].in_features  # type: ignore[index, union-attr]
 
     def configure_blocks(
@@ -972,6 +1008,7 @@ class PointTransformerV3Decoder(nn.Module):
         rope_base: float = 10.0,
         legacy: bool = False,
     ) -> nn.ModuleList:
+        """Build the `DecoderBlock` stages, giving every stage an upsampling onto its skip resolution."""
         depths = ensure_tuple(depths)
         n = len(depths)
         channels = ensure_tuple_size(channels, size=n + 1)
@@ -1031,7 +1068,7 @@ class PointTransformerV3Decoder(nn.Module):
 
 
 class PointTransformerV3Classification(ClassificationModel):
-    """PyTorch implementation of the Point Transformer V3 model, as described in the paper
+    r"""PyTorch implementation of the Point Transformer V3 model, as described in the paper
     :arxiv: [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
     by Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao.
 
@@ -1077,14 +1114,14 @@ class PointTransformerV3Classification(ClassificationModel):
         norm_kwargs: Optional keyword arguments for the normalization factory.
 
     Inputs:
-        x: Float tensor of shape $(N, in_channels)$.
+        x: Float tensor of shape $(N, \text{in\_channels})$.
         pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
         batch: Long tensor of shape $(N,)$.
         pos: Float tensor of shape $(N, 3)$ with metric coordinates. Required when
             `attn_kind="rope"`.
 
     Outputs:
-        logits: Float tensor of shape $(N, num_classes)$.
+        logits: Float tensor of shape $(N, \text{num\_classes})$.
     """
 
     def __init__(
@@ -1161,6 +1198,7 @@ class PointTransformerV3Classification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder.embedding_dim
 
     def configure_head(self) -> nn.Module:
@@ -1221,15 +1259,15 @@ class PointTransformerV3Classification(ClassificationModel):
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        """Forward pass of the classification head from pre-pooling features.
+        r"""Forward pass of the classification head from pre-pooling features.
 
         Args:
-            x: Pre-pooling features of shape $(N, embedding\\_dim)$.
+            x: Pre-pooling features of shape $(N, \text{embedding\_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits. Defaults to False.
 
         Returns:
-            Classification logits of shape $(B, num\\_classes)$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x = self.global_pool(x, batch)
         if self.dropout:
@@ -1244,7 +1282,7 @@ class PointTransformerV3Classification(ClassificationModel):
         condition: Union[str, Sequence[str], None] = None,
         pos: OptTensor = None,
     ) -> Tensor:
-        """Forward pass of the Point Transformer V3 classification network.
+        r"""Forward pass of the Point Transformer V3 classification network.
 
         Args:
             x: Additional point features of shape $(N, C)$.
@@ -1257,7 +1295,7 @@ class PointTransformerV3Classification(ClassificationModel):
                 `attn_kind="rope"`; ignored otherwise.
 
         Returns:
-            Classification logits of shape $(B, num\\_classes)$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x, _pos_grid, batch = self.forward_features(
             x, pos_grid, batch, pos=pos, condition=_resolve_condition(condition, self.condition, self.pdnorm_conditions)
@@ -1410,10 +1448,12 @@ class PointTransformerV3Segmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder.embedding_dim
 
     @property
     def out_channels(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
@@ -1487,7 +1527,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         condition: Union[str, Sequence[str], None] = None,
         pos: OptTensor = None,
     ) -> Tensor:
-        """Forward pass of the Point Transformer V3 segmentation network.
+        r"""Forward pass of the Point Transformer V3 segmentation network.
 
         Args:
             x: Per-point features of shape $(N, C)$.
@@ -1498,7 +1538,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
                 `attn_kind="rope"`; ignored otherwise.
 
         Returns:
-            Per-point segmentation logits of shape $(N, num\\_classes)$.
+            Per-point segmentation logits of shape $(N, \text{num\_classes})$.
         """
         resolved = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         x, _, _, intermediates = self.forward_features(
