@@ -1,3 +1,5 @@
+"""Per-segment pooling modules over packed batches and the `create_pool` / `create_adaptive_pool` factories."""
+
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence
 
 import torch
@@ -191,6 +193,7 @@ class CatPool(nn.Module):
 
     @property
     def num_pools(self) -> int:
+        r"""Number of pools $P$ concatenated, i.e. the feature multiplier."""
         return len(self.pools)
 
     def forward(self, x: Tensor, batch: Tensor) -> Tensor:

@@ -1,3 +1,5 @@
+"""Base class for point cloud datasets cached on disk under a `raw/` + `processed/` layout."""
+
 from pathlib import Path
 from typing import Any
 
@@ -32,18 +34,22 @@ class PointCloudDataset(Dataset):
 
     @property
     def name(self) -> str:
+        """Name of the dataset directory."""
         return self.__class__.__name__
 
     @property
     def data_dir(self) -> str:
+        """Path to the dataset directory `<root>/<name>`."""
         return Path(self.root, f"{self.name}").absolute().as_posix()
 
     @property
     def raw_dir(self) -> str:
+        """Path to the raw download directory."""
         return Path(self.data_dir, "raw").absolute().as_posix()
 
     @property
     def processed_dir(self) -> str:
+        """Path to the processed cache directory."""
         return Path(self.data_dir, "processed").absolute().as_posix()
 
     def raw_files_exist(self) -> bool:
@@ -68,4 +74,5 @@ class PointCloudDataset(Dataset):
         return "\n".join(lines)
 
     def extra_repr(self) -> str:
+        """Extra lines appended to the dataset `__repr__` (none by default)."""
         return ""

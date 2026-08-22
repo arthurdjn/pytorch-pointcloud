@@ -1,3 +1,5 @@
+"""Farthest point sampling (FPS) as a module returning sampled indices."""
+
 from typing import List, Optional, Union
 
 import torch.nn as nn

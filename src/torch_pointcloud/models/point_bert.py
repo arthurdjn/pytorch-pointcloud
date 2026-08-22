@@ -1,3 +1,5 @@
+"""Point-BERT classification models, discrete VAE tokenizer, and masked pretraining transformer."""
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -290,6 +292,7 @@ class PointBERTClassification(ClassificationModel):
         self.head = self.configure_head()
 
     def configure_encoder(self) -> PointBERTEncoder:
+        """Build the `PointBERTEncoder` backbone."""
         return PointBERTEncoder(
             embed_dim=self.embed_dim,
             depth=self.depth,
@@ -811,6 +814,15 @@ class PointBERTDiscreteVAE(BaseModel):
         )
 
     def tokenize(self, pos: Tensor, batch: Tensor) -> Tensor:
+        r"""Return the codebook logits of every group, without sampling or decoding them.
+
+        Args:
+            pos: Point coordinates of shape $(N, 3)$.
+            batch: Per-point batch index of shape $(N,)$.
+
+        Returns:
+            Logits over the codebook of shape $(B, G, \text{num\_tokens})$.
+        """
         neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
         feat = self.encoder(neighborhood)
         logits = self.dgcnn_1(feat, center)

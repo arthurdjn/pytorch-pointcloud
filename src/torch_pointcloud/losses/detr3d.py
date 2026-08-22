@@ -30,8 +30,11 @@ def _huber_loss(error: Tensor, delta: float = 1.0) -> Tensor:
         - output: $(\ldots)$
 
     Example:
+        ```pycon
         >>> _huber_loss(torch.tensor([0.5, 2.0]), delta=1.0).tolist()
         [0.125, 1.5]
+
+        ```
     """
     abs_error = error.abs()
     quadratic = abs_error.clamp(max=delta)

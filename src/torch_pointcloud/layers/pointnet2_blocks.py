@@ -1,3 +1,5 @@
+"""PointNet++ set abstraction and feature propagation blocks."""
+
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import torch
@@ -256,9 +258,12 @@ def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List
         Calling `ensure_msg_list` will make sure the provided channels are compliant
         with the MSG mode.
 
+        ```pycon
         >>> sa_channels = [[32, 64], [128, 256], [[256, 512, 512], [256, 512, 1024]]]
         >>> ensure_msg_list(sa_channels)
         [[[32, 64]], [[128, 256]], [[256, 512, 512], [256, 512, 1024]]]
+
+        ```
     """
     items = ensure_list(items, recursive=True)
 
@@ -299,8 +304,11 @@ def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -
         ValueError: If `value` does not have exactly `size` elements.
 
     Example:
+        ```pycon
         >>> ensure_msg_list_size([[32, 64], [64, 128]], size=2)
         [[[32, 64]], [[64, 128]]]
+
+        ```
     """
     if len(value) != size:
         raise ValueError(f"Expected a list of size {size}, got {len(value)}. {extra_msg}")

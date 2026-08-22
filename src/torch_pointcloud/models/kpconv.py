@@ -1,3 +1,5 @@
+"""KPConv classification and segmentation models."""
+
 import math
 import random
 import warnings
@@ -43,6 +45,19 @@ def create_kernel_points(
     fixed_position: Literal["none", "center", "vertical"] = "center",
     method: Literal["lloyd", "gradient"] = "lloyd",
 ) -> torch.Tensor:
+    r"""Builds the kernel point positions of a KPConv kernel, randomly rotated and jittered.
+
+    Positions are optimised on the unit sphere, cached under `CACHE_DIR` and reused across calls.
+
+    Args:
+        radius: Radius of the sphere the kernel points are scaled to.
+        num_points: Number of kernel points $K$.
+        fixed_position: Which kernel point is pinned: `"none"`, `"center"`, or `"vertical"`.
+        method: Optimisation used to spread the points, either `"lloyd"` or `"gradient"`.
+
+    Returns:
+        Kernel point positions of shape $(K, 3)$.
+    """
     if method not in ["lloyd", "gradient"]:
         raise ValueError(f"Unknown method: {method!r}, expected 'lloyd' or 'gradient'.")
     if num_points > 30 and method != "lloyd":
@@ -90,6 +105,28 @@ def create_kernel_points(
 
 
 class KPConv(nn.Module):
+    r"""Kernel point convolution over a neighborhood graph.
+
+    Each of the $K$ kernel points carries its own weight matrix, and a neighbor contributes to a kernel point
+    with a weight given by their distance through the influence function. When `deformable` is set, a nested
+    `KPConv` predicts a per-point offset for every kernel point.
+
+    Args:
+        spatial_dim: Spatial dimension of the input point cloud.
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        kernel_size: Number of kernel points $K$.
+        kp_radius: Radius of the sphere the kernel points are placed on.
+        kp_sigma: Kernel extent, the distance over which a kernel point still influences a neighbor.
+        kp_influence: Influence function: `"constant"`, `"linear"`, or `"gaussian"`.
+        fixed_position: Which kernel point is pinned: `"none"`, `"center"`, or `"vertical"`.
+        aggregation_mode: `"sum"` over all kernel points, or `"closest"` to keep only the nearest one.
+        deformable: Whether to predict per-point kernel offsets.
+        modulated: Whether the deformable branch also predicts a per-kernel-point modulation.
+        bias: Whether to add a bias to the output.
+        track_running_stats: Whether to keep the deformable activations of the last forward pass, for regularization.
+    """
+
     def __init__(
         self,
         spatial_dim: int,
@@ -140,6 +177,7 @@ class KPConv(nn.Module):
 
     @property
     def deformable(self) -> bool:
+        """Whether the kernel points are shifted by predicted per-point offsets."""
         return self.offset_conv is not None
 
     def reset_parameters(self) -> None:
@@ -154,6 +192,7 @@ class KPConv(nn.Module):
                 nn.init.uniform_(self.bias, -bound, bound)  # type: ignore[arg-type]
 
     def configure_offsets(self) -> Tuple[nn.Module, nn.Parameter]:
+        """Builds the rigid `KPConv` and the bias predicting the deformable offsets (and modulations)."""
         offset_dim = self.spatial_dim * self.kernel_size
         if self.modulated:
             offset_dim += self.kernel_size
@@ -176,6 +215,7 @@ class KPConv(nn.Module):
         return offset_conv, offset_bias
 
     def configure_kernel(self) -> Tensor:
+        """Builds the fixed kernel point positions registered as the `kernel` buffer."""
         return create_kernel_points(self.kp_radius, self.kernel_size, fixed_position=self.fixed_position)
 
     def _compute_weights(self, sq_distances: Tensor) -> Tensor:
@@ -292,6 +332,8 @@ class KPConv(nn.Module):
 
 
 class KPConvBlock(nn.Module):
+    """Kernel point convolution followed by normalization and activation."""
+
     def __init__(
         self,
         spatial_dim: int,
@@ -339,6 +381,12 @@ class KPConvBlock(nn.Module):
 
 
 class KPResidualBlock(nn.Module):
+    """Bottleneck residual block: a channel-reducing MLP, a `KPConvBlock`, and a channel-restoring MLP.
+
+    Set `strided=True` when the block maps a support cloud onto a coarser query cloud, so that the skip
+    connection is max-pooled over the same neighborhoods.
+    """
+
     def __init__(
         self,
         spatial_dim: int,
@@ -417,6 +465,11 @@ class KPResidualBlock(nn.Module):
 
 
 class GridPool(nn.Module):
+    """Voxel grid subsampling: points falling in the same cell are reduced to a single point.
+
+    Positions are averaged within a cell while features use the `reduce` operation.
+    """
+
     def __init__(self, grid_size: float, reduce: str = "max"):
         super().__init__()
         self.grid_size = grid_size
@@ -463,6 +516,15 @@ class GridPool(nn.Module):
 
 
 class EncoderBlock(nn.Module):
+    """One encoder stage: an optional grid subsampling followed by `depth` `KPResidualBlock` blocks.
+
+    Neighborhoods are recomputed once at the stage entry, using `pool_radius` for the strided first block
+    and `radius` for the remaining ones.
+
+    Args:
+        downsample: Grid pooling applied before the first block. Makes that block strided.
+    """
+
     def __init__(
         self,
         *,
@@ -611,6 +673,34 @@ def create_encoder_blocks(
     bias: bool = False,
     spatial_dim: int = 3,
 ) -> nn.ModuleList:
+    """Builds the `EncoderBlock` stages of a KPConv network, inserting a `GridPool` between consecutive stages.
+
+    Args:
+        in_channels: Number of channels entering the first stage.
+        depths: Number of residual blocks in each stage.
+        grid_sizes: Grid size of each downsampling step, one per stage transition.
+        radii: Neighborhood search radius of each stage.
+        channels: Output channels of each stage.
+        max_num_neighbors: Maximum number of neighbors queried at each stage.
+        kernel_size: Number of kernel points of every KPConv.
+        kp_sigma: Kernel extent of each stage.
+        kp_radius: Kernel point radius of each stage.
+        kp_influence: Influence function: `"constant"`, `"linear"`, or `"gaussian"`.
+        fixed_position: Which kernel point is pinned: `"none"`, `"center"`, or `"vertical"`.
+        aggregation_mode: `"sum"` over all kernel points, or `"closest"` to keep only the nearest one.
+        deformable: Whether each stage uses deformable kernels.
+        modulated: Whether each stage uses modulated deformable kernels.
+        act: Activation function.
+        act_kwargs: Optional keyword arguments for the activation factory.
+        act_first: Whether the activation comes before the normalization in the MLPs.
+        norm: Normalization layer.
+        norm_kwargs: Optional keyword arguments for the normalization factory.
+        bias: Whether the convolutions and MLPs use a bias.
+        spatial_dim: Spatial dimension of the input point cloud.
+
+    Returns:
+        The encoder stages, one `EncoderBlock` per entry of `depths`.
+    """
     depths = ensure_tuple(depths)
     n = len(depths)
     extra_msg = "Expected `{param_name}` to be of length `depths`."
@@ -913,7 +1003,7 @@ class KPFCNNClassification(ClassificationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        """Forward pass of the classification model.
+        r"""Forward pass of the classification model.
 
         Args:
             x: Point features of shape $(N, C)$. If `None`, `pos` is used as features, which requires
@@ -922,7 +1012,7 @@ class KPFCNNClassification(ClassificationModel):
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Classification logits of shape $(B, num_classes)$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch, pre_logits=False)

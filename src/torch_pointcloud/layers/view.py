@@ -1,3 +1,5 @@
+"""Tensor reshaping as a module wrapping `Tensor.view`."""
+
 import torch.nn as nn
 from torch import Tensor
 

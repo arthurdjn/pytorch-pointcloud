@@ -1,3 +1,5 @@
+"""DGCNN classification and segmentation models."""
+
 from typing import Any, Callable, Dict, NamedTuple, Optional, Sequence, Tuple, Union
 
 import torch
@@ -22,11 +24,18 @@ from ._registry import WeightsDict, register_model
 
 
 class DGCNNIntermediate(NamedTuple):
+    """Per-block encoder features and their batch index."""
+
     x: Tensor
     batch: Tensor
 
 
 class DGCNNEncoderBlock(nn.Module):
+    """EdgeConv block: rebuilds a $k$-nearest-neighbor graph in feature space and runs an MLP over the edges.
+
+    Pass `x_knn` to build the graph from another tensor than the features, typically the raw coordinates.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -63,6 +72,8 @@ class DGCNNEncoderBlock(nn.Module):
 
 
 class DGCNNEncoder(nn.Module):
+    """Stack of `DGCNNEncoderBlock` blocks whose outputs are concatenated into a single per-point feature."""
+
     def __init__(
         self,
         channels: Sequence[Union[int, Sequence[int]]],
@@ -100,6 +111,7 @@ class DGCNNEncoder(nn.Module):
 
     @property
     def out_channels_per_block(self) -> Tuple[int, ...]:
+        """Output channel count of each block."""
         out = []
         for ch in self.channels[1:]:
             out.append(ch[-1] if isinstance(ch, (list, tuple)) else ch)
@@ -107,6 +119,7 @@ class DGCNNEncoder(nn.Module):
 
     @property
     def out_channels(self) -> int:
+        """Channel count $C$ of the concatenated block outputs."""
         return sum(self.out_channels_per_block)
 
     def forward(self, x: Tensor, batch: Tensor, x_knn: Optional[Tensor] = None) -> Tuple[Tensor, Tensor]:
@@ -235,6 +248,7 @@ class DGCNNClassification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
         # count the output channels of the encoder
         base = self.proj_channels if self.proj_channels is not None else self.encoder.out_channels
         # In case we have multiple global pools, we need to multiply the base by the number of pools
@@ -408,6 +422,7 @@ class DGCNNSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ entering the head: encoder features plus the broadcast global feature."""
         return self.encoder.out_channels + self.proj_channels
 
     def configure_head(self) -> nn.Module:
@@ -582,6 +597,7 @@ class DGCNNPartSegmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Channel count $C$ entering the head: encoder features, global feature and category embedding."""
         return self.encoder.out_channels + self.proj_channels + self.cat_embed_channels
 
     def configure_head(self) -> nn.Module:

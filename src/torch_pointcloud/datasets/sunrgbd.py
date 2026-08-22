@@ -68,8 +68,11 @@ def rebase_sequence(path: str) -> str:
         The sequence id, e.g. `kv1/NYUdata/NYU0001`.
 
     Examples:
+        ```pycon
         >>> rebase_sequence("/n/fs/sun3d/data/SUNRGBD/kv1/NYUdata/NYU0001")
         'kv1/NYUdata/NYU0001'
+
+        ```
     """
     marker = "/SUNRGBD/"
     idx = path.rfind(marker)
@@ -285,14 +288,17 @@ class SunRGBD(PointCloudDataset):
 
     @property
     def release_zip_path(self) -> str:
+        """Path to the raw `SUNRGBD.zip` release archive."""
         return Path(self.raw_dir, SUNRGBD_RELEASE_ZIP).as_posix()
 
     @property
     def toolbox_zip_path(self) -> str:
+        """Path to the raw `SUNRGBDtoolbox.zip` archive holding the splits and metadata."""
         return Path(self.raw_dir, SUNRGBD_TOOLBOX_ZIP).as_posix()
 
     @cached_property
     def class_to_idx(self) -> Dict[str, int]:
+        """Mapping from class name to label index."""
         return dict(SUNRGBD_CLASS_TO_IDX)
 
     @override
@@ -301,6 +307,7 @@ class SunRGBD(PointCloudDataset):
 
     @property
     def processed_files(self) -> List[Path]:
+        """Sorted list of the split's processed scene directories."""
         scene_paths = Path(self.processed_dir, self._split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
@@ -362,6 +369,7 @@ class SunRGBD(PointCloudDataset):
                 )
 
     def read_split(self) -> List[str]:
+        """Read the split's sequence ids from the toolbox archive."""
         with zipfile.ZipFile(self.toolbox_zip_path) as z:
             split = sio.loadmat(io.BytesIO(z.read(TOOLBOX_SPLIT_MEMBER)), struct_as_record=False, squeeze_me=True)
 
@@ -370,6 +378,7 @@ class SunRGBD(PointCloudDataset):
         return [rebase_sequence(str(p)) for p in split["alltest"]]
 
     def read_meta(self) -> Dict[str, Any]:
+        """Read the per-scene metadata structs from the toolbox archive, keyed by sequence id."""
         with zipfile.ZipFile(self.toolbox_zip_path) as z:
             meta = sio.loadmat(io.BytesIO(z.read(TOOLBOX_META_MEMBER)), struct_as_record=False, squeeze_me=True)
         return {rebase_sequence(str(e.sequenceName)): e for e in meta["SUNRGBDMeta"]}
@@ -411,6 +420,11 @@ class SunRGBD(PointCloudDataset):
         tmp_path.replace(meta_path)
 
     def process_scene(self, args: Tuple[str, Any, str]) -> None:
+        """Unproject one scene and write its packed `pos` / `color` / `box` / `class` arrays.
+
+        Args:
+            args: The scene's sequence id, its metadata struct, and the split directory to write into.
+        """
         sequence_id, entry, split_dir = args
         coords, colors = self.read_scene_cloud(entry)
         boxes = parse_boxes(entry.groundtruth3DBB, self.class_to_idx)
@@ -428,6 +442,15 @@ class SunRGBD(PointCloudDataset):
         tmp_dir.replace(scene_dir)
 
     def read_scene_cloud(self, entry: Any) -> Tuple[np.ndarray, np.ndarray]:
+        r"""Unproject one scene's depth and RGB images into a colored point cloud.
+
+        Args:
+            entry: The scene's metadata struct, holding the image paths, the intrinsics `K` and the
+                upright rotation `Rtilt`.
+
+        Returns:
+            The upright points $(N, 3)$ and their RGB colors $(N, 3)$, with the zero-depth pixels dropped.
+        """
         depth_member = f"SUNRGBD/{rebase_sequence(str(entry.depthpath))}"
         rgb_member = f"SUNRGBD/{rebase_sequence(str(entry.rgbpath))}"
         with zipfile.ZipFile(self.release_zip_path) as z:

@@ -1,3 +1,5 @@
+"""Sparse convolution blocks: submanifold, strided, and residual variants."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import torch.nn as nn
@@ -22,6 +24,25 @@ SparseModule: Any = spconv.SparseModule if _SPCONV_AVAILABLE else nn.Module
 
 
 class SubMConv3dBlock(nn.Module):
+    r"""Submanifold sparse 3D convolution followed by normalization and activation, on packed point features.
+
+    Unlike `SparseConvBlock`, this block takes and returns packed $(N, C)$ features: it builds the
+    `SparseConvTensor` from `pos` and `batch` itself, so it drops into a point-based backbone as a
+    conditional position embedding.
+
+    Args:
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        kernel_size: Convolution kernel size.
+        padding: Convolution padding.
+        norm: Normalization passed to `create_norm`.
+        act: Activation passed to `create_act`.
+        act_kwargs: Extra keyword arguments for the activation.
+        norm_kwargs: Extra keyword arguments for the normalization.
+        bias: Whether the convolution has a bias term.
+        stem_indice_key: spconv index key for the convolution.
+    """
+
     def __init__(
         self,
         in_channels: int,

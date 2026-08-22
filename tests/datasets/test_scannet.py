@@ -293,8 +293,9 @@ def test_scannet_dataset_process_writes_completion_marker(datasets_dir_factory: 
     dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
     meta_path = Path(dataset.processed_dir) / "train" / "meta.json"
     meta = json.loads(meta_path.read_text())
-    assert meta["format_version"] == 1
+    assert meta["format_version"] == 2
     assert meta["label_name"] == "nyu40class"
+    assert dataset[0][DataKeys.COLOR].dtype == torch.uint8
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")

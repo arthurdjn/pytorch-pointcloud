@@ -1,3 +1,5 @@
+"""Per-channel affine transformation as a function and a learnable module."""
+
 from typing import Any, Dict, Optional
 
 import torch
@@ -40,7 +42,7 @@ class Affine(nn.Module):
     This layer will apply the following transformation to the input tensor $x$:
 
     $$
-    y = x * weight + bias
+    y = x \cdot \text{weight} + \text{bias}
     $$
 
     Args:

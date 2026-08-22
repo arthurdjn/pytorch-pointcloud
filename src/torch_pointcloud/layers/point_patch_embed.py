@@ -1,3 +1,5 @@
+"""Mini-PointNet patch embedding turning local point groups into tokens."""
+
 from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 import torch

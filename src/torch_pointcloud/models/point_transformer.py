@@ -1,3 +1,5 @@
+"""Point Transformer classification and segmentation models."""
+
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -67,14 +69,14 @@ class PointTransformerConv(MessagePassing):
         out_channels (int): Size of each output sample.
         pos_nn (torch.nn.Module, optional): A neural network
             $h_\mathbf{\Theta}$ which maps relative spatial coordinates
-            `pos_j - pos_i` of shape `[-1, 3]` to shape
-            `[-1, out_channels]`.
+            `pos_j - pos_i` of shape $[-1, 3]$ to shape
+            $[-1, \text{out\_channels}]$.
             Will default to a `torch.nn.Linear` transformation if not
             further specified.
         attn_nn (torch.nn.Module, optional): A neural network
             $\gamma_\mathbf{\Theta}$ which maps transformed
-            node features of shape `[-1, out_channels]`
-            to shape `[-1, out_channels]`.
+            node features of shape $[-1, \text{out\_channels}]$
+            to shape $[-1, \text{out\_channels}]$.
         add_self_loops: If `False`, do not add self-loops to the input graph.
 
     Shapes:
@@ -208,6 +210,10 @@ class PointTransformerConv(MessagePassing):
 
 # Adapted from: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/point_transformer_classification.py
 class PointTransformerBlock(torch.nn.Module):
+    """Residual bottleneck around a `PointTransformerConv`: a linear projection down, vector attention, and a
+    linear projection back, each followed by normalization and activation.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -261,6 +267,12 @@ class PointTransformerBlock(torch.nn.Module):
 
 # Adapted from: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/point_transformer_classification.py
 class PointTransformerTransitionDown(torch.nn.Module):
+    r"""Downsamples the cloud with farthest point sampling, then pools each centroid's $k$-NN neighborhood.
+
+    The MLP sees the relative position of a neighbor concatenated with its features, and the
+    neighborhood is reduced with `pool`.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -314,6 +326,8 @@ class PointTransformerTransitionDown(torch.nn.Module):
 
 # Adapted from: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/point_transformer_classification.py
 class PointTransformerTransitionUp(torch.nn.Module):
+    """Upsamples features to the skip resolution by 3-NN interpolation and adds the projected skip features."""
+
     def __init__(
         self,
         in_channels: int,
@@ -352,6 +366,10 @@ class PointTransformerTransitionUp(torch.nn.Module):
 
 
 class PointTransformerEncoderBlock(torch.nn.Module):
+    r"""One encoder stage: an optional transition down, then `depth` `PointTransformerBlock` units sharing a
+    single $k$-NN graph built on the stage's own resolution.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -399,6 +417,10 @@ class PointTransformerEncoderBlock(torch.nn.Module):
 
 
 class PointTransformerDecoderBlock(torch.nn.Module):
+    r"""One decoder stage: an optional transition up onto the skip resolution, then `depth`
+    `PointTransformerBlock` units sharing a single $k$-NN graph built on that resolution.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -453,6 +475,12 @@ class PointTransformerDecoderBlock(torch.nn.Module):
 
 
 class PointTransformerEncoder(torch.nn.Module):
+    """Stack of `PointTransformerEncoderBlock` stages, each but the first preceded by a transition down.
+
+    When `return_intermediates=True` is passed to `forward`, the input features and point cloud of
+    every stage are returned in fine-to-coarse order, ready to be consumed as decoder skips.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],
@@ -551,6 +579,10 @@ class PointTransformerEncoder(torch.nn.Module):
 
 
 class PointTransformerDecoder(torch.nn.Module):
+    """Stack of `PointTransformerDecoderBlock` stages that consume the encoder intermediates in reverse,
+    walking the features back to full resolution.
+    """
+
     def __init__(
         self,
         channels: Sequence[int],

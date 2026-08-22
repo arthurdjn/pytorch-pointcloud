@@ -1,3 +1,5 @@
+"""nuScenes mini 3D object detection dataset with sweep aggregation and annotation loading helpers."""
+
 import json
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -313,6 +315,7 @@ class NuScenesMini(PointCloudDataset):
     @property
     @override
     def processed_dir(self) -> str:
+        """Path to the processed cache directory, one per version and sweep count."""
         return Path(self.data_dir, "processed", f"{self.version}_sweeps{self.max_sweeps}").absolute().as_posix()
 
     def download(self, force: bool = False) -> None:

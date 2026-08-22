@@ -68,9 +68,12 @@ def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos:
         - output: $(\ldots, 7 + C)$
 
     Example:
+        ```pycon
         >>> anchors = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> decode_box_residuals(torch.zeros(1, 7), anchors)
         tensor([[0.0000, 0.0000, 0.0000, 4.0000, 2.0000, 1.5000, 0.0000]])
+
+        ```
     """
     xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
     if not angle_by_sincos:
@@ -115,10 +118,13 @@ def encode_box_residuals(boxes: Tensor, anchors: Tensor, *, angle_by_sincos: boo
         - output: $(\ldots, 7 + C)$ or $(\ldots, 8 + C)$
 
     Example:
+        ```pycon
         >>> anchors = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> boxes = torch.tensor([[1.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> torch.allclose(decode_box_residuals(encode_box_residuals(boxes, anchors), anchors), boxes)
         True
+
+        ```
     """
     xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
     xg, yg, zg, dxg, dyg, dzg, rg, *cgs = torch.split(boxes, 1, dim=-1)
@@ -147,14 +153,14 @@ def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> T
 
 
 def _sort_ring_ccw(ring: Tensor) -> Tensor:
-    """Order convex rings of shape $(\\ldots, V, 2)$ counter-clockwise about their centroid."""
+    r"""Order convex rings of shape $(\ldots, V, 2)$ counter-clockwise about their centroid."""
     rel = ring - ring.mean(dim=-2, keepdim=True)
     order = torch.atan2(rel[..., 1], rel[..., 0]).argsort(dim=-1)
     return ring.gather(-2, order[..., None].expand_as(ring))
 
 
 def _ring_area(ring: Tensor) -> Tensor:
-    """Shoelace area of counter-clockwise rings of shape $(\\ldots, V, 2)$."""
+    r"""Shoelace area of counter-clockwise rings of shape $(\ldots, V, 2)$."""
     nxt = ring.roll(-1, dims=-2)
     return 0.5 * (ring[..., 0] * nxt[..., 1] - ring[..., 1] * nxt[..., 0]).sum(dim=-1).abs()
 
@@ -274,7 +280,7 @@ def _bev_corners(boxes: Tensor) -> Tensor:
 def _point_in_box(
     px: Tensor, py: Tensor, cx: Tensor, cy: Tensor, dx: Tensor, dy: Tensor, cos: Tensor, sin: Tensor
 ) -> Tensor:
-    """Broadcasted test of whether points $(px, py)$ lie inside oriented BEV boxes (with a small margin)."""
+    """Broadcasted test of whether points $(p_x, p_y)$ lie inside oriented BEV boxes (with a small margin)."""
     ux, uy = px - cx, py - cy
     lx = ux * cos + uy * sin
     ly = -ux * sin + uy * cos
@@ -371,10 +377,13 @@ def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
         - output: $(N, M)$
 
     Example:
+        ```pycon
         >>> a = torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]])
         >>> b = torch.tensor([[0.5, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]])
         >>> round(float(boxes_iou_bev(a, b)), 4)
         0.3333
+
+        ```
     """
     inter = _rotated_box_bev_overlap(boxes_a, boxes_b)
     area_a = (boxes_a[:, 3] * boxes_a[:, 4])[:, None]
@@ -404,10 +413,13 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
         - output: $(N, M)$
 
     Example:
+        ```pycon
         >>> a = torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]])
         >>> b = torch.tensor([[0.5, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]])
         >>> round(float(boxes_iou3d(a, b)), 4)
         0.3333
+
+        ```
     """
     inter_area = _rotated_box_bev_overlap(boxes_a, boxes_b)
     z_a_max = (boxes_a[:, 2] + boxes_a[:, 5] / 2)[:, None]
@@ -542,10 +554,13 @@ def count_points_in_boxes(
         - output: $(K,)$
 
     Example:
+        ```pycon
         >>> pos = torch.tensor([[0.0, 0.0, 0.0], [5.0, 5.0, 5.0]])
         >>> boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
         >>> count_points_in_boxes(pos, boxes).tolist()
         [1]
+
+        ```
     """
     if (pos_batch is None) != (box_batch is None):
         raise ValueError("`pos_batch` and `box_batch` must be given together; got exactly one of them.")
@@ -597,6 +612,7 @@ def projected_ignore_mask(
         - output: $(N,)$
 
     Example:
+        ```pycon
         >>> calib = torch.tensor([[50.0, -100.0, 0.0, 0.0], [50.0, 0.0, -100.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
         >>> boxes = torch.tensor([[10.0, 0.0, 0.0, 2.0, 2.0, 1.0, 0.0]])
         >>> projected_ignore_mask(boxes, calib, torch.tensor([100, 200]))
@@ -604,6 +620,8 @@ def projected_ignore_mask(
         >>> boxes = torch.tensor([[10.0, 0.0, 0.0, 2.0, 2.0, 1.0, 0.0], [2.0, 0.0, 0.0, 2.0, 2.0, 1.0, 0.0]])
         >>> projected_ignore_mask(boxes, calib.expand(2, 3, 4), torch.tensor([[100, 200], [100, 200]]))
         tensor([ True, False])
+
+        ```
     """
     corners = box_corners(boxes)
     hom = torch.cat([corners, corners.new_ones(corners.shape[:-1] + (1,))], dim=-1)

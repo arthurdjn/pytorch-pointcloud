@@ -1,3 +1,5 @@
+"""Voxel-Mamba detection model."""
+
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
@@ -42,7 +44,7 @@ def build_hilbert_template(rank: int, z_max: int, device: Union[str, torch.devic
     flat coordinate $z \cdot N \cdot N + y \cdot N + x$ to read a voxel's position along the curve.
 
     This reproduces the reference template (`tools/hilbert_curves/create_hilbert_curve_template.py`)
-    bit-exactly via [`hilbert.encode`][torch_pointcloud.utils.hilbert.encode], avoiding a 260 MB
+    bit-exactly via `hilbert.encode`, avoiding a 260 MB
     precomputed-weight download.
 
     Args:
@@ -57,9 +59,12 @@ def build_hilbert_template(rank: int, z_max: int, device: Union[str, torch.devic
         - Output: $(N \cdot N \cdot z_\max,)$
 
     Example:
+        ```pycon
         >>> template = build_hilbert_template(rank=7, z_max=9)
         >>> template.shape
         torch.Size([147456])
+
+        ```
     """
     n = 1 << rank
     chunks: List[Tensor] = []

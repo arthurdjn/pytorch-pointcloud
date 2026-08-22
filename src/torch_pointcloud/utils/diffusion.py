@@ -59,7 +59,7 @@ class DDIMScheduler:
         self.timesteps = torch.arange(num_train_timesteps - 1, -1, -1)
 
     def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device, None] = None) -> None:
-        r"""Select the $num\_inference\_steps$ evenly spaced timesteps used for sampling.
+        r"""Select the `num_inference_steps` evenly spaced timesteps used for sampling.
 
         Args:
             num_inference_steps: Number of denoising steps.

@@ -43,6 +43,8 @@ XCubeShapeNetCategory = Literal["Airplane", "Car", "Chair"]
 
 
 class XCubeShapeNetData(TypedDict):
+    """Per-voxel arrays of one XCube ShapeNet shape, as returned by `load_xcube_shape`."""
+
     ijk: Tensor
     normal: Tensor
 
@@ -191,7 +193,7 @@ class XCubeShapeNet(PointCloudDataset):
         ```python
         dataset = XCubeShapeNet("data", split="test", resolution=128, categories="Chair")
         sample = dataset[0]
-        sample[DataKeys.POS].shape, sample[DataKeys.NORMAL].shape
+        sample["pos"].shape, sample["normal"].shape
         ```
     """
 
@@ -331,4 +333,5 @@ class XCubeShapeNet(PointCloudDataset):
 
     @override
     def extra_repr(self) -> str:
+        """Report the split, the voxel resolution and the exposed categories."""
         return f"Split: {self.split}\nResolution: {self.resolution}\nCategories: {', '.join(self.categories)}"

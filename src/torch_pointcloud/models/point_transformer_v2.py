@@ -1,3 +1,5 @@
+"""Point Transformer V2 classification and segmentation models."""
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -32,6 +34,13 @@ segment_csr, _ = optional_import("torch_scatter", name="segment_csr", url=_TORCH
 
 
 class GroupedVectorAttention(nn.Module):
+    """Vector attention over a neighborhood graph, with one weight vector shared by each group of channels.
+
+    The relation between a query and its neighbor keys is optionally scaled and shifted by a learned
+    encoding of their relative position, then mapped to `num_groups` weights and softmax-normalized
+    over each destination's neighbors.
+    """
+
     def __init__(
         self,
         channels: int,
@@ -129,6 +138,8 @@ class GroupedVectorAttention(nn.Module):
 
 
 class Block(nn.Module):
+    """Residual bottleneck around a `GroupedVectorAttention`, with a linear projection before and after it."""
+
     def __init__(
         self,
         channels: int,
@@ -176,6 +187,12 @@ class Block(nn.Module):
 
 
 class GridPool(nn.Module):
+    """Partition-based pooling: projects the features, then reduces every `grid_size` voxel to a single point.
+
+    Positions are averaged within a voxel while features are reduced with `reduce`. Passing
+    `return_inverse=True` to `forward` also returns the point-to-voxel map that `InversePool` needs.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -246,6 +263,8 @@ class GridPool(nn.Module):
 
 
 class InversePool(nn.Module):
+    """Undoes a `GridPool`: scatters the pooled features back to the finer points and adds the projected skip."""
+
     def __init__(
         self,
         in_channels: int,
@@ -290,6 +309,10 @@ class InversePool(nn.Module):
 
 
 class EncoderBlock(nn.Module):
+    r"""One encoder stage: an optional `GridPool` downsampling, then `depth` `Block` units sharing a single
+    $k$-NN graph built on the stage's own resolution.
+    """
+
     def __init__(
         self,
         depth: int,
@@ -372,6 +395,10 @@ class EncoderBlock(nn.Module):
 
 
 class DecoderBlock(nn.Module):
+    r"""One decoder stage: an optional `InversePool` upsampling onto the skip resolution, then `depth` `Block`
+    units sharing a single $k$-NN graph built on that resolution.
+    """
+
     def __init__(
         self,
         depth: int,
@@ -446,6 +473,27 @@ def create_encoder_blocks(
     attn_drop: float = 0.0,
     drop_path: float = 0.0,
 ) -> nn.ModuleList:
+    """Build the encoder stages, giving every stage but the first a `GridPool` downsampling.
+
+    Args:
+        depths: Number of blocks in each stage.
+        channels: Number of channels in each stage.
+        num_groups: Number of attention groups in each stage.
+        num_neighbors: Number of neighbors of the graph built in each stage.
+        grid_sizes: Voxel size of the pooling preceding each stage but the first.
+        norm: Normalization layer to use.
+        act: Activation function to use.
+        act_kwargs: Keyword arguments for the activation function.
+        norm_kwargs: Keyword arguments for the normalization layer.
+        qkv_bias: Whether to use bias in the QKV linear layers.
+        pe_multiplier: Whether to scale the query-key relation by a positional encoding.
+        pe_bias: Whether to shift the query-key relation and the values by a positional encoding.
+        attn_drop: Dropout rate on the attention weights.
+        drop_path: Maximum drop path rate, reached by the last block.
+
+    Returns:
+        A module list of `EncoderBlock`, from finest to coarsest.
+    """
     depths = ensure_tuple(depths)
     n = len(depths)
     channels = ensure_tuple_size(channels, size=n, extra_msg="Encoder length `channels` != `depths`.")
@@ -513,6 +561,27 @@ def create_decoder_blocks(
     attn_drop: float = 0.0,
     drop_path: float = 0.0,
 ) -> nn.ModuleList:
+    """Build the decoder stages, giving every stage an `InversePool` upsampling onto its skip resolution.
+
+    Args:
+        depths: Number of blocks in each stage.
+        channels: Number of channels entering the decoder followed by the output of each stage.
+        skip_channels: Number of channels of the encoder skip consumed by each stage.
+        num_groups: Number of attention groups in each stage.
+        num_neighbors: Number of neighbors of the graph built in each stage.
+        norm: Normalization layer to use.
+        act: Activation function to use.
+        act_kwargs: Keyword arguments for the activation function.
+        norm_kwargs: Keyword arguments for the normalization layer.
+        qkv_bias: Whether to use bias in the QKV linear layers.
+        pe_multiplier: Whether to scale the query-key relation by a positional encoding.
+        pe_bias: Whether to shift the query-key relation and the values by a positional encoding.
+        attn_drop: Dropout rate on the attention weights.
+        drop_path: Maximum drop path rate, reached by the first block.
+
+    Returns:
+        A module list of `DecoderBlock`, from coarsest to finest.
+    """
     depths = ensure_tuple(depths)
     n = len(depths)
     channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Decoder length `channels` != `depths` + 1.")
@@ -589,12 +658,12 @@ class PointTransformerV2Classification(ClassificationModel):
         global_pool: Global pooling method to use.
 
     Inputs:
-        x: Float tensor of shape $(N, \text{in_channels})$.
+        x: Float tensor of shape $(N, \text{in\_channels})$.
         pos: Float tensor of shape $(N, 3)$.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
-        Logits tensor of shape $(B, \text{num_classes})$.
+        Logits tensor of shape $(B, \text{num\_classes})$.
     """
 
     def __init__(
@@ -654,9 +723,11 @@ class PointTransformerV2Classification(ClassificationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
 
     def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        """Build the encoder stages."""
         return create_encoder_blocks(*args, **kwargs)
 
     def configure_head(self) -> nn.Module:
@@ -708,13 +779,13 @@ class PointTransformerV2Classification(ClassificationModel):
         r"""Forward features through the encoder blocks, before the global pooling.
 
         Args:
-            x: Additional point features of shape $(N, \text{features_dim})$.
+            x: Additional point features of shape $(N, \text{features\_dim})$.
             pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             return_intermediates: Whether to return the intermediate features.
 
         Returns:
-            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            x: Pre-pooling features of shape $(N, \text{embedding\_dim})$.
             pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             intermediates: If `return_intermediates` is `True`, a list of dictionaries containing the intermediate features,
@@ -740,12 +811,12 @@ class PointTransformerV2Classification(ClassificationModel):
         r"""Forward pass of the classification head from pre-pooling x.
 
         Args:
-            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            x: Pre-pooling features of shape $(N, \text{embedding\_dim})$.
             batch: Batch indices for each point of shape $(N,)$.
             pre_logits: Whether to return pre-logits.
 
         Returns:
-            Classification logits of shape $(B, \text{num_classes})$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x = self.global_pool(x, batch)
         if self.dropout:
@@ -756,12 +827,12 @@ class PointTransformerV2Classification(ClassificationModel):
         r"""Forward pass of the classification network.
 
         Args:
-            x: Additional point features of shape $(N, \text{features_dim})$.
+            x: Additional point features of shape $(N, \text{features\_dim})$.
             pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Classification logits of shape $(B, \text{num_classes})$.
+            Classification logits of shape $(B, \text{num\_classes})$.
         """
         x, _, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
@@ -798,12 +869,12 @@ class PointTransformerV2Segmentation(SegmentationModel):
         attn_drop: Attention dropout rate.
 
     Inputs:
-        x: Float tensor of shape $(N, \text{in_channels})$.
+        x: Float tensor of shape $(N, \text{in\_channels})$.
         pos: Float tensor of shape $(N, 3)$.
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
-        Segmentation logits of shape $(N, \text{num_classes})$.
+        Segmentation logits of shape $(N, \text{num\_classes})$.
     """
 
     def __init__(
@@ -882,16 +953,20 @@ class PointTransformerV2Segmentation(SegmentationModel):
 
     @property
     def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
         return self.encoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
 
     @property
     def out_channels(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
 
     def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        """Build the encoder stages."""
         return create_encoder_blocks(*args, **kwargs)
 
     def configure_decoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
+        """Build the decoder stages."""
         return create_decoder_blocks(*args, **kwargs)
 
     def configure_head(self) -> nn.Module:
@@ -940,13 +1015,13 @@ class PointTransformerV2Segmentation(SegmentationModel):
         r"""Forward features through the encoder blocks, before the global pooling.
 
         Args:
-            x: Additional point features of shape $(N, \text{features_dim})$.
+            x: Additional point features of shape $(N, \text{features\_dim})$.
             pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             return_intermediates: Whether to return the intermediate features.
 
         Returns:
-            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            x: Pre-pooling features of shape $(N, \text{embedding\_dim})$.
             pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
             intermediates: If `return_intermediates` is `True`, a list of dictionaries containing the intermediate features,
@@ -982,11 +1057,11 @@ class PointTransformerV2Segmentation(SegmentationModel):
         r"""Forward pass of the classification head from up-sampled x.
 
         Args:
-            x: Pre-pooling features of shape $(N, \text{embedding_dim})$.
+            x: Pre-pooling features of shape $(N, \text{embedding\_dim})$.
             pre_logits: Whether to return pre-logits.
 
         Returns:
-            Segmentation logits of shape $(N, \text{num_classes})$.
+            Segmentation logits of shape $(N, \text{num\_classes})$.
         """
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
@@ -996,12 +1071,12 @@ class PointTransformerV2Segmentation(SegmentationModel):
         r"""Forward pass of the model.
 
         Args:
-            x: Additional point features of shape $(N, \text{features_dim})$.
+            x: Additional point features of shape $(N, \text{features\_dim})$.
             pos: Coordinates of shape $(N, 3)$.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:
-            Segmentation logits of shape $(N, \text{num_classes})$.
+            Segmentation logits of shape $(N, \text{num\_classes})$.
         """
         x, _, _, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, _, _ = self.forward_decoder(x, intermediates)

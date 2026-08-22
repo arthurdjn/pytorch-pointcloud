@@ -1,3 +1,5 @@
+"""Lightning callbacks for batch norm momentum scheduling and metric logging."""
+
 import inspect
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
@@ -51,6 +53,7 @@ class BNMomentumScheduler(Callback):
         self.bn_momentum_clip = bn_momentum_clip
 
     def on_train_epoch_start(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
+        """Set the decayed momentum on every BatchNorm module of the model."""
         momentum = max(
             self.bn_momentum_init * self.bn_decay_rate ** (trainer.current_epoch // self.bn_decay_step),
             self.bn_momentum_clip,
@@ -152,6 +155,7 @@ class MetricCallback(Callback):
             pl_module.log(f"{stage}/{self.name}", value, prog_bar=self.prog_bar)
 
     def on_validation_epoch_start(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
+        """Reset the metric when `val` is scored."""
         if "val" in self.stages:
             self._reset(pl_module)
 
@@ -164,14 +168,17 @@ class MetricCallback(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        """Update the metric with the step output when `val` is scored."""
         if "val" in self.stages:
             self._update(outputs)
 
     def on_validation_epoch_end(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
+        """Compute and log the metric when `val` is scored."""
         if "val" in self.stages:
             self._compute(pl_module, "val")
 
     def on_test_epoch_start(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
+        """Reset the metric when `test` is scored."""
         if "test" in self.stages:
             self._reset(pl_module)
 
@@ -184,9 +191,11 @@ class MetricCallback(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        """Update the metric with the step output when `test` is scored."""
         if "test" in self.stages:
             self._update(outputs)
 
     def on_test_epoch_end(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
+        """Compute and log the metric when `test` is scored."""
         if "test" in self.stages:
             self._compute(pl_module, "test")

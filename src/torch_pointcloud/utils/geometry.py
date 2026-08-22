@@ -1,3 +1,5 @@
+"""Geometric operations: bounding boxes, rotations, point transforms, vertex normals, and spherical sampling."""
+
 import math
 import warnings
 from typing import Literal, Optional, Tuple, Union, overload
@@ -27,9 +29,9 @@ def axis_aligned_bounding_box(coords: Tensor) -> Tensor:
 
 
 def transform_points(points: Tensor, transform: Tensor) -> Tensor:
-    r"""Transform points using a 4x4 transformation matrix.
+    r"""Transform points using a $4 \times 4$ transformation matrix.
 
-    This function applies a 4x4 transformation matrix to a set of points.
+    This function applies a $4 \times 4$ transformation matrix to a set of points.
     The transformation matrix is assumed to be in the form:
 
     $$
@@ -39,21 +41,24 @@ def transform_points(points: Tensor, transform: Tensor) -> Tensor:
     \end{bmatrix}
     $$
 
-    Where $R$ is a 3x3 rotation matrix and $t$ is a 3x1 translation vector.
+    Where $R$ is a $3 \times 3$ rotation matrix and $t$ is a $3 \times 1$ translation vector.
 
     Args:
         points: Points of shape $(N, 3)$, in XYZ order.
-        transform: A 4x4 transformation matrix.
+        transform: A $4 \times 4$ transformation matrix.
 
     Returns:
         The transformed points of shape $(N, 3)$.
 
     Examples:
+        ```pycon
         >>> points = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         >>> transform = torch.tensor([[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 2.0], [0.0, 0.0, 1.0, 3.0], [0.0, 0.0, 0.0, 1.0]])
         >>> transform_points(points, transform)
         tensor([[2., 4., 6.],
                 [5., 7., 9.]])
+
+        ```
     """
     N, _ = points.shape
 
@@ -82,8 +87,8 @@ def rotate(x: Tensor, R: Tensor) -> Tensor:
 
 def cross_product_matrix(k: Tensor) -> Tensor:
     r"""Constructs a skew-symmetric matrix (also known as a cross-product matrix)
-    for a given 3D vector $k = [k1, k2, k3]$. The function returns a
-    3x3 skew-symmetric matrix $M(k)$ of the form:
+    for a given 3D vector $k = [k_1, k_2, k_3]$. The function returns a
+    $3 \times 3$ skew-symmetric matrix $M(k)$ of the form:
 
     $$
     M(k) = \begin{bmatrix}
@@ -97,13 +102,16 @@ def cross_product_matrix(k: Tensor) -> Tensor:
         k: A tensor of shape $(3,)$ representing the 3D vector.
 
     Returns:
-        A 3x3 skew-symmetric matrix corresponding to the cross-product operation.
+        A $3 \times 3$ skew-symmetric matrix corresponding to the cross-product operation.
 
     Examples:
+        ```pycon
         >>> k = torch.tensor([1.0, 2.0, 3.0])
         >>> v = torch.tensor([4.0, 5.0, 6.0])
         >>> m = cross_product_matrix(k)
         >>> cross_product = torch.matmul(m, v)
+
+        ```
     """
 
     m = [
@@ -137,7 +145,7 @@ def rodrigues_rotation_matrix(axis: Tensor, theta: float) -> Tensor:
             to convert from degrees.
 
     Returns:
-        A 3x3 rotation matrix that rotates a vector around the specified axis by the specified angle.
+        A $3 \times 3$ rotation matrix that rotates a vector around the specified axis by the specified angle.
 
     Raises:
         Warning: If $\theta > 2\pi$, which likely indicates degrees were passed
@@ -170,12 +178,15 @@ def vertex_normals(vertices: Tensor, face: Tensor) -> Tensor:
         The vertex normal of the mesh. Shape: $(V, 3)$.
 
     Examples:
+        ```pycon
         >>> vertices = torch.tensor([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]])
         >>> face = torch.tensor([[0, 1, 2]])
         >>> vertex_normals(vertices, face)
         tensor([[0., 0., 1.],
                 [0., 0., 1.],
                 [0., 0., 1.]])
+
+        ```
     """
     v01 = vertices[face[:, 1]] - vertices[face[:, 0]]  # (F, 3)
     v02 = vertices[face[:, 2]] - vertices[face[:, 0]]  # (F, 3)

@@ -1,6 +1,6 @@
 import pytest
 
-import torch_pointcloud as tpc
+import torch_pointcloud as tp
 
 
 @pytest.mark.parametrize(
@@ -16,21 +16,21 @@ import torch_pointcloud as tpc
     ],
 )
 def test_subpackage_exposed(name: str) -> None:
-    module = getattr(tpc, name)
+    module = getattr(tp, name)
     assert module.__name__ == f"torch_pointcloud.{name}"
-    assert name in tpc.__all__
+    assert name in tp.__all__
 
 
 def test_all_attributes_resolve() -> None:
-    for name in tpc.__all__:
-        getattr(tpc, name)
+    for name in tp.__all__:
+        getattr(tp, name)
 
 
 def test_factory_functions_exposed() -> None:
-    assert callable(tpc.create_model)
-    assert callable(tpc.list_models)
-    assert callable(tpc.register_model)
+    assert callable(tp.create_model)
+    assert callable(tp.list_models)
+    assert callable(tp.register_model)
 
 
 def test_version_is_string() -> None:
-    assert isinstance(tpc.__version__, str)
+    assert isinstance(tp.__version__, str)

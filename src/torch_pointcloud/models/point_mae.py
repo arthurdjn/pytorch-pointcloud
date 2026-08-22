@@ -1,3 +1,5 @@
+"""Point-MAE classification, segmentation, and masked autoencoder pretraining models."""
+
 from typing import (
     Any,
     Callable,
@@ -250,6 +252,14 @@ class MaskTransformer(nn.Module):
         self.norm = nn.LayerNorm(embed_dim)
 
     def mask_center_rand(self, center: Tensor) -> Tensor:
+        """Draw a random mask hiding `mask_ratio` of the groups, independently for every sample.
+
+        Args:
+            center: Group centers of shape $(B, G, 3)$.
+
+        Returns:
+            A boolean mask of shape $(B, G)$, `True` where the group is masked out.
+        """
         B, G, _ = center.shape
         num_mask = int(self.mask_ratio * G)
         noise = torch.rand(B, G, device=center.device)

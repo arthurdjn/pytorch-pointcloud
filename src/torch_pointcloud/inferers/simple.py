@@ -1,3 +1,5 @@
+"""Single forward-pass inference over the whole scene."""
+
 from typing import Any, Callable, Dict
 
 import torch

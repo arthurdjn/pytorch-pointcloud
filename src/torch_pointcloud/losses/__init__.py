@@ -1,3 +1,5 @@
+"""Training criteria for detection, segmentation, and generative models."""
+
 from .anchor import AnchorLoss, MultiHeadAnchorLoss
 from .center import CenterLoss, SparseCenterLoss
 from .chamfer import chamfer_distance

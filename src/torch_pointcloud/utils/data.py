@@ -1,3 +1,5 @@
+"""Data loading: standard sample keys, packed-batch collation, and the point cloud data loader."""
+
 import functools
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
@@ -20,6 +22,12 @@ Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 class DataKeys(StrEnum):
+    """Standard keys of a sample dict, shared by the datasets, transforms and models.
+
+    Members are plain strings, so a key is usable wherever a literal is (e.g. `data[DataKeys.POS]` and
+    `data["pos"]` address the same entry).
+    """
+
     # General keys (PyG convention)
     X = "x"
     POS = "pos"

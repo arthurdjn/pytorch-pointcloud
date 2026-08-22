@@ -1,3 +1,5 @@
+"""LION detection model."""
+
 import math
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, TypedDict
 
@@ -979,6 +981,14 @@ class TransFusionHead(nn.Module):
         self.register_buffer("bev_pos", bev_pos.view(1, 2, -1).permute(0, 2, 1), persistent=False)
 
     def predict(self, inputs: Tensor) -> TransFusionHeadOutput:
+        r"""Runs the head on a BEV feature map: initializes the queries from the dense heatmap, then decodes them.
+
+        Args:
+            inputs: BEV features, shape $(B, C, W, H)$.
+
+        Returns:
+            The raw per-query predictions and the dense heatmap.
+        """
         batch_size = inputs.shape[0]
         lidar_feat = self.shared_conv(inputs)
         lidar_feat_flatten = lidar_feat.view(batch_size, lidar_feat.shape[1], -1)

@@ -1,3 +1,5 @@
+"""OneFormer3D unified semantic and instance segmentation model."""
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,6 +40,8 @@ scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SC
 
 
 class OneFormer3DOutput(TypedDict, total=False):
+    """Per-scene query decoder predictions: class logits, semantic logits, mask logits, scores and auxiliary layers."""
+
     cls_preds: List[Tensor]
     sem_preds: List[Tensor]
     masks: List[Tensor]
@@ -269,6 +273,7 @@ class OneFormer3DQueryDecoder(nn.Module):
         self.init_weights()
 
     def init_weights(self) -> None:
+        """Applies Xavier uniform initialization to every multi-dimensional parameter."""
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -488,6 +493,7 @@ class OneFormer3DSegmentation(SegmentationModel):
         self.head = self.configure_head()
 
     def configure_unet(self) -> SPFormerUNetSegmentation:
+        """Builds the headless sparse U-Net backbone producing the per-point features."""
         return SPFormerUNetSegmentation(
             in_channels=self.in_channels,
             num_classes=0,
@@ -729,7 +735,7 @@ def _shift_superpoints(
     Each scene's superpoints are relabelled to a gap-free range (so backbone
     features `scatter_mean` into a dense per-superpoint tensor) and offset so the
     per-scene ranges are disjoint. Returns the relabelled per-point ids and a
-    `batch_offsets` list of length `B + 1` giving the cumulative superpoint count
+    `batch_offsets` list of length $B + 1$ giving the cumulative superpoint count
     per scene.
     """
     voxel_batch = batch[inverse]
