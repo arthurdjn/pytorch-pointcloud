@@ -23,13 +23,76 @@ from pathlib import Path
 import griffe
 from griffe import Module
 
+DISPLAY_TITLES = {
+    "pointnet": "PointNet",
+    "pointnet2": "PointNet++",
+    "dgcnn": "DGCNN",
+    "pointcnn": "PointCNN",
+    "pointconv": "PointConv",
+    "pointmlp": "PointMLP",
+    "pointnext": "PointNeXt",
+    "point_transformer": "Point Transformer",
+    "point_transformer_v2": "Point Transformer V2",
+    "point_transformer_v3": "Point Transformer V3",
+    "pvcnn": "PVCNN",
+    "pvcnn2": "PVCNN++",
+    "point_mamba": "Point-Mamba",
+    "octformer": "OctFormer",
+    "kpconv": "KPConv",
+    "randlanet": "RandLA-Net",
+    "spvcnn": "SPVCNN",
+    "spunet": "SpUNet",
+    "spformer_unet": "SPFormer-UNet",
+    "sphereformer": "SphereFormer",
+    "oneformer3d": "OneFormer3D",
+    "votenet": "VoteNet",
+    "detr3d": "3DETR",
+    "pointpillars": "PointPillars",
+    "second": "SECOND",
+    "pointrcnn": "PointRCNN",
+    "voxelnext": "VoxelNeXt",
+    "voxel_mamba": "Voxel-Mamba",
+    "lion": "LION",
+    "point_bert": "Point-BERT",
+    "point_mae": "Point-MAE",
+    "point_m2ae": "Point-M2AE",
+    "pointgpt": "PointGPT",
+    "sonata": "Sonata",
+    "concerto": "Concerto",
+    "utonia": "Utonia",
+    "modelnet": "ModelNet",
+    "scannet": "ScanNet",
+    "s3dis": "S3DIS",
+    "shapenetpart": "ShapeNetPart",
+    "scanobjectnn": "ScanObjectNN",
+    "semantickitti": "SemanticKITTI",
+    "semantic3d": "Semantic3D",
+    "toronto3d": "Toronto3D",
+    "parislille3d": "ParisLille3D",
+    "sunrgbd": "SUN RGB-D",
+    "kitti": "KITTI",
+    "nuscenes": "nuScenes",
+}
+
+
+# `DictTransform.iter_keys` is inherited unchanged by every transform; render it once, on its own class.
+MODULE_OPTIONS = {
+    "torch_pointcloud.transforms": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.transforms": {"inherited_members": "false"},
+}
+
 
 def has_public_submodules(module: Module) -> bool:
     return any(isinstance(m, Module) and not m.is_private and not m.is_alias for m in module.members.values())
 
 
 def write_stub(module: Module, output_dir: Path) -> None:
-    """Write a one-line `::: module.path` stub at the right location."""
+    """Write a one-line `::: module.path` stub at the right location.
+
+    The stub carries an explicit anchor for the module. The rendered pages hide the root
+    heading, which is what would otherwise register the module identifier, so without the
+    anchor a cross-reference to the module resolves to plain text.
+    """
     rel = "/".join(module.path.split(".")[1:])
     submodules = has_public_submodules(module)
     if rel == "":
@@ -38,8 +101,17 @@ def write_stub(module: Module, output_dir: Path) -> None:
         file_path = output_dir / rel / "index.md"
     else:
         file_path = output_dir / f"{rel}.md"
+
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(f"::: {module.path}\n")
+    name = module.path.split(".")[-1]
+    title = DISPLAY_TITLES.get(name, name)
+    directive = f"::: {module.path}\n"
+    options = MODULE_OPTIONS.get(module.path)
+    if options:
+        directive += "    options:\n" + "".join(f"      {key}: {value}\n" for key, value in options.items())
+
+    anchor = f"[](){{#{module.path}}}\n"
+    file_path.write_text(f"---\ntitle: {title}\n---\n\n{anchor}\n{directive}")
     print(f"Generated: {file_path}")
 
 

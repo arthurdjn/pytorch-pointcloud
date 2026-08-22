@@ -1,7 +1,7 @@
-"""
-The ScanNet dataset as described in the paper
+"""The ScanNet dataset as described in the paper
 :arxiv: [ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405).
 
+{{ paper("1702.04405") }}
 """
 
 import json

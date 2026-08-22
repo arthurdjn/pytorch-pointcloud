@@ -1,4 +1,7 @@
-"""PointNet++ classification and segmentation models."""
+"""PointNet++ classification and segmentation models.
+
+{{ paper("1706.02413") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

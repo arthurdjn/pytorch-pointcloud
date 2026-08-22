@@ -1,4 +1,7 @@
-"""KITTI 3D object detection dataset with calibration loading and coordinate-frame conversion helpers."""
+"""KITTI 3D object detection dataset with calibration loading and coordinate-frame conversion helpers.
+
+{{ paper("kitti-2012") }}
+"""
 
 import json
 import shutil

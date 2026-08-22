@@ -1,6 +1,7 @@
-"""
-The SemanticKITTI dataset, as described in the paper
+"""The SemanticKITTI dataset, as described in the paper
 :arxiv: [SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences](https://arxiv.org/abs/1904.01416).
+
+{{ paper("1904.01416") }}
 """
 
 from pathlib import Path

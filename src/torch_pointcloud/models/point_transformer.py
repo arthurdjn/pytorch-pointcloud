@@ -1,4 +1,7 @@
-"""Point Transformer classification and segmentation models."""
+"""Point Transformer classification and segmentation models.
+
+{{ paper("2012.09164") }}
+"""
 
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 

@@ -1,4 +1,7 @@
-"""OctFormer classification and segmentation models."""
+"""OctFormer classification and segmentation models.
+
+{{ paper("2305.03045") }}
+"""
 
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload

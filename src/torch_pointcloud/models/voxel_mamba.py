@@ -1,4 +1,7 @@
-"""Voxel-Mamba detection model."""
+"""Voxel-Mamba detection model.
+
+{{ paper("2406.10700") }}
+"""
 
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union

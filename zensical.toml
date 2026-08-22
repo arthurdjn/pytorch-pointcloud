@@ -484,6 +484,10 @@ alternate_style = true
 [project.markdown_extensions.pymdownx.arithmatex]
 generic = true
 
+# Zensical extensions
+[project.markdown_extensions.zensical.extensions.macros]
+module_name = "docs/plugins/macros"
+
 # ----------------------------------------------------------------------------
 # Dynamically generate API documentation
 # ----------------------------------------------------------------------------
@@ -494,12 +498,14 @@ paths = ["src"]
 docstring_section_style = "list"
 docstring_style = "google"
 filters = ["!^_", "!^extra_repr$"]
+heading_level = 3
 inherited_members = true
 members_order = "source"
 merge_init_into_class = true
 separate_signature = true
 show_labels = true
-show_root_heading = true
+show_root_heading = false
+show_root_toc_entry = false
 show_signature_annotations = true
 show_source = false
 show_symbol_type_heading = true

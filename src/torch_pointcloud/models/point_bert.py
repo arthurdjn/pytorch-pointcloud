@@ -1,4 +1,7 @@
-"""Point-BERT classification models, discrete VAE tokenizer, and masked pretraining transformer."""
+"""Point-BERT classification models, discrete VAE tokenizer, and masked pretraining transformer.
+
+{{ paper("2111.14819") }}
+"""
 
 from typing import (
     TYPE_CHECKING,

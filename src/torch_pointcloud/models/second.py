@@ -1,4 +1,7 @@
-"""SECOND detection models."""
+"""SECOND detection models.
+
+{{ paper("second-2018") }}
+"""
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 

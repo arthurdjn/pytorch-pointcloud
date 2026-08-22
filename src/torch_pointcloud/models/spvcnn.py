@@ -1,4 +1,7 @@
-"""SPVCNN classification and segmentation models."""
+"""SPVCNN classification and segmentation models.
+
+{{ paper("2007.16100") }}
+"""
 
 from functools import lru_cache
 from typing import (

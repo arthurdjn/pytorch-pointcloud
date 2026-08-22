@@ -1,4 +1,7 @@
-"""ShapeNetPart object part segmentation dataset."""
+"""ShapeNetPart object part segmentation dataset.
+
+{{ paper("shapenetpart-2016") }}
+"""
 
 import json
 import shutil

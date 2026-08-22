@@ -1,0 +1,251 @@
+{
+  "1406.5670": {
+    "crop": 0.47,
+    "date": "June 2014",
+    "title": "3D ShapeNets: A Deep Representation for Volumetric Shapes"
+  },
+  "1612.00593": {
+    "crop": 0.47,
+    "date": "December 2016",
+    "title": "PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation"
+  },
+  "1702.04405": {
+    "crop": 0.47,
+    "date": "February 2017",
+    "title": "ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes"
+  },
+  "1704.03847": {
+    "crop": 0.47,
+    "date": "April 2017",
+    "title": "Semantic3D.net: A new Large-scale Point Cloud Classification Benchmark"
+  },
+  "1706.02413": {
+    "crop": 0.47,
+    "date": "June 2017",
+    "title": "PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space"
+  },
+  "1712.00032": {
+    "crop": 0.47,
+    "date": "November 2017",
+    "title": "Paris-Lille-3D: a large and high-quality ground truth urban point cloud dataset for automatic segmentation and classification"
+  },
+  "1801.07791": {
+    "crop": 0.47,
+    "date": "January 2018",
+    "title": "PointCNN: Convolution On $\\mathcal{X}$-Transformed Points"
+  },
+  "1801.07829": {
+    "crop": 0.47,
+    "date": "January 2018",
+    "title": "Dynamic Graph CNN for Learning on Point Clouds"
+  },
+  "1811.07246": {
+    "crop": 0.47,
+    "date": "November 2018",
+    "title": "PointConv: Deep Convolutional Networks on 3D Point Clouds"
+  },
+  "1812.04244": {
+    "crop": 0.47,
+    "date": "December 2018",
+    "title": "PointRCNN: 3D Object Proposal Generation and Detection from Point Cloud"
+  },
+  "1812.05784": {
+    "crop": 0.47,
+    "date": "December 2018",
+    "title": "PointPillars: Fast Encoders for Object Detection from Point Clouds"
+  },
+  "1903.11027": {
+    "crop": 0.47,
+    "date": "March 2019",
+    "title": "nuScenes: A multimodal dataset for autonomous driving"
+  },
+  "1904.01416": {
+    "crop": 0.47,
+    "date": "April 2019",
+    "title": "SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences"
+  },
+  "1904.08755": {
+    "crop": 0.47,
+    "date": "April 2019",
+    "title": "4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural Networks"
+  },
+  "1904.08889": {
+    "crop": 0.47,
+    "date": "April 2019",
+    "title": "KPConv: Flexible and Deformable Convolution for Point Clouds"
+  },
+  "1904.09664": {
+    "crop": 0.47,
+    "date": "April 2019",
+    "title": "Deep Hough Voting for 3D Object Detection in Point Clouds"
+  },
+  "1907.03739": {
+    "crop": 0.47,
+    "date": "July 2019",
+    "title": "Point-Voxel CNN for Efficient 3D Deep Learning"
+  },
+  "1908.04616": {
+    "crop": 0.47,
+    "date": "August 2019",
+    "title": "Revisiting Point Cloud Classification: A New Benchmark Dataset and Classification Model on Real-World Data"
+  },
+  "1911.11236": {
+    "crop": 0.47,
+    "date": "November 2019",
+    "title": "RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds"
+  },
+  "2003.08284": {
+    "crop": 0.47,
+    "date": "March 2020",
+    "title": "Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways"
+  },
+  "2007.16100": {
+    "crop": 0.47,
+    "date": "July 2020",
+    "title": "Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution"
+  },
+  "2012.09164": {
+    "crop": 0.47,
+    "date": "December 2020",
+    "title": "Point Transformer"
+  },
+  "2109.08141": {
+    "crop": 0.47,
+    "date": "September 2021",
+    "title": "An End-to-End Transformer Model for 3D Object Detection"
+  },
+  "2111.14819": {
+    "crop": 0.47,
+    "date": "November 2021",
+    "title": "Point-BERT: Pre-training 3D Point Cloud Transformers with Masked Point Modeling"
+  },
+  "2202.07123": {
+    "crop": 0.47,
+    "date": "February 2022",
+    "title": "Rethinking Network Design and Local Geometry in Point Cloud: A Simple Residual MLP Framework"
+  },
+  "2203.06604": {
+    "crop": 0.47,
+    "date": "March 2022",
+    "title": "Masked Autoencoders for Point Cloud Self-supervised Learning"
+  },
+  "2205.14401": {
+    "crop": 0.47,
+    "date": "May 2022",
+    "title": "Point-M2AE: Multi-scale Masked Autoencoders for Hierarchical Point Cloud Pre-training"
+  },
+  "2206.04670": {
+    "crop": 0.47,
+    "date": "June 2022",
+    "title": "PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies"
+  },
+  "2210.05666": {
+    "crop": 0.47,
+    "date": "October 2022",
+    "title": "Point Transformer V2: Grouped Vector Attention and Partition-based Pooling"
+  },
+  "2211.15766": {
+    "crop": 0.47,
+    "date": "November 2022",
+    "title": "Superpoint Transformer for 3D Scene Instance Segmentation"
+  },
+  "2303.11301": {
+    "crop": 0.47,
+    "date": "March 2023",
+    "title": "VoxelNeXt: Fully Sparse VoxelNet for 3D Object Detection and Tracking"
+  },
+  "2303.12766": {
+    "crop": 0.47,
+    "date": "March 2023",
+    "title": "Spherical Transformer for LiDAR-based 3D Recognition"
+  },
+  "2305.03045": {
+    "crop": 0.47,
+    "date": "May 2023",
+    "title": "OctFormer: Octree-based Transformers for 3D Point Clouds"
+  },
+  "2305.11487": {
+    "crop": 0.47,
+    "date": "May 2023",
+    "title": "PointGPT: Auto-regressively Generative Pre-training from Point Clouds"
+  },
+  "2311.14405": {
+    "crop": 0.47,
+    "date": "November 2023",
+    "title": "OneFormer3D: One Transformer for Unified Point Cloud Segmentation"
+  },
+  "2312.10035": {
+    "crop": 0.47,
+    "date": "December 2023",
+    "title": "Point Transformer V3: Simpler, Faster, Stronger"
+  },
+  "2402.10739": {
+    "crop": 0.47,
+    "date": "February 2024",
+    "title": "PointMamba: A Simple State Space Model for Point Cloud Analysis"
+  },
+  "2406.10700": {
+    "crop": 0.47,
+    "date": "June 2024",
+    "title": "Voxel Mamba: Group-Free State Space Models for Point Cloud based 3D Object Detection"
+  },
+  "2407.18232": {
+    "crop": 0.47,
+    "date": "July 2024",
+    "title": "LION: Linear Group RNN for 3D Object Detection in Point Clouds"
+  },
+  "2503.16429": {
+    "crop": 0.47,
+    "date": "March 2025",
+    "title": "Sonata: Self-Supervised Learning of Reliable Point Representations"
+  },
+  "2510.23607": {
+    "crop": 0.47,
+    "date": "October 2025",
+    "title": "Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations"
+  },
+  "2603.03283": {
+    "crop": 0.47,
+    "date": "March 2026",
+    "title": "Utonia: Toward One Encoder for All Point Clouds"
+  },
+  "kitti-2012": {
+    "crop": 0.47,
+    "date": "June 2012",
+    "icon": "cvf",
+    "label": "CVPR",
+    "title": "Are we ready for Autonomous Driving? The KITTI Vision Benchmark Suite",
+    "url": "https://www.cvlibs.net/publications/Geiger2012CVPR.pdf"
+  },
+  "s3dis-2016": {
+    "crop": 0.47,
+    "date": "June 2016",
+    "icon": "cvf",
+    "label": "CVPR",
+    "title": "3D Semantic Parsing of Large-Scale Indoor Spaces",
+    "url": "https://openaccess.thecvf.com/content_cvpr_2016/html/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.html"
+  },
+  "second-2018": {
+    "crop": 0.47,
+    "date": "October 2018",
+    "label": "Sensors",
+    "title": "SECOND: Sparsely Embedded Convolutional Detection",
+    "url": "https://www.mdpi.com/1424-8220/18/10/3337"
+  },
+  "shapenetpart-2016": {
+    "crop": 0.47,
+    "date": "November 2016",
+    "icon": "simple-acm",
+    "label": "ACM TOG",
+    "title": "A Scalable Active Framework for Region Annotation in 3D Shape Collections",
+    "url": "https://dl.acm.org/doi/10.1145/2980179.2980238"
+  },
+  "sunrgbd-2015": {
+    "crop": 0.47,
+    "date": "June 2015",
+    "icon": "cvf",
+    "label": "CVPR",
+    "title": "SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite",
+    "url": "https://openaccess.thecvf.com/content_cvpr_2015/html/Song_SUN_RGB-D_A_2015_CVPR_paper.html"
+  }
+}

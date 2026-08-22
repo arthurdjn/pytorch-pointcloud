@@ -1,4 +1,7 @@
-"""Point-M2AE classification, segmentation, and masked autoencoder pretraining models."""
+"""Point-M2AE classification, segmentation, and masked autoencoder pretraining models.
+
+{{ paper("2205.14401") }}
+"""
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
