@@ -13,7 +13,7 @@ dataset = ModelNet40(root="data", train=True, download=True)
 dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 ```
 
-Alternatively, you can use the `PointCloudDataLoader` dataloader, which is a wrapper around the `DataLoader` with the `collate` helper already applied.
+`PointCloudDataLoader` is the same `DataLoader` with the `collate` helper already applied.
 
 ```{.python notest}
 from torch_pointcloud.utils.data import PointCloudDataLoader
@@ -90,7 +90,7 @@ All datasets emit dicts using the standard key conventions from `DataKeys` in `t
 | `label`    | scalar   | Object class (classification datasets)      |
 | `face`     | $(F, 3)$ | Triangle indices (ModelNet / mesh datasets) |
 
-After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ is appended to identify each point's source scene.
+After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ gives each point's source scene.
 
 !!! warning "Color conventions vary per dataset"
     `color` is uint8 in $[0, 255]$ for the raw-value loaders (`S3DIS`, `ScanNet`, `Toronto3D`, `Semantic3D`, `SunRGBD`) and float32 in $[0, 1]$ for `S3DISHdf5`, which ships pre-normalized values.

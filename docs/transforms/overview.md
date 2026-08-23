@@ -1,6 +1,6 @@
 # Transforms
 
-A transform takes **one sample** and returns one sample: a `Dict[str, Tensor]` in, a new dict out. You chain them with `Compose` and hand the result to a dataset, and everything between a file on disk and a model's forward happens here. The API is modeled on :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions.
+A transform takes one sample dict and returns a new one. `Compose` chains them, and a dataset applies the chain to every sample it loads. The API follows :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions.
 
 ```python
 import torch
@@ -18,12 +18,12 @@ pipeline = T.Compose([
 scene = pipeline({"pos": pos, "color": color})
 ```
 
-## Four rules that explain the rest
+## Rules
 
 1. **One sample at a time.** A transform never sees a batch, and the `batch` key is not consumed here. Everything runs before the DataLoader's collate step.
-2. **Nothing is mutated.** Each transform returns a new shallow-copy dict, so the sample you passed in is still intact afterwards.
-3. **No hidden combinations.** Every transform does one thing and you compose them, which is why scene centering is two explicit `Shift` calls rather than one `CenterShift`.
-4. **There is a tensor-level sibling for everything.** If you already hold a tensor and want no dict at all, `torch_pointcloud.transforms.functional` has the same operation as a plain function.
+2. **Nothing is mutated.** Each transform returns a new shallow-copy dict. The input sample is unchanged.
+3. **One transform, one operation.** Compose them yourself: centering a scene is two `Shift` calls, not one `CenterShift`.
+4. **Tensor-level equivalents.** `torch_pointcloud.transforms.functional` holds the same operations as plain functions.
 
 ## Where to start
 
@@ -36,7 +36,7 @@ scene = pipeline({"pos": pos, "color": color})
 | Decide what the model should be invariant to      | [Augmentation](augmentation.md)   |
 | Build `x`, remap labels, encode detection targets | [Utilities](utilities.md)         |
 
-If you are running a pretrained checkpoint, you may not need any of this: `info["transform"]` already carries the exact preprocessing it was trained with.
+A pretrained checkpoint carries its own preprocessing in `info["transform"]`.
 
 ## Every transform at a glance
 
@@ -119,7 +119,7 @@ T.Compose([
 ])
 ```
 
-The two `Shift` calls touch disjoint axes, so they commute: the room is centered in XY while the floor stays at $z = 0$.
+The two `Shift` calls act on different axes, so the room is centered in XY and the floor stays at $z = 0$.
 
 ### Normalize an object to the unit sphere
 
@@ -143,11 +143,11 @@ T.Compose([
 ])
 ```
 
-`dst_inverse_key` stores the inverse mapping, which is what lets you project predictions back to the full-resolution cloud at evaluation time. Ask for it up front: it is easier than re-running the pipeline once you find you need it.
+`dst_inverse_key` stores the inverse mapping. Use it to project predictions back onto the full-resolution cloud.
 
 ## Skip the dict entirely
 
-If you already hold raw tensors and want no pipeline:
+On raw tensors, without a pipeline:
 
 ```{.python continuation}
 import torch_pointcloud.transforms.functional as F
@@ -158,4 +158,4 @@ heights = F.axis_min_offset(pos, axis=2)
 mask = F.sphere_mask(pos, center=[0.0, 0.0, 0.0], radius=2.0)
 ```
 
-Every dict transform with non-trivial logic has a tensor-level sibling. See [`api/transforms/functional`](../api/transforms/functional.md).
+Most dict transforms have a tensor-level equivalent. See [`api/transforms/functional`](../api/transforms/functional.md).

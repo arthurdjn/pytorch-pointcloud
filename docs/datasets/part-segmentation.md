@@ -1,10 +1,10 @@
 # Part Segmentation Datasets
 
-[`ShapeNetPart`](../api/datasets/shapenetpart.md) labels **the parts of a single object**: a chair's legs, back and seat. It is the benchmark for the task, with 16 categories, 50 part ids and roughly 16 900 shapes.
+[`ShapeNetPart`](../api/datasets/shapenetpart.md) labels the parts of a single object: a chair's legs, back and seat. It is the standard benchmark for the task, with 16 categories, 50 part ids and roughly 16 900 shapes.
 
 ![Five committed sample objects colored by their ShapeNetPart part labels](../assets/datasets/parts.png)
 
-Part ids are global across the 16 categories, so a chair owns 12-14 and a table 47-49, and one 50-way head covers every category at once. The colors above are each object's own `segment` field.
+Part ids are global across the 16 categories: a chair owns 12-14 and a table 47-49, so one 50-way head covers every category. The colors above are each object's own `segment` field.
 
 | Split   | Samples |
 | ------- | ------- |
@@ -31,7 +31,7 @@ Samples: 2874
 {'pos': (2704, 3), 'normal': (2704, 3), 'segment': (2704,), 'category': ()}
 ```
 
-Point counts vary per shape, which is what the packed batch format is for. The first run writes a cache under `data/ShapeNetPart/processed/`.
+Point counts vary per shape, which is what the packed batch format handles. The first run writes a cache under `data/ShapeNetPart/processed/`.
 
 ## What a sample holds
 
@@ -42,7 +42,7 @@ Point counts vary per shape, which is what the packed batch format is for. The f
 | `segment`  | $(N,)$   | Part id in $[0, 50)$, global across categories      |
 | `category` | scalar   | Object category index in $[0, 16)$                  |
 
-`category` is a plain integer here. Part-segmentation checkpoints consume it one-hot, which their registered transform handles for you.
+`category` is a plain integer here. Part-segmentation checkpoints read it one-hot, which their registered transform handles.
 
 ## Categories and their parts
 

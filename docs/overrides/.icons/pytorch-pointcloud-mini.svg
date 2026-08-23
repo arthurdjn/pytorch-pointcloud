@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 197">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 167.29 200.00">
     <metadata>
         <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
@@ -14,20 +14,22 @@
         </rdf:RDF>
     </metadata>
     <g fill="#EE4C2C">
-        <circle class="dot" cx="86" cy="11" r="11" />
-        <circle class="dot" cx="61" cy="36" r="11" />
-        <circle class="dot" cx="111" cy="36" r="11" />
-        <circle class="dot" cx="36" cy="61" r="11" />
-        <circle class="dot" cx="11" cy="86" r="11" />
-        <circle class="dot" cx="161" cy="86" r="11" />
-        <circle class="dot" cx="11" cy="111" r="11" />
-        <circle class="dot" cx="161" cy="111" r="11" />
-        <circle class="dot" cx="11" cy="136" r="11" />
-        <circle class="dot" cx="161" cy="136" r="11" />
-        <circle class="dot" cx="36" cy="161" r="11" />
-        <circle class="dot" cx="136" cy="161" r="11" />
-        <circle class="dot" cx="61" cy="186" r="11" />
-        <circle class="dot" cx="86" cy="186" r="11" />
-        <circle class="dot" cx="111" cy="186" r="11" />
+        <circle class="dot" cx="148.61" cy="85.49" r="11.73" />
+        <circle class="dot" cx="155.27" cy="112.94" r="12.01" />
+        <circle class="dot" cx="150.81" cy="140.84" r="12.24" />
+        <circle class="dot" cx="135.91" cy="164.84" r="12.41" />
+        <circle class="dot" cx="112.90" cy="181.23" r="12.52" />
+        <circle class="dot" cx="85.35" cy="187.45" r="12.55" />
+        <circle class="dot" cx="57.53" cy="182.55" r="12.50" />
+        <circle class="dot" cx="33.76" cy="167.28" r="12.38" />
+        <circle class="dot" cx="17.74" cy="144.01" r="12.20" />
+        <circle class="dot" cx="11.95" cy="116.36" r="11.95" />
+        <circle class="dot" cx="17.30" cy="88.62" r="11.66" />
+        <circle class="dot" cx="32.95" cy="65.10" r="11.33" />
+        <circle class="dot" cx="51.71" cy="46.34" r="11.04" />
+        <circle class="dot" cx="67.42" cy="30.63" r="8.78" />
+        <circle class="dot" cx="81.61" cy="16.43" r="6.65" />
+        <circle class="dot" cx="93.78" cy="4.27" r="4.27" />
+        <circle class="dot" cx="121.39" cy="41.69" r="14.05" />
     </g>
 </svg>

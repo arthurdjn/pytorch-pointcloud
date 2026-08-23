@@ -87,7 +87,7 @@ Kept boxes: 17
      Cyclist  0.74  center=(17.73, 3.61, -0.81)  yaw=3.14
 ```
 
-An anchor-based head scores every anchor of its grid, so `decode` hands back 321 408 boxes and the filtering is the work: the score cut leaves 218, rotated NMS at IoU 0.01 collapses those to 17, and the confident ones are the eight the figure draws. `yaw` is a real heading here, unlike the axis-aligned boxes an indoor detector emits.
+An anchor-based head scores every anchor of its grid, so `decode` returns 321 408 boxes: the score cut leaves 218, rotated NMS at IoU 0.01 collapses those to 17, and the eight most confident are the ones the figure draws. The `yaw` values are non-zero, since KITTI annotates oriented boxes.
 
 ## Inputs and outputs
 
@@ -103,7 +103,7 @@ Voxel-based detectors read the pillar / voxel layout their registered transform 
 
 `decode` returns a packed dict: `boxes` $(K, 7)$, `scores` $(K,)$, `labels` $(K,)$ and a `batch` index $(K,)$ naming the scene each box came from.
 
-Indoor detectors read points instead. That changes the call, not the output.
+Indoor detectors read points instead, which changes the call but not the output.
 
 | Family                | Checkpoints                                           | Call                                                     |
 | --------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
@@ -127,7 +127,7 @@ dataloader = PointCloudDataLoader(
 
 ## Evaluate on a dataset
 
-You will find several utilities in `torch_pointcloud.utils.metrics` to score the predictions. `mean_average_precision3d` scores every class at one IoU, and `average_precision3d` gives each class its own threshold, which is what KITTI asks for: Car at 0.7, Pedestrian and Cyclist at 0.5, over the 11-point recall grid.
+You will find several utilities in `torch_pointcloud.utils.metrics` to score the predictions. `mean_average_precision3d` scores every class at one IoU, and `average_precision3d` gives each class its own threshold, as KITTI requires: Car at 0.7, Pedestrian and Cyclist at 0.5, over the 11-point recall grid.
 
 ```{.python notest}
 import torch

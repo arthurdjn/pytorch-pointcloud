@@ -1,10 +1,10 @@
 # Sampling
 
-Models want a point budget, and your data rarely arrives with one. A ModelNet mesh has no points at all, a ScanNet room has 700 000 of them, and a grid detector wants a fixed voxel stack. Sampling transforms are how you get from what you have to what the model reads.
+Sampling transforms set how many points a model reads. A ModelNet mesh carries no points, a ScanNet room carries 700 000, and a grid detector reads a fixed-capacity voxel stack.
 
-## Which one to reach for
+## Which one to use
 
-| You need                                                  | Reach for                                          |
+| You need                                                  | Use                                                |
 | --------------------------------------------------------- | -------------------------------------------------- |
 | A fixed point count, as fast as possible                  | `RandomSample`                                     |
 | A fixed point count, evenly spread over the shape         | `FarthestPointSample`                              |
@@ -15,11 +15,11 @@ Models want a point budget, and your data rarely arrives with one. A ModelNet me
 | The input order broken before an order-dependent step     | `ShufflePoint`                                     |
 | Points dropped at random, as a training augmentation      | [`RandomDropout`](augmentation.md#vary-the-density)   |
 
-Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
+Parameters for each are in the [API reference](../api/transforms/transforms.md).
 
 ## Give an object model its point budget
 
-Object models train on a fixed count, usually 1024 or 2048. `RandomSample` is the cheap way to get there and `FarthestPointSample` the well-distributed one: FPS repeatedly picks the point farthest from those already chosen, which is the convention inside PointNet++ and PointNeXt. Both share their indices across every key you list, so `color` and `segment` stay aligned with `pos`.
+Object models train on a fixed count, usually 1024 or 2048 points. `RandomSample` draws them at random. `FarthestPointSample` picks each next point farthest from the ones already chosen, as PointNet++ and PointNeXt do. Both share their indices across every listed key, so `color` and `segment` stay aligned with `pos`.
 
 === "Object"
 
@@ -44,11 +44,11 @@ even = T.FarthestPointSample(pos_key="pos", keys=("color",), num_samples=1024)
 
     ![FarthestPointSample on a room](../assets/transforms/farthest_point_sample_scene.png)
 
-Reach for FPS when coverage matters and you can afford it, which is most classification and part-segmentation checkpoints. Reach for `RandomSample` inside a training loop over large scenes, where you are sampling a fresh subset every epoch anyway.
+FPS costs more and covers the shape better. Most classification and part-segmentation checkpoints use it. `RandomSample` is enough in a training loop over large scenes, where every epoch draws a new subset.
 
 ## Feed a sparse-convolution scene model
 
-Scene models work on a voxel grid, so downsample by resolution rather than by count. `Voxelize` bins the points and keeps one representative per occupied voxel, reducing each key the way that key needs: `mean` for color, `first` for a label.
+Scene models work on a voxel grid, so downsample by resolution instead of by count. `Voxelize` bins the points and keeps one per occupied voxel. Each key is reduced its own way: `mean` for color, `first` for a label.
 
 === "Object"
 
@@ -69,11 +69,11 @@ T.Compose([
 ])
 ```
 
-Ask for `dst_inverse_key` whenever you intend to score the result: it stores the map back to full resolution, so `preds_full = preds_voxel[inverse]` puts one prediction on every original point. Forgetting it is the usual reason a scene pipeline cannot be evaluated at the end.
+Pass `dst_inverse_key` to score the result at full resolution. It stores the map back to the original points, so `preds_full = preds_voxel[inverse]` gives one prediction per point.
 
 ![The same room voxelized at 3, 6, 12 and 24 cm](../assets/animations/voxelize.webp)
 
-Voxel size is the resolution knob of the whole pipeline. 2-4 cm keeps furniture legible, and every doubling divides the point count by roughly eight, so it is also the memory knob.
+Voxel size sets the resolution of the pipeline. 2-4 cm keeps furniture legible, and every doubling divides the point count by roughly eight.
 
 ## Keep every point but give it a grid coordinate
 
@@ -91,11 +91,11 @@ Voxel size is the resolution knob of the whole pipeline. 2-4 cm keeps furniture 
 T.Quantize(keys="pos", size=0.02, dst_keys="pos_grid")
 ```
 
-This is what you want when a sparse model must see every raw point, as in a voxel-partition evaluation, or when a test-time view has to recompute grid coordinates after rotating or scaling the positions. Use `Voxelize` instead when one point per voxel is what you are after.
+Use `Quantize` when a sparse model must see every raw point, as in a voxel-partition evaluation, or when a test-time view recomputes grid coordinates after a rotation or a scaling. Use `Voxelize` when one point per voxel is enough.
 
 ## Prepare a driving frame for a grid detector
 
-`HardVoxelize` builds the fixed-capacity voxel stack PointPillars and SECOND consume, which keeps that step in the pipeline instead of the model. Points are binned over `point_cloud_range`, at most `max_num_points` survive per voxel and at most `max_num_voxels` per scene.
+`HardVoxelize` builds the fixed-capacity voxel stack PointPillars and SECOND read, so that step stays in the pipeline instead of the model. Points are binned over `point_cloud_range`, at most `max_num_points` survive per voxel and at most `max_num_voxels` per scene.
 
 === "Object"
 
@@ -120,7 +120,7 @@ It keeps `pos` and `x` and adds three keys: the per-voxel point stack $(V, \text
 
 ## Turn a mesh into a point cloud
 
-`ModelNet10` and `ModelNet40` ship triangle meshes, so there is nothing to sample until you make points. `RandomSampleFaceVertices` samples them on the faces and stores the surface normals under `normal_key`.
+`ModelNet10` and `ModelNet40` ship triangle meshes. `RandomSampleFaceVertices` samples points on the faces and writes the surface normals to `normal_key`.
 
 === "Object"
 
@@ -130,7 +130,7 @@ It keeps `pos` and `x` and adds three keys: the per-voxel point stack $(V, \text
 T.RandomSampleFaceVertices(keys="pos", face_key="face", num_samples=2048)
 ```
 
-Because this step is random, two runs give different clouds and a published score is hard to reproduce exactly. That is what the preprocessed `ModelNetNormalResampled` release is for; see [Classification datasets](../datasets/classification.md).
+The sampling is random, so two runs give different clouds and a published score is hard to reproduce exactly. The preprocessed `ModelNetNormalResampled` release avoids that; see [Classification datasets](../datasets/classification.md).
 
 ## Break an ordering you did not intend to rely on
 
@@ -148,4 +148,4 @@ Because this step is random, two runs give different clouds and a published scor
 T.ShufflePoint(keys=("pos", "color"), p=1.0)
 ```
 
-Use it before anything whose result depends on row order, such as `Slice` or the `first` reduction of `Voxelize`. A file that happens to be sorted by scan line will otherwise leak that ordering into your labels.
+Use it before any step that depends on row order, such as `Slice` or the `first` reduction of `Voxelize`. A file sorted by scan line would otherwise leak that order into the labels.

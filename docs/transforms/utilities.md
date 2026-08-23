@@ -1,10 +1,10 @@
 # Utilities
 
-Most of a pipeline is not geometry. It is getting the dict into the shape the model reads: assembling a feature tensor, fitting a dataset's label ids to a checkpoint's classes, filling in normals the scan never carried, and encoding the targets a detector trains against. These are the transforms that do that plumbing.
+These transforms build the feature tensor, map a dataset's label ids onto a checkpoint's classes, fill in normals the scan never carried, and encode the targets a detector trains against.
 
-## Which one to reach for
+## Which one to use
 
-| You need                                                     | Reach for                                                       |
+| You need                                                     | Use                                                             |
 | ------------------------------------------------------------- | --------------------------------------------------------------- |
 | A feature tensor `x` built from several keys                 | [`Cat`](#build-the-feature-tensor-a-model-reads)                |
 | A dataset's label ids mapped to a checkpoint's classes       | [`Relabel`](#fit-labels-to-a-checkpoints-classes)               |
@@ -14,13 +14,13 @@ Most of a pipeline is not geometry. It is getting the dict into the shape the mo
 | To rename, copy, drop, cast or move keys                     | [The dict utilities](#rearrange-the-dict)                       |
 | An octree for `ocnn`-based models                            | [`BuildOctree`](#build-an-octree)                               |
 
-Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
+Parameters for each are in the [API reference](../api/transforms/transforms.md).
 
-Two kinds of figure appear below. Transforms that touch points are rendered on a single object and a real ScanNet room, with the **Object** / **Scene** tabs switching together. Transforms that only rearrange keys, dtypes and layout show nothing in a 3D scatter, so they are drawn as block diagrams of the tensors involved: the accent color marks what the transform creates or changes, and everything it leaves alone stays gray.
+Two kinds of figure appear below. Transforms that touch points are drawn on a single object and on a ScanNet room, with the **Object** / **Scene** tabs switching together. Transforms that only rearrange keys, dtypes and layout are drawn as block diagrams: the accent color marks what the transform creates or changes, the rest stays gray.
 
 ## Build the feature tensor a model reads
 
-A model takes `x`, and `x` is whatever you decided to give it. `Cat` assembles it from the keys the dataset provides, casting integer inputs to `float32` and promoting mixed floats to the widest dtype. The source keys stay in the dict.
+A model expects input features `x` (can be `None`). `Cat` builds it from the keys the dataset provides, casting integer inputs to `float32` and mixed floats to the widest dtype. The source keys stay in the dict.
 
 ![Cat diagram](../assets/transforms/cat.png)
 
@@ -31,9 +31,9 @@ import torch_pointcloud.transforms as T
 T.Cat(keys=["pos", "color", "normal"], dst_key="x", dim=1)  # (N, 9)
 ```
 
-Whatever you assemble has to match the `in_channels` the model was built with, and for a pretrained checkpoint it has to match exactly what its own transform builds. That is the single most common reason a checkpoint loads and then produces nonsense.
+`x` must match the `in_channels` the model was built with, and for a pretrained checkpoint it must match what its own transform builds. A mismatch is the most common reason a checkpoint loads and then predicts nonsense.
 
-Colors usually need a cast and a divide on the way in, because most loaders hand you `uint8`:
+Most loaders return `uint8` colors, so cast and divide first:
 
 ```{.python continuation}
 T.Compose([
@@ -46,7 +46,7 @@ T.Compose([
 
 ![ToFloat diagram](../assets/transforms/to_float.png)
 
-`OnesLike` adds a constant channel when a model wants one, and `OneHot` turns integer classes into the float vectors a category-conditioned head reads: a $(N,)$ input becomes $(N, C)$, and a scalar per-sample label becomes $(C,)$, which collates to $(B, C)$.
+`OnesLike` adds a constant channel. `OneHot` turns integer classes into the float vectors a category-conditioned head reads: a $(N,)$ input becomes $(N, C)$, and a scalar per-sample label becomes $(C,)$, which collates to $(B, C)$.
 
 ![OneHot diagram](../assets/transforms/one_hot.png)
 
@@ -64,7 +64,7 @@ T.Slice(keys="pos", start=2, stop=3, dim=1, dst_keys="height")
 
 ## Fit labels to a checkpoint's classes
 
-A dataset ships its own label ids and a checkpoint predicts its own class list, and the two rarely agree: ScanNet stores NYU40 ids while a 20-class checkpoint wants $0 \ldots 19$, and the SemanticKITTI benchmark merges the `moving-*` classes into their static counterparts. `Relabel` is the lookup table between them.
+A dataset ships its own label ids, a checkpoint predicts its own class list, and the two rarely agree. ScanNet stores NYU40 ids while a 20-class checkpoint expects $0 \ldots 19$, and the SemanticKITTI benchmark merges the `moving-*` classes into their static ones. `Relabel` is the lookup table between them.
 
 === "Scene"
 
@@ -90,11 +90,11 @@ T.Relabel(
 )
 ```
 
-Set `default` to whatever your loss and metric take as their `ignore_index`, usually $-1$. Getting this wrong is quiet: everything runs, and the unlabeled points are scored as class 0.
+Set `default` to the `ignore_index` of your loss and metric, usually $-1$. A wrong value fails silently: everything runs, and the unlabeled points are scored as class 0.
 
 ## Fill in what the scan lacks
 
-`EstimateNormals` computes unit normals by local PCA over each point's `k` nearest neighbors, for clouds that ship without them. S3DIS is the usual case, and so is the sample room in these docs. Each normal is the least-variance direction of the neighborhood, and `orient_to_centroid=True` flips them to face the cloud centroid, which approximates the inward-facing normals of a room scanned from inside.
+`EstimateNormals` computes unit normals by local PCA over each point's `k` nearest neighbors, for clouds that ship without them, such as S3DIS and the sample room in these docs. Each normal is the least-variance direction of the neighborhood. `orient_to_centroid=True` flips them to face the cloud centroid, which matches a room scanned from inside.
 
 === "Object"
 
@@ -110,7 +110,7 @@ T.EstimateNormals(keys="pos", k=16, orient_to_centroid=True)
 
 Pass `batch_key` when the dict already holds a packed batch, so neighbors never cross a cloud boundary.
 
-`DivisiblePad` pads the point count to a multiple of `num_samples`, which fixed-chunk inference such as the [sliding-window inferer](../inferers/overview.md) requires. Every tensor whose first dim matches the point count is re-indexed by the same gather map, so correspondence survives.
+`DivisiblePad` pads the point count to a multiple of `num_samples`, as fixed-chunk inference such as the [sliding-window inferer](../inferers/overview.md) requires. Every tensor whose first dim matches the point count is re-indexed by the same gather map, so the keys stay aligned.
 
 === "Object"
 
@@ -129,7 +129,7 @@ T.DivisiblePad(num_samples=4096, pad_fill="random")
 
 ## Build detection targets
 
-These turn per-point annotations into the tensors a VoteNet-style detector trains on. They chain in annotation order, each consuming what the previous one wrote:
+These turn per-point annotations into the tensors a VoteNet-style detector trains on. Each one reads what the previous one wrote:
 
 ```{.python continuation}
 mean_sizes = torch.rand(18, 3)  # (C, 3) per-class template sizes, full edge lengths
@@ -145,7 +145,7 @@ Every figure in this section is scene-only, since the object sample carries no i
 
 ### InstanceToBox
 
-Fits one axis-aligned box per distinct non-negative instance id: $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, 0]$, plus a $(K,)$ class tensor holding each instance's most common semantic label. Negative instance ids never form a box, and instances whose class equals `ignore_index` are dropped, so a `Relabel` upstream that sends the non-target semantics to `ignore_index` is what filters the boxes down to your detection classes. The gray objects in the figure are instances of an ignored class.
+Fits one axis-aligned box per distinct non-negative instance id: $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, 0]$, plus a $(K,)$ class tensor holding each instance's most common semantic label. Negative instance ids never form a box, and instances whose class equals `ignore_index` are dropped. A `Relabel` upstream that sends the non-target semantics to `ignore_index` filters the boxes down to the detection classes. The gray objects in the figure are instances of an ignored class.
 
 === "Scene"
 
@@ -162,7 +162,7 @@ T.InstanceToBox(
 
 ### RelabelBoxes
 
-The box-level counterpart of `Relabel`, and the step that produces the ignore mask the 3D AP metric consumes. Boxes whose raw label is a key of `mapping` are kept and relabeled; boxes whose raw label is a key of `ignore_mapping` become ignore regions attributed to the class they excuse (dashed gray in the figure); a kept box outside any range in `ignore_fields` is downgraded to an ignore region; every other box is dropped. All listed keys are filtered together so they stay row-aligned.
+The box-level counterpart of `Relabel`. It also produces the ignore mask the 3D AP metric reads. Boxes whose raw label is a key of `mapping` are kept and relabeled; boxes whose raw label is a key of `ignore_mapping` become ignore regions attributed to the class they excuse (dashed gray in the figure); a kept box outside any range in `ignore_fields` is downgraded to an ignore region; every other box is dropped. All listed keys are filtered together so they stay row-aligned.
 
 === "Scene"
 
@@ -184,7 +184,7 @@ T.RelabelBoxes(
 )
 ```
 
-An ignore region suppresses a false positive of the class it is labeled with, but is never scored itself. Use `ignore_mapping` at evaluation and leave it off at training, or those boxes enter the anchor targets as real ground truth.
+An ignore region suppresses a false positive of its class and is never scored itself. Use `ignore_mapping` at evaluation only: at training, those boxes enter the anchor targets as real ground truth.
 
 ### GenerateVoteLabels
 
@@ -225,7 +225,7 @@ Because these are fixed-size per scene, they collate with `stack_keys` rather th
 
 These act on keys, dtypes and layout rather than on geometry, so each is drawn as a block diagram: input on the left, result on the right.
 
-`RenameItems` moves a key, `CopyItems` clones one and keeps the source, and `KeepItems` drops everything not in a whitelist, which frees the intermediates an augmentation pipeline built along the way.
+`RenameItems` moves a key, `CopyItems` clones one and keeps the source, and `KeepItems` drops everything not listed, which frees the intermediate keys a pipeline created.
 
 ![RenameItems diagram](../assets/transforms/rename_items.png)
 
@@ -247,7 +247,7 @@ T.Compose([
 T.SetValue(keys=["condition", "scale"], values=("ScanNet", 1.0))
 ```
 
-`Reduce` and `DivideKey` pair up when you want to normalize by a statistic of the sample itself rather than by a constant. `keepdim=True` keeps a $(1, D)$ shape, which survives the packed collate as $(B, D)$; without it a $(D,)$ tensor would concatenate to $(B \cdot D,)$.
+`Reduce` and `DivideKey` pair up to normalize by a statistic of the sample instead of by a constant. `keepdim=True` keeps a $(1, D)$ shape, which survives the packed collate as $(B, D)$; without it a $(D,)$ tensor would concatenate to $(B \cdot D,)$.
 
 ![Reduce diagram](../assets/transforms/reduce.png)
 
@@ -274,7 +274,7 @@ T.ToTensor(keys="pos", dtype=torch.float32)
 
 ## Build an octree
 
-Optional, and needs `ocnn` installed. `BuildOctree` builds an octree from the positions at `pos_key` and stores it under `octree_key`, optionally carrying normals, features and labels into the tree. Positions are expected in the $[-1, 1]$ cube, so rescale first. `depth` sets the finest level.
+Requires `ocnn`. `BuildOctree` builds an octree from the positions at `pos_key` and stores it under `octree_key`, optionally carrying normals, features and labels into the tree. Positions must be in the $[-1, 1]$ cube, so rescale first. `depth` sets the finest level.
 
 === "Object"
 

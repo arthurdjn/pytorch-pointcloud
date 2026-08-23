@@ -1,10 +1,10 @@
 # Geometric
 
-Every pipeline starts by putting the cloud somewhere the model expects it. A checkpoint trained on unit-sphere objects will not read a room in world coordinates, and a sparse model wants its cloud in the positive octant before it quantizes. These transforms are deterministic: they set the frame, and the [augmentations](augmentation.md) perturb it afterwards.
+These transforms put the cloud in the frame the model expects: the unit sphere for an object checkpoint, positive coordinates for a sparse model before it quantizes. They are deterministic. The [augmentations](augmentation.md) add randomness on top.
 
-## Which one to reach for
+## Which one to use
 
-| You need                                                     | Reach for                     |
+| You need                                                     | Use                           |
 | ------------------------------------------------------------ | ----------------------------- |
 | The cloud centered on the origin                             | `Shift`                       |
 | The cloud centered *and* scaled to a unit size               | `Rescale`                     |
@@ -14,11 +14,11 @@ Every pipeline starts by putting the cloud somewhere the model expects it. A che
 | A fixed multiply or divide (unit conversion)                 | `Scale`, `Divide`             |
 | To subtract an offset the dataset stored alongside the cloud | `BBoxCenter`, `SubtractKey`   |
 
-Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
+Parameters for each are in the [API reference](../api/transforms/transforms.md).
 
 ## Center a cloud
 
-`Shift` subtracts a computed offset. The arrow in each figure is that offset: the reference point is moved onto the origin. Which reference you want depends on what comes next.
+`Shift` subtracts a computed offset, moving a reference point onto the origin. The arrow in each figure is that offset.
 
 === "Object"
 
@@ -28,7 +28,7 @@ Parameters for each are in the [API reference](../api/transforms/transforms.md);
 
     ![Shift method=centroid on a room](../assets/transforms/shift_centroid_scene.png)
 
-`method="centroid"` subtracts the mean, so the centroid lands on the origin. It follows the mass of the cloud, which is what you want for an object.
+`method="centroid"` subtracts the mean, so the centroid lands on the origin. It follows the mass of the cloud, and suits objects.
 
 === "Object"
 
@@ -48,7 +48,7 @@ Parameters for each are in the [API reference](../api/transforms/transforms.md);
 
     ![Shift method=min on a room](../assets/transforms/shift_min_scene.png)
 
-`method="min"` subtracts the per-axis minimum, putting the cloud's corner on the origin and the whole cloud in the positive octant. This is the one to use before `Voxelize` or `Quantize`, which expect non-negative coordinates.
+`method="min"` subtracts the per-axis minimum, putting the cloud's corner on the origin and every coordinate above zero. Use it before `Voxelize` or `Quantize`, which expect non-negative coordinates.
 
 ```python
 import torch_pointcloud.transforms as T
@@ -68,7 +68,7 @@ T.Shift(keys="pos", method="min")
 
     ![Shift recentering axis subsets on a room](../assets/transforms/shift_axes_scene.png)
 
-Two `Shift` calls on disjoint axes commute, so you can mix methods per axis. Centering a room in XY while keeping the floor at $z = 0$ is the usual indoor recipe:
+Two `Shift` calls on different axes can mix methods. Centering a room in XY and keeping the floor at $z = 0$ is the usual indoor recipe:
 
 ```{.python continuation}
 T.Compose([
@@ -89,7 +89,7 @@ T.Compose([
 
 ## Normalize an object to a unit size
 
-`Rescale` centers and scales in one step, which is what an object checkpoint expects. The three methods differ in what ends up being 1.
+`Rescale` centers and scales in one step, as object checkpoints expect. The three methods differ in what ends up equal to 1.
 
 === "Object"
 
@@ -126,11 +126,11 @@ T.Rescale(keys="pos", method="centroid")
 ```
 
 !!! tip "Let the checkpoint decide"
-    A pretrained checkpoint carries its own `Rescale` in `info["transform"]`, already set to the method it was trained with. Reach for these directly only when you are building a pipeline of your own.
+    A pretrained checkpoint carries its own `Rescale` in `info["transform"]`, set to the method it was trained with. Use these directly for your own pipeline.
 
 ## Add a height feature
 
-Indoor detectors and some segmentation models read a height channel alongside the coordinates. `AxisMinOffset` writes one without moving the cloud: each point's offset above the minimum along `axis`, its height over the local floor. A $(N, 3)$ input gives a $(N, 1)$ output, so it pairs with `Cat`.
+Indoor detectors and some segmentation models read a height channel alongside the coordinates. `AxisMinOffset` writes one without moving the cloud: each point's offset above the minimum along `axis`. A $(N, 3)$ input gives a $(N, 1)$ output, so it pairs with `Cat`.
 
 === "Object"
 
@@ -147,7 +147,7 @@ T.Compose([
 ])
 ```
 
-`quantile` replaces the strict minimum with an empirical quantile, which is an outlier-robust floor: one stray point below the floor would otherwise shift every height in the scene. `quantile=0.0099` reproduces VoteNet's height feature.
+`quantile` replaces the strict minimum with an empirical quantile. Without it, one stray point below the floor shifts every height in the scene. `quantile=0.0099` reproduces VoteNet's height feature.
 
 ## Standardize colors
 
@@ -166,7 +166,7 @@ T.Normalize(keys="color", mean=(0.44, 0.41, 0.34), std=(0.22, 0.21, 0.20))
 
 ## Convert units
 
-`Scale` multiplies and `Divide` divides by a fixed value, which is what you reach for when a dataset stores millimetres and the model wants metres. Both take one value broadcast to every key, or one value per key.
+`Scale` multiplies and `Divide` divides by a fixed value, for example when a dataset stores millimetres and the model reads metres. Both take one value broadcast to every key, or one value per key.
 
 === "Object"
 
@@ -206,7 +206,7 @@ Both scale about the origin, not about the centroid, so the cloud also moves. Ce
 
 ## Subtract an offset stored in the data
 
-Block-based pipelines store a per-block center with the block and expect you to subtract it, so the offset has to come out of the dict rather than out of the transform's arguments. `SubtractKey` does that, and `axes` restricts it to a subset of components (XY only, keeping Z absolute).
+Block-based pipelines store a per-block center next to the block, so the offset comes from the dict instead of from the transform's arguments. `SubtractKey` reads it, and `axes` restricts it to a subset of components (XY only, keeping Z absolute).
 
 === "Object"
 
@@ -220,7 +220,7 @@ Block-based pipelines store a per-block center with the block and expect you to 
 T.SubtractKey(keys="pos", sub_keys="center")
 ```
 
-When the dataset stored a flat bbox instead of a center, `BBoxCenter` derives one: it reads $(2D,)$ laid out as $[\min_0, \ldots, \min_{D-1}, \max_0, \ldots, \max_{D-1}]$ and writes the per-axis midpoint $(D,)$. The two together recenter a block on the bbox its dataset shipped.
+When the dataset stores a flat bbox instead of a center, `BBoxCenter` derives one: it reads $(2D,)$ laid out as $[\min_0, \ldots, \min_{D-1}, \max_0, \ldots, \max_{D-1}]$ and writes the per-axis midpoint $(D,)$. The two together recenter a block on the bbox its dataset shipped.
 
 === "Object"
 
@@ -239,7 +239,7 @@ T.Compose([
 
 ## Rotate or flip by hand
 
-Rotation is always around a single coordinate axis (`0`=X, `1`=Y, `2`=Z), and Z is the gravity axis in the indoor convention. These are the axis conventions the augmentations use, shown once so you can read their arguments.
+Rotation is always around a single coordinate axis (`0`=X, `1`=Y, `2`=Z). Z is the gravity axis in the indoor convention. The augmentations use the same convention.
 
 === "Object"
 
@@ -259,7 +259,7 @@ Flipping negates one coordinate, mirroring the cloud across the plane orthogonal
 
     ![Flip across each axis on a room](../assets/transforms/flip_axes_scene.png)
 
-For a one-off rotation on tensors you already hold, go through the functional layer:
+For a one-off rotation on tensors, use the functional layer:
 
 ```{.python continuation}
 import math
@@ -273,4 +273,4 @@ pos = F.rotate_vectors(pos, R)
 pos = F.flip_vectors(pos, axis=0)  # mirror across X
 ```
 
-In a training pipeline, reach for [`RandomRotate`](augmentation.md#rotate) and [`RandomFlip`](augmentation.md#flip) instead: they draw the angle for you and carry the boxes and normals along.
+In a training pipeline, use [`RandomRotate`](augmentation.md#rotate) and [`RandomFlip`](augmentation.md#flip) instead: they draw the angle and carry the boxes and normals along.

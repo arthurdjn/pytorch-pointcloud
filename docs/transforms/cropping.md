@@ -1,10 +1,10 @@
 # Cropping
 
-A room does not fit in a forward pass, a LiDAR frame carries returns from the vehicle's own roof, and a training crop has to keep `pos`, `color` and `segment` in step. Cropping transforms come in two halves: a mask transform computes a boolean per point, and `ApplyMask` drops the points outside it across every key you name.
+Cropping runs in two steps: a mask transform writes one boolean per point, and `ApplyMask` drops the points outside it across every listed key.
 
-## Which one to reach for
+## Which one to use
 
-| You need                                                    | Reach for                       |
+| You need                                                    | Use                             |
 | ------------------------------------------------------------ | ------------------------------- |
 | A region given by explicit min/max corners                  | `BoxMask`                       |
 | A region a fixed distance away along every axis             | `CubeMask`                      |
@@ -14,11 +14,11 @@ A room does not fit in a forward pass, a LiDAR frame carries returns from the ve
 | The ego-vehicle returns gone from a LiDAR frame             | `RemoveNearOrigin`              |
 | Out-of-range values pulled back in rather than dropped      | `Clamp`                         |
 
-Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
+Parameters for each are in the [API reference](../api/transforms/transforms.md).
 
 ## Crop to a region
 
-The three mask transforms differ only in the shape of the region. All of them write a boolean tensor to `dst_keys` and change nothing else, which is what lets one mask filter several keys at once.
+The three mask transforms differ only in the shape of the region. Each writes a boolean tensor to `dst_keys` and changes nothing else, so one mask can filter several keys.
 
 === "Object"
 
@@ -28,7 +28,7 @@ The three mask transforms differ only in the shape of the region. All of them wr
 
     ![BoxMask on a room](../assets/transforms/box_mask_scene.png)
 
-`BoxMask` takes an axis-aligned box as a flat $(\ast\min, \ast\max)$ tuple, which is the one to use when the region comes from a dataset's own bounds.
+`BoxMask` takes an axis-aligned box as a flat $(\ast\min, \ast\max)$ tuple. Use it when the region comes from a dataset's own bounds.
 
 === "Object"
 
@@ -50,7 +50,7 @@ The three mask transforms differ only in the shape of the region. All of them wr
 
 `SphereMask` is a Euclidean ball, $\lVert x - c \rVert_2 \le r$, so `radius` means an actual distance.
 
-Whichever you pick, `ApplyMask` does the filtering:
+`ApplyMask` then does the filtering:
 
 ```python
 import torch_pointcloud.transforms as T
@@ -69,13 +69,13 @@ T.Compose([
 
     ![ApplyMask on a room](../assets/transforms/apply_mask_scene.png)
 
-List every per-point key you care about, or the ones you leave out will no longer line up with `pos`. They must all share the leading dimension the mask was computed on. Pass `dst_keys` to write the filtered tensors elsewhere instead of overwriting.
+List every per-point key: the ones left out no longer line up with `pos`. All of them must share the leading dimension the mask was computed on. Pass `dst_keys` to write the filtered tensors under new names.
 
-The mask is a plain boolean tensor, so anything can produce it: a mask you computed yourself works here exactly as well as one of the three above.
+The mask is a plain boolean tensor, so `ApplyMask` also takes one you computed yourself.
 
 ## Bound memory on a large scene
 
-`SphereCrop` is the one-shot version, and the one to reach for inside a training loop. It keeps the points inside a ball and filters every listed key in a single step, and `max_nodes` additionally caps the result at the points nearest the center.
+`SphereCrop` does both steps at once, for a training loop. It keeps the points inside a ball and filters every listed key, and `max_nodes` caps the result at the points nearest the center.
 
 === "Object"
 
@@ -89,13 +89,13 @@ The mask is a plain boolean tensor, so anything can produce it: a mask you compu
 T.SphereCrop(pos_key="pos", radius=2.0, max_nodes=100_000, keys=("color", "segment"))
 ```
 
-`center` accepts `"centroid"` (the default), `"random_point"` for a fresh crop every epoch, or an explicit 3-vector. The `max_nodes` cap is what keeps a 700 000-point room inside a fixed memory budget regardless of how dense the scan happens to be.
+`center` accepts `"centroid"` (the default), `"random_point"` for a fresh crop every epoch, or an explicit 3-vector. `max_nodes` keeps a 700 000-point room inside a fixed memory budget, whatever the scan's density.
 
-At test time, prefer an [inferer](../inferers/overview.md) over cropping: it covers the whole scene and stitches one prediction per original point, instead of scoring whatever the crop happened to include.
+At test time, use an [inferer](../inferers/overview.md) instead of cropping: it covers the whole scene and returns one prediction per original point.
 
 ## Strip the ego-vehicle returns
 
-A LiDAR frame contains the sensor's own mount and roof, a few thousand points sitting at the origin that no class covers. `RemoveNearOrigin` drops them in one shot.
+A LiDAR frame contains the sensor's own mount and roof, a few thousand points at the origin that no class covers. `RemoveNearOrigin` drops them.
 
 === "Object"
 
@@ -111,7 +111,7 @@ T.RemoveNearOrigin(pos_key="pos", keys=("intensity",), radius=1.5)
 
 ## Keep the points, bound the values
 
-`Clamp` moves out-of-range values onto the boundary instead of dropping their points, a thin wrapper over `torch.clamp`. Use it when the point count has to stay fixed, or on a feature channel with a long tail.
+`Clamp` moves out-of-range values onto the boundary instead of dropping their points, a thin wrapper over `torch.clamp`. Use it when the point count must stay fixed, or on a feature channel with a long tail.
 
 === "Object"
 

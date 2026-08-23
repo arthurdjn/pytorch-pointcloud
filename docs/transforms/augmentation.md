@@ -1,10 +1,10 @@
 # Augmentation
 
-Augmentation is where you decide what the model is allowed to be invariant to. A room can be rotated about the gravity axis and stay a room, but turn it upside down and the floor stops being the floor. Every transform here draws its own randomness, takes a probability `p`, and accepts a `generator` when you need the run to be reproducible.
+Augmentation decides what the model is invariant to. Every transform here draws its own randomness, takes a probability `p`, and accepts a `generator` for reproducible runs.
 
-## Which one to reach for
+## Which one to use
 
-| You want the model invariant to        | Reach for                                                |
+| You want the model invariant to        | Use                                                      |
 | --------------------------------------- | -------------------------------------------------------- |
 | Which way the object faces              | `RandomRotate`, `RandomRotateChoice`                     |
 | Handedness (left / right chirality)     | `RandomFlip`                                             |
@@ -16,11 +16,11 @@ Augmentation is where you decide what the model is allowed to be invariant to. A
 | Lighting and camera response            | [Color transforms](color.md)                             |
 | Objects appearing out of context        | [`Mix3D`, `LaserMix`, `PolarMix`](#mix-two-scenes)       |
 
-Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick and how hard to push it.
+Parameters for each are in the [API reference](../api/transforms/transforms.md).
 
 ## Rotate
 
-`RandomRotate` draws a uniform angle in degrees from `angle_range` and applies it to every listed key, so `normal` turns with `pos` instead of drifting out of alignment with it.
+`RandomRotate` draws a uniform angle in degrees from `angle_range` and applies it to every listed key, so `normal` turns with `pos`.
 
 === "Object"
 
@@ -36,9 +36,9 @@ import torch_pointcloud.transforms as T
 T.RandomRotate(keys=("pos", "normal"), angle_range=(-180.0, 180.0), axis=2)
 ```
 
-Full rotation about the gravity axis (`axis=2`) is safe indoors and outdoors, because a room seen from another bearing is still the same room. Rotating about X or Y is not: it tips the scene over, and a model that has learned "floor is below" loses that. Keep those to a few degrees if you use them at all.
+Full rotation about the gravity axis (`axis=2`) is safe indoors and outdoors. Rotating about X or Y tips the scene over, so keep those to a few degrees.
 
-`RandomRotateChoice` draws from a discrete list instead of a continuous range, which is the usual ModelNet and ScanObjectNN setting:
+`RandomRotateChoice` draws from a discrete list instead of a continuous range, the usual ModelNet and ScanObjectNN setting:
 
 === "Object"
 
@@ -70,11 +70,11 @@ See [Rotate or flip by hand](geometric.md#rotate-or-flip-by-hand) for the axis c
 T.RandomFlip(keys="pos", axes=(0, 1), p=0.5)
 ```
 
-Flip the horizontal axes freely. Flipping the gravity axis puts the ceiling on the floor, which is not a scene your model will ever be asked about.
+Flip the horizontal axes freely. Flipping the gravity axis puts the ceiling on the floor, which no test scene does.
 
 ## Perturb the geometry
 
-`RandomJitter` adds clipped Gaussian noise per point, standing in for sensor noise. `clip` is what stops a rare large draw from moving a point somewhere structurally wrong.
+`RandomJitter` adds clipped Gaussian noise per point, in place of sensor noise. `clip` bounds a rare large draw, which would otherwise move a point far from the surface.
 
 === "Object"
 
@@ -117,11 +117,11 @@ T.RandomShift(keys="pos", shift_range=(-0.2, 0.2))
 ```
 
 !!! warning "Scale and shift change what a voxel size means"
-    If a `Voxelize` or `Quantize` follows, these two move points across cell boundaries, which is the point. But scaling by 2 with a fixed 2 cm grid is the same as scaling by 1 with a 1 cm grid, so tune the two together rather than separately.
+    If a `Voxelize` or `Quantize` follows, these two move points across cell boundaries. Scaling by 2 with a fixed 2 cm grid is the same as scaling by 1 with a 1 cm grid, so tune the two together.
 
 ## Vary the density
 
-`RandomDropout` drops a fraction of the points with one shared keep-mask across every listed key, which is the cheapest stand-in for occlusion and for a sparser sensor than the one that recorded the training set.
+`RandomDropout` drops a fraction of the points, with one shared keep-mask across every listed key. It stands in for occlusion and for a sparser sensor than the training one.
 
 === "Object"
 
@@ -156,7 +156,7 @@ T.Compose([
 
 ## Mix two scenes
 
-The three mixes are the only transforms here that are not single-sample: they take **two** samples and merge them, so they are called as `mix(data, other)` and cannot go inside a `Compose`. `MixDataset` is the usual driver, drawing the partner sample at a random index:
+The three mixes are the only transforms here that read two samples. They are called as `mix(data, other)` and cannot go inside a `Compose`. `MixDataset` draws the second sample at a random index:
 
 ```{.python notest}
 from torch_pointcloud.datasets import MixDataset
@@ -167,11 +167,11 @@ train = MixDataset(
 )
 ```
 
-Each mix takes its own `p`, which decides how often the merge actually happens; below `p` the first sample comes back unchanged. In every figure below the first two panels are the inputs and the third is the result, colored by which sample each point came from.
+Each mix takes its own `p`, the probability of merging. Below `p`, the first sample comes back unchanged. In the figures below, the first two panels are the inputs and the third is the result, colored by the sample each point came from.
 
 ### Mix3D
 
-The out-of-context mix of :arxiv: [Mix3D](https://arxiv.org/abs/2110.02210). Both scenes are concatenated along the point dimension, so the result holds roughly twice as many points as either input and objects end up in rooms they were never scanned in. With `instance_key` present in both, the second scene's instance ids are shifted past the first's maximum so the merged instances stay disjoint; points labeled `ignore_index` keep that label.
+The out-of-context mix of :arxiv: [Mix3D](https://arxiv.org/abs/2110.02210). Both scenes are concatenated along the point dimension, so the result holds roughly twice as many points as either input, and objects appear in rooms they were never scanned in. With `instance_key` present in both, the second scene's instance ids are shifted past the first's maximum so the merged instances stay disjoint; points labeled `ignore_index` keep that label.
 
 ![Mix3D on two ScanNet rooms](../assets/transforms/mix3d.png)
 
@@ -181,7 +181,7 @@ T.Mix3D(keys=("pos", "color", "segment"), instance_key="instance")
 
 ### LaserMix
 
-The LiDAR mix of :arxiv: [LaserMix](https://arxiv.org/abs/2207.00026). Both scans are partitioned into `num_areas` inclination bands and alternating bands come from each scan, so the mixed result still tiles the full field of view rather than leaving a hole. One band count is drawn per call, and every key is masked with the same selection.
+The LiDAR mix of :arxiv: [LaserMix](https://arxiv.org/abs/2207.00026). Both scans are split into `num_areas` inclination bands, and alternating bands come from each scan, so the result still covers the full field of view. One band count is drawn per call, and every key is masked with the same selection.
 
 ![LaserMix on two LiDAR scans](../assets/transforms/laser_mix.png)
 

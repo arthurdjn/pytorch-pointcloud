@@ -33,7 +33,7 @@ Segmentation backbones will return features as a **per-point feature** $(N, C)$ 
     (8192, 64) Identity
     ```
 
-    With `pretrained=True` the checkpoint's head keys are skipped with a warning and the backbone loads in full. Every panel of the gallery above is this one recipe, applied to fourteen different checkpoints.
+    With `pretrained=True` the checkpoint's head keys are skipped with a warning and the backbone loads in full. Every panel of the gallery above uses this recipe, on fourteen different checkpoints.
 
 === "Split the forward pass"
 
@@ -68,9 +68,9 @@ Segmentation backbones will return features as a **per-point feature** $(N, C)$ 
 
 ## Per-point features from a pretrained encoder
 
-Self-supervised encoders are the interesting case: they were trained without labels, so their features are not shaped by one dataset's class list. For example, `concerto-large-lp.scannet20.pointcept` carries a frozen [Concerto](../api/models/concerto.md) encoder.
+Self-supervised encoders are trained without labels, so their features are not shaped by one dataset's class list. For example, `concerto-large-lp.scannet20.pointcept` carries a frozen [Concerto](../api/models/concerto.md) encoder.
 
-To continue, download the [`sample_scene_labeled.ply`](../assets/data/sample_scene_labeled.ply) to get started. This is a labeled ScanNet scene.
+Download the [`sample_scene_labeled.ply`](../assets/data/sample_scene_labeled.ply) to get started. This is a labeled ScanNet scene.
 
 ```{.python notest}
 import numpy as np
@@ -126,11 +126,11 @@ encoder     (964, 768)
 per point   (114118, 1728)
 ```
 
-The encoder pools the room down to 964 tokens; the decoder unpools them back to one feature per (voxelized) point, concatenating every scale on the way, which is why $C$ grows to 1728.
+The encoder pools the room down to 964 tokens. The decoder unpools them back to one feature per voxelized point and concatenates every scale, so $C$ grows to 1728.
 
-## Look at them: PCA to RGB
+## Visualize features with PCA
 
-Project each feature onto its top principal components and read three of them as colors. Points with similar features get similar colors, with no labels involved.
+Project each feature onto its top principal components and read three of them as RGB. Points with similar features get similar colors, and no label is involved.
 
 ```python
 import torch
@@ -153,9 +153,9 @@ print(tuple(rgb.shape), float(rgb.min()), float(rgb.max()))
 (4096, 3) 0.0 1.0
 ```
 
-## Query a scene: cosine similarity
+## Query a scene with cosine similarity
 
-Normalize, pick one point, and dot against the rest. The whole surface or object the query sits on lights up.
+Normalize the features, pick one point, and take its dot product against every other point.
 
 ```{.python notest}
 import torch.nn.functional as F
@@ -170,24 +170,24 @@ print((segment[top] == segment[query]).float().mean())
 
 ![One point's feature dotted against the whole room, for a query on a chair and a query on the floor](../assets/features/similarity.png)
 
-On the sample room, the 1000 nearest neighbors of that chair point are 100% chair, and of a floor point 98.8% floor. Nothing selected those regions: the encoder never saw a label, and the object the query sits on lights up because its points share a feature. That is nearest-neighbor label transfer: annotate one point, propagate to the region.
+On the sample room, the 1000 nearest neighbors of that chair point are 100% chair, and those of a floor point are 98.8% floor. The encoder never saw a label; points on the same object share a feature. This is nearest-neighbor label transfer: annotate one point, propagate to the region.
 
 ## Outdoor LiDAR
 
-The same recipe on a SemanticKITTI scan, with the SPVCNN compute ladder and RandLA-Net. The input panel
-is colored by height, since a LiDAR scan carries intensity rather than RGB.
+The same steps on a SemanticKITTI scan, with the SPVCNN compute ladder and RandLA-Net. The input panel
+is colored by height, as a LiDAR scan carries intensity rather than RGB.
 
 ![Per-point features of a SemanticKITTI scan under four pretrained backbones](../assets/features/pca_lidar.png)
 
-Road, sidewalk, vegetation and parked cars separate without a single label being read.
+Road, sidewalk, vegetation and parked cars separate in feature space.
 
-Panels share one frame: a backbone's own coordinate convention (voxel-grid integers, a normalized cube)
-is scaled onto the scene's extent for display. PCA is fit per panel, so colors are comparable within a
-panel and never across two.
+All panels share one frame: each backbone's coordinate convention (voxel-grid integers, a normalized cube)
+is scaled onto the scene's extent for display. PCA is fit per panel, so colors are comparable inside a
+panel, not across panels.
 
 ## Retrieve shapes: global descriptors
 
-A classifier with its head removed is a shape encoder. Embedding ModelNet40's test split and classifying each object by its nearest neighbor recovers most of the supervised accuracy, without ever calling the classification head.
+A classifier with its head removed is a shape encoder. Embedding ModelNet40's test split and classifying each object by its nearest neighbor recovers most of the supervised accuracy.
 
 ```{.python notest}
 import torch

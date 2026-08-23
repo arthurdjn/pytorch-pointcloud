@@ -1,6 +1,6 @@
 # Segmentation Datasets
 
-Segmentation datasets hold **one whole scene per sample**: a room or a LiDAR scan, with a label on every point. A single sample runs to hundreds of thousands of points, so a training pipeline crops, voxelizes or tiles it before batching.
+Segmentation datasets hold one scene per sample: a room or a LiDAR scan, with a label on every point. A sample holds hundreds of thousands of points, so a training pipeline crops, voxelizes or tiles it before batching.
 
 ![A committed ScanNet room: color, semantic labels, instance ids](../assets/datasets/scenes.png)
 
@@ -24,7 +24,7 @@ An indoor sample carries color, a semantic label and an instance id on every poi
 | [`Toronto3D`](../api/datasets/toronto3d.md) | 4 tiles | 9 | manual |
 | [`ParisLille3D`](../api/datasets/parislille3d.md) | 3 scenes | 10 | manual |
 
-A loader that cannot download for you raises a `RuntimeError` naming the source page and the exact directory to extract into, so the error message tells you what to do next.
+A loader that cannot download for you raises a `RuntimeError` naming the source page and the directory to extract into.
 
 ## Load a dataset
 
@@ -69,11 +69,11 @@ Outdoor scans carry `intensity` $(N, 1)$ instead of color (`reflectance` on Pari
 | `SemanticKITTI` | `split=` or `sequences=` | `train`, `val`, `trainval`, `test`, or explicit sequence ids |
 | `Semantic3D`, `Toronto3D`, `ParisLille3D` | `split=` or `files=` | released splits, or an explicit file list |
 
-Segmentation checkpoints name the fold they were trained on, so match the loader to the name: `pointnext-xl.s3dis-area5.openpoints` was trained on the other five areas and is meant to be evaluated on Area 5.
+Segmentation checkpoints name the fold they were trained on, so match the loader to the name. `pointnext-xl.s3dis-area5.openpoints` was trained on the other five areas and is evaluated on Area 5.
 
 ## Tile a large room
 
-`S3DIS` and `ScanNet` can pre-split their scenes into ground-plane blocks at construction time, which reproduces the block-based training protocols:
+`S3DIS` and `ScanNet` can split their scenes into ground-plane blocks at construction time, which reproduces the block-based training protocols:
 
 ```{.python notest}
 blocks = S3DIS(
@@ -85,11 +85,11 @@ blocks = S3DIS(
 )
 ```
 
-`S3DISHdf5` is the same data already cut into 4096-point tiles, released that way.
+`S3DISHdf5` is the same data, released already cut into 4096-point tiles.
 
-At test time, prefer an [inferer](../inferers/overview.md) over pre-blocking: it runs the model over the full room and stitches one prediction per original point.
+At test time, use an [inferer](../inferers/overview.md) instead of pre-blocking: it runs the model over the full room and returns one prediction per original point.
 
-## Conventions worth knowing
+## Conventions
 
 !!! warning "Color range differs per loader"
     `color` is uint8 in $[0, 255]$ for `S3DIS`, `ScanNet`, `Toronto3D` and `Semantic3D`, and float32 in $[0, 1]$ for `S3DISHdf5`. Checkpoint transforms divide by 255 where needed, so mixing the two silently halves or doubles the input scale.
@@ -119,7 +119,7 @@ dataset = ScanNet20(root="data", split="val", transform=info["transform"])
 dataloader = PointCloudDataLoader(dataset, batch_size=1, num_workers=6)
 ```
 
-Anything the transform records on the way through (`inverse`, `origin_segment`) comes back out of collate, which is what lets you score at full resolution. See [Semantic segmentation](../models/segmentation.md) for the loop that does it.
+The keys the transform records (`inverse`, `origin_segment`) come back out of collate, and are what makes a full-resolution score possible. See [Semantic segmentation](../models/segmentation.md) for the loop that does it.
 
 ## Class names
 

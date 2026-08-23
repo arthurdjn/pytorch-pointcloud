@@ -1,10 +1,10 @@
 # Classification Datasets
 
-Classification datasets hold **one object per sample**: a chair, a table, a plane, as a few thousand points and the class they belong to. Every loader returns a single-sample `dict` and caches a processed copy on disk, so the second run is fast.
+Classification datasets hold one object per sample: a few thousand points and one class. Every loader returns a single-sample `dict` and caches a processed copy on disk, so later runs read the cache.
 
 ![Six committed sample objects, each drawn from its point cloud](../assets/datasets/objects.png)
 
-The six objects above are committed with the docs, so you can try a model without downloading anything.
+The six objects above ship with the docs, so a model can be run without downloading a dataset.
 
 | Dataset                                                  | Classes  | Test samples | Download  |
 | -------------------------------------------------------- | -------- | ------------ | --------- |
@@ -33,7 +33,7 @@ The first call downloads into `data/ModelNet40/raw/` and writes a cache into `da
 
 ## Pick a ModelNet variant
 
-The four ModelNet loaders differ in their preprocessing. The original release ships triangle meshes, so a point cloud has to be sampled from them, and that step depends on the random seed, which makes it hard to reproduce a published checkpoint's score *exactly*. The preprocessed releases the literature settled on are here too, so you can choose between flexibility and reproducibility.
+The four ModelNet loaders differ in their preprocessing. The original release ships triangle meshes, so the points are sampled from the faces, and that step depends on the random seed. A published score is then hard to reproduce *exactly*. The preprocessed releases used in the literature are here too.
 
 | Loader                      | Sample                                | When to use                                        |
 | --------------------------- | ------------------------------------- | -------------------------------------------------- |
@@ -96,7 +96,7 @@ See [Classification](../models/classification.md) for the loop that scores it.
 
 ## Real scans with ScanObjectNN
 
-`ScanObjectNN` crops its objects out of indoor reconstructions, so they come with clutter and missing surfaces and are harder than ModelNet. The release ships several difficulty settings, and you select them with constructor arguments rather than by dataset name.
+`ScanObjectNN` crops its objects out of indoor reconstructions, with clutter and missing surfaces, which makes it harder than ModelNet. The release ships several difficulty settings, selected with constructor arguments rather than by dataset name.
 
 ```{.python notest}
 from torch_pointcloud.datasets import ScanObjectNN
@@ -116,7 +116,7 @@ scanobjectnn_hardest = ScanObjectNN(
 
 ## Batch the samples
 
-Batching uses the packed format. `PointCloudDataLoader` is a `DataLoader` that defaults its `collate_fn` to the packed `collate`, so per-point tensors concatenate into one tensor and a `batch` index is synthesized alongside them.
+Batching uses the packed format. `PointCloudDataLoader` is a `DataLoader` whose `collate_fn` defaults to the packed `collate`: per-point tensors are concatenated into one tensor, and a `batch` index is built alongside them.
 
 ```{.python notest}
 from torch_pointcloud.utils.data import PointCloudDataLoader
@@ -149,8 +149,8 @@ Batch keys: dict_keys(['pos', 'label', 'batch'])
   label.shape: (32,)
 ```
 
-The per-point `pos` concatenates into one packed tensor plus a new `batch` index, while the object-level `label` stacks to $(B,)$. If you would rather build the loader yourself, pass `collate` to a plain `torch.utils.data.DataLoader` as its `collate_fn`.
+The per-point `pos` is concatenated into one packed tensor with a new `batch` index, while the object-level `label` is stacked to $(B,)$. To build the loader yourself, pass `collate` as the `collate_fn` of a plain `torch.utils.data.DataLoader`.
 
 ## Class names
 
-A dataset carries its class names in `dataset.classes`, and `dataset.class_to_idx` maps a name back to its index. A pretrained checkpoint carries its own head order instead, in `info["weights"]["classes"]`, and that is the one to read when you are decoding its predictions.
+A dataset carries its class names in `dataset.classes`, and `dataset.class_to_idx` maps a name back to its index. A pretrained checkpoint carries its own head order in `info["weights"]["classes"]`. Read that one to decode its predictions.

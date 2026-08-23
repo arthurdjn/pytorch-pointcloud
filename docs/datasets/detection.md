@@ -1,10 +1,10 @@
 # Detection Datasets
 
-Detection datasets pair a scene with **its boxes**: a ragged $(K, 7)$ tensor and one class per box, however many objects that scene happens to hold. Indoor loaders that ship per-point instances rather than boxes can derive them.
+Detection datasets pair a scene with its boxes: a ragged $(K, 7)$ tensor and one class per box. Loaders that ship per-point instances instead of boxes can derive them.
 
 ![A committed ScanNet room and the boxes InstanceToBox derives from its instances](../assets/datasets/boxes.png)
 
-One sample is a scene plus a ragged set of boxes. The room above ships instances rather than boxes, so its boxes are derived, one per instance once the walls and floor are mapped out.
+The room above ships per-point instances rather than boxes, so its boxes are derived with `InstanceToBox`, one per instance.
 
 | Dataset                                       | Scenes                  | Classes | Boxes          | Download  |
 | --------------------------------------------- | ----------------------- | ------- | -------------- | --------- |
@@ -38,11 +38,11 @@ Scenes: 5050
 | `box`       | $(K, 7)$ | $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, $K$ varies per scene |
 | `label`     | $(K,)$   | Class of each box                                              |
 
-KITTI adds `truncation`, `occlusion`, `bbox_height` and `frame`, because its evaluation protocol needs them to build its difficulty tiers. nuScenes adds `velocity`, `attribute`, `num_points` and `timestamp`.
+KITTI adds `truncation`, `occlusion`, `bbox_height` and `frame`, which its evaluation protocol needs for its difficulty tiers. nuScenes adds `velocity`, `attribute`, `num_points` and `timestamp`.
 
 ## Batch the ragged boxes
 
-Boxes cannot concatenate like points without losing which scene they came from. Pass them as `cat_keys` and collate emits a matching `batch_box` index.
+Boxes cannot be concatenated like points without losing which scene they came from. Pass them as `cat_keys`, and collate writes a matching `batch_box` index.
 
 ```{.python notest}
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -65,24 +65,24 @@ Batch box shape: (10,)
 Pos shape: (1714990, 3)
 ```
 
-`batch_box[i]` names the scene of box `i`, exactly as `batch[j]` names the scene of point `j`. Losses and metrics read both.
+`batch_box[i]` names the scene of box `i`, as `batch[j]` names the scene of point `j`. Losses and metrics read both.
 
 ## Driving datasets
 
 ![A KITTI frame: the raw scan colored by intensity, and the eight boxes it is annotated with](../assets/datasets/driving_boxes.png)
 
-Outdoor frames carry `intensity` instead of color and their boxes are genuinely oriented, since a car on a road faces whichever way the road goes. The frame above is the one the committed [`sample_driving.ply`](../assets/data/sample_driving.ply) was cut from, with the five cars and three cyclists KITTI annotates it with.
+Outdoor frames carry `intensity` instead of color, and their boxes are oriented. The frame above is the one the committed [`sample_driving.ply`](../assets/data/sample_driving.ply) was cut from, with the five cars and three cyclists KITTI annotates it with.
 
-`KITTI` and `NuScenesMini` need a manual download, since both require accepting terms first. The loader raises with the page to visit and the directory to extract into.
+`KITTI` and `NuScenesMini` need a manual download, as both require accepting terms first. The loader raises with the page to visit and the directory to extract into.
 
-`KITTI` reads `<root>/KITTI/raw/training/` with `velodyne/`, `label_2/`, `calib/` and `image_2/`. Two flags matter:
+`KITTI` reads `<root>/KITTI/raw/training/` with `velodyne/`, `label_2/`, `calib/` and `image_2/`.
 
 | Argument            | Effect                                                                                                       |
 | ------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `fov=True`          | Keep only points inside the front-camera frustum, which is what the benchmark scores. Baked into the cache.  |
 | `return_calib=True` | Also emit the composed $(3, 4)$ LiDAR-to-image matrix, needed to project boxes back for the official metric. |
 
-`NuScenesMini` is the 10-scene mini release (`v1.0-mini`), useful as a smoke test for the nuScenes checkpoints. `max_sweeps` sets how many prior LiDAR sweeps are aggregated into a keyframe.
+`NuScenesMini` is the 10-scene mini release (`v1.0-mini`), a smoke test for the nuScenes checkpoints. `max_sweeps` sets how many prior LiDAR sweeps are aggregated into a keyframe.
 
 ## Boxes from instance labels
 
@@ -118,7 +118,7 @@ Box shape: (33, 7)
 Label shape: (33,)
 ```
 
-Every instance becomes a box here, walls and floor included. Map the stuff classes to the `ignore_index` with a `Relabel` first and their instances drop out of the box set, which is how the 18-class ScanNet detection targets are built:
+Every instance becomes a box here, walls and floor included. Map the stuff classes to the `ignore_index` with a `Relabel` first and their instances drop out of the box set. This is how the 18-class ScanNet detection targets are built:
 
 ```{.python notest}
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_LABELS
