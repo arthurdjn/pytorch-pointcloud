@@ -2,7 +2,7 @@ r"""Sliding-window inference for large-scale point cloud segmentation.
 
 Tiles the scene with axis-aligned cubic blocks and accumulates per-point
 predictions across all blocks that contain each point. Adjacent blocks overlap
-by a configurable fraction, reducing seam artefacts at block boundaries.
+by a configurable fraction, reducing seam artifacts at block boundaries.
 
 When `overlap=0.0` (default), blocks form a non-overlapping partition and each
 point is predicted exactly once. Higher `overlap` values increase coverage
@@ -11,11 +11,11 @@ predictions from all blocks that contain them.
 
 Per-block pre-processing goes through the `transform` argument.
 
-!!! warning "`block_size` is in the units of `data[pos_key]`, not always metres"
+!!! warning "`block_size` is in the units of `data[pos_key]`, not always meters"
 
     The inferer tiles in whatever coordinate space `pos` is in at call time. If
     positions are voxel indices after upstream voxelization, `block_size` is a
-    voxel count, not metres. A scene voxelized at $2\,\text{cm}$ tiled with
+    voxel count, not meters. A scene voxelized at $2\,\text{cm}$ tiled with
     `block_size=200` gives $4\,\text{m}$ blocks.
 """
 
@@ -140,8 +140,8 @@ def _assign_point_blocks(
 
         i_v = i[valid]
         if mode == "gaussian":
-            centres_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)
-            dist = torch.linalg.norm(pos_tiled[valid] - centres_v_tiled, dim=-1)
+            centers_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)
+            dist = torch.linalg.norm(pos_tiled[valid] - centers_v_tiled, dim=-1)
             # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
             # covered point at a nonzero blend weight so its predictions survive the division.
             w = gaussian_weights(dist, sigma).clamp_min(1e-12)

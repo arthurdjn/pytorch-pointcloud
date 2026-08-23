@@ -68,7 +68,7 @@ def grid_sample_test_fragments(coord: np.ndarray, grid_size: float) -> List[Tupl
 
 
 def split_head_and_relabel(compose: Compose) -> Tuple[Compose, Any]:
-    """`head` = steps before `Cat` (CenterShift + colour /255), run once/scene on
+    """`head` = steps before `Cat` (CenterShift + color /255), run once/scene on
     raw points. `relabel` = the registered `Relabel` step, applied to the raw
     segment for scoring (Pointcept scores raw labels with ignore_index=-1)."""
     steps = list(compose.transforms)

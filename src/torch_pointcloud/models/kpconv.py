@@ -50,13 +50,13 @@ def create_kernel_points(
 ) -> torch.Tensor:
     r"""Builds the kernel point positions of a KPConv kernel, randomly rotated and jittered.
 
-    Positions are optimised on the unit sphere, cached under `CACHE_DIR` and reused across calls.
+    Positions are optimized on the unit sphere, cached under `CACHE_DIR` and reused across calls.
 
     Args:
         radius: Radius of the sphere the kernel points are scaled to.
         num_points: Number of kernel points $K$.
         fixed_position: Which kernel point is pinned: `"none"`, `"center"`, or `"vertical"`.
-        method: Optimisation used to spread the points, either `"lloyd"` or `"gradient"`.
+        method: Optimization used to spread the points, either `"lloyd"` or `"gradient"`.
 
     Returns:
         Kernel point positions of shape $(K, 3)$.

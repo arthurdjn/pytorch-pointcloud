@@ -1,7 +1,7 @@
-r"""Nearest-neighbour refinement of part labels on top of another inferer's output.
+r"""Nearest-neighbor refinement of part labels on top of another inferer's output.
 
 Takes the per-point argmax of a base inferer and re-assigns the labels that are implausible for the shape
-(rare parts, parts the shape's category does not own) by a majority vote of each point's nearest neighbours.
+(rare parts, parts the shape's category does not own) by a majority vote of each point's nearest neighbors.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Sequence
@@ -28,7 +28,7 @@ def part_refinement_inference(
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
 ) -> Tensor:
-    r"""Nearest-neighbour refinement of part labels on top of another inferer.
+    r"""Nearest-neighbor refinement of part labels on top of another inferer.
 
     Runs `base`, takes the per-point argmax, and for every shape re-assigns the labels that are implausible:
     a predicted part with fewer than `min_count` points, or a part the shape's category does not own. Each
@@ -45,7 +45,7 @@ def part_refinement_inference(
         part_ids: Part labels owned by each category; defaults to the 16-category / 50-part ShapeNetPart table
             (`ShapeNetPart.seg_ids`).
         min_count: Predicted parts with fewer points than this are refined.
-        num_neighbors: Number of nearest neighbours (the point itself included) voting on the new label.
+        num_neighbors: Number of nearest neighbors (the point itself included) voting on the new label.
         category_key: Dict key of the per-shape category, one-hot $(B, K)$ or index $(B,)$.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
@@ -100,7 +100,7 @@ def part_refinement_inference(
             neighbors = torch.cdist(pos_b[rows], pos_b).topk(k, dim=1, largest=False).indices  # (M, k)
             votes = torch.nn.functional.one_hot(labels_b[neighbors], num_classes=num_classes).sum(dim=1)
             votes[:, label] = 0
-            # A row whose neighbours all carry `label` has no votes left; keep its label instead of
+            # A row whose neighbors all carry `label` has no votes left; keep its label instead of
             # letting argmax fall through to class 0.
             has_votes = votes.sum(dim=1) > 0
             labels_b[rows[has_votes]] = votes.argmax(dim=1)[has_votes]
@@ -111,10 +111,10 @@ def part_refinement_inference(
 
 
 class PartRefinementInferer(Inferer):
-    r"""Nearest-neighbour refinement of part labels on top of another inferer.
+    r"""Nearest-neighbor refinement of part labels on top of another inferer.
 
     Takes the base inferer's per-point argmax and re-assigns the implausible part labels (rare parts, parts
-    the shape's category does not own) by a nearest-neighbour majority vote, returning one-hot scores.
+    the shape's category does not own) by a nearest-neighbor majority vote, returning one-hot scores.
 
     All parameters are forwarded verbatim to `part_refinement_inference`.
 

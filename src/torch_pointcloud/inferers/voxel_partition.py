@@ -41,7 +41,7 @@ class VoxelPartitionInferer(Inferer):
         reduce: `"mean"` divides each point's accumulated predictions by the number of sub-clouds it
             appeared in; `"sum"` returns the plain sum. The argmax is the same within one call, but under
             `TTAInferer` the counts differ between views (each view is partitioned on its own augmented
-            positions), so `"sum"` reproduces the reference protocols that add un-normalised probabilities
+            positions), so `"sum"` reproduces the reference protocols that add un-normalized probabilities
             over views and fragments.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.

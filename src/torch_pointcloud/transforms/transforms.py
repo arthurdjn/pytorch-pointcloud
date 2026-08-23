@@ -587,7 +587,7 @@ class EstimateNormals(DictTransform):
 
     Computes unit normals (see `torch_pointcloud.transforms.functional.estimate_normals`) for clouds that
     ship without them (e.g. S3DIS). Each normal is the least-variance direction of a point's $k$ nearest
-    neighbours. With `orient_to_centroid`, normals are flipped to face the cloud centroid.
+    neighbors. With `orient_to_centroid`, normals are flipped to face the cloud centroid.
 
     See Also:
         `torch_pointcloud.transforms.functional.estimate_normals`
@@ -603,10 +603,10 @@ class EstimateNormals(DictTransform):
     Args:
         keys: Coordinate keys to estimate normals from.
         normal_key: Keys under which to store the normals (one per coordinate key). Defaults to `normal`.
-        k: Number of nearest neighbours (the point itself included) per local PCA.
+        k: Number of nearest neighbors (the point itself included) per local PCA.
         orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid (approximates
             the inward-facing normals of meshes scanned from inside a room).
-        batch_key: Optional key holding a per-point batch index so neighbours stay within a cloud.
+        batch_key: Optional key holding a per-point batch index so neighbors stay within a cloud.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -1709,13 +1709,13 @@ class Relabel(DictTransform):
 class RelabelBoxes(DictTransform):
     r"""Map raw box labels to a detection class set and flag don't-care boxes for the AP metric.
 
-    A detection dataset (e.g. `KITTI`) returns the **raw** annotated boxes: every labelled class plus
+    A detection dataset (e.g. `KITTI`) returns the **raw** annotated boxes: every labeled class plus
     per-box attributes such as occlusion / truncation. This transform turns those into the inputs the
     3D AP metric expects, the way `Relabel` turns raw segmentation ids into a benchmark label set:
 
-    - boxes whose raw label is a key of `mapping` are kept as ground truth, relabelled to `mapping[raw]`;
-    - boxes whose raw label is a key of `ignore_mapping` (neighbouring classes, e.g. KITTI `Van` for
-      `Car`) are kept as **ignore regions** (`ignore_mask = True`), labelled `ignore_mapping[raw]`: the
+    - boxes whose raw label is a key of `mapping` are kept as ground truth, relabeled to `mapping[raw]`;
+    - boxes whose raw label is a key of `ignore_mapping` (neighboring classes, e.g. KITTI `Van` for
+      `Car`) are kept as **ignore regions** (`ignore_mask = True`), labeled `ignore_mapping[raw]`: the
       evaluated class they excuse. They suppress false positives of that class but are not scored;
     - a kept foreground box that falls outside any range in `ignore_fields` (e.g. KITTI's moderate rule:
       occlusion $\le 1$, truncation $\le 0.3$, 2D height $\ge 25$ px) is downgraded to an ignore region
@@ -1725,7 +1725,7 @@ class RelabelBoxes(DictTransform):
     All keys in `keys` (the box tensor and every per-box attribute, including those named in
     `ignore_fields`) are filtered together by the keep mask so they stay row-aligned. The output adds the
     boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`, which
-    excuse an unmatched prediction only on ignore boxes labelled with the evaluated class.
+    excuse an unmatched prediction only on ignore boxes labeled with the evaluated class.
 
     ![RelabelBoxes before / after](../../assets/transforms/relabel_boxes.png)
 
@@ -3959,7 +3959,7 @@ class Mix3D(Transform):
     Every point-aligned key in `keys` is concatenated along the point dimension, so the mixed scene
     holds all points of both inputs. When `instance_key` is present in both scenes, the second
     scene's instance ids are shifted past the first scene's maximum id so the merged instances stay
-    disjoint; points labelled `ignore_index` keep that label and are excluded from the offset.
+    disjoint; points labeled `ignore_index` keep that label and are excluded from the offset.
 
     Unlike the other pairwise mixes, `Mix3D` keeps all points of both scenes, so the mixed scene has
     roughly twice as many points as either input.

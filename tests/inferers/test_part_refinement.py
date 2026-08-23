@@ -11,7 +11,7 @@ _PART_IDS = [[0, 1], [2, 3]]
 
 
 def _shape(labels: Tensor, category: int) -> Dict[str, Any]:
-    """Points on a line at x = 0, 1, 2, ... so the nearest neighbours of a point are its index neighbours."""
+    """Points on a line at x = 0, 1, 2, ... so the nearest neighbors of a point are its index neighbors."""
     n = labels.numel()
     pos = torch.stack([torch.arange(n, dtype=torch.float32), torch.zeros(n), torch.zeros(n)], dim=1)
     return {
@@ -26,8 +26,8 @@ def _label_predictor(window: Dict[str, Any]) -> Tensor:
     return torch.nn.functional.one_hot(window["labels"], num_classes=4).float()
 
 
-def test_part_refinement_reassigns_rare_labels_by_neighbour_majority() -> None:
-    """One stray part-1 point inside a run of part 0 (category 0) is outvoted by its neighbours."""
+def test_part_refinement_reassigns_rare_labels_by_neighbor_majority() -> None:
+    """One stray part-1 point inside a run of part 0 (category 0) is outvoted by its neighbors."""
     labels = torch.tensor([0, 0, 0, 1, 0, 0, 0])
     inferer = PartRefinementInferer(SimpleInferer(), part_ids=_PART_IDS, min_count=2, num_neighbors=3)
     out = inferer(_shape(labels, category=0), predictor=_label_predictor)
@@ -37,7 +37,7 @@ def test_part_refinement_reassigns_rare_labels_by_neighbour_majority() -> None:
 
 def test_part_refinement_reassigns_foreign_parts_even_when_frequent() -> None:
     """Part 2 belongs to category 1, so on a category-0 shape it is refined even with many points, and the
-    vote excludes the refined label itself: the two part-2 points take part 0 from their neighbours."""
+    vote excludes the refined label itself: the two part-2 points take part 0 from their neighbors."""
     labels = torch.tensor([0, 0, 2, 2, 0, 0])
     inferer = PartRefinementInferer(SimpleInferer(), part_ids=_PART_IDS, min_count=1, num_neighbors=5)
     out = inferer(_shape(labels, category=0), predictor=_label_predictor)

@@ -248,10 +248,10 @@ def knn_interpolate(
             assigning each node from $\mathbf{X}$ to a specific example.
         batch_y: Batch vector $\mathbf{b_y} \in \{ 0, \ldots, B-1 \}^M$,
             assigning each node from $\mathbf{Y}$ to a specific example.
-        k: Number of neighbours.
+        k: Number of neighbors.
         num_workers: Number of workers for computation. Has no effect when
             `batch_x` or `batch_y` is not `None`, or the input lies on GPU.
-        weighting: Weighting scheme for neighbours. `"squared"` for $1/d^2$
+        weighting: Weighting scheme for neighbors. `"squared"` for $1/d^2$
             weights (`torch_geometric` default) or `"inverse"` for $1/d$
             weights (PointNet++ convention).
         eps: Small value to avoid division by zero.

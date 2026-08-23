@@ -216,7 +216,7 @@ class PointRCNNLoss(nn.Module):
     ) -> Tuple[Tensor, Tensor]:
         r"""Assign per-point foreground labels and box-residual targets by points-in-box matching.
 
-        Each point inside a ground-truth box is foreground (labelled with that box's $1$-based class); a
+        Each point inside a ground-truth box is foreground (labeled with that box's $1$-based class); a
         point in the gap between a box and its `gt_extra_width`-enlarged copy is ignored ($-1$); every other
         point is background ($0$). Foreground points get the mean-size residual encoding of their box.
 
