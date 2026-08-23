@@ -2,6 +2,12 @@
 
 `TTAInferer` wraps any base [`Inferer`](overview.md) and runs it once per augmentation pass, aggregating the per-point predictions. Because outputs are indexed by point ID rather than spatial position, predictions from rotated or flipped views are already aligned; no inverse transform is needed.
 
+![One room fanning out into three views, each predicted, the predictions folding back into a mean](../assets/animations/tta.webp)
+
+Each branch hands the predictor a different view of the same room, and every prediction folds into the
+running mean. Outputs are indexed by point, so a rotated view's prediction lands on the same points as the
+identity view's and the two average directly: a model's disagreement with itself averages out.
+
 ## Wrap and compose
 
 Test-time augmentation layers on top of whole-scene or windowed inference without changing the predictor:

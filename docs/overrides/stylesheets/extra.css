@@ -459,6 +459,24 @@ a.pill.hero-pill {
 .md-typeset .grid.cards > ul > li:hover::after {
   color: var(--md-accent-fg-color);
 }
+/* Tutorial cards carry a thumbnail under the title: the second paragraph of the card, bled out to
+   the card edges by cancelling its padding. The title stays `p:first-child`, so the click overlay
+   and the heading layout above keep applying to it untouched */
+.md-typeset .grid.cards.tutorial-cards > ol > li,
+.md-typeset .grid.cards.tutorial-cards > ul > li {
+  overflow: hidden;
+}
+.md-typeset .grid.cards.tutorial-cards > ol > li > p:nth-child(2),
+.md-typeset .grid.cards.tutorial-cards > ul > li > p:nth-child(2) {
+  margin: 0.6rem -0.8rem 0.8rem;
+}
+.md-typeset .grid.cards.tutorial-cards > ol > li img,
+.md-typeset .grid.cards.tutorial-cards > ul > li img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* ----------- End Cards ----------- */
 
 /* ----------- Start Paper card ----------- */

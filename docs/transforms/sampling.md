@@ -1,22 +1,25 @@
 # Sampling
 
-Sampling transforms control how many points a cloud has and how they are distributed. Each transform is shown on a single object and a real ScanNet room; the **Object** / **Scene** tabs switch together across the page.
+Models want a point budget, and your data rarely arrives with one. A ModelNet mesh has no points at all, a ScanNet room has 700 000 of them, and a grid detector wants a fixed voxel stack. Sampling transforms are how you get from what you have to what the model reads.
 
-| Transform                                                                                                                     | Functional                    | Purpose                                                  |
-| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------- |
-| [`RandomSample`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomSample)                         | `random_sample`               | Uniform random subsample with shared indices across keys |
-| [`FarthestPointSample`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.FarthestPointSample)           | `farthest_point_sample`       | FPS subsample (well-distributed)                         |
-| [`Voxelize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Voxelize)                                 | (in `utils.ops`)              | Voxel-grid downsample with per-voxel reduction           |
-| [`Quantize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Quantize)                                 | `quantize`                    | Integer grid coordinates, cloud kept at full resolution  |
-| [`HardVoxelize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.HardVoxelize)                         | (in `utils.voxelization`)     | Fixed-capacity voxel tensors for grid detectors          |
-| [`RandomSampleFaceVertices`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomSampleFaceVertices) | `random_sample_face_vertices` | Sample points on a mesh's faces                          |
-| [`ShufflePoint`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.ShufflePoint)                         | `shuffle_indices`             | Randomly permute point order                             |
+## Which one to reach for
 
-For random point dropout as a training augmentation, see [`RandomDropout`](augmentation.md#randomdropout).
+| You need                                                  | Reach for                                          |
+| --------------------------------------------------------- | -------------------------------------------------- |
+| A fixed point count, as fast as possible                  | `RandomSample`                                     |
+| A fixed point count, evenly spread over the shape         | `FarthestPointSample`                              |
+| One point per voxel, at a resolution you choose           | `Voxelize`                                         |
+| Every point kept, each tagged with its grid coordinate    | `Quantize`                                         |
+| The fixed-capacity voxel stack a grid detector reads      | `HardVoxelize`                                     |
+| Points at all, starting from a triangle mesh              | `RandomSampleFaceVertices`                         |
+| The input order broken before an order-dependent step     | `ShufflePoint`                                     |
+| Points dropped at random, as a training augmentation      | [`RandomDropout`](augmentation.md#vary-the-density)   |
 
-## RandomSample
+Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
 
-Uniform random subsample to `num_samples`; all listed keys share the same indices, so per-point correspondence is preserved.
+## Give an object model its point budget
+
+Object models train on a fixed count, usually 1024 or 2048. `RandomSample` is the cheap way to get there and `FarthestPointSample` the well-distributed one: FPS repeatedly picks the point farthest from those already chosen, which is the convention inside PointNet++ and PointNeXt. Both share their indices across every key you list, so `color` and `segment` stay aligned with `pos`.
 
 === "Object"
 
@@ -29,12 +32,9 @@ Uniform random subsample to `num_samples`; all listed keys share the same indice
 ```python
 import torch_pointcloud.transforms as T
 
-T.RandomSample(keys=("pos", "color"), num_samples=1024)
+fast = T.RandomSample(keys=("pos", "color"), num_samples=1024)
+even = T.FarthestPointSample(pos_key="pos", keys=("color",), num_samples=1024)
 ```
-
-## FarthestPointSample
-
-Repeatedly picks the point farthest from those already chosen: slower than random sampling, but evenly distributed. The same FPS convention used inside PointNet++ and PointNeXt.
 
 === "Object"
 
@@ -44,13 +44,11 @@ Repeatedly picks the point farthest from those already chosen: slower than rando
 
     ![FarthestPointSample on a room](../assets/transforms/farthest_point_sample_scene.png)
 
-```{.python continuation}
-T.FarthestPointSample(pos_key="pos", keys=("color",), num_samples=1024)
-```
+Reach for FPS when coverage matters and you can afford it, which is most classification and part-segmentation checkpoints. Reach for `RandomSample` inside a training loop over large scenes, where you are sampling a fresh subset every epoch anyway.
 
-## Voxelize
+## Feed a sparse-convolution scene model
 
-Bins points into a grid and keeps one representative per occupied voxel, with a per-key reduction (`mean` color, `first` label, ...). `dst_inverse_key` stores the map back to full resolution.
+Scene models work on a voxel grid, so downsample by resolution rather than by count. `Voxelize` bins the points and keeps one representative per occupied voxel, reducing each key the way that key needs: `mean` for color, `first` for a label.
 
 === "Object"
 
@@ -71,11 +69,15 @@ T.Compose([
 ])
 ```
 
-`dst_inverse_key` lets you project voxel-level predictions back to the full-resolution cloud with `preds_full = preds_voxel[inverse]`: the standard prep for sparse-conv segmentation.
+Ask for `dst_inverse_key` whenever you intend to score the result: it stores the map back to full resolution, so `preds_full = preds_voxel[inverse]` puts one prediction on every original point. Forgetting it is the usual reason a scene pipeline cannot be evaluated at the end.
 
-## Quantize
+![The same room voxelized at 3, 6, 12 and 24 cm](../assets/animations/voxelize.webp)
 
-Writes the integer grid coordinate $\lfloor p / s \rfloor$ of every point, shifted so the per-axis minimum is $0$, and keeps the cloud at full resolution. Nothing is reduced: points sharing a voxel keep their own rows and get identical coordinates, which is what the figure's note counts (1024 rows landing on 35 distinct nodes).
+Voxel size is the resolution knob of the whole pipeline. 2-4 cm keeps furniture legible, and every doubling divides the point count by roughly eight, so it is also the memory knob.
+
+## Keep every point but give it a grid coordinate
+
+`Quantize` writes the integer grid coordinate $\lfloor p / s \rfloor$ of every point, shifted so the per-axis minimum is $0$, and reduces nothing. Points sharing a voxel keep their own rows and get identical coordinates.
 
 === "Object"
 
@@ -89,11 +91,11 @@ Writes the integer grid coordinate $\lfloor p / s \rfloor$ of every point, shift
 T.Quantize(keys="pos", size=0.02, dst_keys="pos_grid")
 ```
 
-This is how a voxel-partition evaluation feeds a sparse model every raw point, and how a test-time view recomputes grid coordinates after rotating or scaling the positions. Use `Voxelize` instead when you want one point per voxel.
+This is what you want when a sparse model must see every raw point, as in a voxel-partition evaluation, or when a test-time view has to recompute grid coordinates after rotating or scaling the positions. Use `Voxelize` instead when one point per voxel is what you are after.
 
-## HardVoxelize
+## Prepare a driving frame for a grid detector
 
-Builds the fixed-capacity voxel stack that grid detectors (PointPillars, SECOND) consume, moving that step out of the model and into the pipeline. Points are binned over `point_cloud_range`, at most `max_num_points` are kept per voxel and at most `max_num_voxels` per scene; the figure mutes the points that overflow their voxel.
+`HardVoxelize` builds the fixed-capacity voxel stack PointPillars and SECOND consume, which keeps that step in the pipeline instead of the model. Points are binned over `point_cloud_range`, at most `max_num_points` survive per voxel and at most `max_num_voxels` per scene.
 
 === "Object"
 
@@ -114,11 +116,11 @@ T.HardVoxelize(
 )
 ```
 
-It adds three keys and keeps `pos` / `x`: the per-voxel point stack $(V, \text{max\_num\_points}, 3 + C)$ at `voxel_key`, the integer grid indices $(V, 3)$ in $(z, y, x)$ order at `pos_voxel_key`, and the per-voxel point counts $(V,)$ at `num_points_key`.
+It keeps `pos` and `x` and adds three keys: the per-voxel point stack $(V, \text{max\_num\_points}, 3 + C)$ at `voxel_key`, the integer grid indices $(V, 3)$ in $(z, y, x)$ order at `pos_voxel_key`, and the per-voxel point counts $(V,)$ at `num_points_key`. Those are the four tensors a voxel detector's forward takes, in that order.
 
-## RandomSampleFaceVertices
+## Turn a mesh into a point cloud
 
-Samples points on mesh faces: how a ModelNet mesh becomes a point cloud. Surface normals are stored under `normal_key`.
+`ModelNet10` and `ModelNet40` ship triangle meshes, so there is nothing to sample until you make points. `RandomSampleFaceVertices` samples them on the faces and stores the surface normals under `normal_key`.
 
 === "Object"
 
@@ -128,9 +130,11 @@ Samples points on mesh faces: how a ModelNet mesh becomes a point cloud. Surface
 T.RandomSampleFaceVertices(keys="pos", face_key="face", num_samples=2048)
 ```
 
-## ShufflePoint
+Because this step is random, two runs give different clouds and a published score is hard to reproduce exactly. That is what the preprocessed `ModelNetNormalResampled` release is for; see [Classification datasets](../datasets/classification.md).
 
-Permutes the point order, with the same permutation on every listed key so per-point correspondence survives. The figure colors points by their row index before shuffling, so the gradient scrambles while the shape stays identical.
+## Break an ordering you did not intend to rely on
+
+`ShufflePoint` permutes the point order, applying the same permutation to every listed key so correspondence survives.
 
 === "Object"
 
@@ -144,4 +148,4 @@ Permutes the point order, with the same permutation on every listed key so per-p
 T.ShufflePoint(keys=("pos", "color"), p=1.0)
 ```
 
-Use it to break a structural ordering in the input before a transform whose result depends on that order, such as `Slice` or the `first` reduction of `Voxelize`.
+Use it before anything whose result depends on row order, such as `Slice` or the `first` reduction of `Voxelize`. A file that happens to be sorted by scan line will otherwise leak that ordering into your labels.

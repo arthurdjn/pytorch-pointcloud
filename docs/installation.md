@@ -11,7 +11,7 @@ This installs the library together with :pytorch: [`torch`](https://pytorch.org)
 ## PyTorch and CUDA extensions
 
 Select a package manager, torch version, compute platform, and the extras you need; the command below
-updates accordingly. Options without a matching wheel are greyed out. `flash-attn`, `mamba`, and the
+updates accordingly. Options without a matching wheel are grayed out. `flash-attn`, `mamba`, and the
 :pyg: [PyG extensions](https://data.pyg.org/whl/) install as prebuilt wheels, from the
 :astral: [Astral GPU indexes](https://wheels.astral.sh/) and the PyG wheel index.
 

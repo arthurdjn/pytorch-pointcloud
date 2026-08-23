@@ -2,16 +2,24 @@
 
 `SimpleInferer` calls the predictor on the whole scene in one forward pass: no tiling, no blending. It is the lightest possible [`Inferer`](overview.md) and the baseline every other strategy is measured against.
 
+![One predictor call over the whole scene](../assets/animations/simple.webp)
+
+One call, every point, nothing to stitch: the baseline the other strategies are measured against.
+
 ## Usage
 
 ```{.python notest}
 import torch_pointcloud as tp
 from torch_pointcloud.inferers import SimpleInferer
 
-model = tp.create_model("pointnet2.s3dis-area5.xu-yan", task="segmentation", pretrained=True).eval()
+model = tp.create_model(
+    "pointnet2.s3dis-area5.xu-yan", task="segmentation", pretrained=True
+).eval()
 
 inferer = SimpleInferer()
-logits = inferer(scene, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
+logits = inferer(
+    scene, predictor=lambda d: model(d["x"], d["pos"], d["batch"])
+)
 ```
 
 ## When to use

@@ -1,27 +1,24 @@
 # Geometric
 
-Geometric transforms position and scale a cloud deterministically: the canonical first steps of any pipeline. Each transform is shown on a single object and a real ScanNet room; the **Object** / **Scene** tabs switch together across the page.
+Every pipeline starts by putting the cloud somewhere the model expects it. A checkpoint trained on unit-sphere objects will not read a room in world coordinates, and a sparse model wants its cloud in the positive octant before it quantizes. These transforms are deterministic: they set the frame, and the [augmentations](augmentation.md) perturb it afterwards.
 
-| Transform                                                                                               | Functional                            | Purpose                                                            |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------ |
-| [`Shift`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Shift)                 | `shift`                               | Subtract a computed offset (`bbox`, `centroid`, or `min`)          |
-| [`AlignAxis`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.AlignAxis)         | (use `shift(method="min", axes=[k])`) | Shift one axis so its min is zero                                  |
-| [`AxisMinOffset`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.AxisMinOffset) | `axis_min_offset`                     | Per-point offset from axis minimum (height feature)                |
-| [`Rescale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Rescale)             | `rescale`                             | Center and rescale to unit extent (`centroid` / `bbox` / `linear`) |
-| [`Normalize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Normalize)         | `normalize`                           | Per-channel $(x - \mu) / \sigma$ standardization                   |
-| [`Scale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Scale)                 | (`x * s`)                             | Multiply by a scalar                                               |
-| [`Divide`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Divide)               | (`x / d`)                             | Divide by a scalar                                                 |
-| [`SubtractKey`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.SubtractKey)     | (`x - data[k]`)                       | Subtract the tensor held under another key                         |
-| [`BBoxCenter`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.BBoxCenter)       | (`(min + max) / 2`)                   | Midpoint of a stored flat bbox                                     |
-| [`Abs`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Abs)                     | `abs`                                 | Element-wise absolute value                                        |
+## Which one to reach for
 
-## Shift
+| You need                                                     | Reach for                     |
+| ------------------------------------------------------------ | ----------------------------- |
+| The cloud centered on the origin                             | `Shift`                       |
+| The cloud centered *and* scaled to a unit size               | `Rescale`                     |
+| One axis resting on zero, the others untouched               | `AlignAxis`                   |
+| A height-above-floor feature, positions left alone           | `AxisMinOffset`               |
+| Colors standardized with dataset statistics                  | `Normalize`                   |
+| A fixed multiply or divide (unit conversion)                 | `Scale`, `Divide`             |
+| To subtract an offset the dataset stored alongside the cloud | `BBoxCenter`, `SubtractKey`   |
 
-`Shift` takes a `method`. The arrow is the shift vector: the reference point (centroid, bbox-centre, or min-corner) is moved onto the origin.
+Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
 
-### method="centroid"
+## Center a cloud
 
-Subtracts the mean: the centroid lands on the origin.
+`Shift` subtracts a computed offset. The arrow in each figure is that offset: the reference point is moved onto the origin. Which reference you want depends on what comes next.
 
 === "Object"
 
@@ -31,15 +28,7 @@ Subtracts the mean: the centroid lands on the origin.
 
     ![Shift method=centroid on a room](../assets/transforms/shift_centroid_scene.png)
 
-```python
-import torch_pointcloud.transforms as T
-
-T.Shift(keys="pos", method="centroid")
-```
-
-### method="bbox"
-
-Subtracts the bounding-box midrange $(\min + \max) / 2$.
+`method="centroid"` subtracts the mean, so the centroid lands on the origin. It follows the mass of the cloud, which is what you want for an object.
 
 === "Object"
 
@@ -49,13 +38,7 @@ Subtracts the bounding-box midrange $(\min + \max) / 2$.
 
     ![Shift method=bbox on a room](../assets/transforms/shift_bbox_scene.png)
 
-```{.python continuation}
-T.Shift(keys="pos", method="bbox")
-```
-
-### method="min"
-
-Subtracts the per-axis minimum: the cloud's corner lands on the origin.
+`method="bbox"` subtracts the bounding-box midrange $(\min + \max) / 2$. It ignores how the points are distributed, so a densely-scanned wall does not drag the center toward itself.
 
 === "Object"
 
@@ -65,13 +48,17 @@ Subtracts the per-axis minimum: the cloud's corner lands on the origin.
 
     ![Shift method=min on a room](../assets/transforms/shift_min_scene.png)
 
-```{.python continuation}
+`method="min"` subtracts the per-axis minimum, putting the cloud's corner on the origin and the whole cloud in the positive octant. This is the one to use before `Voxelize` or `Quantize`, which expect non-negative coordinates.
+
+```python
+import torch_pointcloud.transforms as T
+
 T.Shift(keys="pos", method="min")
 ```
 
-### axes
+### Center some axes and not others
 
-`axes` limits recentering to a subset of axes; the others keep their offset (the gray dot is the origin).
+`axes` limits the recentering to a subset, leaving the rest where they are.
 
 === "Object"
 
@@ -81,7 +68,7 @@ T.Shift(keys="pos", method="min")
 
     ![Shift recentering axis subsets on a room](../assets/transforms/shift_axes_scene.png)
 
-Two `Shift` calls on disjoint axes commute. This is the Pointcept-style scene centering recipe, equivalent to the historical `CenterShift(apply_z=True)`:
+Two `Shift` calls on disjoint axes commute, so you can mix methods per axis. Centering a room in XY while keeping the floor at $z = 0$ is the usual indoor recipe:
 
 ```{.python continuation}
 T.Compose([
@@ -90,9 +77,7 @@ T.Compose([
 ])
 ```
 
-## AlignAxis
-
-Shifts a single axis so its minimum lands on zero and leaves the other axes where they are. With `dim=2` a room's lowest point sits on $z = 0$ (the gray dot is the origin).
+`AlignAxis` is the same thing for a single axis, kept as a preset: `T.AlignAxis(keys="pos", dim=2)` computes the same offset as `T.Shift(keys="pos", method="min", axes=[2])`.
 
 === "Object"
 
@@ -102,15 +87,50 @@ Shifts a single axis so its minimum lands on zero and leaves the other axes wher
 
     ![AlignAxis on a room](../assets/transforms/align_axis_scene.png)
 
+## Normalize an object to a unit size
+
+`Rescale` centers and scales in one step, which is what an object checkpoint expects. The three methods differ in what ends up being 1.
+
+=== "Object"
+
+    ![Rescale method=centroid on an object](../assets/transforms/rescale_centroid.png)
+
+=== "Scene"
+
+    ![Rescale method=centroid on a room](../assets/transforms/rescale_centroid_scene.png)
+
+`method="centroid"` divides by the max distance to the centroid, so the cloud fits the unit sphere. This is the ModelNet convention and the one most classification checkpoints were trained under.
+
+=== "Object"
+
+    ![Rescale method=bbox on an object](../assets/transforms/rescale_bbox.png)
+
+=== "Scene"
+
+    ![Rescale method=bbox on a room](../assets/transforms/rescale_bbox_scene.png)
+
+`method="bbox"` divides by half the longest extent, so the longest axis spans $[-1, 1]$.
+
+=== "Object"
+
+    ![Rescale method=linear on an object](../assets/transforms/rescale_linear.png)
+
+=== "Scene"
+
+    ![Rescale method=linear on a room](../assets/transforms/rescale_linear_scene.png)
+
+`method="linear"` divides by the longest axis extent, so the longest axis has length 1.
+
 ```{.python continuation}
-T.AlignAxis(keys="pos", dim=2)
+T.Rescale(keys="pos", method="centroid")
 ```
 
-Same offset as `T.Shift(keys="pos", method="min", axes=[2])`, kept as a one-axis preset.
+!!! tip "Let the checkpoint decide"
+    A pretrained checkpoint carries its own `Rescale` in `info["transform"]`, already set to the method it was trained with. Reach for these directly only when you are building a pipeline of your own.
 
-## AxisMinOffset
+## Add a height feature
 
-Writes a per-point scalar instead of moving the cloud: each point's offset above the minimum along `axis`, its height over the local floor. A $(N, 3)$ input gives a $(N, 1)$ output, so it pairs with `Cat` to append a height channel to the features. In the figure the positions are untouched and colored by the value written to `height`.
+Indoor detectors and some segmentation models read a height channel alongside the coordinates. `AxisMinOffset` writes one without moving the cloud: each point's offset above the minimum along `axis`, its height over the local floor. A $(N, 3)$ input gives a $(N, 1)$ output, so it pairs with `Cat`.
 
 === "Object"
 
@@ -121,66 +141,32 @@ Writes a per-point scalar instead of moving the cloud: each point's offset above
     ![AxisMinOffset on a room](../assets/transforms/axis_min_offset_scene.png)
 
 ```{.python continuation}
-T.AxisMinOffset(keys="pos", dst_keys="height", axis=2)
+T.Compose([
+    T.AxisMinOffset(keys="pos", dst_keys="height", axis=2, quantile=0.0099),
+    T.Cat(keys=["height"], dst_key="x", dim=1),
+])
 ```
 
-`quantile` replaces the strict minimum with an empirical quantile, an outlier-robust floor estimate: `quantile=0.0099` reproduces VoteNet's height feature.
+`quantile` replaces the strict minimum with an empirical quantile, which is an outlier-robust floor: one stray point below the floor would otherwise shift every height in the scene. `quantile=0.0099` reproduces VoteNet's height feature.
 
-## Rescale
+## Standardize colors
 
-`Rescale` takes a `method`; the blue box and star mark the bbox and centroid it normalizes.
-
-### method="centroid"
-
-Centers on the centroid and divides by the max distance to it: the cloud fits the unit sphere (ModelNet-style).
-
-=== "Object"
-
-    ![Rescale method=centroid on an object](../assets/transforms/rescale_centroid.png)
+`Normalize` applies per-channel $x' = (x - \mu) / \max(\sigma, \epsilon)$, with `mean` and `std` broadcast against the last dimension. The usual target is `color` with dataset statistics.
 
 === "Scene"
 
-    ![Rescale method=centroid on a room](../assets/transforms/rescale_centroid_scene.png)
+    ![Normalize applied to the color key](../assets/transforms/normalize.png)
 
 ```{.python continuation}
-T.Rescale(keys="pos", method="centroid")
+T.Normalize(keys="color", mean=(0.44, 0.41, 0.34), std=(0.22, 0.21, 0.20))
 ```
 
-### method="bbox"
+!!! note "Standardized colors are no longer RGB"
+    The values leave $[0, 1]$, so a normalized `color` cannot be displayed as a color any more; the figure clips it back into range to render it. Normalize last, after any transform that expects a real color range.
 
-Centers on the bbox midpoint and divides by half the longest extent: the longest axis spans $[-1, 1]$.
+## Convert units
 
-=== "Object"
-
-    ![Rescale method=bbox on an object](../assets/transforms/rescale_bbox.png)
-
-=== "Scene"
-
-    ![Rescale method=bbox on a room](../assets/transforms/rescale_bbox_scene.png)
-
-```{.python continuation}
-T.Rescale(keys="pos", method="bbox")
-```
-
-### method="linear"
-
-Centers on the centroid and divides by the longest axis extent: the longest axis spans length 1.
-
-=== "Object"
-
-    ![Rescale method=linear on an object](../assets/transforms/rescale_linear.png)
-
-=== "Scene"
-
-    ![Rescale method=linear on a room](../assets/transforms/rescale_linear_scene.png)
-
-```{.python continuation}
-T.Rescale(keys="pos", method="linear")
-```
-
-## Scale
-
-Multiplies the listed keys by a fixed factor.
+`Scale` multiplies and `Divide` divides by a fixed value, which is what you reach for when a dataset stores millimetres and the model wants metres. Both take one value broadcast to every key, or one value per key.
 
 === "Object"
 
@@ -194,10 +180,6 @@ Multiplies the listed keys by a fixed factor.
 T.Scale(keys="pos", scale=0.5)
 ```
 
-## Divide
-
-Divides the listed keys by a fixed divisor, the counterpart of `Scale`. Both accept a single value broadcast to every key, or one value per key. The wireframe box is the bounding box and the `L` marker its vertical extent, which halves at `divisor=2`; the cloud also moves toward the origin, since dividing scales about the origin and not about the centroid.
-
 === "Object"
 
     ![Divide on an object](../assets/transforms/divide.png)
@@ -210,26 +192,21 @@ Divides the listed keys by a fixed divisor, the counterpart of `Scale`. Both acc
 T.Divide(keys="pos", divisor=2.0)
 ```
 
-`Divide` is a fixed divisor, unlike [`DivideKey`](utilities.md#dividekey), which divides by a tensor held under another key.
+Both scale about the origin, not about the centroid, so the cloud also moves. Center first if that matters. For a divisor that lives in the data rather than the arguments, use [`DivideKey`](utilities.md#rearrange-the-dict).
 
-## Normalize
+`Abs` folds every axis onto its positive side, putting the whole cloud in the positive octant.
 
-Per-channel standardization $x' = (x - \mu) / \max(\sigma, \epsilon)$, with `mean` and `std` broadcast against the last dimension. The usual target is `color` with dataset statistics, which is what the figure shows.
+=== "Object"
+
+    ![Abs on an object](../assets/transforms/abs.png)
 
 === "Scene"
 
-    ![Normalize applied to the color key](../assets/transforms/normalize.png)
+    ![Abs on a room](../assets/transforms/abs_scene.png)
 
-```{.python continuation}
-T.Normalize(keys="color", mean=(0.44, 0.41, 0.34), std=(0.22, 0.21, 0.20))
-```
+## Subtract an offset stored in the data
 
-!!! note
-    Standardized values leave $[0, 1]$, so a normalized `color` is no longer a displayable RGB triplet; the figure clips it back into range to render it.
-
-## SubtractKey
-
-Subtracts the tensor at `sub_keys` from the tensor at `keys` element-wise, so the offset lives in the data instead of the transform's arguments: block pipelines store a per-block center and subtract it here. `axes` restricts the subtraction to a subset of the last-dim components (XY only, keeping Z absolute). The arrow is the `center` vector; the dotted box is where the cloud used to sit.
+Block-based pipelines store a per-block center with the block and expect you to subtract it, so the offset has to come out of the dict rather than out of the transform's arguments. `SubtractKey` does that, and `axes` restricts it to a subset of components (XY only, keeping Z absolute).
 
 === "Object"
 
@@ -243,9 +220,7 @@ Subtracts the tensor at `sub_keys` from the tensor at `keys` element-wise, so th
 T.SubtractKey(keys="pos", sub_keys="center")
 ```
 
-## BBoxCenter
-
-Reads a flat bbox of shape $(2D,)$ laid out as $[\min_0, \ldots, \min_{D-1}, \max_0, \ldots, \max_{D-1}]$ and writes its per-axis midpoint $(\min + \max) / 2$ of shape $(D,)$. The two marked corners are `min` and `max`; the dot on the diagonal is the center they define. The usual pairing is `BBoxCenter` then `SubtractKey`, to recenter a block on the bbox a dataset stored with it.
+When the dataset stored a flat bbox instead of a center, `BBoxCenter` derives one: it reads $(2D,)$ laid out as $[\min_0, \ldots, \min_{D-1}, \max_0, \ldots, \max_{D-1}]$ and writes the per-axis midpoint $(D,)$. The two together recenter a block on the bbox its dataset shipped.
 
 === "Object"
 
@@ -256,28 +231,15 @@ Reads a flat bbox of shape $(2D,)$ laid out as $[\min_0, \ldots, \min_{D-1}, \ma
     ![BBoxCenter on a room](../assets/transforms/bbox_center_scene.png)
 
 ```{.python continuation}
-T.BBoxCenter(keys="block_bbox", dst_keys="block_center")
+T.Compose([
+    T.BBoxCenter(keys="block_bbox", dst_keys="block_center"),
+    T.SubtractKey(keys="pos", sub_keys="block_center"),
+])
 ```
 
-## Abs
+## Rotate or flip by hand
 
-Element-wise absolute value, folding every axis onto its positive side. The wireframe box is the bounding box and the gray dot the origin: after the fold the whole cloud sits in the positive octant.
-
-=== "Object"
-
-    ![Abs on an object](../assets/transforms/abs.png)
-
-=== "Scene"
-
-    ![Abs on a room](../assets/transforms/abs_scene.png)
-
-```{.python continuation}
-T.Abs(keys="pos")
-```
-
-## Rotation axes
-
-Rotation is always around a single coordinate axis (`0`=X, `1`=Y, `2`=Z); Z is the gravity axis in the indoor convention. These images show the same rotation applied around each axis.
+Rotation is always around a single coordinate axis (`0`=X, `1`=Y, `2`=Z), and Z is the gravity axis in the indoor convention. These are the axis conventions the augmentations use, shown once so you can read their arguments.
 
 === "Object"
 
@@ -286,21 +248,6 @@ Rotation is always around a single coordinate axis (`0`=X, `1`=Y, `2`=Z); Z is t
 === "Scene"
 
     ![Rotation around each axis on a room](../assets/transforms/rotate_axes_scene.png)
-
-```{.python continuation}
-import math
-
-import torch
-import torch_pointcloud.transforms.functional as F
-
-pos = torch.randn(2048, 3)
-R = F.rotation_matrix(math.radians(45.0), axis=2)  # 45 degrees around Z
-pos = F.rotate_vectors(pos, R)
-```
-
-For random rotations in a training pipeline, use [`RandomRotate`](augmentation.md#randomrotate).
-
-## Flip axes
 
 Flipping negates one coordinate, mirroring the cloud across the plane orthogonal to that axis.
 
@@ -312,8 +259,18 @@ Flipping negates one coordinate, mirroring the cloud across the plane orthogonal
 
     ![Flip across each axis on a room](../assets/transforms/flip_axes_scene.png)
 
+For a one-off rotation on tensors you already hold, go through the functional layer:
+
 ```{.python continuation}
+import math
+
+import torch
+import torch_pointcloud.transforms.functional as F
+
+pos = torch.randn(2048, 3)
+R = F.rotation_matrix(math.radians(45.0), axis=2)  # 45 degrees around Z
+pos = F.rotate_vectors(pos, R)
 pos = F.flip_vectors(pos, axis=0)  # mirror across X
 ```
 
-For random flips in a training pipeline, use [`RandomFlip`](augmentation.md#randomflip).
+In a training pipeline, reach for [`RandomRotate`](augmentation.md#rotate) and [`RandomFlip`](augmentation.md#flip) instead: they draw the angle for you and carry the boxes and normals along.

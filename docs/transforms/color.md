@@ -1,22 +1,29 @@
 # Color
 
-Color transforms act on the `color` key, shown on the ScanNet room with its true per-point RGB (room only: the object has no colors). Strengths are exaggerated so the effect is visible. Default range is $[0, 1]$; set `int_color=True` for $[0, 255]$ colors.
+An indoor checkpoint reads RGB, and RGB is the least stable thing a scan carries: the same room photographs differently under daylight and a ceiling lamp, and two sensors disagree on white balance. Color augmentations are how you stop the model from keying on that. They act on the `color` key and leave the geometry alone.
 
-| Transform                                                                                                                   | Purpose                                      |
-| --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| [`RandomColorJitter`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomColorJitter)             | Perturb brightness, contrast, and saturation |
-| [`RandomColorShift`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomColorShift)               | Add a random per-channel color offset        |
-| [`RandomColorGrayScale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomColorGrayScale)       | Convert colors to grayscale                  |
-| [`RandomColorDrop`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomColorDrop)                 | Replace colors with a constant fill          |
-| [`RandomColorAutoContrast`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomColorAutoContrast) | Stretch the color range to full contrast     |
+## Which one to reach for
 
-## RandomColorJitter
+| You want the model invariant to     | Reach for                  |
+| ------------------------------------ | -------------------------- |
+| Lighting and camera response         | `RandomColorJitter`        |
+| A global color cast                  | `RandomColorShift`         |
+| Color being available at all         | `RandomColorGrayScale`     |
+| Color being available at all, harder | `RandomColorDrop`          |
+| A washed-out or over-saturated scan  | `RandomColorAutoContrast`  |
 
-Perturbs brightness, contrast, and saturation by random strengths.
+Parameters for each are in the [API reference](../api/transforms/transforms.md); this page is about which to pick.
 
-=== "Scene"
+!!! warning "Check the range first"
+    These default to colors in $[0, 1]$. `S3DIS`, `ScanNet`, `Toronto3D` and `Semantic3D` hand you uint8 in $[0, 255]$, so pass `int_color=True` or divide first, or a `shift_range` of $\pm 0.05$ becomes a change you cannot see. See [Segmentation datasets](../datasets/segmentation.md) for which loader is which.
 
-    ![Perturbs brightness, contrast, saturation](../assets/transforms/color_jitter.png)
+The figures below use the ScanNet room with its true per-point RGB, at exaggerated strengths so the effect is visible. The object samples carry no color, so there is no Object tab on this page.
+
+## Vary lighting and white balance
+
+`RandomColorJitter` perturbs brightness, contrast and saturation by independent random strengths, which is the workhorse and usually the only one you need.
+
+![Perturbs brightness, contrast, saturation](../assets/transforms/color_jitter.png)
 
 ```python
 import torch_pointcloud.transforms as T
@@ -24,50 +31,40 @@ import torch_pointcloud.transforms as T
 T.RandomColorJitter(keys="color", brightness=0.4, contrast=0.4, saturation=0.2)
 ```
 
-## RandomColorShift
+`RandomColorShift` adds one uniform offset per channel, clamped back into range: a global cast rather than a per-point perturbation.
 
-Adds one uniform offset per channel, clamped to the valid range.
-
-=== "Scene"
-
-    ![Adds a random color offset](../assets/transforms/color_shift.png)
+![Adds a random color offset](../assets/transforms/color_shift.png)
 
 ```{.python continuation}
 T.RandomColorShift(keys="color", shift_range=(-0.05, 0.05))
 ```
 
-## RandomColorGrayScale
+## Force the model off color
 
-Converts to BT.601 luminance with probability `p`.
+If the model leans on color it will fail on a scan that has none. `RandomColorGrayScale` converts to BT.601 luminance with probability `p`, keeping the shading; `RandomColorDrop` is the blunter version, replacing every color with a constant fill so the sample carries geometry only.
 
-=== "Scene"
-
-    ![Converts colors to gray](../assets/transforms/color_grayscale.png)
+![Converts colors to gray](../assets/transforms/color_grayscale.png)
 
 ```{.python continuation}
 T.RandomColorGrayScale(keys="color", p=0.2)
 ```
 
-## RandomColorDrop
-
-Replaces all colors with a constant gray fill with probability `p`.
-
-=== "Scene"
-
-    ![Replaces colors with a constant](../assets/transforms/color_drop.png)
+![Replaces colors with a constant](../assets/transforms/color_drop.png)
 
 ```{.python continuation}
 T.RandomColorDrop(keys="color", fill=0.5, p=0.2)
 ```
 
-## RandomColorAutoContrast
+Keep `p` low. These are meant to make color a helpful signal rather than a load-bearing one, and at a high `p` you are simply training a geometry-only model on a fraction of your data.
 
-Stretches the per-cloud color range to full extent, blended with the input by `blend`.
+## Normalize the exposure
 
-=== "Scene"
+`RandomColorAutoContrast` stretches the per-cloud color range to its full extent, blended with the input by `blend`. It pulls a dim or washed-out scan toward the same range as the rest of the set, so it evens out the scans rather than perturbing them.
 
-    ![Stretches the color range](../assets/transforms/color_auto_contrast.png)
+![Stretches the color range](../assets/transforms/color_auto_contrast.png)
 
 ```{.python continuation}
 T.RandomColorAutoContrast(keys="color", blend=0.5, p=0.2)
 ```
+
+Apply the color augmentations before any [`Normalize`](geometric.md#standardize-colors): once colors are standardized they are no longer in a color range, and a brightness multiply on a standardized value does not mean what you want it to.

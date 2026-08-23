@@ -2,9 +2,15 @@
 
 `KNNWindowInferer` covers a large scene with overlapping kNN windows of a fixed point budget instead of fixed metric blocks. Each window holds exactly `roi_num_points` points, so crops adapt to point density.
 
+![Successive kNN crops, each seeded at the point covered least so far, until the room is covered](../assets/animations/knn_window.webp)
+
+The animation walks the strategy step by step: seed at the point covered least so far (the star), take
+its $k$ nearest points as the crop (orange), predict, and reseed. The windows walk themselves across the
+scene.
+
 ## The coverage loop
 
-Every point starts with a coverage score initialised to small random noise. Each iteration:
+Every point starts with a coverage score initialized to small random noise. Each iteration:
 
 1. Pick the `sw_batch_size` least-covered points as window centers.
 2. Crop the `roi_num_points` nearest neighbors of each center and run the predictor on the packed crop.
@@ -19,11 +25,17 @@ The loop ends once every point's coverage exceeds the `overlap` threshold. Becau
 import torch_pointcloud as tp
 from torch_pointcloud.inferers import KNNWindowInferer
 
-model = tp.create_model("randlanet.semantickitti.tsung-han-wu", task="segmentation", pretrained=True).eval()
+model = tp.create_model(
+    "randlanet.semantickitti.tsung-han-wu",
+    task="segmentation",
+    pretrained=True,
+).eval()
 
 # EMA aggregation: outputs calibrated probabilities directly.
 inferer = KNNWindowInferer(roi_num_points=65_536, overlap=0.5, aggregate="ema")
-probs = inferer(scene, predictor=lambda d: model(d.get("x"), d["pos"], d["batch"]))
+probs = inferer(
+    scene, predictor=lambda d: model(d.get("x"), d["pos"], d["batch"])
+)
 ```
 
 ## When to use
