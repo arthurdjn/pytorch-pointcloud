@@ -1160,7 +1160,7 @@ class ScanNet(PointCloudDataset):
         return superpoint
 
     def read_scene(self, path: Path) -> Dict[str, Any]:
-        r"""Read one processed scene directory into a sample dict, relabelled if `relabel` is set.
+        r"""Read one processed scene directory into a sample dict, relabeled if `relabel` is set.
 
         Args:
             path: Processed scene directory holding `pos.npy`, `color.npy`, `normal.npy` and,

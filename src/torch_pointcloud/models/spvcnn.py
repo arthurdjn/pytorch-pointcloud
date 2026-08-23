@@ -86,7 +86,7 @@ def _point_tensor_cls() -> Type["PointTensor"]:
 class PointTensor(_PointTensorBase):
     """A SparseTensor subclass that caches per-stride point↔voxel mappings.
 
-    The voxelisation helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
+    The voxelization helpers (`initial_voxelize`, `point_to_voxel`, `voxel_to_point`)
     expect coordinates in **batch-FIRST** layout `[B, X, Y, Z]` (matching torchsparse's
     `SparseTensor.C`).
     """

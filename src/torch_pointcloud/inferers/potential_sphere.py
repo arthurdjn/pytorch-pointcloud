@@ -1,6 +1,6 @@
 r"""Potential-driven sphere voting for large-scale point cloud segmentation.
 
-The scene is covered by radius-defined spheres centred where the cloud has been seen the least, tracked by a
+The scene is covered by radius-defined spheres centered where the cloud has been seen the least, tracked by a
 coarse grid of potentials; each sphere's softmax predictions are blended into the running per-point scores by
 an exponential moving average until every region has been covered about `num_votes` times.
 """
@@ -27,17 +27,17 @@ def _next_sphere(
     radius: float,
     jitter: float,
 ) -> Tuple[Tensor, Tensor]:
-    """Draw the next centre, raise the potentials it covers and return its point indices and the centre."""
+    """Draw the next center, raise the potentials it covers and return its point indices and the center."""
     radius_sq = radius**2
-    centre = coarse_pos[int(potentials.argmin().item())]
+    center = coarse_pos[int(potentials.argmin().item())]
     if jitter > 0.0:
-        noise = torch.randn(centre.shape, generator=rng, device=centre.device, dtype=centre.dtype) * jitter
-        centre = centre + noise.clamp(-radius / 2.0, radius / 2.0)
+        noise = torch.randn(center.shape, generator=rng, device=center.device, dtype=center.dtype) * jitter
+        center = center + noise.clamp(-radius / 2.0, radius / 2.0)
 
-    coarse_d_sq = (coarse_pos - centre).square().sum(dim=-1)
+    coarse_d_sq = (coarse_pos - center).square().sum(dim=-1)
     covered = coarse_d_sq < radius_sq
     potentials[covered] += (1.0 - coarse_d_sq[covered] / radius_sq).square()
-    return torch.where((pos_b - centre).square().sum(dim=-1) < radius_sq)[0], centre
+    return torch.where((pos_b - center).square().sum(dim=-1) < radius_sq)[0], center
 
 
 @torch.no_grad()
@@ -60,18 +60,18 @@ def potential_sphere_inference(
 ) -> Tensor:
     r"""Potential-driven sphere voting for large-scale point cloud segmentation.
 
-    The scene is covered by spheres of radius $r$ whose centres are chosen where the cloud has been seen the
-    least: a coarse grid of *potentials* (one scalar per `potential_size` cell, initialised with a small random
-    value) tracks coverage, each sphere is centred on the cell with the lowest potential (plus a Gaussian
+    The scene is covered by spheres of radius $r$ whose centers are chosen where the cloud has been seen the
+    least: a coarse grid of *potentials* (one scalar per `potential_size` cell, initialized with a small random
+    value) tracks coverage, each sphere is centered on the cell with the lowest potential (plus a Gaussian
     jitter) and raises the potentials of the cells it covers by the Tukey window $(1 - d^2 / r^2)^2$. The
     predictor runs on every sphere and its softmax probabilities are blended into the running per-point
     scores by an exponential moving average, restricted to the points within `inner_ratio` $\cdot r$ of the
-    centre where the sphere's context is complete. The loop stops once every cell's potential reaches
+    center where the sphere's context is complete. The loop stops once every cell's potential reaches
     `num_votes`, so each region has been predicted about that many times.
 
     This is the test protocol of :arxiv: [KPConv](https://arxiv.org/abs/1904.08889) (radius-defined input
     spheres, `test_smooth` EMA, potential sampling), and it composes with any model that consumes a packed
-    sphere: the per-sphere `transform` sees the centred sphere dict and can add the reference's stochastic
+    sphere: the per-sphere `transform` sees the centered sphere dict and can add the reference's stochastic
     test-time augmentation and the model's feature stack. Points that no sphere reaches keep all-zero
     scores.
 
@@ -83,20 +83,20 @@ def potential_sphere_inference(
         num_votes: Potential threshold ending the loop, i.e. the number of times every region is covered
             (KPConv reports its numbers at the first multiple of $10$).
         potential_size: Cell size of the coarse potential grid. Defaults to `radius / 10`.
-        jitter: Standard deviation of the Gaussian jitter added to each sphere centre, clipped at
+        jitter: Standard deviation of the Gaussian jitter added to each sphere center, clipped at
             `radius / 2`. Defaults to `radius / 10`; `0` disables it.
         inner_ratio: Fraction of `radius` inside which the sphere's predictions are kept.
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ of the score update
             $\text{new} = \alpha \cdot \text{old} + (1 - \alpha) \cdot \text{softmax}(\text{logits})$.
-        sw_batch_size: Number of spheres packed into one predictor call. Centres are still drawn one at a
+        sw_batch_size: Number of spheres packed into one predictor call. Centers are still drawn one at a
             time with the potentials updated in between, as the reference sampler does.
-        transform: Optional per-sphere callable applied to the centred sphere dict before the predictor.
-            The transform must preserve the sphere's row count and keep positions centred on the sphere (the
+        transform: Optional per-sphere callable applied to the centered sphere dict before the predictor.
+            The transform must preserve the sphere's row count and keep positions centered on the sphere (the
             `inner_ratio` mask is evaluated on the transformed positions, as the reference does).
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
         progress: If `True`, show a `tqdm` progress bar per batch element.
-        seed: Optional RNG seed for the initial potentials and the centre jitter.
+        seed: Optional RNG seed for the initial potentials and the center jitter.
 
     Returns:
         Per-point score tensor of shape $(N, C)$: the EMA of softmax probabilities over the spheres covering
@@ -155,12 +155,12 @@ def potential_sphere_inference(
                     if float(potentials.min().item()) >= num_votes:
                         break
 
-                    idx, centre = _next_sphere(pos_b, coarse_pos, potentials, rng, radius, jitter)
+                    idx, center = _next_sphere(pos_b, coarse_pos, potentials, rng, radius, jitter)
                     if idx.numel() < 2:
                         continue
 
                     sphere = index_select_dict(data_b, idx, n_b)
-                    sphere[pos_key] = sphere[pos_key] - centre
+                    sphere[pos_key] = sphere[pos_key] - center
                     if transform is not None:
                         sphere = transform(sphere)
                         if int(sphere[pos_key].size(0)) != int(idx.numel()):
@@ -220,7 +220,7 @@ def potential_sphere_inference(
 class PotentialSphereInferer(Inferer):
     r"""Potential-driven sphere voting inferer for large-scale point cloud segmentation.
 
-    Covers the scene with radius-defined spheres centred where a coarse potential grid is lowest and blends
+    Covers the scene with radius-defined spheres centered where a coarse potential grid is lowest and blends
     each sphere's softmax predictions into the running per-point scores by an exponential moving average,
     until every region has been covered about `num_votes` times.
 

@@ -210,7 +210,7 @@ def estimate_normals(
     r"""Estimate per-point unit surface normals by local PCA.
 
     For each point the normal is the eigenvector of the smallest eigenvalue of the covariance of its $k$
-    nearest neighbours, i.e. the direction of least variance (the local tangent-plane normal).
+    nearest neighbors, i.e. the direction of least variance (the local tangent-plane normal).
 
     PCA gives no canonical orientation. By default the sign is the arbitrary-but-deterministic sign returned by
     `torch.linalg.eigh`. With `orient_to_centroid`, each normal is flipped to point towards its cloud's
@@ -219,9 +219,9 @@ def estimate_normals(
 
     Args:
         pos: Point coordinates of shape $(N, 3)$.
-        k: Number of nearest neighbours (the point itself included) used per local PCA. Must not exceed the
+        k: Number of nearest neighbors (the point itself included) used per local PCA. Must not exceed the
             number of points in the smallest cloud.
-        batch: Optional $(N,)$ batch index so neighbours never cross cloud boundaries.
+        batch: Optional $(N,)$ batch index so neighbors never cross cloud boundaries.
         orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid.
 
     Returns:

@@ -735,9 +735,9 @@ def _shift_superpoints(
 ) -> Tuple[Tensor, List[int]]:
     """Relabel per-scene superpoint ids into globally consecutive ids.
 
-    Each scene's superpoints are relabelled to a gap-free range (so backbone
+    Each scene's superpoints are relabeled to a gap-free range (so backbone
     features `scatter_mean` into a dense per-superpoint tensor) and offset so the
-    per-scene ranges are disjoint. Returns the relabelled per-point ids and a
+    per-scene ranges are disjoint. Returns the relabeled per-point ids and a
     `batch_offsets` list of length $B + 1$ giving the cumulative superpoint count
     per scene.
     """

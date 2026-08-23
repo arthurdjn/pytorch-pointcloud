@@ -277,7 +277,7 @@ class PatchMerging3D(nn.Module):
     A submanifold conv (LayerNorm + GELU) refines features, then voxels are merged onto a coarser grid
     by summing features that fall into the same down-scaled cell. When `diffusion` is set, the top
     `diff_scale` fraction of voxels (ranked by mean activation) are densified by spawning zero-feature
-    neighbours before merging, the 3D voxel-generation that lets the linear RNN reach empty space.
+    neighbors before merging, the 3D voxel-generation that lets the linear RNN reach empty space.
 
     Args:
         dim: Input feature channels.
@@ -1023,7 +1023,7 @@ class TransFusionHead(nn.Module):
             index=top_proposals_index[:, None, :].permute(0, 2, 1).expand(-1, -1, bev_pos.shape[-1]), dim=1
         )
 
-        # The flat BEV index is x-major (x * y_grid + y), so the decomposition and the neighbour-key
+        # The flat BEV index is x-major (x * y_grid + y), so the decomposition and the neighbor-key
         # reconstruction must both use y_grid; x_grid only bounds the total cell count.
         top_proposals_x = top_proposals_index // y_grid
         top_proposals_y = top_proposals_index % y_grid

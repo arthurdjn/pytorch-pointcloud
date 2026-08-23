@@ -1290,7 +1290,7 @@ class PointTransformerV3Classification(ClassificationModel):
         Args:
             x: Additional point features of shape $(N, C)$.
             pos_grid: Integer grid coordinates of shape $(N, 3)$. The encoder uses
-                these to derive the Z-order / Hilbert serialisation index, so they
+                these to derive the Z-order / Hilbert serialization index, so they
                 must be voxel indices, not float positions.
             batch: Batch indices for each point of shape $(N,)$.
             condition: Optional per-batch condition selecting the PDNorm inner norms.

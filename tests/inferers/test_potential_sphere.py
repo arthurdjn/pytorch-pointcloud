@@ -15,7 +15,7 @@ def _room(n: int = 2000, *, seed: int = 0, extent: float = 4.0) -> Dict[str, Any
 
 
 def _left_right_predictor(window: Dict[str, Any]) -> Tensor:
-    """Class 1 for points right of the sphere centre (x > 0), class 0 otherwise, with high confidence."""
+    """Class 1 for points right of the sphere center (x > 0), class 0 otherwise, with high confidence."""
     pos = window[DataKeys.POS]
     logits = torch.zeros(pos.size(0), 2)
     logits[:, 1] = 6.0 * (pos[:, 0] > 0).float() - 3.0
@@ -46,8 +46,8 @@ def test_potential_sphere_more_votes_means_more_spheres() -> None:
     assert len(calls) > few
 
 
-def test_potential_sphere_transform_sees_centred_spheres_and_batches_them() -> None:
-    """Each sphere is centred on its own centre before `transform`, all its points lie within `radius`, and
+def test_potential_sphere_transform_sees_centered_spheres_and_batches_them() -> None:
+    """Each sphere is centered on its own center before `transform`, all its points lie within `radius`, and
     `sw_batch_size` spheres are packed into one predictor call with a fresh batch index."""
     data = _room()
     seen: List[Dict[str, Any]] = []
@@ -70,7 +70,7 @@ def test_potential_sphere_transform_sees_centred_spheres_and_batches_them() -> N
 
 
 def test_potential_sphere_inner_ratio_limits_the_update() -> None:
-    """A point only receives predictions from spheres whose centre is within `inner_ratio * radius`, so with a
+    """A point only receives predictions from spheres whose center is within `inner_ratio * radius`, so with a
     tiny inner ratio some points never get an update and stay at zero (default ratio covers everything)."""
     data = _room(n=400)
     predictor = _left_right_predictor

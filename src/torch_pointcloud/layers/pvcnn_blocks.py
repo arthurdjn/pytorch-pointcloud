@@ -16,7 +16,7 @@ from torch_pointcloud.utils.voxelization import dense_voxelize, trilinear_dense_
 class Voxelization(nn.Module):
     r"""Averages packed point features into a dense voxel grid.
 
-    Positions are centred per cloud and, when `normalize` is set, rescaled by the cloud's largest radius so
+    Positions are centered per cloud and, when `normalize` is set, rescaled by the cloud's largest radius so
     every cloud fills the grid. The continuous grid coordinates are returned alongside the voxels, for
     trilinear devoxelization.
 

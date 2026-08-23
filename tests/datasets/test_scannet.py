@@ -416,7 +416,7 @@ def test_scannet200_classes_from_fixture(datasets_dir_factory: Callable[..., Pat
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_scannet200_legacy_cache_relabels_raw_ids(datasets_dir_factory: Callable[..., Path]) -> None:
-    """A cache without a marker holds raw TSV ids and is relabelled with the raw-id table"""
+    """A cache without a marker holds raw TSV ids and is relabeled with the raw-id table"""
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     split_file = datasets_dir / "ScanNet" / "raw" / "metadata" / "scannetv2_train.txt"
@@ -437,7 +437,7 @@ def test_scannet200_legacy_cache_relabels_raw_ids(datasets_dir_factory: Callable
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_scannet20_load_matches_relabelled_base_segments(datasets_dir_factory: Callable[..., Path]) -> None:
-    """The shared `load` + remap table reproduces the 20-class relabelling of the base segments"""
+    """The shared `load` + remap table reproduces the 20-class relabeling of the base segments"""
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
 
     base = ScanNet(root=datasets_dir, split="train", show_progress=False)
@@ -506,7 +506,7 @@ def test_scannet_dataset_superpoint_requires_raw_scans(datasets_dir_factory: Cal
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_scannet20_dataset_return_superpoint(datasets_dir_factory: Callable[..., Path]) -> None:
-    """`ScanNet20` forwards `return_superpoint` and keeps the ids alongside the relabelled segments."""
+    """`ScanNet20` forwards `return_superpoint` and keeps the ids alongside the relabeled segments."""
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
     dataset = ScanNet20(root=datasets_dir, split="val", return_superpoint=True, show_progress=False)
     sample = dataset[0]
