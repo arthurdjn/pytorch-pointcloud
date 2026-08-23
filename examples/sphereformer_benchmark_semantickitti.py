@@ -80,7 +80,7 @@ def evaluate(
     pbar = tqdm(dataloader, total=total, desc="Testing")
     for data in pbar:
         data = {k: v.to(device) if torch.is_tensor(v) else v for k, v in data.items()}
-        # The dataset transform voxelised `pos`/`pos_grid`/`x` and stored the source-to-voxel
+        # The dataset transform voxelized `pos`/`pos_grid`/`x` and stored the source-to-voxel
         # inverse map; `segment` is kept at full resolution for back-projected scoring.
         target_full = data[DataKeys.SEGMENT]
         inverse_full = data[DataKeys.INVERSE]

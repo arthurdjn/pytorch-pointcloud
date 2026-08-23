@@ -165,7 +165,7 @@ class SonataSegmentation(SegmentationModel):
         Args:
             x: Per-point features of shape $(N, C)$.
             pos_grid: Integer voxel-grid coordinates of shape $(N, 3)$ (used by the
-                encoder for Z-order / Hilbert serialisation, not float positions).
+                encoder for Z-order / Hilbert serialization, not float positions).
             batch: Per-point batch index of shape $(N,)$.
         """
         x, _, _, intermediates = self.forward_features(x, pos_grid, batch, return_intermediates=True)
@@ -177,7 +177,9 @@ class SonataSegmentation(SegmentationModel):
     "sonata-base.pretrain.fair",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/sonata/sonata-base.pretrain.fair.safetensors", author="fair", license="CC-BY-NC-4.0"
+        url="hf://torch-pointcloud/sonata/sonata-base.pretrain.fair.safetensors",
+        author="fair",
+        license="CC-BY-NC-4.0",
     ),
     transform=T.Compose(
         [

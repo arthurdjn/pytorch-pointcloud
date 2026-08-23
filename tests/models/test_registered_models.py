@@ -260,7 +260,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
     if model_name.startswith("randlanet."):
         # /4..16x decimation drops below K=16 on the synthetic 512+768 cloud; real clouds
-        # are ~10^5+ points so this is purely a test-data artefact.
+        # are ~10^5+ points so this is purely a test-data artifact.
         pytest.skip("Synthetic test cloud is too small for /4 decimation with K=16.")
 
 

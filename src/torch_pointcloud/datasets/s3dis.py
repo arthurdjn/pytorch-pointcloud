@@ -673,7 +673,7 @@ class S3DISHdf5(PointCloudDataset):
     | ---------- | -------------- | ------- | ----------------------------------------------- |
     | `pos`      | $(4096, 3)$    | float32 | XYZ coordinates                                 |
     | `color`    | $(4096, 3)$    | float32 | RGB values                                      |
-    | `norm_pos` | $(4096, 3)$    | float32 | Room-normalised XYZ coordinates (range $[0,1]$) |
+    | `norm_pos` | $(4096, 3)$    | float32 | Room-normalized XYZ coordinates (range $[0,1]$) |
     | `segment`  | $(4096,)$      | int64   | Per-point semantic label (13 classes)           |
 
     Labels are emitted in `S3DIS_CLASSES` order (the archive itself stores them in `S3DIS_HDF5_CLASSES` order,
