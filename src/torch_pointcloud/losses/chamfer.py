@@ -11,7 +11,7 @@ def chamfer_distance(pred: Tensor, target: Tensor, norm: Literal["l1", "l2"] = "
     Set-to-set reconstruction objective introduced for point cloud generation in
     :arxiv: [Fan et al., 2017](https://arxiv.org/abs/1612.00603) and standard for masked point
     modeling pretraining (the SSL pretraining models return `(pred, target)` group coordinates in
-    exactly this layout). For each point the squared euclidean distance to its nearest neighbour in
+    exactly this layout). For each point the squared euclidean distance to its nearest neighbor in
     the other set is computed, then reduced over all points and batches:
 
     $$\text{CD}_{\ell_2} = \frac{1}{BN} \sum \min_j \lVert p_i - q_j \rVert_2^2

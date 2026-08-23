@@ -143,7 +143,7 @@ def test_sa_module_num_points_and_precomputed_idx() -> None:
     assert new_x.shape == (64, 16)
     assert new_pos.shape == (64, 3)
     assert new_batch.shape == (64,)
-    # A precomputed sampling index is honoured verbatim.
+    # A precomputed sampling index is honored verbatim.
     idx = torch.arange(64)
     with torch.no_grad():
         nx, npos, _ = sa(x, pos, batch, idx)

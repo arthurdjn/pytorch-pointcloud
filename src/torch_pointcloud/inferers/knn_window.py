@@ -1,11 +1,11 @@
 r"""KNN-window inference for large-scale point cloud segmentation.
 
 Implements a coverage-driven iterative loop: each step selects the least-covered
-point as a window centre, crops its $k$ nearest neighbours, runs the predictor on
-that crop, and accumulates per-point predictions weighted by distance to the centre.
+point as a window center, crops its $k$ nearest neighbors, runs the predictor on
+that crop, and accumulates per-point predictions weighted by distance to the center.
 The loop ends once every point's coverage score exceeds a threshold.
 
-Windows adapt to point density and naturally prioritise under-covered regions.
+Windows adapt to point density and naturally prioritize under-covered regions.
 Because windows overlap, each point is typically predicted several times; overlapping
 predictions are combined by a weighted mean or an exponential moving average (EMA).
 """
@@ -26,8 +26,8 @@ WindowMode = Literal["constant", "gaussian"]
 AggregateMode = Literal["weighted_mean", "ema"]
 
 
-def _knn_centres(pos_src: Tensor, centres: Tensor, k: int) -> Tensor:
-    r"""Per-centre $k$-nearest indices into `pos_src`.
+def _knn_centers(pos_src: Tensor, centers: Tensor, k: int) -> Tensor:
+    r"""Per-center $k$-nearest indices into `pos_src`.
 
     Uses `cdist + topk` directly instead of `torch_pointcloud.utils.cluster.knn`
     because the latter falls back to `torch_cluster.knn` for large source clouds,
@@ -37,7 +37,7 @@ def _knn_centres(pos_src: Tensor, centres: Tensor, k: int) -> Tensor:
     Returns:
         Indices tensor of shape $(M, k)$.
     """
-    dist = torch.cdist(centres, pos_src)
+    dist = torch.cdist(centers, pos_src)
     _, idx = dist.topk(k, dim=-1, largest=False)
     return idx
 
@@ -45,7 +45,7 @@ def _knn_centres(pos_src: Tensor, centres: Tensor, k: int) -> Tensor:
 def _gaussian_window_weights(distances: Tensor, sigma_scale: float, eps: float = 1e-12) -> Tensor:
     r"""Per-window gaussian weights with radius $\sigma = \text{sigma\_scale} \cdot \max_i d_i$.
 
-    Vectorised over a batched edge tensor of shape $(M, K)$ so that each row uses its
+    Vectorized over a batched edge tensor of shape $(M, K)$ so that each row uses its
     own per-window radius. The falloff itself is delegated to `gaussian_weights`.
     """
     sigma = distances.amax(dim=-1, keepdim=True) * float(sigma_scale)
@@ -73,10 +73,10 @@ def knn_window_inference(
 ) -> Tensor:
     r"""Iterative KNN-window inference for large-scale point cloud segmentation.
 
-    Maintains a per-point coverage score initialised to small random noise. Each
-    iteration selects the `sw_batch_size` least-covered points as window centres,
-    crops their $k$ nearest neighbours, runs `predictor` on the packed crop, and
-    accumulates per-point predictions weighted by distance to the centre. The loop
+    Maintains a per-point coverage score initialized to small random noise. Each
+    iteration selects the `sw_batch_size` least-covered points as window centers,
+    crops their $k$ nearest neighbors, runs `predictor` on the packed crop, and
+    accumulates per-point predictions weighted by distance to the center. The loop
     ends once every point's coverage score exceeds `overlap`.
 
     `aggregate` controls how overlapping window predictions are combined:
@@ -195,9 +195,9 @@ def knn_window_inference(
                     break
 
                 sw = min(sw_batch_size, n_b)
-                _, centre_local = torch.topk(possibility, sw, largest=False, sorted=False)
-                centre_pos = pos_b[centre_local]
-                local_idxs = _knn_centres(pos_b, centre_pos, k)
+                _, center_local = torch.topk(possibility, sw, largest=False, sorted=False)
+                center_pos = pos_b[center_local]
+                local_idxs = _knn_centers(pos_b, center_pos, k)
                 flat_idxs = local_idxs.reshape(-1)
                 per_window_dicts: List[Dict[str, Any]] = []
                 for w_i in range(sw):
@@ -233,7 +233,7 @@ def knn_window_inference(
                     if aggregate == "weighted_mean":
                         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
 
-                distances = torch.linalg.norm(pos_b[local_idxs] - centre_pos.unsqueeze(1), dim=-1)
+                distances = torch.linalg.norm(pos_b[local_idxs] - center_pos.unsqueeze(1), dim=-1)
                 if mode == "gaussian":
                     # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
                     # windowed point at a nonzero blend weight so its predictions survive the division.

@@ -725,7 +725,7 @@ def test_estimate_normals_respects_batch() -> None:
     grid = torch.linspace(-1.0, 1.0, 20)
     xx, yy = torch.meshgrid(grid, grid, indexing="ij")
     plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
-    # Second cloud is the same plane translated far along x; neighbours must not cross.
+    # Second cloud is the same plane translated far along x; neighbors must not cross.
     pos = torch.cat([plane, plane + torch.tensor([100.0, 0.0, 0.0])])
     batch = torch.cat([torch.zeros(400, dtype=torch.long), torch.ones(400, dtype=torch.long)])
 

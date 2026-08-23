@@ -8,7 +8,7 @@ by Hackel, Savinov, Ladicky, Wegner, Schindler and Pollefeys (2017).
 Each scene is distributed as a pair of plain-text files:
 
 - `<scene>.txt` - one row per point with `x y z intensity r g b` (white-space
-  separated, ASCII, no header). XYZ are float64 metres; intensity is float; RGB
+  separated, ASCII, no header). XYZ are float64 meters; intensity is float; RGB
   are `uint8` 0-255.
 - `<scene>.labels` - one row per point with the integer class id ($0$ = unlabelled,
   $1$-$8$ = the eight benchmark classes). `.labels` is only present for the

@@ -11,7 +11,7 @@ _EPS = 1e-6
 
 
 def _nn_distance(src: Tensor, dst: Tensor, *, l1: bool = False) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    r"""Bidirectional nearest-neighbour distances between two batched point sets.
+    r"""Bidirectional nearest-neighbor distances between two batched point sets.
 
     Args:
         src: Source points, shape $(B, N, 3)$.

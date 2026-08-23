@@ -393,7 +393,7 @@ class SphereFormerUBlock(nn.Module):
         indice_key_id: spconv indice-key id for this level.
         sphere_layers: Levels (`indice_key_id`) that get a `SphereFormerBlock`.
         norm: Normalization layer name / callable.
-        norm_kwargs: Extra keyword arguments for the normalisation layer.
+        norm_kwargs: Extra keyword arguments for the normalization layer.
         act: Activation name / callable.
         act_kwargs: Extra keyword arguments for the activation.
     """
@@ -577,7 +577,7 @@ class SphereFormerSegmentation(SegmentationModel):
         drop_path: Maximum stochastic-depth rate (linearly spread across levels).
         min_spatial_shape: Per-axis lower bound on the inferred sparse spatial shape.
         norm: Normalization layer name / callable.
-        norm_kwargs: Extra keyword arguments for the normalisation layer.
+        norm_kwargs: Extra keyword arguments for the normalization layer.
         act: Activation name / callable.
         act_kwargs: Extra keyword arguments for the activation.
 

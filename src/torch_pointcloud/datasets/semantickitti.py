@@ -222,7 +222,7 @@ class SemanticKITTI(PointCloudDataset):
         Scans are loaded from disk on demand (lazy loading), so the dataset can be used
         with very large splits without exhausting host memory. As a consequence, the
         dataset has *no* `process` step: it just enumerates `.bin` files at construction
-        time. Augmentation, voxelisation, feature normalisation, and label remapping
+        time. Augmentation, voxelization, feature normalization, and label remapping
         are intentionally left out so they can be composed with
         `torch_pointcloud.transforms` and shared across models.
 
@@ -239,7 +239,7 @@ class SemanticKITTI(PointCloudDataset):
             sequences used by the official benchmark. Ignored when `sequences` is set.
         sequences: Optional explicit list of sequences to use. Overrides `split`.
         transform: Callable applied to each sample dict at `__getitem__` time. Used
-            for augmentation, voxelisation, label remapping, feature construction, etc.
+            for augmentation, voxelization, label remapping, feature construction, etc.
 
     Example:
         Assuming you have downloaded the raw dataset and extracted it under
