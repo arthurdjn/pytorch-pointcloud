@@ -88,7 +88,7 @@ The `inverse` tensor is used to map the predictions back to the original points.
 
 Voxelization is part of the checkpoint, so raw logits are per voxel. Pipelines that record the mapping expose it under `inverse`, and `logits[inverse]` scatters predictions back to every original point.
 
-```python
+```{.python notest}
 import torch
 import torch_pointcloud.transforms as T
 

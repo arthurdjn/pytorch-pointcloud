@@ -113,7 +113,7 @@ print(f"overall accuracy: {correct / total:.4f}")  # 0.9230
 
 Build an untrained model by name and pass the data-dependent arguments. `in_channels` counts the columns of `x` (0 when the model reads coordinates only).
 
-```python
+```{.python notest}
 import torch
 import torch_pointcloud as tp
 
