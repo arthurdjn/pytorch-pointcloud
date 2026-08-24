@@ -74,11 +74,19 @@ function initInstallSelector() {
       lines.push("", "# builds from source; needs: sudo apt-get install libsparsehash-dev");
       lines.push(pipish + " --no-deps --no-build-isolation \\");
       lines.push('  "torchsparse @ git+https://github.com/mit-han-lab/torchsparse.git@385f5ce8718fcae93540511b7f5832f4e71fd835"');
+      lines.push("# --no-deps keeps its torch pin out, so install what it imports at runtime.");
+      lines.push("# rootpath needs nothing but the stdlib, yet declares tox and coverage as deps.");
+      lines.push(pipish + " --no-deps rootpath");
+      lines.push(pipish + ' "backports.cached-property" wheel');
     }
     if (state.extras.sptr && tag !== "cpu") {
-      lines.push("", "# builds from source (SphereFormer attention kernels)");
-      lines.push(pipish + " --no-build-isolation \\");
-      lines.push('  "sptr @ git+https://github.com/JIA-Lab-research/SparseTransformer"');
+      var py = state.pm === "uv" ? "uv run --no-sync python" : "python";
+      lines.push("", "# builds from source (SphereFormer attention kernels). Its setup.py declares only the");
+      lines.push("# CUDA extension, so the python package beside it has to be copied in by hand.");
+      lines.push("git clone --depth 1 https://github.com/JIA-Lab-research/SparseTransformer /tmp/sptr");
+      lines.push(pipish + " --no-build-isolation /tmp/sptr");
+      lines.push(pipish + " timm  # imported by sptr.modules");
+      lines.push("cp -r /tmp/sptr/sptr \"$(" + py + " -c 'import sysconfig; print(sysconfig.get_paths()[\"purelib\"])')/\"");
     }
     if (state.extras.lightning) {
       lines.push("", "# Lightning training modules");

@@ -1,6 +1,6 @@
 # Models
 
-:pytorch-pointcloud-mini: `torch-pointcloud` ships 36 architectures across point cloud classification, semantic and instance segmentation, object detection, self-supervised pretraining, and generative modeling. Every model is registered with a :pytorch: timm-style factory:
+:pytorch-pointcloud-mini: `torch-pointcloud` ships 36 architectures across point cloud classification, semantic and instance segmentation, object detection, self-supervised pretraining, and generative modeling. Every model is registered with a :pytorch: timm-style factory, and make it switch between tasks or backbones and reset the head for downstream tasks (e.g. features extraction).
 
 ```{.python notest}
 import torch_pointcloud as tp

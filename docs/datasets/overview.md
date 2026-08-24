@@ -2,7 +2,23 @@
 
 :pytorch-pointcloud-mini: `torch-pointcloud` provides several datasets for benchmarking and training. Each dataset returns a single `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
 
-For example:
+Each dataset contains a `download` parameter (when possible) to automatically download the dataset. Datasets are organized in a `raw` (containing the raw data) and a `processed` (containing preprocessed data by :pytorch-pointcloud-mini: `torch-pointcloud`) directory as follows:
+
+```text
+data
+├── ModelNet40
+│   ├── raw
+│   │   ├── airplane
+│   │   ├── bathtub
+│   │   ├── ...
+│   │   └── xbox
+│   └── processed
+│       ├── train.pt
+│       └── test.pt
+└── ...
+```
+
+To use them:
 
 ```{.python notest}
 from torch.utils.data import DataLoader
