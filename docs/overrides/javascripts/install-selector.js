@@ -80,13 +80,10 @@ function initInstallSelector() {
       lines.push(pipish + ' "backports.cached-property" wheel');
     }
     if (state.extras.sptr && tag !== "cpu") {
-      var py = state.pm === "uv" ? "uv run --no-sync python" : "python";
-      lines.push("", "# builds from source (SphereFormer attention kernels). Its setup.py declares only the");
-      lines.push("# CUDA extension, so the python package beside it has to be copied in by hand.");
-      lines.push("git clone --depth 1 https://github.com/JIA-Lab-research/SparseTransformer /tmp/sptr");
-      lines.push(pipish + " --no-build-isolation /tmp/sptr");
-      lines.push(pipish + " timm  # imported by sptr.modules");
-      lines.push("cp -r /tmp/sptr/sptr \"$(" + py + " -c 'import sysconfig; print(sysconfig.get_paths()[\"purelib\"])')/\"");
+      lines.push("", "# builds from source (SphereFormer attention kernels).");
+      lines.push("# Tracking from PR#10 https://github.com/JIA-Lab-research/SparseTransformer/pull/10.");
+      lines.push(pipish + " --no-build-isolation \\");
+      lines.push('  "sptr @ git+https://github.com/arthurdjn/SparseTransformer.git@fix/install-python-package"');
     }
     if (state.extras.lightning) {
       lines.push("", "# Lightning training modules");
