@@ -1,6 +1,6 @@
 # Models
 
-:pytorch-pointcloud-mini: `torch-pointcloud` ships 36 architectures across point cloud classification, semantic and instance segmentation, object detection, self-supervised pretraining, and generative modeling. Every model is registered with a timm-style factory:
+:pytorch-pointcloud-mini: `torch-pointcloud` ships 36 architectures across point cloud classification, semantic and instance segmentation, object detection, self-supervised pretraining, and generative modeling. Every model is registered with a :pytorch: timm-style factory, and make it switch between tasks or backbones and reset the head for downstream tasks (e.g. features extraction).
 
 ```{.python notest}
 import torch_pointcloud as tp
@@ -21,9 +21,33 @@ models = tp.list_models(task="classification")
 # or task="segmentation", "detection", ...
 ```
 
-## Choose by task
+![Five pretrained checkpoints on two committed sample clouds: object classification, part segmentation, scene segmentation, 3D detection, and LiDAR segmentation](../assets/tasks/hero.png)
 
-The Benchmark column reads `ours / reference`: the score measured with this package's benchmark scripts for the best registered checkpoint, against the number reported by the paper or the original implementation.
+## Tasks
+
+<div class="grid cards" markdown>
+
+-   :material-shape-outline: __[Classification](classification.md)__
+
+    One label per cloud: run, evaluate and fine-tune a classifier.
+
+-   :material-floor-plan: __[Semantic segmentation](segmentation.md)__
+
+    One label per point: voxelization, full-resolution predictions, mIoU.
+
+-   :material-puzzle-outline: __[Part segmentation](part-segmentation.md)__
+
+    Category-conditioned part labels and the ShapeNetPart protocol.
+
+-   :material-cube-scan: __[Object detection](detection.md)__
+
+    Oriented boxes: decode, filter with NMS, score with mAP.
+
+-   :material-palette-swatch: __[Feature maps](features.md)__
+
+    The representation under the head: embeddings, retrieval, PCA.
+
+</div>
 
 ### Classification
 
@@ -47,7 +71,7 @@ Best for **shape classification** (ModelNet40, ScanObjectNN, ShapeNet objects). 
 
 ### Segmentation
 
-Best for **dense per-point labelling** (S3DIS, ScanNet, SemanticKITTI). Inputs are large scenes, outputs are per-point class predictions.
+Best for **dense per-point labeling** (S3DIS, ScanNet, SemanticKITTI). Inputs are large scenes, outputs are per-point class predictions.
 
 | Model                                                             | Paper                                                                                                                      | Benchmark                            |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |

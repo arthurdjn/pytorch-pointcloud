@@ -1,6 +1,24 @@
 # Datasets
 
-:pytorch-pointcloud-mini: `torch-pointcloud` ships loaders for the standard point-cloud benchmarks. Each loader returns a single-scene `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
+:pytorch-pointcloud-mini: `torch-pointcloud` provides several datasets for benchmarking and training. Each dataset returns a single `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
+
+Each dataset contains a `download` parameter (when possible) to automatically download the dataset. Datasets are organized in a `raw` (containing the raw data) and a `processed` (containing preprocessed data by :pytorch-pointcloud-mini: `torch-pointcloud`) directory as follows:
+
+```text
+data
+├── ModelNet40
+│   ├── raw
+│   │   ├── airplane
+│   │   ├── bathtub
+│   │   ├── ...
+│   │   └── xbox
+│   └── processed
+│       ├── train.pt
+│       └── test.pt
+└── ...
+```
+
+To use them:
 
 ```{.python notest}
 from torch.utils.data import DataLoader
@@ -8,10 +26,40 @@ from torch_pointcloud.datasets import ModelNet40
 from torch_pointcloud.utils.data import collate
 
 dataset = ModelNet40(root="data", train=True, download=True)
-loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
+dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 ```
 
-## Cheat sheet
+`PointCloudDataLoader` is the same `DataLoader` with the `collate` helper already applied.
+
+```{.python notest}
+from torch_pointcloud.utils.data import PointCloudDataLoader
+from torch_pointcloud.datasets import ModelNet40
+
+dataset = ModelNet40(root="data", train=True, download=True)
+dataloader = PointCloudDataLoader(dataset, batch_size=32)
+```
+
+## Tasks
+
+<div class="grid cards" markdown>
+
+-   :material-shape-outline: __[Classification](classification.md)__
+
+    ModelNet and ScanObjectNN: meshes, presampled clouds, difficulty variants.
+
+-   :material-floor-plan: __[Segmentation](segmentation.md)__
+
+    Indoor rooms and outdoor LiDAR, their splits, and the label conventions.
+
+-   :material-puzzle-outline: __[Part segmentation](part-segmentation.md)__
+
+    ShapeNetPart: 16 categories, 50 global part ids.
+
+-   :material-cube-scan: __[Detection](detection.md)__
+
+    SUN RGB-D, KITTI, nuScenes, and batching ragged boxes.
+
+</div>
 
 ### Object classification
 
@@ -44,7 +92,7 @@ loader = DataLoader(dataset, batch_size=32, collate_fn=collate)
 | ------------------------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **[PointCloudDataset](../api/datasets/pointcloud.md)** | (any) | Abstract base class all loaders build on: `raw/` + `processed/` disk layout, `download` / `process` hooks. Subclass it for custom data. |
 
-## Dict keys
+## About dict keys
 
 All datasets emit dicts using the standard key conventions from `DataKeys` in `torch_pointcloud.utils.data`:
 
@@ -58,18 +106,10 @@ All datasets emit dicts using the standard key conventions from `DataKeys` in `t
 | `label`    | scalar   | Object class (classification datasets)      |
 | `face`     | $(F, 3)$ | Triangle indices (ModelNet / mesh datasets) |
 
-After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ is appended to identify each point's source scene.
+After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ gives each point's source scene.
 
 !!! warning "Color conventions vary per dataset"
     `color` is uint8 in $[0, 255]$ for the raw-value loaders (`S3DIS`, `ScanNet`, `Toronto3D`, `Semantic3D`, `SunRGBD`) and float32 in $[0, 1]$ for `S3DISHdf5`, which ships pre-normalized values.
 
 !!! warning "Ignore-index conventions vary per dataset"
     Unlabeled points use label 0 (`<unk>` / outdoor conventions, e.g. `ScanNet`), -1 (indoor no-instance and class-subset remaps, e.g. `S3DIS`), or 255 (the `SemanticKITTI` remap example).
-
-## Picking a dataset
-
-- **Sanity-check classification**: `ModelNet10` (small, downloads fast).
-- **Modern classification benchmark**: `ScanObjectNN` (real-world scans, harder).
-- **Indoor segmentation reference**: `S3DIS` (small) or `ScanNet` (larger).
-- **Driving / LiDAR**: `SemanticKITTI`.
-- **Custom data**: subclass `PointCloudDataset`.

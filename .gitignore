@@ -164,9 +164,17 @@ cython_debug/
 weights/**
 data/**
 docs/api/**
-docs/examples/*
+docs/examples/**
+docs/scripts/**
 !docs/examples/*.ipynb
 !docs/examples/index.md
+docs/datasets/*.md
+docs/datasets/*.ply
+docs/models/*.md
+docs/models/*.ply
+!docs/datasets/overview.md
+!docs/models/overview.md
+paper/**
 
 # Notebooks
 notebooks/**
