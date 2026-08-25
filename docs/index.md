@@ -17,13 +17,13 @@ A PyTorch library for deep learning on point clouds. Production-ready models for
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/scene_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over a scanned wing of offices and a corridor with the ceiling cut away, its true color crossing over to the semantic class predicted for every point"></video>
-<figcaption markdown="span">**Segment scenes**`ptv3-base.s3dis-area5.pointcept`</figcaption>
+<video src="./assets/animations/hero/scene_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, its true color crossing over to the semantic class predicted for every point"></video>
+<figcaption markdown="span">**Segment scenes**`ptv3-base.scannet20.pointcept`</figcaption>
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/detection.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same wing, with a wireframe box around each chair, table, bookcase and board the instance head found"></video>
-<figcaption markdown="span">**Detect objects**`oneformer3d-base.s3dis-area5.danila-rukhovich`</figcaption>
+<video src="./assets/animations/hero/detection.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same house, with a wireframe box arriving around each bed, sofa, chair, cabinet and sink the instance head found in the room it passes"></video>
+<figcaption markdown="span">**Detect objects**`oneformer3d-base.scannet20.danila-rukhovich`</figcaption>
 </figure>
 
 <figure markdown="1">
