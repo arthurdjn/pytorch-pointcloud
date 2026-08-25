@@ -4,7 +4,39 @@
 
 A PyTorch library for deep learning on point clouds. Production-ready models for classification, segmentation, and detection, with a `create_model` factory, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
 
-![Six pretrained checkpoints turning on two committed sample clouds: object classification, part segmentation, scene segmentation, 3D detection, LiDAR segmentation and self-supervised features](./assets/animations/hero.webp)
+<div class="tp-tasks" markdown>
+
+<figure markdown="1">
+<video src="./assets/animations/hero/classification.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A chair turning a full circle, in the accent color, classified by a pretrained PointNet++"></video>
+<figcaption markdown="span">**Classify objects**`pointnet2-ssg.modelnet40.xu-yan`</figcaption>
+</figure>
+
+<figure markdown="1">
+<video src="./assets/animations/hero/part_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="An airplane turning a full circle, its wings, body, tail and engines each in their own color"></video>
+<figcaption markdown="span">**Segment parts**`pointnext-sm.shapenetpart.openpoints`</figcaption>
+</figure>
+
+<figure markdown="1">
+<video src="./assets/animations/hero/scene_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over a scanned wing of offices and a corridor with the ceiling cut away, its true color crossing over to the semantic class predicted for every point"></video>
+<figcaption markdown="span">**Segment scenes**`ptv3-base.s3dis-area5.pointcept`</figcaption>
+</figure>
+
+<figure markdown="1">
+<video src="./assets/animations/hero/detection.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same wing, with a wireframe box around each chair, table, bookcase and board the instance head found"></video>
+<figcaption markdown="span">**Detect objects**`oneformer3d-base.s3dis-area5.danila-rukhovich`</figcaption>
+</figure>
+
+<figure markdown="1">
+<video src="./assets/animations/hero/driving.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A bird's-eye camera riding above the car down a LiDAR sequence, one sweep per frame, every point colored by its predicted class and every vehicle boxed as it goes past"></video>
+<figcaption markdown="span">**Drive**`spvcnn-119gmacs.semantickitti.mit-han-lab`<br>`second.kitti.openpcdet`</figcaption>
+</figure>
+
+<figure markdown="1">
+<video src="./assets/animations/hero/features.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera circling a scanned room colored by the principal components of a self-supervised encoder's per-point features"></video>
+<figcaption markdown="span">**Embed points**`sonata-lp.scannet20.fair`</figcaption>
+</figure>
+
+</div>
 
 ## In a few lines
 

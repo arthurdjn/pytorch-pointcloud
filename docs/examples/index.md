@@ -73,22 +73,10 @@ several models combined into a single answer.
 
 <div class="grid cards tutorial-cards" markdown>
 
--   :material-terrain: __[Segment a survey-scale LiDAR tile](07-large-scale-lidar.md)__
-
-    ![A wide LiDAR survey tile with every point colored by its predicted class](../assets/tutorials/thumbs/07-large-scale-lidar.png)
-
-    Tile a multi-million-point survey, run it block by block, and write labels back on every point.
-
--   :material-car: __[Detect objects in driving LiDAR](08-driving-detection.md)__
+-   :material-car: __[Detect objects in driving LiDAR](07-driving-detection.md)__
 
     ![A driving LiDAR sweep with oriented boxes around detected vehicles](../assets/tutorials/thumbs/08-driving-detection.png)
 
     Turn one sweep into oriented 3D boxes: voxel encoding, decoding, non-maximum suppression.
-
--   :material-floor-plan: __[Understand an indoor scene](09-indoor-scene.md)__
-
-    ![An indoor room with detected object boxes over its segmented points](../assets/tutorials/thumbs/09-indoor-scene.png)
-
-    Combine a segmenter and a detector on one room, and turn the outputs into a room inventory.
 
 </div>
