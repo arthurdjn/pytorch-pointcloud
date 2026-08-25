@@ -661,16 +661,30 @@ a.pill.hero-pill {
 }
 /* Square, and reserved before the tile loads, so the grid does not reflow on a slow connection. The
    background matches the one baked into the video, so the panel is already the right color while it
-   buffers and stays that color in either theme */
+   buffers */
 .md-typeset .tp-tasks video {
   display: block;
   width: 100%;
   aspect-ratio: 1;
   background-color: #f5f5f6;
 }
+/* A tile bakes its surface into the frames, so each theme gets its own file rather than a filter over
+   one. The hidden half is display:none, which keeps it out of the accessibility tree as well */
+.md-typeset .tp-tasks video.tp-tile--dark {
+  display: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-tasks video {
+  background-color: #0b0c0f;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-tasks video.tp-tile--light {
+  display: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-tasks video.tp-tile--dark {
+  display: block;
+}
 .md-typeset .tp-tasks figcaption {
   margin: 0;
-  padding: 0 0.7rem 0.7rem;
+  padding: 0.7rem;
   text-align: center;
   font-size: 0.7rem;
   line-height: 1.45;

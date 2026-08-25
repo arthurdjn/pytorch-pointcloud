@@ -7,33 +7,39 @@ A PyTorch library for deep learning on point clouds. Production-ready models for
 <div class="tp-tasks" markdown>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/classification.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A chair turning a full circle, in the accent color, classified by a pretrained PointNet++"></video>
-<figcaption markdown="span">**Classify objects**`pointnet2-ssg.modelnet40.xu-yan`</figcaption>
+<video class="tp-tile tp-tile--light" src="./assets/animations/hero/classification.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A chair turning a full circle, in the accent color, classified by a pretrained PointNet++"></video>
+<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/classification_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A chair turning a full circle, in the accent color, classified by a pretrained PointNet++"></video>
+<figcaption markdown="span">**Object classification**`pointnet2-ssg.modelnet40.xu-yan`</figcaption>
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/part_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="An airplane turning a full circle, its wings, body, tail and engines each in their own color"></video>
-<figcaption markdown="span">**Segment parts**`pointnext-sm.shapenetpart.openpoints`</figcaption>
+<video class="tp-tile tp-tile--light" src="./assets/animations/hero/part_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="An airplane turning a full circle, its wings, body, tail and engines each in their own color"></video>
+<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/part_segmentation_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="An airplane turning a full circle, its wings, body, tail and engines each in their own color"></video>
+<figcaption markdown="span">**Part segmentation**`pointnext-sm.shapenetpart.openpoints`</figcaption>
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/scene_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, its true color crossing over to the semantic class predicted for every point"></video>
-<figcaption markdown="span">**Segment scenes**`ptv3-base.scannet20.pointcept`</figcaption>
+<video class="tp-tile tp-tile--light" src="./assets/animations/hero/driving.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A bird's-eye camera riding above the car down a LiDAR sequence, one sweep per frame, every point colored by its predicted class and every vehicle boxed as it goes past"></video>
+<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/driving_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A bird's-eye camera riding above the car down a LiDAR sequence, one sweep per frame, every point colored by its predicted class and every vehicle boxed as it goes past"></video>
+<figcaption markdown="span">**LiDAR object detection**`spvcnn-119gmacs.semantickitti.mit-han-lab`<br>`second.kitti.openpcdet`</figcaption>
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/detection.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same house, with a wireframe box arriving around each bed, sofa, chair, cabinet and sink the instance head found in the room it passes"></video>
-<figcaption markdown="span">**Detect objects**`oneformer3d-base.scannet20.danila-rukhovich`</figcaption>
+<video class="tp-tile tp-tile--light" src="./assets/animations/hero/scene_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, its true color crossing over to the semantic class predicted for every point"></video>
+<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/scene_segmentation_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, its true color crossing over to the semantic class predicted for every point"></video>
+<figcaption markdown="span">**Indoor segmentation**`ptv3-base.scannet20.pointcept`</figcaption>
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/driving.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A bird's-eye camera riding above the car down a LiDAR sequence, one sweep per frame, every point colored by its predicted class and every vehicle boxed as it goes past"></video>
-<figcaption markdown="span">**Drive**`spvcnn-119gmacs.semantickitti.mit-han-lab`<br>`second.kitti.openpcdet`</figcaption>
+<video class="tp-tile tp-tile--light" src="./assets/animations/hero/detection.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same house, with a wireframe box arriving around each bed, sofa, chair, cabinet and sink the instance head found in the room it passes"></video>
+<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/detection_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same house, with a wireframe box arriving around each bed, sofa, chair, cabinet and sink the instance head found in the room it passes"></video>
+<figcaption markdown="span">**Indoor object detection**`oneformer3d-base.scannet20.danila-rukhovich`</figcaption>
 </figure>
 
 <figure markdown="1">
-<video src="./assets/animations/hero/features.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera circling a scanned room colored by the principal components of a self-supervised encoder's per-point features"></video>
-<figcaption markdown="span">**Embed points**`sonata-lp.scannet20.fair`</figcaption>
+<video class="tp-tile tp-tile--light" src="./assets/animations/hero/features.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same house, every point colored by the principal components of a self-supervised encoder's features, so a floor holds one color across every room"></video>
+<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/features_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding over the same house, every point colored by the principal components of a self-supervised encoder's features, so a floor holds one color across every room"></video>
+<figcaption markdown="span">**Point embeddings**`sonata-lp.scannet20.fair`</figcaption>
 </figure>
 
 </div>
