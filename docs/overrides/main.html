@@ -6,6 +6,12 @@
 {% endblock %}
 <!-- end announce block -->
 
+<!-- start extrahead block -->
+{% block extrahead %}
+  <link rel="icon" type="image/svg+xml" href="{{ 'assets/favicon.svg' | url }}">
+{% endblock %}
+<!-- end extrahead block -->
+
 {% block content %}
   {% if page.nb_url %}
     <a href="{{ page.nb_url }}" title="Download Notebook" class="md-content__button md-icon">

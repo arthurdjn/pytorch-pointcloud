@@ -1,14 +1,14 @@
 # Inferers
 
-:pytorch-pointcloud-mini: `torch-pointcloud.inferers` is the test-time inference layer. it contains an abstract base `Inferer`, several concrete strategies, and a wrap-and-compose pattern so that test-time augmentation (TTA) layers can be added on top of any base inferer.
+Inferers are used to process point clouds at inference time. One of their main responsibilities is to split large point clouds into smaller chunks for efficient infererence and avoiding memory issues.
+This is also the place where test-time augmentation (TTA) is applied, if desired.
 
 ```{.python notest}
 from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
 from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate
 
-base = SlidingWindowInferer(block_size=6.0)
 inferer = TTAInferer(
-    base=base,
+    base=SlidingWindowInferer(block_size=6.0),
     transforms=Compose([
         RandomRotate(keys="pos", angle_range=(-180.0, 180.0), axis=2, p=1.0),
         RandomFlip(keys="pos", axes=[0, 1], p=0.5),
@@ -16,17 +16,21 @@ inferer = TTAInferer(
     num_passes=4,
     aggregate="mean",
 )
-probs = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
+
+data = {"pos": torch.randn(1000, 3), "x": torch.randn(1000, 3), "batch": torch.zeros(1000)}
+probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
 ```
 
-## Strategies
+## Which one to use
 
-| Inferer                  | Runs the predictor on                                                                       | Reproduces                                                               |
-| ------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `SimpleInferer`          | the whole scene, once                                                                       | single-pass evaluation (the Lightning default on test batches)           |
-| `SlidingWindowInferer`   | axis-aligned blocks, blended by `mean`, `max` (most confident block) or `vote` (hard votes) | block-based S3DIS / ScanNet protocols scoring every point of the room    |
-| `VoxelPartitionInferer`  | sub-clouds holding one point per voxel, so every raw point is predicted                     | the voxel-partition (fragment) protocol of sparse and point transformers |
-| `KNNWindowInferer`       | k-nearest-neighbour crops around the least-covered point until coverage                     | possibility-driven crop voting (RandLA-Net)                              |
-| `PotentialSphereInferer` | radius spheres drawn from a coarse potential grid, EMA of softmax                           | potential sphere voting (KPConv)                                         |
-| `TTAInferer`             | any base inferer under enumerated or random views (`include_identity` adds a clean pass)    | test-time augmentation and voting                                        |
-| `PartRefinementInferer`  | any base inferer, then a nearest-neighbour majority over rare / foreign part labels         | part-segmentation label refinement                                       |
+| Inferer                                                         | Runs the predictor on                                 | Reproduces                                             |
+| --------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| [`SimpleInferer`](../api/inferers/simple.md)                    | the whole scene, once                                 | single-pass evaluation, the Lightning default          |
+| [`SlidingWindowInferer`](../api/inferers/sliding-window.md)     | cubic blocks on a regular grid                        | block-based S3DIS / ScanNet protocols                  |
+| [`VoxelPartitionInferer`](../api/inferers/voxel-partition.md)   | whole-extent downsamples, one point per voxel         | the fragment protocol of sparse and point transformers |
+| [`KNNWindowInferer`](../api/inferers/knn-window.md)             | fixed-budget kNN crops around the least-covered point | possibility-driven crop voting (RandLA-Net)            |
+| [`PotentialSphereInferer`](../api/inferers/potential-sphere.md) | radius spheres drawn from a potential grid            | potential sphere voting (KPConv)                       |
+| [`TTAInferer`](../api/inferers/tta.md)                          | any base inferer, under several views                 | test-time augmentation and voting                      |
+| [`PartRefinementInferer`](../api/inferers/part-refinement.md)   | any base inferer, then a neighbor vote                | part-segmentation label refinement                     |
+
+The last two wrap another inferer rather than replacing it.

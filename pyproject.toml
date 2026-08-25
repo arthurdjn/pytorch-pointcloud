@@ -78,6 +78,7 @@ dev = [
     "aim>=3.20.0 ; python_version < '3.13'",
     "tensorboard>=2.14.0",
     "mlflow>=2.10.0",
+    "ipywidgets>=8.1.8",
 ]
 
 [tool.uv]

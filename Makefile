@@ -4,6 +4,9 @@ SRC:=src
 TESTS:=tests
 EXAMPLES:=examples
 DOCS:=docs
+# Pages generated from a notebook: the notebook is the source of truth, and its cells need
+# pretrained weights, datasets and a GPU that the doctest run has no access to.
+NOTEBOOK_PAGES:=$(patsubst %.ipynb,%.md,$(wildcard $(DOCS)/*/*.ipynb))
 CMD:=uv run --no-sync
 
 # Linting, formatting, etc.
@@ -48,7 +51,8 @@ doctest: ## Run doctests in source docstrings (>>> examples)
 .PHONY: doctest-docs
 doctest-docs: ## Run python code blocks in source docstrings and the docs markdown
 	$(CMD) pytest --markdown-docs --markdown-docs-syntax=superfences $(SRC) $(DOCS) \
-		--ignore=$(DOCS)/scripts --ignore=$(DOCS)/examples --ignore=$(SRC)/torch_pointcloud/lightning
+		--ignore=$(DOCS)/scripts --ignore=$(DOCS)/examples --ignore=$(SRC)/torch_pointcloud/lightning \
+		$(addprefix --ignore=,$(NOTEBOOK_PAGES))
 
 # Documentation
 
@@ -59,9 +63,9 @@ tables: ## Sync the model catalog CSV from the registry (docs/data/models.csv)
 	@# page source (unchanged), so drop the cache to pick up CSV/metric edits.
 	rm -rf .cache
 
-.PHONY: examples
-examples: ## Render example notebooks to Markdown (docs/examples/*.md)
-	$(CMD) python docs/scripts/build_examples.py
+.PHONY: notebooks
+notebooks: ## Render the committed notebooks to Markdown (docs/<section>/*.ipynb)
+	$(CMD) python docs/scripts/build_notebooks.py
 
 .PHONY: api
 api: ## Regenerate the per-module API reference stubs (docs/api/)
@@ -79,11 +83,11 @@ papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
 	rm -rf .cache
 
 .PHONY: docs
-docs: tables examples api ## Generate documentation
+docs: tables notebooks api ## Generate documentation
 	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical build --strict
 
 .PHONY: serve
-serve: tables examples api ## Serve documentation
+serve: tables notebooks api ## Serve documentation
 	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical serve
 
 # Docker (isolated CUDA environments, see docker/Dockerfile)
