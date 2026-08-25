@@ -459,6 +459,24 @@ a.pill.hero-pill {
 .md-typeset .grid.cards > ul > li:hover::after {
   color: var(--md-accent-fg-color);
 }
+/* Tutorial cards carry a thumbnail under the title: the second paragraph of the card, bled out to
+   the card edges by cancelling its padding. The title stays `p:first-child`, so the click overlay
+   and the heading layout above keep applying to it untouched */
+.md-typeset .grid.cards.tutorial-cards > ol > li,
+.md-typeset .grid.cards.tutorial-cards > ul > li {
+  overflow: hidden;
+}
+.md-typeset .grid.cards.tutorial-cards > ol > li > p:nth-child(2),
+.md-typeset .grid.cards.tutorial-cards > ul > li > p:nth-child(2) {
+  margin: 0.6rem -0.8rem 0.8rem;
+}
+.md-typeset .grid.cards.tutorial-cards > ol > li img,
+.md-typeset .grid.cards.tutorial-cards > ul > li img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* ----------- End Cards ----------- */
 
 /* ----------- Start Paper card ----------- */
@@ -606,3 +624,79 @@ a.pill.hero-pill {
 }
 
 /* ----------- End Paper card ----------- */
+
+/* ----------- Start Task tiles ----------- */
+/* The landing-page hero: one animation per task, laid out here rather than baked into a single
+   asset, so each tile keeps its own camera and its own loop length */
+.md-typeset .tp-tasks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin: 1.4em 0;
+}
+@media screen and (max-width: 76.1875em) {
+  .md-typeset .tp-tasks {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-tasks {
+    grid-template-columns: 1fr;
+  }
+}
+/* The same surface the cards below the hero sit on, so the two blocks read as one page */
+.md-typeset .tp-tasks figure {
+  margin: 0;
+  overflow: hidden;
+  border: 0.05rem solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  border-radius: 0.2rem;
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+  transition: border-color 125ms;
+}
+.md-typeset .tp-tasks figure:hover {
+  border-color: var(--md-accent-fg-color);
+}
+.md-typeset .tp-tasks figure > p {
+  margin: 0;
+}
+/* Square, and reserved before the tile loads, so the grid does not reflow on a slow connection. The
+   background matches the one baked into the video, so the panel is already the right color while it
+   buffers */
+.md-typeset .tp-tasks video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background-color: #f5f5f6;
+}
+/* A tile bakes its surface into the frames, so each theme gets its own file rather than a filter over
+   one. The hidden half is display:none, which keeps it out of the accessibility tree as well */
+.md-typeset .tp-tasks video.tp-tile--dark {
+  display: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-tasks video {
+  background-color: #0b0c0f;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-tasks video.tp-tile--light {
+  display: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-tasks video.tp-tile--dark {
+  display: block;
+}
+.md-typeset .tp-tasks figcaption {
+  margin: 0;
+  padding: 0.7rem;
+  text-align: center;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-tasks figcaption strong {
+  display: block;
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-tasks figcaption code {
+  font-size: 0.92em;
+  background-color: transparent;
+  padding: 0;
+}
+/* ----------- End Task tiles ----------- */
