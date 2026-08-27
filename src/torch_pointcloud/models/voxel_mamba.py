@@ -701,6 +701,11 @@ class VoxelMambaDetection(DetectionModel):
             norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the BEV feature map entering the head."""
+        return self.backbone.num_bev_features
+
     def configure_head(self) -> CenterHead:
         """Build the center-based detection head."""
         return CenterHead(
@@ -725,8 +730,12 @@ class VoxelMambaDetection(DetectionModel):
             bev[b, :, flat[mask]] = x[mask].t()
         return bev.view(batch_size, self.bev_channels, ny, nx)
 
+    def forward_head(self, features: Tensor) -> CenterHeadOutput:
+        return self.head(features)
+
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> CenterHeadOutput:
-        return self.head(self.forward_features(x, pos, batch))
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features)
 
     @torch.no_grad()
     def decode(

@@ -711,11 +711,60 @@ class PointRCNNDetection(DetectionModel):
     def reset_classifier(self, num_classes: int) -> None:
         raise NotImplementedError("PointRCNN's class count is fixed by its pretrained box coder mean sizes.")
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the per-point backbone features entering the heads."""
+        return self.fp_channels[-1][-1]
+
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         assert x is not None, "PointRCNN requires input features (got x=None)."
         x, pos_down, batch_down, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
         x, pos, batch = self.decoder(x, pos_down, batch_down, intermediates)
         return x, pos, batch
+
+    def forward_head(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        gt_boxes: OptTensor = None,
+        gt_labels: OptTensor = None,
+        gt_batch: OptTensor = None,
+    ) -> Union[PointRCNNTrainOutput, PointRCNNOutput]:
+        point_scores, cls_preds, box_preds, boxes = self.point_head(x, pos)
+
+        if self.training:
+            assert gt_boxes is not None and gt_labels is not None and gt_batch is not None, (
+                "PointRCNN training needs ground-truth boxes; pass `box` / `label` / `batch_box` via `input_keys`."
+            )
+            rois, _, roi_labels, roi_batch = self._propose(
+                boxes, cls_preds, batch, post_maxsize=self.train_nms_post_maxsize, thresh=self.train_nms_thresh
+            )
+            sampled = self._sample_proposals(rois, roi_labels, roi_batch, gt_boxes, gt_labels.long() + 1, gt_batch)
+            rcnn_cls, rcnn_reg, refined = self.roi_head(pos, x, point_scores, batch, sampled["rois"], sampled["batch"])
+            return {
+                "point_cls_preds": cls_preds,
+                "point_box_preds": box_preds,
+                "point_pos": pos,
+                "point_batch": batch,
+                "rcnn_cls": rcnn_cls,
+                "rcnn_reg": rcnn_reg,
+                "rcnn_boxes": refined,
+                "rois": sampled["rois"],
+                "gt_of_rois": sampled["gt_of_rois"],
+                "gt_of_rois_src": sampled["gt_of_rois_src"],
+                "roi_ious": sampled["roi_ious"],
+            }
+
+        rois, roi_scores, roi_labels, roi_batch = self._propose(boxes, cls_preds, batch)
+        rcnn_cls, _, refined = self.roi_head(pos, x, point_scores, batch, rois, roi_batch)
+        return {
+            "rcnn_cls": rcnn_cls,
+            "boxes": refined,
+            "roi_labels": roi_labels,
+            "roi_scores": roi_scores,
+            "batch": roi_batch,
+        }
 
     def forward(
         self,
@@ -749,43 +798,8 @@ class PointRCNNDetection(DetectionModel):
             - x: $(N, \text{in\_channels} - 3)$, pos: $(N, 3)$, batch: $(N,)$
             - gt_boxes: $(K, 7)$, gt_labels / gt_batch: $(K,)$
         """
-        x_point, pos_point, batch_point = self.forward_features(x, pos, batch)
-        point_scores, cls_preds, box_preds, boxes = self.point_head(x_point, pos_point)
-
-        if self.training:
-            assert gt_boxes is not None and gt_labels is not None and gt_batch is not None, (
-                "PointRCNN training needs ground-truth boxes; pass `box` / `label` / `batch_box` via `input_keys`."
-            )
-            rois, _, roi_labels, roi_batch = self._propose(
-                boxes, cls_preds, batch_point, post_maxsize=self.train_nms_post_maxsize, thresh=self.train_nms_thresh
-            )
-            sampled = self._sample_proposals(rois, roi_labels, roi_batch, gt_boxes, gt_labels.long() + 1, gt_batch)
-            rcnn_cls, rcnn_reg, refined = self.roi_head(
-                pos_point, x_point, point_scores, batch_point, sampled["rois"], sampled["batch"]
-            )
-            return {
-                "point_cls_preds": cls_preds,
-                "point_box_preds": box_preds,
-                "point_pos": pos_point,
-                "point_batch": batch_point,
-                "rcnn_cls": rcnn_cls,
-                "rcnn_reg": rcnn_reg,
-                "rcnn_boxes": refined,
-                "rois": sampled["rois"],
-                "gt_of_rois": sampled["gt_of_rois"],
-                "gt_of_rois_src": sampled["gt_of_rois_src"],
-                "roi_ious": sampled["roi_ious"],
-            }
-
-        rois, roi_scores, roi_labels, roi_batch = self._propose(boxes, cls_preds, batch_point)
-        rcnn_cls, _, refined = self.roi_head(pos_point, x_point, point_scores, batch_point, rois, roi_batch)
-        return {
-            "rcnn_cls": rcnn_cls,
-            "boxes": refined,
-            "roi_labels": roi_labels,
-            "roi_scores": roi_scores,
-            "batch": roi_batch,
-        }
+        x, pos, batch = self.forward_features(x, pos, batch)
+        return self.forward_head(x, pos, batch, gt_boxes, gt_labels, gt_batch)
 
     @torch.no_grad()
     def _propose(

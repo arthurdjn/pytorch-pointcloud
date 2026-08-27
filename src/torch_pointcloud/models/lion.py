@@ -1289,6 +1289,11 @@ class LIONDetection(DetectionModel):
             norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the BEV feature map entering the head."""
+        return self.backbone.num_bev_features
+
     def configure_head(self) -> TransFusionHead:
         """Build the query-based TransFusion detection head."""
         return TransFusionHead(
@@ -1310,8 +1315,12 @@ class LIONDetection(DetectionModel):
         bev = dense.view(b, c * d, h, w)
         return self.backbone(bev)
 
+    def forward_head(self, features: Tensor) -> TransFusionHeadOutput:
+        return self.head(features)
+
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> TransFusionHeadOutput:
-        return self.head(self.forward_features(x, pos, batch))
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features)
 
     @torch.no_grad()
     def decode(self, out: TransFusionHeadOutput) -> Detection3D:

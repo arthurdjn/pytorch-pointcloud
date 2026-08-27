@@ -19,7 +19,9 @@ class BaseModel(nn.Module, metaclass=ABCMeta):
     `SegmentationModel` or `DetectionModel`. The classification and segmentation ABCs require the
     split into `forward_features` (encoder), `forward_decoder` (segmentation only, optional) and
     `forward_head` (logits), plus `configure_head` / `reset_classifier` for building the head and
-    the read-only `num_features` property for the width of the features entering it.
+    the read-only `num_features` property for the width of the features entering it. Detection models
+    split into `forward_features` (backbone), `forward_head` (raw predictions) and `decode` (boxes), and
+    expose `num_features` as the backbone output width.
 
     Args:
         in_channels: Number of input feature channels.
@@ -180,9 +182,11 @@ class SegmentationModel(nn.Module, metaclass=ABCMeta):
 class DetectionModel(nn.Module, metaclass=ABCMeta):
     r"""Base class for 3D object detection models.
 
-    Subclasses must implement `forward` (raw prediction output), `forward_features` (the backbone) and
-    `decode` (raw output to packed boxes). `decode` is raw: score thresholding and NMS belong to the
-    evaluation postprocess, not the model.
+    Subclasses implement `forward_features` (the backbone), `forward_head` (backbone features to the raw
+    prediction output), `decode` (raw output to packed boxes) and `num_features`, and compose the first two
+    in `forward`. `decode` is raw: score thresholding and NMS belong to the evaluation postprocess, not the
+    model. Detectors have no headless mode: feature maps come from `forward_features`, and `reset_classifier`
+    is only available where the class count can change without touching the box branches.
 
     Args:
         in_channels: Number of input feature channels.
@@ -193,6 +197,15 @@ class DetectionModel(nn.Module, metaclass=ABCMeta):
         super().__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
+
+    @property
+    @abstractmethod
+    def num_features(self) -> int:
+        r"""Channel count $C$ of the `forward_features` output.
+
+        The BEV map channels, the sparse voxel feature width, or the packed point feature width, depending
+        on the backbone. Read-only: it is derived from the instantiated submodules.
+        """
 
     def reset_classifier(self, num_classes: int) -> None:
         r"""Replace the classification branch of the detection head for `num_classes` outputs.
@@ -218,14 +231,14 @@ class DetectionModel(nn.Module, metaclass=ABCMeta):
         take their voxelized layout instead), returning the backbone features fed to the detection head.
         """
 
+    @abstractmethod
     def forward_head(self, *args: Any, **kwargs: Any) -> Any:
         r"""Map backbone features to the raw prediction output.
 
         Canonical signature: `forward_head(features)`, returning the same prediction output as `forward`.
-        Models that implement `forward` in one piece do not provide this split and raise
-        `NotImplementedError`.
+        Heads that need more than the backbone output take it as extra arguments (VoteNet seed indices,
+        3DETR scene extents, PointRCNN ground truth in train mode).
         """
-        raise NotImplementedError(f"{self.__class__.__name__} does not implement `forward_head`.")
 
     @abstractmethod
     def decode(self, *args: Any, **kwargs: Any) -> Any:
