@@ -74,42 +74,70 @@ class UtoniaSegmentation(SegmentationModel):
         # leaks features between samples; node mode matches nn.LayerNorm semantics.
         if norm == "layer_norm":
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
+        self.serialization_orders = serialization_orders
+        self.shuffle_serialization_orders = shuffle_serialization_orders
+        self.strides = strides
+        self.encoder_depths = encoder_depths
         self.encoder_channels = encoder_channels
-        self.encoder = PointTransformerV3Encoder(
-            in_channels=in_channels,
-            serialization_orders=serialization_orders,
-            shuffle_serialization_orders=shuffle_serialization_orders,
-            strides=strides,
-            encoder_depths=encoder_depths,
-            encoder_channels=encoder_channels,
-            encoder_num_heads=encoder_num_heads,
-            encoder_patch_size=encoder_patch_size,
-            norm=norm,
-            act=act,
-            mlp_ratio=mlp_ratio,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
-            drop_path=drop_path,
-            use_flash_attn=use_flash_attn,
-            upcast_attn=upcast_attn,
-            upcast_softmax=upcast_softmax,
-            pooling=pooling,
-            stem_type=stem_type,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            attn_kind="rope",
-            rope_base=rope_base,
-            legacy=legacy,
-        )
+        self.encoder_num_heads = encoder_num_heads
+        self.encoder_patch_size = encoder_patch_size
+        self.norm = norm
+        self.act = act
+        self.mlp_ratio = mlp_ratio
+        self.qkv_bias = qkv_bias
+        self.qk_scale = qk_scale
+        self.attn_drop = attn_drop
+        self.proj_drop = proj_drop
+        self.drop_path = drop_path
+        self.use_flash_attn = use_flash_attn
+        self.upcast_attn = upcast_attn
+        self.upcast_softmax = upcast_softmax
+        self.rope_base = rope_base
         self.dropout = dropout
+        self.pooling = pooling
+        self.stem_type = stem_type
+        self.act_kwargs = act_kwargs
+        self.norm_kwargs = norm_kwargs
+        self.legacy = legacy
+
+        self.encoder = self.configure_encoder()
         self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         """Channel count $C$ entering the head: every encoder stage unpooled and concatenated."""
         return sum(self.encoder_channels)
+
+    def configure_encoder(self) -> PointTransformerV3Encoder:
+        """Build the `PointTransformerV3Encoder` backbone with rotary position embeddings."""
+        return PointTransformerV3Encoder(
+            in_channels=self.in_channels,
+            serialization_orders=self.serialization_orders,
+            shuffle_serialization_orders=self.shuffle_serialization_orders,
+            strides=self.strides,
+            encoder_depths=self.encoder_depths,
+            encoder_channels=self.encoder_channels,
+            encoder_num_heads=self.encoder_num_heads,
+            encoder_patch_size=self.encoder_patch_size,
+            norm=self.norm,
+            act=self.act,
+            mlp_ratio=self.mlp_ratio,
+            qkv_bias=self.qkv_bias,
+            qk_scale=self.qk_scale,
+            attn_drop=self.attn_drop,
+            proj_drop=self.proj_drop,
+            drop_path=self.drop_path,
+            use_flash_attn=self.use_flash_attn,
+            upcast_attn=self.upcast_attn,
+            upcast_softmax=self.upcast_softmax,
+            pooling=self.pooling,
+            stem_type=self.stem_type,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            attn_kind="rope",
+            rope_base=self.rope_base,
+            legacy=self.legacy,
+        )
 
     def configure_head(self) -> nn.Module:
         return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)

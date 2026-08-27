@@ -8,38 +8,33 @@ from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
-from .oneformer3d import OneFormer3DQueryDecoder, OneFormer3DSegmentation
+from .oneformer3d import OneFormer3DSegmentation
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTMaskedTransformer
 from .point_m2ae import PointM2AEClassification, PointM2AEMaskedAutoEncoder, PointM2AESegmentation
 from .point_mae import PointMAEClassification, PointMAEMaskedAutoEncoder, PointMAESegmentation
 from .point_mamba import PointMambaClassification, PointMambaMAE
 from .point_transformer import PointTransformerClassification, PointTransformerSegmentation
 from .point_transformer_v2 import PointTransformerV2Classification, PointTransformerV2Segmentation
-from .point_transformer_v3 import (
-    PointTransformerV3Classification,
-    PointTransformerV3Decoder,
-    PointTransformerV3Encoder,
-    PointTransformerV3Segmentation,
-)
+from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
 from .pointcnn import PointCNNClassification, PointCNNSegmentation
 from .pointconv import PointConvDensityClassification
 from .pointgpt import PointGPTClassification, PointGPTGenerativePretraining
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
-from .pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
-from .pointnet2 import PointNet2Classification, PointNet2Decoder, PointNet2Encoder, PointNet2Segmentation
+from .pointnet import PointNetClassification, PointNetSegmentation
+from .pointnet2 import PointNet2Classification, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtPartSegmentation, PointNeXtSegmentation
 from .pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
 from .pointrcnn import PointRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
-from .second import SECONDDetection, SECONDMultiHeadDetection, VoxelBackbone8x, VoxelResBackbone8x
+from .second import SECONDDetection, SECONDMultiHeadDetection
 from .sonata import SonataSegmentation
-from .spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder, SPFormerUNetSegmentation
+from .spformer_unet import SPFormerUNetSegmentation
 from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .utonia import UtoniaSegmentation
-from .votenet import VoteNetBackbone, VoteNetDetection, VoteNetProposalModule, VotingModule
+from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
 from .voxelnext import VoxelNeXtDetection

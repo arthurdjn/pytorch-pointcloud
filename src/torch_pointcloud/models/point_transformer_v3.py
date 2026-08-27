@@ -178,7 +178,7 @@ def _resolve_condition(
     return resolved
 
 
-class Block(nn.Module):
+class PointTransformerV3Block(nn.Module):
     """Transformer block over serialized patches: an xCPE sparse-convolution residual, then pre-normed
     patch attention and an MLP.
     """
@@ -291,8 +291,8 @@ class Block(nn.Module):
         return x, x_sparse
 
 
-class EncoderBlock(nn.Module):
-    """One encoder stage: an optional pooling downsampling, then `depth` `Block` units.
+class PointTransformerV3EncoderBlock(nn.Module):
+    """One encoder stage: an optional pooling downsampling, then `depth` `PointTransformerV3Block` units.
 
     Consecutive blocks cycle through the available serialization orders, so each attends over a
     differently ordered patch partition. Grid pooling re-serializes the pooled cloud, while
@@ -334,7 +334,7 @@ class EncoderBlock(nn.Module):
         self.blocks = nn.ModuleList()
         for i in range(depth):
             self.blocks.append(
-                Block(
+                PointTransformerV3Block(
                     channels=channels,
                     num_heads=num_heads,
                     patch_size=patch_size,
@@ -450,8 +450,8 @@ class EncoderBlock(nn.Module):
         return x, pos_grid, batch, serialized_code, serialized_order, serialized_inverse, pos
 
 
-class DecoderBlock(nn.Module):
-    """One decoder stage: an optional upsampling onto the skip resolution, then `depth` `Block` units
+class PointTransformerV3DecoderBlock(nn.Module):
+    """One decoder stage: an optional upsampling onto the skip resolution, then `depth` `PointTransformerV3Block` units
     cycling through the skip's serialization orders.
     """
 
@@ -486,7 +486,7 @@ class DecoderBlock(nn.Module):
         self.blocks = nn.ModuleList()
         for i in range(depth):
             self.blocks.append(
-                Block(
+                PointTransformerV3Block(
                     channels=channels,
                     num_heads=num_heads,
                     patch_size=patch_size,
@@ -755,7 +755,7 @@ class PointTransformerV3Encoder(nn.Module):
         rope_base: float = 10.0,
         legacy: bool = False,
     ) -> nn.ModuleList:
-        """Build the `EncoderBlock` stages, giving every stage but the first a pooling downsampling."""
+        """Build the `PointTransformerV3EncoderBlock` stages, giving every stage but the first a pooling downsampling."""
         depths = ensure_tuple(depths)
         n = len(depths)
         channels = ensure_tuple_size(channels, size=n)
@@ -781,7 +781,7 @@ class PointTransformerV3Encoder(nn.Module):
                     norm_kwargs=norm_kwargs,
                 )
 
-            block = EncoderBlock(
+            block = PointTransformerV3EncoderBlock(
                 channels=channels[i],
                 depth=depths[i],
                 num_heads=num_heads[i],
@@ -1011,7 +1011,7 @@ class PointTransformerV3Decoder(nn.Module):
         rope_base: float = 10.0,
         legacy: bool = False,
     ) -> nn.ModuleList:
-        """Build the `DecoderBlock` stages, giving every stage an upsampling onto its skip resolution."""
+        """Build the `PointTransformerV3DecoderBlock` stages, giving every stage an upsampling onto its skip resolution."""
         depths = ensure_tuple(depths)
         n = len(depths)
         channels = ensure_tuple_size(channels, size=n + 1)
@@ -1032,7 +1032,7 @@ class PointTransformerV3Decoder(nn.Module):
                 norm_kwargs=norm_kwargs,
             )
 
-            block = DecoderBlock(
+            block = PointTransformerV3DecoderBlock(
                 channels=channels[i + 1],
                 depth=depths[i],
                 num_heads=num_heads[i],
@@ -1167,35 +1167,34 @@ class PointTransformerV3Classification(ClassificationModel):
         norm_kwargs = norm_kwargs or {}
         if pdnorm_conditions is not None:
             norm_kwargs = {**norm_kwargs, "conditions": pdnorm_conditions}
-        self.encoder = PointTransformerV3Encoder(
-            in_channels=in_channels,
-            serialization_orders=serialization_orders,
-            shuffle_serialization_orders=shuffle_serialization_orders,
-            strides=strides,
-            encoder_depths=encoder_depths,
-            encoder_channels=encoder_channels,
-            encoder_num_heads=encoder_num_heads,
-            encoder_patch_size=encoder_patch_size,
-            norm=norm,
-            act=act,
-            mlp_ratio=mlp_ratio,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
-            drop_path=drop_path,
-            attn_kind=attn_kind,
-            use_flash_attn=use_flash_attn,
-            upcast_attn=upcast_attn,
-            upcast_softmax=upcast_softmax,
-            rope_base=rope_base,
-            pooling=pooling,
-            stem_type=stem_type,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            legacy=legacy,
-        )
+        self.serialization_orders = serialization_orders
+        self.shuffle_serialization_orders = shuffle_serialization_orders
+        self.strides = strides
+        self.encoder_depths = encoder_depths
+        self.encoder_channels = encoder_channels
+        self.encoder_num_heads = encoder_num_heads
+        self.encoder_patch_size = encoder_patch_size
+        self.norm = norm
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm_kwargs = norm_kwargs
+        self.mlp_ratio = mlp_ratio
+        self.qkv_bias = qkv_bias
+        self.qk_scale = qk_scale
+        self.attn_drop = attn_drop
+        self.proj_drop = proj_drop
+        self.drop_path = drop_path
+        self.attn_kind = attn_kind
+        self.use_flash_attn = use_flash_attn
+        self.upcast_attn = upcast_attn
+        self.upcast_softmax = upcast_softmax
+        self.rope_base = rope_base
+        self.pooling = pooling
+        self.stem_type = stem_type
+        self.legacy = legacy
         self.dropout = dropout
+
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
@@ -1203,6 +1202,37 @@ class PointTransformerV3Classification(ClassificationModel):
     def embedding_dim(self) -> int:
         """Feature dimension $C$ of the encoder output."""
         return self.encoder.embedding_dim
+
+    def configure_encoder(self) -> PointTransformerV3Encoder:
+        """Build the `PointTransformerV3Encoder` backbone."""
+        return PointTransformerV3Encoder(
+            in_channels=self.in_channels,
+            serialization_orders=self.serialization_orders,
+            shuffle_serialization_orders=self.shuffle_serialization_orders,
+            strides=self.strides,
+            encoder_depths=self.encoder_depths,
+            encoder_channels=self.encoder_channels,
+            encoder_num_heads=self.encoder_num_heads,
+            encoder_patch_size=self.encoder_patch_size,
+            norm=self.norm,
+            act=self.act,
+            mlp_ratio=self.mlp_ratio,
+            qkv_bias=self.qkv_bias,
+            qk_scale=self.qk_scale,
+            attn_drop=self.attn_drop,
+            proj_drop=self.proj_drop,
+            drop_path=self.drop_path,
+            attn_kind=self.attn_kind,
+            use_flash_attn=self.use_flash_attn,
+            upcast_attn=self.upcast_attn,
+            upcast_softmax=self.upcast_softmax,
+            rope_base=self.rope_base,
+            pooling=self.pooling,
+            stem_type=self.stem_type,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            legacy=self.legacy,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -1395,58 +1425,39 @@ class PointTransformerV3Segmentation(SegmentationModel):
         norm_kwargs = norm_kwargs or {}
         if pdnorm_conditions is not None:
             norm_kwargs = {**norm_kwargs, "conditions": pdnorm_conditions}
-        self.encoder = PointTransformerV3Encoder(
-            in_channels=in_channels,
-            serialization_orders=serialization_orders,
-            shuffle_serialization_orders=shuffle_serialization_orders,
-            strides=strides,
-            encoder_depths=encoder_depths,
-            encoder_channels=encoder_channels,
-            encoder_num_heads=encoder_num_heads,
-            encoder_patch_size=encoder_patch_size,
-            norm=norm,
-            act=act,
-            mlp_ratio=mlp_ratio,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
-            drop_path=drop_path,
-            attn_kind=attn_kind,
-            use_flash_attn=use_flash_attn,
-            upcast_attn=upcast_attn,
-            upcast_softmax=upcast_softmax,
-            rope_base=rope_base,
-            pooling=pooling,
-            stem_type=stem_type,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            legacy=legacy,
-        )
-        self.decoder = PointTransformerV3Decoder(
-            encoder_channels=encoder_channels,
-            decoder_depths=decoder_depths,
-            decoder_channels=decoder_channels,
-            decoder_num_heads=decoder_num_heads,
-            decoder_patch_size=decoder_patch_size,
-            norm=norm,
-            act=act,
-            mlp_ratio=mlp_ratio,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
-            drop_path=drop_path,
-            attn_kind=attn_kind,
-            use_flash_attn=use_flash_attn,
-            upcast_attn=upcast_attn,
-            upcast_softmax=upcast_softmax,
-            rope_base=rope_base,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            legacy=legacy,
-        )
+        self.serialization_orders = serialization_orders
+        self.shuffle_serialization_orders = shuffle_serialization_orders
+        self.strides = strides
+        self.encoder_depths = encoder_depths
+        self.encoder_channels = encoder_channels
+        self.encoder_num_heads = encoder_num_heads
+        self.encoder_patch_size = encoder_patch_size
+        self.decoder_depths = decoder_depths
+        self.decoder_channels = decoder_channels
+        self.decoder_num_heads = decoder_num_heads
+        self.decoder_patch_size = decoder_patch_size
+        self.norm = norm
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm_kwargs = norm_kwargs
+        self.mlp_ratio = mlp_ratio
+        self.qkv_bias = qkv_bias
+        self.qk_scale = qk_scale
+        self.attn_drop = attn_drop
+        self.proj_drop = proj_drop
+        self.drop_path = drop_path
+        self.attn_kind = attn_kind
+        self.use_flash_attn = use_flash_attn
+        self.upcast_attn = upcast_attn
+        self.upcast_softmax = upcast_softmax
+        self.rope_base = rope_base
+        self.pooling = pooling
+        self.stem_type = stem_type
+        self.legacy = legacy
         self.dropout = dropout
+
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
     @property
@@ -1458,6 +1469,63 @@ class PointTransformerV3Segmentation(SegmentationModel):
     def out_channels(self) -> int:
         """Feature dimension $C$ of the decoder output."""
         return self.decoder.out_channels
+
+    def configure_encoder(self) -> PointTransformerV3Encoder:
+        """Build the `PointTransformerV3Encoder` backbone."""
+        return PointTransformerV3Encoder(
+            in_channels=self.in_channels,
+            serialization_orders=self.serialization_orders,
+            shuffle_serialization_orders=self.shuffle_serialization_orders,
+            strides=self.strides,
+            encoder_depths=self.encoder_depths,
+            encoder_channels=self.encoder_channels,
+            encoder_num_heads=self.encoder_num_heads,
+            encoder_patch_size=self.encoder_patch_size,
+            norm=self.norm,
+            act=self.act,
+            mlp_ratio=self.mlp_ratio,
+            qkv_bias=self.qkv_bias,
+            qk_scale=self.qk_scale,
+            attn_drop=self.attn_drop,
+            proj_drop=self.proj_drop,
+            drop_path=self.drop_path,
+            attn_kind=self.attn_kind,
+            use_flash_attn=self.use_flash_attn,
+            upcast_attn=self.upcast_attn,
+            upcast_softmax=self.upcast_softmax,
+            rope_base=self.rope_base,
+            pooling=self.pooling,
+            stem_type=self.stem_type,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            legacy=self.legacy,
+        )
+
+    def configure_decoder(self) -> PointTransformerV3Decoder:
+        """Build the `PointTransformerV3Decoder` upsampling the coarsest features back through the encoder skips."""
+        return PointTransformerV3Decoder(
+            encoder_channels=self.encoder_channels,
+            decoder_depths=self.decoder_depths,
+            decoder_channels=self.decoder_channels,
+            decoder_num_heads=self.decoder_num_heads,
+            decoder_patch_size=self.decoder_patch_size,
+            norm=self.norm,
+            act=self.act,
+            mlp_ratio=self.mlp_ratio,
+            qkv_bias=self.qkv_bias,
+            qk_scale=self.qk_scale,
+            attn_drop=self.attn_drop,
+            proj_drop=self.proj_drop,
+            drop_path=self.drop_path,
+            attn_kind=self.attn_kind,
+            use_flash_attn=self.use_flash_attn,
+            upcast_attn=self.upcast_attn,
+            upcast_softmax=self.upcast_softmax,
+            rope_base=self.rope_base,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            legacy=self.legacy,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

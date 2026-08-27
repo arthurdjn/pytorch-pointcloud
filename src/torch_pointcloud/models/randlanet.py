@@ -551,52 +551,79 @@ class RandLANetClassification(ClassificationModel):
         bias: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        mlp_kwargs: Dict[str, Any] = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-
-        self.stem: Optional[nn.Module] = None
-        if stem_channels:
-            self.stem = MLP(
-                channel_list=[in_channels, stem_channels],
-                plain_last=False,
-                **mlp_kwargs,
-            )
-            in_channels = stem_channels
-
-        self.encoder = RandLANetEncoder(
-            in_channels=in_channels,
-            encoder_channels=encoder_channels,
-            decimation=decimation,
-            num_neighbors=num_neighbors,
-            **mlp_kwargs,
-        )
-
-        in_channels = encoder_channels[-1]
-        aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
-        self.aggr: Optional[nn.Module] = None
-        if aggr_channels:
-            self.aggr = MLP(
-                channel_list=[in_channels, *aggr_channels],
-                plain_last=False,
-                **mlp_kwargs,
-            )
-
-        self.embedding_dim = aggr_channels[-1] if aggr_channels else encoder_channels[-1]
-        self.global_pool = create_pool(global_pool)
+        self.stem_channels = stem_channels
+        self.encoder_channels = encoder_channels
+        self.decimation = decimation
+        self.num_neighbors = num_neighbors
+        self.aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
         self.dropout = dropout
-        self.head = nn.Identity() if num_classes == 0 else nn.Linear(self.embedding_dim, num_classes)
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.embedding_dim = self.aggr_channels[-1] if self.aggr_channels else encoder_channels[-1]
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.aggr = self.configure_aggr()
+        self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[MLP]:
+        """Build the stem lifting the input features to `stem_channels`, or `None` when `stem_channels` is unset."""
+        if not self.stem_channels:
+            return None
+        return MLP(
+            channel_list=[self.in_channels, self.stem_channels],
+            plain_last=False,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_encoder(self) -> RandLANetEncoder:
+        """Build the `RandLANetEncoder` backbone."""
+        return RandLANetEncoder(
+            in_channels=self.stem_channels or self.in_channels,
+            encoder_channels=self.encoder_channels,
+            decimation=self.decimation,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_aggr(self) -> Optional[MLP]:
+        """Build the aggregation MLP applied to the encoder output, or `None` when `aggr_channels` is unset."""
+        if not self.aggr_channels:
+            return None
+        return MLP(
+            channel_list=[self.encoder_channels[-1], *self.aggr_channels],
+            plain_last=False,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
         if global_pool is not None:
             self.global_pool = create_pool(global_pool)
-        self.head = nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        self.head = self.configure_head()
 
     @overload
     def forward_features(
@@ -702,67 +729,91 @@ class RandLANetSegmentation(SegmentationModel):
         bias: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.stem_channels = stem_channels
+        self.encoder_channels = encoder_channels
+        self.fp_channels = fp_channels
+        self.head_channels = ensure_list(head_channels, none_as_empty=True)
+        self.decimation = decimation
+        self.num_neighbors = num_neighbors
+        self.aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
+        self.dropout = dropout
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
+        self.embedding_dim = fp_channels[-1]
 
-        mlp_kwargs: Dict[str, Any] = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.aggr = self.configure_aggr()
+        self.decoder = self.configure_decoder()
+        self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[MLP]:
+        """Build the stem lifting the input features to `stem_channels`, or `None` when `stem_channels` is unset."""
+        if not self.stem_channels:
+            return None
+        return MLP(
+            channel_list=[self.in_channels, self.stem_channels],
+            plain_last=False,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
         )
 
-        self.stem: Optional[nn.Module] = None
-        if stem_channels:
-            self.stem = MLP(
-                channel_list=[in_channels, stem_channels],
-                plain_last=False,
-                **mlp_kwargs,
-            )
-            in_channels = stem_channels
-
-        self.encoder = RandLANetEncoder(
-            in_channels=in_channels,
-            encoder_channels=encoder_channels,
-            decimation=decimation,
-            num_neighbors=num_neighbors,
-            **mlp_kwargs,
+    def configure_encoder(self) -> RandLANetEncoder:
+        """Build the `RandLANetEncoder` backbone."""
+        return RandLANetEncoder(
+            in_channels=self.stem_channels or self.in_channels,
+            encoder_channels=self.encoder_channels,
+            decimation=self.decimation,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
         )
 
+    def configure_aggr(self) -> Optional[MLP]:
+        """Build the aggregation MLP applied to the encoder output, or `None` when `aggr_channels` is unset."""
+        if not self.aggr_channels:
+            return None
+        return MLP(
+            channel_list=[self.encoder_channels[-1], *self.aggr_channels],
+            plain_last=False,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_decoder(self) -> RandLANetDecoder:
+        """Build the `RandLANetDecoder` upsampling the bottleneck features back through the encoder skips."""
         # Skip channels in forward (fine-to-coarse) order:
         # `block 0 PRE-decim`, `block 0 POST-decim`, `block 1 POST-decim`, ..., `block N-2 POST-decim`.
         # Block 0's pre-decimation output is reused as the last (full-resolution) skip
         # so the decoder can upsample back to the input resolution.
-        skip_channels: List[int] = [encoder_channels[0]] + list(encoder_channels[:-1])
-
-        in_channels = encoder_channels[-1]
-        aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
-        self.aggr: Optional[nn.Module] = None
-        if aggr_channels:
-            self.aggr = MLP(
-                channel_list=[in_channels, *aggr_channels],
-                plain_last=False,
-                **mlp_kwargs,
-            )
-
-        decoder_in = aggr_channels[-1] if aggr_channels else encoder_channels[-1]
-        self.decoder = RandLANetDecoder(
-            in_channels=decoder_in,
+        skip_channels: List[int] = [self.encoder_channels[0]] + list(self.encoder_channels[:-1])
+        return RandLANetDecoder(
+            in_channels=self.aggr_channels[-1] if self.aggr_channels else self.encoder_channels[-1],
             skip_channels=skip_channels[::-1],
-            fp_channels=fp_channels,
-            **mlp_kwargs,
+            fp_channels=self.fp_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
         )
-
-        self.embedding_dim = fp_channels[-1]
-        self.head_channels = ensure_list(head_channels, none_as_empty=True)
-        self.dropout = dropout
-        self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

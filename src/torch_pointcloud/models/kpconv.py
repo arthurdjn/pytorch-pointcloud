@@ -467,7 +467,7 @@ class KPResidualBlock(nn.Module):
         return x
 
 
-class GridPool(nn.Module):
+class KPFCNNGridPool(nn.Module):
     """Voxel grid subsampling: points falling in the same cell are reduced to a single point.
 
     Positions are averaged within a cell while features use the `reduce` operation.
@@ -518,7 +518,7 @@ class GridPool(nn.Module):
         return f"grid_size={self.grid_size}, reduce={self.reduce!r}"
 
 
-class EncoderBlock(nn.Module):
+class KPFCNNEncoderBlock(nn.Module):
     """One encoder stage: an optional grid subsampling followed by `depth` `KPResidualBlock` blocks.
 
     Neighborhoods are recomputed once at the stage entry, using `pool_radius` for the strided first block
@@ -552,7 +552,7 @@ class EncoderBlock(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        downsample: Optional[GridPool] = None,
+        downsample: Optional[KPFCNNGridPool] = None,
     ):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
@@ -652,31 +652,9 @@ class EncoderBlock(nn.Module):
         return x, pos_down, batch_down
 
 
-def create_encoder_blocks(
-    in_channels: int,
-    *,
-    depths: Sequence[int],
-    grid_sizes: Sequence[float],
-    radii: Sequence[float],
-    channels: Sequence[int],
-    max_num_neighbors: Sequence[int],
-    kernel_size: int,
-    kp_sigma: Union[float, Sequence[float]],
-    kp_radius: Union[float, Sequence[float]],
-    kp_influence: str = "linear",
-    fixed_position: Literal["none", "center", "vertical"] = "center",
-    aggregation_mode: str = "sum",
-    deformable: Union[bool, Sequence] = False,
-    modulated: Union[bool, Sequence] = False,
-    act: Union[str, Callable, None] = "leaky_relu",
-    act_kwargs: Optional[Dict[str, Any]] = None,
-    act_first: bool = False,
-    norm: Union[str, Callable, None] = "batch_norm",
-    norm_kwargs: Optional[Dict[str, Any]] = None,
-    bias: bool = False,
-    spatial_dim: int = 3,
-) -> nn.ModuleList:
-    """Builds the `EncoderBlock` stages of a KPConv network, inserting a `GridPool` between consecutive stages.
+class KPFCNNEncoder(nn.Module):
+    r"""KP-FCNN encoder: `KPFCNNEncoderBlock` stages from finest to coarsest, every stage but the first preceded by a
+    `KPFCNNGridPool` subsampling.
 
     Args:
         in_channels: Number of channels entering the first stage.
@@ -701,57 +679,127 @@ def create_encoder_blocks(
         bias: Whether the convolutions and MLPs use a bias.
         spatial_dim: Spatial dimension of the input point cloud.
 
-    Returns:
-        The encoder stages, one `EncoderBlock` per entry of `depths`.
+    Inputs:
+        x: Point features of shape $(N, \text{in\_channels})$.
+        pos: Point coordinates of shape $(N, D)$.
+        batch: Batch indices of shape $(N,)$.
+
+    Outputs:
+        Features, coordinates and batch indices at the coarsest stage. With `return_intermediates=True`, also one
+        skip per downsampled stage: the features, coordinates, batch indices and pooling inverse entering that stage.
     """
-    depths = ensure_tuple(depths)
-    n = len(depths)
-    extra_msg = "Expected `{param_name}` to be of length `depths`."
-    channels = ensure_tuple_size(channels, size=n, extra_msg=extra_msg.format(param_name="channels"))
-    max_num_neighbors = ensure_tuple_size(
-        max_num_neighbors,
-        size=n,
-        extra_msg=extra_msg.format(param_name="max_num_neighbors"),
-    )
-    grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
-    kp_radius = ensure_tuple_size(kp_radius, size=n, extra_msg=extra_msg.format(param_name="kp_radius"))
-    kp_sigma = ensure_tuple_size(kp_sigma, size=n, extra_msg=extra_msg.format(param_name="kp_sigma"))
-    deformable = ensure_tuple_size(deformable, size=n, extra_msg=extra_msg.format(param_name="deformable"))
-    modulated = ensure_tuple_size(modulated, size=n, extra_msg=extra_msg.format(param_name="modulated"))
 
-    blocks = nn.ModuleList()
-    for i in range(n):
-        downsample: Optional[GridPool] = None
-        if i > 0:
-            downsample = GridPool(grid_size=grid_sizes[i - 1], reduce="max")
-
-        block = EncoderBlock(
-            downsample=downsample,
-            radius=radii[i],
-            pool_radius=radii[i - 1] if i > 0 else None,
-            max_num_neighbors=max_num_neighbors[i],
-            spatial_dim=spatial_dim,
-            depth=depths[i],
-            in_channels=in_channels,
-            out_channels=channels[i],
-            kernel_size=kernel_size,
-            kp_radius=([kp_radius[i - 1]] + [kp_radius[i]] * (depths[i] - 1)) if i > 0 else kp_radius[i],
-            kp_sigma=([kp_sigma[i - 1]] + [kp_sigma[i]] * (depths[i] - 1)) if i > 0 else kp_sigma[i],
-            kp_influence=kp_influence,
-            fixed_position=fixed_position,
-            aggregation_mode=aggregation_mode,
-            deformable=deformable[i],
-            modulated=modulated[i],
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
+    def __init__(
+        self,
+        in_channels: int,
+        *,
+        depths: Sequence[int],
+        grid_sizes: Sequence[float],
+        radii: Sequence[float],
+        channels: Sequence[int],
+        max_num_neighbors: Sequence[int],
+        kernel_size: int,
+        kp_sigma: Union[float, Sequence[float]],
+        kp_radius: Union[float, Sequence[float]],
+        kp_influence: str = "linear",
+        fixed_position: Literal["none", "center", "vertical"] = "center",
+        aggregation_mode: str = "sum",
+        deformable: Union[bool, Sequence] = False,
+        modulated: Union[bool, Sequence] = False,
+        act: Union[str, Callable, None] = "leaky_relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
+        spatial_dim: int = 3,
+    ):
+        super().__init__()
+        depths = ensure_tuple(depths)
+        n = len(depths)
+        extra_msg = "Expected `{param_name}` to be of length `depths`."
+        channels = ensure_tuple_size(channels, size=n, extra_msg=extra_msg.format(param_name="channels"))
+        max_num_neighbors = ensure_tuple_size(
+            max_num_neighbors,
+            size=n,
+            extra_msg=extra_msg.format(param_name="max_num_neighbors"),
         )
-        blocks.append(block)
-        in_channels = channels[i]
-    return blocks
+        grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
+        kp_radius = ensure_tuple_size(kp_radius, size=n, extra_msg=extra_msg.format(param_name="kp_radius"))
+        kp_sigma = ensure_tuple_size(kp_sigma, size=n, extra_msg=extra_msg.format(param_name="kp_sigma"))
+        deformable = ensure_tuple_size(deformable, size=n, extra_msg=extra_msg.format(param_name="deformable"))
+        modulated = ensure_tuple_size(modulated, size=n, extra_msg=extra_msg.format(param_name="modulated"))
+
+        self.blocks = nn.ModuleList()
+        for i in range(n):
+            downsample: Optional[KPFCNNGridPool] = None
+            if i > 0:
+                downsample = KPFCNNGridPool(grid_size=grid_sizes[i - 1], reduce="max")
+
+            block = KPFCNNEncoderBlock(
+                downsample=downsample,
+                radius=radii[i],
+                pool_radius=radii[i - 1] if i > 0 else None,
+                max_num_neighbors=max_num_neighbors[i],
+                spatial_dim=spatial_dim,
+                depth=depths[i],
+                in_channels=in_channels,
+                out_channels=channels[i],
+                kernel_size=kernel_size,
+                kp_radius=([kp_radius[i - 1]] + [kp_radius[i]] * (depths[i] - 1)) if i > 0 else kp_radius[i],
+                kp_sigma=([kp_sigma[i - 1]] + [kp_sigma[i]] * (depths[i] - 1)) if i > 0 else kp_sigma[i],
+                kp_influence=kp_influence,
+                fixed_position=fixed_position,
+                aggregation_mode=aggregation_mode,
+                deformable=deformable[i],
+                modulated=modulated[i],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+            )
+            self.blocks.append(block)
+            in_channels = channels[i]
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        intermediates = []
+        for i, block in enumerate(self.blocks):
+            intermediate = {"x": x, "pos": pos, "batch": batch}
+            x, pos, batch, inv = block(x, pos, batch, return_inverse=True)
+
+            if i > 0:
+                intermediate["pooling_inverse"] = inv
+                intermediates.append(intermediate)
+
+        if return_intermediates:
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
 
 class KPFCNNClassification(ClassificationModel):
@@ -832,65 +880,86 @@ class KPFCNNClassification(ClassificationModel):
         global_pool: PoolLike = "max",
     ):
         super().__init__(in_channels, num_classes)
-        kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
-        kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
-
+        self.spatial_dim = spatial_dim
+        self.stem_channels = stem_channels
         self.stem_type = stem_type
-        self.stem: Optional[nn.Module] = None
-        if stem_channels is not None:
-            if stem_type == "kpconv":
-                self.stem = KPConvBlock(
-                    spatial_dim=spatial_dim,
-                    in_channels=in_channels,
-                    out_channels=stem_channels,
-                    kernel_size=kernel_size,
-                    kp_radius=kp_radius[0],
-                    kp_sigma=kp_sigma[0],
-                    kp_influence=kp_influence,
-                    fixed_position=fixed_position,
-                    aggregation_mode=aggregation_mode,
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
-                    bias=bias,
-                )
-                self._stem_radius = radii[0]
-                self._stem_max_neighbors = encoder_num_neighbors[0]
-            else:
-                stem_act = create_act(act, **(act_kwargs or {})) or nn.Identity()
-                stem_norm = create_norm(norm, stem_channels, **(norm_kwargs or {})) or nn.Identity()
-                self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
-            in_channels = stem_channels
-
-        self.encoder_blocks = create_encoder_blocks(
-            in_channels=in_channels if stem_channels is None else stem_channels,
-            depths=encoder_depths,
-            channels=encoder_channels,
-            grid_sizes=grid_sizes,
-            radii=radii,
-            max_num_neighbors=encoder_num_neighbors,
-            spatial_dim=spatial_dim,
-            kernel_size=kernel_size,
-            kp_radius=kp_radius,
-            kp_sigma=kp_sigma,
-            kp_influence=kp_influence,
-            fixed_position=fixed_position,
-            aggregation_mode=aggregation_mode,
-            deformable=deformable,
-            modulated=modulated,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-
-        self.embedding_dim = encoder_channels[-1]
+        self.encoder_depths = encoder_depths
+        self.encoder_channels = encoder_channels
+        self.encoder_num_neighbors = encoder_num_neighbors
+        self.grid_sizes = grid_sizes
+        self.radii = radii
+        self.kernel_size = kernel_size
+        self.kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
+        self.kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
+        self.kp_influence = kp_influence
+        self.fixed_position = fixed_position
+        self.aggregation_mode = aggregation_mode
+        self.deformable = deformable
+        self.modulated = modulated
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
         self.dropout = dropout
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.embedding_dim = encoder_channels[-1]
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[nn.Module]:
+        """Build the stem lifting the input features to `stem_channels`, or `None` when `stem_channels` is unset."""
+        if self.stem_channels is None:
+            return None
+        if self.stem_type == "kpconv":
+            return KPConvBlock(
+                spatial_dim=self.spatial_dim,
+                in_channels=self.in_channels,
+                out_channels=self.stem_channels,
+                kernel_size=self.kernel_size,
+                kp_radius=self.kp_radius[0],
+                kp_sigma=self.kp_sigma[0],
+                kp_influence=self.kp_influence,
+                fixed_position=self.fixed_position,
+                aggregation_mode=self.aggregation_mode,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                bias=self.bias,
+            )
+        act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
+        norm = create_norm(self.norm, self.stem_channels, **(self.norm_kwargs or {})) or nn.Identity()
+        return nn.Sequential(nn.Linear(self.in_channels, self.stem_channels), norm, act)
+
+    def configure_encoder(self) -> KPFCNNEncoder:
+        """Build the `KPFCNNEncoder` backbone."""
+        return KPFCNNEncoder(
+            in_channels=self.in_channels if self.stem_channels is None else self.stem_channels,
+            depths=self.encoder_depths,
+            channels=self.encoder_channels,
+            grid_sizes=self.grid_sizes,
+            radii=self.radii,
+            max_num_neighbors=self.encoder_num_neighbors,
+            spatial_dim=self.spatial_dim,
+            kernel_size=self.kernel_size,
+            kp_radius=self.kp_radius,
+            kp_sigma=self.kp_sigma,
+            kp_influence=self.kp_influence,
+            fixed_position=self.fixed_position,
+            aggregation_mode=self.aggregation_mode,
+            deformable=self.deformable,
+            modulated=self.modulated,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -965,9 +1034,9 @@ class KPFCNNClassification(ClassificationModel):
             if self.stem_type == "kpconv":
                 edge_index = radius_graph(
                     pos,
-                    r=self._stem_radius,
+                    r=self.radii[0],
                     batch=batch,
-                    max_num_neighbors=self._stem_max_neighbors,
+                    max_num_neighbors=self.encoder_num_neighbors[0],
                     flow="target_to_source",
                     loop=True,
                 )
@@ -975,18 +1044,7 @@ class KPFCNNClassification(ClassificationModel):
             else:
                 x = self.stem(x)
 
-        intermediates = []
-        for i, block in enumerate(self.encoder_blocks):
-            intermediate = {"x": x, "pos": pos, "batch": batch}
-            x, pos, batch, inv = block(x, pos, batch, return_inverse=True)
-
-            if i > 0:
-                intermediate["pooling_inverse"] = inv
-                intermediates.append(intermediate)
-
-        if return_intermediates:
-            return x, pos, batch, intermediates
-        return x, pos, batch
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         r"""Forward pass of the classification head from pre-pooling features.
@@ -1099,82 +1157,106 @@ class KPFCNNSegmentation(SegmentationModel):
         head_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
-        kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
-        kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
-
+        self.spatial_dim = spatial_dim
+        self.stem_channels = stem_channels
         self.stem_type = stem_type
-        self.stem: Optional[nn.Module] = None
-        if stem_channels is not None:
-            if stem_type == "kpconv":
-                self.stem = KPConvBlock(
-                    spatial_dim=spatial_dim,
-                    in_channels=in_channels,
-                    out_channels=stem_channels,
-                    kernel_size=kernel_size,
-                    kp_radius=kp_radius[0],
-                    kp_sigma=kp_sigma[0],
-                    kp_influence=kp_influence,
-                    fixed_position=fixed_position,
-                    aggregation_mode=aggregation_mode,
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
-                    bias=bias,
-                )
-                self._stem_radius = radii[0]
-                self._stem_max_neighbors = encoder_num_neighbors[0]
-            else:
-                stem_act = create_act(act, **(act_kwargs or {})) or nn.Identity()
-                stem_norm = create_norm(norm, stem_channels, **(norm_kwargs or {})) or nn.Identity()
-                self.stem = nn.Sequential(nn.Linear(in_channels, stem_channels), stem_norm, stem_act)
-            in_channels = stem_channels
-
-        self.encoder_blocks = create_encoder_blocks(
-            in_channels=in_channels if stem_channels is None else stem_channels,
-            depths=encoder_depths,
-            channels=encoder_channels,
-            grid_sizes=grid_sizes,
-            radii=radii,
-            max_num_neighbors=encoder_num_neighbors,
-            spatial_dim=spatial_dim,
-            kernel_size=kernel_size,
-            kp_radius=kp_radius,
-            kp_sigma=kp_sigma,
-            kp_influence=kp_influence,
-            fixed_position=fixed_position,
-            aggregation_mode=aggregation_mode,
-            deformable=deformable,
-            modulated=modulated,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-
-        all_skip_channels = [in_channels] + list(encoder_channels[:-1])
-        skip_channels = all_skip_channels[-len(fp_channels) :][::-1]
-        self.decoder = PointNet2Decoder(
-            in_channels=encoder_channels[-1],
-            skip_channels=skip_channels,
-            fp_channels=fp_channels,
-            bias=bias,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            k=1,
-        )
-
-        self.embedding_dim = fp_channels[-1][-1]
-        self.dropout = dropout
+        self.encoder_depths = encoder_depths
+        self.encoder_channels = encoder_channels
+        self.encoder_num_neighbors = encoder_num_neighbors
+        self.fp_channels = fp_channels
         self.head_channels = list(head_channels) if head_channels else []
+        self.grid_sizes = grid_sizes
+        self.radii = radii
+        self.kernel_size = kernel_size
+        self.kp_radius = ensure_tuple_size(kp_radius, size=len(encoder_depths))
+        self.kp_sigma = ensure_tuple_size(kp_sigma, size=len(encoder_depths))
+        self.kp_influence = kp_influence
+        self.fixed_position = fixed_position
+        self.aggregation_mode = aggregation_mode
+        self.deformable = deformable
+        self.modulated = modulated
         self.act = act
         self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.dropout = dropout
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
+        self.embedding_dim = fp_channels[-1][-1]
         self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[nn.Module]:
+        """Build the stem lifting the input features to `stem_channels`, or `None` when `stem_channels` is unset."""
+        if self.stem_channels is None:
+            return None
+        if self.stem_type == "kpconv":
+            return KPConvBlock(
+                spatial_dim=self.spatial_dim,
+                in_channels=self.in_channels,
+                out_channels=self.stem_channels,
+                kernel_size=self.kernel_size,
+                kp_radius=self.kp_radius[0],
+                kp_sigma=self.kp_sigma[0],
+                kp_influence=self.kp_influence,
+                fixed_position=self.fixed_position,
+                aggregation_mode=self.aggregation_mode,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                bias=self.bias,
+            )
+        act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
+        norm = create_norm(self.norm, self.stem_channels, **(self.norm_kwargs or {})) or nn.Identity()
+        return nn.Sequential(nn.Linear(self.in_channels, self.stem_channels), norm, act)
+
+    def configure_encoder(self) -> KPFCNNEncoder:
+        """Build the `KPFCNNEncoder` backbone."""
+        return KPFCNNEncoder(
+            in_channels=self.in_channels if self.stem_channels is None else self.stem_channels,
+            depths=self.encoder_depths,
+            channels=self.encoder_channels,
+            grid_sizes=self.grid_sizes,
+            radii=self.radii,
+            max_num_neighbors=self.encoder_num_neighbors,
+            spatial_dim=self.spatial_dim,
+            kernel_size=self.kernel_size,
+            kp_radius=self.kp_radius,
+            kp_sigma=self.kp_sigma,
+            kp_influence=self.kp_influence,
+            fixed_position=self.fixed_position,
+            aggregation_mode=self.aggregation_mode,
+            deformable=self.deformable,
+            modulated=self.modulated,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_decoder(self) -> PointNet2Decoder:
+        """Build the `PointNet2Decoder` upsampling the coarsest features back through the encoder skips."""
+        stem_channels = self.in_channels if self.stem_channels is None else self.stem_channels
+        all_skip_channels = [stem_channels, *self.encoder_channels[:-1]]
+        skip_channels = all_skip_channels[-len(self.fp_channels) :][::-1]
+        return PointNet2Decoder(
+            in_channels=self.encoder_channels[-1],
+            skip_channels=skip_channels,
+            fp_channels=self.fp_channels,
+            bias=self.bias,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            k=1,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -1231,9 +1313,9 @@ class KPFCNNSegmentation(SegmentationModel):
             if self.stem_type == "kpconv":
                 edge_index = radius_graph(
                     pos,
-                    r=self._stem_radius,
+                    r=self.radii[0],
                     batch=batch,
-                    max_num_neighbors=self._stem_max_neighbors,
+                    max_num_neighbors=self.encoder_num_neighbors[0],
                     flow="target_to_source",
                     loop=True,
                 )
@@ -1241,12 +1323,9 @@ class KPFCNNSegmentation(SegmentationModel):
             else:
                 x = self.stem(x)
 
-        intermediates = [{"x": x, "pos": pos, "batch": batch}] if return_intermediates else []
-        for i, block in enumerate(self.encoder_blocks):
-            x, pos, batch, inv = block(x, pos, batch, return_inverse=True)
-            if return_intermediates and i < len(self.encoder_blocks) - 1:
-                # NOTE: Do not store the last result, as it will be the returned output.
-                intermediates.append({"x": x, "pos": pos, "batch": batch})
+        intermediates = [{"x": x, "pos": pos, "batch": batch}]
+        x, pos, batch, encoder_intermediates = self.encoder(x, pos, batch, return_intermediates=True)
+        intermediates.extend(encoder_intermediates)
 
         if return_intermediates:
             return x, pos, batch, intermediates
