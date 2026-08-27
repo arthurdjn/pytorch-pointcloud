@@ -114,7 +114,7 @@ def train_one_epoch(
         x = octree.get_input_feature("ND", nempty=True)
 
         optimizer.zero_grad()
-        logits = model(x, octree, points.points, points.batch_id.squeeze())
+        logits = model(x, octree, octree.depth, points.points, points.batch_id.squeeze())
         logits = F.log_softmax(logits, dim=1)
         loss = F.nll_loss(logits, target)
         loss.backward()
@@ -146,7 +146,7 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, num_classes: int, devi
         x = octree.get_input_feature("ND", nempty=True)
 
         with torch.no_grad():
-            logits = model(x, octree, points.points, points.batch_id.squeeze())
+            logits = model(x, octree, octree.depth, points.points, points.batch_id.squeeze())
             preds = logits.argmax(dim=1).detach()
 
         total_correct += preds.eq(target).sum().item()

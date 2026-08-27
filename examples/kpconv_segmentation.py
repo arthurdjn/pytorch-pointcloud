@@ -1,5 +1,4 @@
 from argparse import ArgumentParser, Namespace
-from functools import partial
 from typing import Any, Callable
 
 import torch
@@ -45,7 +44,8 @@ def main() -> None:
         kp_radius=[0.1, 0.2, 0.4, 0.8],
         kp_sigma=[0.05, 0.1, 0.2, 0.4],
         act="leaky_relu",
-        norm=partial(torch.nn.BatchNorm1d, momentum=0.05),
+        norm="batch_norm",
+        norm_kwargs={"momentum": 0.05},
     ).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(

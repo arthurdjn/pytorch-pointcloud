@@ -95,6 +95,8 @@ datamodule:
           keys: pos
           granularity: 0.8
           magnitude: 1.6
+        - _target_: torch_pointcloud.transforms.ToFloat
+          keys: color
         - _target_: torch_pointcloud.transforms.RandomColorAutoContrast
           keys: color
           int_color: true

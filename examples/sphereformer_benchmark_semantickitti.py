@@ -10,7 +10,7 @@ Results vs reference:
     | SphereFormer (paper) | 67.8                   |
 
 Usage:
-    CUDA_VISIBLE_DEVICES=0 uv run --no-sync python examples/sphereformer_benchmark_semantickitti.py --limit 5
+    CUDA_VISIBLE_DEVICES=0 uv run --no-sync python examples/sphereformer_benchmark_semantickitti.py --checkpoint sphereformer.pt --limit 5
 """
 
 import argparse
@@ -80,9 +80,9 @@ def evaluate(
     pbar = tqdm(dataloader, total=total, desc="Testing")
     for data in pbar:
         data = {k: v.to(device) if torch.is_tensor(v) else v for k, v in data.items()}
-        # The dataset transform voxelized `pos`/`pos_grid`/`x` and stored the source-to-voxel
-        # inverse map; `segment` is kept at full resolution for back-projected scoring.
-        target_full = data[DataKeys.SEGMENT]
+        # The dataset transform voxelized `pos`/`pos_grid`/`x`/`segment` and kept the source labels under
+        # `origin_segment` with the source-to-voxel inverse map, for back-projected scoring.
+        target_full = data[DataKeys.ORIGIN_SEGMENT]
         inverse_full = data[DataKeys.INVERSE]
         n_full = int(target_full.shape[0])
 
@@ -122,6 +122,11 @@ def evaluate(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SphereFormer semantic segmentation on SemanticKITTI.")
     parser.add_argument("--model", default="sphereformer.semantickitti", help="Registered segmentation model name.")
+    parser.add_argument(
+        "--checkpoint",
+        required=True,
+        help="Local checkpoint to load (no released weights are available).",
+    )
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "trainval", "test"])
@@ -137,7 +142,7 @@ def main() -> None:
     seed_everything(args.seed)
 
     print(f"Benchmarking model {args.model!r} on SemanticKITTI (split={args.split!r})!")
-    model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
+    model, model_info = create_model(args.model, task="segmentation", checkpoint_path=args.checkpoint, return_info=True)
     num_classes = int(model.num_classes)
     transform = model_info.get("transform")
 

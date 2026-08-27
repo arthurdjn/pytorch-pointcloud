@@ -27,7 +27,7 @@ RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
 
 _FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE and _TORCH_SCATTER_AVAILABLE
-_WEIGHTS = Path(MODELS_DIR, "lion", "lion-mamba.nuscenes.zhe-liu.pt")
+_WEIGHTS = Path(MODELS_DIR, "lion", "lion-mamba.nuscenes.zhe-liu.safetensors")
 
 
 def test_lion_registered_variant() -> None:

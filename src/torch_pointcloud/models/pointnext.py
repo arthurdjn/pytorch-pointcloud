@@ -1158,7 +1158,13 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     ),
     transform=T.Compose(
         [
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.Cat(keys=(DataKeys.POS, "height"), dst_key=DataKeys.X),
@@ -1203,7 +1209,18 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
         author="openpoints",
         license="MIT",
     ),
-    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
+        ]
+    ),
     hparams=dict(
         in_channels=3,
         num_classes=40,
@@ -1353,14 +1370,20 @@ _S3DIS_TRANSFORMS = T.Compose(
             labels=[0, 1, 2, 3, 4, 5, 6, 8, 7, 10, 9, 11, 12],
         ),
         T.Shift(keys=DataKeys.POS, method="min"),
-        # NOTE: tensors are automatically converted to float before reduction (if other than "first")
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="first",
-            keys=[DataKeys.COLOR, DataKeys.SEGMENT],
-            reduce=["first", "first"],
+            keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.NORM_POS, DataKeys.INSTANCE],
+            reduce="first",
             size=0.04,
             method="fnv",  # Use the same method as PointNext, for reproducibility.
+            allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
         T.Shift(keys=DataKeys.POS, method="centroid"),
@@ -1846,10 +1869,12 @@ def pointnext_xl_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 _SHAPENETPART_TRANSFORMS = T.Compose(
     [
+        T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
         T.FarthestPointSample(
             num_samples=2048,
             keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT],
             pos_key=DataKeys.POS,
+            dst_index_key=DataKeys.INDEX,
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
         T.Rescale(keys=[DataKeys.POS], method="centroid"),

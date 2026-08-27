@@ -15,9 +15,8 @@ uv run --no-sync pytest tests/models/test_pretrained.py --run-pretrained --force
 """
 
 import inspect
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Callable, List, Tuple
 
 import pytest
 import torch
@@ -25,15 +24,6 @@ from safetensors.torch import load_file, save_file
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-from torch_pointcloud.datasets import (
-    S3DIS,
-    ModelNetNormalResampled,
-    S3DISHdf5,
-    ScanNet20,
-    ScanObjectNN,
-    SemanticKITTI,
-    ShapeNetPart,
-)
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import collate
 from torch_pointcloud.utils.imports import (
@@ -53,74 +43,8 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-DATASETS_DIR = DATA_DIR / "datasets"
 SNAPSHOTS_DIR = DATA_DIR / "models"
 
-
-def _scannet20_blocks(**kwargs: Any) -> ScanNet20:
-    # tile_scannet_scene samples points per block with torch RNG; seed so the snapshot stays reproducible.
-    torch.manual_seed(0)
-    return ScanNet20(
-        root=DATASETS_DIR,
-        split="val",
-        use_axis_alignment=False,
-        block_size=1.5,
-        block_stride=0.75,
-        num_nodes=8192,
-        show_progress=False,
-        **kwargs,
-    )
-
-
-DATASET_REGISTRY: Dict[str, Callable[..., Dataset]] = {
-    "modelnet_resampled": partial(
-        ModelNetNormalResampled,
-        root=DATASETS_DIR,
-        variant="40",
-        train=False,
-        show_progress=False,
-    ),
-    "s3dis_hdf5": partial(
-        S3DISHdf5,
-        root=DATASETS_DIR,
-        areas=("Area_5",),
-        show_progress=False,
-    ),
-    "s3dis": partial(
-        S3DIS,
-        root=DATASETS_DIR,
-        areas=("Area_5",),
-        aligned=True,
-        download=False,
-        show_progress=False,
-    ),
-    "shapenetpart": partial(
-        ShapeNetPart,
-        root=DATASETS_DIR,
-        split="test",
-        show_progress=False,
-    ),
-    "scanobjectnn": partial(
-        ScanObjectNN,
-        root=DATASETS_DIR,
-        train=False,
-        partition="split1",
-        background=False,
-        show_progress=False,
-    ),
-    "scannet20": partial(
-        ScanNet20,
-        root=DATASETS_DIR,
-        split="val",
-        show_progress=False,
-    ),
-    "scannet20_blocks": _scannet20_blocks,
-    "semantickitti": partial(
-        SemanticKITTI,
-        root=DATASETS_DIR,
-        sequences=("00",),
-    ),
-}
 
 PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     # ModelNet40 based models
@@ -266,6 +190,7 @@ def test_pretrained_model(
     model_name: str,
     task: str,
     dataset_name: str,
+    dataset_factory: Callable[..., Dataset],
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -279,7 +204,7 @@ def test_pretrained_model(
     model, info = create_model(model_name, task=task, pretrained=True, return_info=True)  # type: ignore[call-overload]
 
     # Load the dataset / dataloader
-    dataset = DATASET_REGISTRY[dataset_name](transform=info["transform"])
+    dataset = dataset_factory(dataset_name, transform=info["transform"])
     dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate)
 
     # Get first batch of data
@@ -315,6 +240,7 @@ def test_pretrained_model(
 def test_pretrained_oneformer3d(
     model_name: str,
     dataset_name: str,
+    dataset_factory: Callable[..., Dataset],
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
 ) -> None:
@@ -331,7 +257,7 @@ def test_pretrained_oneformer3d(
     models_dir = models_dir_factory("*.safetensors")
 
     model, info = create_model(model_name, task="segmentation", pretrained=True, return_info=True)
-    dataset = DATASET_REGISTRY[dataset_name](transform=info["transform"])
+    dataset = dataset_factory(dataset_name, transform=info["transform"])
     data = collate([dataset[0]])
     data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
     model = model.to(DEVICE).eval()

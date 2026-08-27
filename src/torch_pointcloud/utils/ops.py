@@ -417,3 +417,41 @@ def pad_tail(tensor: Tensor, pad_size: int, dim: int, fill_value: float = 0) -> 
     tail_shape[dim] = pad_size
     tail = tensor.new_full(tail_shape, fill_value)
     return torch.cat([tensor, tail], dim=dim)
+
+
+def offset_index(index: Tensor, index_batch: Tensor, batch: Tensor) -> Tensor:
+    r"""Offset per-element row indices into the packed row layout of a collated batch.
+
+    `collate` concatenates a row map such as `inverse` or `index` as-is, so the entries of each batch element
+    still address that element's own rows. This shifts every entry by the number of rows of the elements
+    collated before it.
+
+    Args:
+        index: Per-element row indices.
+        index_batch: Batch index of each entry of `index`, the `batch_<key>` tensor `collate` emits for `cat_keys`.
+        batch: Batch index of the rows `index` addresses (`batch` for an `inverse` map, `batch_origin_pos` for
+            an `index` map).
+
+    Returns:
+        The offset row indices.
+
+    Shape:
+        - `index`: $(M,)$
+        - `index_batch`: $(M,)$
+        - `batch`: $(N,)$
+        - output: $(M,)$
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.utils.ops import offset_index
+
+        inverse = torch.tensor([0, 1, 1, 0, 2, 2, 1])
+        batch_inverse = torch.tensor([0, 0, 0, 1, 1, 1, 1])
+        batch = torch.tensor([0, 0, 1, 1, 1])
+        offset_index(inverse, batch_inverse, batch)  # tensor([0, 1, 1, 2, 4, 4, 3])
+        ```
+    """
+    counts = torch.bincount(batch, minlength=int(index_batch.max()) + 1)
+    offsets = torch.cumsum(counts, dim=0) - counts
+    return index + offsets[index_batch]

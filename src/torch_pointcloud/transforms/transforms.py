@@ -1,4 +1,4 @@
-"""Dict transforms.
+r"""Dict transforms.
 
 All transforms in this module operate on a **single scene** (one sample, pre-collate).
 The `batch` key is not consumed at this layer; reductions like `mean`, `min`, and `max`
@@ -7,6 +7,15 @@ collation if you want per-scene behavior.
 
 Transforms are non-mutating: each transform returns a new shallow-copy dict. Tensors
 inside the dict are not cloned unless the transform's documentation says so.
+
+Sampling keys: a transform that changes the number of points can record how to get back to its input.
+Voxelizers (`Voxelize`, `DivisiblePad`) write `inverse`, $(N_\text{in},)$, input row to output row, under
+`dst_inverse_key`, so `preds[inverse]` scores at input resolution. Selection samplers (`RandomSample`,
+`FarthestPointSample`, `SphereCrop`, `RemoveNearOrigin`, `RandomDropout`, `ShufflePoint`, `ApplyMask`, `Slice`
+along `dim=0`) write `index`, $(N_\text{out},)$, output row to input row, under `dst_index_key`. Both compose
+through a prior value at the same key, so a chain of samplers of one kind stays addressed to the outermost
+input. Registered evaluation pipelines set these keys and copy the source cloud to `origin_pos` /
+`origin_segment` with `CopyItems` before their first sampling step.
 """
 
 import math
@@ -252,6 +261,12 @@ class Compose(Transform):
         The order of the transforms is important, as each transform will be applied
         in the order they are added to the `Compose` object.
 
+    Args:
+        transforms: The transforms to apply, in order.
+        allow_missing_keys: When set, assigned to every `DictTransform` child, recursively through nested
+            `Compose` objects, overriding what each child was built with (assigning the attribute later does the
+            same). Registered pipelines are shared objects, so setting it on one mutates its children for every
+            user. `None` leaves the children as built.
 
     Example:
         For example, to chain a random sample and a normalization transform,
@@ -274,8 +289,24 @@ class Compose(Transform):
         ```
     """
 
-    def __init__(self, transforms: Sequence[Transform]):
+    def __init__(self, transforms: Sequence[Transform], allow_missing_keys: Optional[bool] = None) -> None:
         self.transforms = transforms
+        # Recursively set all children's allow_missing_keys
+        self.allow_missing_keys = allow_missing_keys
+
+    @property
+    def allow_missing_keys(self) -> Optional[bool]:
+        return self._allow_missing_keys
+
+    @allow_missing_keys.setter
+    def allow_missing_keys(self, value: Optional[bool]) -> None:
+        self._allow_missing_keys = value
+        if value is None:
+            return
+
+        for transform in self.transforms:
+            if isinstance(transform, (Compose, DictTransform)):
+                transform.allow_missing_keys = value
 
     def transform(self, data: Any) -> Any:
         """Apply the transforms to the input data.
@@ -387,6 +418,8 @@ class RandomSample(DictTransform):
             `num_samples` points; when `num_samples` exceeds that count the draw falls back
             to replacement so the output always has `num_samples` rows.
         generator: The generator for the random number generator.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Raises:
@@ -399,12 +432,14 @@ class RandomSample(DictTransform):
         num_samples: int,
         replace: bool = False,
         generator: Optional[torch.Generator] = None,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.num_samples = num_samples
         self.replace = replace
         self.generator = generator
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -423,6 +458,9 @@ class RandomSample(DictTransform):
         d[first_key] = sampled_tensor
         for key in iterator:
             d[key] = d[key][indices]
+        if self.dst_index_key is not None:
+            prior = d.get(self.dst_index_key)
+            d[self.dst_index_key] = indices if prior is None else prior[indices]
         return d
 
 
@@ -463,9 +501,8 @@ class DivisiblePad(DictTransform):
             synthesized for the whole scene.
         generator: Optional `torch.Generator`. Only consumed when
             `pad_fill="random"`. See `Transform` for the multi-worker caveat.
-        dst_inverse_key: When set, store the source-to-padded index map under
-            this key (auto-composes with any existing value at the same key).
-            Leave `None` for training pipelines that never need the inverse.
+        dst_inverse_key: Key for the source-to-padded row map (see the module docs on sampling keys); composes
+            with any prior value at the same key. `None` (the default) disables it.
         allow_missing_keys: If `True`, return the data unchanged when `ref_key`
             is missing instead of raising.
 
@@ -630,7 +667,10 @@ class EstimateNormals(DictTransform):
         batch = d.get(self.batch_key) if self.batch_key is not None else None
         for key, normal_key in self.iter_keys(d, self.normal_key):
             d[normal_key] = F.estimate_normals(
-                d[key], k=self.k, batch=batch, orient_to_centroid=self.orient_to_centroid
+                d[key],
+                k=self.k,
+                batch=batch,
+                orient_to_centroid=self.orient_to_centroid,
             )
         return d
 
@@ -664,6 +704,8 @@ class FarthestPointSample(DictTransform):
         num_samples: The number of points to sample.
         ratio: The ratio of points to sample.
         random_start: Whether to start the sampling from a random point.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -674,6 +716,7 @@ class FarthestPointSample(DictTransform):
         num_samples: Optional[int] = None,
         ratio: Optional[float] = None,
         random_start: bool = False,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         all_keys = ensure_tuple(keys, none_as_empty=True)
@@ -684,6 +727,7 @@ class FarthestPointSample(DictTransform):
         self.num_samples = num_samples
         self.ratio = ratio
         self.random_start = random_start
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -696,6 +740,9 @@ class FarthestPointSample(DictTransform):
         )
         for key in self.iter_keys(d):
             d[key] = d[key][indices]
+        if self.dst_index_key is not None:
+            prior = d.get(self.dst_index_key)
+            d[self.dst_index_key] = indices if prior is None else prior[indices]
         return d
 
 
@@ -772,6 +819,8 @@ class RemoveNearOrigin(DictTransform):
         pos_key: The key containing the positions / coordinates, used to compute the distance from the origin.
         keys: Extra keys to filter with the same mask.
         radius: The radius of the sphere.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -780,6 +829,7 @@ class RemoveNearOrigin(DictTransform):
         pos_key: str,
         keys: Optional[KeyCollection] = None,
         radius: float = 1e-3,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         all_keys = ensure_tuple(keys, none_as_empty=True)
@@ -788,6 +838,7 @@ class RemoveNearOrigin(DictTransform):
         super().__init__(all_keys, allow_missing_keys)
         self.pos_key = pos_key
         self.radius = radius
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -798,6 +849,10 @@ class RemoveNearOrigin(DictTransform):
         _, mask = F.remove_near_origin(d[self.pos_key], radius=self.radius, return_mask=True)
         for key in self.iter_keys(d):
             d[key] = d[key][mask]
+        if self.dst_index_key is not None:
+            index = torch.where(mask)[0]
+            prior = d.get(self.dst_index_key)
+            d[self.dst_index_key] = index if prior is None else prior[index]
         return d
 
 
@@ -910,6 +965,9 @@ class ApplyMask(DictTransform):
         keys: The keys to apply the mask to.
         mask_key: The key containing the mask.
         dst_keys: The keys to store the transformed data in.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it. Leave it unset when `dst_keys` differ from `keys`, since the map would describe
+            the `dst_keys` rows.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -918,11 +976,13 @@ class ApplyMask(DictTransform):
         keys: KeyCollection,
         mask_key: str,
         dst_keys: Optional[KeyCollection] = None,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, size=len(self.keys))
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -933,6 +993,10 @@ class ApplyMask(DictTransform):
         mask = d[self.mask_key]
         for key, dst_key in self.iter_keys(d, self.dst_keys):
             d[dst_key] = F.apply_mask(d[key], mask)
+        if self.dst_index_key is not None:
+            index = torch.where(mask)[0] if mask.dtype == torch.bool else mask
+            prior = d.get(self.dst_index_key)
+            d[self.dst_index_key] = index if prior is None else prior[index]
         return d
 
 
@@ -2071,13 +2135,12 @@ class Voxelize(DictTransform):
             representative is the first point of each voxel in input order, deterministic across
             devices (unless `random_sample=True`).
         keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
-        dst_inverse_key: When set, store the source-to-voxel index map under
-            this key (auto-composes with any existing value at the same key).
-            Leave `None` for training pipelines that never need the inverse.
-        grid_pos_key: When set together with a non-`grid` `pos_reduce`, also store
-            the integer voxel-grid coordinates under this key. Useful when a model
-            needs both real-valued positions (e.g. for rotary position embedding)
-            and integer grid coordinates (for serialization / sparse-conv stems).
+        dst_inverse_key: Key for the source-to-voxel row map (see the module docs on sampling keys); composes
+            with any prior value at the same key. `None` (the default) disables it.
+        dst_pos_grid_key: When set, also store the integer voxel-grid coordinates under this key. Useful when a
+            model needs both real-valued positions (e.g. for rotary position embedding) and integer grid
+            coordinates (for serialization / sparse-conv stems); with `pos_reduce="grid"` it holds the same grid
+            as `pos_key`.
         random_sample: If `True`, the per-voxel representative used by `reduce="first"`
             (and the `pos`/`grid_pos` derivations) is chosen *randomly* within each
             voxel on every call. Per-voxel random sampling is a meaningful
@@ -2085,7 +2148,7 @@ class Voxelize(DictTransform):
             `False` (default) for deterministic validation.
         generator: Optional `torch.Generator` for `random_sample` reproducibility. See `Transform`
             for the multi-worker caveat.
-        allow_missing_keys: If `True`, missing keys are skipped silently.
+        allow_missing_keys: If `True`, return the data unchanged when `pos_key` is missing and skip absent `keys`.
 
     Raises:
         ValueError: If `size` is not positive, or `pos_reduce` / `method` / any `reduce` entry is
@@ -2101,7 +2164,7 @@ class Voxelize(DictTransform):
         reduce: Optional[ValueCollection[VoxelReduce]] = None,
         keys: Optional[KeyCollection] = None,
         dst_inverse_key: Optional[str] = None,
-        grid_pos_key: Optional[str] = None,
+        dst_pos_grid_key: Optional[str] = None,
         random_sample: bool = False,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
@@ -2113,6 +2176,7 @@ class Voxelize(DictTransform):
             raise ValueError(f"Invalid pos_reduce: {pos_reduce!r}. Expected one of {get_args(VoxelPosReduce)}.")
         if method not in get_args(VoxelMethod):
             raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(VoxelMethod)}.")
+
         self.pos_key = pos_key
         self.pos_reduce = pos_reduce
         self.size = size
@@ -2120,9 +2184,10 @@ class Voxelize(DictTransform):
         invalid = set(self.reduce) - set(get_args(VoxelReduce)) - {None}
         if invalid:
             raise ValueError(f"Invalid reduce(s): {invalid}. Expected one of {get_args(VoxelReduce)}.")
+
         self.method = method
         self.dst_inverse_key = dst_inverse_key
-        self.grid_pos_key = grid_pos_key
+        self.dst_pos_grid_key = dst_pos_grid_key
         self.random_sample = random_sample
         self.generator = generator
 
@@ -2155,13 +2220,17 @@ class Voxelize(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
+        if self.pos_key not in data:
+            if self.allow_missing_keys:
+                return data
+            raise KeyError(f"`Voxelize` requires {self.pos_key!r} in data.")
         pos = data[self.pos_key]
 
         if pos.shape[0] == 0:
             if self.dst_inverse_key is not None:
                 data[self.dst_inverse_key] = torch.empty(0, dtype=torch.long, device=pos.device)
-            if self.grid_pos_key is not None:
-                data[self.grid_pos_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
+            if self.dst_pos_grid_key is not None:
+                data[self.dst_pos_grid_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
             return data
 
         start = torch.floor(pos.min(dim=0).values / self.size) * self.size
@@ -2181,14 +2250,13 @@ class Voxelize(DictTransform):
         else:
             perm = first_permutation(cluster, num_clusters=num_clusters)
 
-        if self.pos_reduce == "grid":
-            pos_grid = torch.floor((pos[perm] - start) / self.size).long()
-            data[self.pos_key] = pos_grid - pos_grid.min(dim=0).values
-        else:
-            data[self.pos_key] = self._reduce(pos, self.pos_reduce, cluster, perm)
-            if self.grid_pos_key is not None:
-                pos_grid = torch.floor((pos[perm] - start) / self.size).long()
-                data[self.grid_pos_key] = pos_grid - pos_grid.min(dim=0).values
+        pos_grid = torch.floor((pos[perm] - start) / self.size).long()
+        pos_grid = pos_grid - pos_grid.min(dim=0).values
+        data[self.pos_key] = (
+            pos_grid if self.pos_reduce == "grid" else self._reduce(pos, self.pos_reduce, cluster, perm)
+        )
+        if self.dst_pos_grid_key is not None:
+            data[self.dst_pos_grid_key] = pos_grid
 
         for key, reduce in self.iter_keys(data, self.reduce):
             tensor = data[key]
@@ -3003,6 +3071,8 @@ class RandomDropout(DictTransform):
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
             multi-worker caveat.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3012,6 +3082,7 @@ class RandomDropout(DictTransform):
         p_drop: float = 0.1,
         p: float = 1.0,
         generator: Optional[torch.Generator] = None,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -3022,18 +3093,26 @@ class RandomDropout(DictTransform):
             raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        if torch.rand(1, generator=self.generator).item() >= self.p:
-            return data
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None:
             return data
         n = data[first_key].shape[0]
-        keep = F.random_dropout_mask(n, self.p_drop, device=data[first_key].device, generator=self.generator)
+        device = data[first_key].device
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            if self.dst_index_key is not None and self.dst_index_key not in data:
+                data[self.dst_index_key] = torch.arange(n, device=device)
+            return data
+        keep = F.random_dropout_mask(n, self.p_drop, device=device, generator=self.generator)
         for key in self.iter_keys(data):
             data[key] = data[key][keep]
+        if self.dst_index_key is not None:
+            index = torch.where(keep)[0]
+            prior = data.get(self.dst_index_key)
+            data[self.dst_index_key] = index if prior is None else prior[index]
         return data
 
 
@@ -3278,6 +3357,8 @@ class SphereCrop(DictTransform):
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility (used when
             `center="random_point"`). See `Transform` for the multi-worker caveat.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3290,6 +3371,7 @@ class SphereCrop(DictTransform):
         center: Any = "centroid",
         p: float = 1.0,
         generator: Optional[torch.Generator] = None,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         all_keys = ensure_tuple(keys, none_as_empty=True)
@@ -3304,6 +3386,7 @@ class SphereCrop(DictTransform):
             raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
+        self.dst_index_key = dst_index_key
 
     def _resolve_center(self, pos: torch.Tensor) -> torch.Tensor:
         if isinstance(self.center, str):
@@ -3324,6 +3407,9 @@ class SphereCrop(DictTransform):
                 return data
             raise KeyError(f"`SphereCrop` requires {self.pos_key!r} in data.")
         if torch.rand(1, generator=self.generator).item() >= self.p:
+            if self.dst_index_key is not None and self.dst_index_key not in data:
+                n = data[self.pos_key].shape[0]
+                data[self.dst_index_key] = torch.arange(n, device=data[self.pos_key].device)
             return data
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
         pos = data[self.pos_key].float()
@@ -3336,6 +3422,10 @@ class SphereCrop(DictTransform):
             mask[keep] = True
         for key in self.iter_keys(data):
             data[key] = data[key][mask]
+        if self.dst_index_key is not None:
+            index = torch.where(mask)[0]
+            prior = data.get(self.dst_index_key)
+            data[self.dst_index_key] = index if prior is None else prior[index]
         return data
 
 
@@ -3354,6 +3444,9 @@ class Slice(DictTransform):
         step: Stride between selected positions. `None` is equivalent to `1`.
         dim: Dimension along which to slice. Defaults to `0` (the row axis).
         dst_keys: Where to store results. Defaults to `keys`.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys), written only
+            when `dim == 0`; `None` (the default) disables it. Leave it unset when `dst_keys` differ from `keys`,
+            since the map would describe the `dst_keys` rows.
         allow_missing_keys: If `True`, silently skip absent keys.
 
     Example:
@@ -3376,6 +3469,7 @@ class Slice(DictTransform):
         step: Optional[int] = None,
         dim: int = 0,
         dst_keys: Optional[KeyCollection] = None,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -3384,15 +3478,22 @@ class Slice(DictTransform):
         self.stop = stop
         self.step = step
         self.dim = dim
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         sl = slice(self.start, self.stop, self.step)
+        index: Optional[Tensor] = None
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            index: list[Any] = [slice(None)] * x.ndim
-            index[self.dim] = sl
-            data[dst_key] = x[tuple(index)]
+            idx: list[Any] = [slice(None)] * x.ndim
+            idx[self.dim] = sl
+            data[dst_key] = x[tuple(idx)]
+            if index is None and self.dim == 0:
+                index = torch.arange(x.shape[0], device=getattr(x, "device", None))[sl]
+        if index is not None and self.dst_index_key is not None:
+            prior = data.get(self.dst_index_key)
+            data[self.dst_index_key] = index if prior is None else prior[index]
         return data
 
 
@@ -3419,6 +3520,8 @@ class ShufflePoint(DictTransform):
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
             multi-worker caveat.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3427,6 +3530,7 @@ class ShufflePoint(DictTransform):
         keys: KeyCollection,
         p: float = 1.0,
         generator: Optional[torch.Generator] = None,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -3434,18 +3538,25 @@ class ShufflePoint(DictTransform):
             raise ValueError(f"p must be in [0, 1]; got {p}.")
         self.p = p
         self.generator = generator
+        self.dst_index_key = dst_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        if torch.rand(1, generator=self.generator).item() >= self.p:
-            return data
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None:
             return data
         n = data[first_key].shape[0]
-        perm = F.shuffle_indices(n, device=data[first_key].device, generator=self.generator)
+        device = data[first_key].device
+        if torch.rand(1, generator=self.generator).item() >= self.p:
+            if self.dst_index_key is not None and self.dst_index_key not in data:
+                data[self.dst_index_key] = torch.arange(n, device=device)
+            return data
+        perm = F.shuffle_indices(n, device=device, generator=self.generator)
         for key in self.iter_keys(data):
             data[key] = data[key][perm]
+        if self.dst_index_key is not None:
+            prior = data.get(self.dst_index_key)
+            data[self.dst_index_key] = perm if prior is None else prior[perm]
         return data
 
 

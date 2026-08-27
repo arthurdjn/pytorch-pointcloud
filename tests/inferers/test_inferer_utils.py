@@ -2,9 +2,15 @@
 
 from typing import Any, Dict
 
+import pytest
 import torch
 
-from torch_pointcloud.inferers._utils import gaussian_weights, index_select_dict, split_chunks
+from torch_pointcloud.inferers._utils import (
+    check_batch_alignment,
+    gaussian_weights,
+    index_select_dict,
+    split_chunks,
+)
 
 
 def test_split_chunks_no_cap_returns_single_in_order_chunk() -> None:
@@ -75,3 +81,14 @@ def test_gaussian_weights_zero_sigma_stays_finite() -> None:
     by zero."""
     w = gaussian_weights(torch.tensor([0.0, 1.0]), sigma=0.0)
     assert torch.isfinite(w).all()
+
+
+def test_check_batch_alignment_accepts_a_matching_index() -> None:
+    """A batch index with one row per point passes."""
+    check_batch_alignment(torch.zeros(6, 3), torch.zeros(6, dtype=torch.long), "pos", "batch")
+
+
+def test_check_batch_alignment_rejects_a_shorter_index() -> None:
+    """A batch index over voxels rather than points raises instead of leaving the tail unpredicted."""
+    with pytest.raises(ValueError, match="has 4 rows but `data\\['pos'\\]` has 6"):
+        check_batch_alignment(torch.zeros(6, 3), torch.zeros(4, dtype=torch.long), "pos", "batch")

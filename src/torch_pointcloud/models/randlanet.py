@@ -890,12 +890,19 @@ class RandLANetSegmentation(SegmentationModel):
                 },
                 default=255,
             ),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
-                keys=[DataKeys.SEGMENT],
-                reduce=["first"],
+                keys=[DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
+                reduce="first",
                 size=0.06,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),

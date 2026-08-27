@@ -588,7 +588,13 @@ class PointNetSegmentation(SegmentationModel):
     hparams=dict(in_channels=0, num_classes=40, dropout=0.3),
     transform=T.Compose(
         [
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[], num_samples=1024),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
         ]
     ),

@@ -20,14 +20,14 @@ def parallel_map(
 ) -> List[T]:
     """Apply `func` to every item in `iterable`, optionally in parallel.
 
-    When `num_workers` is `None`, items are processed sequentially in the
+    When `num_workers` is `None` or `0`, items are processed sequentially in the
     current process. Otherwise `joblib` spawns `num_workers` workers and
     results are streamed back as each task completes.
 
     Args:
         func: Callable invoked on each item.
         iterable: Items to map over.
-        num_workers: Number of worker processes. `None` disables parallelism.
+        num_workers: Number of worker processes. `None` or `0` disables parallelism.
         total: Item count for the progress bar. Inferred from `len(iterable)`
             when not provided.
         desc: Progress bar description.
@@ -41,7 +41,7 @@ def parallel_map(
         except TypeError:
             total = None
 
-    if num_workers is None:
+    if not num_workers:
         results: Iterable[T] = (func(item) for item in iterable)
     else:
         results = Parallel(n_jobs=num_workers, return_as="generator")(delayed(func)(item) for item in iterable)

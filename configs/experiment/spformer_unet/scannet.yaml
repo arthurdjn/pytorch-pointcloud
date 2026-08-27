@@ -19,6 +19,7 @@ model:
   input_keys: [x, pos, batch]
   target_key: segment
   inverse_key: inverse
+  origin_target_key: origin_segment
   scheduler_interval: step
   criterion:
     _target_: torch_pointcloud.losses.SumLoss
@@ -107,6 +108,8 @@ datamodule:
             keys: pos
             granularity: 0.8
             magnitude: 1.6
+          - _target_: torch_pointcloud.transforms.ToFloat
+            keys: color
           - _target_: torch_pointcloud.transforms.RandomColorAutoContrast
             keys: color
             int_color: true
