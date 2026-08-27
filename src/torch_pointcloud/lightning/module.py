@@ -13,6 +13,7 @@ from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d, projected
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 from torch_pointcloud.utils.misc import deep_getattr
+from torch_pointcloud.utils.ops import offset_index
 from torch_pointcloud.utils.optim import generate_param_groups
 from torch_pointcloud.utils.types import Boxes3D
 
@@ -68,7 +69,7 @@ class LitModel(LightningModule):
         criterion: Optional[nn.Module] = None,
         inferer: Optional[Inferer] = None,
         input_keys: Sequence[str] = ("x", "pos", "batch"),
-        target_key: str = "label",
+        target_key: str = DataKeys.LABEL,
         metric_input_keys: Sequence[str] = (),
         scheduler_interval: str = "epoch",
         param_groups: Optional[Dict[str, Any]] = None,
@@ -90,7 +91,7 @@ class LitModel(LightningModule):
             {
                 "name": name,
                 "input_keys": list(input_keys),
-                "target_key": target_key,
+                "target_key": str(target_key),
                 "metric_input_keys": list(metric_input_keys),
                 "scheduler_interval": scheduler_interval,
                 **info["hparams"],
@@ -193,13 +194,13 @@ class LitSegmentationModel(LitModel):
 
     Args:
         name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
-        inverse_key: Optional batch-dict key holding the voxel-to-raw inverse map. When set, eval
-            predictions are broadcast to raw resolution (`preds[batch[inverse_key]]`) and scored against
-            `origin_target_key`, the benchmark protocol of grid-sampled models; the loss stays at voxel
-            resolution against `target_key`. Multi-scene batches need the key in the loader's `cat_keys`
-            so the per-scene maps can be offset into the packed layout. Leave unset when the inferer already
-            predicts at raw resolution (e.g. `VoxelPartitionInferer`, `SlidingWindowInferer`).
-        origin_target_key: Batch-dict key of the raw-resolution labels used with `inverse_key`.
+        inverse_key: Batch-dict key of the source-to-predictor row map written by the transform (`inverse`; see
+            the transforms module docs on sampling keys). When set, eval predictions are broadcast to source
+            resolution (`preds[batch[inverse_key]]`) and scored against `origin_target_key`; the loss stays at
+            predictor resolution against `target_key`. Multi-scene batches need the key in the loader's
+            `cat_keys` so the per-scene maps can be offset into the packed layout; the datamodule adds it.
+        origin_target_key: Batch-dict key of the source-resolution labels scored with `inverse_key`; required
+            with it.
         target_key: Batch-dict key of the per-point labels.
         **kwargs: Forwarded to the base `LitModel` (e.g. `inferer`, `optimizer`, `criterion`) and
             `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
@@ -209,14 +210,17 @@ class LitSegmentationModel(LitModel):
         self,
         name: str,
         inverse_key: Optional[str] = None,
-        origin_target_key: str = "origin_segment",
-        target_key: str = "segment",
+        origin_target_key: Optional[str] = None,
+        target_key: str = DataKeys.SEGMENT,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="segmentation", target_key=target_key, **kwargs)
-        self.save_hyperparameters({"inverse_key": inverse_key, "origin_target_key": origin_target_key})
-        self.inverse_key = inverse_key
-        self.origin_target_key = origin_target_key
+        if (inverse_key is None) != (origin_target_key is None):
+            raise ValueError("`inverse_key` and `origin_target_key` go together; pass both or neither.")
+        # Lightning serializes an `Enum` hparam by name, so a reloaded `hparams.yaml` would carry `"INVERSE"`.
+        self.inverse_key = None if inverse_key is None else str(inverse_key)
+        self.origin_target_key = None if origin_target_key is None else str(origin_target_key)
+        self.save_hyperparameters({"inverse_key": self.inverse_key, "origin_target_key": self.origin_target_key})
 
     def forward(self, batch: Dict[str, Any]) -> Tensor:
         out = super().forward(batch)
@@ -228,10 +232,12 @@ class LitSegmentationModel(LitModel):
         preds, target = outputs["preds"], outputs["target"]
         point_batch = batch[DataKeys.BATCH]
         if self.inverse_key is not None:
+            assert self.origin_target_key is not None
             inverse = self._batched_inverse(batch)
             preds = preds[inverse]
             target = batch[self.origin_target_key].long()
             point_batch = point_batch[inverse]
+
         return {"preds": preds, "target": target, "batch": point_batch}
 
     def _batched_inverse(self, batch: Dict[str, Any]) -> Tensor:
@@ -240,8 +246,8 @@ class LitSegmentationModel(LitModel):
         which scene each raw point belongs to)."""
         assert self.inverse_key is not None
         inverse = batch[self.inverse_key]
-        scene = batch.get(f"batch_{self.inverse_key}")
-        if scene is None:
+        inverse_batch = batch.get(f"batch_{self.inverse_key}")
+        if inverse_batch is None:
             if int(batch[DataKeys.BATCH][-1]) > 0:
                 raise RuntimeError(
                     f"`inverse_key={self.inverse_key!r}` on a multi-scene batch needs the per-point scene "
@@ -249,9 +255,7 @@ class LitSegmentationModel(LitModel):
                     "`cat_keys` (or use an eval batch size of 1)."
                 )
             return inverse
-        counts = torch.bincount(batch[DataKeys.BATCH], minlength=int(scene.max()) + 1)
-        offsets = torch.cumsum(counts, dim=0) - counts
-        return inverse + offsets[scene]
+        return offset_index(inverse, inverse_batch, batch[DataKeys.BATCH])
 
 
 class LitDetectionModel(LitModel):
@@ -331,6 +335,7 @@ class LitDetectionModel(LitModel):
                 "ignore_mask_key": ignore_mask_key,
             }
         )
+
         # The base registered a placeholder loss; drop it so the configured criterion can take its place,
         # including `None` or a non-Module test double.
         del self.criterion
@@ -345,6 +350,7 @@ class LitDetectionModel(LitModel):
                 num_classes=self.model.num_classes,
                 mean_sizes=self.model.mean_sizes,
             )
+
         self.score_threshold = score_threshold
         self.nms_iou = nms_iou
         self.nms_rotated = nms_rotated
@@ -358,14 +364,16 @@ class LitDetectionModel(LitModel):
         if self.criterion is None:
             if stage == "train":
                 raise RuntimeError(
-                    "No `criterion` was provided, so this module is evaluation-only (benchmark mode); "
-                    "pass `criterion=` to train."
+                    "No `criterion` was provided, so this module is evaluation-only, pass `criterion=` to train it."
                 )
+
             return {"output": output}
+
         losses = self.criterion(output, batch)
         batch_size = int(batch[DataKeys.BATCH][-1]) + 1
         for key, value in losses.items():
             self.log(f"{stage}/{key}", value, prog_bar=True, batch_size=batch_size, sync_dist=stage != "train")
+
         return {"output": output, "loss": losses["loss"]}
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
@@ -377,19 +385,23 @@ class LitDetectionModel(LitModel):
                 batch[DataKeys.POS], det["boxes"], pos_batch=batch[DataKeys.BATCH], box_batch=det["batch"]
             )
             keep &= counts >= self.min_points
+
         boxes, scores, labels, det_batch = (
             det["boxes"][keep],
             det["scores"][keep],
             det["labels"][keep],
             det["batch"][keep],
         )
+
         idx = nms3d(boxes, scores, self.nms_iou, labels=labels, batch=det_batch, rotated=self.nms_rotated)
         extras: Dict[str, Tensor] = {}
         for key, value in det.items():
             if key in ("boxes", "scores", "labels", "batch", "class_probs"):
                 continue
+
             assert isinstance(value, Tensor)
             extras[key] = value[keep][idx]
+
         preds: Dict[str, Tensor] = {
             "boxes": boxes[idx],
             "scores": scores[idx],
@@ -397,6 +409,7 @@ class LitDetectionModel(LitModel):
             "batch": det_batch[idx],
             **extras,
         }
+
         if "class_probs" in det:
             # Indoor AP convention: score every surviving box against each class by its class probability.
             probs = det["class_probs"][keep][idx]
@@ -408,15 +421,20 @@ class LitDetectionModel(LitModel):
                 "batch": det_batch[idx].repeat_interleave(num_classes),
                 **{key: value.repeat_interleave(num_classes, dim=0) for key, value in extras.items()},
             }
+
         if DataKeys.CALIB in batch and DataKeys.IMAGE_SHAPE in batch:
             preds["ignore_mask"] = projected_ignore_mask(
-                preds["boxes"], batch[DataKeys.CALIB][preds["batch"]], batch[DataKeys.IMAGE_SHAPE][preds["batch"]]
+                preds["boxes"],
+                batch[DataKeys.CALIB][preds["batch"]],
+                batch[DataKeys.IMAGE_SHAPE][preds["batch"]],
             )
+
         target: Boxes3D = {
             "boxes": batch[DataKeys.BOX],
             "labels": batch[self.label_key].long(),
             "batch": batch[DataKeys.BATCH_BOX],
         }
+
         if self.ignore_mask_key is not None:
             target["ignore_mask"] = batch[self.ignore_mask_key]
         return {"preds": preds, "target": target}

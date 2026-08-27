@@ -67,11 +67,11 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         x = data[DataKeys.X].to(device)
-        pos = data[DataKeys.POS].to(device)
+        pos_grid = data[DataKeys.POS_GRID].to(device)
         batch = data[DataKeys.BATCH].to(device)
         target = data[DataKeys.SEGMENT].to(device)
 
-        logits, latency_ms = predict(model, x, pos, batch, device)
+        logits, latency_ms = predict(model, x, pos_grid, batch, device)
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)

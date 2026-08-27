@@ -8,7 +8,7 @@ from torch import Tensor
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.ops import voxel_grid_fnv
 
-from ._utils import index_select_dict
+from ._utils import check_batch_alignment, index_select_dict
 from .inferer import Inferer
 
 
@@ -96,6 +96,7 @@ class VoxelPartitionInferer(Inferer):
 
         pos = data[self.pos_key]
         batch = data[self.batch_key]
+        check_batch_alignment(pos, batch, self.pos_key, self.batch_key)
         n = pos.size(0)
 
         rng = torch.Generator() if self.seed is None else torch.Generator().manual_seed(int(self.seed))

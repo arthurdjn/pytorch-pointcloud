@@ -192,7 +192,7 @@ def test_spvcnn_semantickitti_transform_back_projects_to_full_resolution() -> No
         }
     )
 
-    assert torch.equal(data["origin_segment"], torch.tensor([0, 8, 12]))
+    assert torch.equal(data[DataKeys.ORIGIN_SEGMENT], torch.tensor([0, 8, 12]))
     assert data[DataKeys.POS].shape[0] == 2  # points 0 and 1 share a 5 cm voxel
     assert data[DataKeys.SEGMENT].shape[0] == 2
     inverse = data[DataKeys.INVERSE]

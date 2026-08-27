@@ -25,7 +25,7 @@ from torch import Tensor
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_HDF5_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.models._base import SegmentationModel
@@ -824,16 +824,22 @@ _ONEFORMER3D_SCANNET_TRANSFORMS: Callable[..., Any] = T.Compose(
         T.Cat(keys=[DataKeys.COLOR, "pos_centered"], dst_key=DataKeys.X, dim=1),
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
         T.Shift(keys=DataKeys.POS, method="min"),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
+        # `superpoint` stays at source resolution: the model consumes it together with `inverse`.
         T.Voxelize(
             pos_key=DataKeys.POS,
-            pos_reduce="grid",
-            keys=[DataKeys.X, DataKeys.SEGMENT],
-            reduce=["mean", "first"],
+            pos_reduce="first",
+            dst_pos_grid_key=DataKeys.POS_GRID,
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, "pos_centered", DataKeys.INSTANCE],
             size=0.02,
             method="fnv",
+            allow_missing_keys=True,
             dst_inverse_key=DataKeys.INVERSE,
         ),
-        T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
     ]
 )
 
@@ -909,16 +915,22 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
         T.Shift(keys="pos_centered", method="centroid"),
         T.Cat(keys=[DataKeys.COLOR, "pos_centered"], dst_key=DataKeys.X, dim=1),
         T.Shift(keys=DataKeys.POS, method="min"),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
+        # `superpoint` stays at source resolution: the model consumes it together with `inverse`.
         T.Voxelize(
             pos_key=DataKeys.POS,
-            pos_reduce="grid",
-            keys=[DataKeys.X, DataKeys.SEGMENT],
-            reduce=["mean", "first"],
+            pos_reduce="first",
+            dst_pos_grid_key=DataKeys.POS_GRID,
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, "pos_centered", DataKeys.INSTANCE],
             size=0.05,
             method="fnv",
+            allow_missing_keys=True,
             dst_inverse_key=DataKeys.INVERSE,
         ),
-        T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
     ]
 )
 
@@ -929,7 +941,9 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.s3dis-area5.danila-rukhovich.safetensors",
         dataset="s3dis-area5",
-        classes=S3DIS_CLASSES,
+        # Upstream trained this checkpoint on the pre-tiled blocks, so its channels follow that order
+        # rather than the canonical one: `chair`/`table` and `bookcase`/`sofa` are swapped.
+        classes=S3DIS_HDF5_CLASSES,
         author="danila-rukhovich",
         license="CC-BY-NC-4.0",
     ),

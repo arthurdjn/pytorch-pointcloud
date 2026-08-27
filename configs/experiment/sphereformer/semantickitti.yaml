@@ -22,7 +22,7 @@ model:
   inferer:
     _target_: torch_pointcloud.inferers.SimpleInferer
   inverse_key: inverse
-  origin_target_key: segment
+  origin_target_key: origin_segment
 
 datamodule:
   batch_size: 1

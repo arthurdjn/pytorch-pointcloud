@@ -1600,20 +1600,27 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     ]
     if estimate_normals:
         steps.append(T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True))
-    steps += [
-        T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-        T.Voxelize(
-            pos_key=DataKeys.POS,
-            pos_reduce="grid",
-            keys=[DataKeys.X, DataKeys.SEGMENT],
-            reduce=["first", "first"],
-            size=0.02,
-            method="fnv",
-        ),
-        T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-    ]
+    steps.append(T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1))
     if relabel_labels is not None:
         steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
+    steps += [
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
+        T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="first",
+            dst_pos_grid_key=DataKeys.POS_GRID,
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+            reduce="first",
+            size=0.02,
+            method="fnv",
+            allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
+        ),
+    ]
     return T.Compose(steps)
 
 

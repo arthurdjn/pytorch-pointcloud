@@ -959,19 +959,26 @@ def _point_transformer_seg_transforms(
     ]
     if estimate_normals:
         steps.append(T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True))
+    steps.append(T.Cat(keys=list(feature_keys), dst_key=DataKeys.X, dim=1))
+    if relabel_labels is not None:
+        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
     steps += [
-        T.Cat(keys=list(feature_keys), dst_key=DataKeys.X, dim=1),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="first",
-            keys=[DataKeys.X, DataKeys.SEGMENT],
-            reduce=["first", "first"],
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+            reduce="first",
             size=0.02,
             method="fnv",
+            allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
-    if relabel_labels is not None:
-        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
     return T.Compose(steps)
 
 
@@ -1030,7 +1037,13 @@ def point_transformer_scannet20(**hparams: Any) -> PointTransformerSegmentation:
     weights=None,
     transform=T.Compose(
         [
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
         ]

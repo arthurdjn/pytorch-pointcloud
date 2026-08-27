@@ -148,6 +148,8 @@ def test_knn_window_inference_validates_args() -> None:
         knn_window_inference(data, predictor=fake, sw_batch_size=0)
     with pytest.raises(ValueError, match="`ema_smoothing`"):
         knn_window_inference(data, predictor=fake, aggregate="ema", ema_smoothing=1.5)
+    with pytest.raises(ValueError, match="aligned to the positions"):
+        knn_window_inference({**data, DataKeys.BATCH: batch[:2]}, predictor=fake)
 
 
 def test_knn_window_overlap_zero_raises_before_predicting() -> None:

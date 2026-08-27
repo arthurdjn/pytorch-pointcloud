@@ -1,12 +1,126 @@
 import shutil
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Dict, Optional
 
 import pytest
+import torch
+from torch.utils.data import Dataset
+
+from torch_pointcloud.datasets import (
+    S3DIS,
+    ModelNetNormalResampled,
+    S3DISHdf5,
+    ScanNet20,
+    ScanObjectNN,
+    SemanticKITTI,
+    ShapeNetPart,
+)
 
 DATA_DIR = Path(__file__).parent / "data"
 DATASETS_DIR = DATA_DIR / "datasets"
 MODELS_DIR = DATA_DIR / "models"
+
+
+def modelnet_resampled_dataset(transform: Optional[Callable] = None) -> ModelNetNormalResampled:
+    return ModelNetNormalResampled(
+        root=DATASETS_DIR,
+        variant="40",
+        train=False,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def scanobjectnn_dataset(transform: Optional[Callable] = None) -> ScanObjectNN:
+    return ScanObjectNN(
+        root=DATASETS_DIR,
+        train=False,
+        partition="split1",
+        background=False,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def shapenetpart_dataset(transform: Optional[Callable] = None) -> ShapeNetPart:
+    return ShapeNetPart(
+        root=DATASETS_DIR,
+        split="test",
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def s3dis_dataset(transform: Optional[Callable] = None) -> S3DIS:
+    return S3DIS(
+        root=DATASETS_DIR,
+        areas=("Area_5",),
+        aligned=True,
+        download=False,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def s3dis_hdf5_dataset(transform: Optional[Callable] = None) -> S3DISHdf5:
+    return S3DISHdf5(
+        root=DATASETS_DIR,
+        areas=("Area_5",),
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def scannet20_dataset(transform: Optional[Callable] = None) -> ScanNet20:
+    return ScanNet20(
+        root=DATASETS_DIR,
+        split="val",
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def scannet20_blocks_dataset(transform: Optional[Callable] = None) -> ScanNet20:
+    # tile_scannet_scene samples points per block with torch RNG; seed so the snapshot stays reproducible.
+    torch.manual_seed(0)
+    return ScanNet20(
+        root=DATASETS_DIR,
+        split="val",
+        use_axis_alignment=False,
+        block_size=1.5,
+        block_stride=0.75,
+        num_nodes=8192,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI:
+    return SemanticKITTI(
+        root=DATASETS_DIR,
+        sequences=("00",),
+        transform=transform,
+    )
+
+
+@pytest.fixture
+def dataset_factory() -> Callable[..., Dataset]:
+    """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
+    constructors: Dict[str, Callable[..., Dataset]] = {
+        "modelnet_resampled": modelnet_resampled_dataset,
+        "scanobjectnn": scanobjectnn_dataset,
+        "shapenetpart": shapenetpart_dataset,
+        "s3dis": s3dis_dataset,
+        "s3dis_hdf5": s3dis_hdf5_dataset,
+        "scannet20": scannet20_dataset,
+        "scannet20_blocks": scannet20_blocks_dataset,
+        "semantickitti": semantickitti_dataset,
+    }
+
+    def factory(name: str, transform: Optional[Callable] = None) -> Dataset:
+        return constructors[name](transform=transform)
+
+    return factory
 
 
 def _create_dir_factory(source: Path, dest: Path, symlinks: bool = False) -> Callable[..., Path]:
@@ -175,3 +289,37 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 def force_regen(request: pytest.FixtureRequest) -> bool:
     """Store the CLI flag value as a fixture to be injected into test functions."""
     return request.config.getoption("--force-regen")
+
+
+@pytest.fixture
+def sample_scene() -> Dict[str, Any]:
+    """100-point single-scene dict with all standard Pointcept-style keys."""
+    g = torch.Generator().manual_seed(0)
+    return {
+        "pos": torch.randn(100, 3, generator=g),
+        "color": (torch.rand(100, 3, generator=g) * 255).to(torch.uint8),
+        "normal": torch.nn.functional.normalize(torch.randn(100, 3, generator=g), dim=-1),
+        "segment": torch.randint(0, 10, (100,), generator=g),
+    }
+
+
+@pytest.fixture
+def empty_scene() -> Dict[str, Any]:
+    """Empty single-scene dict (N=0) with all standard keys."""
+    return {
+        "pos": torch.empty(0, 3),
+        "color": torch.empty(0, 3, dtype=torch.uint8),
+        "normal": torch.empty(0, 3),
+        "segment": torch.empty(0, dtype=torch.long),
+    }
+
+
+@pytest.fixture
+def single_point_scene() -> Dict[str, Any]:
+    """Single-point (N=1) dict with all standard keys."""
+    return {
+        "pos": torch.tensor([[1.0, 2.0, 3.0]]),
+        "color": torch.tensor([[128, 64, 32]], dtype=torch.uint8),
+        "normal": torch.tensor([[0.0, 0.0, 1.0]]),
+        "segment": torch.tensor([5], dtype=torch.long),
+    }
