@@ -21,7 +21,7 @@ DATASETS_DIR = DATA_DIR / "datasets"
 MODELS_DIR = DATA_DIR / "models"
 
 
-def modelnet_dataset(transform: Optional[Callable] = None) -> ModelNetNormalResampled:
+def modelnet_resampled_dataset(transform: Optional[Callable] = None) -> ModelNetNormalResampled:
     return ModelNetNormalResampled(
         root=DATASETS_DIR,
         variant="40",
@@ -107,7 +107,7 @@ def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI
 def dataset_factory() -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
     constructors: Dict[str, Callable[..., Dataset]] = {
-        "modelnet": modelnet_dataset,
+        "modelnet_resampled": modelnet_resampled_dataset,
         "scanobjectnn": scanobjectnn_dataset,
         "shapenetpart": shapenetpart_dataset,
         "s3dis": s3dis_dataset,
