@@ -84,3 +84,44 @@ def test_clamp_one_sided() -> None:
 def test_clamp_requires_min_or_max() -> None:
     with pytest.raises(ValueError, match=r"min.*max"):
         T.Clamp(keys="pos")
+
+
+def test_abs_default() -> None:
+    pos = torch.tensor([-1.0, 2.0, -3.0])
+    data = {"pos": pos, "other": sentinel.other}
+
+    result = T.Abs(keys=["pos"])(data)
+    assert torch.equal(result["pos"], torch.tensor([1.0, 2.0, 3.0]))
+    assert result["other"] is sentinel.other
+    # default inplace=False does not mutate input
+    assert torch.equal(pos, torch.tensor([-1.0, 2.0, -3.0]))
+
+
+def test_abs_inplace_mutates() -> None:
+    pos = torch.tensor([-1.0, -2.0])
+    T.Abs(keys=["pos"], inplace=True)({"pos": pos})
+    assert torch.equal(pos, torch.tensor([1.0, 2.0]))
+
+
+def test_abs_multiple_keys() -> None:
+    data = {"a": torch.tensor([-1.0]), "b": torch.tensor([-2.0]), "c": sentinel.c}
+    result = T.Abs(keys=["a", "b"])(data)
+    assert torch.equal(result["a"], torch.tensor([1.0]))
+    assert torch.equal(result["b"], torch.tensor([2.0]))
+    assert result["c"] is sentinel.c
+
+
+def test_subtract_key() -> None:
+    data = {"a": torch.tensor([5.0, 6.0]), "b": torch.tensor([1.0, 2.0])}
+    transform = T.SubtractKey(keys=["a"], sub_keys=["b"])
+    result = transform(data)
+
+    assert torch.equal(result["a"], torch.tensor([4.0, 4.0]))
+
+
+def test_divide_key() -> None:
+    data = {"a": torch.tensor([6.0, 8.0]), "b": torch.tensor([2.0, 4.0])}
+    transform = T.DivideKey(keys=["a"], div_keys=["b"])
+    result = transform(data)
+
+    assert torch.equal(result["a"], torch.tensor([3.0, 2.0]))
