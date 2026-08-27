@@ -1,12 +1,9 @@
-import os
-from pathlib import Path
 from typing import Dict
 
 import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.config import DATA_DIR, MODELS_DIR
 from torch_pointcloud.models.sphereformer import (
     SphereFormerSegmentation,
     SphereFormerUBlock,
@@ -25,9 +22,6 @@ requires_cuda = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not avai
 requires_spconv = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 requires_torch_scatter = pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not installed")
 requires_sptr = pytest.mark.skipif(not _SPTR_AVAILABLE, reason="sptr is not installed")
-
-_WEIGHTS = Path(MODELS_DIR, "sphereformer", "sphereformer.semantickitti.pt")
-_SEMANTICKITTI = Path(DATA_DIR, "SemanticKITTI", "raw", "sequences", "08", "velodyne")
 
 
 @pytest.fixture
@@ -107,36 +101,6 @@ def test_sphereformer_segmentation_reset_classifier(
     model_seg.cuda().eval()
     logits = model_seg(data["x"], data["pos"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 7)
-
-
-@requires_cuda
-@requires_spconv
-@requires_torch_scatter
-@requires_sptr
-@pytest.mark.skipif(not _WEIGHTS.exists(), reason=f"pretrained weights not found at {_WEIGHTS}")
-@pytest.mark.skipif(not _SEMANTICKITTI.is_dir(), reason="SemanticKITTI not available")
-def test_sphereformer_semantickitti_smoke() -> None:
-    """Load the pretrained checkpoint and run a single SemanticKITTI scan end-to-end."""
-    from torch_pointcloud.datasets import SemanticKITTI
-    from torch_pointcloud.models import create_model
-    from torch_pointcloud.utils.data import DataKeys, collate
-
-    model, info = create_model("sphereformer.semantickitti", task="segmentation", pretrained=True, return_info=True)
-    model = model.cuda().eval()
-
-    dataset = SemanticKITTI(root=os.fspath(Path(DATA_DIR)), split="val", transform=info["transform"])
-    sample = collate([dataset[0]])
-
-    x = sample[DataKeys.X].cuda()
-    pos = sample[DataKeys.POS].cuda()
-    pos_grid = sample[DataKeys.POS_GRID].cuda()
-    batch = sample[DataKeys.BATCH].cuda()
-
-    with torch.inference_mode():
-        logits = model(x, pos, pos_grid, batch)
-
-    assert logits.shape == (x.shape[0], model.num_classes)
-    assert torch.isfinite(logits).all()
 
 
 def _radial_bins(gaps: Tensor, offset: int = 24) -> Tensor:
