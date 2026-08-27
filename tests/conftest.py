@@ -7,7 +7,6 @@ import torch
 from torch.utils.data import Dataset
 
 from torch_pointcloud.datasets import (
-    KITTI,
     S3DIS,
     ModelNetNormalResampled,
     S3DISHdf5,
@@ -15,7 +14,6 @@ from torch_pointcloud.datasets import (
     ScanObjectNN,
     SemanticKITTI,
     ShapeNetPart,
-    SunRGBD,
 )
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -105,21 +103,6 @@ def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI
     )
 
 
-def sunrgbd_dataset(transform: Optional[Callable] = None) -> SunRGBD:
-    return SunRGBD(
-        root=DATASETS_DIR,
-        train=False,
-        transform=transform,
-    )
-
-
-def kitti_dataset(transform: Optional[Callable] = None) -> KITTI:
-    return KITTI(
-        root=DATASETS_DIR,
-        transform=transform,
-    )
-
-
 @pytest.fixture
 def dataset_factory() -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
@@ -132,8 +115,6 @@ def dataset_factory() -> Callable[..., Dataset]:
         "scannet20": scannet20_dataset,
         "scannet20_blocks": scannet20_blocks_dataset,
         "semantickitti": semantickitti_dataset,
-        "sunrgbd": sunrgbd_dataset,
-        "kitti": kitti_dataset,
     }
 
     def factory(name: str, transform: Optional[Callable] = None) -> Dataset:
