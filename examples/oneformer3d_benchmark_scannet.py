@@ -56,7 +56,6 @@ def evaluate(
     # Raw NYU40 ids -> 0..20 (as the ScanNet20 dataset does on load); the registered
     # transform's `Relabel` then maps 0..20 -> the 0..19 training space (ignore -> -1).
     relabel_raw = Relabel(keys=DataKeys.SEGMENT, labels=SCANNET20_LABELS)
-    relabel_eval = next(t for t in transform.transforms if isinstance(t, Relabel))
 
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
     records = []
@@ -75,7 +74,6 @@ def evaluate(
                 f"{scene_id}: superpoint/point count mismatch ({superpoint.shape[0]} vs {pos.shape[0]})."
             )
 
-        target = relabel_eval({DataKeys.SEGMENT: scene[DataKeys.SEGMENT].clone()})[DataKeys.SEGMENT].long()
         data = transform(
             {
                 DataKeys.POS: pos.clone(),
@@ -84,6 +82,7 @@ def evaluate(
                 DataKeys.SUPERPOINT: superpoint,
             }
         )
+        target = data[DataKeys.ORIGIN_SEGMENT].long()
         x = data[DataKeys.X].to(device)
         pos_grid = data[DataKeys.POS_GRID].to(device).long()
         inverse = data[DataKeys.INVERSE].to(device)

@@ -87,7 +87,7 @@ def evaluate(
         x = data[DataKeys.X].to(device)
         pos = data[DataKeys.POS].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        target_full = data["origin_segment"].to(device)
+        target_full = data[DataKeys.ORIGIN_SEGMENT].to(device)
         inverse_full = data[DataKeys.INVERSE].to(device)
 
         logits, latency_ms = predict(model, x, pos, batch, device)

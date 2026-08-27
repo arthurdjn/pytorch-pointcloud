@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys
 
-from ._utils import gaussian_weights, index_select_dict, split_chunks
+from ._utils import check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
 
 WindowMode = Literal["constant", "gaussian"]
@@ -275,10 +275,12 @@ def sliding_window_inference(
             source-to-predictor long index map of shape $(N_\text{block},)$ with
             values in $[0, N_\text{window})$, where $N_\text{block}$ is the
             pre-transform block size and $N_\text{window}$ is the post-transform
-            size. When set, the inferer pops this key from the window before
-            calling the predictor and gathers predictions back to block-local
-            rows. Leave `None` when the transform preserves row count, or when
-            no transform is used.
+            size. When set, any scene-level value at this key is dropped from the
+            window before `transform` runs, so a registered pipeline's `inverse`
+            never becomes the prior the block map composes through; the inferer
+            then pops the block map before calling the predictor and gathers
+            predictions back to block-local rows. Leave `None` when the transform
+            preserves row count, or when no transform is used.
         progress: If `True`, show a `tqdm` progress bar per batch element.
         seed: RNG seed for sub-batch permutations when `roi_num_points` is set.
 
@@ -310,6 +312,7 @@ def sliding_window_inference(
 
     pos = data[pos_key]
     batch = data[batch_key]
+    check_batch_alignment(pos, batch, pos_key, batch_key)
     device = pos.device
     n_total = pos.size(0)
     output: Optional[Tensor] = None
@@ -351,6 +354,8 @@ def sliding_window_inference(
             window = index_select_dict(data_b, point_ids, n_b)
             window[batch_key] = torch.zeros(n_block, device=device, dtype=torch.long)
             window[block_bbox_key] = bbox
+            if inverse_key is not None:
+                window.pop(inverse_key, None)
             if transform is not None:
                 window = transform(window)
 
@@ -367,7 +372,7 @@ def sliding_window_inference(
                 if window_preds is None:
                     window_preds = torch.zeros(n_window, int(logits.size(-1)), device=device, dtype=torch.float32)
                 preds = torch.softmax(logits, dim=-1) if softmax or aggregate != "mean" else logits
-                window_preds[chunk_local] = preds.to(window_preds.dtype)
+                window_preds[chunk_local] = preds.to(window_preds)
 
             if window_preds is None:
                 continue

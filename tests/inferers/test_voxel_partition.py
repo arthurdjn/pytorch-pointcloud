@@ -191,3 +191,9 @@ def test_voxel_partition_missing_pos_key_raises() -> None:
 def test_voxel_partition_missing_batch_key_raises() -> None:
     with pytest.raises(KeyError, match="batch"):
         VoxelPartitionInferer(voxel_size=1.0)({DataKeys.POS: torch.rand(4, 3)}, predictor=lambda d: torch.zeros(4, 1))
+
+
+def test_voxel_partition_misaligned_batch_key_raises() -> None:
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(4, 3), DataKeys.BATCH: torch.zeros(2, dtype=torch.long)}
+    with pytest.raises(ValueError, match="aligned to the positions"):
+        VoxelPartitionInferer(voxel_size=1.0)(data, predictor=lambda d: torch.zeros(4, 1))

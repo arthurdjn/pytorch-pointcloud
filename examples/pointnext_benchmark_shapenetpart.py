@@ -21,7 +21,6 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -78,11 +77,10 @@ def main() -> None:
     )
 
     seg_ids = ShapeNetPart.seg_ids
-    num_categories = len(seg_ids)
 
     print(f"Test set: {len(test_dataset)} samples")
     print("Evaluating...")
-    metrics = evaluate(model, test_dataloader, args.device, seg_ids, num_categories)  # type: ignore[arg-type]
+    metrics = evaluate(model, test_dataloader, args.device, seg_ids)  # type: ignore[arg-type]
 
     print("\nResults:")
     for k, v in metrics.items():
@@ -111,7 +109,6 @@ def evaluate(
     dataloader: DataLoader,
     device: str,
     seg_ids: dict[str, list[int]],
-    num_categories: int,
 ) -> dict[str, float]:
     model.to(device).eval()
 
@@ -124,10 +121,10 @@ def evaluate(
         pos = data[DataKeys.POS].to(device)
         x = data[DataKeys.X].to(device) if DataKeys.X in data else None
         segment = data[DataKeys.SEGMENT].to(device)
-        category = data[DataKeys.CATEGORY].to(device)
+        cat_onehot = data[DataKeys.CATEGORY].to(device)  # one-hot encoded by the registered transform
+        category = cat_onehot.argmax(dim=1)
         batch = data[DataKeys.BATCH].to(device)
 
-        cat_onehot = F.one_hot(category, num_categories).float()
         logits = model(x, pos, batch, cat_onehot)
         preds = logits.argmax(dim=1)
 

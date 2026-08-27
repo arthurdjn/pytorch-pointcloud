@@ -741,13 +741,18 @@ class SphereFormerSegmentation(SegmentationModel):
                 default=255,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
-                keys=[DataKeys.X],
-                reduce=["mean"],
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
                 size=0.05,
-                grid_pos_key=DataKeys.POS_GRID,
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
@@ -806,13 +811,18 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
                 default=255,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
-                keys=[DataKeys.X],
-                reduce=["mean"],
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
                 size=0.1,
-                grid_pos_key=DataKeys.POS_GRID,
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
         ]

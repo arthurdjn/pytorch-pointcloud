@@ -1067,13 +1067,18 @@ def _spvcnn_semantickitti_transforms() -> Callable:
                 default=255,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
-            T.CopyItems(keys=DataKeys.SEGMENT, names="origin_segment"),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
-                keys=[DataKeys.X, DataKeys.SEGMENT],
-                reduce=["first", "first"],
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
+                reduce="first",
                 size=0.05,
+                allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
         ]

@@ -16,7 +16,7 @@ Usage:
 
 import argparse
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
 
 import torch
 from tqdm import tqdm
@@ -33,23 +33,6 @@ from torch_pointcloud.utils.random import seed_everything, set_determinism
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SEED = 42
 
-# Upstream OneFormer3D S3DIS class order = the model's output class order.
-UPSTREAM_CLASSES = (
-    "ceiling",
-    "floor",
-    "wall",
-    "beam",
-    "column",
-    "window",
-    "door",
-    "table",
-    "chair",
-    "sofa",
-    "bookcase",
-    "board",
-    "clutter",
-)
-
 
 @torch.inference_mode()
 def evaluate(
@@ -59,10 +42,11 @@ def evaluate(
     device: str,
     num_classes: int,
     limit: int | None,
+    classes: Sequence[str],
 ) -> Dict[str, Any]:
     model.to(device).eval()
-    # model class i (upstream order) -> repo label index, so preds match dataset labels.
-    remap = torch.tensor([S3DIS_CLASS_TO_IDX[c] for c in UPSTREAM_CLASSES], device=device)
+    # model channel i -> repo label index, so preds match dataset labels.
+    remap = torch.tensor([S3DIS_CLASS_TO_IDX[name] for name in classes], device=device)
 
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
     records = []
@@ -74,7 +58,6 @@ def evaluate(
     pbar = tqdm(range(n), desc="Testing")
     for i in pbar:
         room = dataset[i]
-        target = room[DataKeys.SEGMENT].long()
         data = transform(
             {
                 DataKeys.POS: room[DataKeys.POS].clone(),
@@ -82,6 +65,7 @@ def evaluate(
                 DataKeys.SEGMENT: room[DataKeys.SEGMENT].clone(),
             }
         )
+        target = data[DataKeys.ORIGIN_SEGMENT].long()
         x = data[DataKeys.X].to(device)
         pos_grid = data[DataKeys.POS_GRID].to(device).long()
         inverse = data[DataKeys.INVERSE].to(device)
@@ -167,7 +151,9 @@ def main() -> None:
     )
 
     print(f"Benchmarking 'oneformer3d-base.s3dis-area5.danila-rukhovich' on S3DIS {args.area} ({len(dataset)} rooms)")
-    metrics = evaluate(model, dataset, transform, args.device, num_classes, args.limit)
+    metrics = evaluate(
+        model, dataset, transform, args.device, num_classes, args.limit, model_info["weights"]["classes"]
+    )
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")

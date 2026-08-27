@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys
 
-from ._utils import gaussian_weights, index_select_dict
+from ._utils import check_batch_alignment, gaussian_weights, index_select_dict
 from .inferer import Inferer
 
 WindowMode = Literal["constant", "gaussian"]
@@ -165,6 +165,7 @@ def knn_window_inference(
 
     pos = data[pos_key]
     batch = data[batch_key]
+    check_batch_alignment(pos, batch, pos_key, batch_key)
     device = pos.device
     n_total = pos.size(0)
     output: Optional[Tensor] = None
@@ -222,7 +223,7 @@ def knn_window_inference(
                     else:
                         window_data[key] = values[0]
 
-                window_logits = predictor(window_data)
+                window_logits = predictor(window_data).to(device)
                 num_classes = int(window_logits.size(-1))
                 window_logits = window_logits.reshape(sw, k, num_classes)
 

@@ -42,6 +42,19 @@ scene = pipeline({"pos": pos, "color": color})
 | <img src="../assets/transforms/thumbs/random_sample_face_vertices.png" width="220"> | [`RandomSampleFaceVertices`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.RandomSampleFaceVertices) | Sample points on a mesh's faces                          |
 | <img src="../assets/transforms/thumbs/voxelize.png" width="220">                    | [`Voxelize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Voxelize)                                 | Voxel-grid downsample with per-voxel reduction           |
 
+### Sampling keys
+
+Any transform that changes the number of points keeps `pos`, `x`, `segment` and `batch` aligned at the new resolution and records how to get back:
+
+| Key              | Shape                       | Written by                                                                                                          | Meaning                                                                    |
+| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `origin_pos`     | $(N_\text{origin}, 3)$      | a `CopyItems` step in every registered pipeline                                                                     | the source cloud, in the same frame as `pos`                               |
+| `origin_segment` | $(N_\text{origin},)$        | the same step, when the pipeline carries labels                                                                     | the source labels, in the model's label space                              |
+| `inverse`        | $(N_\text{origin},)$        | `Voxelize`, `DivisiblePad` through `dst_inverse_key`                                                                | source row to predictor row: `preds[inverse]` scores at full resolution    |
+| `index`          | $(N,)$                      | the selection samplers (`FarthestPointSample`, `RandomSample`, `SphereCrop`, ...) through `dst_index_key`             | predictor row to source row: `origin_pos[index]` is `pos`                  |
+
+Chained steps compose these maps, so they always address the outermost source. Registered pipelines set the keys; set them on your own samplers to get the maps.
+
 ## Geometry / shifting
 
 |                                                                         | Transform                                                                                               | Description                                               |

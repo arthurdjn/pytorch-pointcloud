@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not ins
 # The fully sparse 3D backbone (spconv SubM/SparseConv) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
-WEIGHTS = Path(MODELS_DIR, "voxelnext", "voxelnext.nuscenes.openpcdet.pt")
+WEIGHTS = Path(MODELS_DIR, "voxelnext", "voxelnext.nuscenes.openpcdet.safetensors")
 
 
 def _voxelize(model: VoxelNeXtDetection, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int) -> tuple:

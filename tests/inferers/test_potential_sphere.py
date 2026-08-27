@@ -134,6 +134,10 @@ def test_potential_sphere_validates_args() -> None:
         potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, ema_smoothing=1.0)
     with pytest.raises(ValueError, match="sw_batch_size"):
         potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, sw_batch_size=0)
+    with pytest.raises(ValueError, match="aligned to the positions"):
+        potential_sphere_inference(
+            {**data, DataKeys.BATCH: torch.zeros(0, dtype=torch.long)}, predictor=_left_right_predictor, radius=1.0
+        )
     with pytest.raises(KeyError, match="pos"):
         potential_sphere_inference(
             {DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}, predictor=_left_right_predictor, radius=1.0
