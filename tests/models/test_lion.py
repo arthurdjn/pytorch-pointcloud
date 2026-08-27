@@ -43,6 +43,7 @@ def test_lion_create_model_hparams() -> None:
     assert model.grid_size == (360, 360, 32)
     assert model.backbone_3d.sparse_shape == [32, 360, 360]
     assert model.backbone.num_bev_features == 384
+    assert model.num_features == 384
     assert model.head.feature_map_stride == 2
 
 
@@ -223,6 +224,8 @@ def test_lion_forward_and_decode() -> None:
     with torch.no_grad():
         out = model(x, pos, batch)
         det = model.decode(out)
+        feat = model.forward_features(x, pos, batch)
+    assert feat.shape[1] == model.num_features
     assert out["heatmap"].shape == (1, 10, model.head.num_proposals)
     assert out["dense_heatmap"].shape[1] == 10
     assert torch.isfinite(out["heatmap"]).all()

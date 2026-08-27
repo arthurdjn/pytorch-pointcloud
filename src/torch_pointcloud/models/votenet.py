@@ -504,6 +504,11 @@ class VoteNetDetection(DetectionModel):
         out_dim = 2 + 3 + self.num_heading_bin * 2 + self.num_size_cluster * 4 + num_classes
         self.proposal.mlp.lins[-1] = nn.Linear(self.proposal.aggr_dim, out_dim)
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the per-seed backbone features entering the voting head."""
+        return self.backbone.out_channels
+
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         assert x is not None, "VoteNet requires input features (got x=None)."
         return self.backbone(x, pos, batch)

@@ -464,6 +464,7 @@ def test_detection_architecture(model_name: str, force_regen: bool, models_dir_f
     models_dir = models_dir_factory("*.json")
 
     model = create_model(model_name, task="detection")
+    assert isinstance(model.num_features, int)
     _check_architecture_or_regen(
         model,
         model_name,

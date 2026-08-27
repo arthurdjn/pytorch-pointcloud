@@ -55,6 +55,10 @@ def test_pointpillars_forward_shapes() -> None:
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 32, 40000)
     with torch.no_grad():
         out = model(voxels, pos_voxel, num_points, vbatch)
+        feat = model.forward_features(voxels, pos_voxel, num_points, vbatch)
+        head_out = model.forward_head(feat)
+    assert feat.shape[1] == model.num_features
+    assert torch.equal(head_out["cls"], out["cls"])
 
     # KITTI 3-class BEV feature map at stride 2
     b, h, w = 2, 248, 216

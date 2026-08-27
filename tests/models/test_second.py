@@ -54,6 +54,8 @@ def test_second_forward_shapes() -> None:
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
     with torch.no_grad():
         out = model(voxels, pos_voxel, num_points, vbatch)
+        feat = model.forward_features(voxels, pos_voxel, num_points, vbatch)
+    assert feat.shape[1] == model.num_features
 
     # KITTI 3-class BEV feature map at stride 8
     b, h, w = 2, 200, 176
@@ -90,6 +92,7 @@ def test_second_create_model_hparams() -> None:
     assert model.num_classes == 3
     assert model.grid_size == (1408, 1600, 40)
     assert model.sparse_shape == [41, 1600, 1408]
+    assert model.num_features == model.backbone.num_bev_features
     assert model.head.anchors.shape == (200 * 176 * 6, 7)
 
 

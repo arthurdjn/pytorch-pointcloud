@@ -499,6 +499,11 @@ class VoxelNeXtDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the sparse voxel features entering the head."""
+        return self.backbone_3d.out_channels
+
     def configure_head(self) -> VoxelNeXtHead:
         """Build the fully sparse multi-group detection head."""
         head_dict: Dict[str, Dict[str, int]] = {
@@ -542,6 +547,9 @@ class VoxelNeXtDetection(DetectionModel):
         )
         return self.backbone_3d(sparse_tensor)
 
+    def forward_head(self, features: "spconv.SparseConvTensor") -> VoxelNeXtHeadOutput:
+        return self.head(features)
+
     def forward(
         self,
         voxels: Tensor,
@@ -549,8 +557,8 @@ class VoxelNeXtDetection(DetectionModel):
         voxel_num_points: Tensor,
         batch: Tensor,
     ) -> VoxelNeXtHeadOutput:
-        encoded = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
-        return self.head(encoded)
+        features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
+        return self.forward_head(features)
 
     @torch.no_grad()
     def decode(self, out: VoxelNeXtHeadOutput, *, top_k: int = 500) -> Detection3D:
