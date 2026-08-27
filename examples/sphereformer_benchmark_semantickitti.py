@@ -123,7 +123,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SphereFormer semantic segmentation on SemanticKITTI.")
     parser.add_argument("--model", default="sphereformer.semantickitti", help="Registered segmentation model name.")
     parser.add_argument(
-        "--checkpoint", required=True, help="Local checkpoint to load (no released weights are available)."
+        "--checkpoint",
+        required=True,
+        help="Local checkpoint to load (no released weights are available).",
     )
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")

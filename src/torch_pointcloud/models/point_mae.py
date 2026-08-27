@@ -957,7 +957,10 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
             T.FarthestPointSample(
-                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL, DataKeys.SEGMENT], num_samples=2048, random_start=False
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
+                num_samples=2048,
+                random_start=False,
             ),
             T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
         ]

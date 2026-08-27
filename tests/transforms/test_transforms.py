@@ -1705,7 +1705,8 @@ def _selection_samplers(**kwargs: Any) -> list:
             marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
         ),
         pytest.param(
-            T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0), **kwargs), id="SphereCrop"
+            T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0), **kwargs),
+            id="SphereCrop",
         ),
         pytest.param(T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5, **kwargs), id="RemoveNearOrigin"),
         pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5, generator=g, **kwargs), id="RandomDropout"),
@@ -1736,7 +1737,10 @@ def test_index_composes_through_prior() -> None:
     scene = _selection_scene()
     g = torch.Generator().manual_seed(0)
     out = T.Compose(
-        [T.RandomSample(keys=["pos", "color"], num_samples=8, generator=g), T.Slice(keys=["pos", "color"], stop=4)]
+        [
+            T.RandomSample(keys=["pos", "color"], num_samples=8, generator=g),
+            T.Slice(keys=["pos", "color"], stop=4),
+        ],
     )(scene)
     assert out["index"].shape == (4,)
     assert torch.equal(scene["pos"][out["index"]], out["pos"])

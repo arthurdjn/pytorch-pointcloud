@@ -923,7 +923,10 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
-                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                allow_missing_keys=True,
             ),
         ]
     ),
@@ -947,7 +950,10 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
-                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                allow_missing_keys=True,
             ),
         ]
     ),
@@ -983,7 +989,10 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
-                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                allow_missing_keys=True,
             ),
         ]
     ),
@@ -1008,7 +1017,10 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
-                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                allow_missing_keys=True,
             ),
         ]
     ),

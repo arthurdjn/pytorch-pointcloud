@@ -856,7 +856,10 @@ def _modelnet_transforms(num_samples: int) -> Callable:
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
-                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=num_samples, random_start=False
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=num_samples,
+                random_start=False,
             ),
         ]
     )
