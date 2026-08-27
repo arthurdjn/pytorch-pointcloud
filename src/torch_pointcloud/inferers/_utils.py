@@ -21,6 +21,20 @@ def index_select_dict(data: Dict[str, Any], idx: Tensor, n_points: int) -> Dict[
     return out
 
 
+def check_batch_alignment(pos: Tensor, batch: Tensor, pos_key: str, batch_key: str) -> None:
+    """Raise when the per-point batch index does not line up with the positions row for row.
+
+    Inferers split a scene by `batch` and index `pos` with the result, so a shorter `batch` would leave
+    the trailing points unpredicted instead of failing.
+    """
+    if batch.size(0) != pos.size(0):
+        raise ValueError(
+            f"`data[{batch_key!r}]` has {batch.size(0)} rows but `data[{pos_key!r}]` has {pos.size(0)}: the batch "
+            f"index must be aligned to the positions. Collating with `batch_from` set to a voxelized key indexes "
+            f"those voxels instead; pass that key to `cat_keys` and keep `batch` on the points."
+        )
+
+
 def split_chunks(n: int, max_size: Optional[int], rng: torch.Generator) -> List[Tensor]:
     r"""Partition `range(n)` into index chunks of at most `max_size` points each.
 
