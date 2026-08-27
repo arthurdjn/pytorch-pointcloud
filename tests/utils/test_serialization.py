@@ -18,7 +18,7 @@ class TensorArg:
 
 
 @pytest.fixture
-def grid_coords() -> Tensor:
+def pos_grid() -> Tensor:
     return torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.long)
 
 
@@ -34,68 +34,68 @@ def depth() -> int:
 
 @pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
 @patch("torch_pointcloud.utils.serialization.octree_encode")
-def test_z_order_encoding(mock_octree: Mock, grid_coords: Tensor, batch: Tensor, depth: int) -> None:
-    serialize_coords(grid_coords, batch, depth, order="z")
+def test_z_order_encoding(mock_octree: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
+    serialize_coords(pos_grid, batch, depth, order="z")
     mock_octree.assert_called_once_with(ANY, ANY, ANY, b=None, depth=depth)
 
     args = mock_octree.call_args[0]
-    assert torch.equal(args[0], grid_coords[:, 0].long())
-    assert torch.equal(args[1], grid_coords[:, 1].long())
-    assert torch.equal(args[2], grid_coords[:, 2].long())
+    assert torch.equal(args[0], pos_grid[:, 0].long())
+    assert torch.equal(args[1], pos_grid[:, 1].long())
+    assert torch.equal(args[2], pos_grid[:, 2].long())
 
 
 @pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
 @patch("torch_pointcloud.utils.serialization.octree_encode")
-def test_z_order_trans_encoding(mock_octree: Mock, grid_coords: Tensor, batch: Tensor, depth: int) -> None:
-    serialize_coords(grid_coords, batch, depth, order="z-trans")
+def test_z_order_trans_encoding(mock_octree: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
+    serialize_coords(pos_grid, batch, depth, order="z-trans")
     mock_octree.assert_called_once_with(ANY, ANY, ANY, b=None, depth=depth)
 
     args = mock_octree.call_args[0]
-    assert torch.equal(args[0], grid_coords[:, 1].long())
-    assert torch.equal(args[1], grid_coords[:, 0].long())
-    assert torch.equal(args[2], grid_coords[:, 2].long())
+    assert torch.equal(args[0], pos_grid[:, 1].long())
+    assert torch.equal(args[1], pos_grid[:, 0].long())
+    assert torch.equal(args[2], pos_grid[:, 2].long())
 
 
 @patch("torch_pointcloud.utils.serialization.hilbert_encode")
-def test_hilbert_encoding(mock_hilbert: Mock, grid_coords: Tensor, batch: Tensor, depth: int) -> None:
-    serialize_coords(grid_coords, batch, depth, order="hilbert")
+def test_hilbert_encoding(mock_hilbert: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
+    serialize_coords(pos_grid, batch, depth, order="hilbert")
     mock_hilbert.assert_called_once_with(ANY, num_dims=3, num_bits=depth)
 
     args = mock_hilbert.call_args[0]
     assert len(args) == 1
-    assert torch.equal(args[0], grid_coords)
+    assert torch.equal(args[0], pos_grid)
 
 
 @patch("torch_pointcloud.utils.serialization.hilbert_encode")
-def test_hilbert_trans_encoding(mock_hilbert: Mock, grid_coords: Tensor, batch: Tensor, depth: int) -> None:
-    serialize_coords(grid_coords, batch, depth, order="hilbert-trans")
+def test_hilbert_trans_encoding(mock_hilbert: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
+    serialize_coords(pos_grid, batch, depth, order="hilbert-trans")
     mock_hilbert.assert_called_once_with(ANY, num_dims=3, num_bits=depth)
 
     args = mock_hilbert.call_args[0]
     assert len(args) == 1
-    assert torch.equal(args[0], grid_coords[:, [1, 0, 2]])
+    assert torch.equal(args[0], pos_grid[:, [1, 0, 2]])
 
 
-def test_invalid_order(grid_coords: Tensor, batch: Tensor, depth: int) -> None:
+def test_invalid_order(pos_grid: Tensor, batch: Tensor, depth: int) -> None:
     with pytest.raises(ValueError, match="Unsupported serialization order"):
-        serialize_coords(grid_coords, batch, depth, order="invalid")  # type: ignore[arg-type]
+        serialize_coords(pos_grid, batch, depth, order="invalid")  # type: ignore[arg-type]
 
 
-def test_batch_shift_overflow_raises(grid_coords: Tensor, batch: Tensor) -> None:
+def test_batch_shift_overflow_raises(pos_grid: Tensor, batch: Tensor) -> None:
     # depth 21 uses all 63 code bits for coordinates, leaving no room for a nonzero batch index.
     with pytest.raises(ValueError, match="63-bit code capacity"):
-        serialize_coords(grid_coords, batch, depth=21, order="hilbert")
+        serialize_coords(pos_grid, batch, depth=21, order="hilbert")
 
 
-def test_batch_shift_max_valid_depth(grid_coords: Tensor, batch: Tensor) -> None:
-    code = serialize_coords(grid_coords, batch, depth=20, order="hilbert")
+def test_batch_shift_max_valid_depth(pos_grid: Tensor, batch: Tensor) -> None:
+    code = serialize_coords(pos_grid, batch, depth=20, order="hilbert")
     assert bool((code >= 0).all())
     assert int(code[1].item()) >> 60 == 1
 
 
-def test_batch_shift_zero_batch_supports_full_depth(grid_coords: Tensor) -> None:
+def test_batch_shift_zero_batch_supports_full_depth(pos_grid: Tensor) -> None:
     batch = torch.zeros(2, dtype=torch.long)
-    code = serialize_coords(grid_coords, batch, depth=21, order="hilbert")
+    code = serialize_coords(pos_grid, batch, depth=21, order="hilbert")
     assert bool((code >= 0).all())
 
 

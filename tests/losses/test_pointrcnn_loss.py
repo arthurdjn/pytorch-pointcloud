@@ -30,21 +30,19 @@ def _perfect_data(gt_shift_x: float = 0.0) -> Tuple[Dict[str, Tensor], Dict[str,
     roi[0, 6] = 0.0
     gt_box[0, 6] = 0.0
 
-    point_coords = torch.rand(20, 3) * 2 + torch.tensor([50.0, 20.0, 0.0])
-    point_coords[0] = gt_box[0, :3]
+    point_pos = torch.rand(20, 3) * 2 + torch.tensor([50.0, 20.0, 0.0])
+    point_pos[0] = gt_box[0, :3]
     point_cls_preds = torch.full((20, 3), -10.0)
     point_cls_preds[0] = torch.tensor([10.0, -10.0, -10.0])
     point_box_preds = torch.zeros(20, 8)
-    point_box_preds[0] = _encode_point_residuals(
-        gt_box, point_coords[0:1], torch.tensor([1]), torch.tensor(_MEAN_SIZES)
-    )
+    point_box_preds[0] = _encode_point_residuals(gt_box, point_pos[0:1], torch.tensor([1]), torch.tensor(_MEAN_SIZES))
 
     gt_of_rois = gt_box.clone()
     gt_of_rois[0, :3] = gt_box[0, :3] - roi[0, :3]
     output = {
         "point_cls_preds": point_cls_preds,
         "point_box_preds": point_box_preds,
-        "point_coords": point_coords,
+        "point_pos": point_pos,
         "point_batch": torch.zeros(20, dtype=torch.long),
         "rcnn_cls": torch.tensor([[10.0]]),
         "rcnn_reg": torch.zeros(1, 7),
@@ -106,8 +104,8 @@ def test_pointrcnn_loss_wrong_point_class_is_penalized() -> None:
 def test_pointrcnn_loss_ignored_shell_points_do_not_contribute() -> None:
     """A point between a box and its enlarged copy is ignored: flipping its logits changes nothing."""
     output, batch = _perfect_data()
-    output["point_coords"] = output["point_coords"].clone()
-    output["point_coords"][1] = torch.tensor(_BOX[:3]) + torch.tensor([3.9 / 2 + 0.05, 0.0, 0.0])
+    output["point_pos"] = output["point_pos"].clone()
+    output["point_pos"][1] = torch.tensor(_BOX[:3]) + torch.tensor([3.9 / 2 + 0.05, 0.0, 0.0])
     base = _loss()(output, batch)
     output["point_cls_preds"] = output["point_cls_preds"].clone()
     output["point_cls_preds"][1] = 10.0

@@ -56,7 +56,7 @@ class RandLANetIntermediate(NamedTuple):
 
 
 def random_max_pool(
-    features: Tensor,
+    x: Tensor,
     pos: Tensor,
     batch: Tensor,
     factor: int,
@@ -66,7 +66,7 @@ def random_max_pool(
     r"""Random sampling followed by a max-pool over the neighbors of each kept point.
 
     Args:
-        features: Packed point features, shape $(N, C)$.
+        x: Packed point features, shape $(N, C)$.
         pos: Packed point positions, shape $(N, 3)$.
         batch: Per-point batch index, shape $(N,)$.
         factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
@@ -79,7 +79,7 @@ def random_max_pool(
     decim_idx, decim_batch = decimate_indices(batch, factor, generator=generator)
     pos_decim = pos[decim_idx]
     edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
-    pooled, _ = scatter_max(features[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0))
+    pooled, _ = scatter_max(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0))
     return pooled, pos_decim, decim_batch
 
 
@@ -161,9 +161,9 @@ class AttentivePooling(nn.Module):
             plain_last=False,
         )
 
-    def forward(self, edge_features: Tensor, dst_idx: Tensor, num_dst: int) -> Tensor:
-        att_scores = softmax(self.fc(edge_features), dst_idx)
-        weighted = att_scores * edge_features
+    def forward(self, x: Tensor, dst_idx: Tensor, num_dst: int) -> Tensor:
+        att_scores = softmax(self.fc(x), dst_idx)
+        weighted = att_scores * x
         out = scatter_add(weighted, dst_idx, dim=0, dim_size=num_dst)
         return self.mlp(out)
 

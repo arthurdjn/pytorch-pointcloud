@@ -41,10 +41,10 @@ class RelativePositionalEncoding(nn.Module):
         self.rpe_table = nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads))
         nn.init.trunc_normal_(self.rpe_table, std=0.02)
 
-    def forward(self, relative_coords: Tensor) -> Tensor:
-        clamped_coords = relative_coords.clamp(-self.coords_boundary, self.coords_boundary)
-        positive_indices = clamped_coords + self.coords_boundary
-        dim_strides = torch.arange(3, device=relative_coords.device) * self.rpe_num
+    def forward(self, relative_pos: Tensor) -> Tensor:
+        clamped_pos = relative_pos.clamp(-self.coords_boundary, self.coords_boundary)
+        positive_indices = clamped_pos + self.coords_boundary
+        dim_strides = torch.arange(3, device=relative_pos.device) * self.rpe_num
 
         idx = positive_indices + dim_strides
 
@@ -258,8 +258,8 @@ class SerializedAttentionRPE(nn.Module):
         attn = (q * self.scale) @ k.transpose(-2, -1)
 
         pos_grid_ordered = pos_grid_ordered.reshape(-1, K, 3)
-        relative_coords = pos_grid_ordered.unsqueeze(2) - pos_grid_ordered.unsqueeze(1)
-        attn = attn + self.rpe(relative_coords)
+        relative_pos = pos_grid_ordered.unsqueeze(2) - pos_grid_ordered.unsqueeze(1)
+        attn = attn + self.rpe(relative_pos)
 
         if self.upcast_softmax:
             attn = attn.float()

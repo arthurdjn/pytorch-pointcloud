@@ -83,7 +83,7 @@ def build_hilbert_template(rank: int, z_max: int, device: Union[str, torch.devic
 @torch.no_grad()
 def hilbert_serialize(
     template: Tensor,
-    coords: Tensor,
+    voxel_indices: Tensor,
     batch_size: int,
     rank: int,
     shift: int,
@@ -96,7 +96,7 @@ def hilbert_serialize(
 
     Args:
         template: Flat Hilbert lookup table from `build_hilbert_template`, shape $(\cdot,)$.
-        coords: Voxel coordinates $(N, 4)$ as $(\text{batch}, z, y, x)$.
+        voxel_indices: Voxel coordinates $(N, 4)$ as $(\text{batch}, z, y, x)$.
         batch_size: Number of scenes $B$ in the batch.
         rank: Rank the template was built with; the curve grid side is $2^\text{rank}$.
         shift: Constant offset added to $z$, $y$ and $x$ before indexing the table.
@@ -105,19 +105,19 @@ def hilbert_serialize(
         `(forward, inverse)`, each a length-$B$ list of `long` index tensors.
 
     Shape:
-        - coords: $(N, 4)$
+        - voxel_indices: $(N, 4)$
     """
     side = 1 << rank
-    x = coords[:, 3] + shift
-    y = coords[:, 2] + shift
-    z = coords[:, 1] + shift
+    x = voxel_indices[:, 3] + shift
+    y = voxel_indices[:, 2] + shift
+    z = voxel_indices[:, 1] + shift
     flat = (z * side * side + y * side + x).long()
     hilbert_inds = template[flat].long()
 
     forward: List[Tensor] = []
     inverse: List[Tensor] = []
     for i in range(batch_size):
-        mask = coords[:, 0] == i
+        mask = voxel_indices[:, 0] == i
         order = torch.argsort(hilbert_inds[mask])
         forward.append(order)
         inverse.append(torch.argsort(order))
@@ -321,7 +321,7 @@ class DSB(nn.Module):
             shift=stage,
         )
 
-        feats_low = x_low.features + pos_embed(_pos_embed_coords(x_low.indices, x_low.spatial_shape))
+        feats_low = x_low.features + pos_embed(_pos_embed_input(x_low.indices, x_low.spatial_shape))
         out_low = torch.zeros_like(feats_low)
         for i in range(batch_size):
             mask = x_low.indices[:, 0] == i
@@ -329,7 +329,7 @@ class DSB(nn.Module):
             out_low[mask] = self.mamba_forward(seq, None)[0].squeeze(0)[inverse_low[i]]
         x_low_mamba = x_low.replace_feature(self.norm(out_low))
 
-        feats_high = x_high.features + pos_embed(_pos_embed_coords(x_high.indices, x_high.spatial_shape))
+        feats_high = x_high.features + pos_embed(_pos_embed_input(x_high.indices, x_high.spatial_shape))
         out_high = torch.zeros_like(feats_high)
         for i in range(batch_size):
             mask = x_high.indices[:, 0] == i
@@ -344,13 +344,13 @@ class DSB(nn.Module):
         return x.features, x.indices
 
 
-def _pos_embed_coords(coords: Tensor, spatial_shape: List[int]) -> Tensor:
-    out = torch.zeros((coords.shape[0], 9), device=coords.device, dtype=torch.float32)
-    out[:, 0] = coords[:, 1] / spatial_shape[0]
-    out[:, 1:3] = torch.div(coords[:, 2:], 12, rounding_mode="floor") / (spatial_shape[1] // 12 + 1)
-    out[:, 3:5] = (coords[:, 2:] % 12) / 12.0
-    out[:, 5:7] = torch.div(coords[:, 2:] + 6, 12, rounding_mode="floor") / (spatial_shape[1] // 12 + 1)
-    out[:, 7:9] = ((coords[:, 2:] + 6) % 12) / 12.0
+def _pos_embed_input(voxel_indices: Tensor, spatial_shape: List[int]) -> Tensor:
+    out = torch.zeros((voxel_indices.shape[0], 9), device=voxel_indices.device, dtype=torch.float32)
+    out[:, 0] = voxel_indices[:, 1] / spatial_shape[0]
+    out[:, 1:3] = torch.div(voxel_indices[:, 2:], 12, rounding_mode="floor") / (spatial_shape[1] // 12 + 1)
+    out[:, 3:5] = (voxel_indices[:, 2:] % 12) / 12.0
+    out[:, 5:7] = torch.div(voxel_indices[:, 2:] + 6, 12, rounding_mode="floor") / (spatial_shape[1] // 12 + 1)
+    out[:, 7:9] = ((voxel_indices[:, 2:] + 6) % 12) / 12.0
     return out
 
 
@@ -726,13 +726,13 @@ class VoxelMambaDetection(DetectionModel):
         bev = self._scatter_bev(voxel_features, voxel_indices, batch_size)
         return self.backbone(bev)
 
-    def _scatter_bev(self, features: Tensor, coords: Tensor, batch_size: int) -> Tensor:
+    def _scatter_bev(self, x: Tensor, voxel_indices: Tensor, batch_size: int) -> Tensor:
         nx, ny = self.grid_size[0], self.grid_size[1]
-        bev = features.new_zeros((batch_size, self.bev_channels, ny * nx))
-        flat = (coords[:, 2] * nx + coords[:, 3]).long()
+        bev = x.new_zeros((batch_size, self.bev_channels, ny * nx))
+        flat = (voxel_indices[:, 2] * nx + voxel_indices[:, 3]).long()
         for b in range(batch_size):
-            mask = coords[:, 0] == b
-            bev[b, :, flat[mask]] = features[mask].t()
+            mask = voxel_indices[:, 0] == b
+            bev[b, :, flat[mask]] = x[mask].t()
         return bev.view(batch_size, self.bev_channels, ny, nx)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> CenterHeadOutput:

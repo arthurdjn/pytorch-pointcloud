@@ -549,7 +549,7 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
             octree = build_octree(
                 pos=pos,
                 batch=batch,
-                features=x,
+                x=x,
                 batch_size=len(lengths),
             )
             octree.construct_all_neigh()

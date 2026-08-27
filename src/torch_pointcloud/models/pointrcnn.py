@@ -46,7 +46,7 @@ class PointRCNNTrainOutput(TypedDict):
     Attributes:
         point_cls_preds: Stage-1 per-point class logits, shape $(N, \text{num\_classes})$.
         point_box_preds: Stage-1 per-point box residuals, shape $(N, 8)$.
-        point_coords: Per-point coordinates, shape $(N, 3)$.
+        point_pos: Per-point coordinates, shape $(N, 3)$.
         point_batch: Per-point scene index, shape $(N,)$.
         rcnn_cls: Stage-2 confidence logit per sampled ROI, shape $(M, 1)$.
         rcnn_reg: Stage-2 raw ROI box residuals, shape $(M, 7)$.
@@ -59,7 +59,7 @@ class PointRCNNTrainOutput(TypedDict):
 
     point_cls_preds: Tensor
     point_box_preds: Tensor
-    point_coords: Tensor
+    point_pos: Tensor
     point_batch: Tensor
     rcnn_cls: Tensor
     rcnn_reg: Tensor
@@ -332,7 +332,7 @@ class PointRCNNRefinementHead(nn.Module):
             plain_last=True,
         )
 
-    def roipool(self, pos: Tensor, features: Tensor, rois: Tensor) -> Tuple[Tensor, Tensor]:
+    def roipool(self, pos: Tensor, x: Tensor, rois: Tensor) -> Tuple[Tensor, Tensor]:
         r"""Pool a fixed number of in-box points per ROI and canonically transform them.
 
         Mirrors the reference `roipoint_pool3d` CUDA kernel: for every (optionally enlarged) box, the input
@@ -342,7 +342,7 @@ class PointRCNNRefinementHead(nn.Module):
 
         Args:
             pos: Per-point coordinates of one scene, shape $(N, 3)$.
-            features: Per-point pooled features (score + depth + backbone), shape $(N, 5 + C)$.
+            x: Per-point pooled features (score + depth + backbone), shape $(N, 5 + C)$.
             rois: Proposal boxes $(x, y, z, d_x, d_y, d_z, \theta)$, shape $(M, 7)$.
 
         Returns:
@@ -351,14 +351,14 @@ class PointRCNNRefinementHead(nn.Module):
 
         Shape:
             - pos: $(N, 3)$
-            - features: $(N, 5 + C)$
+            - x: $(N, 5 + C)$
             - rois: $(M, 7)$
             - output: $(M, S, 3 + 5 + C)$, $(M,)$
         """
         m = rois.shape[0]
         n = pos.shape[0]
         s = self.num_sampled_points
-        channels = features.shape[1]
+        channels = x.shape[1]
 
         extra = pos.new_tensor(self.pool_extra_width)
         enlarged = rois.clone()
@@ -392,7 +392,7 @@ class PointRCNNRefinementHead(nn.Module):
         sampled_idx = torch.gather(ranked, 1, gather_rank).clamp_max(n - 1)
 
         pooled_xyz = pos[sampled_idx]
-        pooled_feat = features[sampled_idx]
+        pooled_feat = x[sampled_idx]
         pooled = torch.cat([pooled_xyz, pooled_feat], dim=2)
 
         pooled[..., 0:3] = pooled[..., 0:3] - rois[:, None, 0:3]
@@ -405,7 +405,7 @@ class PointRCNNRefinementHead(nn.Module):
     def forward(
         self,
         pos: Tensor,
-        features: Tensor,
+        x: Tensor,
         point_scores: Tensor,
         batch: Tensor,
         rois: Tensor,
@@ -415,7 +415,7 @@ class PointRCNNRefinementHead(nn.Module):
 
         Args:
             pos: Per-point coordinates, shape $(N, 3)$.
-            features: Per-point backbone features, shape $(N, C)$.
+            x: Per-point backbone features, shape $(N, C)$.
             point_scores: Per-point stage-1 foreground score, shape $(N,)$.
             batch: Per-point scene index, shape $(N,)$.
             rois: Proposal boxes, shape $(M, 7)$.
@@ -427,12 +427,12 @@ class PointRCNNRefinementHead(nn.Module):
             boxes $(M, 7)$ in the lidar frame.
 
         Shape:
-            - pos: $(N, 3)$, features: $(N, C)$, point_scores: $(N,)$
+            - pos: $(N, 3)$, x: $(N, C)$, point_scores: $(N,)$
             - rois: $(M, 7)$
             - output: $(M, 1)$, $(M, 7)$, $(M, 7)$
         """
         depth = pos.norm(dim=1) / self.depth_normalizer - 0.5
-        feat_all = torch.cat([point_scores[:, None], depth[:, None], features], dim=1)
+        feat_all = torch.cat([point_scores[:, None], depth[:, None], x], dim=1)
 
         pooled_list: List[Tensor] = []
         batch_size = int(roi_batch.max().item()) + 1 if roi_batch.numel() else 0
@@ -719,7 +719,7 @@ class PointRCNNDetection(DetectionModel):
             return {
                 "point_cls_preds": cls_preds,
                 "point_box_preds": box_preds,
-                "point_coords": pos_point,
+                "point_pos": pos_point,
                 "point_batch": batch_point,
                 "rcnn_cls": rcnn_cls,
                 "rcnn_reg": rcnn_reg,

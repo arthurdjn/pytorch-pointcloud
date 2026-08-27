@@ -38,11 +38,11 @@ def dense_voxelize(x: Tensor, pos: Tensor, batch: Tensor, resolution: int, reduc
     B = batch.max().item() + 1
 
     # Ensure coordinates are integers and within bounds
-    coords = pos.long().clamp(0, R - 1)
+    pos_grid = pos.long().clamp(0, R - 1)
 
     # Create unique voxel indices for clustering
     # Each voxel gets a unique ID based on (batch, x, y, z)
-    linear_voxel_idx = coords[:, 2] * (R * R) + coords[:, 1] * R + coords[:, 0]  # z*R² + y*R + x
+    linear_voxel_idx = pos_grid[:, 2] * (R * R) + pos_grid[:, 1] * R + pos_grid[:, 0]  # z*R² + y*R + x
     batch_offset = batch * (R * R * R)
     voxel_idx = linear_voxel_idx + batch_offset
     # Use scatter to pool features
@@ -243,15 +243,15 @@ def hard_voxelize(
         max_num_voxels: Maximum number of voxels kept per scene.
 
     Returns:
-        A tuple `(voxels, coords, num_points)` where `voxels` is $(V, \text{max\_num\_points}, C)$,
-        `coords` is $(V, 4)$ with columns $(\text{batch}, z, y, x)$ and `num_points` is $(V,)$.
+        A tuple `(voxels, voxel_indices, num_points)` where `voxels` is $(V, \text{max\_num\_points}, C)$,
+        `voxel_indices` is $(V, 4)$ with columns $(\text{batch}, z, y, x)$ and `num_points` is $(V,)$.
     """
     batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
     if batch_size == 0:
         voxels = points.new_zeros((0, max_num_points, points.shape[1]))
-        coords = torch.zeros((0, 4), dtype=torch.int32, device=points.device)
+        voxel_indices = torch.zeros((0, 4), dtype=torch.int32, device=points.device)
         num_points = torch.zeros((0,), dtype=torch.int32, device=points.device)
-        return voxels, coords, num_points
+        return voxels, voxel_indices, num_points
 
     generator = _point_to_voxel_generator(
         tuple(voxel_size),
@@ -262,13 +262,13 @@ def hard_voxelize(
         str(points.device),
     )
 
-    voxels_list, coords_list, num_points_list = [], [], []
+    voxels_list, voxel_indices_list, num_points_list = [], [], []
     for b in range(batch_size):
         scene = points[batch == b].contiguous()
-        voxels, coords, num_points = generator(scene)
-        batch_col = torch.full((coords.shape[0], 1), b, dtype=coords.dtype, device=coords.device)
+        voxels, voxel_indices, num_points = generator(scene)
+        batch_col = torch.full((voxel_indices.shape[0], 1), b, dtype=voxel_indices.dtype, device=voxel_indices.device)
         voxels_list.append(voxels)
-        coords_list.append(torch.cat([batch_col, coords], dim=1))
+        voxel_indices_list.append(torch.cat([batch_col, voxel_indices], dim=1))
         num_points_list.append(num_points)
 
-    return torch.cat(voxels_list, dim=0), torch.cat(coords_list, dim=0), torch.cat(num_points_list, dim=0)
+    return torch.cat(voxels_list, dim=0), torch.cat(voxel_indices_list, dim=0), torch.cat(num_points_list, dim=0)

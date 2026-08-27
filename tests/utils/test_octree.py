@@ -26,7 +26,7 @@ def test_build_octree_returns_octree(pos: torch.Tensor) -> None:
 
 def test_build_octree_return_points(pos: torch.Tensor) -> None:
     features = torch.rand(pos.size(0), 5)
-    octree, points = build_octree(pos, features=features, depth=_DEPTH, return_points=True)
+    octree, points = build_octree(pos, x=features, depth=_DEPTH, return_points=True)
     assert torch.equal(points.points, pos)
     assert torch.equal(points.features, features)
     assert octree.depth == _DEPTH

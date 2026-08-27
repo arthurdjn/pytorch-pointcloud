@@ -32,7 +32,7 @@ Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 def build_octree(
     pos: Tensor,
     normal: OptTensor = None,
-    features: OptTensor = None,
+    x: OptTensor = None,
     batch: OptTensor = None,
     labels: OptTensor = None,
     depth: int = 11,
@@ -47,7 +47,7 @@ def build_octree(
 def build_octree(
     pos: Tensor,
     normal: OptTensor = None,
-    features: OptTensor = None,
+    x: OptTensor = None,
     batch: OptTensor = None,
     labels: OptTensor = None,
     depth: int = 11,
@@ -61,7 +61,7 @@ def build_octree(
 def build_octree(
     pos: Tensor,
     normal: OptTensor = None,
-    features: OptTensor = None,
+    x: OptTensor = None,
     batch: OptTensor = None,
     labels: OptTensor = None,
     depth: int = 11,
@@ -78,7 +78,7 @@ def build_octree(
     Args:
         pos: Point coordinates of shape $(N, 3)$, normalized to $[-1, 1]$.
         normal: Optional per-point normals of shape $(N, 3)$.
-        features: Optional per-point features of shape $(N, C)$.
+        x: Optional per-point features of shape $(N, C)$.
         batch: Optional per-point batch indices of shape $(N,)$; `None` for a single sample.
         labels: Optional per-point labels of shape $(N,)$.
         depth: Depth of the octree.
@@ -101,7 +101,7 @@ def build_octree(
     points = Points(
         points=pos,
         normals=normal,
-        features=features,
+        features=x,
         labels=labels,
         batch_id=batch,
         batch_size=batch_size,
