@@ -36,7 +36,7 @@ def test_hilbert_serialize_round_trip() -> None:
     template = build_hilbert_template(rank=4, z_max=4)
     n = 200
     torch.manual_seed(0)
-    coords = torch.stack(
+    voxel_indices = torch.stack(
         [
             torch.zeros(n, dtype=torch.long),
             torch.randint(0, 4, (n,)),
@@ -45,10 +45,10 @@ def test_hilbert_serialize_round_trip() -> None:
         ],
         dim=1,
     )
-    forward, inverse = hilbert_serialize(template, coords, batch_size=1, rank=4, shift=0)
+    forward, inverse = hilbert_serialize(template, voxel_indices, batch_size=1, rank=4, shift=0)
     assert torch.equal(forward[0][inverse[0]], torch.arange(n))
     # The forward order sorts voxels by ascending Hilbert position.
-    flat = coords[:, 1] * 16 * 16 + coords[:, 2] * 16 + coords[:, 3]
+    flat = voxel_indices[:, 1] * 16 * 16 + voxel_indices[:, 2] * 16 + voxel_indices[:, 3]
     positions = template[flat]
     assert torch.equal(positions[forward[0]], torch.sort(positions).values)
 

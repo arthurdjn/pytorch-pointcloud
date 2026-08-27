@@ -1538,7 +1538,7 @@ class BuildOctree(DictTransform):
         octree, points = build_octree(
             pos=pos,
             normal=normal,
-            features=features,
+            x=features,
             batch=batch_id,
             labels=labels,
             depth=self.depth,

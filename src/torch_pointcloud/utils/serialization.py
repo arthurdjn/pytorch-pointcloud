@@ -23,19 +23,19 @@ SerializationOrder = Literal["z", "z-trans", "hilbert", "hilbert-trans"]
 SERIALIZATION_ORDERS: Tuple[SerializationOrder, ...] = ("z", "z-trans", "hilbert", "hilbert-trans")
 
 
-def _z_order_encode(grid_coord: Tensor, depth: int) -> Tensor:
-    x, y, z = grid_coord[:, 0].long(), grid_coord[:, 1].long(), grid_coord[:, 2].long()
+def _z_order_encode(pos_grid: Tensor, depth: int) -> Tensor:
+    x, y, z = pos_grid[:, 0].long(), pos_grid[:, 1].long(), pos_grid[:, 2].long()
     return octree_encode(x, y, z, b=None, depth=depth)
 
 
-def _hilbert_encode(grid_coord: Tensor, depth: int) -> Tensor:
-    return hilbert_encode(grid_coord, num_dims=3, num_bits=depth)
+def _hilbert_encode(pos_grid: Tensor, depth: int) -> Tensor:
+    return hilbert_encode(pos_grid, num_dims=3, num_bits=depth)
 
 
 @torch.no_grad()
 def serialize_coords(
-    grid_coords: Tensor,
-    batch_idx: OptTensor,
+    pos_grid: Tensor,
+    batch: OptTensor,
     depth: int,
     order: SerializationOrder,
 ) -> Tensor:
@@ -47,18 +47,18 @@ def serialize_coords(
     Note:
         To get the code's order and inverse, you can use `torch.argsort` twice:
         ```pycon
-        >>> code = serialize_coords(grid_coords, batch_idx, depth, order)  # doctest: +SKIP
+        >>> code = serialize_coords(pos_grid, batch, depth, order)  # doctest: +SKIP
         >>> order = torch.argsort(code)  # doctest: +SKIP
         >>> inverse = torch.argsort(order)  # doctest: +SKIP
 
         ```
 
     Args:
-        grid_coords: A int tensor of shape $(N, 3)$ containing the grid coordinates. Every coordinate must lie
+        pos_grid: A int tensor of shape $(N, 3)$ containing the grid coordinates. Every coordinate must lie
             in $[0, 2^{\text{depth}})$ per axis: the encoders keep only the low `depth` bits, so out-of-range values
             (e.g. a negative coordinate) silently wrap around to a valid code. Grids produced by `Voxelize` or
             `Quantize` are shifted by the per-axis minimum and satisfy this.
-        batch_idx: A int tensor of contiguous values from 0 to $B - 1$ of shape $(N)$ containing the batch $B$ indices.
+        batch: A int tensor of contiguous values from 0 to $B - 1$ of shape $(N)$ containing the batch $B$ indices.
         depth: The depth of the serialization cube.
         order: The serialization order. Available orders are:
             - "z": Z-order curve.
@@ -71,11 +71,11 @@ def serialize_coords(
 
     Examples:
         ```pycon
-        >>> coords = torch.randn(10, 3)
+        >>> pos = torch.randn(10, 3)
         >>> grid_size = 0.1
-        >>> grid_coords = torch.div(coords - coords.min(0).values, grid_size, rounding_mode="trunc")
-        >>> batch_idx = torch.zeros(10, dtype=torch.long)
-        >>> code = serialize_coords(grid_coords, batch_idx, depth=5, order="z")  # doctest: +SKIP
+        >>> pos_grid = torch.div(pos - pos.min(0).values, grid_size, rounding_mode="trunc")
+        >>> batch = torch.zeros(10, dtype=torch.long)
+        >>> code = serialize_coords(pos_grid, batch, depth=5, order="z")  # doctest: +SKIP
 
         ```
     """
@@ -90,21 +90,21 @@ def serialize_coords(
         )
 
     if order == "z":
-        serialized_code = _z_order_encode(grid_coords, depth=depth)
+        serialized_code = _z_order_encode(pos_grid, depth=depth)
     elif order == "z-trans":
-        serialized_code = _z_order_encode(grid_coords[:, [1, 0, 2]], depth=depth)
+        serialized_code = _z_order_encode(pos_grid[:, [1, 0, 2]], depth=depth)
     elif order == "hilbert":
-        serialized_code = _hilbert_encode(grid_coords, depth=depth)
+        serialized_code = _hilbert_encode(pos_grid, depth=depth)
     elif order == "hilbert-trans":
-        serialized_code = _hilbert_encode(grid_coords[:, [1, 0, 2]], depth=depth)
+        serialized_code = _hilbert_encode(pos_grid[:, [1, 0, 2]], depth=depth)
 
-    if batch_idx is not None:
-        max_batch = int(batch_idx.max().item()) if batch_idx.numel() else 0
+    if batch is not None:
+        max_batch = int(batch.max().item()) if batch.numel() else 0
         if depth * 3 + max_batch.bit_length() > MAX_CODE_BITS:
             raise ValueError(
                 f"Batch index {max_batch} needs {max_batch.bit_length()} bits above the {depth * 3} coordinate "
                 f"bits, exceeding the {MAX_CODE_BITS}-bit code capacity. Reduce `depth` or the batch size."
             )
-        serialized_code = batch_idx << depth * 3 | serialized_code
+        serialized_code = batch << depth * 3 | serialized_code
 
     return serialized_code
