@@ -461,7 +461,7 @@ def test_sliding_window_drops_scene_level_inverse_before_window_transform() -> N
         block_size=2.0,
         overlap=0.0,
         softmax=False,
-        transform=T.DivisiblePad(num_samples=16),
+        transform=T.DivisiblePad(num_samples=16, dst_inverse_key=DataKeys.INVERSE),
         roi_num_points=16,
         inverse_key=DataKeys.INVERSE,
         seed=0,

@@ -927,6 +927,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
                 keys=[DataKeys.NORMAL],
                 num_samples=1024,
                 allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
             ),
         ]
     ),
@@ -954,6 +955,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
                 keys=[DataKeys.NORMAL],
                 num_samples=1024,
                 allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
             ),
         ]
     ),
@@ -993,6 +995,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
                 keys=[DataKeys.NORMAL],
                 num_samples=1024,
                 allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
             ),
         ]
     ),
@@ -1021,6 +1024,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
                 keys=[DataKeys.NORMAL],
                 num_samples=1024,
                 allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
             ),
         ]
     ),

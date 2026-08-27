@@ -46,14 +46,14 @@ scene = pipeline({"pos": pos, "color": color})
 
 Any transform that changes the number of points keeps `pos`, `x`, `segment` and `batch` aligned at the new resolution and records how to get back:
 
-| Key              | Shape                       | Emitted by                                                                                                          | Meaning                                                                    |
+| Key              | Shape                       | Written by                                                                                                          | Meaning                                                                    |
 | ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `origin_pos`     | $(N_\text{origin}, 3)$      | a `CopyItems` step in every registered pipeline                                                                     | the source cloud, in the same frame as `pos`                               |
 | `origin_segment` | $(N_\text{origin},)$        | the same step, when the pipeline carries labels                                                                     | the source labels, in the model's label space                              |
-| `inverse`        | $(N_\text{origin},)$        | `Voxelize`, `DivisiblePad`                                                                                          | source row to predictor row: `preds[inverse]` scores at full resolution    |
-| `index`          | $(N,)$                      | `FarthestPointSample`, `RandomSample`, `SphereCrop`, `RemoveNearOrigin`, `RandomDropout`, `ShufflePoint`, `ApplyMask`, `Slice` | predictor row to source row: `origin_pos[index]` is `pos`                  |
+| `inverse`        | $(N_\text{origin},)$        | `Voxelize`, `DivisiblePad` through `dst_inverse_key`                                                                | source row to predictor row: `preds[inverse]` scores at full resolution    |
+| `index`          | $(N,)$                      | the selection samplers (`FarthestPointSample`, `RandomSample`, `SphereCrop`, ...) through `dst_index_key`             | predictor row to source row: `origin_pos[index]` is `pos`                  |
 
-Chained steps compose these maps, so they always address the outermost source. Pass `dst_inverse_key=None` or `dst_index_key=None` to a sampler to opt out.
+Chained steps compose these maps, so they always address the outermost source. Registered pipelines set the keys; set them on your own samplers to get the maps.
 
 ## Geometry / shifting
 

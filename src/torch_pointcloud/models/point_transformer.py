@@ -976,6 +976,7 @@ def _point_transformer_seg_transforms(
             size=0.02,
             method="fnv",
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
     return T.Compose(steps)
@@ -1037,7 +1038,12 @@ def point_transformer_scannet20(**hparams: Any) -> PointTransformerSegmentation:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
         ]

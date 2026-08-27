@@ -714,7 +714,12 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
 )
@@ -753,7 +758,12 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=2048),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=2048,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
 )
@@ -800,6 +810,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
                 pos_key=DataKeys.POS,
                 num_samples=2048,
+                dst_index_key=DataKeys.INDEX,
             ),
             T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
         ]

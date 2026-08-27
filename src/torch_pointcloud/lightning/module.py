@@ -194,14 +194,13 @@ class LitSegmentationModel(LitModel):
 
     Args:
         name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
-        inverse_key: Batch-dict key of the source-to-predictor row map written by the registered transform
-            (`inverse`; see the transforms module docs on sampling keys). When the key is in the batch, eval
-            predictions are broadcast to source resolution (`preds[batch[inverse_key]]`) and scored against
-            `origin_target_key`; the loss stays at predictor resolution against `target_key`. Batches without
-            the key (selection pipelines, or pipelines that keep every point) are scored as they are; `None`
-            always scores at predictor resolution. Multi-scene batches need the key in the loader's `cat_keys`
-            so the per-scene maps can be offset into the packed layout; the datamodule adds it.
-        origin_target_key: Batch-dict key of the source-resolution labels used with `inverse_key`.
+        inverse_key: Batch-dict key of the source-to-predictor row map written by the transform (`inverse`; see
+            the transforms module docs on sampling keys). When set, eval predictions are broadcast to source
+            resolution (`preds[batch[inverse_key]]`) and scored against `origin_target_key`; the loss stays at
+            predictor resolution against `target_key`. Multi-scene batches need the key in the loader's
+            `cat_keys` so the per-scene maps can be offset into the packed layout; the datamodule adds it.
+        origin_target_key: Batch-dict key of the source-resolution labels scored with `inverse_key`; required
+            with it.
         target_key: Batch-dict key of the per-point labels.
         **kwargs: Forwarded to the base `LitModel` (e.g. `inferer`, `optimizer`, `criterion`) and
             `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
@@ -210,15 +209,17 @@ class LitSegmentationModel(LitModel):
     def __init__(
         self,
         name: str,
-        inverse_key: Optional[str] = DataKeys.INVERSE,
-        origin_target_key: str = DataKeys.ORIGIN_SEGMENT,
+        inverse_key: Optional[str] = None,
+        origin_target_key: Optional[str] = None,
         target_key: str = DataKeys.SEGMENT,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="segmentation", target_key=target_key, **kwargs)
+        if (inverse_key is None) != (origin_target_key is None):
+            raise ValueError("`inverse_key` and `origin_target_key` go together; pass both or neither.")
         # Lightning serializes an `Enum` hparam by name, so a reloaded `hparams.yaml` would carry `"INVERSE"`.
         self.inverse_key = None if inverse_key is None else str(inverse_key)
-        self.origin_target_key = str(origin_target_key)
+        self.origin_target_key = None if origin_target_key is None else str(origin_target_key)
         self.save_hyperparameters({"inverse_key": self.inverse_key, "origin_target_key": self.origin_target_key})
 
     def forward(self, batch: Dict[str, Any]) -> Tensor:
@@ -230,7 +231,8 @@ class LitSegmentationModel(LitModel):
         outputs = super()._eval_step(batch, stage)
         preds, target = outputs["preds"], outputs["target"]
         point_batch = batch[DataKeys.BATCH]
-        if self.inverse_key is not None and self.inverse_key in batch:
+        if self.inverse_key is not None:
+            assert self.origin_target_key is not None
             inverse = self._batched_inverse(batch)
             preds = preds[inverse]
             target = batch[self.origin_target_key].long()

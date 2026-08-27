@@ -8,15 +8,14 @@ collation if you want per-scene behavior.
 Transforms are non-mutating: each transform returns a new shallow-copy dict. Tensors
 inside the dict are not cloned unless the transform's documentation says so.
 
-Sampling keys: a transform that changes the number of points records how to get back to its input.
-Voxelizers (`Voxelize`, `DivisiblePad`) write `inverse`, $(N_\text{in},)$, input row to output row, so
-`preds[inverse]` scores at input resolution. Selection samplers (`RandomSample`, `FarthestPointSample`,
-`SphereCrop`, `RemoveNearOrigin`, `RandomDropout`, `ShufflePoint`, `ApplyMask`, `Slice` along `dim=0`)
-write `index`, $(N_\text{out},)$, output row to input row. Both compose through a prior value at the
-same key, so a chain of samplers stays addressed to the outermost input; a selection after a voxelizer
-leaves `inverse` addressed to the pre-selection cloud. Pass `dst_inverse_key=None` / `dst_index_key=None`
-to opt out, and never list a map key in a sampler's `keys`. Evaluation pipelines copy the source cloud
-to `origin_pos` / `origin_segment` with `CopyItems` before their first sampling step.
+Sampling keys: a transform that changes the number of points can record how to get back to its input.
+Voxelizers (`Voxelize`, `DivisiblePad`) write `inverse`, $(N_\text{in},)$, input row to output row, under
+`dst_inverse_key`, so `preds[inverse]` scores at input resolution. Selection samplers (`RandomSample`,
+`FarthestPointSample`, `SphereCrop`, `RemoveNearOrigin`, `RandomDropout`, `ShufflePoint`, `ApplyMask`, `Slice`
+along `dim=0`) write `index`, $(N_\text{out},)$, output row to input row, under `dst_index_key`. Both compose
+through a prior value at the same key, so a chain of samplers of one kind stays addressed to the outermost
+input. Registered evaluation pipelines set these keys and copy the source cloud to `origin_pos` /
+`origin_segment` with `CopyItems` before their first sampling step.
 """
 
 import math
@@ -419,7 +418,8 @@ class RandomSample(DictTransform):
             `num_samples` points; when `num_samples` exceeds that count the draw falls back
             to replacement so the output always has `num_samples` rows.
         generator: The generator for the random number generator.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables it.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Raises:
@@ -432,7 +432,7 @@ class RandomSample(DictTransform):
         num_samples: int,
         replace: bool = False,
         generator: Optional[torch.Generator] = None,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -502,7 +502,7 @@ class DivisiblePad(DictTransform):
         generator: Optional `torch.Generator`. Only consumed when
             `pad_fill="random"`. See `Transform` for the multi-worker caveat.
         dst_inverse_key: Key for the source-to-padded row map (see the module docs on sampling keys); composes
-            with any prior value at the same key. `None` disables it.
+            with any prior value at the same key. `None` (the default) disables it.
         allow_missing_keys: If `True`, return the data unchanged when `ref_key`
             is missing instead of raising.
 
@@ -523,7 +523,7 @@ class DivisiblePad(DictTransform):
         ref_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
         generator: Optional[torch.Generator] = None,
-        dst_inverse_key: Optional[str] = DataKeys.INVERSE,
+        dst_inverse_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys=ref_key, allow_missing_keys=allow_missing_keys)
@@ -704,7 +704,8 @@ class FarthestPointSample(DictTransform):
         num_samples: The number of points to sample.
         ratio: The ratio of points to sample.
         random_start: Whether to start the sampling from a random point.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables it.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -715,7 +716,7 @@ class FarthestPointSample(DictTransform):
         num_samples: Optional[int] = None,
         ratio: Optional[float] = None,
         random_start: bool = False,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         all_keys = ensure_tuple(keys, none_as_empty=True)
@@ -818,7 +819,8 @@ class RemoveNearOrigin(DictTransform):
         pos_key: The key containing the positions / coordinates, used to compute the distance from the origin.
         keys: Extra keys to filter with the same mask.
         radius: The radius of the sphere.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables it.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -827,7 +829,7 @@ class RemoveNearOrigin(DictTransform):
         pos_key: str,
         keys: Optional[KeyCollection] = None,
         radius: float = 1e-3,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         all_keys = ensure_tuple(keys, none_as_empty=True)
@@ -963,8 +965,9 @@ class ApplyMask(DictTransform):
         keys: The keys to apply the mask to.
         mask_key: The key containing the mask.
         dst_keys: The keys to store the transformed data in.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables
-            it. Pass `None` when `dst_keys` differ from `keys`, since the map then describes the `dst_keys` rows.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it. Leave it unset when `dst_keys` differ from `keys`, since the map would describe
+            the `dst_keys` rows.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
@@ -973,7 +976,7 @@ class ApplyMask(DictTransform):
         keys: KeyCollection,
         mask_key: str,
         dst_keys: Optional[KeyCollection] = None,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -2133,7 +2136,7 @@ class Voxelize(DictTransform):
             devices (unless `random_sample=True`).
         keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
         dst_inverse_key: Key for the source-to-voxel row map (see the module docs on sampling keys); composes
-            with any prior value at the same key. `None` disables it.
+            with any prior value at the same key. `None` (the default) disables it.
         dst_pos_grid_key: When set, also store the integer voxel-grid coordinates under this key. Useful when a
             model needs both real-valued positions (e.g. for rotary position embedding) and integer grid
             coordinates (for serialization / sparse-conv stems); with `pos_reduce="grid"` it holds the same grid
@@ -2160,7 +2163,7 @@ class Voxelize(DictTransform):
         method: VoxelMethod = "pyg",
         reduce: Optional[ValueCollection[VoxelReduce]] = None,
         keys: Optional[KeyCollection] = None,
-        dst_inverse_key: Optional[str] = DataKeys.INVERSE,
+        dst_inverse_key: Optional[str] = None,
         dst_pos_grid_key: Optional[str] = None,
         random_sample: bool = False,
         generator: Optional[torch.Generator] = None,
@@ -3068,7 +3071,8 @@ class RandomDropout(DictTransform):
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
             multi-worker caveat.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables it.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3078,7 +3082,7 @@ class RandomDropout(DictTransform):
         p_drop: float = 0.1,
         p: float = 1.0,
         generator: Optional[torch.Generator] = None,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -3353,7 +3357,8 @@ class SphereCrop(DictTransform):
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility (used when
             `center="random_point"`). See `Transform` for the multi-worker caveat.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables it.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3366,7 +3371,7 @@ class SphereCrop(DictTransform):
         center: Any = "centroid",
         p: float = 1.0,
         generator: Optional[torch.Generator] = None,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         all_keys = ensure_tuple(keys, none_as_empty=True)
@@ -3440,8 +3445,8 @@ class Slice(DictTransform):
         dim: Dimension along which to slice. Defaults to `0` (the row axis).
         dst_keys: Where to store results. Defaults to `keys`.
         dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys), written only
-            when `dim == 0`; `None` disables it. Pass `None` when `dst_keys` differ from `keys`, since the map then
-            describes the `dst_keys` rows.
+            when `dim == 0`; `None` (the default) disables it. Leave it unset when `dst_keys` differ from `keys`,
+            since the map would describe the `dst_keys` rows.
         allow_missing_keys: If `True`, silently skip absent keys.
 
     Example:
@@ -3464,7 +3469,7 @@ class Slice(DictTransform):
         step: Optional[int] = None,
         dim: int = 0,
         dst_keys: Optional[KeyCollection] = None,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -3515,7 +3520,8 @@ class ShufflePoint(DictTransform):
         p: Probability of applying the transform.
         generator: Optional `torch.Generator` for reproducibility. See `Transform` for the
             multi-worker caveat.
-        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` disables it.
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) disables it.
         allow_missing_keys: If `True`, silently skip absent keys.
     """
 
@@ -3524,7 +3530,7 @@ class ShufflePoint(DictTransform):
         keys: KeyCollection,
         p: float = 1.0,
         generator: Optional[torch.Generator] = None,
-        dst_index_key: Optional[str] = DataKeys.INDEX,
+        dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

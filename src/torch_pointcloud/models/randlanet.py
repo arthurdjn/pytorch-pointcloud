@@ -902,6 +902,7 @@ class RandLANetSegmentation(SegmentationModel):
                 reduce="first",
                 size=0.06,
                 allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),

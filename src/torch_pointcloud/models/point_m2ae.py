@@ -1071,7 +1071,13 @@ class HierarchicalEncoderMAE(nn.Module):
         [
             T.Rescale(keys=DataKeys.POS),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, random_start=False),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1109,7 +1115,12 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=2048,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1147,7 +1158,12 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=2048,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1189,6 +1205,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
                 num_samples=2048,
                 random_start=False,
+                dst_index_key=DataKeys.INDEX,
             ),
             T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
         ]

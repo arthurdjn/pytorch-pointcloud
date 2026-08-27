@@ -997,11 +997,16 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.BoxMask(keys=DataKeys.POS, bbox=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0), dst_keys="range_mask"),
-            T.ApplyMask(keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY, "range_mask"], mask_key="range_mask"),
+            T.ApplyMask(
+                keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY, "range_mask"],
+                mask_key="range_mask",
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.RandomSample(
                 keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY, "range_mask"],
                 num_samples=16384,
                 replace=False,
+                dst_index_key=DataKeys.INDEX,
             ),
         ]
     ),

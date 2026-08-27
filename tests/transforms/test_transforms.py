@@ -1406,20 +1406,11 @@ def test_random_elastic_distortion_multi_key_shares_field() -> None:
     assert not torch.equal(out["pos"], pos)
 
 
-def test_divisible_pad_default_writes_inverse_key() -> None:
+def test_divisible_pad_default_does_not_write_inverse_key() -> None:
     pos = torch.randn(5, 3)
     batch = torch.zeros(5, dtype=torch.long)
     out = T.DivisiblePad(num_samples=4)({"pos": pos, "batch": batch})
     assert out["pos"].shape[0] == 8  # padded to multiple of 4
-    assert out["inverse"].shape == (5,)
-    assert torch.equal(out["pos"][out["inverse"]], pos)
-
-
-def test_divisible_pad_dst_inverse_key_none_opts_out() -> None:
-    pos = torch.randn(5, 3)
-    batch = torch.zeros(5, dtype=torch.long)
-    out = T.DivisiblePad(num_samples=4, dst_inverse_key=None)({"pos": pos, "batch": batch})
-    assert out["pos"].shape[0] == 8
     assert "inverse" not in out
 
 
@@ -1716,7 +1707,7 @@ def _selection_samplers(**kwargs: Any) -> list:
     ]
 
 
-@pytest.mark.parametrize("transform", _selection_samplers())
+@pytest.mark.parametrize("transform", _selection_samplers(dst_index_key="index"))
 def test_selection_sampler_index_round_trips(transform: T.DictTransform) -> None:
     scene = _selection_scene()
     out = transform(scene)
@@ -1727,8 +1718,8 @@ def test_selection_sampler_index_round_trips(transform: T.DictTransform) -> None
     assert torch.equal(scene["color"][index], out["color"])
 
 
-@pytest.mark.parametrize("transform", _selection_samplers(dst_index_key=None))
-def test_selection_sampler_dst_index_key_none_opts_out(transform: T.DictTransform) -> None:
+@pytest.mark.parametrize("transform", _selection_samplers())
+def test_selection_sampler_default_writes_no_index(transform: T.DictTransform) -> None:
     out = transform(_selection_scene())
     assert "index" not in out
 
@@ -1738,16 +1729,16 @@ def test_index_composes_through_prior() -> None:
     g = torch.Generator().manual_seed(0)
     out = T.Compose(
         [
-            T.RandomSample(keys=["pos", "color"], num_samples=8, generator=g),
-            T.Slice(keys=["pos", "color"], stop=4),
+            T.RandomSample(keys=["pos", "color"], num_samples=8, generator=g, dst_index_key="index"),
+            T.Slice(keys=["pos", "color"], stop=4, dst_index_key="index"),
         ],
     )(scene)
     assert out["index"].shape == (4,)
     assert torch.equal(scene["pos"][out["index"]], out["pos"])
     out = T.Compose(
         [
-            T.ApplyMask(keys=["pos", "color"], mask_key="mask"),
-            T.RandomSample(keys=["pos", "color"], num_samples=3, generator=g),
+            T.ApplyMask(keys=["pos", "color"], mask_key="mask", dst_index_key="index"),
+            T.RandomSample(keys=["pos", "color"], num_samples=3, generator=g, dst_index_key="index"),
         ]
     )(scene)
     assert out["index"].shape == (3,)
@@ -1756,7 +1747,9 @@ def test_index_composes_through_prior() -> None:
 
 
 def test_slice_column_writes_no_index() -> None:
-    out = T.Slice(keys="pos", start=2, stop=3, dim=1, dst_keys="height")({"pos": torch.randn(5, 3)})
+    out = T.Slice(keys="pos", start=2, stop=3, dim=1, dst_keys="height", dst_index_key="index")(
+        {"pos": torch.randn(5, 3)}
+    )
     assert out["height"].shape == (5, 1)
     assert "index" not in out
 
@@ -1764,9 +1757,9 @@ def test_slice_column_writes_no_index() -> None:
 @pytest.mark.parametrize(
     "transform",
     [
-        T.RandomDropout(keys=["pos"], p_drop=0.5, p=0.0),
-        T.ShufflePoint(keys=["pos"], p=0.0),
-        T.SphereCrop(pos_key="pos", radius=1.0, p=0.0),
+        T.RandomDropout(keys=["pos"], p_drop=0.5, p=0.0, dst_index_key="index"),
+        T.ShufflePoint(keys=["pos"], p=0.0, dst_index_key="index"),
+        T.SphereCrop(pos_key="pos", radius=1.0, p=0.0, dst_index_key="index"),
     ],
     ids=lambda t: type(t).__name__,
 )
@@ -1783,13 +1776,11 @@ def test_p_skipped_sampler_writes_identity_index(transform: T.DictTransform) -> 
     not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
     reason="torch-cluster or torch-scatter is not installed",
 )
-def test_voxelize_default_writes_inverse_key() -> None:
+def test_voxelize_default_does_not_write_inverse_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
     out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.1)({"pos": pos})
     assert out["pos"].shape[0] == 2
-    assert out["inverse"].dtype == torch.long
-    assert out["inverse"].shape == (3,)
-    assert int(out["inverse"].max()) < 2
+    assert "inverse" not in out
 
 
 @pytest.mark.skipif(
@@ -1803,17 +1794,6 @@ def test_voxelize_dst_pos_grid_key_written_for_every_pos_reduce() -> None:
     assert torch.equal(grid["pos_grid"], grid["pos"])
     assert torch.equal(first["pos_grid"], grid["pos"])
     assert torch.equal(first["pos"], pos[[0, 2]])
-
-
-@pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
-)
-def test_voxelize_dst_inverse_key_none_opts_out() -> None:
-    pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
-    out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.1, dst_inverse_key=None)({"pos": pos})
-    assert out["pos"].shape[0] == 2
-    assert "inverse" not in out
 
 
 def test_compose_allow_missing_keys_propagates_to_children() -> None:

@@ -616,6 +616,7 @@ _SUNRGBD_MEAN_SIZES = [
                 keys=[DataKeys.POS, "height", DataKeys.COLOR, DataKeys.NORMAL, DataKeys.SEGMENT, DataKeys.INSTANCE],
                 num_samples=40000,
                 allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
             ),
             T.Cat(keys=["height"], dst_key=DataKeys.X, dim=1),
         ]
@@ -657,7 +658,12 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.RandomSample(keys=[DataKeys.POS, "height", DataKeys.COLOR], num_samples=20000, allow_missing_keys=True),
+            T.RandomSample(
+                keys=[DataKeys.POS, "height", DataKeys.COLOR],
+                num_samples=20000,
+                allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.Cat(keys=["height"], dst_key=DataKeys.X, dim=1),
         ]
     ),

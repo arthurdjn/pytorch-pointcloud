@@ -982,7 +982,13 @@ class PointMambaMAE(BaseModel):
         [
             T.Rescale(keys=DataKeys.POS),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, random_start=False),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1026,8 +1032,13 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False),
+            T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS, dst_index_key=DataKeys.INDEX),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=2048,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1071,8 +1082,13 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False),
+            T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS, dst_index_key=DataKeys.INDEX),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=2048,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1117,8 +1133,13 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False),
+            T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS, dst_index_key=DataKeys.INDEX),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=2048,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(

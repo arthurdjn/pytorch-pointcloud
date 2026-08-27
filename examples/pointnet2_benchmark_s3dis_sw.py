@@ -81,7 +81,12 @@ def evaluate(
                     T.ToFloat(keys=DataKeys.COLOR),
                     T.Divide(keys=DataKeys.COLOR, divisor=255.0),
                     T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X, dim=1),
-                    T.DivisiblePad(num_samples=block_points, pad_fill="random", generator=pad_rng),
+                    T.DivisiblePad(
+                        num_samples=block_points,
+                        pad_fill="random",
+                        generator=pad_rng,
+                        dst_inverse_key=DataKeys.INVERSE,
+                    ),
                 ]
             )
             inferer = SlidingWindowInferer(

@@ -203,6 +203,7 @@ _UTONIA_TRANSFORMS = T.Compose(
             size=0.01,
             method="fnv",
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
 )
@@ -229,6 +230,7 @@ _UTONIA_SEG_TRANSFORMS = T.Compose(
             size=0.01,
             method="fnv",
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
 )

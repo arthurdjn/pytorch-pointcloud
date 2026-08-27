@@ -318,7 +318,12 @@ def test_fit_smoke_train_only() -> None:
 
 
 def test_seg_eval_params_saved_to_hparams() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key=DataKeys.INVERSE)
+    lit = LitSegmentationModel(
+        name="dummy.segmentation",
+        target_key="segment",
+        inverse_key=DataKeys.INVERSE,
+        origin_target_key=DataKeys.ORIGIN_SEGMENT,
+    )
     assert lit.hparams_initial["inverse_key"] == "inverse"
     assert lit.hparams_initial["origin_target_key"] == "origin_segment"
     assert type(lit.hparams_initial["inverse_key"]) is str
@@ -473,8 +478,10 @@ def test_seg_inferer_not_used_on_validation_step() -> None:
 
 
 def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
-    """By default, eval preds are gathered to source resolution and scored against `origin_segment`."""
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment")
+    """With both keys set, eval preds are gathered to source resolution and scored against `origin_segment`."""
+    lit = LitSegmentationModel(
+        name="dummy.segmentation", target_key="segment", inverse_key="inverse", origin_target_key="origin_segment"
+    )
     batch = {
         "x": torch.randn(6, 3),
         "pos": torch.randn(6, 3),
@@ -490,8 +497,12 @@ def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
     assert torch.equal(out["target"], batch["origin_segment"])
 
 
-def test_seg_default_scores_at_predictor_resolution_without_inverse() -> None:
-    """The default `inverse_key` only applies when the batch carries it (selection pipelines write none)."""
+def test_seg_inverse_key_requires_origin_target_key() -> None:
+    with pytest.raises(ValueError, match="go together"):
+        LitSegmentationModel(name="dummy.segmentation", inverse_key="inverse")
+
+
+def test_seg_default_scores_at_predictor_resolution() -> None:
     lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment")
     batch = {
         "x": torch.randn(6, 3),
@@ -521,7 +532,9 @@ def test_seg_inverse_key_none_ignores_inverse_in_batch() -> None:
 
 def test_seg_inverse_key_offsets_per_scene_with_batch_index() -> None:
     """Multi-scene batches offset each scene's inverse map by the voxel rows of the scenes before it."""
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    lit = LitSegmentationModel(
+        name="dummy.segmentation", target_key="segment", inverse_key="inverse", origin_target_key="origin_segment"
+    )
     batch = {
         "x": torch.randn(5, 3),
         "pos": torch.randn(5, 3),
@@ -540,7 +553,9 @@ def test_seg_inverse_key_offsets_per_scene_with_batch_index() -> None:
 
 
 def test_seg_inverse_key_multi_scene_without_batch_index_raises() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    lit = LitSegmentationModel(
+        name="dummy.segmentation", target_key="segment", inverse_key="inverse", origin_target_key="origin_segment"
+    )
     batch = {
         "x": torch.randn(5, 3),
         "pos": torch.randn(5, 3),

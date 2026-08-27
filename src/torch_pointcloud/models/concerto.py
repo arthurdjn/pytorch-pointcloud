@@ -191,6 +191,7 @@ _CONCERTO_TRANSFORMS = T.Compose(
             size=0.02,
             method="fnv",
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
 )
@@ -216,6 +217,7 @@ _CONCERTO_SEG_TRANSFORMS = T.Compose(
             size=0.02,
             method="fnv",
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
 )

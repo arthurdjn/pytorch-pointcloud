@@ -1316,6 +1316,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
             reduce=["mean", "first"],
             size=0.03,
             method="pyg",
+            dst_inverse_key=DataKeys.INVERSE,
         ),
         T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
         T.AxisMinOffset(keys=DataKeys.POS, dst_keys="height", axis=2),

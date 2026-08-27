@@ -1618,6 +1618,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
             size=0.02,
             method="fnv",
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
     ]
     return T.Compose(steps)

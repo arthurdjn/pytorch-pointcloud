@@ -543,6 +543,7 @@ class SparseUNetSegmentation(SegmentationModel):
                 size=0.02,
                 method="fnv",
                 allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),

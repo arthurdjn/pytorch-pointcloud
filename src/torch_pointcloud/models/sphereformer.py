@@ -753,6 +753,7 @@ class SphereFormerSegmentation(SegmentationModel):
                 size=0.05,
                 dst_pos_grid_key=DataKeys.POS_GRID,
                 allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),
@@ -822,6 +823,7 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
                 size=0.1,
                 dst_pos_grid_key=DataKeys.POS_GRID,
                 allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),

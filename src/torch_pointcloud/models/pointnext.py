@@ -1159,7 +1159,12 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
             T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
             T.Cat(keys=(DataKeys.POS, "height"), dst_key=DataKeys.X),
@@ -1207,7 +1212,13 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     transform=T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, random_start=False),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL],
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
         ]
     ),
     hparams=dict(
@@ -1372,6 +1383,7 @@ _S3DIS_TRANSFORMS = T.Compose(
             size=0.04,
             method="fnv",  # Use the same method as PointNext, for reproducibility.
             allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
         T.Shift(keys=DataKeys.POS, method="centroid"),
@@ -1862,6 +1874,7 @@ _SHAPENETPART_TRANSFORMS = T.Compose(
             num_samples=2048,
             keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT],
             pos_key=DataKeys.POS,
+            dst_index_key=DataKeys.INDEX,
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
         T.Rescale(keys=[DataKeys.POS], method="centroid"),

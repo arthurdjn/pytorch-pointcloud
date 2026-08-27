@@ -23,6 +23,7 @@ model:
   input_keys: [x, pos, batch]
   target_key: segment
   inverse_key: inverse
+  origin_target_key: origin_segment
   inferer:
     roi_num_points: 45056
     overlap: 0.5

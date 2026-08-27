@@ -201,6 +201,7 @@ class SonataSegmentation(SegmentationModel):
                 size=0.02,
                 method="fnv",
                 allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),
@@ -265,6 +266,7 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
                 size=0.02,
                 method="fnv",
                 allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
             ),
         ]
     ),
