@@ -158,7 +158,7 @@ def test_detr3d_masked_variant_config() -> None:
 
 
 @pytest.mark.skipif(
-    not Path(MODELS_DIR, "3detr", "3detr-m.scannet.fair.pt").exists(),
+    not Path(MODELS_DIR, "3detr", "3detr-m.scannet.fair.safetensors").exists(),
     reason="3detr-m.scannet.fair pretrained weights not available",
 )
 def test_detr3d_pretrained_smoke() -> None:

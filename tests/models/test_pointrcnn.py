@@ -240,7 +240,7 @@ def test_pointrcnn_create_model_hparams() -> None:
     assert len(model.roi_head.sa_modules) == 3
 
 
-_WEIGHTS = Path(MODELS_DIR, "pointrcnn", "pointrcnn.kitti.openpcdet.pt")
+_WEIGHTS = Path(MODELS_DIR, "pointrcnn", "pointrcnn.kitti.openpcdet.safetensors")
 _KITTI_DIR = Path(DATA_DIR, "KITTI")
 
 
