@@ -237,6 +237,7 @@ class LitSegmentationModel(LitModel):
             preds = preds[inverse]
             target = batch[self.origin_target_key].long()
             point_batch = point_batch[inverse]
+
         return {"preds": preds, "target": target, "batch": point_batch}
 
     def _batched_inverse(self, batch: Dict[str, Any]) -> Tensor:
@@ -334,6 +335,7 @@ class LitDetectionModel(LitModel):
                 "ignore_mask_key": ignore_mask_key,
             }
         )
+
         # The base registered a placeholder loss; drop it so the configured criterion can take its place,
         # including `None` or a non-Module test double.
         del self.criterion
@@ -348,6 +350,7 @@ class LitDetectionModel(LitModel):
                 num_classes=self.model.num_classes,
                 mean_sizes=self.model.mean_sizes,
             )
+
         self.score_threshold = score_threshold
         self.nms_iou = nms_iou
         self.nms_rotated = nms_rotated
@@ -361,14 +364,16 @@ class LitDetectionModel(LitModel):
         if self.criterion is None:
             if stage == "train":
                 raise RuntimeError(
-                    "No `criterion` was provided, so this module is evaluation-only (benchmark mode); "
-                    "pass `criterion=` to train."
+                    "No `criterion` was provided, so this module is evaluation-only, pass `criterion=` to train it."
                 )
+
             return {"output": output}
+
         losses = self.criterion(output, batch)
         batch_size = int(batch[DataKeys.BATCH][-1]) + 1
         for key, value in losses.items():
             self.log(f"{stage}/{key}", value, prog_bar=True, batch_size=batch_size, sync_dist=stage != "train")
+
         return {"output": output, "loss": losses["loss"]}
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
@@ -380,19 +385,23 @@ class LitDetectionModel(LitModel):
                 batch[DataKeys.POS], det["boxes"], pos_batch=batch[DataKeys.BATCH], box_batch=det["batch"]
             )
             keep &= counts >= self.min_points
+
         boxes, scores, labels, det_batch = (
             det["boxes"][keep],
             det["scores"][keep],
             det["labels"][keep],
             det["batch"][keep],
         )
+
         idx = nms3d(boxes, scores, self.nms_iou, labels=labels, batch=det_batch, rotated=self.nms_rotated)
         extras: Dict[str, Tensor] = {}
         for key, value in det.items():
             if key in ("boxes", "scores", "labels", "batch", "class_probs"):
                 continue
+
             assert isinstance(value, Tensor)
             extras[key] = value[keep][idx]
+
         preds: Dict[str, Tensor] = {
             "boxes": boxes[idx],
             "scores": scores[idx],
@@ -400,6 +409,7 @@ class LitDetectionModel(LitModel):
             "batch": det_batch[idx],
             **extras,
         }
+
         if "class_probs" in det:
             # Indoor AP convention: score every surviving box against each class by its class probability.
             probs = det["class_probs"][keep][idx]
@@ -411,15 +421,20 @@ class LitDetectionModel(LitModel):
                 "batch": det_batch[idx].repeat_interleave(num_classes),
                 **{key: value.repeat_interleave(num_classes, dim=0) for key, value in extras.items()},
             }
+
         if DataKeys.CALIB in batch and DataKeys.IMAGE_SHAPE in batch:
             preds["ignore_mask"] = projected_ignore_mask(
-                preds["boxes"], batch[DataKeys.CALIB][preds["batch"]], batch[DataKeys.IMAGE_SHAPE][preds["batch"]]
+                preds["boxes"],
+                batch[DataKeys.CALIB][preds["batch"]],
+                batch[DataKeys.IMAGE_SHAPE][preds["batch"]],
             )
+
         target: Boxes3D = {
             "boxes": batch[DataKeys.BOX],
             "labels": batch[self.label_key].long(),
             "batch": batch[DataKeys.BATCH_BOX],
         }
+
         if self.ignore_mask_key is not None:
             target["ignore_mask"] = batch[self.ignore_mask_key]
         return {"preds": preds, "target": target}
