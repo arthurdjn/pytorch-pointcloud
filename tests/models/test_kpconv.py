@@ -6,11 +6,11 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models.kpconv import (
-    EncoderBlock,
-    GridPool,
     KPConv,
     KPConvBlock,
     KPFCNNClassification,
+    KPFCNNEncoderBlock,
+    KPFCNNGridPool,
     KPFCNNSegmentation,
     KPResidualBlock,
     create_kernel_points,
@@ -139,7 +139,7 @@ def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
 
 
 def test_encoder_block(data: Dict[str, Tensor]) -> None:
-    block = EncoderBlock(
+    block = KPFCNNEncoderBlock(
         depth=2,
         radius=0.1,
         max_num_neighbors=16,
@@ -157,7 +157,7 @@ def test_encoder_block(data: Dict[str, Tensor]) -> None:
     assert out_pos.shape == data["pos"].shape
     assert out_batch.shape == data["batch"].shape
 
-    block = EncoderBlock(
+    block = KPFCNNEncoderBlock(
         depth=2,
         radius=0.1,
         max_num_neighbors=16,
@@ -167,7 +167,7 @@ def test_encoder_block(data: Dict[str, Tensor]) -> None:
         kernel_size=15,
         kp_radius=0.1,
         kp_sigma=0.1,
-        downsample=GridPool(grid_size=0.5),
+        downsample=KPFCNNGridPool(grid_size=0.5),
     )
 
     out_x, out_pos, out_batch, inverse = block(
@@ -290,7 +290,7 @@ def test_kpconv_clf_forward_features(model_clf: KPFCNNClassification, data: Dict
         data["batch"],
         return_intermediates=True,
     )
-    assert len(intermediates) == len(model_clf.encoder_blocks) - 1
+    assert len(intermediates) == len(model_clf.encoder.blocks) - 1
     for intermediate in intermediates:
         assert "x" in intermediate
         assert "pos" in intermediate

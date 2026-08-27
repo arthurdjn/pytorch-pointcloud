@@ -610,55 +610,102 @@ class PointRCNNDetection(DetectionModel):
         self.cls_fg_thresh = cls_fg_thresh
         self.cls_bg_thresh_lo = cls_bg_thresh_lo
         self.hard_bg_ratio = hard_bg_ratio
+        self.sa_channels = sa_channels
+        self.sa_npoints = sa_npoints
+        self.sa_radii = sa_radii
+        self.sa_num_neighbors = sa_num_neighbors
+        self.fp_channels = fp_channels
+        self.point_cls_channels = point_cls_channels
+        self.point_reg_channels = point_reg_channels
+        self.roi_sa_channels = roi_sa_channels
+        self.roi_sa_npoints = roi_sa_npoints
+        self.roi_sa_radii = roi_sa_radii
+        self.roi_sa_num_neighbors = roi_sa_num_neighbors
+        self.roi_xyz_up_channels = roi_xyz_up_channels
+        self.roi_cls_channels = roi_cls_channels
+        self.roi_reg_channels = roi_reg_channels
+        self.num_sampled_points = num_sampled_points
+        self.pool_extra_width = pool_extra_width
+        self.depth_normalizer = depth_normalizer
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
         if mean.shape != (num_classes, 3):
             raise ValueError(f"`mean_sizes` must have shape ({num_classes}, 3), got {tuple(mean.shape)}.")
         self.register_buffer("mean_sizes", mean, persistent=False)
 
-        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.encoder = PointNet2Encoder(
-            in_channels - 3,
-            sa_channels,
-            num_points=sa_npoints,
-            radii=sa_radii,
-            num_neighbors=sa_num_neighbors,
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
+        self.point_head = self.configure_point_head()
+        self.roi_head = self.configure_roi_head()
+
+    def configure_encoder(self) -> PointNet2Encoder:
+        """Build the stage-1 multi-scale PointNet++ encoder."""
+        return PointNet2Encoder(
+            self.in_channels - 3,
+            self.sa_channels,
+            num_points=self.sa_npoints,
+            radii=self.sa_radii,
+            num_neighbors=self.sa_num_neighbors,
             use_pos=True,
             normalize_pos=False,
             pos_first=True,
-            **block_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.decoder = PointNet2Decoder(
+
+    def configure_decoder(self) -> PointNet2Decoder:
+        """Build the stage-1 PointNet++ feature-propagation decoder."""
+        return PointNet2Decoder(
             in_channels=self.encoder.out_channels,
             skip_channels=self.encoder.skip_channels[::-1],
-            fp_channels=fp_channels,
+            fp_channels=self.fp_channels,
             k=3,
             weighting="inverse",
             eps=1e-8,
-            **block_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        point_channels = fp_channels[-1][-1]
-        self.point_head = PointHeadBox(
-            point_channels,
-            num_classes,
-            cls_channels=point_cls_channels,
-            reg_channels=point_reg_channels,
+
+    def configure_point_head(self) -> PointHeadBox:
+        """Build the stage-1 per-point foreground and box-proposal head."""
+        return PointHeadBox(
+            self.fp_channels[-1][-1],
+            self.num_classes,
+            cls_channels=self.point_cls_channels,
+            reg_channels=self.point_reg_channels,
             mean_sizes=self.mean_sizes,
-            **block_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.roi_head = PointRCNNRefinementHead(
-            point_channels,
-            sa_channels=roi_sa_channels,
-            sa_npoints=roi_sa_npoints,
-            sa_radii=roi_sa_radii,
-            sa_num_neighbors=roi_sa_num_neighbors,
-            xyz_up_channels=roi_xyz_up_channels,
-            cls_channels=roi_cls_channels,
-            reg_channels=roi_reg_channels,
-            num_sampled_points=num_sampled_points,
-            pool_extra_width=pool_extra_width,
-            depth_normalizer=depth_normalizer,
-            **block_kwargs,
+
+    def configure_roi_head(self) -> PointRCNNRefinementHead:
+        """Build the stage-2 ROI refinement head."""
+        return PointRCNNRefinementHead(
+            self.fp_channels[-1][-1],
+            sa_channels=self.roi_sa_channels,
+            sa_npoints=self.roi_sa_npoints,
+            sa_radii=self.roi_sa_radii,
+            sa_num_neighbors=self.roi_sa_num_neighbors,
+            xyz_up_channels=self.roi_xyz_up_channels,
+            cls_channels=self.roi_cls_channels,
+            reg_channels=self.roi_reg_channels,
+            num_sampled_points=self.num_sampled_points,
+            pool_extra_width=self.pool_extra_width,
+            depth_normalizer=self.depth_normalizer,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
     def reset_classifier(self, num_classes: int) -> None:

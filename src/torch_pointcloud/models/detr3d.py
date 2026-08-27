@@ -600,121 +600,152 @@ class DETR3DDetection(DetectionModel):
         self.preenc_npoints = preenc_npoints
         self.encoder_type = encoder_type
         self.encoder_embed_dim = encoder_embed_dim
+        self.encoder_num_heads = encoder_num_heads
+        self.encoder_feedforward_channels = encoder_feedforward_channels
+        self.encoder_depth = encoder_depth
+        self.encoder_dropout = encoder_dropout
         self.decoder_embed_dim = decoder_embed_dim
+        self.decoder_num_heads = decoder_num_heads
+        self.decoder_feedforward_channels = decoder_feedforward_channels
+        self.decoder_depth = decoder_depth
+        self.decoder_dropout = decoder_dropout
         self.mlp_dropout = mlp_dropout
+        self.preenc_radius = preenc_radius
+        self.preenc_nsample = preenc_nsample
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
-        self.pre_encoder = PointnetSAModuleVotes(
-            in_channels,
-            [64, 128, encoder_embed_dim],
-            num_points=preenc_npoints,
-            radius=preenc_radius,
-            num_neighbors=preenc_nsample,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+        self.pre_encoder = self.configure_pre_encoder()
+        self.encoder = self.configure_encoder()
+        self.encoder_to_decoder_projection = self.configure_encoder_to_decoder_projection()
+        self.pos_embedding = self.configure_pos_embedding()
+        self.query_projection = self.configure_query_projection()
+        self.decoder = self.configure_decoder()
+        self.mlp_heads = self.configure_mlp_heads()
+
+    def configure_pre_encoder(self) -> PointnetSAModuleVotes:
+        """Build the set-abstraction tokenizer."""
+        return PointnetSAModuleVotes(
+            self.in_channels,
+            [64, 128, self.encoder_embed_dim],
+            num_points=self.preenc_npoints,
+            radius=self.preenc_radius,
+            num_neighbors=self.preenc_nsample,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
-        if encoder_type == "masked":
+    def configure_encoder(self) -> nn.Module:
+        """Build the transformer encoder (masked with one interim downsampling for 3DETR-m)."""
+        if self.encoder_type == "masked":
             interim = PointnetSAModuleVotes(
-                encoder_embed_dim,
-                [256, 256, encoder_embed_dim],
-                num_points=preenc_npoints // 2,
+                self.encoder_embed_dim,
+                [256, 256, self.encoder_embed_dim],
+                num_points=self.preenc_npoints // 2,
                 radius=0.4,
                 num_neighbors=32,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
             )
-            self.encoder: nn.Module = MaskedTransformerEncoder(
-                encoder_embed_dim,
-                encoder_num_heads,
-                encoder_feedforward_channels,
+            return MaskedTransformerEncoder(
+                self.encoder_embed_dim,
+                self.encoder_num_heads,
+                self.encoder_feedforward_channels,
                 num_layers=3,
-                dropout=encoder_dropout,
+                dropout=self.encoder_dropout,
                 masking_radius=[0.16, 0.64, 1.44],
                 interim_downsampling=interim,
-                act=act,
-                act_kwargs=act_kwargs,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
             )
-            proj_hidden = [encoder_embed_dim]
-        else:
-            self.encoder = TransformerEncoder(
-                encoder_embed_dim,
-                encoder_num_heads,
-                encoder_feedforward_channels,
-                num_layers=encoder_depth,
-                dropout=encoder_dropout,
-                act=act,
-                act_kwargs=act_kwargs,
-            )
-            proj_hidden = [encoder_embed_dim, encoder_embed_dim]
+        return TransformerEncoder(
+            self.encoder_embed_dim,
+            self.encoder_num_heads,
+            self.encoder_feedforward_channels,
+            num_layers=self.encoder_depth,
+            dropout=self.encoder_dropout,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+        )
 
-        self.encoder_to_decoder_projection = GenericConvMLP(
-            encoder_embed_dim,
+    def configure_encoder_to_decoder_projection(self) -> GenericConvMLP:
+        """Build the projection from encoder tokens to the decoder dimension."""
+        if self.encoder_type == "masked":
+            proj_hidden = [self.encoder_embed_dim]
+        else:
+            proj_hidden = [self.encoder_embed_dim, self.encoder_embed_dim]
+        return GenericConvMLP(
+            self.encoder_embed_dim,
             proj_hidden,
-            decoder_embed_dim,
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
+            self.decoder_embed_dim,
+            norm=self.norm,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             hidden_bias=False,
             out_bias=False,
             out_use_norm=True,
             out_use_act=True,
         )
 
-        self.pos_embedding = PositionEmbeddingFourier(d_pos=decoder_embed_dim, d_in=3)
-        self.query_projection = GenericConvMLP(
-            decoder_embed_dim,
-            [decoder_embed_dim],
-            decoder_embed_dim,
+    def configure_pos_embedding(self) -> PositionEmbeddingFourier:
+        """Build the Fourier position embedding."""
+        return PositionEmbeddingFourier(d_pos=self.decoder_embed_dim, d_in=3)
+
+    def configure_query_projection(self) -> GenericConvMLP:
+        """Build the query projection."""
+        return GenericConvMLP(
+            self.decoder_embed_dim,
+            [self.decoder_embed_dim],
+            self.decoder_embed_dim,
             norm=None,
-            act=act,
-            act_kwargs=act_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
             hidden_bias=True,
             out_bias=True,
             out_use_act=True,
         )
 
-        self.decoder = TransformerDecoder(
-            decoder_embed_dim,
-            decoder_num_heads,
-            decoder_feedforward_channels,
-            num_layers=decoder_depth,
-            dropout=decoder_dropout,
-            act=act,
-            act_kwargs=act_kwargs,
+    def configure_decoder(self) -> TransformerDecoder:
+        """Build the transformer decoder."""
+        return TransformerDecoder(
+            self.decoder_embed_dim,
+            self.decoder_num_heads,
+            self.decoder_feedforward_channels,
+            num_layers=self.decoder_depth,
+            dropout=self.decoder_dropout,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
         )
 
-        self.mlp_heads = nn.ModuleDict()
-        self._build_heads(act=act, act_kwargs=act_kwargs, norm=norm)
+    def configure_mlp_heads(self) -> nn.ModuleDict:
+        """Build the per-query class, center, size and heading heads."""
 
-    def _build_heads(
-        self,
-        *,
-        act: Union[str, Callable, None],
-        act_kwargs: Optional[Dict[str, Any]],
-        norm: Union[str, Callable, None],
-    ) -> None:
         def head(out_channels: int) -> GenericConvMLP:
             return GenericConvMLP(
                 self.decoder_embed_dim,
                 [self.decoder_embed_dim, self.decoder_embed_dim],
                 out_channels,
-                norm=norm,
-                act=act,
-                act_kwargs=act_kwargs,
+                norm=self.norm,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
                 dropout=self.mlp_dropout,
                 hidden_bias=False,
                 out_bias=True,
             )
 
-        self.mlp_heads["sem_cls_head"] = head(self.num_classes + 1)
-        self.mlp_heads["center_head"] = head(3)
-        self.mlp_heads["size_head"] = head(3)
-        self.mlp_heads["angle_cls_head"] = head(self.num_angle_bin)
-        self.mlp_heads["angle_residual_head"] = head(self.num_angle_bin)
+        mlp_heads = nn.ModuleDict()
+        mlp_heads["sem_cls_head"] = head(self.num_classes + 1)
+        mlp_heads["center_head"] = head(3)
+        mlp_heads["size_head"] = head(3)
+        mlp_heads["angle_cls_head"] = head(self.num_angle_bin)
+        mlp_heads["angle_residual_head"] = head(self.num_angle_bin)
+        return mlp_heads
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes

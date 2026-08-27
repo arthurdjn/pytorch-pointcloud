@@ -522,31 +522,47 @@ class PVCNN2Classification(ClassificationModel):
         global_pool: PoolLike = "max",
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        encoder_channels = [self.in_channels, *list(encoder_channels)[1:]]
-        self.embedding_dim = encoder_channels[-1]
-        sa_channels = ensure_msg_list(sa_channels)
-
-        self.encoder = PVCNN2Encoder(
-            channels=encoder_channels,
-            depths=encoder_depths,
-            resolutions=encoder_resolutions,
-            kernel_sizes=encoder_kernel_sizes,
-            sa_channels=sa_channels,
-            ratios=ratios,
-            radii=radii,
-            num_neighbors=num_neighbors,
-            use_se=use_se,
-            normalize=normalize,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
+        self.encoder_channels = [self.in_channels, *list(encoder_channels)[1:]]
+        self.embedding_dim = self.encoder_channels[-1]
+        self.sa_channels = ensure_msg_list(sa_channels)
+        self.ratios = ratios
+        self.radii = radii
+        self.num_neighbors = num_neighbors
+        self.encoder_depths = encoder_depths
+        self.encoder_resolutions = encoder_resolutions
+        self.encoder_kernel_sizes = encoder_kernel_sizes
+        self.use_se = use_se
+        self.normalize = normalize
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
         self.dropout = dropout
+
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
+
+    def configure_encoder(self) -> PVCNN2Encoder:
+        """Build the `PVCNN2Encoder` backbone."""
+        return PVCNN2Encoder(
+            channels=self.encoder_channels,
+            depths=self.encoder_depths,
+            resolutions=self.encoder_resolutions,
+            kernel_sizes=self.encoder_kernel_sizes,
+            sa_channels=self.sa_channels,
+            ratios=self.ratios,
+            radii=self.radii,
+            num_neighbors=self.num_neighbors,
+            use_se=self.use_se,
+            normalize=self.normalize,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
@@ -683,54 +699,21 @@ class PVCNN2Segmentation(SegmentationModel):
         head_dropout: float = 0.0,
     ):
         super().__init__(in_channels=in_channels or 3, num_classes=num_classes)
-        sa_channels = ensure_msg_list(sa_channels)
-        encoder_channels = [self.in_channels, *list(encoder_channels)[1:]]
-
-        self.encoder = PVCNN2Encoder(
-            channels=encoder_channels,
-            depths=encoder_depths,
-            resolutions=encoder_resolutions,
-            kernel_sizes=encoder_kernel_sizes,
-            sa_channels=sa_channels,
-            ratios=ratios,
-            radii=radii,
-            num_neighbors=num_neighbors,
-            use_se=use_se,
-            normalize=normalize,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
-        num_blocks = len(self.encoder.depths)
-        num_decoder_blocks = len(ensure_tuple(decoder_depths))
-        if num_decoder_blocks > num_blocks:
-            raise ValueError(
-                f"Expected at most {num_blocks} decoder blocks (one per encoder block), got {num_decoder_blocks}."
-            )
-
-        skip_channels = [int(self.encoder.channels[num_blocks - 1 - i]) for i in range(num_decoder_blocks - 1)]
-        skip_channels.append(self.in_channels - 3)
-
-        self.decoder = PVCNN2Decoder(
-            in_channels=int(self.encoder.channels[-1]),
-            depths=decoder_depths,
-            channels=decoder_channels,
-            skip_channels=skip_channels,
-            fp_channels=fp_channels,
-            resolutions=decoder_resolutions,
-            kernel_sizes=decoder_kernel_sizes,
-            use_se=use_se,
-            normalize=normalize,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
+        self.sa_channels = ensure_msg_list(sa_channels)
+        self.encoder_channels = [self.in_channels, *list(encoder_channels)[1:]]
+        self.ratios = ratios
+        self.radii = radii
+        self.num_neighbors = num_neighbors
+        self.encoder_depths = encoder_depths
+        self.encoder_resolutions = encoder_resolutions
+        self.encoder_kernel_sizes = encoder_kernel_sizes
+        self.fp_channels = fp_channels
+        self.decoder_channels = decoder_channels
+        self.decoder_depths = ensure_tuple(decoder_depths)
+        self.decoder_resolutions = decoder_resolutions
+        self.decoder_kernel_sizes = decoder_kernel_sizes
+        self.use_se = use_se
+        self.normalize = normalize
         self.dropout = dropout
         self.act = act
         self.act_kwargs = act_kwargs
@@ -739,7 +722,58 @@ class PVCNN2Segmentation(SegmentationModel):
         self.norm_kwargs = norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
         self.head_dropout = head_dropout
+
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
+
+    def configure_encoder(self) -> PVCNN2Encoder:
+        """Build the `PVCNN2Encoder` backbone."""
+        return PVCNN2Encoder(
+            channels=self.encoder_channels,
+            depths=self.encoder_depths,
+            resolutions=self.encoder_resolutions,
+            kernel_sizes=self.encoder_kernel_sizes,
+            sa_channels=self.sa_channels,
+            ratios=self.ratios,
+            radii=self.radii,
+            num_neighbors=self.num_neighbors,
+            use_se=self.use_se,
+            normalize=self.normalize,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_decoder(self) -> PVCNN2Decoder:
+        """Build the `PVCNN2Decoder` upsampling the coarsest features back through the encoder skips."""
+        num_blocks = len(self.encoder.depths)
+        num_decoder_blocks = len(self.decoder_depths)
+        if num_decoder_blocks > num_blocks:
+            raise ValueError(
+                f"Expected at most {num_blocks} decoder blocks (one per encoder block), got {num_decoder_blocks}."
+            )
+
+        skip_channels = [int(self.encoder.channels[num_blocks - 1 - i]) for i in range(num_decoder_blocks - 1)]
+        skip_channels.append(self.in_channels - 3)
+        return PVCNN2Decoder(
+            in_channels=int(self.encoder.channels[-1]),
+            depths=self.decoder_depths,
+            channels=self.decoder_channels,
+            skip_channels=skip_channels,
+            fp_channels=self.fp_channels,
+            resolutions=self.decoder_resolutions,
+            kernel_sizes=self.decoder_kernel_sizes,
+            use_se=self.use_se,
+            normalize=self.normalize,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     @property
     def embedding_dim(self) -> int:

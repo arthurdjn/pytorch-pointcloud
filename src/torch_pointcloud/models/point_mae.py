@@ -346,6 +346,9 @@ class PointMAEClassification(ClassificationModel):
         self.num_heads = num_heads
         self.num_group = num_group
         self.group_size = group_size
+        self.encoder_local_channels = encoder_local_channels
+        self.encoder_global_channels = encoder_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.drop_path = drop_path
         self.dropout = dropout
         self.act = act
@@ -354,32 +357,47 @@ class PointMAEClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.spatial_dim = spatial_dim
 
-        self.encoder = PointPatchEmbed(
-            embed_dim=embed_dim,
-            in_channels=spatial_dim + in_channels,
-            local_channels=encoder_local_channels,
-            global_channels=encoder_global_channels,
-        )
+        self.encoder = self.configure_encoder()
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.cls_pos = nn.Parameter(torch.randn(1, 1, embed_dim))
-        self.pos_embed = MLP(
-            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
-        )
-
-        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
-        self.blocks = TransformerEncoder(
-            embed_dim=embed_dim,
-            depth=depth,
-            drop_path=dpr,
-            num_heads=num_heads,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
+        self.pos_embed = self.configure_pos_embed()
+        self.blocks = self.configure_blocks()
         self.norm_f = nn.LayerNorm(embed_dim)
         self.head = self.configure_head()
         self.reset_parameters()
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet patch embedder tokenizing each local group."""
+        return PointPatchEmbed(
+            embed_dim=self.embed_dim,
+            in_channels=self.spatial_dim + self.in_channels,
+            local_channels=self.encoder_local_channels,
+            global_channels=self.encoder_global_channels,
+        )
+
+    def configure_pos_embed(self) -> MLP:
+        """Build the positional-embedding MLP mapping group centers to token channels."""
+        return MLP(
+            [self.spatial_dim, *self.pos_embed_channels, self.embed_dim],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=None,
+            plain_last=True,
+        )
+
+    def configure_blocks(self) -> TransformerEncoder:
+        """Build the transformer encoder with a linearly scaled stochastic-depth schedule."""
+        dpr = [x.item() for x in torch.linspace(0, self.drop_path, self.depth)]
+        return TransformerEncoder(
+            embed_dim=self.embed_dim,
+            depth=self.depth,
+            drop_path=dpr,
+            num_heads=self.num_heads,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -507,6 +525,9 @@ class PointMAESegmentation(SegmentationModel):
         self.num_heads = num_heads
         self.num_group = num_group
         self.group_size = group_size
+        self.encoder_local_channels = encoder_local_channels
+        self.encoder_global_channels = encoder_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.drop_path = drop_path
         self.dropout = dropout
         self.act = act
@@ -515,40 +536,64 @@ class PointMAESegmentation(SegmentationModel):
         self.norm_kwargs = norm_kwargs
         self.spatial_dim = spatial_dim
 
-        self.encoder = PointPatchEmbed(
-            embed_dim=embed_dim,
-            in_channels=spatial_dim + in_channels,
-            local_channels=encoder_local_channels,
-            global_channels=encoder_global_channels,
-        )
-        self.pos_embed = MLP(
-            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
-        )
-
-        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
-        self.blocks = TransformerEncoder(
-            embed_dim=embed_dim,
-            depth=depth,
-            drop_path=dpr,
-            num_heads=num_heads,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
+        self.encoder = self.configure_encoder()
+        self.pos_embed = self.configure_pos_embed()
+        self.blocks = self.configure_blocks()
         self.norm_f = nn.LayerNorm(embed_dim)
 
-        self.label_conv = MLP(
-            [num_categories, 64],
+        self.label_conv = self.configure_label_conv()
+        self.propagation_0 = self.configure_propagation_0()
+        self.head = self.configure_head()
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet patch embedder tokenizing each local group."""
+        return PointPatchEmbed(
+            embed_dim=self.embed_dim,
+            in_channels=self.spatial_dim + self.in_channels,
+            local_channels=self.encoder_local_channels,
+            global_channels=self.encoder_global_channels,
+        )
+
+    def configure_pos_embed(self) -> MLP:
+        """Build the positional-embedding MLP mapping group centers to token channels."""
+        return MLP(
+            [self.spatial_dim, *self.pos_embed_channels, self.embed_dim],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=None,
+            plain_last=True,
+        )
+
+    def configure_blocks(self) -> TransformerEncoder:
+        """Build the transformer encoder with a linearly scaled stochastic-depth schedule."""
+        dpr = [x.item() for x in torch.linspace(0, self.drop_path, self.depth)]
+        return TransformerEncoder(
+            embed_dim=self.embed_dim,
+            depth=self.depth,
+            drop_path=dpr,
+            num_heads=self.num_heads,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_label_conv(self) -> MLP:
+        """Build the MLP embedding the category one-hot for the global branch."""
+        return MLP(
+            [self.num_categories, 64],
             act="leaky_relu",
             act_kwargs=dict(negative_slope=0.2),
             norm="batch_norm",
             bias=False,
             plain_last=False,
         )
-        self.propagation_0 = FPModule(
-            in_channels=3 * embed_dim + spatial_dim,
-            channels=[embed_dim * 4, 1024],
+
+    def configure_propagation_0(self) -> FPModule:
+        """Build the feature-propagation module interpolating group features back to every point."""
+        return FPModule(
+            in_channels=3 * self.embed_dim + self.spatial_dim,
+            channels=[self.embed_dim * 4, 1024],
             k=3,
             act="relu",
             norm="batch_norm",
@@ -556,7 +601,6 @@ class PointMAESegmentation(SegmentationModel):
             weighting="squared",
             eps=1e-8,
         )
-        self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -696,6 +740,9 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         self.decoder_num_heads = decoder_num_heads
         self.num_group = num_group
         self.group_size = group_size
+        self.encoder_local_channels = encoder_local_channels
+        self.encoder_global_channels = encoder_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.mask_ratio = mask_ratio
         self.drop_path = drop_path
         self.act = act
@@ -704,39 +751,58 @@ class PointMAEMaskedAutoEncoder(BaseModel):
         self.norm_kwargs = norm_kwargs
         self.spatial_dim = spatial_dim
 
-        self.MAE_encoder = MaskTransformer(
-            embed_dim=embed_dim,
-            depth=encoder_depth,
-            num_heads=num_heads,
-            mask_ratio=mask_ratio,
-            drop_path=drop_path,
-            encoder_local_channels=encoder_local_channels,
-            encoder_global_channels=encoder_global_channels,
-            pos_embed_channels=pos_embed_channels,
-            spatial_dim=spatial_dim,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
+        self.MAE_encoder = self.configure_MAE_encoder()
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.decoder_pos_embed = MLP(
-            [spatial_dim, *pos_embed_channels, embed_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True
+        self.decoder_pos_embed = self.configure_decoder_pos_embed()
+        self.MAE_decoder = self.configure_MAE_decoder()
+        self.increase_dim = self.configure_increase_dim()
+        self.reset_parameters()
+
+    def configure_MAE_encoder(self) -> MaskTransformer:
+        """Build the masked transformer encoding the visible group tokens."""
+        return MaskTransformer(
+            embed_dim=self.embed_dim,
+            depth=self.encoder_depth,
+            num_heads=self.num_heads,
+            mask_ratio=self.mask_ratio,
+            drop_path=self.drop_path,
+            encoder_local_channels=self.encoder_local_channels,
+            encoder_global_channels=self.encoder_global_channels,
+            pos_embed_channels=self.pos_embed_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path, decoder_depth)]
-        self.MAE_decoder = TransformerDecoder(
-            embed_dim=embed_dim,
-            depth=decoder_depth,
-            drop_path=dpr,
-            num_heads=decoder_num_heads,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+    def configure_decoder_pos_embed(self) -> MLP:
+        """Build the decoder positional-embedding MLP mapping group centers to token channels."""
+        return MLP(
+            [self.spatial_dim, *self.pos_embed_channels, self.embed_dim],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=None,
+            plain_last=True,
         )
-        self.increase_dim = MLP([embed_dim, 3 * group_size], act=None, norm=None, bias=True, plain_last=True)
-        self.reset_parameters()
+
+    def configure_MAE_decoder(self) -> TransformerDecoder:
+        """Build the transformer decoder reconstructing the masked tokens."""
+        dpr = [x.item() for x in torch.linspace(0, self.drop_path, self.decoder_depth)]
+        return TransformerDecoder(
+            embed_dim=self.embed_dim,
+            depth=self.decoder_depth,
+            drop_path=dpr,
+            num_heads=self.decoder_num_heads,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_increase_dim(self) -> MLP:
+        """Build the per-token linear head predicting the coordinates of each masked group."""
+        return MLP([self.embed_dim, 3 * self.group_size], act=None, norm=None, bias=True, plain_last=True)
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.mask_token, std=0.02)

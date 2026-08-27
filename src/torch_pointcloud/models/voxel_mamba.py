@@ -12,8 +12,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers import SparseConvBlock, SparseModule
-from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers import SparseConvBlock, SubMConv3dResidualBlock
 from torch_pointcloud.layers.anchors import separate_branch
 from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
@@ -124,44 +123,6 @@ def hilbert_serialize(
     return forward, inverse
 
 
-class SparseResidualBlock(SparseModule):
-    r"""Submanifold residual block (the reference's `Sparse1ConvBlock`): one $3\times3\times3$ subm conv + skip.
-
-    Args:
-        channels: Input and output channels.
-        indice_key: Shared submanifold indice key.
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-    """
-
-    def __init__(
-        self,
-        channels: int,
-        *,
-        indice_key: str,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.conv1 = spconv.SubMConv3d(channels, channels, 3, padding=1, bias=True, indice_key=indice_key)
-        self.bn1 = create_norm(norm, channels, dim=1, **(norm_kwargs or {}))
-        self.act = create_act(act, **(act_kwargs or {}))
-
-    def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
-        out = self.conv1(x)
-        feat = out.features
-        if self.bn1 is not None:
-            feat = self.bn1(feat)
-        feat = feat + x.features
-        if self.act is not None:
-            feat = self.act(feat)
-        return out.replace_feature(feat)
-
-
 class DownSparse(nn.Module):
     r"""Downsampling stage (the reference's `DownSp`): optional strided sparse conv + residual subm blocks.
 
@@ -209,7 +170,7 @@ class DownSparse(nn.Module):
         else:
             blocks.append(nn.Identity())
         for _ in range(num_blocks):
-            blocks.append(SparseResidualBlock(channels, indice_key=indice_key, **block_kwargs))
+            blocks.append(SubMConv3dResidualBlock(channels, indice_key=indice_key, **block_kwargs))
         self.blocks = spconv.SparseSequential(*blocks)
 
     def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
@@ -694,29 +655,58 @@ class VoxelMambaDetection(DetectionModel):
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         self.feature_map_stride = 1
+        self.d_model = d_model
+        self.vfe_num_filters = vfe_num_filters
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.shared_conv_channels = shared_conv_channels
+        self.rms_norm = rms_norm
+        self.fused_add_norm = fused_add_norm
+        self.norm_epsilon = norm_epsilon
 
-        self.vfe = DynamicMeanVFE(in_channels, vfe_num_filters, voxel_size, point_cloud_range, self.grid_size)
-        self.backbone_3d = VoxelMambaBackbone(
-            d_model,
-            self.grid_size,
-            rms_norm=rms_norm,
-            fused_add_norm=fused_add_norm,
-            norm_epsilon=norm_epsilon,
-        )
+        self.vfe = self.configure_vfe()
+        self.backbone_3d = self.configure_backbone_3d()
         self.bev_channels = d_model
-        self.backbone = BaseBEVResBackbone(
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_vfe(self) -> DynamicMeanVFE:
+        """Build the dynamic mean voxel feature encoder."""
+        return DynamicMeanVFE(
+            self.in_channels, self.vfe_num_filters, self.voxel_size, self.point_cloud_range, self.grid_size
+        )
+
+    def configure_backbone_3d(self) -> VoxelMambaBackbone:
+        """Build the Hilbert-serialized Mamba voxel backbone."""
+        return VoxelMambaBackbone(
+            self.d_model,
+            self.grid_size,
+            rms_norm=self.rms_norm,
+            fused_add_norm=self.fused_add_norm,
+            norm_epsilon=self.norm_epsilon,
+        )
+
+    def configure_backbone(self) -> BaseBEVResBackbone:
+        """Build the residual 2D BEV backbone."""
+        return BaseBEVResBackbone(
             self.bev_channels,
-            layer_nums,
-            layer_strides,
-            num_filters,
-            upsample_strides,
-            num_upsample_filters,
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
             norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         )
-        self.head = CenterHead(
+
+    def configure_head(self) -> CenterHead:
+        """Build the center-based detection head."""
+        return CenterHead(
             self.backbone.num_bev_features,
-            num_classes,
-            shared_conv_channels=shared_conv_channels,
+            self.num_classes,
+            shared_conv_channels=self.shared_conv_channels,
         )
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:

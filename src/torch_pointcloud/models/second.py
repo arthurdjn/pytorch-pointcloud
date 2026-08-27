@@ -165,37 +165,73 @@ class SECONDDetection(DetectionModel):
 
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
+        self.anchor_sizes = anchor_sizes
+        self.anchor_bottom_heights = anchor_bottom_heights
+        self.feature_map_stride = feature_map_stride
+        self.anchor_rotations = anchor_rotations
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.num_dir_bins = num_dir_bins
+        self.dir_offset = dir_offset
+        self.dir_limit_offset = dir_limit_offset
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         # spconv spatial shape is (z, y, x) with an extra +1 on z (matches the reference implementation).
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
 
-        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.backbone_3d = VoxelBackbone8x(in_channels, **block_kwargs)
+        self.backbone_3d = self.configure_backbone_3d()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_backbone_3d(self) -> VoxelBackbone8x:
+        """Build the sparse 3D voxel backbone."""
+        return VoxelBackbone8x(
+            self.in_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_backbone(self) -> BaseBEVBackbone:
+        """Build the 2D BEV backbone."""
         # height compression folds the sparse-z output (D=2) into the channel dim
         bev_input_channels = self.backbone_3d.out_channels * 2
-        self.backbone = BaseBEVBackbone(
+        return BaseBEVBackbone(
             bev_input_channels,
-            layer_nums,
-            layer_strides,
-            num_filters,
-            upsample_strides,
-            num_upsample_filters,
-            **block_kwargs,
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.head = AnchorHeadSingle(
+
+    def configure_head(self) -> AnchorHeadSingle:
+        """Build the single-group anchor head."""
+        return AnchorHeadSingle(
             self.backbone.num_bev_features,
-            num_classes,
+            self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
-            point_cloud_range,
-            anchor_sizes=anchor_sizes,
-            anchor_bottom_heights=anchor_bottom_heights,
-            anchor_rotations=anchor_rotations,
-            feature_map_stride=feature_map_stride,
-            num_dir_bins=num_dir_bins,
-            dir_offset=dir_offset,
-            dir_limit_offset=dir_limit_offset,
+            self.point_cloud_range,
+            anchor_sizes=self.anchor_sizes,
+            anchor_bottom_heights=self.anchor_bottom_heights,
+            anchor_rotations=self.anchor_rotations,
+            feature_map_stride=self.feature_map_stride,
+            num_dir_bins=self.num_dir_bins,
+            dir_offset=self.dir_offset,
+            dir_limit_offset=self.dir_limit_offset,
         )
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
@@ -414,35 +450,73 @@ class SECONDMultiHeadDetection(DetectionModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
+        self.anchor_sizes = anchor_sizes
+        self.anchor_bottom_heights = anchor_bottom_heights
+        self.head_class_groups = head_class_groups
+        self.feature_map_stride = feature_map_stride
+        self.anchor_rotations = anchor_rotations
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.shared_conv_num_filter = shared_conv_num_filter
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
 
-        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.backbone_3d = VoxelResBackbone8x(in_channels, **block_kwargs)
-        bev_input_channels = self.backbone_3d.out_channels * 2
-        self.backbone = BaseBEVBackbone(
-            bev_input_channels,
-            layer_nums,
-            layer_strides,
-            num_filters,
-            upsample_strides,
-            num_upsample_filters,
-            **block_kwargs,
+        self.backbone_3d = self.configure_backbone_3d()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_backbone_3d(self) -> VoxelResBackbone8x:
+        """Build the residual sparse 3D voxel backbone."""
+        return VoxelResBackbone8x(
+            self.in_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.head = AnchorHeadMulti(
+
+    def configure_backbone(self) -> BaseBEVBackbone:
+        """Build the 2D BEV backbone."""
+        bev_input_channels = self.backbone_3d.out_channels * 2
+        return BaseBEVBackbone(
+            bev_input_channels,
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_head(self) -> AnchorHeadMulti:
+        """Build the multi-group anchor head."""
+        return AnchorHeadMulti(
             self.backbone.num_bev_features,
-            num_classes,
+            self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
-            point_cloud_range,
-            anchor_sizes=anchor_sizes,
-            anchor_bottom_heights=anchor_bottom_heights,
-            head_class_groups=head_class_groups,
-            anchor_rotations=anchor_rotations,
-            feature_map_stride=feature_map_stride,
-            shared_conv_num_filter=shared_conv_num_filter,
-            **block_kwargs,
+            self.point_cloud_range,
+            anchor_sizes=self.anchor_sizes,
+            anchor_bottom_heights=self.anchor_bottom_heights,
+            head_class_groups=self.head_class_groups,
+            anchor_rotations=self.anchor_rotations,
+            feature_map_stride=self.feature_map_stride,
+            shared_conv_num_filter=self.shared_conv_num_filter,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:

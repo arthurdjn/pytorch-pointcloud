@@ -785,50 +785,68 @@ class SPVCNNClassification(ClassificationModel):
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
+        self.stem_channels = stem_channels
+        self.encoder_channels = encoder_channels
+        self.encoder_depths = encoder_depths
+        self.encoder_fusion_stages = encoder_fusion_stages
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.dilation = dilation
+        self.drop_path = drop_path
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
         self.embedding_dim = encoder_channels[-1]
         self.dropout = dropout
 
-        self.stem = nn.Sequential(
-            BasicBlock(
-                self.in_channels or self.spatial_dim,
-                stem_channels,
-                kernel_size=3,
-                stride=1,
-                dilation=1,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-            ),
-            BasicBlock(
-                stem_channels,
-                stem_channels,
-                kernel_size=3,
-                stride=1,
-                dilation=1,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-            ),
-        )
-
-        self.encoder = SPVCNNEncoder(
-            channels=[stem_channels, *encoder_channels],
-            depths=encoder_depths,
-            fusion_stages=encoder_fusion_stages,
-            kernel_size=kernel_size,
-            stride=stride,
-            dilation=dilation,
-            drop_path=drop_path,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
+
+    def configure_stem(self) -> nn.Sequential:
+        """Build the two-convolution sparse stem lifting the input features to `stem_channels`."""
+        return nn.Sequential(
+            BasicBlock(
+                self.in_channels or self.spatial_dim,
+                self.stem_channels,
+                kernel_size=3,
+                stride=1,
+                dilation=1,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+            ),
+            BasicBlock(
+                self.stem_channels,
+                self.stem_channels,
+                kernel_size=3,
+                stride=1,
+                dilation=1,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+            ),
+        )
+
+    def configure_encoder(self) -> SPVCNNEncoder:
+        """Build the `SPVCNNEncoder` backbone."""
+        return SPVCNNEncoder(
+            channels=[self.stem_channels, *self.encoder_channels],
+            depths=self.encoder_depths,
+            fusion_stages=self.encoder_fusion_stages,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            dilation=self.dilation,
+            drop_path=self.drop_path,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -923,61 +941,85 @@ class SPVCNNSegmentation(SegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
         self.stem_channels = stem_channels
+        self.encoder_channels = encoder_channels
+        self.encoder_depths = encoder_depths
+        self.encoder_fusion_stages = encoder_fusion_stages
+        self.decoder_channels = decoder_channels
+        self.decoder_depths = decoder_depths
+        self.decoder_fusion_stages = decoder_fusion_stages
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.dilation = dilation
+        self.drop_path = drop_path
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
         self.embedding_dim = decoder_channels[-1]
-        self.stem = nn.Sequential(
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
+        self.head = self.configure_head()
+
+    def configure_stem(self) -> nn.Sequential:
+        """Build the two-convolution sparse stem lifting the input features to `stem_channels`."""
+        return nn.Sequential(
             BasicBlock(
                 self.in_channels or self.spatial_dim,
-                stem_channels,
+                self.stem_channels,
                 kernel_size=3,
                 stride=1,
                 dilation=1,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
             ),
             BasicBlock(
-                stem_channels,
-                stem_channels,
+                self.stem_channels,
+                self.stem_channels,
                 kernel_size=3,
                 stride=1,
                 dilation=1,
-                act=act,
-                act_kwargs=act_kwargs,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
             ),
         )
 
-        self.encoder = SPVCNNEncoder(
-            channels=[stem_channels, *encoder_channels],
-            depths=encoder_depths,
-            fusion_stages=encoder_fusion_stages,
-            kernel_size=kernel_size,
-            stride=stride,
-            dilation=dilation,
-            drop_path=drop_path,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+    def configure_encoder(self) -> SPVCNNEncoder:
+        """Build the `SPVCNNEncoder` backbone."""
+        return SPVCNNEncoder(
+            channels=[self.stem_channels, *self.encoder_channels],
+            depths=self.encoder_depths,
+            fusion_stages=self.encoder_fusion_stages,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            dilation=self.dilation,
+            drop_path=self.drop_path,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
-        self.decoder = SPVCNNDecoder(
-            depths=decoder_depths,
-            channels=[encoder_channels[-1], *decoder_channels],
-            skip_channels=[*reversed(encoder_channels[:-1]), stem_channels],
-            fusion_stages=decoder_fusion_stages,
-            kernel_size=kernel_size,
-            stride=stride,
-            dilation=dilation,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+    def configure_decoder(self) -> SPVCNNDecoder:
+        """Build the `SPVCNNDecoder` upsampling the coarsest features back through the encoder skips."""
+        return SPVCNNDecoder(
+            depths=self.decoder_depths,
+            channels=[self.encoder_channels[-1], *self.decoder_channels],
+            skip_channels=[*reversed(self.encoder_channels[:-1]), self.stem_channels],
+            fusion_stages=self.decoder_fusion_stages,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            dilation=self.dilation,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-
-        self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

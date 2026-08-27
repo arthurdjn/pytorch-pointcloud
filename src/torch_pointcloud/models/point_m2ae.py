@@ -492,26 +492,36 @@ class PointM2AEClassification(ClassificationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.group_sizes = list(group_sizes)
         self.num_groups = list(num_groups)
+        self.encoder_depths = list(encoder_depths)
         self.encoder_dims = list(encoder_dims)
+        self.token_local_channels = token_local_channels
+        self.token_global_channels = token_global_channels
+        self.local_radius = list(local_radius)
+        self.num_heads = num_heads
+        self.drop_path = drop_path
         self.feat_dim = encoder_dims[-1]
         self.concat_pooling = concat_pooling
         self.dropout = dropout
         self.head_channels = list(head_channels)
 
-        self.h_encoder = HierarchicalEncoder(
-            encoder_depths=encoder_depths,
-            encoder_dims=encoder_dims,
-            local_radius=local_radius,
-            num_heads=num_heads,
-            drop_path=drop_path,
-            with_norms=False,
-            in_channels=in_channels,
-            token_local_channels=token_local_channels,
-            token_global_channels=token_global_channels,
-        )
+        self.h_encoder = self.configure_h_encoder()
 
         self.norm = nn.LayerNorm(self.feat_dim)
         self.head = self.configure_head()
+
+    def configure_h_encoder(self) -> HierarchicalEncoder:
+        """Build the hierarchical transformer encoder."""
+        return HierarchicalEncoder(
+            encoder_depths=self.encoder_depths,
+            encoder_dims=self.encoder_dims,
+            local_radius=self.local_radius,
+            num_heads=self.num_heads,
+            drop_path=self.drop_path,
+            with_norms=False,
+            in_channels=self.in_channels,
+            token_local_channels=self.token_local_channels,
+            token_global_channels=self.token_global_channels,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -609,23 +619,37 @@ class PointM2AESegmentation(SegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.group_sizes = list(group_sizes)
         self.num_groups = list(num_groups)
+        self.encoder_depths = list(encoder_depths)
         self.encoder_dims = list(encoder_dims)
+        self.token_local_channels = token_local_channels
+        self.token_global_channels = token_global_channels
+        self.local_radius = list(local_radius)
+        self.num_heads = num_heads
         self.num_categories = num_categories
         self.embed_dim = encoder_dims[-1]
 
-        self.h_encoder = HierarchicalEncoder(
-            encoder_depths=encoder_depths,
-            encoder_dims=encoder_dims,
-            local_radius=local_radius,
-            num_heads=num_heads,
+        self.h_encoder = self.configure_h_encoder()
+        self.label_conv = self.configure_label_conv()
+        self.propagations = self.configure_propagations()
+        self.head = self.configure_head()
+
+    def configure_h_encoder(self) -> HierarchicalEncoder:
+        """Build the hierarchical transformer encoder with per-stage output norms."""
+        return HierarchicalEncoder(
+            encoder_depths=self.encoder_depths,
+            encoder_dims=self.encoder_dims,
+            local_radius=self.local_radius,
+            num_heads=self.num_heads,
             with_norms=True,
-            in_channels=in_channels,
-            token_local_channels=token_local_channels,
-            token_global_channels=token_global_channels,
+            in_channels=self.in_channels,
+            token_local_channels=self.token_local_channels,
+            token_global_channels=self.token_global_channels,
         )
 
-        self.label_conv = MLP(
-            [num_categories, 64],
+    def configure_label_conv(self) -> MLP:
+        """Build the MLP embedding the category one-hot for the global branch."""
+        return MLP(
+            [self.num_categories, 64],
             act="leaky_relu",
             act_kwargs=dict(negative_slope=0.2),
             norm="batch_norm",
@@ -633,10 +657,12 @@ class PointM2AESegmentation(SegmentationModel):
             plain_last=False,
         )
 
-        self.propagations = nn.ModuleList(
+    def configure_propagations(self) -> nn.ModuleList:
+        """Build the per-stage feature-propagation modules interpolating stage features to every point."""
+        return nn.ModuleList(
             [
                 FPModule(
-                    in_channels=encoder_dims[i] + 3,
+                    in_channels=self.encoder_dims[i] + 3,
                     channels=[self.embed_dim * 4, 1024],
                     k=3,
                     act="relu",
@@ -648,8 +674,6 @@ class PointM2AESegmentation(SegmentationModel):
                 for i in range(3)
             ]
         )
-
-        self.head = self.configure_head()
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -779,50 +803,83 @@ class PointM2AEMaskedAutoEncoder(BaseModel):
         self.group_sizes = list(group_sizes)
         self.num_groups = list(num_groups)
         self.mask_ratio = mask_ratio
+        self.encoder_depths = list(encoder_depths)
+        self.encoder_dims = list(encoder_dims)
+        self.token_local_channels = token_local_channels
+        self.token_global_channels = token_global_channels
+        self.local_radius = list(local_radius)
         self.decoder_dims = list(decoder_dims)
         self.decoder_depths = list(decoder_depths)
         self.decoder_up_blocks = list(decoder_up_blocks)
+        self.num_heads = num_heads
+        self.drop_path = drop_path
 
-        self.h_encoder = HierarchicalEncoderMAE(
-            encoder_depths=encoder_depths,
-            encoder_dims=encoder_dims,
-            local_radius=local_radius,
-            num_heads=num_heads,
-            mask_ratio=mask_ratio,
-            drop_path=drop_path,
-            token_local_channels=token_local_channels,
-            token_global_channels=token_global_channels,
-        )
+        self.h_encoder = self.configure_h_encoder()
 
         self.mask_token = nn.Parameter(torch.zeros(1, self.decoder_dims[0]))
         nn.init.trunc_normal_(self.mask_token, std=0.02)
 
-        self.h_decoder = nn.ModuleList()
-        self.decoder_pos_embeds = nn.ModuleList()
-        self.token_prop = nn.ModuleList()
-        dpr = [x.item() for x in torch.linspace(0, drop_path, sum(self.decoder_depths))]
+        self.h_decoder = self.configure_h_decoder()
+        self.decoder_pos_embeds = self.configure_decoder_pos_embeds()
+        self.token_prop = self.configure_token_prop()
+        self.decoder_norm = nn.LayerNorm(self.decoder_dims[-1])
+        self.rec_head = self.configure_rec_head()
+
+    def configure_h_encoder(self) -> "HierarchicalEncoderMAE":
+        """Build the hierarchical encoder with multi-scale back-propagated masking."""
+        return HierarchicalEncoderMAE(
+            encoder_depths=self.encoder_depths,
+            encoder_dims=self.encoder_dims,
+            local_radius=self.local_radius,
+            num_heads=self.num_heads,
+            mask_ratio=self.mask_ratio,
+            drop_path=self.drop_path,
+            token_local_channels=self.token_local_channels,
+            token_global_channels=self.token_global_channels,
+        )
+
+    def configure_h_decoder(self) -> nn.ModuleList:
+        """Build the per-stage decoder transformer blocks with a linearly scaled stochastic-depth schedule."""
+        dpr = [x.item() for x in torch.linspace(0, self.drop_path, sum(self.decoder_depths))]
+        h_decoder = nn.ModuleList()
         depth_count = 0
         for i in range(len(self.decoder_dims)):
-            self.h_decoder.append(
+            h_decoder.append(
                 EncoderBlock(
                     embed_dim=self.decoder_dims[i],
                     depth=self.decoder_depths[i],
                     drop_path=dpr[depth_count : depth_count + self.decoder_depths[i]],
-                    num_heads=num_heads,
+                    num_heads=self.num_heads,
                 )
             )
             depth_count += self.decoder_depths[i]
-            self.decoder_pos_embeds.append(MLP([3, self.decoder_dims[i], self.decoder_dims[i]], act="gelu", norm=None))
-            if i > 0:
-                self.token_prop.append(
-                    FeaturePropagation(
-                        self.decoder_dims[i] + self.decoder_dims[i - 1],
-                        self.decoder_dims[i],
-                        blocks=self.decoder_up_blocks[i - 1],
-                    )
+        return h_decoder
+
+    def configure_decoder_pos_embeds(self) -> nn.ModuleList:
+        """Build the per-stage decoder positional-embedding MLPs."""
+        return nn.ModuleList(
+            [
+                MLP([3, self.decoder_dims[i], self.decoder_dims[i]], act="gelu", norm=None)
+                for i in range(len(self.decoder_dims))
+            ]
+        )
+
+    def configure_token_prop(self) -> nn.ModuleList:
+        """Build the feature-propagation modules upsampling decoder tokens between consecutive stages."""
+        return nn.ModuleList(
+            [
+                FeaturePropagation(
+                    self.decoder_dims[i] + self.decoder_dims[i - 1],
+                    self.decoder_dims[i],
+                    blocks=self.decoder_up_blocks[i - 1],
                 )
-        self.decoder_norm = nn.LayerNorm(self.decoder_dims[-1])
-        self.rec_head = nn.Linear(self.decoder_dims[-1], 3 * self.group_sizes[0])
+                for i in range(1, len(self.decoder_dims))
+            ]
+        )
+
+    def configure_rec_head(self) -> nn.Linear:
+        """Build the linear head predicting the coordinates of each masked finest-stage neighborhood."""
+        return nn.Linear(self.decoder_dims[-1], 3 * self.group_sizes[0])
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         neighborhoods, centers, idxs = multi_scale_group(

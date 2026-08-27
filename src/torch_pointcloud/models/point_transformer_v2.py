@@ -140,7 +140,7 @@ class GroupedVectorAttention(nn.Module):
         return x
 
 
-class Block(nn.Module):
+class PointTransformerV2Block(nn.Module):
     """Residual bottleneck around a `GroupedVectorAttention`, with a linear projection before and after it."""
 
     def __init__(
@@ -189,11 +189,11 @@ class Block(nn.Module):
         return x
 
 
-class GridPool(nn.Module):
+class PointTransformerV2GridPool(nn.Module):
     """Partition-based pooling: projects the features, then reduces every `grid_size` voxel to a single point.
 
     Positions are averaged within a voxel while features are reduced with `reduce`. Passing
-    `return_inverse=True` to `forward` also returns the point-to-voxel map that `InversePool` needs.
+    `return_inverse=True` to `forward` also returns the point-to-voxel map that `PointTransformerV2InversePool` needs.
     """
 
     def __init__(
@@ -265,8 +265,8 @@ class GridPool(nn.Module):
         return x, pos, batch
 
 
-class InversePool(nn.Module):
-    """Undoes a `GridPool`: scatters the pooled features back to the finer points and adds the projected skip."""
+class PointTransformerV2InversePool(nn.Module):
+    """Undoes a `PointTransformerV2GridPool`: scatters the pooled features back to the finer points and adds the projected skip."""
 
     def __init__(
         self,
@@ -311,8 +311,8 @@ class InversePool(nn.Module):
         return x_skip + x[inverse]
 
 
-class EncoderBlock(nn.Module):
-    r"""One encoder stage: an optional `GridPool` downsampling, then `depth` `Block` units sharing a single
+class PointTransformerV2EncoderBlock(nn.Module):
+    r"""One encoder stage: an optional `PointTransformerV2GridPool` downsampling, then `depth` `PointTransformerV2Block` units sharing a single
     $k$-NN graph built on the stage's own resolution.
     """
 
@@ -331,7 +331,7 @@ class EncoderBlock(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         attn_drop: ValueCollection[float] = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        downsample: Optional[GridPool] = None,
+        downsample: Optional[PointTransformerV2GridPool] = None,
     ):
         super().__init__()
         attn_drop = ensure_tuple_size(attn_drop, depth)
@@ -342,7 +342,7 @@ class EncoderBlock(nn.Module):
 
         self.blocks = nn.ModuleList()
         for i in range(depth):
-            block = Block(
+            block = PointTransformerV2Block(
                 channels=channels,
                 num_groups=num_groups,
                 qkv_bias=qkv_bias,
@@ -397,8 +397,8 @@ class EncoderBlock(nn.Module):
         return x, pos, batch
 
 
-class DecoderBlock(nn.Module):
-    r"""One decoder stage: an optional `InversePool` upsampling onto the skip resolution, then `depth` `Block`
+class PointTransformerV2DecoderBlock(nn.Module):
+    r"""One decoder stage: an optional `PointTransformerV2InversePool` upsampling onto the skip resolution, then `depth` `PointTransformerV2Block`
     units sharing a single $k$-NN graph built on that resolution.
     """
 
@@ -417,7 +417,7 @@ class DecoderBlock(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         attn_drop: ValueCollection[float] = 0.0,
         drop_path: ValueCollection[float] = 0.0,
-        upsample: Optional[InversePool] = None,
+        upsample: Optional[PointTransformerV2InversePool] = None,
     ):
         super().__init__()
         attn_drop = ensure_tuple_size(attn_drop, depth)
@@ -428,7 +428,7 @@ class DecoderBlock(nn.Module):
 
         self.blocks = nn.ModuleList()
         for i in range(depth):
-            block = Block(
+            block = PointTransformerV2Block(
                 channels=channels,
                 num_groups=num_groups,
                 qkv_bias=qkv_bias,
@@ -460,29 +460,15 @@ class DecoderBlock(nn.Module):
         return x, pos_skip, batch_skip
 
 
-def create_encoder_blocks(
-    depths: Sequence[int],
-    channels: Sequence[int],
-    num_groups: Sequence[int],
-    num_neighbors: Sequence[int],
-    grid_sizes: Sequence[float],
-    norm: Union[str, Callable, None] = "batch_norm",
-    act: Union[str, Callable, None] = "relu",
-    act_kwargs: Optional[Dict[str, Any]] = None,
-    norm_kwargs: Optional[Dict[str, Any]] = None,
-    qkv_bias: bool = True,
-    pe_multiplier: bool = False,
-    pe_bias: bool = True,
-    attn_drop: float = 0.0,
-    drop_path: float = 0.0,
-) -> nn.ModuleList:
-    """Build the encoder stages, giving every stage but the first a `GridPool` downsampling.
+class PointTransformerV2Encoder(nn.Module):
+    r"""Point Transformer V2 encoder: `PointTransformerV2EncoderBlock` stages from finest to coarsest, every stage but
+    the first preceded by a `PointTransformerV2GridPool` downsampling.
 
     Args:
-        depths: Number of blocks in each stage.
-        channels: Number of channels in each stage.
-        num_groups: Number of attention groups in each stage.
-        num_neighbors: Number of neighbors of the graph built in each stage.
+        encoder_depths: Number of blocks in each stage.
+        encoder_channels: Number of channels in each stage.
+        encoder_num_groups: Number of attention groups in each stage.
+        encoder_num_neighbors: Number of neighbors of the graph built in each stage.
         grid_sizes: Voxel size of the pooling preceding each stage but the first.
         norm: Normalization layer to use.
         act: Activation function to use.
@@ -494,84 +480,146 @@ def create_encoder_blocks(
         attn_drop: Dropout rate on the attention weights.
         drop_path: Maximum drop path rate, reached by the last block.
 
-    Returns:
-        A module list of `EncoderBlock`, from finest to coarsest.
+    Inputs:
+        x: Embedded point features of shape $(N, \text{encoder\_channels}[0])$.
+        pos: Float tensor of shape $(N, 3)$.
+        batch: Long tensor of shape $(N,)$.
+
+    Outputs:
+        Features, coordinates and batch indices at the coarsest stage. With `return_intermediates=True`, also the
+        per-stage skips (features, coordinates, batch indices and pooling inverse) consumed by
+        `PointTransformerV2Decoder`.
     """
-    depths = ensure_tuple(depths)
-    n = len(depths)
-    channels = ensure_tuple_size(channels, size=n, extra_msg="Encoder length `channels` != `depths`.")
-    num_groups = ensure_tuple_size(num_groups, size=n, extra_msg="Encoder length `num_groups` != `depths`.")
-    num_neighbors = ensure_tuple_size(num_neighbors, size=n, extra_msg="Encoder length `num_neighbors` != `depths`.")
-    grid_sizes = ensure_tuple_size(grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `depths` - 1.")
 
-    # Stage 0 is the patch embedding and gets no drop path; the schedule ramps linearly across the
-    # downsampled stages. For example, drop path 0.3 with depths (1, 2, 3, 4) yields:
-    # - stage 0: [0.0000]
-    # - stage 1: [0.0000, 0.0375]
-    # - stage 2: [0.0750, 0.1125, 0.1500]
-    # - stage 3: [0.1875, 0.2250, 0.2625, 0.3000]
-    stage_drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths[1:])), list(depths[1:]))
-    drop_paths = [torch.zeros(depths[0]), *stage_drop_paths]
+    def __init__(
+        self,
+        encoder_depths: Sequence[int] = (1, 2, 2, 6, 2),
+        encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
+        encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
+        encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
+        grid_sizes: Sequence[float] = (0.06, 0.12, 0.24, 0.48),
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        qkv_bias: bool = True,
+        pe_multiplier: bool = False,
+        pe_bias: bool = True,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+    ):
+        super().__init__()
+        depths = ensure_tuple(encoder_depths)
+        n = len(depths)
+        channels = ensure_tuple_size(
+            encoder_channels, size=n, extra_msg="Encoder length `encoder_channels` != `encoder_depths`."
+        )
+        num_groups = ensure_tuple_size(
+            encoder_num_groups, size=n, extra_msg="Encoder length `encoder_num_groups` != `encoder_depths`."
+        )
+        num_neighbors = ensure_tuple_size(
+            encoder_num_neighbors, size=n, extra_msg="Encoder length `encoder_num_neighbors` != `encoder_depths`."
+        )
+        grid_sizes = ensure_tuple_size(
+            grid_sizes, size=n - 1, extra_msg="Encoder length `grid_sizes` != `encoder_depths` - 1."
+        )
 
-    blocks = nn.ModuleList()
-    for i in range(n):
-        downsample: Optional[GridPool] = None
-        if i > 0:
-            downsample = GridPool(
-                in_channels=channels[i - 1],
-                out_channels=channels[i],
-                grid_size=grid_sizes[i - 1],
-                reduce="max",
+        # Stage 0 is the patch embedding and gets no drop path; the schedule ramps linearly across the
+        # downsampled stages. For example, drop path 0.3 with depths (1, 2, 3, 4) yields:
+        # - stage 0: [0.0000]
+        # - stage 1: [0.0000, 0.0375]
+        # - stage 2: [0.0750, 0.1125, 0.1500]
+        # - stage 3: [0.1875, 0.2250, 0.2625, 0.3000]
+        stage_drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths[1:])), list(depths[1:]))
+        drop_paths = [torch.zeros(depths[0]), *stage_drop_paths]
+
+        self.blocks = nn.ModuleList()
+        for i in range(n):
+            downsample: Optional[PointTransformerV2GridPool] = None
+            if i > 0:
+                downsample = PointTransformerV2GridPool(
+                    in_channels=channels[i - 1],
+                    out_channels=channels[i],
+                    grid_size=grid_sizes[i - 1],
+                    reduce="max",
+                    norm=norm,
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm_kwargs=norm_kwargs,
+                )
+
+            block = PointTransformerV2EncoderBlock(
+                depth=depths[i],
+                channels=channels[i],
+                num_groups=num_groups[i],
+                num_neighbors=num_neighbors[i],
                 norm=norm,
                 act=act,
                 act_kwargs=act_kwargs,
                 norm_kwargs=norm_kwargs,
+                qkv_bias=qkv_bias,
+                pe_multiplier=pe_multiplier,
+                pe_bias=pe_bias,
+                attn_drop=attn_drop,
+                drop_path=drop_paths[i].tolist(),
+                downsample=downsample,
             )
+            self.blocks.append(block)
 
-        block = EncoderBlock(
-            depth=depths[i],
-            channels=channels[i],
-            num_groups=num_groups[i],
-            num_neighbors=num_neighbors[i],
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            qkv_bias=qkv_bias,
-            pe_multiplier=pe_multiplier,
-            pe_bias=pe_bias,
-            attn_drop=attn_drop,
-            drop_path=drop_paths[i].tolist(),
-            downsample=downsample,
-        )
-        blocks.append(block)
-    return blocks
+    @property
+    def embedding_dim(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.blocks[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        intermediates = []
+        for i, block in enumerate(self.blocks):
+            intermediate = {"x": x, "pos": pos, "batch": batch}
+
+            x, pos, batch, *rest = block(x, pos, batch, return_inverse=i > 0)
+            if i > 0:
+                intermediate["pooling_inverse"] = rest[0]
+                intermediates.append(intermediate)
+
+        if return_intermediates:
+            return x, pos, batch, intermediates
+        return x, pos, batch
 
 
-def create_decoder_blocks(
-    depths: Sequence[int],
-    channels: Sequence[int],
-    skip_channels: Sequence[int],
-    num_groups: Sequence[int],
-    num_neighbors: Sequence[int],
-    norm: Union[str, Callable, None] = "batch_norm",
-    act: Union[str, Callable, None] = "relu",
-    act_kwargs: Optional[Dict[str, Any]] = None,
-    norm_kwargs: Optional[Dict[str, Any]] = None,
-    qkv_bias: bool = True,
-    pe_multiplier: bool = False,
-    pe_bias: bool = True,
-    attn_drop: float = 0.0,
-    drop_path: float = 0.0,
-) -> nn.ModuleList:
-    """Build the decoder stages, giving every stage an `InversePool` upsampling onto its skip resolution.
+class PointTransformerV2Decoder(nn.Module):
+    r"""Point Transformer V2 decoder: `PointTransformerV2DecoderBlock` stages from coarsest to finest, each preceded
+    by a `PointTransformerV2InversePool` upsampling onto its encoder skip.
 
     Args:
-        depths: Number of blocks in each stage.
-        channels: Number of channels entering the decoder followed by the output of each stage.
-        skip_channels: Number of channels of the encoder skip consumed by each stage.
-        num_groups: Number of attention groups in each stage.
-        num_neighbors: Number of neighbors of the graph built in each stage.
+        encoder_channels: Number of channels of each encoder stage, sizing the decoder input and the skips.
+        decoder_depths: Number of blocks in each stage.
+        decoder_channels: Number of output channels of each stage.
+        decoder_num_groups: Number of attention groups in each stage.
+        decoder_num_neighbors: Number of neighbors of the graph built in each stage.
         norm: Normalization layer to use.
         act: Activation function to use.
         act_kwargs: Keyword arguments for the activation function.
@@ -582,56 +630,98 @@ def create_decoder_blocks(
         attn_drop: Dropout rate on the attention weights.
         drop_path: Maximum drop path rate, reached by the first block.
 
-    Returns:
-        A module list of `DecoderBlock`, from coarsest to finest.
+    Inputs:
+        x: Features at the coarsest encoder stage, of shape $(N', \text{encoder\_channels}[-1])$.
+        intermediates: Per-stage skips returned by `PointTransformerV2Encoder`, finest first.
+
+    Outputs:
+        Features, coordinates and batch indices at the finest stage.
     """
-    depths = ensure_tuple(depths)
-    n = len(depths)
-    channels = ensure_tuple_size(channels, size=n + 1, extra_msg="Decoder length `channels` != `depths` + 1.")
-    skip_channels = ensure_tuple_size(skip_channels, size=n, extra_msg="Decoder length `skip_channels` != `depths`.")
-    num_groups = ensure_tuple_size(num_groups, size=n, extra_msg="Decoder length `num_groups` != `depths`.")
-    num_neighbors = ensure_tuple_size(num_neighbors, size=n, extra_msg="Decoder length `num_neighbors` != `depths`.")
 
-    # Pre-compute the drop paths for each (decoder) block.
-    # The drop path is the same as the encoder block, but in reverse order.
-    # For example, if the drop path is 0.3, and the depths are (4, 3, 2),
-    # then the drop paths for each block at each stage are:
-    # - block 0: [0.3000, 0.2625, 0.2250, 0.1875]
-    # - block 1: [0.1500, 0.1125, 0.0750]
-    # - block 2: [0.0375, 0.0000]
-    drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
-
-    blocks = nn.ModuleList()
-    for i in range(n):
-        upsample = InversePool(
-            in_channels=channels[i],
-            skip_channels=skip_channels[i],
-            out_channels=channels[i + 1],
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
+    def __init__(
+        self,
+        encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
+        decoder_depths: Sequence[int] = (1, 1, 1, 1),
+        decoder_channels: Sequence[int] = (384, 192, 96, 48),
+        decoder_num_groups: Sequence[int] = (48, 24, 12, 6),
+        decoder_num_neighbors: Sequence[int] = (16, 16, 16, 16),
+        norm: Union[str, Callable, None] = "batch_norm",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        qkv_bias: bool = True,
+        pe_multiplier: bool = False,
+        pe_bias: bool = True,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+    ):
+        super().__init__()
+        depths = ensure_tuple(decoder_depths)
+        n = len(depths)
+        channels = ensure_tuple_size(
+            [encoder_channels[-1], *decoder_channels],
+            size=n + 1,
+            extra_msg="Decoder length `decoder_channels` != `decoder_depths`.",
+        )
+        skip_channels = ensure_tuple_size(
+            list(encoder_channels[:-1])[::-1],
+            size=n,
+            extra_msg="Decoder length `encoder_channels` - 1 != `decoder_depths`.",
+        )
+        num_groups = ensure_tuple_size(
+            decoder_num_groups, size=n, extra_msg="Decoder length `decoder_num_groups` != `decoder_depths`."
+        )
+        num_neighbors = ensure_tuple_size(
+            decoder_num_neighbors, size=n, extra_msg="Decoder length `decoder_num_neighbors` != `decoder_depths`."
         )
 
-        # NOTE: For decoder blocks, the drop paths should be in reverse order (i.e. higher -> lower within each block)
-        block = DecoderBlock(
-            depth=depths[i],
-            channels=channels[i + 1],
-            num_groups=num_groups[i],
-            num_neighbors=num_neighbors[i],
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            qkv_bias=qkv_bias,
-            pe_multiplier=pe_multiplier,
-            pe_bias=pe_bias,
-            attn_drop=attn_drop,
-            drop_path=drop_paths[i].tolist()[::-1],
-            upsample=upsample,
-        )
-        blocks.append(block)
-    return blocks
+        # The schedule mirrors the encoder's, so it decreases within and across stages. For example, drop path 0.3
+        # with depths (4, 3, 2) yields:
+        # - stage 0: [0.3000, 0.2625, 0.2250, 0.1875]
+        # - stage 1: [0.1500, 0.1125, 0.0750]
+        # - stage 2: [0.0375, 0.0000]
+        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
+
+        self.blocks = nn.ModuleList()
+        for i in range(n):
+            upsample = PointTransformerV2InversePool(
+                in_channels=channels[i],
+                skip_channels=skip_channels[i],
+                out_channels=channels[i + 1],
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
+            )
+
+            block = PointTransformerV2DecoderBlock(
+                depth=depths[i],
+                channels=channels[i + 1],
+                num_groups=num_groups[i],
+                num_neighbors=num_neighbors[i],
+                norm=norm,
+                act=act,
+                act_kwargs=act_kwargs,
+                norm_kwargs=norm_kwargs,
+                qkv_bias=qkv_bias,
+                pe_multiplier=pe_multiplier,
+                pe_bias=pe_bias,
+                attn_drop=attn_drop,
+                drop_path=drop_paths[i].tolist()[::-1],
+                upsample=upsample,
+            )
+            self.blocks.append(block)
+
+    @property
+    def out_channels(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.blocks[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+
+    def forward(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
+        for block, intermediate in zip(self.blocks, reversed(intermediates)):
+            skip_kwargs = {f"{k}_skip" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
+            x, pos, batch = block(x, **skip_kwargs)
+        return x, pos, batch
 
 
 class PointTransformerV2Classification(ClassificationModel):
@@ -691,47 +781,63 @@ class PointTransformerV2Classification(ClassificationModel):
         global_pool: PoolLike = "max",
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-
-        self.embedding = MLP(
-            [in_channels, encoder_channels[0]],
-            act=act,
-            norm=norm,
-            act_first=False,
-            plain_last=False,
-            bias=True,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-        )
-
-        self.encoder = self.configure_encoder_blocks(
-            depths=encoder_depths,
-            channels=encoder_channels,
-            num_groups=encoder_num_groups,
-            num_neighbors=encoder_num_neighbors,
-            grid_sizes=grid_sizes,
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-            qkv_bias=qkv_bias,
-            pe_multiplier=pe_multiplier,
-            pe_bias=pe_bias,
-            attn_drop=attn_drop,
-            drop_path=drop_path,
-        )
-
+        self.grid_sizes = grid_sizes
+        self.encoder_depths = encoder_depths
+        self.encoder_channels = encoder_channels
+        self.encoder_num_groups = encoder_num_groups
+        self.encoder_num_neighbors = encoder_num_neighbors
+        self.norm = norm
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm_kwargs = norm_kwargs
+        self.qkv_bias = qkv_bias
+        self.attn_drop = attn_drop
+        self.pe_multiplier = pe_multiplier
+        self.pe_bias = pe_bias
+        self.drop_path = drop_path
         self.dropout = dropout
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         """Feature dimension $C$ of the encoder output."""
-        return self.encoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+        return self.encoder.embedding_dim
 
-    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
-        """Build the encoder stages."""
-        return create_encoder_blocks(*args, **kwargs)
+    def configure_stem(self) -> nn.Module:
+        """Build the linear stem lifting the input features to the first encoder channel."""
+        return MLP(
+            [self.in_channels, self.encoder_channels[0]],
+            act=self.act,
+            norm=self.norm,
+            act_first=False,
+            plain_last=False,
+            bias=True,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_encoder(self) -> PointTransformerV2Encoder:
+        """Build the `PointTransformerV2Encoder` backbone."""
+        return PointTransformerV2Encoder(
+            encoder_depths=self.encoder_depths,
+            encoder_channels=self.encoder_channels,
+            encoder_num_groups=self.encoder_num_groups,
+            encoder_num_neighbors=self.encoder_num_neighbors,
+            grid_sizes=self.grid_sizes,
+            norm=self.norm,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            qkv_bias=self.qkv_bias,
+            pe_multiplier=self.pe_multiplier,
+            pe_bias=self.pe_bias,
+            attn_drop=self.attn_drop,
+            drop_path=self.drop_path,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -795,20 +901,8 @@ class PointTransformerV2Classification(ClassificationModel):
                 coordinates, batch indices and pooling inverse for each encoder block.
         """
         x = x if x is not None else pos
-        x = self.embedding(x)
-
-        intermediates = []
-        for i, block in enumerate(self.encoder):
-            intermediate = {"x": x, "pos": pos, "batch": batch}
-
-            x, pos, batch, *rest = block(x, pos, batch, return_inverse=i > 0)
-            if i > 0:
-                intermediate["pooling_inverse"] = rest[0]
-                intermediates.append(intermediate)
-
-        if return_intermediates:
-            return x, pos, batch, intermediates
-        return x, pos, batch
+        x = self.stem(x)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         r"""Forward pass of the classification head from pre-pooling x.
@@ -905,72 +999,91 @@ class PointTransformerV2Segmentation(SegmentationModel):
         dropout: float = 0.0,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-
-        self.embedding = MLP(
-            [in_channels, encoder_channels[0]],
-            act=act,
-            norm=norm,
-            act_first=False,
-            plain_last=False,
-            bias=True,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-        )
-
-        self.encoder = self.configure_encoder_blocks(
-            depths=encoder_depths,
-            channels=encoder_channels,
-            grid_sizes=grid_sizes,
-            num_groups=encoder_num_groups,
-            num_neighbors=encoder_num_neighbors,
-            qkv_bias=qkv_bias,
-            pe_multiplier=pe_multiplier,
-            pe_bias=pe_bias,
-            attn_drop=attn_drop,
-            drop_path=drop_path,
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-        )
-
-        self.decoder = self.configure_decoder_blocks(
-            depths=decoder_depths,
-            channels=[encoder_channels[-1]] + list(decoder_channels),
-            skip_channels=list(encoder_channels[:-1])[::-1],
-            num_groups=decoder_num_groups,
-            num_neighbors=decoder_num_neighbors,
-            qkv_bias=qkv_bias,
-            pe_multiplier=pe_multiplier,
-            pe_bias=pe_bias,
-            attn_drop=attn_drop,
-            drop_path=drop_path,
-            norm=norm,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-        )
-
+        self.grid_sizes = grid_sizes
+        self.encoder_depths = encoder_depths
+        self.encoder_channels = encoder_channels
+        self.encoder_num_groups = encoder_num_groups
+        self.encoder_num_neighbors = encoder_num_neighbors
+        self.decoder_depths = decoder_depths
+        self.decoder_channels = decoder_channels
+        self.decoder_num_groups = decoder_num_groups
+        self.decoder_num_neighbors = decoder_num_neighbors
+        self.norm = norm
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm_kwargs = norm_kwargs
+        self.qkv_bias = qkv_bias
+        self.attn_drop = attn_drop
+        self.pe_multiplier = pe_multiplier
+        self.pe_bias = pe_bias
+        self.drop_path = drop_path
         self.dropout = dropout
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
         """Feature dimension $C$ of the encoder output."""
-        return self.encoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+        return self.encoder.embedding_dim
 
     @property
     def out_channels(self) -> int:
         """Feature dimension $C$ of the decoder output."""
-        return self.decoder[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
+        return self.decoder.out_channels
 
-    def configure_encoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
-        """Build the encoder stages."""
-        return create_encoder_blocks(*args, **kwargs)
+    def configure_stem(self) -> nn.Module:
+        """Build the linear stem lifting the input features to the first encoder channel."""
+        return MLP(
+            [self.in_channels, self.encoder_channels[0]],
+            act=self.act,
+            norm=self.norm,
+            act_first=False,
+            plain_last=False,
+            bias=True,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+        )
 
-    def configure_decoder_blocks(self, *args: Any, **kwargs: Any) -> nn.ModuleList:
-        """Build the decoder stages."""
-        return create_decoder_blocks(*args, **kwargs)
+    def configure_encoder(self) -> PointTransformerV2Encoder:
+        """Build the `PointTransformerV2Encoder` backbone."""
+        return PointTransformerV2Encoder(
+            encoder_depths=self.encoder_depths,
+            encoder_channels=self.encoder_channels,
+            encoder_num_groups=self.encoder_num_groups,
+            encoder_num_neighbors=self.encoder_num_neighbors,
+            grid_sizes=self.grid_sizes,
+            norm=self.norm,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            qkv_bias=self.qkv_bias,
+            pe_multiplier=self.pe_multiplier,
+            pe_bias=self.pe_bias,
+            attn_drop=self.attn_drop,
+            drop_path=self.drop_path,
+        )
+
+    def configure_decoder(self) -> PointTransformerV2Decoder:
+        """Build the `PointTransformerV2Decoder` upsampling the coarsest features back through the encoder skips."""
+        return PointTransformerV2Decoder(
+            encoder_channels=self.encoder_channels,
+            decoder_depths=self.decoder_depths,
+            decoder_channels=self.decoder_channels,
+            decoder_num_groups=self.decoder_num_groups,
+            decoder_num_neighbors=self.decoder_num_neighbors,
+            norm=self.norm,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm_kwargs=self.norm_kwargs,
+            qkv_bias=self.qkv_bias,
+            pe_multiplier=self.pe_multiplier,
+            pe_bias=self.pe_bias,
+            attn_drop=self.attn_drop,
+            drop_path=self.drop_path,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -1031,30 +1144,15 @@ class PointTransformerV2Segmentation(SegmentationModel):
                 coordinates, batch indices and pooling inverse for each encoder block.
         """
         x = x if x is not None else pos
-        x = self.embedding(x)
-
-        intermediates = []
-        for i, block in enumerate(self.encoder):
-            intermediate = {"x": x, "pos": pos, "batch": batch}
-
-            x, pos, batch, *rest = block(x, pos, batch, return_inverse=i > 0)
-            if i > 0:
-                intermediate["pooling_inverse"] = rest[0]
-                intermediates.append(intermediate)
-
-        if return_intermediates:
-            return x, pos, batch, intermediates
-        return x, pos, batch
+        x = self.stem(x)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
     def forward_decoder(
         self,
         x: Tensor,
         intermediates: List[Dict[str, Tensor]],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.decoder, reversed(intermediates)):
-            intermediate = {f"{k}_skip" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
-            x, pos, batch = block(x, **intermediate)
-        return x, pos, batch
+        return self.decoder(x, intermediates)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         r"""Forward pass of the classification head from up-sampled x.

@@ -264,33 +264,73 @@ class PointPillarsDetection(DetectionModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
+        self.anchor_sizes = anchor_sizes
+        self.anchor_bottom_heights = anchor_bottom_heights
+        self.feature_map_stride = feature_map_stride
+        self.anchor_rotations = anchor_rotations
+        self.feat_channels = feat_channels
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.num_dir_bins = num_dir_bins
+        self.dir_offset = dir_offset
+        self.dir_limit_offset = dir_limit_offset
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
 
-        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.vfe = PillarFeatureNet(in_channels, feat_channels, voxel_size, point_cloud_range, **block_kwargs)
-        self.backbone = BaseBEVBackbone(
-            feat_channels[-1],
-            layer_nums,
-            layer_strides,
-            num_filters,
-            upsample_strides,
-            num_upsample_filters,
-            **block_kwargs,
+        self.vfe = self.configure_vfe()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_vfe(self) -> PillarFeatureNet:
+        """Build the pillar feature net."""
+        return PillarFeatureNet(
+            self.in_channels,
+            self.feat_channels,
+            self.voxel_size,
+            self.point_cloud_range,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.head = AnchorHeadSingle(
+
+    def configure_backbone(self) -> BaseBEVBackbone:
+        """Build the 2D BEV backbone."""
+        return BaseBEVBackbone(
+            self.feat_channels[-1],
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_head(self) -> AnchorHeadSingle:
+        """Build the single-group anchor head."""
+        return AnchorHeadSingle(
             self.backbone.num_bev_features,
-            num_classes,
+            self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
-            point_cloud_range,
-            anchor_sizes=anchor_sizes,
-            anchor_bottom_heights=anchor_bottom_heights,
-            anchor_rotations=anchor_rotations,
-            feature_map_stride=feature_map_stride,
-            num_dir_bins=num_dir_bins,
-            dir_offset=dir_offset,
-            dir_limit_offset=dir_limit_offset,
+            self.point_cloud_range,
+            anchor_sizes=self.anchor_sizes,
+            anchor_bottom_heights=self.anchor_bottom_heights,
+            anchor_rotations=self.anchor_rotations,
+            feature_map_stride=self.feature_map_stride,
+            num_dir_bins=self.num_dir_bins,
+            dir_offset=self.dir_offset,
+            dir_limit_offset=self.dir_limit_offset,
         )
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
@@ -370,33 +410,75 @@ class PointPillarsMultiHeadDetection(DetectionModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
+        self.anchor_sizes = anchor_sizes
+        self.anchor_bottom_heights = anchor_bottom_heights
+        self.head_class_groups = head_class_groups
+        self.feature_map_stride = feature_map_stride
+        self.anchor_rotations = anchor_rotations
+        self.feat_channels = feat_channels
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.shared_conv_num_filter = shared_conv_num_filter
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
 
-        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.vfe = PillarFeatureNet(in_channels, feat_channels, voxel_size, point_cloud_range, **block_kwargs)
-        self.backbone = BaseBEVBackbone(
-            feat_channels[-1],
-            layer_nums,
-            layer_strides,
-            num_filters,
-            upsample_strides,
-            num_upsample_filters,
-            **block_kwargs,
+        self.vfe = self.configure_vfe()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_vfe(self) -> PillarFeatureNet:
+        """Build the pillar feature net."""
+        return PillarFeatureNet(
+            self.in_channels,
+            self.feat_channels,
+            self.voxel_size,
+            self.point_cloud_range,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.head = AnchorHeadMulti(
+
+    def configure_backbone(self) -> BaseBEVBackbone:
+        """Build the 2D BEV backbone."""
+        return BaseBEVBackbone(
+            self.feat_channels[-1],
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_head(self) -> AnchorHeadMulti:
+        """Build the multi-group anchor head."""
+        return AnchorHeadMulti(
             self.backbone.num_bev_features,
-            num_classes,
+            self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
-            point_cloud_range,
-            anchor_sizes=anchor_sizes,
-            anchor_bottom_heights=anchor_bottom_heights,
-            head_class_groups=head_class_groups,
-            anchor_rotations=anchor_rotations,
-            feature_map_stride=feature_map_stride,
-            shared_conv_num_filter=shared_conv_num_filter,
-            **block_kwargs,
+            self.point_cloud_range,
+            anchor_sizes=self.anchor_sizes,
+            anchor_bottom_heights=self.anchor_bottom_heights,
+            head_class_groups=self.head_class_groups,
+            anchor_rotations=self.anchor_rotations,
+            feature_map_stride=self.feature_map_stride,
+            shared_conv_num_filter=self.shared_conv_num_filter,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
