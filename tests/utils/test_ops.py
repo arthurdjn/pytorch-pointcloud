@@ -1,6 +1,6 @@
 import torch
 
-from torch_pointcloud.utils.ops import decimate_indices, first_permutation, voxel_grid_fnv
+from torch_pointcloud.utils.ops import decimate_indices, first_permutation, offset_index, voxel_grid_fnv
 
 
 def _two_voxel_cloud() -> torch.Tensor:
@@ -89,3 +89,10 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_offset_index_shifts_by_scene_rows() -> None:
+    inverse = torch.tensor([0, 1, 1, 0, 2, 2, 1])
+    batch_inverse = torch.tensor([0, 0, 0, 1, 1, 1, 1])
+    batch = torch.tensor([0, 0, 1, 1, 1])
+    assert torch.equal(offset_index(inverse, batch_inverse, batch), torch.tensor([0, 1, 1, 2, 4, 4, 3]))

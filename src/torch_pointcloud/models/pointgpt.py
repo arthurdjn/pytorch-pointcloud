@@ -667,13 +667,21 @@ def _modelnet_transforms(num_samples: int) -> Callable:
     return T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=num_samples, random_start=False),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=num_samples, random_start=False
+            ),
         ]
     )
 
 
 def _scanobjectnn_transforms() -> Callable:
-    return T.Compose([T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False)])
+    return T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=2048, random_start=False),
+        ]
+    )
 
 
 _SIZE_HPARAMS: Dict[str, Dict[str, Any]] = {

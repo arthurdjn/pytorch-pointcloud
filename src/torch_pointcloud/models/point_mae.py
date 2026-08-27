@@ -765,7 +765,8 @@ class PointMAEMaskedAutoEncoder(BaseModel):
 
 _MODELNET_TRANSFORM = T.Compose(
     [
-        T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, random_start=False),
+        T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+        T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, random_start=False),
         T.Rescale(keys=DataKeys.POS, method="centroid"),
     ]
 )
@@ -817,7 +818,8 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     ),
     transform=T.Compose(
         [
-            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=8192, random_start=False),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=8192, random_start=False),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
         ]
     ),
@@ -953,8 +955,11 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=("segment",), num_samples=2048, random_start=False),
-            T.OneHot(keys="category", num_classes=16),
+            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL, DataKeys.SEGMENT], num_samples=2048, random_start=False
+            ),
+            T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
         ]
     ),
     hparams=dict(

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Seque
 from torch.utils.data import DataLoader, Dataset, Sampler
 
 from torch_pointcloud.datasets.concat import SingleDatasetBatchSampler
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import PointCloudDataLoader
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 
@@ -112,7 +113,11 @@ class PointCloudDataModule(LightningDataModule):
         self.pin_memory_device = pin_memory_device
 
     def setup(self, stage: str) -> None:
-        """Apply the model's registered evaluation transform to any dataset that has none.
+        """Graft the model's evaluation transform onto datasets that have none, and collate its inverse key.
+
+        A `LitSegmentationModel` with an `inverse_key` needs that key in `cat_keys` so multi-scene eval batches
+        carry its `batch_<key>` scene index; it is added here. `collate` ignores `cat_keys` absent from the
+        samples, so pipelines that write no inverse map are unaffected.
 
         The LightningModule (built from the registry) carries its `transform`; an experiment leaves
         a dataset's `transform` as `None` to use it, or sets one explicitly for custom augmentation. A
@@ -123,6 +128,9 @@ class PointCloudDataModule(LightningDataModule):
         """
         trainer = getattr(self, "trainer", None)
         lit_model = getattr(trainer, "lightning_module", None)
+        inverse_key = getattr(lit_model, "inverse_key", None)
+        if isinstance(inverse_key, str):
+            self.cat_keys = tuple(dict.fromkeys((*ensure_tuple(self.cat_keys, none_as_empty=True), inverse_key)))
         transform = getattr(lit_model, "transform", None)
         if transform is None:
             return

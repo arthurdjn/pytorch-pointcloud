@@ -681,7 +681,7 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
             bias=True,
             dropout=0.5,
         ),
-        transform=T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
+        transform=T.Compose([T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X)]),
     )
 
 
@@ -711,7 +711,12 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
         dropout=0.5,
         global_pool=["max", "mean"],
     ),
-    transform=T.FarthestPointSample(pos_key="pos", keys=["normal"], num_samples=1024),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
+        ]
+    ),
 )
 def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     # from the repo: https://github.com/antao97/dgcnn.pytorch
@@ -745,7 +750,12 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
         dropout=0.5,
         global_pool=["max", "mean"],
     ),
-    transform=T.FarthestPointSample(pos_key="pos", keys=["normal"], num_samples=2048),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=2048),
+        ]
+    ),
 )
 def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     # from the repo: https://github.com/antao97/dgcnn.pytorch
@@ -785,6 +795,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
             T.FarthestPointSample(
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
                 pos_key=DataKeys.POS,

@@ -22,7 +22,6 @@ from torch.nn import Module
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
-import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.inferers import SimpleInferer, TTAInferer
@@ -38,63 +37,8 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 1
 SEED = 42
 IGNORE_INDEX = 255
-GRID_SIZE = 0.06
 EMA_SMOOTHING = 0.98  # reference possibility-vote smoothing
 NUM_PASSES = 20
-
-
-# --- 19-class learning_map (raw SemanticKITTI ids -> contiguous indices) ----
-# `moving-*` are merged with their static counterpart; bus/on-rails/lane-marking/
-# other-* fall through to `default=255`. Identical to what the registered model
-# transform applies, but reused here at full resolution.
-_LEARNING_MAP = {
-    10: 0,
-    252: 0,
-    11: 1,
-    15: 2,
-    18: 3,
-    258: 3,
-    20: 4,
-    259: 4,
-    30: 5,
-    254: 5,
-    31: 6,
-    253: 6,
-    32: 7,
-    255: 7,
-    40: 8,
-    44: 9,
-    48: 10,
-    49: 11,
-    50: 12,
-    51: 13,
-    70: 14,
-    71: 15,
-    72: 16,
-    80: 17,
-    81: 18,
-}
-
-
-def _eval_transforms() -> Any:
-    """Per-sample transform: label remap then 0.06 m grid sub-sample.
-
-    Stores the inverse cluster mapping under ``cluster`` so the eval loop can
-    project sub-resolution predictions back to full resolution (matches Open3D-ML's
-    ``KDTree(sub_pc).query(pc)`` semantics). Assumes ``batch_size=1``.
-    """
-    return T.Compose(
-        [
-            T.Relabel(keys=DataKeys.SEGMENT, labels=_LEARNING_MAP, default=IGNORE_INDEX),
-            T.Voxelize(
-                pos_key=DataKeys.POS,
-                pos_reduce="mean",
-                size=GRID_SIZE,
-                method="fnv",
-                dst_inverse_key=DataKeys.INVERSE,
-            ),
-        ]
-    )
 
 
 def _shuffle_pass(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -167,9 +111,9 @@ def evaluate(
     pbar = tqdm(dataloader, total=total, desc="Testing")
     for data in pbar:
         data = {k: v.to(device) if torch.is_tensor(v) else v for k, v in data.items()}
-        # Dataset transform already grid-sub-sampled `pos`/`batch` and produced the
-        # source-to-voxel inverse map for full-resolution back-projection.
-        target_full = data[DataKeys.SEGMENT]
+        # The registered transform grid-sub-sampled `pos`/`segment` and kept the source labels under
+        # `origin_segment` with the source-to-voxel inverse map, for full-resolution back-projection.
+        target_full = data[DataKeys.ORIGIN_SEGMENT]
         inverse_full = data[DataKeys.INVERSE]
         n_full = int(target_full.shape[0])
 
@@ -228,10 +172,10 @@ def main() -> None:
     set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on SemanticKITTI (split={args.split!r})!")
-    model = create_model(args.model, task="segmentation", pretrained=True)
+    model, info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
 
-    dataset: Dataset = SemanticKITTI(root=args.root, split=args.split, transform=_eval_transforms())
+    dataset: Dataset = SemanticKITTI(root=args.root, split=args.split, transform=info["transform"])
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))  # type: ignore[arg-type]
         dataset = Subset(dataset, range(n))

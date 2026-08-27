@@ -991,15 +991,25 @@ class DETR3DDetection(DetectionModel):
 
 _SCANNET_TRANSFORM = T.Compose(
     [
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
         T.RandomSample(
-            keys=[DataKeys.POS, DataKeys.SEGMENT, DataKeys.INSTANCE],
+            keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.SEGMENT, DataKeys.INSTANCE],
             num_samples=40000,
             allow_missing_keys=True,
         ),
     ]
 )
 
-_SUNRGBD_TRANSFORM = T.Compose([T.RandomSample(keys=[DataKeys.POS], num_samples=20000)])
+_SUNRGBD_TRANSFORM = T.Compose(
+    [
+        T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+        T.RandomSample(keys=[DataKeys.POS, DataKeys.COLOR], num_samples=20000, allow_missing_keys=True),
+    ]
+)
 
 
 @register_model(

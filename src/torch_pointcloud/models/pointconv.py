@@ -301,6 +301,7 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],

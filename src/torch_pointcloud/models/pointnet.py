@@ -588,7 +588,8 @@ class PointNetSegmentation(SegmentationModel):
     hparams=dict(in_channels=0, num_classes=40, dropout=0.3),
     transform=T.Compose(
         [
-            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[], num_samples=1024),
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
         ]
     ),
@@ -619,7 +620,7 @@ def pointnet_s3dis_area5(**hparams: Any) -> PointNetSegmentation:
     # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=0, num_classes=50),
-    transform=T.Rescale(keys=DataKeys.POS),
+    transform=T.Compose([T.Rescale(keys=DataKeys.POS)]),
 )
 def pointnet_shapenetpart(**hparams: Any) -> PointNetSegmentation:
     return PointNetSegmentation(**hparams)

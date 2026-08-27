@@ -20,6 +20,7 @@ from torch_pointcloud.lightning.metrics import AveragePrecision3D
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.box3d import projected_ignore_mask
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.metrics import average_precision3d
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
@@ -317,9 +318,11 @@ def test_fit_smoke_train_only() -> None:
 
 
 def test_seg_eval_params_saved_to_hparams() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key=DataKeys.INVERSE)
     assert lit.hparams_initial["inverse_key"] == "inverse"
     assert lit.hparams_initial["origin_target_key"] == "origin_segment"
+    assert type(lit.hparams_initial["inverse_key"]) is str
+    assert type(lit.hparams_initial["origin_target_key"]) is str
 
 
 def test_detection_eval_params_saved_to_hparams() -> None:
@@ -470,8 +473,8 @@ def test_seg_inferer_not_used_on_validation_step() -> None:
 
 
 def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
-    """With `inverse_key`, eval preds are gathered to raw resolution and scored against `origin_segment`."""
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+    """By default, eval preds are gathered to source resolution and scored against `origin_segment`."""
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment")
     batch = {
         "x": torch.randn(6, 3),
         "pos": torch.randn(6, 3),
@@ -487,16 +490,33 @@ def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
     assert torch.equal(out["target"], batch["origin_segment"])
 
 
-def test_seg_inverse_key_missing_from_batch_raises() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key="inverse")
+def test_seg_default_scores_at_predictor_resolution_without_inverse() -> None:
+    """The default `inverse_key` only applies when the batch carries it (selection pipelines write none)."""
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment")
     batch = {
         "x": torch.randn(6, 3),
         "pos": torch.randn(6, 3),
         "batch": torch.zeros(6, dtype=torch.long),
         "segment": torch.randint(0, 4, (6,)),
     }
-    with pytest.raises(KeyError):
-        lit.test_step(batch, batch_idx=0)
+    out = lit.test_step(batch, batch_idx=0)
+    assert out["preds"].shape == (6, 4)
+    assert torch.equal(out["target"], batch["segment"])
+
+
+def test_seg_inverse_key_none_ignores_inverse_in_batch() -> None:
+    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key=None)
+    batch = {
+        "x": torch.randn(6, 3),
+        "pos": torch.randn(6, 3),
+        "batch": torch.zeros(6, dtype=torch.long),
+        "segment": torch.randint(0, 4, (6,)),
+        "inverse": torch.randint(0, 6, (12,)),
+        "origin_segment": torch.randint(0, 4, (12,)),
+    }
+    out = lit.test_step(batch, batch_idx=0)
+    assert out["preds"].shape == (6, 4)
+    assert torch.equal(out["target"], batch["segment"])
 
 
 def test_seg_inverse_key_offsets_per_scene_with_batch_index() -> None:

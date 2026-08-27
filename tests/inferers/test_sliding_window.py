@@ -393,6 +393,20 @@ def test_sliding_window_validates_args() -> None:
         sliding_window_inference(data, predictor=fake, block_size=1.0, roi_num_points=0)
     with pytest.raises(ValueError, match="`aggregate`"):
         sliding_window_inference(data, predictor=fake, block_size=1.0, aggregate="sum")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="aligned to the positions"):
+        sliding_window_inference({**data, DataKeys.BATCH: batch[:2]}, predictor=fake, block_size=1.0)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a second device to move predictions off")
+def test_sliding_window_gathers_predictions_from_another_device() -> None:
+    """A predictor answering on the GPU is accumulated onto the scene's own device."""
+    data = _grid_data(steps=4)
+
+    def fake(window: Dict[str, Any]) -> Tensor:
+        return torch.zeros(window[DataKeys.POS].size(0), 2, device="cuda")
+
+    out = sliding_window_inference(data, predictor=fake, block_size=1.0, softmax=False)
+    assert out.device == data[DataKeys.POS].device
 
 
 def test_sliding_window_inferer_class_matches_function() -> None:
@@ -426,6 +440,30 @@ def test_sliding_window_with_divisible_pad_recovers_per_point_input() -> None:
         transform=T.DivisiblePad(num_samples=16, dst_inverse_key="inverse"),
         roi_num_points=16,
         inverse_key="inverse",
+        seed=0,
+    )
+    assert out.shape == (64, 1)
+    assert torch.allclose(out.squeeze(-1), data[DataKeys.POS][:, 0])
+
+
+def test_sliding_window_drops_scene_level_inverse_before_window_transform() -> None:
+    """A scene-level `inverse` (source to predictor, not block-sized) must not become the prior that a
+    window-level `DivisiblePad` composes its block map through."""
+    data = _grid_data(steps=4)
+    data[DataKeys.INVERSE] = torch.randint(0, 64, (100,))
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS][:, :1].clone()
+
+    out = sliding_window_inference(
+        data,
+        predictor=predictor,
+        block_size=2.0,
+        overlap=0.0,
+        softmax=False,
+        transform=T.DivisiblePad(num_samples=16),
+        roi_num_points=16,
+        inverse_key=DataKeys.INVERSE,
         seed=0,
     )
     assert out.shape == (64, 1)

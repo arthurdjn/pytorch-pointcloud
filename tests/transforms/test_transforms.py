@@ -937,6 +937,7 @@ def test_rescale_single_point(single_point_scene: dict) -> None:
         T.FarthestPointSample(pos_key="absent", num_samples=2, allow_missing_keys=True),
         T.RemoveNearOrigin(pos_key="absent", allow_missing_keys=True),
         T.SphereCrop(pos_key="absent", radius=1.0, allow_missing_keys=True),
+        T.Voxelize(pos_key="absent", pos_reduce="mean", size=0.1, allow_missing_keys=True),
         T.Cat(keys=["absent"], dst_key="feat", allow_missing_keys=True),
     ],
     ids=lambda t: type(t).__name__,
@@ -962,6 +963,7 @@ def test_allow_missing_keys_true_is_noop(transform: T.DictTransform) -> None:
         T.FarthestPointSample(pos_key="absent", num_samples=2),
         T.RemoveNearOrigin(pos_key="absent"),
         T.SphereCrop(pos_key="absent", radius=1.0),
+        T.Voxelize(pos_key="absent", pos_reduce="mean", size=0.1),
         T.Cat(keys=["absent"], dst_key="feat"),
     ],
     ids=lambda t: type(t).__name__,
@@ -1404,12 +1406,20 @@ def test_random_elastic_distortion_multi_key_shares_field() -> None:
     assert not torch.equal(out["pos"], pos)
 
 
-def test_divisible_pad_default_does_not_write_inverse_key() -> None:
-    """`dst_inverse_key=None` (default) keeps the dict free of an inverse map."""
+def test_divisible_pad_default_writes_inverse_key() -> None:
     pos = torch.randn(5, 3)
     batch = torch.zeros(5, dtype=torch.long)
     out = T.DivisiblePad(num_samples=4)({"pos": pos, "batch": batch})
     assert out["pos"].shape[0] == 8  # padded to multiple of 4
+    assert out["inverse"].shape == (5,)
+    assert torch.equal(out["pos"][out["inverse"]], pos)
+
+
+def test_divisible_pad_dst_inverse_key_none_opts_out() -> None:
+    pos = torch.randn(5, 3)
+    batch = torch.zeros(5, dtype=torch.long)
+    out = T.DivisiblePad(num_samples=4, dst_inverse_key=None)({"pos": pos, "batch": batch})
+    assert out["pos"].shape[0] == 8
     assert "inverse" not in out
 
 
@@ -1678,3 +1688,148 @@ def test_random_shift_rejects_mismatched_key_widths() -> None:
     t = T.RandomShift(keys=["pos", "intensity"], shift_range=(-0.1, 0.1), p=1.0)
     with pytest.raises(ValueError, match="one offset per channel"):
         t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})
+
+
+def _selection_scene() -> Dict[str, Any]:
+    pos = torch.arange(10, dtype=torch.float32)[:, None].repeat(1, 3) * 0.3
+    return {"pos": pos, "color": torch.arange(10)[:, None].repeat(1, 3), "mask": pos[:, 0] > 1.0}
+
+
+def _selection_samplers(**kwargs: Any) -> list:
+    g = torch.Generator().manual_seed(0)
+    return [
+        pytest.param(T.RandomSample(keys=["pos", "color"], num_samples=4, generator=g, **kwargs), id="RandomSample"),
+        pytest.param(
+            T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=4, **kwargs),
+            id="FarthestPointSample",
+            marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
+        ),
+        pytest.param(
+            T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0), **kwargs), id="SphereCrop"
+        ),
+        pytest.param(T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5, **kwargs), id="RemoveNearOrigin"),
+        pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5, generator=g, **kwargs), id="RandomDropout"),
+        pytest.param(T.ShufflePoint(keys=["pos", "color"], generator=g, **kwargs), id="ShufflePoint"),
+        pytest.param(T.ApplyMask(keys=["pos", "color"], mask_key="mask", **kwargs), id="ApplyMask"),
+        pytest.param(T.Slice(keys=["pos", "color"], stop=4, **kwargs), id="Slice"),
+    ]
+
+
+@pytest.mark.parametrize("transform", _selection_samplers())
+def test_selection_sampler_index_round_trips(transform: T.DictTransform) -> None:
+    scene = _selection_scene()
+    out = transform(scene)
+    index = out["index"]
+    assert index.dtype == torch.long
+    assert index.shape == (out["pos"].shape[0],)
+    assert torch.equal(scene["pos"][index], out["pos"])
+    assert torch.equal(scene["color"][index], out["color"])
+
+
+@pytest.mark.parametrize("transform", _selection_samplers(dst_index_key=None))
+def test_selection_sampler_dst_index_key_none_opts_out(transform: T.DictTransform) -> None:
+    out = transform(_selection_scene())
+    assert "index" not in out
+
+
+def test_index_composes_through_prior() -> None:
+    scene = _selection_scene()
+    g = torch.Generator().manual_seed(0)
+    out = T.Compose(
+        [T.RandomSample(keys=["pos", "color"], num_samples=8, generator=g), T.Slice(keys=["pos", "color"], stop=4)]
+    )(scene)
+    assert out["index"].shape == (4,)
+    assert torch.equal(scene["pos"][out["index"]], out["pos"])
+    out = T.Compose(
+        [
+            T.ApplyMask(keys=["pos", "color"], mask_key="mask"),
+            T.RandomSample(keys=["pos", "color"], num_samples=3, generator=g),
+        ]
+    )(scene)
+    assert out["index"].shape == (3,)
+    assert torch.equal(scene["pos"][out["index"]], out["pos"])
+    assert torch.equal(scene["color"][out["index"]], out["color"])
+
+
+def test_slice_column_writes_no_index() -> None:
+    out = T.Slice(keys="pos", start=2, stop=3, dim=1, dst_keys="height")({"pos": torch.randn(5, 3)})
+    assert out["height"].shape == (5, 1)
+    assert "index" not in out
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        T.RandomDropout(keys=["pos"], p_drop=0.5, p=0.0),
+        T.ShufflePoint(keys=["pos"], p=0.0),
+        T.SphereCrop(pos_key="pos", radius=1.0, p=0.0),
+    ],
+    ids=lambda t: type(t).__name__,
+)
+def test_p_skipped_sampler_writes_identity_index(transform: T.DictTransform) -> None:
+    pos = torch.randn(5, 3)
+    out = transform({"pos": pos})
+    assert torch.equal(out["index"], torch.arange(5))
+    prior = torch.tensor([9, 8, 7, 6, 5])
+    out = transform({"pos": pos, "index": prior})
+    assert torch.equal(out["index"], prior)
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_default_writes_inverse_key() -> None:
+    pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.1)({"pos": pos})
+    assert out["pos"].shape[0] == 2
+    assert out["inverse"].dtype == torch.long
+    assert out["inverse"].shape == (3,)
+    assert int(out["inverse"].max()) < 2
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
+def test_voxelize_dst_inverse_key_none_opts_out() -> None:
+    pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.1, dst_inverse_key=None)({"pos": pos})
+    assert out["pos"].shape[0] == 2
+    assert "inverse" not in out
+
+
+def test_compose_allow_missing_keys_propagates_to_children() -> None:
+    child = T.Abs(keys=["absent"])
+    compose = T.Compose([child], allow_missing_keys=True)
+    assert child.allow_missing_keys is True
+    assert compose({"pos": torch.randn(5, 3)})["pos"].shape == (5, 3)
+
+
+def test_compose_allow_missing_keys_propagates_through_nested_compose() -> None:
+    child = T.Abs(keys=["absent"])
+    inner = T.Compose([child])
+    outer = T.Compose([inner], allow_missing_keys=True)
+    assert inner.allow_missing_keys is True
+    assert child.allow_missing_keys is True
+    outer.allow_missing_keys = False
+    assert child.allow_missing_keys is False
+
+
+def test_compose_allow_missing_keys_none_leaves_children() -> None:
+    lenient = T.Abs(keys=["absent"], allow_missing_keys=True)
+    strict = T.Abs(keys=["absent"])
+    compose = T.Compose([lenient, strict])
+    assert compose.allow_missing_keys is None
+    assert lenient.allow_missing_keys is True
+    assert strict.allow_missing_keys is False
+
+
+def test_compose_allow_missing_keys_skips_non_dict_transforms() -> None:
+    class Plain(T.Transform):
+        def transform(self, data: Any) -> Any:
+            return data
+
+    plain = Plain()
+    T.Compose([plain], allow_missing_keys=True)
+    assert not hasattr(plain, "allow_missing_keys")

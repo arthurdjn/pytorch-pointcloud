@@ -190,13 +190,19 @@ class SonataSegmentation(SegmentationModel):
             # Voxelize POS in place so collate's default `batch_from="pos"` produces
             # a `batch` tensor of length M (post-dedup). Then mirror it into POS_GRID
             # so the model's `pos_grid` argument resolves via signature inspection.
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
-                keys=[DataKeys.X],
-                reduce=["first"],
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+                reduce="first",
                 size=0.02,
                 method="fnv",
+                allow_missing_keys=True,
             ),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
         ]
@@ -247,16 +253,22 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
-                keys=[DataKeys.X, DataKeys.SEGMENT],
-                reduce=["first", "first"],
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+                reduce="first",
                 size=0.02,
                 method="fnv",
+                allow_missing_keys=True,
             ),
             T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
         ]
     ),
     hparams=dict(

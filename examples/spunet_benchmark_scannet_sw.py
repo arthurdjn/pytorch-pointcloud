@@ -76,7 +76,7 @@ def evaluate(
         total_latency_ms += (time.perf_counter() - start) * 1000.0
 
         inverse = data[DataKeys.INVERSE]
-        target = data["origin_segment"]
+        target = data[DataKeys.ORIGIN_SEGMENT]
         preds = voxel_pred[inverse].argmax(dim=1)
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
         oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)

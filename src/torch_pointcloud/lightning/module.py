@@ -13,6 +13,7 @@ from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d, projected
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 from torch_pointcloud.utils.misc import deep_getattr
+from torch_pointcloud.utils.ops import offset_index
 from torch_pointcloud.utils.optim import generate_param_groups
 from torch_pointcloud.utils.types import Boxes3D
 
@@ -193,13 +194,14 @@ class LitSegmentationModel(LitModel):
 
     Args:
         name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
-        inverse_key: Optional batch-dict key holding the voxel-to-raw inverse map. When set, eval
-            predictions are broadcast to raw resolution (`preds[batch[inverse_key]]`) and scored against
-            `origin_target_key`, the benchmark protocol of grid-sampled models; the loss stays at voxel
-            resolution against `target_key`. Multi-scene batches need the key in the loader's `cat_keys`
-            so the per-scene maps can be offset into the packed layout. Leave unset when the inferer already
-            predicts at raw resolution (e.g. `VoxelPartitionInferer`, `SlidingWindowInferer`).
-        origin_target_key: Batch-dict key of the raw-resolution labels used with `inverse_key`.
+        inverse_key: Batch-dict key of the source-to-predictor row map written by the registered transform
+            (`inverse`; see the transforms module docs on sampling keys). When the key is in the batch, eval
+            predictions are broadcast to source resolution (`preds[batch[inverse_key]]`) and scored against
+            `origin_target_key`; the loss stays at predictor resolution against `target_key`. Batches without
+            the key (selection pipelines, or pipelines that keep every point) are scored as they are; `None`
+            always scores at predictor resolution. Multi-scene batches need the key in the loader's `cat_keys`
+            so the per-scene maps can be offset into the packed layout; the datamodule adds it.
+        origin_target_key: Batch-dict key of the source-resolution labels used with `inverse_key`.
         target_key: Batch-dict key of the per-point labels.
         **kwargs: Forwarded to the base `LitModel` (e.g. `inferer`, `optimizer`, `criterion`) and
             `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
@@ -208,15 +210,16 @@ class LitSegmentationModel(LitModel):
     def __init__(
         self,
         name: str,
-        inverse_key: Optional[str] = None,
-        origin_target_key: str = "origin_segment",
+        inverse_key: Optional[str] = DataKeys.INVERSE,
+        origin_target_key: str = DataKeys.ORIGIN_SEGMENT,
         target_key: str = "segment",
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="segmentation", target_key=target_key, **kwargs)
-        self.save_hyperparameters({"inverse_key": inverse_key, "origin_target_key": origin_target_key})
-        self.inverse_key = inverse_key
-        self.origin_target_key = origin_target_key
+        # Lightning serializes an `Enum` hparam by name, so a reloaded `hparams.yaml` would carry `"INVERSE"`.
+        self.inverse_key = None if inverse_key is None else str(inverse_key)
+        self.origin_target_key = str(origin_target_key)
+        self.save_hyperparameters({"inverse_key": self.inverse_key, "origin_target_key": self.origin_target_key})
 
     def forward(self, batch: Dict[str, Any]) -> Tensor:
         out = super().forward(batch)
@@ -227,7 +230,7 @@ class LitSegmentationModel(LitModel):
         outputs = super()._eval_step(batch, stage)
         preds, target = outputs["preds"], outputs["target"]
         point_batch = batch[DataKeys.BATCH]
-        if self.inverse_key is not None:
+        if self.inverse_key is not None and self.inverse_key in batch:
             inverse = self._batched_inverse(batch)
             preds = preds[inverse]
             target = batch[self.origin_target_key].long()
@@ -240,8 +243,8 @@ class LitSegmentationModel(LitModel):
         which scene each raw point belongs to)."""
         assert self.inverse_key is not None
         inverse = batch[self.inverse_key]
-        scene = batch.get(f"batch_{self.inverse_key}")
-        if scene is None:
+        inverse_batch = batch.get(f"batch_{self.inverse_key}")
+        if inverse_batch is None:
             if int(batch[DataKeys.BATCH][-1]) > 0:
                 raise RuntimeError(
                     f"`inverse_key={self.inverse_key!r}` on a multi-scene batch needs the per-point scene "
@@ -249,9 +252,7 @@ class LitSegmentationModel(LitModel):
                     "`cat_keys` (or use an eval batch size of 1)."
                 )
             return inverse
-        counts = torch.bincount(batch[DataKeys.BATCH], minlength=int(scene.max()) + 1)
-        offsets = torch.cumsum(counts, dim=0) - counts
-        return inverse + offsets[scene]
+        return offset_index(inverse, inverse_batch, batch[DataKeys.BATCH])
 
 
 class LitDetectionModel(LitModel):

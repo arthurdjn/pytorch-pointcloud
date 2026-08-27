@@ -177,13 +177,19 @@ _CONCERTO_TRANSFORMS = T.Compose(
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
         T.Divide(keys=DataKeys.COLOR, divisor=255),
         T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="grid",
-            keys=[DataKeys.X],
-            reduce=["first"],
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+            reduce="first",
             size=0.02,
             method="fnv",
+            allow_missing_keys=True,
         ),
         T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
     ]
@@ -195,16 +201,22 @@ _CONCERTO_SEG_TRANSFORMS = T.Compose(
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
         T.Divide(keys=DataKeys.COLOR, divisor=255),
         T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="grid",
-            keys=[DataKeys.X, DataKeys.SEGMENT],
-            reduce=["first", "first"],
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+            reduce="first",
             size=0.02,
             method="fnv",
+            allow_missing_keys=True,
         ),
         T.CopyItems(keys=DataKeys.POS, names=DataKeys.POS_GRID),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
     ]
 )
 

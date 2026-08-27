@@ -149,6 +149,16 @@ def test_setup_leaves_wrapper_alone_when_wrapped_dataset_has_a_transform() -> No
     assert bare.transform is transform
 
 
+def test_setup_adds_model_inverse_key_to_cat_keys() -> None:
+    """A segmentation module's `inverse_key` joins `cat_keys` so multi-scene eval batches carry its scene index."""
+    from torch_pointcloud.lightning import PointCloudDataModule
+
+    dm = PointCloudDataModule(train_dataset=DummySegmentationDataset(2), batch_size=1, num_workers=0, cat_keys=["box"])
+    dm.trainer = Mock(lightning_module=Mock(transform=None, inverse_key="inverse"))
+    dm.setup("fit")
+    assert dm.cat_keys == ("box", "inverse")
+
+
 def test_setup_without_model_transform_is_noop() -> None:
     from torch_pointcloud.lightning import PointCloudDataModule
 

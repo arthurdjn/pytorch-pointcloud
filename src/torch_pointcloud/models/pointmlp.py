@@ -919,7 +919,14 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
         author="xu-ma",
         license="Apache-2.0",
     ),
-    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+            ),
+        ]
+    ),
     hparams=_pointmlp_base_clf_hparams(num_classes=40),
 )
 def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
@@ -936,7 +943,14 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
         author="xu-ma",
         license="Apache-2.0",
     ),
-    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+            ),
+        ]
+    ),
     hparams=_pointmlp_elite_clf_hparams(num_classes=40),
 )
 def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
@@ -965,7 +979,14 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
         author="xu-ma",
         license="Apache-2.0",
     ),
-    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+            ),
+        ]
+    ),
     hparams=_pointmlp_base_clf_hparams(num_classes=15),
 )
 def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
@@ -983,7 +1004,14 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
         author="xu-ma",
         license="Apache-2.0",
     ),
-    transform=T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS, keys=[DataKeys.NORMAL], num_samples=1024, allow_missing_keys=True
+            ),
+        ]
+    ),
     hparams=_pointmlp_elite_clf_hparams(num_classes=15),
 )
 def pointmlp_elite_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
