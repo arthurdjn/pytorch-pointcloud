@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Tuple
 import pytest
 import torch
 
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
@@ -155,7 +155,7 @@ BUILDERS: Dict[str, Callable[[torch.Generator], Dict[str, Any]]] = {
 }
 
 
-def _cases(task: str, family: str, names: List[str]) -> List[Any]:
+def _cases(task: Task, family: str, names: List[str]) -> List[Any]:
     return [pytest.param(task, name, family, id=name) for name in names]
 
 
@@ -296,7 +296,7 @@ CASES: List[Any] = [
     *_cases("segmentation", "nuscenes_lidarseg", ["sphereformer.nuscenes"]),
 ]
 
-EXEMPT: Dict[Tuple[str, str], str] = {
+EXEMPT: Dict[Tuple[Task, str], str] = {
     ("classification", "octformer-base.modelnet40.octree-nn"): "octree contract; resamples mesh faces",
     ("segmentation", "octformer-base.scannet20.octree-nn"): "octree contract",
     ("segmentation", "octformer-base.scannet200.octree-nn"): "octree contract",
@@ -325,12 +325,14 @@ def test_every_registered_transform_is_listed() -> None:
 
 
 @pytest.mark.parametrize("task,name,family", CASES)
-def test_registered_transform_follows_sampling_contract(task: str, name: str, family: str) -> None:
+def test_registered_transform_follows_sampling_contract(task: Task, name: str, family: str) -> None:
     torch.manual_seed(0)
     sample = BUILDERS[family](torch.Generator().manual_seed(0))
     n_origin = sample[DataKeys.POS].shape[0]
 
-    out = _REGISTERED_MODELS[task][name]["transform"](dict(sample))
+    transform = _REGISTERED_MODELS[task][name]["transform"]
+    assert transform is not None
+    out = transform(dict(sample))
     n = out[DataKeys.POS].shape[0]
     for key in (DataKeys.X, DataKeys.SEGMENT):
         if key in out:

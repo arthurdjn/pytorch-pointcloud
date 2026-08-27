@@ -69,7 +69,7 @@ class LitModel(LightningModule):
         criterion: Optional[nn.Module] = None,
         inferer: Optional[Inferer] = None,
         input_keys: Sequence[str] = ("x", "pos", "batch"),
-        target_key: str = "label",
+        target_key: str = DataKeys.LABEL,
         metric_input_keys: Sequence[str] = (),
         scheduler_interval: str = "epoch",
         param_groups: Optional[Dict[str, Any]] = None,
@@ -91,7 +91,7 @@ class LitModel(LightningModule):
             {
                 "name": name,
                 "input_keys": list(input_keys),
-                "target_key": target_key,
+                "target_key": str(target_key),
                 "metric_input_keys": list(metric_input_keys),
                 "scheduler_interval": scheduler_interval,
                 **info["hparams"],
@@ -212,7 +212,7 @@ class LitSegmentationModel(LitModel):
         name: str,
         inverse_key: Optional[str] = DataKeys.INVERSE,
         origin_target_key: str = DataKeys.ORIGIN_SEGMENT,
-        target_key: str = "segment",
+        target_key: str = DataKeys.SEGMENT,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, task="segmentation", target_key=target_key, **kwargs)

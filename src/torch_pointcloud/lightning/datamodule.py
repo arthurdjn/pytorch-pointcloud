@@ -129,8 +129,9 @@ class PointCloudDataModule(LightningDataModule):
         trainer = getattr(self, "trainer", None)
         lit_model = getattr(trainer, "lightning_module", None)
         inverse_key = getattr(lit_model, "inverse_key", None)
-        if isinstance(inverse_key, str):
-            self.cat_keys = tuple(dict.fromkeys((*ensure_tuple(self.cat_keys, none_as_empty=True), inverse_key)))
+        cat_keys = ensure_tuple(self.cat_keys, none_as_empty=True)
+        if isinstance(inverse_key, str) and inverse_key not in cat_keys:
+            self.cat_keys = (*cat_keys, inverse_key)
         transform = getattr(lit_model, "transform", None)
         if transform is None:
             return
