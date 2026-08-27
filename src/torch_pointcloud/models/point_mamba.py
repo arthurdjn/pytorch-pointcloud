@@ -742,15 +742,16 @@ class PointMambaClassification(ClassificationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
+        return self.encoder.embed_dim * 2 if self.use_cls_token else self.encoder.embed_dim
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        embed_dim = self.encoder.embed_dim
-        if self.use_cls_token:
-            embed_dim *= 2
-
         return MLP(
-            [embed_dim, *self.head_channels, self.num_classes],
+            [self.num_features, *self.head_channels, self.num_classes],
             dropout=0.5,  # the reference recipe pins the head dropout at 0.5
             act=self.act,
             act_kwargs=self.act_kwargs,

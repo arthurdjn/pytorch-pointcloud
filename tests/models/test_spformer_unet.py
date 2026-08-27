@@ -2,7 +2,7 @@ from typing import Dict
 
 import pytest
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from torch_pointcloud.models.spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder, SPFormerUNetSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
@@ -50,8 +50,10 @@ def test_spformer_unet_identity_head_returns_features(data: Dict[str, Tensor]) -
         layers=LAYERS,
         spatial_padding=64,
     ).cuda()
+    assert isinstance(model.head, nn.Identity)
     feats = model(data["x"], data["pos_grid"], data["batch"])
-    assert feats.shape == (data["pos_grid"].shape[0], CHANNELS[0])
+    assert feats.shape == (data["pos_grid"].shape[0], model.num_features)
+    assert model.num_features == CHANNELS[0]
 
 
 def test_spformer_unet_reset_classifier(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:

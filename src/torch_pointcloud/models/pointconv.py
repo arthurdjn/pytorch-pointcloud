@@ -187,11 +187,6 @@ class PointConvDensityClassification(ClassificationModel):
         self.encoder = self.configure_encoder()
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
-        return self.encoder.layers[-1].fc.stem.out_features  # type: ignore[return-value,union-attr]
-
     def configure_encoder(self) -> PointConvDensityEncoder:
         """Build the `PointConvDensityEncoder` backbone."""
         return PointConvDensityEncoder(
@@ -211,10 +206,15 @@ class PointConvDensityClassification(ClassificationModel):
             global_pool=self.global_pool,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder.layers[-1].fc.stem.out_features  # type: ignore[return-value,union-attr]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels = [self.embedding_dim] + ensure_list(self.head_channels) + [self.num_classes]
+        channels = [self.num_features] + ensure_list(self.head_channels) + [self.num_classes]
         return MLP(
             channels,
             act=self.act,

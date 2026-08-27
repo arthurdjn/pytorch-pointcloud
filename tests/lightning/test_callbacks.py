@@ -27,19 +27,53 @@ from torchmetrics.classification import MulticlassJaccardIndex  # noqa: E402
 class DummyClassificationModel(ClassificationModel):
     def __init__(self, in_channels: int = 3, num_classes: int = 3) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.fc = nn.Linear(in_channels, num_classes)
+        self.fc = self.configure_head()
+
+    @property
+    def num_features(self) -> int:
+        return self.in_channels
+
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+
+    def reset_classifier(self, num_classes: int) -> None:
+        self.num_classes = num_classes
+        self.fc = self.configure_head()
+
+    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        return x
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        return x if pre_logits else self.fc(x)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        return self.fc(x)
+        return self.forward_head(self.forward_features(x, pos, batch))
 
 
 class DummySegmentationModel(SegmentationModel):
     def __init__(self, in_channels: int = 3, num_classes: int = 5) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.fc = nn.Linear(in_channels, num_classes)
+        self.fc = self.configure_head()
+
+    @property
+    def num_features(self) -> int:
+        return self.in_channels
+
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+
+    def reset_classifier(self, num_classes: int) -> None:
+        self.num_classes = num_classes
+        self.fc = self.configure_head()
+
+    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+        return x
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        return x if pre_logits else self.fc(x)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        return self.fc(x)
+        return self.forward_head(self.forward_features(x, pos, batch))
 
 
 class DummyDetectionModel(DetectionModel):

@@ -257,6 +257,6 @@ def test_randlanet_classification_with_aggr(data: Dict[str, Tensor]) -> None:
         num_neighbors=8,
     )
     assert model.aggr is not None
-    assert model.embedding_dim == 64
+    assert model.num_features == 64
     logits = model(data["features"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, 10)

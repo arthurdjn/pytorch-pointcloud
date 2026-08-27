@@ -574,11 +574,16 @@ class OctFormerClassification(ClassificationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         # NOTE: The original OctFormer uses a linear bias only for the last layer, with ReLU activation.
-        channels = [self.embedding_dim, *self.head_channels, self.num_classes]
+        channels = [self.num_features, *self.head_channels, self.num_classes]
         biases = [False] * max(0, len(channels) - 2) + [True]
         return MLP(
             channels,
@@ -591,11 +596,6 @@ class OctFormerClassification(ClassificationModel):
             dropout=self.dropout,
             plain_last=True,
         )
-
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
-        return self.encoder_channels[-1]
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -822,10 +822,15 @@ class OctFormerSegmentation(SegmentationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the features entering the head."""
+        return self.fpn_channels
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels = [self.embedding_dim, *self.head_channels, self.num_classes]
+        channels = [self.num_features, *self.head_channels, self.num_classes]
         return MLP(
             channels,
             act=self.head_act,
@@ -836,11 +841,6 @@ class OctFormerSegmentation(SegmentationModel):
             bias=self.bias,
             plain_last=True,
         )
-
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the decoder output."""
-        return self.fpn_channels
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

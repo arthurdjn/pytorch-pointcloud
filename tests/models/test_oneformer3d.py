@@ -249,6 +249,11 @@ def _make_decode_model(**overrides: object) -> OneFormer3DSegmentation:
     return OneFormer3DSegmentation(**hparams)  # type: ignore[arg-type]
 
 
+def test_oneformer3d_num_classes_zero_raises() -> None:
+    with pytest.raises(ValueError, match="headless"):
+        _make_decode_model(num_classes=0)
+
+
 def test_oneformer3d_predict_instance_synthetic_decode() -> None:
     """Hand-crafted decoder output: two confident queries decode to two known instance masks.
 

@@ -103,11 +103,6 @@ class UtoniaSegmentation(SegmentationModel):
         self.encoder = self.configure_encoder()
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Channel count $C$ entering the head: every encoder stage unpooled and concatenated."""
-        return sum(self.encoder_channels)
-
     def configure_encoder(self) -> PointTransformerV3Encoder:
         """Build the `PointTransformerV3Encoder` backbone with rotary position embeddings."""
         return PointTransformerV3Encoder(
@@ -139,8 +134,13 @@ class UtoniaSegmentation(SegmentationModel):
             legacy=self.legacy,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ entering the head: every encoder stage unpooled and concatenated."""
+        return sum(self.encoder_channels)
+
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes

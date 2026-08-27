@@ -583,18 +583,17 @@ class PointNeXtPartSegmentation(SegmentationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the decoder output."""
-        return self.decoder.channels[-1]
+    def num_features(self) -> int:
+        """Channel count $C$ entering the head: decoder features concatenated with their global max and mean pools."""
+        return self.decoder.channels[-1] * 3  # point + global_max + global_avg
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        head_in = self.embedding_dim * 3  # point + global_max + global_avg
         if not self.head_channels:
-            return nn.Linear(head_in, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
         return MLP(
-            [head_in] + list(self.head_channels) + [self.num_classes],
+            [self.num_features] + list(self.head_channels) + [self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -609,23 +608,60 @@ class PointNeXtPartSegmentation(SegmentationModel):
         self.num_classes = num_classes
         self.head = self.configure_head()
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
         x = x if x is not None else pos
         if self.stem is not None:
             x = self.stem(x)
 
-        x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
-        x, pos, batch = self.decoder(x, pos, batch, category, intermediates)
+        return self.encoder(x, pos, batch, return_intermediates=return_intermediates)
 
+    def forward_decoder(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        category: Tensor,
+        intermediates: List[PointNeXtIntermediate],
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        return self.decoder(x, pos, batch, category, intermediates)
+
+    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout and not isinstance(self.head, MLP):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
 
-        # Append global max + avg pooled features
         x_max = global_max_pool(x, batch)[batch]  # (N, C)
         x_avg = global_mean_pool(x, batch)[batch]  # (N, C)
         x = torch.cat([x, x_max, x_avg], dim=1)
+        return x if pre_logits else self.head(x)
 
-        return self.head(x)
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x, pos, batch = self.forward_decoder(x, pos, batch, category, intermediates)
+        return self.forward_head(x, batch)
 
 
 class PointNeXtClassification(ClassificationModel):
@@ -722,9 +758,6 @@ class PointNeXtClassification(ClassificationModel):
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
         self.global_sa = self.configure_global_sa()
-        self._embedding_dim = (
-            int(self.global_sa_channels[-1]) if self.global_sa_channels is not None else self.encoder_channels[-1]
-        )
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
@@ -788,17 +821,17 @@ class PointNeXtClassification(ClassificationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
+    def num_features(self) -> int:
         """Feature dimension $C$ fed to the classification head, after the optional global set-abstraction."""
-        return self._embedding_dim
+        return int(self.global_sa_channels[-1]) if self.global_sa_channels is not None else self.encoder_channels[-1]
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
         return MLP(
-            [self.embedding_dim] + list(self.head_channels) + [self.num_classes],
+            [self.num_features] + list(self.head_channels) + [self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -1014,7 +1047,7 @@ class PointNeXtSegmentation(SegmentationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
+    def num_features(self) -> int:
         """Feature dimension $C$ of the decoder output."""
         return self.decoder.channels[-1]
 
@@ -1022,9 +1055,9 @@ class PointNeXtSegmentation(SegmentationModel):
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
         return MLP(
-            [self.embedding_dim] + list(self.head_channels) + [self.num_classes],
+            [self.num_features] + list(self.head_channels) + [self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
