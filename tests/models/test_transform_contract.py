@@ -1,12 +1,15 @@
 """Every registered transform leaves a fixture sample in the one sampling-key contract.
 
+One case per distinct pipeline; the remaining registered names reuse one of those pipelines and are checked
+against the listed cases by structure.
+
 `pos`, `x`, `segment` share the predictor resolution; a pipeline that changes the number of points keeps the
 source cloud under `origin_pos` (and `origin_segment` when it carries labels) and records exactly one row
 map: `inverse` (source row to predictor row, voxelizers) or `index` (predictor row to source row, selection
 samplers). No other per-point tensor may be left at source resolution, and the output must collate.
 """
 
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, List, Tuple
 
 import pytest
 import torch
@@ -22,107 +25,62 @@ pytestmark = pytest.mark.skipif(
 )
 
 CASES: List[Tuple[Task, str, str]] = [
+    # One row per distinct pipeline; `test_every_registered_transform_is_covered` maps the other names onto them.
     # Pretraining backbones on ScanNet
     ("base", "concerto-tiny.pretrain.pointcept", "scannet20"),
-    ("base", "concerto-small.pretrain.pointcept", "scannet20"),
-    ("base", "concerto-base.pretrain.pointcept", "scannet20"),
-    ("base", "concerto-large.pretrain.pointcept", "scannet20"),
-    ("base", "sonata-base.pretrain.fair", "scannet20"),
     ("base", "spformer-unet.scannet", "scannet20"),
     ("base", "utonia.pretrain.pointcept", "scannet20"),
-    # ModelNet40 based models
-    ("classification", "dgcnn.modelnet40-1024.an-tao", "modelnet_resampled"),
-    ("classification", "dgcnn.modelnet40-2048.an-tao", "modelnet_resampled"),
-    ("classification", "point-bert-base.modelnet40.xumin-yu", "modelnet_resampled"),
-    ("classification", "point-bert-base.modelnet40-4k.xumin-yu", "modelnet_resampled"),
-    ("classification", "point-bert-base.modelnet40-8k.xumin-yu", "modelnet_resampled"),
-    ("classification", "point-m2ae-base.modelnet40.renrui-zhang", "modelnet_resampled"),
-    ("classification", "point-mae-base.modelnet40.yatian-pang", "modelnet_resampled"),
-    ("classification", "point-mae-base.modelnet40-8k.yatian-pang", "modelnet_resampled"),
-    ("classification", "point-mamba-base.modelnet40.dingkang-liang", "modelnet_resampled"),
-    ("classification", "point-transformer.modelnet40", "modelnet_resampled"),
-    ("classification", "pointconv-density-base.modelnet40.wenxuan-wu", "modelnet_resampled"),
-    *[("classification", f"pointgpt-{s}.modelnet40.guangyan-chen", "modelnet_resampled") for s in ("s", "b", "l")],
-    *[("classification", f"pointgpt-{s}.modelnet40-8k.guangyan-chen", "modelnet_resampled") for s in ("s", "b", "l")],
-    ("classification", "pointmlp-base.modelnet40.xu-ma", "modelnet_resampled"),
-    ("classification", "pointmlp-elite.modelnet40.xu-ma", "modelnet_resampled"),
-    ("classification", "pointnet.modelnet40", "modelnet_resampled"),
-    ("classification", "pointnet2-msg.modelnet40.xu-yan", "modelnet_resampled"),
-    ("classification", "pointnet2-ssg.modelnet40.xu-yan", "modelnet_resampled"),
-    ("classification", "pointnet2.modelnet40.openpoints", "modelnet_resampled"),
-    ("classification", "pointnext-sm-c64.modelnet40.openpoints", "modelnet_resampled"),
-    # ScanObjectNN based models
-    ("classification", "point-bert-base.scanobjectnn-hardest.xumin-yu", "scanobjectnn"),
-    ("classification", "point-bert-base.scanobjectnn-objbg.xumin-yu", "scanobjectnn"),
+    # ModelNet40 classification
+    ("classification", "dgcnn.modelnet40-1024.an-tao", "modelnet"),
+    ("classification", "dgcnn.modelnet40-2048.an-tao", "modelnet"),
+    ("classification", "point-bert-base.modelnet40.xumin-yu", "modelnet"),
+    ("classification", "point-bert-base.modelnet40-4k.xumin-yu", "modelnet"),
+    ("classification", "point-bert-base.modelnet40-8k.xumin-yu", "modelnet"),
+    ("classification", "point-mae-base.modelnet40-8k.yatian-pang", "modelnet"),
+    ("classification", "point-transformer.modelnet40", "modelnet"),
+    ("classification", "pointconv-density-base.modelnet40.wenxuan-wu", "modelnet"),
+    ("classification", "pointmlp-base.modelnet40.xu-ma", "modelnet"),
+    ("classification", "pointnet2-ssg.modelnet40.xu-yan", "modelnet"),
+    ("classification", "pointnet2.modelnet40.openpoints", "modelnet"),
+    # ScanObjectNN classification
     ("classification", "point-bert-base.scanobjectnn-objonly.xumin-yu", "scanobjectnn"),
     ("classification", "point-m2ae-base.scanobjectnn-hardest.renrui-zhang", "scanobjectnn"),
-    ("classification", "point-m2ae-base.scanobjectnn-objbg.renrui-zhang", "scanobjectnn"),
     ("classification", "point-mamba-base.scanobjectnn.dingkang-liang", "scanobjectnn"),
-    ("classification", "point-mamba-base.scanobjectnn-nobg.dingkang-liang", "scanobjectnn"),
-    ("classification", "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang", "scanobjectnn"),
-    *[
-        ("classification", f"pointgpt-{s}.scanobjectnn-{v}.guangyan-chen", "scanobjectnn")
-        for s in ("s", "b", "l")
-        for v in ("hardest", "objbg", "objonly")
-    ],
-    ("classification", "pointmlp-base.scanobjectnn.xu-ma", "scanobjectnn"),
-    ("classification", "pointmlp-elite.scanobjectnn.xu-ma", "scanobjectnn"),
     ("classification", "pointnet2.scanobjectnn.openpoints", "scanobjectnn"),
     ("classification", "pointnext-sm.scanobjectnn.openpoints", "scanobjectnn"),
     # Detection
-    ("detection", "3detr.scannet.fair", "scannet20"),
     ("detection", "3detr-m.scannet.fair", "scannet20"),
-    ("detection", "votenet.scannet.fair", "scannet20"),
     ("detection", "3detr.sunrgbd.fair", "sunrgbd"),
+    ("detection", "votenet.scannet.fair", "scannet20"),
     ("detection", "votenet.sunrgbd.fair", "sunrgbd"),
     ("detection", "pointrcnn.kitti.openpcdet", "kitti"),
-    # ScanNet based segmentation models
+    # ScanNet segmentation
     ("segmentation", "concerto-large-lp.scannet20.pointcept", "scannet20"),
     ("segmentation", "oneformer3d-base.scannet20.danila-rukhovich", "scannet20"),
-    ("segmentation", "oneformer3d-base.scannet200.danila-rukhovich", "scannet20"),
     ("segmentation", "point-transformer.scannet20", "scannet20"),
-    ("segmentation", "ptv2-base.scannet20", "scannet20"),
     ("segmentation", "ptv2-base.scannet200", "scannet20"),
     ("segmentation", "ptv3-base.scannet20.pointcept", "scannet20"),
     ("segmentation", "ptv3-base.scannet200.pointcept", "scannet20"),
-    ("segmentation", "sonata-lp.scannet20.fair", "scannet20"),
     ("segmentation", "spformer-unet.scannet20", "scannet20"),
-    ("segmentation", "spunet-v1m1.scannet20.pointcept", "scannet20"),
     ("segmentation", "utonia-lp.scannet20.pointcept", "scannet20"),
     # S3DIS rooms
     ("segmentation", "oneformer3d-base.s3dis-area5.danila-rukhovich", "s3dis"),
     ("segmentation", "point-transformer.s3dis-area5", "s3dis"),
-    *[("segmentation", f"pointnet2.s3dis-area{i}.openpoints", "s3dis") for i in range(1, 7)],
+    ("segmentation", "pointnet2.s3dis-area1.openpoints", "s3dis"),
     ("segmentation", "ptv3-base.s3dis-area5.pointcept", "s3dis"),
     # S3DIS blocks
-    *[("segmentation", f"dgcnn.s3dis-area{i}.an-tao", "s3dis_hdf5") for i in range(1, 7)],
-    ("segmentation", "kpfcnn-base.s3dis.hugues-thomas", "s3dis_hdf5"),
+    ("segmentation", "dgcnn.s3dis-area1.an-tao", "s3dis_hdf5"),
     ("segmentation", "kpfcnn-base-sm.s3dis.hugues-thomas", "s3dis_hdf5"),
-    ("segmentation", "kpfcnn-base-deform.s3dis.hugues-thomas", "s3dis_hdf5"),
-    ("segmentation", "kpfcnn-base-sm-deform.s3dis.hugues-thomas", "s3dis_hdf5"),
-    ("segmentation", "pointnet.s3dis-area5", "s3dis_hdf5"),
     ("segmentation", "pointnet2.s3dis-area5.xu-yan", "s3dis_hdf5"),
-    *[
-        ("segmentation", f"pointnext-{s}.s3dis-area{i}.openpoints", "s3dis_hdf5")
-        for s in ("sm", "base", "lg", "xl")
-        for i in range(1, 7)
-    ],
-    ("segmentation", "pvcnn.s3dis-area5.mit-han-lab", "s3dis_hdf5"),
-    ("segmentation", "pvcnn2.s3dis-area5", "s3dis_hdf5"),
+    ("segmentation", "pointnext-sm.s3dis-area1.openpoints", "s3dis_hdf5"),
     # ShapeNetPart
     ("segmentation", "dgcnn.shapenetpart.an-tao", "shapenetpart"),
-    ("segmentation", "point-m2ae-base.shapenetpart.renrui-zhang", "shapenetpart"),
-    ("segmentation", "point-mae-base.shapenetpart.yatian-pang", "shapenetpart"),
     ("segmentation", "pointnet.shapenetpart", "shapenetpart"),
     ("segmentation", "pointnext-sm.shapenetpart.openpoints", "shapenetpart"),
-    ("segmentation", "pointnext-sm-c64.shapenetpart.openpoints", "shapenetpart"),
-    ("segmentation", "pointnext-sm-c160.shapenetpart.openpoints", "shapenetpart"),
     # SemanticKITTI
     ("segmentation", "randlanet.semantickitti.tsung-han-wu", "semantickitti"),
     ("segmentation", "sphereformer.semantickitti", "semantickitti"),
     ("segmentation", "spvcnn-30gmacs.semantickitti.mit-han-lab", "semantickitti"),
-    ("segmentation", "spvcnn-47gmacs.semantickitti.mit-han-lab", "semantickitti"),
-    ("segmentation", "spvcnn-119gmacs.semantickitti.mit-han-lab", "semantickitti"),
 ]
 
 EXEMPT: List[Tuple[Task, str]] = [
@@ -145,23 +103,21 @@ EXEMPT: List[Tuple[Task, str]] = [
 ]
 
 
-def test_every_registered_transform_is_listed() -> None:
-    registered = {
-        (task, name)
-        for task, entries in _REGISTERED_MODELS.items()
-        for name, entry in entries.items()
-        if entry["transform"] is not None
-    }
-    assert {(task, name) for task, name, _ in CASES} | set(EXEMPT) == registered
+def test_every_registered_transform_is_covered() -> None:
+    covered = {repr(_REGISTERED_MODELS[task][name]["transform"]) for task, name, _ in CASES}
+    for task, entries in _REGISTERED_MODELS.items():
+        for name, entry in entries.items():
+            if entry["transform"] is not None and (task, name) not in EXEMPT:
+                assert repr(entry["transform"]) in covered, f"{name!r} has a pipeline no listed case covers"
 
 
 @pytest.mark.parametrize("task,name,dataset_name", CASES, ids=[name for _, name, _ in CASES])
 def test_registered_transform_follows_sampling_contract(
-    task: Task, name: str, dataset_name: str, fixture_datasets: Dict[str, Callable[..., Dataset]]
+    task: Task, name: str, dataset_name: str, dataset_factory: Callable[..., Dataset]
 ) -> None:
     transform = _REGISTERED_MODELS[task][name]["transform"]
     assert transform is not None
-    sample = fixture_datasets[dataset_name]()[0]
+    sample = dataset_factory(dataset_name)[0]
     n_origin = sample[DataKeys.POS].shape[0]
 
     out = transform(dict(sample))

@@ -16,7 +16,7 @@ uv run --no-sync pytest tests/models/test_pretrained.py --run-pretrained --force
 
 import inspect
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, List, Tuple
 
 import pytest
 import torch
@@ -48,24 +48,24 @@ SNAPSHOTS_DIR = DATA_DIR / "models"
 
 PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     # ModelNet40 based models
-    ("pointmlp-base.modelnet40.xu-ma", "classification", "modelnet_resampled"),
-    ("pointmlp-elite.modelnet40.xu-ma", "classification", "modelnet_resampled"),
-    ("point-mamba-base.modelnet40.dingkang-liang", "classification", "modelnet_resampled"),
-    ("pointnext-sm-c64.modelnet40.openpoints", "classification", "modelnet_resampled"),
-    ("pointconv-density-base.modelnet40.wenxuan-wu", "classification", "modelnet_resampled"),
-    ("dgcnn.modelnet40-1024.an-tao", "classification", "modelnet_resampled"),
-    ("dgcnn.modelnet40-2048.an-tao", "classification", "modelnet_resampled"),
-    ("pointnet2-ssg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
-    ("pointnet2-msg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
-    ("pointnet2.modelnet40.openpoints", "classification", "modelnet_resampled"),
-    ("point-mae-base.modelnet40.yatian-pang", "classification", "modelnet_resampled"),
-    ("point-mae-base.modelnet40-8k.yatian-pang", "classification", "modelnet_resampled"),
-    ("point-bert-base.modelnet40.xumin-yu", "classification", "modelnet_resampled"),
-    ("point-bert-base.modelnet40-4k.xumin-yu", "classification", "modelnet_resampled"),
-    ("point-bert-base.modelnet40-8k.xumin-yu", "classification", "modelnet_resampled"),
-    ("point-m2ae-base.modelnet40.renrui-zhang", "classification", "modelnet_resampled"),
-    *[(f"pointgpt-{s}.modelnet40.guangyan-chen", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
-    *[(f"pointgpt-{s}.modelnet40-8k.guangyan-chen", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
+    ("pointmlp-base.modelnet40.xu-ma", "classification", "modelnet"),
+    ("pointmlp-elite.modelnet40.xu-ma", "classification", "modelnet"),
+    ("point-mamba-base.modelnet40.dingkang-liang", "classification", "modelnet"),
+    ("pointnext-sm-c64.modelnet40.openpoints", "classification", "modelnet"),
+    ("pointconv-density-base.modelnet40.wenxuan-wu", "classification", "modelnet"),
+    ("dgcnn.modelnet40-1024.an-tao", "classification", "modelnet"),
+    ("dgcnn.modelnet40-2048.an-tao", "classification", "modelnet"),
+    ("pointnet2-ssg.modelnet40.xu-yan", "classification", "modelnet"),
+    ("pointnet2-msg.modelnet40.xu-yan", "classification", "modelnet"),
+    ("pointnet2.modelnet40.openpoints", "classification", "modelnet"),
+    ("point-mae-base.modelnet40.yatian-pang", "classification", "modelnet"),
+    ("point-mae-base.modelnet40-8k.yatian-pang", "classification", "modelnet"),
+    ("point-bert-base.modelnet40.xumin-yu", "classification", "modelnet"),
+    ("point-bert-base.modelnet40-4k.xumin-yu", "classification", "modelnet"),
+    ("point-bert-base.modelnet40-8k.xumin-yu", "classification", "modelnet"),
+    ("point-m2ae-base.modelnet40.renrui-zhang", "classification", "modelnet"),
+    *[(f"pointgpt-{s}.modelnet40.guangyan-chen", "classification", "modelnet") for s in ("s", "b", "l")],
+    *[(f"pointgpt-{s}.modelnet40-8k.guangyan-chen", "classification", "modelnet") for s in ("s", "b", "l")],
     # S3DIS based models
     ("kpfcnn-base.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
     ("kpfcnn-base-sm.s3dis.hugues-thomas", "segmentation", "s3dis_hdf5"),
@@ -190,9 +190,9 @@ def test_pretrained_model(
     model_name: str,
     task: str,
     dataset_name: str,
+    dataset_factory: Callable[..., Dataset],
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    fixture_datasets: Dict[str, Callable[..., Dataset]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
@@ -204,7 +204,7 @@ def test_pretrained_model(
     model, info = create_model(model_name, task=task, pretrained=True, return_info=True)  # type: ignore[call-overload]
 
     # Load the dataset / dataloader
-    dataset = fixture_datasets[dataset_name](transform=info["transform"])
+    dataset = dataset_factory(dataset_name, transform=info["transform"])
     dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate)
 
     # Get first batch of data
@@ -240,9 +240,9 @@ def test_pretrained_model(
 def test_pretrained_oneformer3d(
     model_name: str,
     dataset_name: str,
+    dataset_factory: Callable[..., Dataset],
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    fixture_datasets: Dict[str, Callable[..., Dataset]],
 ) -> None:
     """OneFormer3D returns a dict of per-scene lists, so it needs its own snapshot test.
 
@@ -257,7 +257,7 @@ def test_pretrained_oneformer3d(
     models_dir = models_dir_factory("*.safetensors")
 
     model, info = create_model(model_name, task="segmentation", pretrained=True, return_info=True)
-    dataset = fixture_datasets[dataset_name](transform=info["transform"])
+    dataset = dataset_factory(dataset_name, transform=info["transform"])
     data = collate([dataset[0]])
     data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
     model = model.to(DEVICE).eval()

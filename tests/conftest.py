@@ -1,7 +1,6 @@
 import shutil
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Callable, Dict, Optional
 
 import pytest
 import torch
@@ -24,7 +23,66 @@ DATASETS_DIR = DATA_DIR / "datasets"
 MODELS_DIR = DATA_DIR / "models"
 
 
-def _scannet20_blocks(**kwargs: Any) -> ScanNet20:
+def modelnet_dataset(transform: Optional[Callable] = None) -> ModelNetNormalResampled:
+    return ModelNetNormalResampled(
+        root=DATASETS_DIR,
+        variant="40",
+        train=False,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def scanobjectnn_dataset(transform: Optional[Callable] = None) -> ScanObjectNN:
+    return ScanObjectNN(
+        root=DATASETS_DIR,
+        train=False,
+        partition="split1",
+        background=False,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def shapenetpart_dataset(transform: Optional[Callable] = None) -> ShapeNetPart:
+    return ShapeNetPart(
+        root=DATASETS_DIR,
+        split="test",
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def s3dis_dataset(transform: Optional[Callable] = None) -> S3DIS:
+    return S3DIS(
+        root=DATASETS_DIR,
+        areas=("Area_5",),
+        aligned=True,
+        download=False,
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def s3dis_hdf5_dataset(transform: Optional[Callable] = None) -> S3DISHdf5:
+    return S3DISHdf5(
+        root=DATASETS_DIR,
+        areas=("Area_5",),
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def scannet20_dataset(transform: Optional[Callable] = None) -> ScanNet20:
+    return ScanNet20(
+        root=DATASETS_DIR,
+        split="val",
+        show_progress=False,
+        transform=transform,
+    )
+
+
+def scannet20_blocks_dataset(transform: Optional[Callable] = None) -> ScanNet20:
     # tile_scannet_scene samples points per block with torch RNG; seed so the snapshot stays reproducible.
     torch.manual_seed(0)
     return ScanNet20(
@@ -35,67 +93,53 @@ def _scannet20_blocks(**kwargs: Any) -> ScanNet20:
         block_stride=0.75,
         num_nodes=8192,
         show_progress=False,
-        **kwargs,
+        transform=transform,
     )
 
 
-FIXTURE_DATASETS: Dict[str, Callable[..., Dataset]] = {
-    "modelnet_resampled": partial(
-        ModelNetNormalResampled,
-        root=DATASETS_DIR,
-        variant="40",
-        train=False,
-        show_progress=False,
-    ),
-    "s3dis_hdf5": partial(
-        S3DISHdf5,
-        root=DATASETS_DIR,
-        areas=("Area_5",),
-        show_progress=False,
-    ),
-    "s3dis": partial(
-        S3DIS,
-        root=DATASETS_DIR,
-        areas=("Area_5",),
-        aligned=True,
-        download=False,
-        show_progress=False,
-    ),
-    "shapenetpart": partial(
-        ShapeNetPart,
-        root=DATASETS_DIR,
-        split="test",
-        show_progress=False,
-    ),
-    "scanobjectnn": partial(
-        ScanObjectNN,
-        root=DATASETS_DIR,
-        train=False,
-        partition="split1",
-        background=False,
-        show_progress=False,
-    ),
-    "scannet20": partial(
-        ScanNet20,
-        root=DATASETS_DIR,
-        split="val",
-        show_progress=False,
-    ),
-    "scannet20_blocks": _scannet20_blocks,
-    "semantickitti": partial(
-        SemanticKITTI,
+def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI:
+    return SemanticKITTI(
         root=DATASETS_DIR,
         sequences=("00",),
-    ),
-    "sunrgbd": partial(SunRGBD, root=DATASETS_DIR, train=False),
-    "kitti": partial(KITTI, root=DATASETS_DIR),
-}
+        transform=transform,
+    )
+
+
+def sunrgbd_dataset(transform: Optional[Callable] = None) -> SunRGBD:
+    return SunRGBD(
+        root=DATASETS_DIR,
+        train=False,
+        transform=transform,
+    )
+
+
+def kitti_dataset(transform: Optional[Callable] = None) -> KITTI:
+    return KITTI(
+        root=DATASETS_DIR,
+        transform=transform,
+    )
 
 
 @pytest.fixture
-def fixture_datasets() -> Dict[str, Callable[..., Dataset]]:
-    """Constructors of the datasets shipped under `tests/data/datasets`, keyed by family; call one with `transform=`."""
-    return FIXTURE_DATASETS
+def dataset_factory() -> Callable[..., Dataset]:
+    """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
+    constructors: Dict[str, Callable[..., Dataset]] = {
+        "modelnet": modelnet_dataset,
+        "scanobjectnn": scanobjectnn_dataset,
+        "shapenetpart": shapenetpart_dataset,
+        "s3dis": s3dis_dataset,
+        "s3dis_hdf5": s3dis_hdf5_dataset,
+        "scannet20": scannet20_dataset,
+        "scannet20_blocks": scannet20_blocks_dataset,
+        "semantickitti": semantickitti_dataset,
+        "sunrgbd": sunrgbd_dataset,
+        "kitti": kitti_dataset,
+    }
+
+    def factory(name: str, transform: Optional[Callable] = None) -> Dataset:
+        return constructors[name](transform=transform)
+
+    return factory
 
 
 def _create_dir_factory(source: Path, dest: Path, symlinks: bool = False) -> Callable[..., Path]:
