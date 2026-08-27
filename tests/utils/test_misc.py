@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from torch_pointcloud.utils.misc import deep_getattr
+from torch_pointcloud.utils.misc import deep_getattr, parallel_map
 
 
 @pytest.mark.parametrize(
@@ -40,3 +40,8 @@ def test_deep_getattr_missing_returns_default(obj: Any, path: str) -> None:
     sentinel = object()
     assert deep_getattr(obj, path, sentinel) is sentinel
     assert deep_getattr(obj, path) is None
+
+
+@pytest.mark.parametrize("num_workers", [None, 0, 2])
+def test_parallel_map_zero_workers_runs_sequentially(num_workers: Any) -> None:
+    assert parallel_map(lambda x: x * 2, [1, 2, 3], num_workers=num_workers) == [2, 4, 6]
