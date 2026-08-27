@@ -292,7 +292,9 @@ class SPFormerUNetDecoder(nn.Module):
 
     Runs one [`SPFormerUNetDecoderBlock`](#) per upsampling level (`blocks`),
     deepest first. Each block upsamples the deeper feature, concatenates the
-    matching encoder skip, and fuses them back to `channels[i]` channels.
+    matching encoder skip, and fuses them back to `channels[i]` channels. A final
+    normalization and activation (`output_layer`) is applied to the full-resolution
+    features.
 
     Args:
         channels: Per-level channel widths, deepest level last (same as the encoder).
@@ -350,12 +352,16 @@ class SPFormerUNetDecoder(nn.Module):
                 norm_kwargs=norm_kwargs,
             )
             self.blocks.append(block)
+        self.output_layer = spconv.SparseSequential(
+            create_norm(norm, self.channels[0], **norm_kwargs) or nn.Identity(),
+            create_act(act, **act_kwargs) or nn.Identity(),
+        )
 
     def forward(self, x: "SparseConvTensor", skips: List["SparseConvTensor"]) -> "SparseConvTensor":
         out = x
         for block, skip in zip(self.blocks, reversed(skips)):
             out = block(out, skip)
-        return out
+        return self.output_layer(out)
 
 
 class SPFormerUNetSegmentation(SegmentationModel):
@@ -367,9 +373,8 @@ class SPFormerUNetSegmentation(SegmentationModel):
     [`SparseUNetSegmentation`](#): the residual blocks are pre-norm and the
     stem-level blocks run at full resolution before any downsampling.
 
-    Set `num_classes=0` to drop the classifier: the head keeps only the final normalization
-    and activation and `forward` returns per-voxel features, which is how OneFormer3D
-    consumes it.
+    Set `num_classes=0` to drop the classifier: `forward` then returns the normalized per-voxel
+    features $(N, \text{channels}[0])$, which is how OneFormer3D consumes it.
 
     Args:
         in_channels: Number of input feature channels.
@@ -418,11 +423,6 @@ class SPFormerUNetSegmentation(SegmentationModel):
         self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Channel count $C$ of the full-resolution decoder features entering the head."""
-        return self.channels[0]
-
     def configure_encoder(self) -> SPFormerUNetEncoder:
         """Builds the sparse encoder producing the bottleneck features and the per-stage skips."""
         return SPFormerUNetEncoder(
@@ -448,13 +448,15 @@ class SPFormerUNetSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the full-resolution decoder features entering the head."""
+        return self.channels[0]
+
     def configure_head(self) -> nn.Module:
-        norm = create_norm(self.norm, self.channels[0], **(self.norm_kwargs or {}))
-        act = create_act(self.act, **(self.act_kwargs or {}))
-        modules: List[nn.Module] = [m for m in (norm, act) if m is not None]
-        if self.num_classes > 0:
-            modules.append(spconv.SubMConv3d(self.channels[0], self.num_classes, kernel_size=1, bias=True))
-        return spconv.SparseSequential(*modules)
+        if self.num_classes == 0:
+            return nn.Identity()
+        return spconv.SubMConv3d(self.num_features, self.num_classes, kernel_size=1, bias=True)
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes

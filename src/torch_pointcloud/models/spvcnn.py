@@ -797,7 +797,6 @@ class SPVCNNClassification(ClassificationModel):
         self.act_kwargs = act_kwargs
         self.norm = norm
         self.norm_kwargs = norm_kwargs
-        self.embedding_dim = encoder_channels[-1]
         self.dropout = dropout
 
         self.stem = self.configure_stem()
@@ -848,10 +847,15 @@ class SPVCNNClassification(ClassificationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -955,7 +959,6 @@ class SPVCNNSegmentation(SegmentationModel):
         self.act_kwargs = act_kwargs
         self.norm = norm
         self.norm_kwargs = norm_kwargs
-        self.embedding_dim = decoder_channels[-1]
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -1021,10 +1024,15 @@ class SPVCNNSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.decoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

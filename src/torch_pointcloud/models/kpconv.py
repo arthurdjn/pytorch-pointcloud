@@ -906,7 +906,6 @@ class KPFCNNClassification(ClassificationModel):
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
-        self.embedding_dim = encoder_channels[-1]
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
@@ -961,10 +960,15 @@ class KPFCNNClassification(ClassificationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -1186,7 +1190,6 @@ class KPFCNNSegmentation(SegmentationModel):
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
         self.decoder = self.configure_decoder()
-        self.embedding_dim = fp_channels[-1][-1]
         self.head = self.configure_head()
 
     def configure_stem(self) -> Optional[nn.Module]:
@@ -1258,14 +1261,19 @@ class KPFCNNSegmentation(SegmentationModel):
             k=1,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.fp_channels[-1][-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
         head_act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
         layers: List[nn.Module] = []
-        ch_in = self.embedding_dim
+        ch_in = self.num_features
         for ch in self.head_channels:
             layers.append(nn.Sequential(nn.Linear(ch_in, ch, bias=True), head_act))
             ch_in = ch

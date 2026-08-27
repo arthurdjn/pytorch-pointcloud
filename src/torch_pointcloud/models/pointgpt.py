@@ -456,11 +456,16 @@ class PointGPTClassification(ClassificationModel):
             act_kwargs=self.act_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
+        return self.embed_dim * 2
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         return MLP(
-            [self.embed_dim * 2, 256, 256, self.num_classes],
+            [self.num_features, 256, 256, self.num_classes],
             act=self.head_act,
             norm="batch_norm",
             dropout=[self.dropout, self.dropout, 0.0],

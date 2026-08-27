@@ -477,11 +477,16 @@ class SparseUNetSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the full-resolution decoder features entering the head."""
+        return self.channels[-1]
+
     def configure_head(self) -> nn.Module:
-        if self.num_classes <= 0:
+        if self.num_classes == 0:
             return nn.Identity()
         return spconv.SubMConv3d(
-            self.channels[-1],
+            self.num_features,
             self.num_classes,
             kernel_size=1,
             padding=1,

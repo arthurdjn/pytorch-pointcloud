@@ -714,7 +714,6 @@ class PointTransformerClassification(ClassificationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
-        self.embedding_dim = encoder_channels[-1]
         self.encoder_channels = encoder_channels
         self.encoder_depths = encoder_depths
         self.encoder_num_groups = encoder_num_groups
@@ -755,10 +754,15 @@ class PointTransformerClassification(ClassificationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -870,7 +874,6 @@ class PointTransformerSegmentation(SegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
-        self.embedding_dim = decoder_channels[-1]
         self.encoder_channels = encoder_channels
         self.encoder_depths = encoder_depths
         self.encoder_num_groups = encoder_num_groups
@@ -931,10 +934,15 @@ class PointTransformerSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.decoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

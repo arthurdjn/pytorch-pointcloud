@@ -1198,11 +1198,6 @@ class PointTransformerV3Classification(ClassificationModel):
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
-        return self.encoder.embedding_dim
-
     def configure_encoder(self) -> PointTransformerV3Encoder:
         """Build the `PointTransformerV3Encoder` backbone."""
         return PointTransformerV3Encoder(
@@ -1234,10 +1229,15 @@ class PointTransformerV3Classification(ClassificationModel):
             legacy=self.legacy,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder.embedding_dim
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -1460,16 +1460,6 @@ class PointTransformerV3Segmentation(SegmentationModel):
         self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
-        return self.encoder.embedding_dim
-
-    @property
-    def out_channels(self) -> int:
-        """Feature dimension $C$ of the decoder output."""
-        return self.decoder.out_channels
-
     def configure_encoder(self) -> PointTransformerV3Encoder:
         """Build the `PointTransformerV3Encoder` backbone."""
         return PointTransformerV3Encoder(
@@ -1527,10 +1517,15 @@ class PointTransformerV3Segmentation(SegmentationModel):
             legacy=self.legacy,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the per-point decoder features entering the head."""
+        return self.decoder.out_channels
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.out_channels, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         """Resets the segmentation head with new parameters.

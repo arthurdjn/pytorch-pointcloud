@@ -399,11 +399,16 @@ class PointMAEClassification(ClassificationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
+        return self.embed_dim * 2
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         return MLP(
-            [self.embed_dim * 2, 256, 256, self.num_classes],
+            [self.num_features, 256, 256, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=[self.dropout, self.dropout, 0.0],
@@ -602,11 +607,16 @@ class PointMAESegmentation(SegmentationModel):
             eps=1e-8,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the per-point features entering the head."""
+        return 1024 + 3 * self.embed_dim * 2 + 64
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         return MLP(
-            [1024 + 3 * self.embed_dim * 2 + 64, 512, 256, self.num_classes],
+            [self.num_features, 512, 256, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=[self.dropout, 0.0, 0.0],
