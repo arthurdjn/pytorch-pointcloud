@@ -405,6 +405,8 @@ class PointGPTClassification(ClassificationModel):
         self.num_group = num_group
         self.group_size = group_size
         self.decoder_depth = decoder_depth
+        self.encoder_local_channels = encoder_local_channels
+        self.encoder_global_channels = encoder_global_channels
         self.dropout = dropout
         self.act = act
         self.act_kwargs = act_kwargs
@@ -412,31 +414,47 @@ class PointGPTClassification(ClassificationModel):
         self.global_pool = create_adaptive_pool(global_pool)
         self.spatial_dim = spatial_dim
 
-        self.encoder = PointPatchEmbed(
-            embed_dim=embed_dim,
-            in_channels=spatial_dim + in_channels,
-            local_channels=encoder_local_channels,
-            global_channels=encoder_global_channels,
-        )
-        self.pos_embed = PositionEmbeddingSine(spatial_dim, embed_dim, temperature=1.0)
+        self.encoder = self.configure_encoder()
+        self.pos_embed = self.configure_pos_embed()
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.cls_pos = nn.Parameter(torch.randn(1, 1, embed_dim))
         self.sos_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
-        self.blocks = PointGPTExtractor(embed_dim, num_heads, depth, act=act, act_kwargs=act_kwargs)
-        self.generator_blocks = PointGPTGenerator(
-            embed_dim,
-            num_heads,
-            decoder_depth,
-            group_size,
-            act=act,
-            act_kwargs=act_kwargs,
-        )
+        self.blocks = self.configure_blocks()
+        self.generator_blocks = self.configure_generator_blocks()
         self.norm = nn.LayerNorm(embed_dim)  # unused in forward; kept for weight compatibility
         self.cls_norm = nn.LayerNorm(embed_dim)
         self.head = self.configure_head()
         self.reset_parameters()
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet patch embedder tokenizing each patch."""
+        return PointPatchEmbed(
+            embed_dim=self.embed_dim,
+            in_channels=self.spatial_dim + self.in_channels,
+            local_channels=self.encoder_local_channels,
+            global_channels=self.encoder_global_channels,
+        )
+
+    def configure_pos_embed(self) -> PositionEmbeddingSine:
+        """Build the sinusoidal positional embedding of the patch centers."""
+        return PositionEmbeddingSine(self.spatial_dim, self.embed_dim, temperature=1.0)
+
+    def configure_blocks(self) -> PointGPTExtractor:
+        """Build the causally-masked GPT extractor."""
+        return PointGPTExtractor(self.embed_dim, self.num_heads, self.depth, act=self.act, act_kwargs=self.act_kwargs)
+
+    def configure_generator_blocks(self) -> PointGPTGenerator:
+        """Build the GPT generator predicting the next patch (unused at finetuning, kept for weight compatibility)."""
+        return PointGPTGenerator(
+            self.embed_dim,
+            self.num_heads,
+            self.decoder_depth,
+            self.group_size,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -592,28 +610,46 @@ class PointGPTGenerativePretraining(BaseModel):
         self.act = act
         self.act_kwargs = act_kwargs
         self.spatial_dim = spatial_dim
+        self.encoder_local_channels = encoder_local_channels
+        self.encoder_global_channels = encoder_global_channels
         self.num_mask = int((num_group - keep_attend) * mask_ratio)
 
-        self.encoder = PointPatchEmbed(
-            embed_dim=embed_dim,
-            in_channels=spatial_dim + in_channels,
-            local_channels=encoder_local_channels,
-            global_channels=encoder_global_channels,
-        )
-        self.pos_embed = PositionEmbeddingSine(spatial_dim, embed_dim, temperature=1.0)
+        self.encoder = self.configure_encoder()
+        self.pos_embed = self.configure_pos_embed()
 
         self.sos_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
-        self.blocks = PointGPTExtractor(embed_dim, num_heads, depth, act=act, act_kwargs=act_kwargs)
-        self.generator_blocks = PointGPTGenerator(
-            embed_dim,
-            num_heads,
-            decoder_depth,
-            group_size,
-            act=act,
-            act_kwargs=act_kwargs,
-        )
+        self.blocks = self.configure_blocks()
+        self.generator_blocks = self.configure_generator_blocks()
         self.norm = nn.LayerNorm(embed_dim)  # unused in forward; kept for weight compatibility
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet patch embedder tokenizing each patch."""
+        return PointPatchEmbed(
+            embed_dim=self.embed_dim,
+            in_channels=self.spatial_dim + self.in_channels,
+            local_channels=self.encoder_local_channels,
+            global_channels=self.encoder_global_channels,
+        )
+
+    def configure_pos_embed(self) -> PositionEmbeddingSine:
+        """Build the sinusoidal positional embedding of the patch centers and relative directions."""
+        return PositionEmbeddingSine(self.spatial_dim, self.embed_dim, temperature=1.0)
+
+    def configure_blocks(self) -> PointGPTExtractor:
+        """Build the causally-masked GPT extractor."""
+        return PointGPTExtractor(self.embed_dim, self.num_heads, self.depth, act=self.act, act_kwargs=self.act_kwargs)
+
+    def configure_generator_blocks(self) -> PointGPTGenerator:
+        """Build the GPT generator predicting the next patch from the extractor features."""
+        return PointGPTGenerator(
+            self.embed_dim,
+            self.num_heads,
+            self.decoder_depth,
+            self.group_size,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+        )
 
     def _column_mask(self, device: torch.device) -> Tensor:
         maskable = torch.cat(

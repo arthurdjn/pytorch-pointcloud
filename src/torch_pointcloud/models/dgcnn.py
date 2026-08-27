@@ -205,22 +205,34 @@ class DGCNNClassification(ClassificationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
 
-        self.stnet: Optional[TNet] = None
-        if self.stnet_local_channels is not None and self.stnet_global_channels is not None:
-            self.stnet = TNet(
-                local_channels=self.stnet_local_channels,
-                global_channels=self.stnet_global_channels,
-                k=self.spatial_dim,
-                act=self.act,
-                act_kwargs=self.act_kwargs,
-                act_first=self.act_first,
-                norm=self.norm,
-                norm_kwargs=self.norm_kwargs,
-                bias=self.bias,
-                aggr="max",
-            )
+        self.dropout = dropout
 
-        self.encoder = DGCNNEncoder(
+        self.stnet = self.configure_stnet()
+        self.encoder = self.configure_encoder()
+        self.proj = self.configure_proj()
+        self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
+        self.head = self.configure_head()
+
+    def configure_stnet(self) -> Optional[TNet]:
+        """Build the spatial transformer aligning the input coordinates, or `None` when its channels are unset."""
+        if self.stnet_local_channels is None or self.stnet_global_channels is None:
+            return None
+        return TNet(
+            local_channels=self.stnet_local_channels,
+            global_channels=self.stnet_global_channels,
+            k=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            aggr="max",
+        )
+
+    def configure_encoder(self) -> DGCNNEncoder:
+        """Build the `DGCNNEncoder` backbone."""
+        return DGCNNEncoder(
             channels=[self.in_channels + self.spatial_dim] + self.channels,
             num_neighbors=self.num_neighbors,
             act=self.act,
@@ -232,22 +244,20 @@ class DGCNNClassification(ClassificationModel):
             aggr="max",
         )
 
-        self.proj: Optional[MLP] = None
-        if self.proj_channels is not None:
-            self.proj = MLP(
-                [self.encoder.out_channels, self.proj_channels],
-                plain_last=False,
-                act=self.act,
-                act_kwargs=self.act_kwargs,
-                act_first=self.act_first,
-                norm=self.norm,
-                norm_kwargs=self.norm_kwargs,
-                bias=self.bias,
-            )
-
-        self.dropout = dropout
-        self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
-        self.head = self.configure_head()
+    def configure_proj(self) -> Optional[MLP]:
+        """Build the projection MLP applied before pooling, or `None` when `proj_channels` is unset."""
+        if self.proj_channels is None:
+            return None
+        return MLP(
+            [self.encoder.out_channels, self.proj_channels],
+            plain_last=False,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
 
     @property
     def embedding_dim(self) -> int:
@@ -382,23 +392,32 @@ class DGCNNSegmentation(SegmentationModel):
         self.bias = bias
         self.dropout = dropout
 
-        self.stnet: Optional[TNet] = None
-        if self.stnet_local_channels is not None and self.stnet_global_channels is not None:
-            self.stnet = TNet(
-                local_channels=self.stnet_local_channels,
-                global_channels=self.stnet_global_channels,
-                k=self.spatial_dim,
-                act=self.act,
-                act_kwargs=self.act_kwargs,
-                act_first=self.act_first,
-                norm=self.norm,
-                norm_kwargs=self.norm_kwargs,
-                bias=self.bias,
-                dropout=self.dropout,
-                aggr="max",
-            )
+        self.stnet = self.configure_stnet()
+        self.encoder = self.configure_encoder()
+        self.proj = self.configure_proj()
+        self.head = self.configure_head()
 
-        self.encoder = DGCNNEncoder(
+    def configure_stnet(self) -> Optional[TNet]:
+        """Build the spatial transformer aligning the input coordinates, or `None` when its channels are unset."""
+        if self.stnet_local_channels is None or self.stnet_global_channels is None:
+            return None
+        return TNet(
+            local_channels=self.stnet_local_channels,
+            global_channels=self.stnet_global_channels,
+            k=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=self.dropout,
+            aggr="max",
+        )
+
+    def configure_encoder(self) -> DGCNNEncoder:
+        """Build the `DGCNNEncoder` backbone."""
+        return DGCNNEncoder(
             channels=[self.in_channels + self.spatial_dim] + self.channels,
             num_neighbors=self.num_neighbors,
             act=self.act,
@@ -410,7 +429,9 @@ class DGCNNSegmentation(SegmentationModel):
             aggr="max",
         )
 
-        self.proj = MLP(
+    def configure_proj(self) -> MLP:
+        """Build the projection MLP producing the global feature."""
+        return MLP(
             [self.encoder.out_channels, self.proj_channels],
             plain_last=False,
             act=self.act,
@@ -420,8 +441,6 @@ class DGCNNSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
         )
-
-        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:
@@ -547,24 +566,38 @@ class DGCNNPartSegmentation(SegmentationModel):
         self.norm_kwargs = norm_kwargs
         self.bias = bias
         self.dropout = dropout
+        self.stnet_edge_channels = stnet_edge_channels
+        self.stnet_local_channels = stnet_local_channels
+        self.stnet_global_channels = stnet_global_channels
+        self.stnet_num_neighbors = stnet_num_neighbors
 
-        self.stnet: Optional[DynamicTNet] = None
-        if stnet_edge_channels is not None:
-            self.stnet = DynamicTNet(
-                edge_channels=stnet_edge_channels,
-                local_channels=stnet_local_channels or [],
-                global_channels=stnet_global_channels or [],
-                k=self.spatial_dim,
-                num_neighbors=stnet_num_neighbors,
-                act=self.act,
-                act_kwargs=self.act_kwargs,
-                act_first=self.act_first,
-                norm=self.norm,
-                norm_kwargs=self.norm_kwargs,
-                bias=self.bias,
-            )
+        self.stnet = self.configure_stnet()
+        self.encoder = self.configure_encoder()
+        self.proj = self.configure_proj()
+        self.cat_embed = self.configure_cat_embed()
+        self.head = self.configure_head()
 
-        self.encoder = DGCNNEncoder(
+    def configure_stnet(self) -> Optional[DynamicTNet]:
+        """Build the dynamic spatial transformer, or `None` when `stnet_edge_channels` is unset."""
+        if self.stnet_edge_channels is None:
+            return None
+        return DynamicTNet(
+            edge_channels=self.stnet_edge_channels,
+            local_channels=self.stnet_local_channels or [],
+            global_channels=self.stnet_global_channels or [],
+            k=self.spatial_dim,
+            num_neighbors=self.stnet_num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+        )
+
+    def configure_encoder(self) -> DGCNNEncoder:
+        """Build the `DGCNNEncoder` backbone."""
+        return DGCNNEncoder(
             channels=[self.in_channels + self.spatial_dim] + self.channels,
             num_neighbors=self.num_neighbors,
             act=self.act,
@@ -575,7 +608,10 @@ class DGCNNPartSegmentation(SegmentationModel):
             bias=self.bias,
             aggr="max",
         )
-        self.proj = MLP(
+
+    def configure_proj(self) -> MLP:
+        """Build the projection MLP producing the global feature."""
+        return MLP(
             [self.encoder.out_channels, self.proj_channels],
             plain_last=False,
             act=self.act,
@@ -585,7 +621,10 @@ class DGCNNPartSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
         )
-        self.cat_embed = MLP(
+
+    def configure_cat_embed(self) -> MLP:
+        """Build the MLP embedding the one-hot shape category."""
+        return MLP(
             [self.num_categories, self.cat_embed_channels],
             plain_last=False,
             act=self.act,
@@ -595,8 +634,6 @@ class DGCNNPartSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
         )
-
-        self.head = self.configure_head()
 
     @property
     def embedding_dim(self) -> int:

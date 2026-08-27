@@ -429,6 +429,18 @@ class VoteNetDetection(DetectionModel):
         self.vote_factor = vote_factor
         self.sampling = sampling
         self.spatial_dim = 3
+        self.sa_channels = sa_channels
+        self.sa_npoints = sa_npoints
+        self.sa_radii = sa_radii
+        self.sa_num_neighbors = sa_num_neighbors
+        self.fp_channels = fp_channels
+        self.vote_aggr_channels = vote_aggr_channels
+        self.vote_aggr_radius = vote_aggr_radius
+        self.vote_aggr_num_neighbors = vote_aggr_num_neighbors
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
         if mean.shape != (num_size_cluster, 3):
@@ -438,40 +450,52 @@ class VoteNetDetection(DetectionModel):
         # keeps it out of the state dict while still moving with `.to(device)`.
         self.register_buffer("mean_sizes", mean, persistent=False)
 
-        self.backbone = VoteNetBackbone(
-            in_channels,
-            sa_channels=sa_channels,
-            sa_npoints=sa_npoints,
-            sa_radii=sa_radii,
-            sa_num_neighbors=sa_num_neighbors,
-            fp_channels=fp_channels,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+        self.backbone = self.configure_backbone()
+        self.vgen = self.configure_vgen()
+        self.proposal = self.configure_proposal()
+
+    def configure_backbone(self) -> VoteNetBackbone:
+        """Build the PointNet++ seed backbone."""
+        return VoteNetBackbone(
+            self.in_channels,
+            sa_channels=self.sa_channels,
+            sa_npoints=self.sa_npoints,
+            sa_radii=self.sa_radii,
+            sa_num_neighbors=self.sa_num_neighbors,
+            fp_channels=self.fp_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.vgen = VotingModule(
-            vote_factor,
+
+    def configure_vgen(self) -> VotingModule:
+        """Build the voting module."""
+        return VotingModule(
+            self.vote_factor,
             self.backbone.out_channels,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
-        self.proposal = VoteNetProposalModule(
-            num_classes=num_classes,
-            num_heading_bin=num_heading_bin,
-            num_size_cluster=num_size_cluster,
-            num_proposal=num_proposal,
-            sampling=sampling,
+
+    def configure_proposal(self) -> VoteNetProposalModule:
+        """Build the proposal module."""
+        return VoteNetProposalModule(
+            num_classes=self.num_classes,
+            num_heading_bin=self.num_heading_bin,
+            num_size_cluster=self.num_size_cluster,
+            num_proposal=self.num_proposal,
+            sampling=self.sampling,
             seed_channels=self.backbone.out_channels,
-            vote_aggr_channels=vote_aggr_channels,
-            vote_aggr_radius=vote_aggr_radius,
-            vote_aggr_num_neighbors=vote_aggr_num_neighbors,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+            vote_aggr_channels=self.vote_aggr_channels,
+            vote_aggr_radius=self.vote_aggr_radius,
+            vote_aggr_num_neighbors=self.vote_aggr_num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
     def reset_classifier(self, num_classes: int) -> None:

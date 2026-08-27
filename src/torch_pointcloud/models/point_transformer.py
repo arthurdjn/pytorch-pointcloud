@@ -715,25 +715,45 @@ class PointTransformerClassification(ClassificationModel):
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
         self.embedding_dim = encoder_channels[-1]
+        self.encoder_channels = encoder_channels
+        self.encoder_depths = encoder_depths
+        self.encoder_num_groups = encoder_num_groups
+        self.encoder_num_neighbors = encoder_num_neighbors
+        self.ratios = ratios
+        self.spatial_dim = spatial_dim
+        self.add_self_loops = add_self_loops
         self.dropout = dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
-        self.embeddings = MLP([self.in_channels, encoder_channels[0]], plain_last=False)
-        self.encoder = PointTransformerEncoder(
-            channels=encoder_channels,
-            depths=encoder_depths,
-            num_groups=encoder_num_groups,
-            num_neighbors=encoder_num_neighbors,
-            ratios=ratios,
-            spatial_dim=spatial_dim,
-            add_self_loops=add_self_loops,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
+        self.embeddings = self.configure_embeddings()
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
+
+    def configure_embeddings(self) -> MLP:
+        """Build the embedding MLP lifting the input features to the first encoder width."""
+        return MLP([self.in_channels, self.encoder_channels[0]], plain_last=False)
+
+    def configure_encoder(self) -> PointTransformerEncoder:
+        """Build the `PointTransformerEncoder` backbone."""
+        return PointTransformerEncoder(
+            channels=self.encoder_channels,
+            depths=self.encoder_depths,
+            num_groups=self.encoder_num_groups,
+            num_neighbors=self.encoder_num_neighbors,
+            ratios=self.ratios,
+            spatial_dim=self.spatial_dim,
+            add_self_loops=self.add_self_loops,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -851,37 +871,65 @@ class PointTransformerSegmentation(SegmentationModel):
         # if in_channels is 0, we use positions as features
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
         self.embedding_dim = decoder_channels[-1]
+        self.encoder_channels = encoder_channels
+        self.encoder_depths = encoder_depths
+        self.encoder_num_groups = encoder_num_groups
+        self.encoder_num_neighbors = encoder_num_neighbors
+        self.decoder_channels = decoder_channels
+        self.decoder_depths = decoder_depths
+        self.decoder_num_groups = decoder_num_groups
+        self.decoder_num_neighbors = decoder_num_neighbors
+        self.ratios = ratios
+        self.spatial_dim = spatial_dim
+        self.add_self_loops = add_self_loops
         self.dropout = dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
-        self.embeddings = MLP([self.in_channels, encoder_channels[0]], plain_last=False)
-        self.encoder = PointTransformerEncoder(
-            channels=encoder_channels,
-            depths=encoder_depths,
-            num_groups=encoder_num_groups,
-            num_neighbors=encoder_num_neighbors,
-            ratios=ratios,
-            spatial_dim=spatial_dim,
-            add_self_loops=add_self_loops,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-        self.decoder = PointTransformerDecoder(
-            channels=[encoder_channels[-1]] + list(decoder_channels),
-            depths=decoder_depths,
-            num_groups=decoder_num_groups,
-            num_neighbors=decoder_num_neighbors,
-            spatial_dim=spatial_dim,
-            add_self_loops=add_self_loops,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
+        self.embeddings = self.configure_embeddings()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
+
+    def configure_embeddings(self) -> MLP:
+        """Build the embedding MLP lifting the input features to the first encoder width."""
+        return MLP([self.in_channels, self.encoder_channels[0]], plain_last=False)
+
+    def configure_encoder(self) -> PointTransformerEncoder:
+        """Build the `PointTransformerEncoder` backbone."""
+        return PointTransformerEncoder(
+            channels=self.encoder_channels,
+            depths=self.encoder_depths,
+            num_groups=self.encoder_num_groups,
+            num_neighbors=self.encoder_num_neighbors,
+            ratios=self.ratios,
+            spatial_dim=self.spatial_dim,
+            add_self_loops=self.add_self_loops,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_decoder(self) -> PointTransformerDecoder:
+        """Build the `PointTransformerDecoder` upsampling the coarsest features back through the encoder skips."""
+        return PointTransformerDecoder(
+            channels=[self.encoder_channels[-1]] + list(self.decoder_channels),
+            depths=self.decoder_depths,
+            num_groups=self.decoder_num_groups,
+            num_neighbors=self.decoder_num_neighbors,
+            spatial_dim=self.spatial_dim,
+            add_self_loops=self.add_self_loops,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

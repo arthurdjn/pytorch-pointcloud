@@ -264,35 +264,46 @@ class PointNetClassification(ClassificationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
-
-        self.encoder = PointNetEncoder(
-            spatial_dim=spatial_dim,
-            in_channels=in_channels,
-            mlp1_dims=mlp1_dims,
-            mlp2_dims=mlp2_dims,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            use_features_transform=use_features_transform,
-            tnet_mlp1_dims=tnet_mlp1_dims,
-            tnet_mlp2_dims=tnet_mlp2_dims,
-            tnet_act=tnet_act,
-            tnet_act_kwargs=tnet_act_kwargs,
-            tnet_norm=tnet_norm,
-            tnet_norm_kwargs=tnet_norm_kwargs,
-        )
-
-        self.num_features = mlp2_dims[-1]
-
+        self.spatial_dim = spatial_dim
+        self.mlp1_dims = mlp1_dims
+        self.mlp2_dims = mlp2_dims
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.use_features_transform = use_features_transform
+        self.tnet_mlp1_dims = tnet_mlp1_dims
+        self.tnet_mlp2_dims = tnet_mlp2_dims
+        self.tnet_act = tnet_act
+        self.tnet_act_kwargs = tnet_act_kwargs
+        self.tnet_norm = tnet_norm
+        self.tnet_norm_kwargs = tnet_norm_kwargs
         self.head_channels = list(head_channels)
 
+        self.encoder = self.configure_encoder()
+        self.num_features = mlp2_dims[-1]
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
+
+    def configure_encoder(self) -> PointNetEncoder:
+        """Build the `PointNetEncoder` backbone."""
+        return PointNetEncoder(
+            spatial_dim=self.spatial_dim,
+            in_channels=self.in_channels,
+            mlp1_dims=self.mlp1_dims,
+            mlp2_dims=self.mlp2_dims,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            use_features_transform=self.use_features_transform,
+            tnet_mlp1_dims=self.tnet_mlp1_dims,
+            tnet_mlp2_dims=self.tnet_mlp2_dims,
+            tnet_act=self.tnet_act,
+            tnet_act_kwargs=self.tnet_act_kwargs,
+            tnet_norm=self.tnet_norm,
+            tnet_norm_kwargs=self.tnet_norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -445,38 +456,50 @@ class PointNetSegmentation(SegmentationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
+        self.spatial_dim = spatial_dim
+        self.mlp1_dims = mlp1_dims
+        self.mlp2_dims = mlp2_dims
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.use_features_transform = use_features_transform
+        self.tnet_mlp1_dims = tnet_mlp1_dims
+        self.tnet_mlp2_dims = tnet_mlp2_dims
+        self.tnet_act = tnet_act
+        self.tnet_act_kwargs = tnet_act_kwargs
+        self.tnet_norm = tnet_norm
+        self.tnet_norm_kwargs = tnet_norm_kwargs
+        self.seg_head_dims = list(seg_head_dims)
 
-        self.encoder = PointNetEncoder(
-            spatial_dim=spatial_dim,
-            in_channels=in_channels,
-            mlp1_dims=mlp1_dims,
-            mlp2_dims=mlp2_dims,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            use_features_transform=use_features_transform,
-            tnet_mlp1_dims=tnet_mlp1_dims,
-            tnet_mlp2_dims=tnet_mlp2_dims,
-            tnet_act=tnet_act,
-            tnet_act_kwargs=tnet_act_kwargs,
-            tnet_norm=tnet_norm,
-            tnet_norm_kwargs=tnet_norm_kwargs,
-        )
-
+        self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
 
         # Calculate input dimension for segmentation head
         point_feat_dim = mlp1_dims[-1]
         global_feat_dim = mlp2_dims[-1]
         self.num_features = point_feat_dim + global_feat_dim
-
-        self.act = act
-        self.act_kwargs = act_kwargs
-        self.norm = norm
-        self.norm_kwargs = norm_kwargs
-        self.seg_head_dims = list(seg_head_dims)
         self.head = self.configure_head()
+
+    def configure_encoder(self) -> PointNetEncoder:
+        """Build the `PointNetEncoder` backbone."""
+        return PointNetEncoder(
+            spatial_dim=self.spatial_dim,
+            in_channels=self.in_channels,
+            mlp1_dims=self.mlp1_dims,
+            mlp2_dims=self.mlp2_dims,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            use_features_transform=self.use_features_transform,
+            tnet_mlp1_dims=self.tnet_mlp1_dims,
+            tnet_mlp2_dims=self.tnet_mlp2_dims,
+            tnet_act=self.tnet_act,
+            tnet_act_kwargs=self.tnet_act_kwargs,
+            tnet_norm=self.tnet_norm,
+            tnet_norm_kwargs=self.tnet_norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

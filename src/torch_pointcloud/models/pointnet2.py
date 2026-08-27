@@ -346,57 +346,68 @@ class PointNet2Classification(ClassificationModel):
         global_pool: PoolLike = "max",
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.stem_channels = stem_channels
+        self.sa_channels = sa_channels
+        self.aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
         self.aggr_use_pos = aggr_use_pos
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
-        self.dropout = dropout
+        self.ratios = ratios
+        self.radii = radii
+        self.num_neighbors = num_neighbors
+        self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
-        self.spatial_dim = spatial_dim
+        self.use_pos = use_pos
+        self.normalize_pos = normalize_pos
+        self.pool = pool
+        self.dropout = dropout
 
-        self.encoder = PointNet2Encoder(
-            in_channels=in_channels,
-            sa_channels=sa_channels,
-            ratios=ratios,
-            radii=radii,
-            num_neighbors=num_neighbors,
-            stem_channels=stem_channels,
-            spatial_dim=spatial_dim,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            use_pos=use_pos,
-            normalize_pos=normalize_pos,
-            pool=pool,
-        )
-
-        enc_out = self.encoder.out_channels
-        aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
-        aggr_in = enc_out + spatial_dim if aggr_use_pos else enc_out
-        self.aggr = (
-            MLP(
-                [aggr_in, *aggr_channels],
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                plain_last=False,
-            )
-            if aggr_channels
-            else None
-        )
-
+        self.encoder = self.configure_encoder()
+        self.aggr = self.configure_aggr()
         self.global_pool = create_pool(global_pool)
-        self.embedding_dim = aggr_channels[-1] if aggr_channels else enc_out
+        self.embedding_dim = self.aggr_channels[-1] if self.aggr_channels else self.encoder.out_channels
         self.head = self.configure_head()
+
+    def configure_encoder(self) -> PointNet2Encoder:
+        """Build the `PointNet2Encoder` backbone."""
+        return PointNet2Encoder(
+            in_channels=self.in_channels,
+            sa_channels=self.sa_channels,
+            ratios=self.ratios,
+            radii=self.radii,
+            num_neighbors=self.num_neighbors,
+            stem_channels=self.stem_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            use_pos=self.use_pos,
+            normalize_pos=self.normalize_pos,
+            pool=self.pool,
+        )
+
+    def configure_aggr(self) -> Optional[MLP]:
+        """Build the aggregation MLP applied to the encoder output, or `None` when `aggr_channels` is unset."""
+        if not self.aggr_channels:
+            return None
+        aggr_in = self.encoder.out_channels + self.spatial_dim if self.aggr_use_pos else self.encoder.out_channels
+        return MLP(
+            [aggr_in, *self.aggr_channels],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=False,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -551,71 +562,89 @@ class PointNet2Segmentation(SegmentationModel):
         fp_k: Optional[Union[int, Sequence[int]]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.stem_channels = stem_channels
+        self.sa_channels = sa_channels
+        self.aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
+        self.fp_channels = fp_channels
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
-        self.dropout = dropout
+        self.ratios = ratios
+        self.radii = radii
+        self.num_neighbors = num_neighbors
+        self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
+        self.use_pos = use_pos
+        self.normalize_pos = normalize_pos
+        self.pool = pool
+        self.dropout = dropout
+        self.skip_input = skip_input
+        self.fp_k = fp_k
 
-        self.encoder = PointNet2Encoder(
-            in_channels=in_channels,
-            sa_channels=sa_channels,
-            ratios=ratios,
-            radii=radii,
-            num_neighbors=num_neighbors,
-            stem_channels=stem_channels,
-            spatial_dim=spatial_dim,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            use_pos=use_pos,
-            normalize_pos=normalize_pos,
-            pool=pool,
-        )
-
-        enc_out = self.encoder.out_channels
-        aggr_channels = ensure_tuple(aggr_channels) if aggr_channels else None
-        self.aggr = (
-            MLP(
-                [enc_out, *aggr_channels],
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                plain_last=False,
-            )
-            if aggr_channels
-            else None
-        )
-
-        decoder_in = aggr_channels[-1] if aggr_channels is not None else enc_out
-        decoder_skip_channels = list(self.encoder.skip_channels[::-1])
-        if not skip_input and decoder_skip_channels:
-            decoder_skip_channels[-1] = 0
-        self.decoder = PointNet2Decoder(
-            in_channels=decoder_in,
-            skip_channels=decoder_skip_channels,
-            fp_channels=fp_channels,
-            spatial_dim=spatial_dim,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            k=fp_k,
-        )
-
+        self.encoder = self.configure_encoder()
+        self.aggr = self.configure_aggr()
+        self.decoder = self.configure_decoder()
         self.embedding_dim = fp_channels[-1][-1]
         self.head = self.configure_head()
+
+    def configure_encoder(self) -> PointNet2Encoder:
+        """Build the `PointNet2Encoder` backbone."""
+        return PointNet2Encoder(
+            in_channels=self.in_channels,
+            sa_channels=self.sa_channels,
+            ratios=self.ratios,
+            radii=self.radii,
+            num_neighbors=self.num_neighbors,
+            stem_channels=self.stem_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            use_pos=self.use_pos,
+            normalize_pos=self.normalize_pos,
+            pool=self.pool,
+        )
+
+    def configure_aggr(self) -> Optional[MLP]:
+        """Build the aggregation MLP applied to the encoder output, or `None` when `aggr_channels` is unset."""
+        if not self.aggr_channels:
+            return None
+        return MLP(
+            [self.encoder.out_channels, *self.aggr_channels],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=False,
+        )
+
+    def configure_decoder(self) -> PointNet2Decoder:
+        """Build the `PointNet2Decoder` upsampling the coarsest features back through the encoder skips."""
+        decoder_in = self.aggr_channels[-1] if self.aggr_channels is not None else self.encoder.out_channels
+        decoder_skip_channels = list(self.encoder.skip_channels[::-1])
+        if not self.skip_input and decoder_skip_channels:
+            decoder_skip_channels[-1] = 0
+        return PointNet2Decoder(
+            in_channels=decoder_in,
+            skip_channels=decoder_skip_channels,
+            fp_channels=self.fp_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            k=self.fp_k,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

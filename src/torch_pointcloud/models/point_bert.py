@@ -444,46 +444,88 @@ class PointBERTMaskedTransformer(BaseModel):
         self.num_group = num_group
         self.group_size = group_size
         self.encoder_dims = encoder_dims
+        self.token_local_channels = token_local_channels
+        self.token_global_channels = token_global_channels
+        self.pos_embed_channels = pos_embed_channels
         self.num_tokens = num_tokens
         self.cls_dim = cls_dim
         self.mask_ratio = mask_ratio
         self.drop_path = drop_path
+        self.spatial_dim = spatial_dim
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.block_norm = norm
+        self.block_norm_kwargs = norm_kwargs
+        self.token_act = token_act
+        self.token_act_kwargs = token_act_kwargs
+        self.token_norm = token_norm
+        self.token_norm_kwargs = token_norm_kwargs
 
-        self.encoder = PointPatchEmbed(
-            embed_dim=encoder_dims,
-            in_channels=spatial_dim + in_channels,
-            local_channels=token_local_channels,
-            global_channels=token_global_channels,
-            act=token_act,
-            act_kwargs=token_act_kwargs,
-            norm=token_norm,
-            norm_kwargs=token_norm_kwargs,
-        )
-        self.reduce_dim = nn.Linear(encoder_dims, embed_dim)
+        self.encoder = self.configure_encoder()
+        self.reduce_dim = self.configure_reduce_dim()
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.cls_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
-        self.pos_embed = MLP([spatial_dim, *pos_embed_channels, embed_dim], act="gelu", norm=None, plain_last=True)
-        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]
-        self.blocks = nn.ModuleList(
+        self.pos_embed = self.configure_pos_embed()
+        self.blocks = self.configure_blocks()
+        self.norm = nn.LayerNorm(embed_dim)
+        self.lm_head = self.configure_lm_head()
+        self.cls_head = self.configure_cls_head()
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet token encoder embedding each patch."""
+        return PointPatchEmbed(
+            embed_dim=self.encoder_dims,
+            in_channels=self.spatial_dim + self.in_channels,
+            local_channels=self.token_local_channels,
+            global_channels=self.token_global_channels,
+            act=self.token_act,
+            act_kwargs=self.token_act_kwargs,
+            norm=self.token_norm,
+            norm_kwargs=self.token_norm_kwargs,
+        )
+
+    def configure_reduce_dim(self) -> nn.Linear:
+        """Build the linear bridge from the token-embedding dimension to the transformer dimension."""
+        return nn.Linear(self.encoder_dims, self.embed_dim)
+
+    def configure_pos_embed(self) -> MLP:
+        """Build the positional-embedding MLP mapping patch centers to the transformer dimension."""
+        return MLP([self.spatial_dim, *self.pos_embed_channels, self.embed_dim], act="gelu", norm=None, plain_last=True)
+
+    def configure_blocks(self) -> nn.ModuleList:
+        """Build the transformer blocks with a linearly scaled stochastic-depth schedule."""
+        dpr = [x.item() for x in torch.linspace(0, self.drop_path, self.depth)]
+        return nn.ModuleList(
             [
                 TransformerBlock(
-                    embed_dim,
-                    num_heads=num_heads,
+                    self.embed_dim,
+                    num_heads=self.num_heads,
                     drop_path=dpr[i],
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
+                    act=self.act,
+                    act_kwargs=self.act_kwargs,
+                    norm=self.block_norm,
+                    norm_kwargs=self.block_norm_kwargs,
                 )
-                for i in range(depth)
+                for i in range(self.depth)
             ]
         )
-        self.norm = nn.LayerNorm(embed_dim)
-        self.lm_head = nn.Linear(embed_dim, num_tokens)
-        self.cls_head = MLP([embed_dim, cls_dim, cls_dim], act=act, act_kwargs=act_kwargs, norm=None, plain_last=True)
+
+    def configure_lm_head(self) -> nn.Linear:
+        """Build the token-classification head predicting dVAE codebook ids."""
+        return nn.Linear(self.embed_dim, self.num_tokens)
+
+    def configure_cls_head(self) -> MLP:
+        """Build the contrastive class-token head."""
+        return MLP(
+            [self.embed_dim, self.cls_dim, self.cls_dim],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=None,
+            plain_last=True,
+        )
 
     def _mask_center_block(self, center: Tensor) -> Tensor:
         B, G, _ = center.shape
@@ -791,29 +833,51 @@ class PointBERTDiscreteVAE(BaseModel):
         self.num_group = num_group
         self.group_size = group_size
         self.encoder_dims = encoder_dims
+        self.token_local_channels = token_local_channels
+        self.token_global_channels = token_global_channels
         self.num_tokens = num_tokens
         self.tokens_dims = tokens_dims
         self.decoder_dims = decoder_dims
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
-        self.encoder = PointPatchEmbed(
-            embed_dim=encoder_dims,
-            local_channels=token_local_channels,
-            global_channels=token_global_channels,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-        self.dgcnn_1 = TokenDGCNN(in_channels=encoder_dims, out_channels=num_tokens)
+        self.encoder = self.configure_encoder()
+        self.dgcnn_1 = self.configure_dgcnn_1()
         self.codebook = nn.Parameter(torch.zeros(num_tokens, tokens_dims))
-        self.dgcnn_2 = TokenDGCNN(in_channels=tokens_dims, out_channels=decoder_dims)
-        self.decoder = FoldingDecoder(
-            in_channels=decoder_dims,
-            num_fine=group_size,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
+        self.dgcnn_2 = self.configure_dgcnn_2()
+        self.decoder = self.configure_decoder()
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet token encoder embedding each patch."""
+        return PointPatchEmbed(
+            embed_dim=self.encoder_dims,
+            local_channels=self.token_local_channels,
+            global_channels=self.token_global_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_dgcnn_1(self) -> TokenDGCNN:
+        """Build the DGCNN mapping patch tokens to codebook logits."""
+        return TokenDGCNN(in_channels=self.encoder_dims, out_channels=self.num_tokens)
+
+    def configure_dgcnn_2(self) -> TokenDGCNN:
+        """Build the DGCNN mapping sampled codebook embeddings to decoder features."""
+        return TokenDGCNN(in_channels=self.tokens_dims, out_channels=self.decoder_dims)
+
+    def configure_decoder(self) -> FoldingDecoder:
+        """Build the folding decoder reconstructing each patch."""
+        return FoldingDecoder(
+            in_channels=self.decoder_dims,
+            num_fine=self.group_size,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
 
     def tokenize(self, pos: Tensor, batch: Tensor) -> Tensor:

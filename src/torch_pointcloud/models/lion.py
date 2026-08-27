@@ -1233,38 +1233,72 @@ class LIONDetection(DetectionModel):
         self.point_cloud_range = tuple(point_cloud_range)
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
+        self.channels = channels
+        self.vfe_num_filters = vfe_num_filters
+        self.depths = depths
+        self.window_shape = window_shape
+        self.group_size = group_size
+        self.diffusion = diffusion
+        self.diff_scale = diff_scale
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.feature_map_stride = feature_map_stride
+        self.local_max_classes = local_max_classes
+        self.d_state = d_state
+        self.d_conv = d_conv
+        self.expand = expand
 
-        self.vfe = DynamicMeanVFE(in_channels, vfe_num_filters, voxel_size, point_cloud_range, self.grid_size)
-        self.backbone_3d = LION3DBackbone(
-            self.grid_size,
-            channels=channels,
-            depths=depths,
-            window_shape=window_shape,
-            group_size=group_size,
-            diffusion=diffusion,
-            diff_scale=diff_scale,
-            d_state=d_state,
-            d_conv=d_conv,
-            expand=expand,
+        self.vfe = self.configure_vfe()
+        self.backbone_3d = self.configure_backbone_3d()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_vfe(self) -> DynamicMeanVFE:
+        """Build the dynamic mean voxel feature encoder."""
+        return DynamicMeanVFE(
+            self.in_channels, self.vfe_num_filters, self.voxel_size, self.point_cloud_range, self.grid_size
         )
-        bev_input_channels = channels * 2
-        self.backbone = BaseBEVResBackbone(
-            bev_input_channels,
-            layer_nums,
-            layer_strides,
-            num_filters,
-            upsample_strides,
-            num_upsample_filters,
+
+    def configure_backbone_3d(self) -> LION3DBackbone:
+        """Build the sparse 3D linear group RNN backbone."""
+        return LION3DBackbone(
+            self.grid_size,
+            channels=self.channels,
+            depths=self.depths,
+            window_shape=self.window_shape,
+            group_size=self.group_size,
+            diffusion=self.diffusion,
+            diff_scale=self.diff_scale,
+            d_state=self.d_state,
+            d_conv=self.d_conv,
+            expand=self.expand,
+        )
+
+    def configure_backbone(self) -> BaseBEVResBackbone:
+        """Build the residual 2D BEV backbone."""
+        return BaseBEVResBackbone(
+            self.channels * 2,
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
             norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         )
-        self.head = TransFusionHead(
+
+    def configure_head(self) -> TransFusionHead:
+        """Build the query-based TransFusion detection head."""
+        return TransFusionHead(
             self.backbone.num_bev_features,
-            num_classes,
+            self.num_classes,
             self.grid_size,
-            point_cloud_range,
-            voxel_size,
-            feature_map_stride=feature_map_stride,
-            local_max_classes=local_max_classes,
+            self.point_cloud_range,
+            self.voxel_size,
+            feature_map_stride=self.feature_map_stride,
+            local_max_classes=self.local_max_classes,
         )
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:

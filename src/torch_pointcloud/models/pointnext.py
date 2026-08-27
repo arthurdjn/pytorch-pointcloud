@@ -495,74 +495,92 @@ class PointNeXtPartSegmentation(SegmentationModel):
         head_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
-        stem_channels = ensure_list(stem_channels, none_as_empty=True)
-        encoder_channels = ensure_list(encoder_channels)
-        decoder_channels = ensure_list(decoder_channels)
-        ratios = ensure_tuple(ratios)
-        radiuses = ensure_tuple(radiuses)
-        num_neighbors = ensure_tuple(num_neighbors)
-
         self.num_categories = num_categories
-
-        self.stem: Optional[nn.Module] = None
-        if stem_channels:
-            self.stem = MLP(
-                [in_channels] + stem_channels,
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                plain_last=stem_plain_last,
-            )
-            in_channels = stem_channels[-1]
-
-        self.encoder = PointNeXtEncoder(
-            spatial_dim=spatial_dim,
-            channels=[in_channels] + encoder_channels,
-            depths=encoder_depths,
-            expansion=encoder_expansion,
-            sa_layers=sa_layers,
-            sa_use_res=sa_use_res,
-            ratios=ratios,
-            radiuses=radiuses,
-            num_neighbors=num_neighbors,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            add_self_loops=add_self_loops,
-        )
-
-        self.decoder = PointNeXtPartDecoder(
-            spatial_dim=spatial_dim,
-            channels=[encoder_channels[-1]] + decoder_channels,
-            skip_channels=encoder_channels[:-1][::-1] + [in_channels],
-            depths=decoder_depths,
-            global_conv1_in=encoder_channels[-2],
-            global_conv2_in=encoder_channels[-1],
-            num_categories=num_categories,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=decoder_plain_last,
-        )
-
-        self.dropout = dropout
-        self.head_channels = list(head_channels) if head_channels else []
+        self.stem_channels = ensure_list(stem_channels, none_as_empty=True)
+        self.stem_plain_last = stem_plain_last
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.encoder_depths = encoder_depths
+        self.encoder_expansion = encoder_expansion
+        self.sa_layers = sa_layers
+        self.sa_use_res = sa_use_res
+        self.decoder_channels = ensure_list(decoder_channels)
+        self.decoder_depths = decoder_depths
+        self.decoder_plain_last = decoder_plain_last
+        self.ratios = ensure_tuple(ratios)
+        self.radiuses = ensure_tuple(radiuses)
+        self.num_neighbors = ensure_tuple(num_neighbors)
+        self.add_self_loops = add_self_loops
+        self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
+        self.dropout = dropout
+        self.head_channels = list(head_channels) if head_channels else []
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[nn.Module]:
+        """Build the stem MLP lifting the input features, or `None` when `stem_channels` is unset."""
+        if not self.stem_channels:
+            return None
+        return MLP(
+            [self.in_channels] + self.stem_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=self.stem_plain_last,
+        )
+
+    def configure_encoder(self) -> PointNeXtEncoder:
+        """Build the `PointNeXtEncoder` backbone."""
+        in_channels = self.stem_channels[-1] if self.stem_channels else self.in_channels
+        return PointNeXtEncoder(
+            spatial_dim=self.spatial_dim,
+            channels=[in_channels] + self.encoder_channels,
+            depths=self.encoder_depths,
+            expansion=self.encoder_expansion,
+            sa_layers=self.sa_layers,
+            sa_use_res=self.sa_use_res,
+            ratios=self.ratios,
+            radiuses=self.radiuses,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+        )
+
+    def configure_decoder(self) -> PointNeXtPartDecoder:
+        """Build the `PointNeXtPartDecoder` upsampling the coarsest features back through the encoder skips."""
+        in_channels = self.stem_channels[-1] if self.stem_channels else self.in_channels
+        return PointNeXtPartDecoder(
+            spatial_dim=self.spatial_dim,
+            channels=[self.encoder_channels[-1]] + self.decoder_channels,
+            skip_channels=self.encoder_channels[:-1][::-1] + [in_channels],
+            depths=self.decoder_depths,
+            global_conv1_in=self.encoder_channels[-2],
+            global_conv2_in=self.encoder_channels[-1],
+            num_categories=self.num_categories,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=self.decoder_plain_last,
+        )
 
     @property
     def embedding_dim(self) -> int:
@@ -679,76 +697,95 @@ class PointNeXtClassification(ClassificationModel):
         global_sa_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
-        stem_channels = ensure_list(stem_channels, none_as_empty=True)
-        encoder_channels = ensure_list(encoder_channels)
-
-        self.stem: Optional[nn.Module] = None
-        if stem_channels:
-            self.stem = MLP(
-                [in_channels] + stem_channels,
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                plain_last=stem_plain_last,
-            )
-            in_channels = stem_channels[-1]
-
-        self.encoder = PointNeXtEncoder(
-            spatial_dim=spatial_dim,
-            channels=[in_channels] + encoder_channels,
-            depths=encoder_depths,
-            expansion=encoder_expansion,
-            sa_layers=sa_layers,
-            sa_use_res=sa_use_res,
-            ratios=ratios,
-            radiuses=radiuses,
-            num_neighbors=num_neighbors,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            add_self_loops=add_self_loops,
-        )
-
-        self.global_sa: Optional[PointNeXtSetAbstraction] = None
-        if global_sa_channels is not None:
-            last_ch = encoder_channels[-1]
-            self.global_sa = PointNeXtSetAbstraction(
-                spatial_dim=spatial_dim,
-                in_channels=last_ch,
-                channels=list(global_sa_channels),
-                ratio=1.0,
-                radius=1e6,
-                num_neighbors=1024,
-                use_res=False,
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                add_self_loops=add_self_loops,
-                aggr="max",
-            )
-            self._embedding_dim = int(global_sa_channels[-1])
-        else:
-            self._embedding_dim = encoder_channels[-1]
-
-        self.dropout = dropout
-        self.head_channels = list(head_channels) if head_channels else []
+        self.stem_channels = ensure_list(stem_channels, none_as_empty=True)
+        self.stem_plain_last = stem_plain_last
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.encoder_depths = encoder_depths
+        self.encoder_expansion = encoder_expansion
+        self.sa_layers = sa_layers
+        self.sa_use_res = sa_use_res
+        self.ratios = ratios
+        self.radiuses = radiuses
+        self.num_neighbors = num_neighbors
+        self.add_self_loops = add_self_loops
+        self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
+        self.dropout = dropout
+        self.head_channels = list(head_channels) if head_channels else []
+        self.global_sa_channels = list(global_sa_channels) if global_sa_channels is not None else None
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.global_sa = self.configure_global_sa()
+        self._embedding_dim = (
+            int(self.global_sa_channels[-1]) if self.global_sa_channels is not None else self.encoder_channels[-1]
+        )
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[nn.Module]:
+        """Build the stem MLP lifting the input features, or `None` when `stem_channels` is unset."""
+        if not self.stem_channels:
+            return None
+        return MLP(
+            [self.in_channels] + self.stem_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=self.stem_plain_last,
+        )
+
+    def configure_encoder(self) -> PointNeXtEncoder:
+        """Build the `PointNeXtEncoder` backbone."""
+        in_channels = self.stem_channels[-1] if self.stem_channels else self.in_channels
+        return PointNeXtEncoder(
+            spatial_dim=self.spatial_dim,
+            channels=[in_channels] + self.encoder_channels,
+            depths=self.encoder_depths,
+            expansion=self.encoder_expansion,
+            sa_layers=self.sa_layers,
+            sa_use_res=self.sa_use_res,
+            ratios=self.ratios,
+            radiuses=self.radiuses,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+        )
+
+    def configure_global_sa(self) -> Optional[PointNeXtSetAbstraction]:
+        """Build the global set-abstraction applied before pooling, or `None` when `global_sa_channels` is unset."""
+        if self.global_sa_channels is None:
+            return None
+        return PointNeXtSetAbstraction(
+            spatial_dim=self.spatial_dim,
+            in_channels=self.encoder_channels[-1],
+            channels=self.global_sa_channels,
+            ratio=1.0,
+            radius=1e6,
+            num_neighbors=1024,
+            use_res=False,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+            aggr="max",
+        )
 
     @property
     def embedding_dim(self) -> int:
@@ -893,69 +930,88 @@ class PointNeXtSegmentation(SegmentationModel):
         head_channels: Optional[Sequence[int]] = None,
     ):
         super().__init__(in_channels, num_classes)
-        stem_channels = ensure_list(stem_channels, none_as_empty=True)
-        encoder_channels = ensure_list(encoder_channels)
-        decoder_channels = ensure_list(decoder_channels)
-        ratios = ensure_tuple(ratios)
-        radiuses = ensure_tuple(radiuses)
-        num_neighbors = ensure_tuple(num_neighbors)
-
-        self.stem: Optional[nn.Module] = None
-        if stem_channels:
-            self.stem = MLP(
-                [in_channels] + stem_channels,
-                act=act,
-                act_kwargs=act_kwargs,
-                act_first=act_first,
-                norm=norm,
-                norm_kwargs=norm_kwargs,
-                bias=bias,
-                plain_last=stem_plain_last,
-            )
-            in_channels = stem_channels[-1]
-
-        self.encoder = PointNeXtEncoder(
-            spatial_dim=spatial_dim,
-            channels=[in_channels] + encoder_channels,
-            depths=encoder_depths,
-            expansion=encoder_expansion,
-            sa_layers=sa_layers,
-            sa_use_res=sa_use_res,
-            ratios=ratios,
-            radiuses=radiuses,
-            num_neighbors=num_neighbors,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            add_self_loops=add_self_loops,
-        )
-
-        self.decoder = PointNeXtDecoder(
-            spatial_dim=spatial_dim,
-            channels=[encoder_channels[-1]] + decoder_channels,
-            skip_channels=encoder_channels[:-1][::-1] + [in_channels],
-            depths=decoder_depths,
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=decoder_plain_last,
-        )
-
-        self.dropout = dropout
-        self.head_channels = list(head_channels) if head_channels else []
+        self.stem_channels = ensure_list(stem_channels, none_as_empty=True)
+        self.stem_plain_last = stem_plain_last
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.encoder_depths = encoder_depths
+        self.encoder_expansion = encoder_expansion
+        self.sa_layers = sa_layers
+        self.sa_use_res = sa_use_res
+        self.decoder_channels = ensure_list(decoder_channels)
+        self.decoder_depths = decoder_depths
+        self.decoder_plain_last = decoder_plain_last
+        self.ratios = ensure_tuple(ratios)
+        self.radiuses = ensure_tuple(radiuses)
+        self.num_neighbors = ensure_tuple(num_neighbors)
+        self.add_self_loops = add_self_loops
+        self.spatial_dim = spatial_dim
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
+        self.dropout = dropout
+        self.head_channels = list(head_channels) if head_channels else []
+
+        self.stem = self.configure_stem()
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
+
+    def configure_stem(self) -> Optional[nn.Module]:
+        """Build the stem MLP lifting the input features, or `None` when `stem_channels` is unset."""
+        if not self.stem_channels:
+            return None
+        return MLP(
+            [self.in_channels] + self.stem_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=self.stem_plain_last,
+        )
+
+    def configure_encoder(self) -> PointNeXtEncoder:
+        """Build the `PointNeXtEncoder` backbone."""
+        in_channels = self.stem_channels[-1] if self.stem_channels else self.in_channels
+        return PointNeXtEncoder(
+            spatial_dim=self.spatial_dim,
+            channels=[in_channels] + self.encoder_channels,
+            depths=self.encoder_depths,
+            expansion=self.encoder_expansion,
+            sa_layers=self.sa_layers,
+            sa_use_res=self.sa_use_res,
+            ratios=self.ratios,
+            radiuses=self.radiuses,
+            num_neighbors=self.num_neighbors,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            add_self_loops=self.add_self_loops,
+        )
+
+    def configure_decoder(self) -> PointNeXtDecoder:
+        """Build the `PointNeXtDecoder` upsampling the coarsest features back through the encoder skips."""
+        in_channels = self.stem_channels[-1] if self.stem_channels else self.in_channels
+        return PointNeXtDecoder(
+            spatial_dim=self.spatial_dim,
+            channels=[self.encoder_channels[-1]] + self.decoder_channels,
+            skip_channels=self.encoder_channels[:-1][::-1] + [in_channels],
+            depths=self.decoder_depths,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            plain_last=self.decoder_plain_last,
+        )
 
     @property
     def embedding_dim(self) -> int:
