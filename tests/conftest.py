@@ -1,12 +1,101 @@
 import shutil
+from functools import partial
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Dict
 
 import pytest
+import torch
+from torch.utils.data import Dataset
+
+from torch_pointcloud.datasets import (
+    KITTI,
+    S3DIS,
+    ModelNetNormalResampled,
+    S3DISHdf5,
+    ScanNet20,
+    ScanObjectNN,
+    SemanticKITTI,
+    ShapeNetPart,
+    SunRGBD,
+)
 
 DATA_DIR = Path(__file__).parent / "data"
 DATASETS_DIR = DATA_DIR / "datasets"
 MODELS_DIR = DATA_DIR / "models"
+
+
+def _scannet20_blocks(**kwargs: Any) -> ScanNet20:
+    # tile_scannet_scene samples points per block with torch RNG; seed so the snapshot stays reproducible.
+    torch.manual_seed(0)
+    return ScanNet20(
+        root=DATASETS_DIR,
+        split="val",
+        use_axis_alignment=False,
+        block_size=1.5,
+        block_stride=0.75,
+        num_nodes=8192,
+        show_progress=False,
+        **kwargs,
+    )
+
+
+FIXTURE_DATASETS: Dict[str, Callable[..., Dataset]] = {
+    "modelnet_resampled": partial(
+        ModelNetNormalResampled,
+        root=DATASETS_DIR,
+        variant="40",
+        train=False,
+        show_progress=False,
+    ),
+    "s3dis_hdf5": partial(
+        S3DISHdf5,
+        root=DATASETS_DIR,
+        areas=("Area_5",),
+        show_progress=False,
+    ),
+    "s3dis": partial(
+        S3DIS,
+        root=DATASETS_DIR,
+        areas=("Area_5",),
+        aligned=True,
+        download=False,
+        show_progress=False,
+    ),
+    "shapenetpart": partial(
+        ShapeNetPart,
+        root=DATASETS_DIR,
+        split="test",
+        show_progress=False,
+    ),
+    "scanobjectnn": partial(
+        ScanObjectNN,
+        root=DATASETS_DIR,
+        train=False,
+        partition="split1",
+        background=False,
+        show_progress=False,
+    ),
+    "scannet20": partial(
+        ScanNet20,
+        root=DATASETS_DIR,
+        split="val",
+        show_progress=False,
+    ),
+    "scannet20_blocks": _scannet20_blocks,
+    "semantickitti": partial(
+        SemanticKITTI,
+        root=DATASETS_DIR,
+        sequences=("00",),
+    ),
+    "sunrgbd": partial(SunRGBD, root=DATASETS_DIR, train=False),
+    "kitti": partial(KITTI, root=DATASETS_DIR),
+}
+
+
+@pytest.fixture
+def fixture_datasets() -> Dict[str, Callable[..., Dataset]]:
+    """Constructors of the datasets shipped under `tests/data/datasets`, keyed by family; call one with `transform=`."""
+    return FIXTURE_DATASETS
 
 
 def _create_dir_factory(source: Path, dest: Path, symlinks: bool = False) -> Callable[..., Path]:

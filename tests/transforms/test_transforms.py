@@ -1681,35 +1681,50 @@ def test_random_shift_rejects_mismatched_key_widths() -> None:
         t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})
 
 
-def _selection_scene() -> Dict[str, Any]:
-    pos = torch.arange(10, dtype=torch.float32)[:, None].repeat(1, 3) * 0.3
-    return {"pos": pos, "color": torch.arange(10)[:, None].repeat(1, 3), "mask": pos[:, 0] > 1.0}
+SELECTION_POS = torch.arange(10, dtype=torch.float32)[:, None].repeat(1, 3) * 0.3
+SELECTION_SCENE = {
+    "pos": SELECTION_POS,
+    "color": torch.arange(10)[:, None].repeat(1, 3),
+    "mask": SELECTION_POS[:, 0] > 1.0,
+}
+SELECTION_SAMPLERS = [
+    pytest.param(T.RandomSample(keys=["pos", "color"], num_samples=4, dst_index_key="index"), id="RandomSample"),
+    pytest.param(
+        T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=4, dst_index_key="index"),
+        id="FarthestPointSample",
+        marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
+    ),
+    pytest.param(
+        T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0), dst_index_key="index"),
+        id="SphereCrop",
+    ),
+    pytest.param(
+        T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5, dst_index_key="index"), id="RemoveNearOrigin"
+    ),
+    pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5, dst_index_key="index"), id="RandomDropout"),
+    pytest.param(T.ShufflePoint(keys=["pos", "color"], dst_index_key="index"), id="ShufflePoint"),
+    pytest.param(T.ApplyMask(keys=["pos", "color"], mask_key="mask", dst_index_key="index"), id="ApplyMask"),
+    pytest.param(T.Slice(keys=["pos", "color"], stop=4, dst_index_key="index"), id="Slice"),
+]
+DEFAULT_SELECTION_SAMPLERS = [
+    pytest.param(T.RandomSample(keys=["pos", "color"], num_samples=4), id="RandomSample"),
+    pytest.param(
+        T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=4),
+        id="FarthestPointSample",
+        marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
+    ),
+    pytest.param(T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0)), id="SphereCrop"),
+    pytest.param(T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5), id="RemoveNearOrigin"),
+    pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5), id="RandomDropout"),
+    pytest.param(T.ShufflePoint(keys=["pos", "color"]), id="ShufflePoint"),
+    pytest.param(T.ApplyMask(keys=["pos", "color"], mask_key="mask"), id="ApplyMask"),
+    pytest.param(T.Slice(keys=["pos", "color"], stop=4), id="Slice"),
+]
 
 
-def _selection_samplers(**kwargs: Any) -> list:
-    g = torch.Generator().manual_seed(0)
-    return [
-        pytest.param(T.RandomSample(keys=["pos", "color"], num_samples=4, generator=g, **kwargs), id="RandomSample"),
-        pytest.param(
-            T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=4, **kwargs),
-            id="FarthestPointSample",
-            marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
-        ),
-        pytest.param(
-            T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0), **kwargs),
-            id="SphereCrop",
-        ),
-        pytest.param(T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5, **kwargs), id="RemoveNearOrigin"),
-        pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5, generator=g, **kwargs), id="RandomDropout"),
-        pytest.param(T.ShufflePoint(keys=["pos", "color"], generator=g, **kwargs), id="ShufflePoint"),
-        pytest.param(T.ApplyMask(keys=["pos", "color"], mask_key="mask", **kwargs), id="ApplyMask"),
-        pytest.param(T.Slice(keys=["pos", "color"], stop=4, **kwargs), id="Slice"),
-    ]
-
-
-@pytest.mark.parametrize("transform", _selection_samplers(dst_index_key="index"))
+@pytest.mark.parametrize("transform", SELECTION_SAMPLERS)
 def test_selection_sampler_index_round_trips(transform: T.DictTransform) -> None:
-    scene = _selection_scene()
+    scene = SELECTION_SCENE
     out = transform(scene)
     index = out["index"]
     assert index.dtype == torch.long
@@ -1718,14 +1733,14 @@ def test_selection_sampler_index_round_trips(transform: T.DictTransform) -> None
     assert torch.equal(scene["color"][index], out["color"])
 
 
-@pytest.mark.parametrize("transform", _selection_samplers())
+@pytest.mark.parametrize("transform", DEFAULT_SELECTION_SAMPLERS)
 def test_selection_sampler_default_writes_no_index(transform: T.DictTransform) -> None:
-    out = transform(_selection_scene())
+    out = transform(SELECTION_SCENE)
     assert "index" not in out
 
 
 def test_index_composes_through_prior() -> None:
-    scene = _selection_scene()
+    scene = SELECTION_SCENE
     g = torch.Generator().manual_seed(0)
     out = T.Compose(
         [
