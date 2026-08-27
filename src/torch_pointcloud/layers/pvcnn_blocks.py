@@ -44,15 +44,15 @@ class Voxelization(nn.Module):
             pos_norm = torch.norm(pos_centered, dim=1, keepdim=True)
             pos_norm_max = scatter(pos_norm.squeeze(-1), batch, dim=0, reduce="max", dim_size=batch_size)
             pos_norm_max = pos_norm_max[batch].unsqueeze(1)
-            norm_coords = pos_centered / (pos_norm_max * 2.0 + 1e-6) + 0.5
+            pos_grid = pos_centered / (pos_norm_max * 2.0 + 1e-6) + 0.5
         else:
-            norm_coords = (pos_centered + 1) / 2.0
+            pos_grid = (pos_centered + 1) / 2.0
 
-        norm_coords = torch.clamp(norm_coords * self.resolution, 0, self.resolution - 1)
-        vox_coords = torch.round(norm_coords)
+        pos_grid = torch.clamp(pos_grid * self.resolution, 0, self.resolution - 1)
+        pos_voxel = torch.round(pos_grid)
 
-        voxel_features = dense_voxelize(x, vox_coords, batch, self.resolution, reduce="mean")
-        return voxel_features, norm_coords
+        voxel_features = dense_voxelize(x, pos_voxel, batch, self.resolution, reduce="mean")
+        return voxel_features, pos_grid
 
 
 class SE3d(nn.Module):
@@ -174,7 +174,7 @@ class PVConv(nn.Module):
         )
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x_voxels, voxel_coords = self.voxelization(x, pos, batch)
+        x_voxels, pos_grid = self.voxelization(x, pos, batch)
         x_voxels = self.voxel_layers(x_voxels)
-        x_voxels = trilinear_dense_devoxelize(x_voxels, voxel_coords, batch, self.resolution)
+        x_voxels = trilinear_dense_devoxelize(x_voxels, pos_grid, batch, self.resolution)
         return x_voxels + self.mlp(x)

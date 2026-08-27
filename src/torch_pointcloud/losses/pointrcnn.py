@@ -166,7 +166,7 @@ class PointRCNNLoss(nn.Module):
 
         Args:
             output: The model's training-mode output: stage-1 `point_cls_preds` $(N, C)$,
-                `point_box_preds` $(N, 8)$, `point_coords` $(N, 3)$, `point_batch` $(N,)$; stage-2
+                `point_box_preds` $(N, 8)$, `point_pos` $(N, 3)$, `point_batch` $(N,)$; stage-2
                 `rcnn_cls` $(M, 1)$, `rcnn_reg` $(M, 7)$, `rcnn_boxes` $(M, 7)$, `rois` $(M, 7)$,
                 `gt_of_rois` $(M, 7)$ (ROI-canonical matched box), `gt_of_rois_src` $(M, 7)$ (lidar-frame
                 matched box) and `roi_ious` $(M,)$.
@@ -178,7 +178,7 @@ class PointRCNNLoss(nn.Module):
             `rcnn_cls_loss`, `rcnn_box_loss`.
         """
         point_cls_labels, point_box_labels = self._assign_point_targets(
-            output["point_coords"], output["point_batch"], batch
+            output["point_pos"], output["point_batch"], batch
         )
         reg_valid_mask = (output["roi_ious"] > self.reg_fg_thresh).long()
         rcnn_cls_labels = self._rcnn_cls_labels(output["roi_ious"])
@@ -212,7 +212,7 @@ class PointRCNNLoss(nn.Module):
         return labels
 
     def _assign_point_targets(
-        self, point_coords: Tensor, point_batch: Tensor, batch: Dict[str, Any]
+        self, point_pos: Tensor, point_batch: Tensor, batch: Dict[str, Any]
     ) -> Tuple[Tensor, Tensor]:
         r"""Assign per-point foreground labels and box-residual targets by points-in-box matching.
 
@@ -226,17 +226,17 @@ class PointRCNNLoss(nn.Module):
         gt_boxes: Tensor = batch[DataKeys.BOX]
         gt_labels: Tensor = batch[DataKeys.LABEL].long() + 1
         gt_batch: Tensor = batch[DataKeys.BATCH_BOX]
-        extra = point_coords.new_tensor(self.gt_extra_width)
+        extra = point_pos.new_tensor(self.gt_extra_width)
 
-        num_points = point_coords.shape[0]
-        point_cls_labels = point_coords.new_zeros(num_points, dtype=torch.long)
-        point_box_labels = point_coords.new_zeros(num_points, 8)
+        num_points = point_pos.shape[0]
+        point_cls_labels = point_pos.new_zeros(num_points, dtype=torch.long)
+        point_box_labels = point_pos.new_zeros(num_points, 8)
 
         batch_size = int(point_batch.max().item()) + 1 if num_points else 0
         for b in range(batch_size):
             point_mask = point_batch == b
             box_mask = gt_batch == b
-            scene_points = point_coords[point_mask]
+            scene_points = point_pos[point_mask]
             scene_boxes = gt_boxes[box_mask]
             scene_labels = gt_labels[box_mask]
             if scene_boxes.shape[0] == 0 or scene_points.shape[0] == 0:

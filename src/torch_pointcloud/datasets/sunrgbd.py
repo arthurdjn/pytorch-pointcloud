@@ -426,14 +426,14 @@ class SunRGBD(PointCloudDataset):
             args: The scene's sequence id, its metadata struct, and the split directory to write into.
         """
         sequence_id, entry, split_dir = args
-        coords, colors = self.read_scene_cloud(entry)
+        pos, colors = self.read_scene_cloud(entry)
         boxes = parse_boxes(entry.groundtruth3DBB, self.class_to_idx)
         classes = np.asarray(boxes[:, 7], dtype=np.int64)
 
         scene_dir = Path(split_dir, sequence_id.replace("/", "_"))
         tmp_dir = scene_dir.with_name(f"{scene_dir.name}.tmp")
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        np.save(Path(tmp_dir, "pos.npy"), coords.astype(np.float16))
+        np.save(Path(tmp_dir, "pos.npy"), pos.astype(np.float16))
         np.save(Path(tmp_dir, "color.npy"), colors)
         np.save(Path(tmp_dir, "box.npy"), boxes)
         np.save(Path(tmp_dir, "class.npy"), classes)

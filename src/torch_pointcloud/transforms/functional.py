@@ -1289,10 +1289,10 @@ def random_elastic_distortion(
     # grid_sample's grid last dim is (x, y, z) which indexes (W, H, D) of the input.
     index = (pos - pos_min) / granularity + 1.0
     normalized = 2.0 * index / (grid_int.to(pos.dtype) - 1.0) - 1.0
-    sample_coords = normalized.to(noise.dtype).view(1, 1, 1, -1, 3)
+    sample_grid = normalized.to(noise.dtype).view(1, 1, 1, -1, 3)
 
     displacement = torch.nn.functional.grid_sample(
-        noise, sample_coords, mode="bilinear", padding_mode="zeros", align_corners=True
+        noise, sample_grid, mode="bilinear", padding_mode="zeros", align_corners=True
     )
     # displacement: (1, 3, 1, 1, N) -> (N, 3)
     displacement = displacement.squeeze(2).squeeze(2).squeeze(0).T
