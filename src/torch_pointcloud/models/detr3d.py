@@ -820,6 +820,11 @@ class DETR3DDetection(DetectionModel):
         query_embed = self.query_projection(pos_embed)
         return query_xyz, query_embed
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the encoder tokens entering the decoder."""
+        return self.decoder_embed_dim
+
     def forward_features(
         self,
         x: OptTensor,

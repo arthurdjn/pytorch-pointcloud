@@ -63,6 +63,8 @@ def test_detr3d_vanilla_forward_shapes() -> None:
     data = _make_inputs()
     with torch.no_grad():
         out = model(None, data["pos"], data["batch"])
+        _, enc_features = model.forward_features(None, data["pos"], data["batch"])
+    assert enc_features.shape[-1] == model.num_features
     _assert_output_shapes(out, batch_size=2, num_queries=16, num_classes=5, nb=1)
     assert torch.isfinite(out["center_unnormalized"]).all()
 

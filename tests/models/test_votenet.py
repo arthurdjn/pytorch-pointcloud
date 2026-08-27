@@ -70,6 +70,8 @@ def test_votenet_scannet_forward_shapes() -> None:
     data = _make_inputs(in_channels=model.in_channels)
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
+        x_seed, _, _, _ = model.forward_features(data["x"], data["pos"], data["batch"])
+    assert x_seed.shape[1] == model.num_features
     _assert_proposal_shapes(out, batch_size=2, num_proposal=256, nh=1, ns=18, nc=18)
     # Seeds are the 1024 SA2 points per scene; votes are 1:1 with seeds.
     assert out["pos_seed"].shape == (2 * 1024, 3)
