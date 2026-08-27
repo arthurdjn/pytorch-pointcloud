@@ -625,7 +625,7 @@ def pointnet_s3dis_area5(**hparams: Any) -> PointNetSegmentation:
     # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=0, num_classes=50),
-    transform=T.Compose([T.Rescale(keys=DataKeys.POS)]),
+    transform=T.Rescale(keys=DataKeys.POS),
 )
 def pointnet_shapenetpart(**hparams: Any) -> PointNetSegmentation:
     return PointNetSegmentation(**hparams)

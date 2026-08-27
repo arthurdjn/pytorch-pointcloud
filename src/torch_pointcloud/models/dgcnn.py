@@ -681,7 +681,7 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
             bias=True,
             dropout=0.5,
         ),
-        transform=T.Compose([T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X)]),
+        transform=T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
     )
 
 
