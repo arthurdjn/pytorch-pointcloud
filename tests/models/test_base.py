@@ -85,7 +85,7 @@ def test_detection_subclass_with_full_contract_instantiates() -> None:
     "method", ["num_features", "configure_head", "reset_classifier", "forward_features", "forward_head"]
 )
 def test_subclass_missing_split_method_raises(model_cls: type, method: str) -> None:
-    class ForwardOnly(model_cls):  # type: ignore[misc,valid-type]
+    class ForwardOnly(model_cls):
         def forward(self, x: Tensor) -> Tensor:
             return x
 

@@ -204,6 +204,7 @@ def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path)
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+    assert isinstance(model.fc, nn.Linear)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
