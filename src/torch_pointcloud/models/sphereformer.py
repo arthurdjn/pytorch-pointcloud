@@ -751,7 +751,7 @@ class SphereFormerSegmentation(SegmentationModel):
                 pos_reduce="mean",
                 keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
                 size=0.05,
-                grid_pos_key=DataKeys.POS_GRID,
+                dst_pos_grid_key=DataKeys.POS_GRID,
                 allow_missing_keys=True,
             ),
         ]
@@ -820,7 +820,7 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
                 pos_reduce="mean",
                 keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
                 size=0.1,
-                grid_pos_key=DataKeys.POS_GRID,
+                dst_pos_grid_key=DataKeys.POS_GRID,
                 allow_missing_keys=True,
             ),
         ]

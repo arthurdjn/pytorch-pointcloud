@@ -758,7 +758,7 @@ def test_voxel_grid_grid_pos_key() -> None:
         pos_key="pos",
         pos_reduce="mean",
         size=0.1,
-        grid_pos_key="pos_grid",
+        dst_pos_grid_key="pos_grid",
     )({"pos": pos})
     assert "pos_grid" in result
     assert result["pos_grid"].dtype == torch.long
@@ -1796,6 +1796,19 @@ def test_voxelize_default_writes_inverse_key() -> None:
     not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
     reason="torch-cluster or torch-scatter is not installed",
 )
+def test_voxelize_dst_pos_grid_key_written_for_every_pos_reduce() -> None:
+    pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    grid = T.Voxelize(pos_key="pos", pos_reduce="grid", size=0.1, dst_pos_grid_key="pos_grid")({"pos": pos})
+    first = T.Voxelize(pos_key="pos", pos_reduce="first", size=0.1, dst_pos_grid_key="pos_grid")({"pos": pos})
+    assert torch.equal(grid["pos_grid"], grid["pos"])
+    assert torch.equal(first["pos_grid"], grid["pos"])
+    assert torch.equal(first["pos"], pos[[0, 2]])
+
+
+@pytest.mark.skipif(
+    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
+    reason="torch-cluster or torch-scatter is not installed",
+)
 def test_voxelize_dst_inverse_key_none_opts_out() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
     out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.1, dst_inverse_key=None)({"pos": pos})
@@ -1817,6 +1830,7 @@ def test_compose_allow_missing_keys_propagates_through_nested_compose() -> None:
     assert inner.allow_missing_keys is True
     assert child.allow_missing_keys is True
     outer.allow_missing_keys = False
+    assert inner.allow_missing_keys is False
     assert child.allow_missing_keys is False
 
 

@@ -35,7 +35,7 @@ SEED = 42
 def make_predictor(model: Module) -> Callable[[Dict[str, Any]], torch.Tensor]:
     @torch.no_grad()
     def predictor(window: Dict[str, Any]) -> torch.Tensor:
-        return model(window[DataKeys.X], window[DataKeys.POS], window[DataKeys.BATCH])
+        return model(window[DataKeys.X], window[DataKeys.POS_GRID], window[DataKeys.BATCH])
 
     return predictor
 
@@ -68,7 +68,7 @@ def evaluate(
             torch.cuda.synchronize()
         start = time.perf_counter()
         if inferer is None:
-            voxel_pred = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
+            voxel_pred = model(data[DataKeys.X], data[DataKeys.POS_GRID], data[DataKeys.BATCH])
         else:
             voxel_pred = inferer(data, predictor=predictor)
         if device.startswith("cuda"):
@@ -158,6 +158,7 @@ def main() -> None:
     base = evaluate(model, new_loader(), args.device, num_classes, inferer=None)
     sw_inferer = SlidingWindowInferer(
         block_size=args.block_size,
+        pos_key=DataKeys.POS_GRID,
         roi_num_points=args.roi_num_points,
         softmax=True,
     )

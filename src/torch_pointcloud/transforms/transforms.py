@@ -265,9 +265,9 @@ class Compose(Transform):
     Args:
         transforms: The transforms to apply, in order.
         allow_missing_keys: When set, assigned to every `DictTransform` child, recursively through nested
-            `Compose` objects, overriding what each child was built with. Registered pipelines are shared
-            objects, so setting it on one mutates its children for every user. `None` leaves the children as
-            built.
+            `Compose` objects, overriding what each child was built with (assigning the attribute later does the
+            same). Registered pipelines are shared objects, so setting it on one mutates its children for every
+            user. `None` leaves the children as built.
 
     Example:
         For example, to chain a random sample and a normalization transform,
@@ -292,6 +292,7 @@ class Compose(Transform):
 
     def __init__(self, transforms: Sequence[Transform], allow_missing_keys: Optional[bool] = None) -> None:
         self.transforms = transforms
+        # Recursively set all children's allow_missing_keys
         self.allow_missing_keys = allow_missing_keys
 
     @property
@@ -303,6 +304,7 @@ class Compose(Transform):
         self._allow_missing_keys = value
         if value is None:
             return
+
         for transform in self.transforms:
             if isinstance(transform, (Compose, DictTransform)):
                 transform.allow_missing_keys = value
@@ -2132,10 +2134,10 @@ class Voxelize(DictTransform):
         keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
         dst_inverse_key: Key for the source-to-voxel row map (see the module docs on sampling keys); composes
             with any prior value at the same key. `None` disables it.
-        grid_pos_key: When set together with a non-`grid` `pos_reduce`, also store
-            the integer voxel-grid coordinates under this key. Useful when a model
-            needs both real-valued positions (e.g. for rotary position embedding)
-            and integer grid coordinates (for serialization / sparse-conv stems).
+        dst_pos_grid_key: When set, also store the integer voxel-grid coordinates under this key. Useful when a
+            model needs both real-valued positions (e.g. for rotary position embedding) and integer grid
+            coordinates (for serialization / sparse-conv stems); with `pos_reduce="grid"` it holds the same grid
+            as `pos_key`.
         random_sample: If `True`, the per-voxel representative used by `reduce="first"`
             (and the `pos`/`grid_pos` derivations) is chosen *randomly* within each
             voxel on every call. Per-voxel random sampling is a meaningful
@@ -2159,7 +2161,7 @@ class Voxelize(DictTransform):
         reduce: Optional[ValueCollection[VoxelReduce]] = None,
         keys: Optional[KeyCollection] = None,
         dst_inverse_key: Optional[str] = DataKeys.INVERSE,
-        grid_pos_key: Optional[str] = None,
+        dst_pos_grid_key: Optional[str] = None,
         random_sample: bool = False,
         generator: Optional[torch.Generator] = None,
         allow_missing_keys: bool = False,
@@ -2171,6 +2173,7 @@ class Voxelize(DictTransform):
             raise ValueError(f"Invalid pos_reduce: {pos_reduce!r}. Expected one of {get_args(VoxelPosReduce)}.")
         if method not in get_args(VoxelMethod):
             raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(VoxelMethod)}.")
+
         self.pos_key = pos_key
         self.pos_reduce = pos_reduce
         self.size = size
@@ -2178,9 +2181,10 @@ class Voxelize(DictTransform):
         invalid = set(self.reduce) - set(get_args(VoxelReduce)) - {None}
         if invalid:
             raise ValueError(f"Invalid reduce(s): {invalid}. Expected one of {get_args(VoxelReduce)}.")
+
         self.method = method
         self.dst_inverse_key = dst_inverse_key
-        self.grid_pos_key = grid_pos_key
+        self.dst_pos_grid_key = dst_pos_grid_key
         self.random_sample = random_sample
         self.generator = generator
 
@@ -2222,8 +2226,8 @@ class Voxelize(DictTransform):
         if pos.shape[0] == 0:
             if self.dst_inverse_key is not None:
                 data[self.dst_inverse_key] = torch.empty(0, dtype=torch.long, device=pos.device)
-            if self.grid_pos_key is not None:
-                data[self.grid_pos_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
+            if self.dst_pos_grid_key is not None:
+                data[self.dst_pos_grid_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
             return data
 
         start = torch.floor(pos.min(dim=0).values / self.size) * self.size
@@ -2243,14 +2247,13 @@ class Voxelize(DictTransform):
         else:
             perm = first_permutation(cluster, num_clusters=num_clusters)
 
-        if self.pos_reduce == "grid":
-            pos_grid = torch.floor((pos[perm] - start) / self.size).long()
-            data[self.pos_key] = pos_grid - pos_grid.min(dim=0).values
-        else:
-            data[self.pos_key] = self._reduce(pos, self.pos_reduce, cluster, perm)
-            if self.grid_pos_key is not None:
-                pos_grid = torch.floor((pos[perm] - start) / self.size).long()
-                data[self.grid_pos_key] = pos_grid - pos_grid.min(dim=0).values
+        pos_grid = torch.floor((pos[perm] - start) / self.size).long()
+        pos_grid = pos_grid - pos_grid.min(dim=0).values
+        data[self.pos_key] = (
+            pos_grid if self.pos_reduce == "grid" else self._reduce(pos, self.pos_reduce, cluster, perm)
+        )
+        if self.dst_pos_grid_key is not None:
+            data[self.dst_pos_grid_key] = pos_grid
 
         for key, reduce in self.iter_keys(data, self.reduce):
             tensor = data[key]

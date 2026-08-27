@@ -83,11 +83,11 @@ def _evaluate_segmentation(model: Module, dataloader: DataLoader, device: str, n
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         x = data[DataKeys.X].to(device)
-        pos = data[DataKeys.POS].to(device)
+        pos_grid = data[DataKeys.POS_GRID].to(device)
         batch = data[DataKeys.BATCH].to(device)
         target = data[DataKeys.SEGMENT].to(device)
 
-        logits, latency_ms = _forward_once(model, x, pos, batch, device)
+        logits, latency_ms = _forward_once(model, x, pos_grid, batch, device)
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
@@ -116,10 +116,10 @@ def _benchmark_encoder(model: Module, dataloader: DataLoader, device: str) -> Di
     pbar = tqdm(dataloader, total=len(dataloader), desc="Encoding")
     for data in pbar:
         x = data[DataKeys.X].to(device)
-        pos = data[DataKeys.POS].to(device)
+        pos_grid = data[DataKeys.POS_GRID].to(device)
         batch = data[DataKeys.BATCH].to(device)
 
-        _, latency_ms = _forward_once(model, x, pos, batch, device)
+        _, latency_ms = _forward_once(model, x, pos_grid, batch, device)
         total_latency_ms += latency_ms
         total_points += int(x.shape[0])
 

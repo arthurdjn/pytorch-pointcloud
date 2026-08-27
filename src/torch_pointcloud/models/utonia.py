@@ -197,7 +197,7 @@ _UTONIA_TRANSFORMS = T.Compose(
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="first",
-            grid_pos_key=DataKeys.POS_GRID,
+            dst_pos_grid_key=DataKeys.POS_GRID,
             keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
             reduce="first",
             size=0.01,
@@ -223,7 +223,7 @@ _UTONIA_SEG_TRANSFORMS = T.Compose(
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="first",
-            grid_pos_key=DataKeys.POS_GRID,
+            dst_pos_grid_key=DataKeys.POS_GRID,
             keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
             reduce="first",
             size=0.01,
