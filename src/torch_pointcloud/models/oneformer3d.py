@@ -561,7 +561,7 @@ class OneFormer3DSegmentation(SegmentationModel):
 
     def forward_decoder(
         self,
-        feats: Tensor,
+        x: Tensor,
         batch: Tensor,
         superpoint: OptTensor = None,
         inverse: OptTensor = None,
@@ -576,10 +576,10 @@ class OneFormer3DSegmentation(SegmentationModel):
             if superpoint is None or inverse is None:
                 raise ValueError("`superpoint` and `inverse` are required when `superpoint_pooling` is enabled.")
             sp_shift, batch_offsets = _shift_superpoints(superpoint, inverse, batch)
-            sp_feat = scatter_mean(feats[inverse], sp_shift, dim=0)
+            sp_feat = scatter_mean(x[inverse], sp_shift, dim=0)
             return [sp_feat[batch_offsets[i] : batch_offsets[i + 1]] for i in range(len(batch_offsets) - 1)]
         batch_size = int(batch.max().item()) + 1 if batch.numel() > 0 else 0
-        return [feats[batch == i] for i in range(batch_size)]
+        return [x[batch == i] for i in range(batch_size)]
 
     @overload
     def forward_head(self, sources: List[Tensor], pre_logits: Literal[False] = False) -> OneFormer3DOutput: ...

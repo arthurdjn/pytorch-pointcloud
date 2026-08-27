@@ -123,19 +123,24 @@ class DynamicMeanVFE(nn.Module):
     def forward(self, pos: Tensor, x: OptTensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         point_feats = pos if x is None else torch.cat([pos, x], dim=1)
 
-        coords = torch.floor((pos - self.point_cloud_range[:3]) / self.voxel_size).int()
-        mask = ((coords >= 0) & (coords < self.grid_size)).all(dim=1)
-        coords = coords[mask]
+        pos_grid = torch.floor((pos - self.point_cloud_range[:3]) / self.voxel_size).int()
+        mask = ((pos_grid >= 0) & (pos_grid < self.grid_size)).all(dim=1)
+        pos_grid = pos_grid[mask]
         pos = pos[mask]
         point_feats = point_feats[mask]
         batch = batch[mask]
 
-        merge = batch.int() * self.scale_xyz + coords[:, 0] * self.scale_yz + coords[:, 1] * self.scale_z + coords[:, 2]
+        merge = (
+            batch.int() * self.scale_xyz
+            + pos_grid[:, 0] * self.scale_yz
+            + pos_grid[:, 1] * self.scale_z
+            + pos_grid[:, 2]
+        )
         unq_indices, unq_inv = torch.unique(merge, return_inverse=True)
 
         points_mean = scatter_mean(pos, unq_inv, dim=0)
         f_cluster = pos - points_mean[unq_inv]
-        center = coords.to(pos.dtype) * self.voxel_size + (self.voxel_size / 2 + self.point_cloud_range[:3])
+        center = pos_grid.to(pos.dtype) * self.voxel_size + (self.voxel_size / 2 + self.point_cloud_range[:3])
         f_center = pos - center
 
         features = torch.cat([point_feats, f_cluster, f_center], dim=1)

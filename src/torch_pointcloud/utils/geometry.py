@@ -10,22 +10,22 @@ from torch import Tensor
 from .ops import safe_divide
 
 
-def axis_aligned_bounding_box(coords: Tensor) -> Tensor:
+def axis_aligned_bounding_box(pos: Tensor) -> Tensor:
     r"""Compute the axis aligned bounding box of a set of points,
     parameterized by $(c_x, c_y, c_z)$ and $(d_x, d_y, d_z)$ where $(c_x, c_y, c_z)$ is the center point of the box,
     and $d_x$ is the x-axis length of the box.
 
     Args:
-        coords: Points of shape $(N, 3)$, in XYZ order.
+        pos: Points of shape $(N, 3)$, in XYZ order.
 
     Returns:
         The axis aligned bounding box of shape $(6,)$.
     """
-    x_min, y_min, z_min, *_ = torch.min(coords, dim=0).values
-    x_max, y_max, z_max, *_ = torch.max(coords, dim=0).values
+    x_min, y_min, z_min, *_ = torch.min(pos, dim=0).values
+    x_max, y_max, z_max, *_ = torch.max(pos, dim=0).values
     cx, cy, cz = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0, (z_min + z_max) / 2.0
     dx, dy, dz = x_max - x_min, y_max - y_min, z_max - z_min
-    return torch.tensor([cx, cy, cz, dx, dy, dz], device=coords.device)
+    return torch.tensor([cx, cy, cz, dx, dy, dz], device=pos.device)
 
 
 def transform_points(points: Tensor, transform: Tensor) -> Tensor:
