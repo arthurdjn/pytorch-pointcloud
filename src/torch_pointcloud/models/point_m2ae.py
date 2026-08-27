@@ -523,12 +523,16 @@ class PointM2AEClassification(ClassificationModel):
             token_global_channels=self.token_global_channels,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
+        return self.feat_dim * 2 if self.concat_pooling else self.feat_dim
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        head_in = self.feat_dim * 2 if self.concat_pooling else self.feat_dim
         return MLP(
-            [head_in, *self.head_channels, self.num_classes],
+            [self.num_features, *self.head_channels, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=self.dropout,
@@ -675,11 +679,16 @@ class PointM2AESegmentation(SegmentationModel):
             ]
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the features entering the head."""
+        return 3 * 1024 * 2 + 64
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         return MLP(
-            [3 * 1024 * 2 + 64, 1024, 512, 256, self.num_classes],
+            [self.num_features, 1024, 512, 256, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=[0.5, 0.0, 0.0, 0.0],

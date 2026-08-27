@@ -236,7 +236,7 @@ def test_pointnext_segmentation_single_dropout_with_mlp_head() -> None:
         dropout=0.9,
     )
     model.train()
-    x = torch.randn(64, model.embedding_dim)
+    x = torch.randn(64, model.num_features)
     assert torch.equal(model.forward_head(x, pre_logits=True), x)
 
     linear_head = PointNeXtSegmentation(
@@ -289,7 +289,7 @@ def test_pointnext_part_segmentation_single_dropout_with_mlp_head(
     monkeypatch.setattr(torch.nn.functional, "dropout", recording_dropout)
     model(data["features"], data["pos"], data["batch"], partseg_category)
     assert widths
-    assert all(width != model.embedding_dim for width in widths)
+    assert all(width != model.decoder.channels[-1] for width in widths)
 
 
 def test_pointnext_classification_num_classes_zero_returns_features(data: Dict[str, Tensor]) -> None:
@@ -306,7 +306,7 @@ def test_pointnext_classification_num_classes_zero_returns_features(data: Dict[s
     )
     assert isinstance(model.head, torch.nn.Identity)
     out = model(data["features"], data["pos"], data["batch"])
-    assert out.shape == (int(data["batch"].max()) + 1, model.embedding_dim)
+    assert out.shape == (int(data["batch"].max()) + 1, model.num_features)
 
 
 def test_pointnext_segmentation_reset_classifier_keeps_head_channels() -> None:
@@ -324,7 +324,7 @@ def test_pointnext_segmentation_reset_classifier_keeps_head_channels() -> None:
         head_channels=[16],
     )
     model.reset_classifier(num_classes=7)
-    assert model.head.channel_list == [model.embedding_dim, 16, 7]
+    assert model.head.channel_list == [model.num_features, 16, 7]
 
 
 def test_pointnext_xl_s3dis_area6_registered_without_weights() -> None:

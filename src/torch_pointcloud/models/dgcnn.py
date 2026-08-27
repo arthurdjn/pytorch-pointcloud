@@ -260,20 +260,15 @@ class DGCNNClassification(ClassificationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
+    def num_features(self) -> int:
         """Channel count $C$ of the pooled features entering the head."""
-        # count the output channels of the encoder
         base = self.proj_channels if self.proj_channels is not None else self.encoder.out_channels
-        # In case we have multiple global pools, we need to multiply the base by the number of pools
-        if isinstance(self.global_pool, CatPool):
-            return base * self.global_pool.num_pools
-
-        return base
+        return base * self.global_pool.num_pools if isinstance(self.global_pool, CatPool) else base
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original classification head regularizes after every hidden layer, not only the last one.
         dropout_list = [self.dropout] * (len(channels_list) - 1)
         dropout_list[-1] = 0.0
@@ -443,14 +438,14 @@ class DGCNNSegmentation(SegmentationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
+    def num_features(self) -> int:
         """Channel count $C$ entering the head: encoder features plus the broadcast global feature."""
         return self.encoder.out_channels + self.proj_channels
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original semantic segmentation head regularizes only its last hidden layer.
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
@@ -636,14 +631,14 @@ class DGCNNPartSegmentation(SegmentationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
+    def num_features(self) -> int:
         """Channel count $C$ entering the head: encoder features, global feature and category embedding."""
         return self.encoder.out_channels + self.proj_channels + self.cat_embed_channels
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original part segmentation head regularizes every hidden layer except the last one.
         dropout_list = [self.dropout] * (len(channels_list) - 1)
         dropout_list[-2:] = [0.0] * len(dropout_list[-2:])

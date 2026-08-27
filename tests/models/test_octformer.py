@@ -121,7 +121,7 @@ def test_octformer_classification_num_classes_zero_returns_features(
     model_clf.reset_classifier(num_classes=0)
     assert isinstance(model_clf.head, torch.nn.Identity)
     out = model_clf(data["x"], data["octree"], data["depth"])
-    assert out.shape == (int(data["batch"].max()) + 1, model_clf.embedding_dim)
+    assert out.shape == (int(data["batch"].max()) + 1, model_clf.num_features)
 
 
 def test_octformer_segmentation_forward(model_seg: OctFormerSegmentation, data: Dict[str, Any]) -> None:
@@ -142,7 +142,7 @@ def test_octformer_segmentation_num_classes_zero_returns_features(
     model_seg.reset_classifier(num_classes=0)
     assert isinstance(model_seg.head, torch.nn.Identity)
     out = model_seg(data["x"], data["octree"], data["depth"], data["pos"], data["batch"])
-    assert out.shape == (data["pos"].shape[0], model_seg.embedding_dim)
+    assert out.shape == (data["pos"].shape[0], model_seg.num_features)
 
 
 def test_octformer_classification_forward_features_and_head(

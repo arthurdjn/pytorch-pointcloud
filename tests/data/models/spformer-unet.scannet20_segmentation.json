@@ -916,27 +916,27 @@
       3,
       32
     ],
-    "head.0.module.weight": [
+    "decoder.output_layer.0.module.weight": [
       32
     ],
-    "head.0.module.bias": [
+    "decoder.output_layer.0.module.bias": [
       32
     ],
-    "head.0.module.running_mean": [
+    "decoder.output_layer.0.module.running_mean": [
       32
     ],
-    "head.0.module.running_var": [
+    "decoder.output_layer.0.module.running_var": [
       32
     ],
-    "head.0.module.num_batches_tracked": [],
-    "head.2.weight": [
+    "decoder.output_layer.0.module.num_batches_tracked": [],
+    "head.weight": [
       10,
       1,
       1,
       1,
       32
     ],
-    "head.2.bias": [
+    "head.bias": [
       10
     ]
   }

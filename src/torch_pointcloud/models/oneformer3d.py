@@ -409,7 +409,9 @@ class OneFormer3DSegmentation(SegmentationModel):
     features are used directly. The query decoder `head` consumes them and produces
     a dict with `cls_preds`, `masks`, `scores`, optional `sem_preds`, and optional
     `aux_outputs`. Use [`predict_instance`](#) and [`predict_semantic`](#) for the
-    final point-level instance and semantic masks.
+    final point-level instance and semantic masks. Unlike the other segmentation models,
+    `num_classes=0` is not supported: the query decoder is the model, so `configure_head`
+    raises; use `forward_features` for the per-voxel features.
 
     Args:
         in_channels: Number of input voxel features (typically $6$: RGB + centered $xyz$).
@@ -510,9 +512,19 @@ class OneFormer3DSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the per-voxel backbone features feeding the query decoder."""
+        return self.channels[0]
+
     def configure_head(self) -> OneFormer3DQueryDecoder:
+        if self.num_classes == 0:
+            raise ValueError(
+                f"{self.__class__.__name__} has no headless mode: the query decoder is the model. Use "
+                "`forward_features` for the per-voxel features, or `SPFormerUNetSegmentation(num_classes=0)`."
+            )
         return OneFormer3DQueryDecoder(
-            in_channels=self.channels[0],
+            in_channels=self.num_features,
             num_instance_classes=self.num_instance_classes,
             num_semantic_classes=self.num_semantic_classes,
             embed_dim=self.embed_dim,

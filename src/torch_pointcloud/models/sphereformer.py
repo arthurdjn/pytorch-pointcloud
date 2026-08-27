@@ -621,11 +621,12 @@ class SphereFormerSegmentation(SegmentationModel):
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if norm_kwargs is None:
+            norm_kwargs = {"eps": 1e-4, "momentum": 0.1}
+
         self.base_channels = base_channels
         self.layers = tuple(layers)
         self.min_spatial_shape = min_spatial_shape
-        if norm_kwargs is None:
-            norm_kwargs = {"eps": 1e-4, "momentum": 0.1}
         self.block_reps = block_reps
         self.head_dim = head_dim
         self.window_size = tuple(window_size)
@@ -644,7 +645,7 @@ class SphereFormerSegmentation(SegmentationModel):
         self.input_conv = self.configure_input_conv()
         self.unet = self.configure_unet()
         self.output_layer = self.configure_output_layer()
-        self.head: nn.Module = self.configure_head()
+        self.head = self.configure_head()
         self.reset_parameters()
 
     def configure_input_conv(self) -> nn.Module:
@@ -689,10 +690,15 @@ class SphereFormerSegmentation(SegmentationModel):
             create_act(self.act, **(self.act_kwargs or {})) or nn.Identity(),
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the full-resolution features entering the head."""
+        return self.base_channels
+
     def configure_head(self) -> nn.Module:
-        if self.num_classes <= 0:
+        if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.base_channels, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_parameters(self) -> None:
         for module in self.modules():
