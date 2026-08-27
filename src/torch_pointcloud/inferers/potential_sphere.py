@@ -15,7 +15,7 @@ from tqdm import tqdm
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.ops import voxel_grid_fnv
 
-from ._utils import index_select_dict
+from ._utils import check_batch_alignment, index_select_dict
 from .inferer import Inferer
 
 
@@ -127,6 +127,7 @@ def potential_sphere_inference(
 
     pos = data[pos_key]
     batch = data[batch_key]
+    check_batch_alignment(pos, batch, pos_key, batch_key)
     device = pos.device
     n = pos.size(0)
     inner_sq = (inner_ratio * radius) ** 2
@@ -176,7 +177,7 @@ def potential_sphere_inference(
                     continue
 
                 packed = collate(spheres, batch_from=pos_key, batch_key=batch_key)
-                probs = torch.softmax(predictor(packed), dim=-1)
+                probs = torch.softmax(predictor(packed).to(device), dim=-1)
                 if scores_b is None:
                     scores_b = torch.zeros(n_b, int(probs.size(-1)), device=device, dtype=probs.dtype)
 
