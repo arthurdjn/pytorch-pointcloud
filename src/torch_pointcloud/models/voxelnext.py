@@ -472,11 +472,35 @@ class VoxelNeXtDetection(DetectionModel):
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         # spconv spatial shape is (z, y, x) with an extra +1 on z (matches the reference `grid[::-1] + [1, 0, 0]`).
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
+        self.head_class_groups = head_class_groups
+        self.feature_map_stride = feature_map_stride
+        self.channels = channels
+        self.shared_conv_channels = shared_conv_channels
+        self.head_kernel_size = head_kernel_size
+        self.num_hm_conv = num_hm_conv
+        self.use_bias_before_norm = use_bias_before_norm
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
-        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        self.backbone_3d = VoxelResBackbone8xVoxelNeXt(
-            in_channels, channels=channels, out_channels=shared_conv_channels, **block_kwargs
+        self.backbone_3d = self.configure_backbone_3d()
+        self.head = self.configure_head()
+
+    def configure_backbone_3d(self) -> VoxelResBackbone8xVoxelNeXt:
+        """Build the fully sparse residual voxel backbone."""
+        return VoxelResBackbone8xVoxelNeXt(
+            self.in_channels,
+            channels=self.channels,
+            out_channels=self.shared_conv_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
         )
+
+    def configure_head(self) -> VoxelNeXtHead:
+        """Build the fully sparse multi-group detection head."""
         head_dict: Dict[str, Dict[str, int]] = {
             "center": {"out_channels": 2, "num_conv": 2},
             "center_z": {"out_channels": 1, "num_conv": 2},
@@ -486,19 +510,19 @@ class VoxelNeXtDetection(DetectionModel):
         }
         # The head uses a plain `nn.BatchNorm1d` (default eps), so the 3D-conv `norm_kwargs` eps
         # override is intentionally not threaded into it (matches the reference `SeparateHead`).
-        self.head = VoxelNeXtHead(
-            shared_conv_channels,
-            head_class_groups,
+        return VoxelNeXtHead(
+            self.shared_conv_channels,
+            self.head_class_groups,
             head_dict=head_dict,
-            head_kernel_size=head_kernel_size,
-            num_hm_conv=num_hm_conv,
-            use_bias=use_bias_before_norm,
-            feature_map_stride=feature_map_stride,
-            voxel_size=voxel_size,
-            point_cloud_range=point_cloud_range,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
+            head_kernel_size=self.head_kernel_size,
+            num_hm_conv=self.num_hm_conv,
+            use_bias=self.use_bias_before_norm,
+            feature_map_stride=self.feature_map_stride,
+            voxel_size=self.voxel_size,
+            point_cloud_range=self.point_cloud_range,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
         )
 
     def forward_features(

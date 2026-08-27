@@ -626,39 +626,68 @@ class SphereFormerSegmentation(SegmentationModel):
         self.min_spatial_shape = min_spatial_shape
         if norm_kwargs is None:
             norm_kwargs = {"eps": 1e-4, "momentum": 0.1}
+        self.block_reps = block_reps
+        self.head_dim = head_dim
+        self.window_size = tuple(window_size)
+        self.window_size_sphere = tuple(window_size_sphere)
+        self.quant_size = tuple(quant_size)
+        self.quant_size_sphere = tuple(quant_size_sphere)
+        self.window_size_scale = window_size_scale
+        self.sphere_layers = tuple(sphere_layers)
+        self.radial_split_exponent = radial_split_exponent
+        self.drop_path = drop_path
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.act = act
+        self.act_kwargs = act_kwargs
 
-        self.input_conv = spconv.SparseSequential(
-            spconv.SubMConv3d(in_channels, base_channels, kernel_size=3, padding=1, bias=False, indice_key="subm1")
-        )
-
-        drop_paths = [float(v) for v in torch.linspace(0, drop_path, len(self.layers) + 2)]
-
-        self.unet = SphereFormerUBlock(
-            self.layers,
-            block_reps=block_reps,
-            window_size=torch.as_tensor(window_size, dtype=torch.float32),
-            window_size_sphere=torch.as_tensor(window_size_sphere, dtype=torch.float32),
-            quant_size=torch.as_tensor(quant_size, dtype=torch.float32),
-            quant_size_sphere=torch.as_tensor(quant_size_sphere, dtype=torch.float32),
-            head_dim=head_dim,
-            window_size_scale=window_size_scale,
-            drop_path=drop_paths,
-            radial_split_exponent=radial_split_exponent,
-            indice_key_id=1,
-            sphere_layers=sphere_layers,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            act=act,
-            act_kwargs=act_kwargs,
-        )
-
-        self.output_layer = spconv.SparseSequential(
-            create_norm(norm, base_channels, **norm_kwargs) or nn.Identity(),
-            create_act(act, **(act_kwargs or {})) or nn.Identity(),
-        )
-
+        self.input_conv = self.configure_input_conv()
+        self.unet = self.configure_unet()
+        self.output_layer = self.configure_output_layer()
         self.head: nn.Module = self.configure_head()
         self.reset_parameters()
+
+    def configure_input_conv(self) -> nn.Module:
+        """Build the submanifold stem convolution."""
+        return spconv.SparseSequential(
+            spconv.SubMConv3d(
+                self.in_channels,
+                self.base_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                indice_key="subm1",
+            )
+        )
+
+    def configure_unet(self) -> SphereFormerUBlock:
+        """Build the recursive sparse UNet with windowed attention at every level."""
+        drop_paths = [float(v) for v in torch.linspace(0, self.drop_path, len(self.layers) + 2)]
+        return SphereFormerUBlock(
+            self.layers,
+            block_reps=self.block_reps,
+            window_size=torch.as_tensor(self.window_size, dtype=torch.float32),
+            window_size_sphere=torch.as_tensor(self.window_size_sphere, dtype=torch.float32),
+            quant_size=torch.as_tensor(self.quant_size, dtype=torch.float32),
+            quant_size_sphere=torch.as_tensor(self.quant_size_sphere, dtype=torch.float32),
+            head_dim=self.head_dim,
+            window_size_scale=self.window_size_scale,
+            drop_path=drop_paths,
+            radial_split_exponent=self.radial_split_exponent,
+            indice_key_id=1,
+            sphere_layers=self.sphere_layers,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+        )
+
+    def configure_output_layer(self) -> nn.Module:
+        """Build the final normalization and activation applied before the head."""
+        return spconv.SparseSequential(
+            create_norm(self.norm, self.base_channels, **self.norm_kwargs) or nn.Identity(),
+            create_act(self.act, **(self.act_kwargs or {})) or nn.Identity(),
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes <= 0:

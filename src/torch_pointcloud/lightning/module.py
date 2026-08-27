@@ -382,7 +382,10 @@ class LitDetectionModel(LitModel):
         keep = det["scores"] > self.score_threshold
         if self.min_points is not None:
             counts = count_points_in_boxes(
-                batch[DataKeys.POS], det["boxes"], pos_batch=batch[DataKeys.BATCH], box_batch=det["batch"]
+                batch[DataKeys.POS],
+                det["boxes"],
+                pos_batch=batch[DataKeys.BATCH],
+                box_batch=det["batch"],
             )
             keep &= counts >= self.min_points
 

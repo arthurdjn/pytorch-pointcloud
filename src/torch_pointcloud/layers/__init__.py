@@ -87,7 +87,13 @@ from .serialized_attention import (
     SerializedAttentionRPE,
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
-from .spconv_blocks import SparseConvBlock, SparseModule, SparseResidualBlock, SubMConv3dBlock
+from .spconv_blocks import (
+    SparseConvBlock,
+    SparseModule,
+    SparseResidualBlock,
+    SubMConv3dBlock,
+    SubMConv3dResidualBlock,
+)
 from .tnet import DynamicTNet, TNet
 from .transformer import Attention, TransformerBlock
 from .vfe import DynamicMeanVFE, PFNLayer

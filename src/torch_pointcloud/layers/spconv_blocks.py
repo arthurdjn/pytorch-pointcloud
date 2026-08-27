@@ -201,3 +201,41 @@ class SparseResidualBlock(SparseModule):
         identity = spconv.SparseConvTensor(x.features, x.indices, x.spatial_shape, x.batch_size)
         out = self.conv_branch(x)
         return out.replace_feature(out.features + self.i_branch(identity).features)
+
+
+class SubMConv3dResidualBlock(SparseModule):
+    r"""Residual block with a single $3\times3\times3$ submanifold convolution: conv, norm, add the input, act.
+
+    Args:
+        channels: Input and output channels.
+        indice_key: Shared submanifold indice key.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable.
+        norm_kwargs: Extra normalization arguments.
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        *,
+        indice_key: str,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.conv1 = spconv.SubMConv3d(channels, channels, 3, padding=1, bias=True, indice_key=indice_key)
+        self.bn1 = create_norm(norm, channels, dim=1, **(norm_kwargs or {}))
+        self.act = create_act(act, **(act_kwargs or {}))
+
+    def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
+        out = self.conv1(x)
+        feat = out.features
+        if self.bn1 is not None:
+            feat = self.bn1(feat)
+        feat = feat + x.features
+        if self.act is not None:
+            feat = self.act(feat)
+        return out.replace_feature(feat)

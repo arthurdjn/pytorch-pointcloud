@@ -428,45 +428,54 @@ class SparseUNetSegmentation(SegmentationModel):
         self.base_channels = base_channels
         self.channels = tuple(channels)
         self.layers = tuple(layers)
-        num_stages = len(self.layers) // 2
+        self.stem_kernel_size = stem_kernel_size
+        self.kernel_size = kernel_size
+        self.spatial_padding = spatial_padding
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
 
-        encoder_channels = self.channels[:num_stages]
-        decoder_channels = self.channels[num_stages:]
-        encoder_layers = self.layers[:num_stages]
-        decoder_layers = self.layers[num_stages:]
-
-        self.encoder = SparseUNetEncoder(
-            in_channels=in_channels,
-            base_channels=base_channels,
-            channels=encoder_channels,
-            layers=encoder_layers,
-            stem_kernel_size=stem_kernel_size,
-            kernel_size=kernel_size,
-            spatial_padding=spatial_padding,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
-        # Skip channels in INSERTION order (stem first, then per-encoder-stage outputs).
-        # The bottleneck (last encoder stage) is consumed as `in_channels`, not a skip.
-        skip_channels = [base_channels, *encoder_channels[:-1]]
-
-        self.decoder = SparseUNetDecoder(
-            in_channels=encoder_channels[-1],
-            skip_channels=skip_channels,
-            channels=decoder_channels,
-            layers=decoder_layers,
-            kernel_size=kernel_size,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-
+        self.encoder = self.configure_encoder()
+        self.decoder = self.configure_decoder()
         self.head: nn.Module = self.configure_head()
         self.apply(_init_spunet_weights)
+
+    def configure_encoder(self) -> SparseUNetEncoder:
+        """Build the sparse encoder producing the bottleneck features and the per-stage skips."""
+        num_stages = len(self.layers) // 2
+        return SparseUNetEncoder(
+            in_channels=self.in_channels,
+            base_channels=self.base_channels,
+            channels=self.channels[:num_stages],
+            layers=self.layers[:num_stages],
+            stem_kernel_size=self.stem_kernel_size,
+            kernel_size=self.kernel_size,
+            spatial_padding=self.spatial_padding,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_decoder(self) -> SparseUNetDecoder:
+        """Build the sparse decoder upsampling the bottleneck back to full resolution."""
+        num_stages = len(self.layers) // 2
+        encoder_channels = self.channels[:num_stages]
+        # Skip channels in INSERTION order (stem first, then per-encoder-stage outputs).
+        # The bottleneck (last encoder stage) is consumed as `in_channels`, not a skip.
+        skip_channels = [self.base_channels, *encoder_channels[:-1]]
+        return SparseUNetDecoder(
+            in_channels=encoder_channels[-1],
+            skip_channels=skip_channels,
+            channels=self.channels[num_stages:],
+            layers=self.layers[num_stages:],
+            kernel_size=self.kernel_size,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
 
     def configure_head(self) -> nn.Module:
         if self.num_classes <= 0:
