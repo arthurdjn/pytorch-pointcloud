@@ -205,7 +205,10 @@ def farthest_point_sample(
 
 
 def estimate_normals(
-    pos: Tensor, k: int = 16, batch: Optional[Tensor] = None, orient_to_centroid: bool = False
+    pos: Tensor,
+    k: int = 16,
+    batch: Optional[Tensor] = None,
+    orient_to_centroid: bool = False,
 ) -> Tensor:
     r"""Estimate per-point unit surface normals by local PCA.
 
