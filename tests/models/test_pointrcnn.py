@@ -117,10 +117,13 @@ def test_pointrcnn_backbone_outputs_per_point_features() -> None:
     data = _make_inputs(n_per_scene=2048)
     with torch.no_grad():
         x, pos, batch = model.forward_features(data["x"], data["pos"], data["batch"])
+        out = model(data["x"], data["pos"], data["batch"])
+        head_out = model.forward_head(x, pos, batch)
     # feature propagation returns one feature per input point
-    assert x.shape == (data["pos"].shape[0], 128)
+    assert x.shape == (data["pos"].shape[0], model.num_features)
     assert pos.shape == data["pos"].shape
     assert torch.equal(batch, data["batch"])
+    assert torch.equal(head_out["rcnn_cls"], out["rcnn_cls"])
 
 
 def test_decode_point_residuals_shape() -> None:

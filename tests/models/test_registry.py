@@ -41,7 +41,8 @@ class DummyClassificationModel(ClassificationModel):
         return x if pre_logits else self.fc(x)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        return self.forward_head(self.forward_features(x, pos, batch))
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features)
 
 
 class DummySegmentationModel(SegmentationModel):
@@ -67,7 +68,8 @@ class DummySegmentationModel(SegmentationModel):
         return x if pre_logits else self.fc(x)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        return self.forward_head(self.forward_features(x, pos, batch))
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features)
 
 
 def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:

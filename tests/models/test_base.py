@@ -34,37 +34,31 @@ def test_segmentation_subclass_missing_forward_raises() -> None:
         NoForwardSegmentation(in_channels=3, num_classes=5)  # type: ignore[abstract]
 
 
-def test_detection_subclass_missing_decode_raises() -> None:
-    class NoDecodeDetection(DetectionModel):
+@pytest.mark.parametrize("method", ["num_features", "forward_features", "forward_head", "decode"])
+def test_detection_subclass_missing_member_raises(method: str) -> None:
+    class ForwardOnlyDetection(DetectionModel):
         def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
             return x
 
-        def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-            return x
-
-    with pytest.raises(TypeError, match="decode"):
-        NoDecodeDetection(in_channels=3, num_classes=5)  # type: ignore[abstract]
-
-
-def test_detection_subclass_missing_forward_features_raises() -> None:
-    class NoBackboneDetection(DetectionModel):
-        def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-            return x
-
-        def decode(self, output: Tensor) -> Tensor:
-            return output
-
-    with pytest.raises(TypeError, match="forward_features"):
-        NoBackboneDetection(in_channels=3, num_classes=5)  # type: ignore[abstract]
+    with pytest.raises(TypeError, match=method):
+        ForwardOnlyDetection(in_channels=3, num_classes=5)  # type: ignore[abstract]
 
 
 def test_detection_subclass_with_full_contract_instantiates() -> None:
     class MinimalDetection(DetectionModel):
-        def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-            return x
+        @property
+        def num_features(self) -> int:
+            return self.in_channels
 
         def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
             return x
+
+        def forward_head(self, features: Tensor) -> Tensor:
+            return features
+
+        def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+            features = self.forward_features(x, pos, batch)
+            return self.forward_head(features)
 
         def decode(self, output: Tensor) -> Tensor:
             return output
@@ -72,6 +66,7 @@ def test_detection_subclass_with_full_contract_instantiates() -> None:
     model = MinimalDetection(in_channels=3, num_classes=5)
     assert model.in_channels == 3
     assert model.num_classes == 5
+    assert model.num_features == 3
 
 
 @pytest.mark.parametrize(
@@ -117,7 +112,8 @@ def test_segmentation_subclass_with_full_contract_instantiates() -> None:
             return x if pre_logits else self.head(x)
 
         def forward(self, x: Tensor) -> Tensor:
-            return self.forward_head(self.forward_features(x))
+            features = self.forward_features(x)
+            return self.forward_head(features)
 
     model = MinimalSegmentation(in_channels=3, num_classes=5)
     assert model.num_features == 3

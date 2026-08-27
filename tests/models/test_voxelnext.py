@@ -54,6 +54,7 @@ def test_voxelnext_create_model_hparams() -> None:
     assert model.num_classes == 10
     assert model.grid_size == (1440, 1440, 40)
     assert model.sparse_shape == [41, 1440, 1440]
+    assert model.num_features == model.backbone_3d.out_channels
     assert len(model.head.heads_list) == 6
     assert model.head.class_groups == [[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]]
 
@@ -141,6 +142,8 @@ def test_voxelnext_forward_shapes() -> None:
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 160000)
     with torch.no_grad():
         out = model(voxels, pos_voxel, num_points, vbatch)
+        feat = model.forward_features(voxels, pos_voxel, num_points, vbatch)
+    assert feat.features.shape[1] == model.num_features
 
     num_voxels = out["voxel_indices"].shape[0]
     assert out["voxel_indices"].shape == (num_voxels, 3)

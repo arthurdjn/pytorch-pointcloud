@@ -53,7 +53,8 @@ class DummyClassificationModel(ClassificationModel):
         return pooled if pre_logits else self.fc(pooled)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        return self.forward_head(self.forward_features(x, pos, batch), batch)
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features, batch)
 
 
 class DummySegmentationModel(SegmentationModel):
@@ -79,7 +80,8 @@ class DummySegmentationModel(SegmentationModel):
         return x if pre_logits else self.fc(x)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        return self.forward_head(self.forward_features(x, pos, batch))
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features)
 
 
 class DummyDetectionModel(DetectionModel):
@@ -92,11 +94,19 @@ class DummyDetectionModel(DetectionModel):
         self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
         self.fc = nn.Linear(in_channels, num_classes)
 
+    @property
+    def num_features(self) -> int:
+        return self.in_channels
+
     def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
         return x
 
+    def forward_head(self, features: Tensor) -> Dict[str, Tensor]:
+        return {"objectness_scores": self.fc(features)}
+
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
-        return {"objectness_scores": self.fc(x)}
+        features = self.forward_features(x, pos, batch)
+        return self.forward_head(features)
 
     def decode(self, output: Dict[str, Tensor]) -> Detection3D:
         scores = output["objectness_scores"]

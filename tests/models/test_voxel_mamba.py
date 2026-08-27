@@ -66,6 +66,7 @@ def test_voxel_mamba_create_model_hparams() -> None:
     assert model.grid_size == (468, 468, 32)
     assert model.backbone_3d.sparse_shape == [33, 468, 468]
     assert model.backbone.num_bev_features == 384
+    assert model.num_features == 384
     assert len(model.backbone_3d.block_list) == 6
 
 
@@ -89,6 +90,8 @@ def test_voxel_mamba_forward_shapes() -> None:
     pos, x, batch = _make_inputs()
     with torch.no_grad():
         out = model(x, pos, batch)
+        feat = model.forward_features(x, pos, batch)
+    assert feat.shape[1] == model.num_features
     nx = ny = 468
     assert out["heatmap"].shape == (1, 3, ny, nx)
     assert out["center"].shape == (1, 2, ny, nx)

@@ -218,6 +218,11 @@ class SECONDDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the BEV feature map entering the head."""
+        return self.backbone.num_bev_features
+
     def configure_head(self) -> AnchorHeadSingle:
         """Build the single-group anchor head."""
         return AnchorHeadSingle(
@@ -255,9 +260,12 @@ class SECONDDetection(DetectionModel):
         bev = dense.view(b, c * d, h, w)
         return self.backbone(bev)
 
+    def forward_head(self, features: Tensor) -> AnchorHeadOutput:
+        return self.head(features)
+
     def forward(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> AnchorHeadOutput:
-        spatial_features_2d = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
-        return self.head(spatial_features_2d)
+        features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
+        return self.forward_head(features)
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadOutput) -> Detection3D:
@@ -500,6 +508,11 @@ class SECONDMultiHeadDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the BEV feature map entering the head."""
+        return self.backbone.num_bev_features
+
     def configure_head(self) -> AnchorHeadMulti:
         """Build the multi-group anchor head."""
         return AnchorHeadMulti(
@@ -535,11 +548,14 @@ class SECONDMultiHeadDetection(DetectionModel):
         bev = dense.view(b, c * d, h, w)
         return self.backbone(bev)
 
+    def forward_head(self, features: Tensor) -> AnchorHeadMultiOutput:
+        return self.head(features)
+
     def forward(
         self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor
     ) -> AnchorHeadMultiOutput:
-        spatial_features_2d = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
-        return self.head(spatial_features_2d)
+        features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
+        return self.forward_head(features)
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadMultiOutput) -> Detection3D:
