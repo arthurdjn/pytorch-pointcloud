@@ -369,7 +369,6 @@ class PointNet2Classification(ClassificationModel):
         self.encoder = self.configure_encoder()
         self.aggr = self.configure_aggr()
         self.global_pool = create_pool(global_pool)
-        self.embedding_dim = self.aggr_channels[-1] if self.aggr_channels else self.encoder.out_channels
         self.head = self.configure_head()
 
     def configure_encoder(self) -> PointNet2Encoder:
@@ -409,13 +408,18 @@ class PointNet2Classification(ClassificationModel):
             plain_last=False,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output, after the optional aggregation MLP."""
+        return self.aggr_channels[-1] if self.aggr_channels else self.encoder.out_channels
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
 
-        channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
+        channels_list = [self.num_features] + list(self.head_channels) + [self.num_classes]
         if isinstance(self.dropout, (int, float)):
             dropout_list = [float(self.dropout)] * (len(channels_list) - 2) + [0.0]
         else:
@@ -587,7 +591,6 @@ class PointNet2Segmentation(SegmentationModel):
         self.encoder = self.configure_encoder()
         self.aggr = self.configure_aggr()
         self.decoder = self.configure_decoder()
-        self.embedding_dim = fp_channels[-1][-1]
         self.head = self.configure_head()
 
     def configure_encoder(self) -> PointNet2Encoder:
@@ -646,13 +649,18 @@ class PointNet2Segmentation(SegmentationModel):
             k=self.fp_k,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.fp_channels[-1][-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
 
-        channels_list = [self.embedding_dim] + list(self.head_channels) + [self.num_classes]
+        channels_list = [self.num_features] + list(self.head_channels) + [self.num_classes]
         dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
         return MLP(
             channels_list,

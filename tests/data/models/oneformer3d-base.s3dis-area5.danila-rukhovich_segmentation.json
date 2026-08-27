@@ -916,19 +916,19 @@
       3,
       64
     ],
-    "unet.head.0.module.weight": [
+    "unet.decoder.output_layer.0.module.weight": [
       64
     ],
-    "unet.head.0.module.bias": [
+    "unet.decoder.output_layer.0.module.bias": [
       64
     ],
-    "unet.head.0.module.running_mean": [
+    "unet.decoder.output_layer.0.module.running_mean": [
       64
     ],
-    "unet.head.0.module.running_var": [
+    "unet.decoder.output_layer.0.module.running_var": [
       64
     ],
-    "unet.head.0.module.num_batches_tracked": [],
+    "unet.decoder.output_layer.0.module.num_batches_tracked": [],
     "head.input_proj.0.weight": [
       256,
       64

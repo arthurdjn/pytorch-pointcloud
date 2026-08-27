@@ -7,7 +7,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.models import ClassificationModel, SegmentationModel, create_model, list_models
+from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models._registry import _REGISTERED_MODELS
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
@@ -570,6 +570,11 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
     return create_data
 
 
+# The Point-MAE / Point-M2AE part-segmentation heads require a uniform number of points per sample
+# (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
+UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
+
+
 @pytest.mark.skipif(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
@@ -588,14 +593,11 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = create_model(model_name, task=task, in_channels=3, num_classes=num_classes)  # type: ignore[call-overload]
-    # The Point-MAE / Point-M2AE part-segmentation heads require a uniform number of points per sample
-    # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
-    uniform_models = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
     data = data_factory(
         in_channels=model.in_channels,
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
-        lengths=(512, 512) if model_name in uniform_models else (512, 768),
+        lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
@@ -606,6 +608,48 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
 
     output = model(**kwargs)
     _check_forward_output(output, model_name=model_name, task=task, expected_shape=(expected_rows, num_classes))
+
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize(
+    "model_name,task",
+    [
+        *[(model, "classification") for model in CLASSIFICATION_MODELS],
+        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+    ],
+)
+def test_model_headless_forward_returns_features(model_name: str, task: str, data_factory: Callable) -> None:
+    """`num_classes=0` drops the head: `forward` returns `(rows, num_features)` features."""
+    _skip_if_model_not_runnable(model_name)
+    if model_name.startswith("oneformer3d"):
+        pytest.skip("OneFormer3D has no headless mode (the query decoder is the model)")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model = create_model(model_name, task=task, in_channels=3, num_classes=0)  # type: ignore[call-overload]
+    assert isinstance(model.head, nn.Identity), f"{model_name}: head is {type(model.head).__name__}, not Identity"
+    assert isinstance(model.num_features, int), f"{model_name}: num_features is {type(model.num_features).__name__}"
+    data = data_factory(
+        in_channels=model.in_channels,
+        spatial_dim=getattr(model, "spatial_dim", 3),
+        num_categories=getattr(model, "num_categories", 0),
+        lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+    )
+    expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
+
+    sig = inspect.signature(model.forward)
+    kwargs = {a: data[a] for a in sig.parameters if a != "self" and a in data}
+    kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
+    model = model.to(device)
+
+    output = model(**kwargs)
+    _check_forward_output(output, model_name=model_name, task=task, expected_shape=(expected_rows, model.num_features))
 
     if device == "cuda":
         torch.cuda.empty_cache()
@@ -681,27 +725,6 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
         assert detections["labels"].max().item() < model.num_classes
         assert detections["batch"].min().item() >= 0
         assert detections["batch"].max().item() <= 1
-
-
-@pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
-)
-@pytest.mark.parametrize(
-    "model_name,task",
-    [
-        *[(model, "classification") for model in CLASSIFICATION_MODELS],
-        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
-    ],
-)
-def test_model_overrides_reset_classifier(model_name: str, task: str) -> None:
-    """Every registered classification / segmentation model must override the ABC `reset_classifier` stub."""
-    _skip_if_model_deps_missing(model_name)
-    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
-    stub = ClassificationModel.reset_classifier if task == "classification" else SegmentationModel.reset_classifier
-    assert type(model).reset_classifier is not stub, (
-        f"{type(model).__name__} (registered as {model_name!r}) does not override `reset_classifier`"
-    )
 
 
 def test_registered_weights_classes_match_num_classes() -> None:

@@ -527,11 +527,6 @@ class PointMLPClassification(ClassificationModel):
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
-        return self.encoder_channels[-1]
-
     def configure_stem(self) -> nn.Module:
         """Build the linear stem lifting the input features to the first encoder channel."""
         return MLP(
@@ -567,13 +562,18 @@ class PointMLPClassification(ClassificationModel):
             use_pos=self.use_pos,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
         return MLP(
-            [self.embedding_dim] + list(self.head_channels) + [self.num_classes],
+            [self.num_features] + list(self.head_channels) + [self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -690,11 +690,6 @@ class PointMLPSegmentation(SegmentationModel):
         self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the decoder output."""
-        return self.decoder_channels[-1]
-
     def configure_stem(self) -> nn.Module:
         """Build the linear stem lifting the input features to the first encoder channel."""
         return MLP(
@@ -745,10 +740,15 @@ class PointMLPSegmentation(SegmentationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.decoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

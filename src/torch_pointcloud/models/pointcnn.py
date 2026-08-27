@@ -340,11 +340,6 @@ class PointCNNClassification(ClassificationModel):
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
-        return self.channels[-1]
-
     def configure_encoder(self) -> nn.Module:
         """Build the `PointCNNEncoder` backbone."""
         return PointCNNEncoder(
@@ -359,10 +354,15 @@ class PointCNNClassification(ClassificationModel):
             act_kwargs=self.act_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the features entering the head."""
+        return self.channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
             dropout_list[-2] = self.dropout
@@ -472,11 +472,6 @@ class PointCNNSegmentation(SegmentationModel):
         self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the decoder output."""
-        return self.decoder.channels[-1]
-
     def configure_encoder(self) -> PointCNNEncoder:
         """Build the `PointCNNEncoder` backbone."""
         return PointCNNEncoder(
@@ -521,10 +516,15 @@ class PointCNNSegmentation(SegmentationModel):
             act_kwargs=self.act_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.decoder.channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        channels_list = [self.embedding_dim] + self.head_channels + [self.num_classes]
+        channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
             dropout_list[-2] = self.dropout

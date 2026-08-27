@@ -563,7 +563,6 @@ class RandLANetClassification(ClassificationModel):
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
-        self.embedding_dim = self.aggr_channels[-1] if self.aggr_channels else encoder_channels[-1]
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -616,8 +615,13 @@ class RandLANetClassification(ClassificationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output, after the optional aggregation MLP."""
+        return self.aggr_channels[-1] if self.aggr_channels else self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -743,7 +747,6 @@ class RandLANetSegmentation(SegmentationModel):
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.bias = bias
-        self.embedding_dim = fp_channels[-1]
 
         self.stem = self.configure_stem()
         self.encoder = self.configure_encoder()
@@ -815,6 +818,11 @@ class RandLANetSegmentation(SegmentationModel):
             bias=self.bias,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.fp_channels[-1]
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
@@ -823,7 +831,7 @@ class RandLANetSegmentation(SegmentationModel):
         # meaningful since it sees no normalization.
         n_hidden = len(self.head_channels)
         return MLP(
-            channel_list=[self.embedding_dim, *self.head_channels, self.num_classes],
+            channel_list=[self.num_features, *self.head_channels, self.num_classes],
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,

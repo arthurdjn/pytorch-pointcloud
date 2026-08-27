@@ -281,7 +281,6 @@ class PointNetClassification(ClassificationModel):
         self.head_channels = list(head_channels)
 
         self.encoder = self.configure_encoder()
-        self.num_features = mlp2_dims[-1]
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
@@ -304,6 +303,11 @@ class PointNetClassification(ClassificationModel):
             tnet_norm=self.tnet_norm,
             tnet_norm_kwargs=self.tnet_norm_kwargs,
         )
+
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.mlp2_dims[-1]
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -476,9 +480,6 @@ class PointNetSegmentation(SegmentationModel):
         self.global_pool = create_pool(global_pool)
 
         # Calculate input dimension for segmentation head
-        point_feat_dim = mlp1_dims[-1]
-        global_feat_dim = mlp2_dims[-1]
-        self.num_features = point_feat_dim + global_feat_dim
         self.head = self.configure_head()
 
     def configure_encoder(self) -> PointNetEncoder:
@@ -500,6 +501,11 @@ class PointNetSegmentation(SegmentationModel):
             tnet_norm=self.tnet_norm,
             tnet_norm_kwargs=self.tnet_norm_kwargs,
         )
+
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ entering the head: per-point features concatenated with the global feature."""
+        return self.mlp1_dims[-1] + self.mlp2_dims[-1]
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

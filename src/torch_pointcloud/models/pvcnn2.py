@@ -523,7 +523,6 @@ class PVCNN2Classification(ClassificationModel):
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.encoder_channels = [self.in_channels, *list(encoder_channels)[1:]]
-        self.embedding_dim = self.encoder_channels[-1]
         self.sa_channels = ensure_msg_list(sa_channels)
         self.ratios = ratios
         self.radii = radii
@@ -564,8 +563,13 @@ class PVCNN2Classification(ClassificationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the encoder output."""
+        return self.encoder_channels[-1]
+
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -606,7 +610,7 @@ class PVCNN2Classification(ClassificationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x, pos, batch = self.forward_features(x, pos, batch)
         return self.forward_head(x, batch)
 
 
@@ -776,15 +780,17 @@ class PVCNN2Segmentation(SegmentationModel):
         )
 
     @property
-    def embedding_dim(self) -> int:
-        """Channel count $C$ of the per-point decoder features entering the head."""
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
         return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
         if not self.head_channels:
-            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
 
-        channels = [self.embedding_dim, *self.head_channels, self.num_classes]
+        channels = [self.num_features, *self.head_channels, self.num_classes]
         dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]
         return MLP(
             channels,

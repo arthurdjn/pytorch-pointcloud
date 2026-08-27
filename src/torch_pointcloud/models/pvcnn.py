@@ -173,13 +173,6 @@ class PVCNNClassification(ClassificationModel):
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Channel count $C$ of the pooled features entering the head."""
-        if self.global_channels:
-            return self.global_channels[-1]
-        return self.channels[-1]
-
     def configure_blocks(self) -> nn.ModuleList:
         """Builds the point-voxel conv blocks, one per entry of `depths`."""
         blocks = nn.ModuleList()
@@ -218,8 +211,13 @@ class PVCNNClassification(ClassificationModel):
             plain_last=False,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
+        return self.global_channels[-1] if self.global_channels else self.channels[-1]
+
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.embedding_dim, self.num_classes)
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -347,14 +345,6 @@ class PVCNNSegmentation(SegmentationModel):
         self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
-    @property
-    def embedding_dim(self) -> int:
-        """Channel count $C$ entering the head: every layer output concatenated with the global feature."""
-        embedding_dim = sum(channels * depth for channels, depth in zip(self.channels[1:], self.depths))
-        if self.global_channels:
-            return embedding_dim + self.global_channels[-1]
-        return embedding_dim + self.channels[-1]
-
     def configure_blocks(self) -> nn.ModuleList:
         """Builds the point-voxel conv blocks, one per entry of `depths`."""
         blocks = nn.ModuleList()
@@ -393,13 +383,20 @@ class PVCNNSegmentation(SegmentationModel):
             plain_last=False,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ entering the head: every layer output concatenated with the global feature."""
+        return sum(channels * depth for channels, depth in zip(self.channels[1:], self.depths)) + (
+            self.global_channels[-1] if self.global_channels else self.channels[-1]
+        )
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         if not self.head_channels:
-            return nn.Linear(self.embedding_dim, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes)
 
-        channels = [self.embedding_dim, *self.head_channels, self.num_classes]
+        channels = [self.num_features, *self.head_channels, self.num_classes]
         dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]
         return MLP(
             channels,

@@ -315,12 +315,17 @@ class PointBERTClassification(ClassificationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the pooled features entering the head."""
+        return self.embed_dim * 2
+
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
         head_channels = ensure_list(self.head_channels, none_as_empty=True)
         return MLP(
-            [self.embed_dim * 2, *head_channels, self.num_classes],
+            [self.num_features, *head_channels, self.num_classes],
             act=self.head_act,
             norm=None,
             dropout=self.dropout,
