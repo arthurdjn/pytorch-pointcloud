@@ -626,7 +626,7 @@ _SUNRGBD_MEAN_SIZES = [
     "votenet.scannet.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/votenet/votenet.scannet.fair.safetensors",
+        url="hf://torch-pointcloud/votenet.scannet.fair/resolve/main/model.safetensors",
         dataset="scannet",
         classes=SCANNET_DETECTION_CLASSES,
         author="fair",
@@ -677,7 +677,7 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
     "votenet.sunrgbd.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/votenet/votenet.sunrgbd.fair.safetensors",
+        url="hf://torch-pointcloud/votenet.sunrgbd.fair/resolve/main/model.safetensors",
         dataset="sunrgbd",
         classes=SUNRGBD_CLASSES,
         author="fair",

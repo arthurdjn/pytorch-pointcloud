@@ -2,11 +2,13 @@
 
 import difflib
 import fnmatch
+import re
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, TypedDict, Union, overload
 from urllib.parse import urlparse
 
+import torch
 from torch import nn
 from typing_extensions import NotRequired
 
@@ -18,12 +20,16 @@ from ._base import ClassificationModel, DetectionModel, SegmentationModel
 
 Task = Literal["base", "classification", "segmentation", "detection"]
 
+HF_ENDPOINT = "https://huggingface.co"
+HF_URL_RE = re.compile(r"^hf://(?P<namespace>[^/]+)/(?P<repo>[^/]+)/resolve/(?P<revision>[^/]+)/(?P<file>.+)$")
+
 
 class WeightsDict(TypedDict):
     """Structured description of a pretrained checkpoint.
 
     Attributes:
-        url: Location of the weight file (e.g. `hf://torch-pointcloud/pointnext/pointnext-sm.scanobjectnn.openpoints.safetensors`).
+        url: Location of the weight file, mirroring the Hub path so that `hf://` stands for
+            `https://huggingface.co/` (e.g. `hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors`).
         dataset: Benchmark the checkpoint was trained on (e.g. `scanobjectnn`, `s3dis-area5`).
         metrics: Scores measured with this package's benchmark scripts, keyed by metric name
             (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
@@ -136,7 +142,7 @@ def register_model(
         task="classification",
         hparams=dict(in_channels=0, num_classes=15),
         weights=WeightsDict(
-            url="hf://my-org/pointnet/pointnet-demo.scanobjectnn.safetensors",
+            url="hf://my-org/pointnet-demo.scanobjectnn/resolve/main/model.safetensors",
             dataset="scanobjectnn",
             metrics={"OA": 88.20},
         ),
@@ -168,6 +174,94 @@ def register_model(
         return fn
 
     return decorator
+
+
+def cache_path(url: str) -> Path:
+    """Return the path a registered weight URL occupies in the models cache.
+
+    A Hub URL `hf://<namespace>/<repo>/resolve/<revision>/<file>` maps to `MODELS_DIR/<repo>/<file>`, so the cache
+    mirrors the repository. Any other URL maps to `MODELS_DIR/<path>`.
+
+    Args:
+        url: The `url` of a registered `WeightsDict`.
+
+    Returns:
+        Path of the weight file inside the models cache.
+
+    Raises:
+        ValueError: If a `hf://` URL does not follow the Hub path layout.
+
+    ```python
+    from torch_pointcloud.models._registry import cache_path
+
+    path = cache_path("hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors")
+    ```
+    """
+    if url.startswith("hf://"):
+        match = HF_URL_RE.match(url)
+        if match is None:
+            raise ValueError(
+                f"Expected a Hub URL of the form hf://<namespace>/<repo>/resolve/<revision>/<file>, got {url!r}."
+            )
+        return Path(MODELS_DIR, match["repo"], match["file"])
+    return Path(MODELS_DIR, urlparse(url).path.lstrip("/"))
+
+
+def resolve_weights(name: str, url: str) -> Path:
+    """Return the local cache path of a registered weight file, downloading it on first use.
+
+    A `hf://` URL mirrors the Hub path, so it is fetched by replacing the scheme with `https://huggingface.co/`
+    when the file is absent from the cache. Any other scheme is expected to be placed in the cache by hand.
+
+    Args:
+        name: Registered model name, used in error messages.
+        url: The `url` of the registered `WeightsDict`.
+
+    Returns:
+        Path of the weight file inside the models cache.
+
+    Raises:
+        ValueError: If the URL path escapes the models cache directory.
+        FileNotFoundError: If the file is absent and cannot be downloaded.
+
+    ```{.python notest}
+    from torch_pointcloud.models._registry import resolve_weights
+
+    path = resolve_weights(
+        "pointnext-sm.scanobjectnn.openpoints",
+        "hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors",
+    )
+    ```
+    """
+    local_path = cache_path(url)
+    if not local_path.resolve().is_relative_to(Path(MODELS_DIR).resolve()):
+        raise ValueError(
+            f"Cannot load weights for {name!r}: the local cache path derived from {url!r} resolves to "
+            f"{local_path.resolve().as_posix()}, outside the models cache directory ({Path(MODELS_DIR).as_posix()})."
+        )
+
+    if local_path.exists():
+        return local_path
+    if not url.startswith("hf://"):
+        raise FileNotFoundError(
+            f"Model weights for {name!r} not found at {local_path.as_posix()}. Download the weights at {url!r} and "
+            f"place them in the models cache directory ({Path(MODELS_DIR).as_posix()})."
+        )
+
+    download_url = HF_ENDPOINT + "/" + url[len("hf://") :]
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    partial_path = local_path.with_name(local_path.name + ".part")
+    try:
+        torch.hub.download_url_to_file(download_url, partial_path.as_posix(), progress=True)
+    except OSError as e:
+        partial_path.unlink(missing_ok=True)
+        raise FileNotFoundError(
+            f"Could not download weights for {name!r} from {download_url}: {e}. Download the file manually and "
+            f"place it at {local_path.as_posix()}."
+        ) from e
+
+    partial_path.replace(local_path)
+    return local_path
 
 
 @overload
@@ -309,7 +403,8 @@ def create_model(
         ValueError: If `task` or `name` is unknown, or both `pretrained` and `checkpoint_path` are passed.
         TypeError: If the entry registers architecture hparams only and the data-dependent arguments
             (typically `in_channels` and `num_classes`) are not passed.
-        FileNotFoundError: If the weight or checkpoint file does not exist.
+        FileNotFoundError: If the checkpoint file does not exist, or if the registered weights are absent from
+            the models cache and cannot be downloaded.
 
     Building a registered model, overriding its registered hparams, and inspecting its registry entry:
 
@@ -363,19 +458,7 @@ def create_model(
         if weights is None:
             warnings.warn(f"No pretrained weights available for model {name!r}.", stacklevel=2)
         else:
-            parsed = urlparse(weights["url"])
-            local_path = Path(MODELS_DIR, parsed.path.lstrip("/"))
-            if not local_path.resolve().is_relative_to(Path(MODELS_DIR).resolve()):
-                raise ValueError(
-                    f"Cannot load weights for {name!r}: the local cache path derived from {weights['url']!r} "
-                    f"resolves to {local_path.resolve().as_posix()}, outside the models cache directory "
-                    f"({Path(MODELS_DIR).as_posix()})."
-                )
-            if not local_path.exists():
-                raise FileNotFoundError(
-                    f"Model weights for {name!r} not found at {local_path.as_posix()}. Download the weights at "
-                    f"{weights['url']!r} and place them in the models cache directory ({Path(MODELS_DIR).as_posix()})."
-                )
+            local_path = resolve_weights(name, weights["url"])
             load_state_dict(model, read_state_dict(local_path), source=weights["url"])
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)

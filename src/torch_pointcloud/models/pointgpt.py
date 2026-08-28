@@ -800,7 +800,7 @@ _OA: Dict[str, Dict[str, float]] = {
 
 def _weights(size: str, checkpoint: str, dataset: str, classes: Optional[Sequence[str]] = None) -> WeightsDict:
     weights = WeightsDict(
-        url=f"hf://torch-pointcloud/pointgpt/pointgpt-{size}.{checkpoint}.guangyan-chen.safetensors",
+        url=f"hf://torch-pointcloud/pointgpt-{size}.{checkpoint}.guangyan-chen/resolve/main/model.safetensors",
         dataset=dataset,
         author="guangyan-chen",
         license="MIT",

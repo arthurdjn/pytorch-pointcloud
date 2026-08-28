@@ -1163,7 +1163,7 @@ def _spvcnn_semantickitti_hparams(cr: float) -> dict:
     "spvcnn-30gmacs.semantickitti.mit-han-lab",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/spvcnn/spvcnn-30gmacs.semantickitti.mit-han-lab.safetensors",
+        url="hf://torch-pointcloud/spvcnn-30gmacs.semantickitti.mit-han-lab/resolve/main/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 59.23},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -1181,7 +1181,7 @@ def spvcnn_30gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/spvcnn/spvcnn-47gmacs.semantickitti.mit-han-lab.safetensors",
+        url="hf://torch-pointcloud/spvcnn-47gmacs.semantickitti.mit-han-lab/resolve/main/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 60.25},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -1199,7 +1199,7 @@ def spvcnn_47gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/spvcnn/spvcnn-119gmacs.semantickitti.mit-han-lab.safetensors",
+        url="hf://torch-pointcloud/spvcnn-119gmacs.semantickitti.mit-han-lab/resolve/main/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 62.40},
         classes=SEMANTIC_KITTI_CLASSES,
