@@ -1,9 +1,0 @@
-# Classification LightningModule API. `???` args are filled by each experiment; `optimizer` stays
-# null for benchmark-only experiments (training raises without one).
-
-_target_: torch_pointcloud.lightning.LitClassificationModel
-name: ???
-input_keys: ???
-pretrained: false
-optimizer: null
-criterion: ???

@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
+from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
@@ -42,6 +43,28 @@ NUSCENES_ATTRIBUTES = (
     "pedestrian.standing",
     "pedestrian.moving",
 )
+
+# Attribute of a moving / stationary box per detection class; `barrier` and `traffic_cone` carry no attribute.
+NUSCENES_MOVING_ATTRIBUTE = {
+    "car": "vehicle.moving",
+    "truck": "vehicle.moving",
+    "construction_vehicle": "vehicle.moving",
+    "bus": "vehicle.moving",
+    "trailer": "vehicle.moving",
+    "motorcycle": "cycle.with_rider",
+    "bicycle": "cycle.with_rider",
+    "pedestrian": "pedestrian.moving",
+}
+NUSCENES_STATIONARY_ATTRIBUTE = {
+    "car": "vehicle.parked",
+    "truck": "vehicle.parked",
+    "construction_vehicle": "vehicle.parked",
+    "bus": "vehicle.stopped",
+    "trailer": "vehicle.parked",
+    "motorcycle": "cycle.without_rider",
+    "bicycle": "cycle.without_rider",
+    "pedestrian": "pedestrian.standing",
+}
 
 # nuScenes category name -> detection class (the official 10-class mapping; unlisted -> ignored).
 _CATEGORY_TO_DETECTION: Dict[str, str] = {
@@ -434,3 +457,36 @@ class NuScenesMini(PointCloudDataset):
         if self.transform is not None:
             data = self.transform(data)
         return data
+
+
+def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float = 1.0) -> Tensor:
+    r"""Attribute id of each detected box from its class and BEV speed (the nuScenes submission convention).
+
+    A box faster than `speed_threshold` gets its class's moving attribute (`vehicle.moving`, `cycle.with_rider`,
+    `pedestrian.moving`), a slower one its stationary attribute (`vehicle.parked` / `vehicle.stopped`,
+    `cycle.without_rider`, `pedestrian.standing`); `barrier` and `traffic_cone` carry no attribute ($-1$).
+
+    Args:
+        labels: Detection class indices into `NUSCENES_DETECTION_CLASSES`, shape $(N,)$.
+        velocity: BEV velocities in m/s, shape $(N, 2)$.
+        speed_threshold: Speed above which a box counts as moving.
+
+    Returns:
+        Attribute ids into `NUSCENES_ATTRIBUTES`, shape $(N,)$, $-1$ where the class has none.
+
+    Example:
+        ```python
+        from torch_pointcloud.datasets.nuscenes import velocity_attributes
+
+        attributes = velocity_attributes(det["labels"], det["velocity"])
+        ```
+    """
+    moving = torch.linalg.norm(velocity, dim=1) > speed_threshold
+    attributes = torch.full_like(labels, -1)
+    for index, name in enumerate(NUSCENES_DETECTION_CLASSES):
+        if name not in NUSCENES_MOVING_ATTRIBUTE:
+            continue
+        mask = labels == index
+        attributes[mask & moving] = NUSCENES_ATTRIBUTES.index(NUSCENES_MOVING_ATTRIBUTE[name])
+        attributes[mask & ~moving] = NUSCENES_ATTRIBUTES.index(NUSCENES_STATIONARY_ATTRIBUTE[name])
+    return attributes

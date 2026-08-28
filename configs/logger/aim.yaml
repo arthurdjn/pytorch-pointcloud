@@ -1,5 +1,0 @@
-aim:
-  _target_: aim.pytorch_lightning.AimLogger
-  repo: ${paths.log_dir}/aim
-  experiment: ${task_name}
-  run_name: ${run_id}

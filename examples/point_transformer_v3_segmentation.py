@@ -213,7 +213,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     # Limit the size of the dataset if specified
     if args.limit_train_batches is not None:
         n = min(args.limit_train_batches * args.batch_size, len(train_dataset))
-        train_dataset = Subset(train_dataset, range(args.limit_train_batches * args.batch_size))
+        train_dataset = Subset(train_dataset, range(n))
     if args.limit_test_batches is not None:
         n = min(args.limit_test_batches * args.batch_size, len(test_dataset))
         test_dataset = Subset(test_dataset, range(n))

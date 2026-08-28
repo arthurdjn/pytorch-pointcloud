@@ -186,3 +186,28 @@ def test_nuscenes_dataset_interrupted_process_not_marked_complete(datasets_dir_f
 
     dataset = NuScenesMini(root=datasets_dir, show_progress=False)
     assert len(dataset) > 0
+
+
+def test_velocity_attributes_follow_class_and_speed() -> None:
+    """Moving vehicles, cycles and pedestrians get their moving attribute, slow ones the stationary one, and the
+    two attribute-free classes get -1."""
+    from torch_pointcloud.datasets.nuscenes import (
+        NUSCENES_ATTRIBUTES,
+        NUSCENES_DETECTION_CLASSES,
+        velocity_attributes,
+    )
+
+    labels = torch.tensor(
+        [NUSCENES_DETECTION_CLASSES.index(name) for name in ("car", "car", "bus", "bicycle", "pedestrian", "barrier")]
+    )
+    velocity = torch.tensor([[3.0, 0.0], [0.2, 0.0], [0.0, 0.0], [0.0, 2.0], [0.5, 0.5], [9.0, 0.0]])
+    attributes = velocity_attributes(labels, velocity)
+    names = [NUSCENES_ATTRIBUTES[i] if i >= 0 else None for i in attributes.tolist()]
+    assert names == [
+        "vehicle.moving",
+        "vehicle.parked",
+        "vehicle.stopped",
+        "cycle.with_rider",
+        "pedestrian.standing",
+        None,
+    ]

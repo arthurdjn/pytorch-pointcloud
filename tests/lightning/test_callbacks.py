@@ -164,7 +164,7 @@ def _det_module() -> LitDetectionModel:
 
 
 def test_metric_callback_holds_ready_metric() -> None:
-    """The callback holds the provided metric as-is (Hydra builds it; there is no factory/setup step)."""
+    """The callback holds the provided metric as-is."""
     metric = JaccardIndex(task="multiclass", num_classes=5, ignore_index=-1)
     callback = MetricCallback(metric=metric, name="mIoU")
     assert callback.metric is metric

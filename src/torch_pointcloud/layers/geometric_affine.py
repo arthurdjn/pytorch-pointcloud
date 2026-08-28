@@ -25,6 +25,7 @@ scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SC
 
 
 NormalizeType = Literal["center", "anchor"]
+StdModeType = Literal["graph", "batch"]
 
 
 class GeometricAffineConv(MessagePassing):
@@ -33,9 +34,12 @@ class GeometricAffineConv(MessagePassing):
     by Xu Ma, Can Qin, Haoxuan You, Haoxi Ran, Yun Fu.
 
     Each neighborhood is recentered (`normalize="center"` subtracts the neighborhood mean,
-    `"anchor"` subtracts the center's values), rescaled by the per-sample standard deviation of the
-    offsets, and modulated by learnable affine parameters; the center features are appended to each
-    normalized message before `local_nn` and aggregation.
+    `"anchor"` subtracts the center's values), rescaled by the standard deviation of the offsets over
+    the graph (`std_mode="graph"`) or over the whole batch (`std_mode="batch"`), and modulated by
+    learnable affine parameters; the center features are appended to each normalized message before
+    `local_nn` and aggregation. The batch scope reproduces the normalization of the original PointMLP
+    release, whose checkpoints expect it; it makes the output of one sample depend on the other samples
+    in the batch.
 
     Args:
         local_nn: Network applied to each message.
@@ -43,6 +47,8 @@ class GeometricAffineConv(MessagePassing):
         spatial_dim: Dimension of point coordinates.
         use_pos: Whether to concatenate the point positions to the features before normalization.
         normalize: Neighborhood normalization mode (`"center"` or `"anchor"`).
+        std_mode: Scope of the standard deviation that rescales the offsets: one per graph (`"graph"`) or one
+            over every graph in the batch (`"batch"`).
         add_self_loops: Whether to add self-loops to the edge index.
         **kwargs: Additional `MessagePassing` arguments.
     """
@@ -54,6 +60,7 @@ class GeometricAffineConv(MessagePassing):
         spatial_dim: int = 3,
         use_pos: bool = True,
         normalize: NormalizeType = "center",
+        std_mode: StdModeType = "graph",
         add_self_loops: bool = False,
         eps: float = 1e-5,
         **kwargs: Unpack[MessagePassingParams],
@@ -66,6 +73,7 @@ class GeometricAffineConv(MessagePassing):
         self.spatial_dim = spatial_dim
         self.use_pos = use_pos
         self.normalize = ensure_option(normalize, NormalizeType, name="normalize")
+        self.std_mode = ensure_option(std_mode, StdModeType, name="std_mode")
         self.add_self_loops = add_self_loops
         self.eps = eps
 
@@ -133,13 +141,16 @@ class GeometricAffineConv(MessagePassing):
             mean = local_mean[index]
 
         msg = msg_j - mean
-        edge_batch = batch[index]
 
-        sq_msg_mean_c = msg.pow(2).mean(dim=-1)
-        sigma_sq = scatter_mean(sq_msg_mean_c, edge_batch, dim=0)
-        sigma = torch.sqrt(sigma_sq + self.eps)
+        if self.std_mode == "batch":
+            msg = msg / (msg.std() + self.eps)
+        else:
+            edge_batch = batch[index]
+            sq_msg_mean_c = msg.pow(2).mean(dim=-1)
+            sigma_sq = scatter_mean(sq_msg_mean_c, edge_batch, dim=0)
+            sigma = torch.sqrt(sigma_sq + self.eps)
+            msg = msg / sigma[edge_batch].view(-1, 1)
 
-        msg = msg / sigma[edge_batch].view(-1, 1)
         msg = self.alpha * msg + self.beta
         msg = torch.cat([msg, x_i], dim=1)
 
