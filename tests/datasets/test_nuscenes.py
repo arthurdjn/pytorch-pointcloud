@@ -1,5 +1,6 @@
 # mypy: disable-error-code="arg-type,call-overload"
 import json
+import shutil
 from pathlib import Path
 from typing import Callable
 from unittest.mock import Mock, patch
@@ -8,10 +9,13 @@ import numpy as np
 import pytest
 import torch
 
-from torch_pointcloud.datasets import NuScenesMini
+from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import (
     NUSCENES_ATTRIBUTES,
     NUSCENES_DETECTION_CLASSES,
+    NUSCENES_MINI_TRAIN_SCENES,
+    NUSCENES_MINI_VAL_SCENES,
+    NUSCENES_VAL_SCENES,
     _annotation_velocity,
     _pose_matrix,
     _remove_ego_points,
@@ -186,3 +190,62 @@ def test_nuscenes_dataset_interrupted_process_not_marked_complete(datasets_dir_f
 
     dataset = NuScenesMini(root=datasets_dir, show_progress=False)
     assert len(dataset) > 0
+
+
+def _copy_fixture_as_nuscenes(datasets_dir: Path) -> Path:
+    shutil.copytree(datasets_dir / "NuScenesMini" / "raw", datasets_dir / "NuScenes" / "raw")
+    return datasets_dir
+
+
+def test_nuscenes_official_split_lists() -> None:
+    """The vendored scene lists match the devkit split sizes and mini_val is part of val."""
+    assert len(NUSCENES_VAL_SCENES) == len(set(NUSCENES_VAL_SCENES)) == 150
+    assert len(NUSCENES_MINI_TRAIN_SCENES) == 8
+    assert len(NUSCENES_MINI_VAL_SCENES) == 2
+    assert set(NUSCENES_MINI_VAL_SCENES) <= set(NUSCENES_VAL_SCENES)
+
+
+def test_nuscenes_unknown_split_raises() -> None:
+    """An unknown split name is rejected before any disk access."""
+    with pytest.raises(ValueError, match="Unknown nuScenes split"):
+        _ = NuScenes(root="not-found", split="validation")
+    with pytest.raises(ValueError, match="version"):
+        _ = NuScenes(root="not-found", split=None)
+
+
+def test_nuscenes_split_resolves_version_and_cache_dir(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`mini_val` reads `v1.0-mini`, keeps only its scenes and caches under a split-specific directory."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    dataset = NuScenes(root=datasets_dir, split="mini_val", show_progress=False)
+    assert dataset.version == "v1.0-mini"
+    assert Path(dataset.processed_dir).name == "v1.0-mini_mini_val_sweeps10"
+    assert len(dataset) == 2
+    assert dataset[0][DataKeys.BOX].shape[1] == 7
+
+
+def test_nuscenes_split_without_keyframes_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A split whose scenes are absent from the metadata raises instead of producing an empty dataset."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    with pytest.raises(RuntimeError, match="No LiDAR keyframes"):
+        _ = NuScenes(root=datasets_dir, split="mini_train", show_progress=False)
+
+
+def test_nuscenes_missing_lidar_file_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A keyframe whose LiDAR file was not extracted raises before any cache is written."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    keyframes = sorted((datasets_dir / "NuScenes" / "raw" / "samples" / "LIDAR_TOP").glob("*.bin"))
+    keyframes[0].unlink()
+    with pytest.raises(RuntimeError, match="1 of 2 LiDAR keyframes are missing"):
+        _ = NuScenes(root=datasets_dir, split="mini_val", show_progress=False)
+
+
+def test_nuscenes_parallel_processing_matches_sequential(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Worker processes write the same cache as the sequential path."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    sequential = NuScenes(root=datasets_dir, split="mini_val", show_progress=False)
+    expected = [sequential[i] for i in range(len(sequential))]
+    parallel = NuScenes(root=datasets_dir, split="mini_val", show_progress=False, force_process=True, num_workers=2)
+    assert parallel.tokens == sequential.tokens
+    for index, sample in enumerate(expected):
+        for key in (DataKeys.POS, DataKeys.BOX, DataKeys.LABEL, DataKeys.VELOCITY):
+            assert torch.equal(parallel[index][key], sample[key])
