@@ -224,7 +224,7 @@ def resolve_weights(name: str, url: str) -> Path:
         ValueError: If the URL path escapes the models cache directory.
         FileNotFoundError: If the file is absent and cannot be downloaded.
 
-    ```python
+    ```{.python notest}
     from torch_pointcloud.models._registry import resolve_weights
 
     path = resolve_weights(
