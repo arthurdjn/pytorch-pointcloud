@@ -862,6 +862,7 @@ _ONEFORMER3D_SCANNET_TRANSFORMS: Callable[..., Any] = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.scannet20.danila-rukhovich.safetensors",
         dataset="scannet20",
+        # TODO: metrics not measured yet
         classes=SCANNET20_CLASSES,
         author="danila-rukhovich",
         license="CC-BY-NC-4.0",
@@ -953,6 +954,7 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.s3dis-area5.danila-rukhovich.safetensors",
         dataset="s3dis-area5",
+        # TODO: metrics not measured yet
         # Upstream trained this checkpoint on the pre-tiled blocks, so its channels follow that order
         # rather than the canonical one: `chair`/`table` and `bookcase`/`sofa` are swapped.
         classes=S3DIS_HDF5_CLASSES,

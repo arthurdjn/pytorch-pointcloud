@@ -9,10 +9,10 @@ Results (mIoU / OA):
     | ------------------------ | --------- | ---------------- |
     | dgcnn.scannet20.an-tao   | 49.6      | 53.06 / 81.83    |
     | dgcnn.s3dis-area1.an-tao |           | 69.19 / 89.69    |
-    | dgcnn.s3dis-area2.an-tao |           | 43.51 / 81.69    |
+    | dgcnn.s3dis-area2.an-tao |           | 43.50 / 81.69    |
     | dgcnn.s3dis-area3.an-tao |           | 68.73 / 90.86    |
     | dgcnn.s3dis-area4.an-tao |           | 50.68 / 85.06    |
-    | dgcnn.s3dis-area5.an-tao |           | 50.29 / 84.92    |
+    | dgcnn.s3dis-area5.an-tao |           | 50.30 / 84.92    |
     | dgcnn.s3dis-area6.an-tao |           | 75.60 / 92.10    |
     | S3DIS 6-fold mean        | 59.2      | 59.67 / 87.39    |
 

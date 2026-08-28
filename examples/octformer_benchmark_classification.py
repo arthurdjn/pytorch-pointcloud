@@ -1,10 +1,18 @@
 """Benchmark the OctFormer ModelNet40 classifier (single pass, no voting).
 
+NOTE: the reference number is the no-voting accuracy of octree-nn/octformer at c2975ab on the test PLYs produced by
+`python tools/cls_modelnet.py`, evaluated with:
+
+    python classification.py --config configs/cls_m40.yaml SOLVER.gpu 0, SOLVER.run test
+
+We score the released weights on points and normals sampled from the ModelNet40 meshes by `datasets.ModelNet40`
+instead of those PLYs; the gap (88.3 vs 92.7) is stable across sampling seeds and has not been traced further.
+
 Results vs reference (ModelNet40 overall accuracy):
 
     | Variant                             | reference | torch-pointcloud |
     | ----------------------------------- | --------- | ---------------- |
-    | octformer-base.modelnet40.octree-nn | 92.7      |                  |
+    | octformer-base.modelnet40.octree-nn | 92.7      | 88.33            |
 
 Usage:
     uv run --no-sync python examples/octformer_benchmark_classification.py

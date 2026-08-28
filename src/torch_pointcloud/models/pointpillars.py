@@ -522,7 +522,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars/pointpillars.kitti.openpcdet.safetensors",
         dataset="kitti",
-        metrics={"mAP": 62.86},
+        metrics={"mAP": 64.16},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",
@@ -563,6 +563,7 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars/pointpillars-multihead.nuscenes.openpcdet.safetensors",
         dataset="nuscenes",
+        # TODO: metrics not measured yet
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

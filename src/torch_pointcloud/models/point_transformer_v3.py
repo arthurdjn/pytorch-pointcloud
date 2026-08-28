@@ -1693,7 +1693,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3/ptv3-base.scannet20.pointcept.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 76.04},
+        metrics={"mIoU": 76.29},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="MIT",
@@ -1711,6 +1711,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3/ptv3-base.scannet200.pointcept.safetensors",
         dataset="scannet200",
+        metrics={"mIoU": 33.42},
         author="pointcept",
         license="MIT",
     ),
@@ -1727,6 +1728,7 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3/ptv3-base.s3dis-area5.pointcept.safetensors",
         dataset="s3dis-area5",
+        metrics={"mIoU": 32.06},
         classes=S3DIS_CLASSES,
         author="pointcept",
         license="MIT",

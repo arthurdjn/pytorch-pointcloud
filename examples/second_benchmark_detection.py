@@ -6,7 +6,7 @@ Results:
 
     | Variant                             | metric                      | reference                     | torch-pointcloud |
     | ----------------------------------- | --------------------------- | ----------------------------- | ---------------- |
-    | second.kitti.openpcdet              | Car / Ped / Cyc / mAP (R11) | 78.62 / 52.98 / 67.15 / 66.25 |                  |
+    | second.kitti.openpcdet              | Car / Ped / Cyc / mAP (R11) | 78.62 / 52.98 / 67.15 / 66.25 | 78.63 / 52.98 / 67.16 / 66.26 |
     | second-multihead.nuscenes.openpcdet | mAP / NDS                   | 50.59 / 62.29                 |                  |
 
 Usage:

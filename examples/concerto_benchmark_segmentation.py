@@ -4,7 +4,7 @@ Results (ScanNet val mIoU):
 
     | Variant                               | reference | torch-pointcloud |
     | ------------------------------------- | --------- | ---------------- |
-    | concerto-large-lp.scannet20.pointcept | 77.5      |                  |
+    | concerto-large-lp.scannet20.pointcept | 77.5      | 78.59 / 92.29    |
 
 Usage:
     uv run --no-sync python examples/concerto_benchmark_segmentation.py --limit 5

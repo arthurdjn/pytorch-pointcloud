@@ -4,9 +4,9 @@ Results (mAP@0.25 / mAP@0.5):
 
     | Variant              | reference   | torch-pointcloud |
     | -------------------- | ----------- | ---------------- |
-    | 3detr.sunrgbd.fair   | 58.0 / 30.3 |                  |
-    | 3detr.scannet.fair   | 62.1 / 37.9 |                  |
-    | 3detr-m.scannet.fair | 65.0 / 47.0 |                  |
+    | 3detr.sunrgbd.fair   | 58.0 / 30.3 | 58.08 / 29.64    |
+    | 3detr.scannet.fair   | 62.1 / 37.9 | 61.37 / 38.43    |
+    | 3detr-m.scannet.fair | 65.0 / 47.0 | 65.46 / 47.26    |
 
 Usage:
     uv run --no-sync python examples/3detr_benchmark_detection.py --model 3detr-m.scannet.fair

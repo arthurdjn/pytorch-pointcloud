@@ -758,7 +758,7 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2-ssg.modelnet40.xu-yan.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 92.3},
+        metrics={"OA": 92.30},
         classes=MODELNET40_CLASSES,
         author="xu-yan",
         license="MIT",
@@ -853,6 +853,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area5.xu-yan.safetensors",
         dataset="s3dis-area5",
+        metrics={"mIoU": 54.28},
         classes=S3DIS_CLASSES,
         author="xu-yan",
         license="MIT",
@@ -907,6 +908,7 @@ _OPENPOINTS_CLS_HPARAMS: Dict[str, Any] = dict(
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.modelnet40.openpoints.safetensors",
         dataset="modelnet40",
+        metrics={"OA": 91.90},
         classes=MODELNET40_CLASSES,
         author="openpoints",
         license="MIT",
@@ -934,6 +936,7 @@ def pointnet2_openpoints_modelnet40(**hparams: Any) -> PointNet2Classification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.scanobjectnn.openpoints.safetensors",
         dataset="scanobjectnn",
+        metrics={"OA": 86.16},
         classes=SCANOBJECTNN_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1007,6 +1010,7 @@ def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area1.openpoints.safetensors",
         dataset="s3dis-area1",
+        # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1024,6 +1028,7 @@ def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area2.openpoints.safetensors",
         dataset="s3dis-area2",
+        # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1041,6 +1046,7 @@ def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area3.openpoints.safetensors",
         dataset="s3dis-area3",
+        # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1058,6 +1064,7 @@ def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area4.openpoints.safetensors",
         dataset="s3dis-area4",
+        # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1075,6 +1082,7 @@ def pointnet2_openpoints_s3dis_area4(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area5.openpoints.safetensors",
         dataset="s3dis-area5",
+        metrics={"mIoU": 63.66},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1092,6 +1100,7 @@ def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area6.openpoints.safetensors",
         dataset="s3dis-area6",
+        # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",

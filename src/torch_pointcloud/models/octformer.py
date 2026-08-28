@@ -962,7 +962,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/octformer/octformer-base.modelnet40.octree-nn.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 89.02},
+        metrics={"OA": 88.33},
         classes=MODELNET40_CLASSES,
         author="octree-nn",
         license="MIT",

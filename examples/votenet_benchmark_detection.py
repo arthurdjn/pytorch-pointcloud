@@ -6,8 +6,8 @@ Results (mAP@0.25 / mAP@0.5):
 
     | Variant              | reference   | torch-pointcloud |
     | -------------------- | ----------- | ---------------- |
-    | votenet.sunrgbd.fair | 57.7 / 32.0 |                  |
-    | votenet.scannet.fair | 58.6 / 33.5 |                  |
+    | votenet.sunrgbd.fair | 57.7 / 32.0 | 58.81 / 34.15    |
+    | votenet.scannet.fair | 58.6 / 33.5 | 57.65 / 34.10    |
 
 Usage:
     uv run --no-sync python examples/votenet_benchmark_detection.py --model votenet.sunrgbd.fair

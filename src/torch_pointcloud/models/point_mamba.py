@@ -1026,6 +1026,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn.dingkang-liang.safetensors",
         dataset="scanobjectnn",
+        metrics={"OA": 94.32},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
         license="Apache-2.0",
@@ -1076,6 +1077,7 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-nobg.dingkang-liang.safetensors",
         dataset="scanobjectnn-nobg",
+        metrics={"OA": 83.30},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
         license="Apache-2.0",

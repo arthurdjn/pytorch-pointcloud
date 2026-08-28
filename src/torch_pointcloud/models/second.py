@@ -569,7 +569,7 @@ class SECONDMultiHeadDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/second/second.kitti.openpcdet.safetensors",
         dataset="kitti",
-        metrics={"mAP": 66.11},
+        metrics={"mAP": 66.26},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",
@@ -610,6 +610,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/second/second-multihead.nuscenes.openpcdet.safetensors",
         dataset="nuscenes",
+        # TODO: metrics not measured yet
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

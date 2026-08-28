@@ -11,7 +11,7 @@ Results (overall accuracy):
     | pointgpt-l.modelnet40.guangyan-chen           | 94.7      | 93.88            |
     | pointgpt-s.modelnet40-8k.guangyan-chen        | 94.2      | 93.76            |
     | pointgpt-b.modelnet40-8k.guangyan-chen        |           | 94.25            |
-    | pointgpt-l.modelnet40-8k.guangyan-chen        |           | 93.80            |
+    | pointgpt-l.modelnet40-8k.guangyan-chen        |           | 93.92            |
     | pointgpt-s.scanobjectnn-objbg.guangyan-chen   | 91.6      | 91.57            |
     | pointgpt-b.scanobjectnn-objbg.guangyan-chen   | 95.8      | 97.07            |
     | pointgpt-l.scanobjectnn-objbg.guangyan-chen   | 97.2      | 98.45            |

@@ -1049,6 +1049,7 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointrcnn/pointrcnn.kitti.openpcdet.safetensors",
         dataset="kitti",
+        # TODO: metrics not measured yet
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",

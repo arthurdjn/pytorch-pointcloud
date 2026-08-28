@@ -1259,6 +1259,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae/point-m2ae-base.shapenetpart.renrui-zhang.safetensors",
         dataset="shapenetpart",
+        metrics={"ins_mIoU": 86.17, "cls_mIoU": 84.60},
         author="renrui-zhang",
         license="MIT",
     ),
