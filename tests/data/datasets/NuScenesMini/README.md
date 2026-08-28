@@ -14,7 +14,7 @@ The on-disk layout matches the extracted `v1.0-mini`:
 
 ```text
 raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance, attribute,
-                                  # sample, sample_annotation, sample_data (consistent subset, verbatim)
+                                  # sample, sample_annotation, sample_data, scene (consistent subset, verbatim)
 raw/samples/LIDAR_TOP/*.pcd.bin   # float32 (N, 5) = (x, y, z, intensity, ring) keyframes
 raw/sweeps/LIDAR_TOP/*.pcd.bin    # float32 (N, 5) prior sweeps
 ```

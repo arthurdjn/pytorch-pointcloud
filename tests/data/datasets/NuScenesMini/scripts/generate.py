@@ -63,6 +63,7 @@ def generate(args: Namespace) -> None:
     inst_by_token = {r["token"]: r for r in _load(src_meta, "instance")}
     cat_by_token = {r["token"]: r for r in _load(src_meta, "category")}
     sample_by_token = {r["token"]: r for r in _load(src_meta, "sample")}
+    scene_by_token = {r["token"]: r for r in _load(src_meta, "scene")}
     attributes = _load(src_meta, "attribute")
 
     anns_by_sample: Dict[str, List[Dict[str, Any]]] = {}
@@ -103,6 +104,7 @@ def generate(args: Namespace) -> None:
     kept_inst = {a["instance_token"] for a in kept_anns}
     kept_cat = {inst_by_token[t]["category_token"] for t in kept_inst}
     kept_samples = {a["sample_token"] for a in kept_anns} | sample_tokens
+    kept_scenes = {sample_by_token[t]["scene_token"] for t in kept_samples}
 
     dst_raw = Path(args.dst_dir) / "raw"
     dst_meta = dst_raw / args.version
@@ -114,6 +116,7 @@ def generate(args: Namespace) -> None:
         "instance": [inst_by_token[t] for t in sorted(kept_inst)],
         "attribute": attributes,
         "sample": [sample_by_token[t] for t in sorted(kept_samples)],
+        "scene": [scene_by_token[t] for t in sorted(kept_scenes)],
         "sample_annotation": kept_anns,
         "sample_data": list(kept_sd.values()),
     }
