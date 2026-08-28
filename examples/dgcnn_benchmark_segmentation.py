@@ -7,7 +7,7 @@ Results (mIoU / OA):
 
     | Variant                  | reference | torch-pointcloud |
     | ------------------------ | --------- | ---------------- |
-    | dgcnn.scannet20.an-tao   | 49.6      |                  |
+    | dgcnn.scannet20.an-tao   | 49.6      | 53.06 / 81.83    |
     | dgcnn.s3dis-area1.an-tao |           | 69.19 / 89.69    |
     | dgcnn.s3dis-area2.an-tao |           | 43.51 / 81.69    |
     | dgcnn.s3dis-area3.an-tao |           | 68.73 / 90.86    |

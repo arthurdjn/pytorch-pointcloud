@@ -4,7 +4,7 @@ Results (ScanNet val mIoU):
 
     | Variant                  | reference | torch-pointcloud |
     | ------------------------ | --------- | ---------------- |
-    | sonata-lp.scannet20.fair | 72.5      |                  |
+    | sonata-lp.scannet20.fair | 72.5      | 72.60 / 89.80    |
 
 Usage:
     uv run --no-sync python examples/sonata_benchmark_segmentation.py --limit 5

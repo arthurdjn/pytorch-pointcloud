@@ -4,7 +4,7 @@ Results (val sequence 08, mIoU):
 
     | Variant                              | reference | torch-pointcloud |
     | ------------------------------------ | --------- | ---------------- |
-    | randlanet.semantickitti.tsung-han-wu | 52.9      |                  |
+    | randlanet.semantickitti.tsung-han-wu | 52.9      | 55.44 / 90.06    |
 
 Usage:
     uv run --no-sync python examples/randlanet_benchmark_segmentation.py --limit 5
