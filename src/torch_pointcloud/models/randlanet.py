@@ -910,7 +910,7 @@ class RandLANetSegmentation(SegmentationModel):
     "randlanet.semantickitti.tsung-han-wu",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/randlanet/randlanet.semantickitti.tsung-han-wu.safetensors",
+        url="hf://torch-pointcloud/randlanet.semantickitti.tsung-han-wu/resolve/main/model.safetensors",
         dataset="semantickitti",
         classes=SEMANTIC_KITTI_CLASSES,
         author="tsung-han-wu",

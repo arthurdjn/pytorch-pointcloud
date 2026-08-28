@@ -756,7 +756,7 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
     "pointnet2-ssg.modelnet40.xu-yan",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2-ssg.modelnet40.xu-yan.safetensors",
+        url="hf://torch-pointcloud/pointnet2-ssg.modelnet40.xu-yan/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.3},
         classes=MODELNET40_CLASSES,
@@ -802,7 +802,7 @@ def pointnet2_yanx27_ssg_modelnet40(**hparams: Any) -> PointNet2Classification:
     "pointnet2-msg.modelnet40.xu-yan",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2-msg.modelnet40.xu-yan.safetensors",
+        url="hf://torch-pointcloud/pointnet2-msg.modelnet40.xu-yan/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.67},
         classes=MODELNET40_CLASSES,
@@ -851,7 +851,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
     "pointnet2.s3dis-area5.xu-yan",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area5.xu-yan.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area5.xu-yan/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         classes=S3DIS_CLASSES,
         author="xu-yan",
@@ -905,7 +905,7 @@ _OPENPOINTS_CLS_HPARAMS: Dict[str, Any] = dict(
     "pointnet2.modelnet40.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.modelnet40.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.modelnet40.openpoints/resolve/main/model.safetensors",
         dataset="modelnet40",
         classes=MODELNET40_CLASSES,
         author="openpoints",
@@ -932,7 +932,7 @@ def pointnet2_openpoints_modelnet40(**hparams: Any) -> PointNet2Classification:
     "pointnet2.scanobjectnn.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.scanobjectnn.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.scanobjectnn.openpoints/resolve/main/model.safetensors",
         dataset="scanobjectnn",
         classes=SCANOBJECTNN_CLASSES,
         author="openpoints",
@@ -1005,7 +1005,7 @@ def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area1.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
         classes=S3DIS_CLASSES,
         author="openpoints",
@@ -1022,7 +1022,7 @@ def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area2.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
         classes=S3DIS_CLASSES,
         author="openpoints",
@@ -1039,7 +1039,7 @@ def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area3.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
         classes=S3DIS_CLASSES,
         author="openpoints",
@@ -1056,7 +1056,7 @@ def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area4.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
         classes=S3DIS_CLASSES,
         author="openpoints",
@@ -1073,7 +1073,7 @@ def pointnet2_openpoints_s3dis_area4(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area5.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area5.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         classes=S3DIS_CLASSES,
         author="openpoints",
@@ -1090,7 +1090,7 @@ def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2/pointnet2.s3dis-area6.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
         classes=S3DIS_CLASSES,
         author="openpoints",
