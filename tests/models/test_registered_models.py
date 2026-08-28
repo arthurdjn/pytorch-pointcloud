@@ -734,6 +734,19 @@ def test_registered_weights_classes_match_num_classes() -> None:
             weights = entry["weights"]
             if weights is None or "classes" not in weights:
                 continue
+
             num_classes = entry["hparams"].get("num_classes")
             if num_classes is not None:
                 assert len(weights["classes"]) == num_classes, name
+
+
+def test_registered_weights_urls_name_the_hub_repo() -> None:
+    for entries in _REGISTERED_MODELS.values():
+        for name, entry in entries.items():
+            weights = entry["weights"]
+            if weights is None:
+                continue
+
+            assert weights["url"] == f"hf://torch-pointcloud/{name}/resolve/main/model.safetensors", name
+            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
+            assert weights["author"], name

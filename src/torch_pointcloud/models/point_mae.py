@@ -858,7 +858,7 @@ _MODELNET_TRANSFORM = T.Compose(
     "point-mae-base.modelnet40.yatian-pang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.modelnet40.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.modelnet40.yatian-pang/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.87},
         classes=MODELNET40_CLASSES,
@@ -891,7 +891,7 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     "point-mae-base.modelnet40-8k.yatian-pang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.modelnet40-8k.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.modelnet40-8k.yatian-pang/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.35},
         classes=MODELNET40_CLASSES,
@@ -936,7 +936,7 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
     "point-mae-base.scanobjectnn-objbg.yatian-pang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-objbg.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.scanobjectnn-objbg.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-objbg",
         metrics={"OA": 90.19},
         classes=SCANOBJECTNN_CLASSES,
@@ -969,7 +969,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
     "point-mae-base.scanobjectnn-objonly.yatian-pang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-objonly.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.scanobjectnn-objonly.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-objonly",
         metrics={"OA": 88.3},
         classes=SCANOBJECTNN_CLASSES,
@@ -1002,7 +1002,7 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
     "point-mae-base.scanobjectnn-hardest.yatian-pang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.scanobjectnn-hardest.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.scanobjectnn-hardest.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 85.05},
         classes=SCANOBJECTNN_CLASSES,
@@ -1035,7 +1035,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     "point-mae-base.shapenetpart.yatian-pang",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.shapenetpart.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.shapenetpart.yatian-pang/resolve/main/model.safetensors",
         dataset="shapenetpart",
         author="yatian-pang",
         license="MIT",
@@ -1080,7 +1080,7 @@ def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAESegmentation:
     "point-mae-base.pretrain.yatian-pang",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mae/point-mae-base.pretrain.yatian-pang.safetensors",
+        url="hf://torch-pointcloud/point-mae-base.pretrain.yatian-pang/resolve/main/model.safetensors",
         dataset="shapenet55",
         author="yatian-pang",
         license="MIT",

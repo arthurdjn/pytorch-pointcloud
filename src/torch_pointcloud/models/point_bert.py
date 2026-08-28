@@ -974,7 +974,7 @@ _CLS_HPARAMS = dict(
     "point-bert-base.modelnet40.xumin-yu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.modelnet40.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.modelnet40.xumin-yu/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.63},
         classes=MODELNET40_CLASSES,
@@ -992,7 +992,7 @@ def point_bert_base_modelnet40(**kwargs: Any) -> PointBERTClassification:
     "point-bert-base.modelnet40-4k.xumin-yu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.modelnet40-4k.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.modelnet40-4k.xumin-yu/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.03},
         classes=MODELNET40_CLASSES,
@@ -1010,7 +1010,7 @@ def point_bert_base_modelnet40_4k(**kwargs: Any) -> PointBERTClassification:
     "point-bert-base.modelnet40-8k.xumin-yu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.modelnet40-8k.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.modelnet40-8k.xumin-yu/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.07},
         classes=MODELNET40_CLASSES,
@@ -1028,7 +1028,7 @@ def point_bert_base_modelnet40_8k(**kwargs: Any) -> PointBERTClassification:
     "point-bert-base.scanobjectnn-objonly.xumin-yu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.scanobjectnn-objonly.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.scanobjectnn-objonly.xumin-yu/resolve/main/model.safetensors",
         dataset="scanobjectnn-objonly",
         author="xumin-yu",
         license="MIT",
@@ -1044,7 +1044,7 @@ def point_bert_base_scanobjectnn_objonly(**kwargs: Any) -> PointBERTClassificati
     "point-bert-base.scanobjectnn-objbg.xumin-yu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.scanobjectnn-objbg.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.scanobjectnn-objbg.xumin-yu/resolve/main/model.safetensors",
         dataset="scanobjectnn-objbg",
         metrics={"OA": 87.44},
         author="xumin-yu",
@@ -1061,7 +1061,7 @@ def point_bert_base_scanobjectnn_objbg(**kwargs: Any) -> PointBERTClassification
     "point-bert-base.scanobjectnn-hardest.xumin-yu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.scanobjectnn-hardest.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.scanobjectnn-hardest.xumin-yu/resolve/main/model.safetensors",
         dataset="scanobjectnn-hardest",
         author="xumin-yu",
         license="MIT",
@@ -1077,7 +1077,7 @@ def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassificati
     "point-bert-base.pretrain.xumin-yu",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.pretrain.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.pretrain.xumin-yu/resolve/main/model.safetensors",
         dataset="shapenet55",
         author="xumin-yu",
         license="MIT",
@@ -1110,7 +1110,7 @@ def point_bert_base_pretrain(**kwargs: Any) -> PointBERTMaskedTransformer:
     "point-bert-base.dvae.xumin-yu",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-bert/point-bert-base.dvae.xumin-yu.safetensors",
+        url="hf://torch-pointcloud/point-bert-base.dvae.xumin-yu/resolve/main/model.safetensors",
         dataset="shapenet55",
         author="xumin-yu",
         license="MIT",

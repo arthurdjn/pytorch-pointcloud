@@ -913,7 +913,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     "pointmlp-base.modelnet40.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp/pointmlp-base.modelnet40.xu-ma.safetensors",
+        url="hf://torch-pointcloud/pointmlp-base.modelnet40.xu-ma/resolve/main/model.safetensors",
         dataset="modelnet40",
         classes=MODELNET40_CLASSES,
         author="xu-ma",
@@ -941,7 +941,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-elite.modelnet40.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp/pointmlp-elite.modelnet40.xu-ma.safetensors",
+        url="hf://torch-pointcloud/pointmlp-elite.modelnet40.xu-ma/resolve/main/model.safetensors",
         dataset="modelnet40",
         classes=MODELNET40_CLASSES,
         author="xu-ma",
@@ -981,7 +981,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-base.scanobjectnn.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp/pointmlp-base.scanobjectnn.xu-ma.safetensors",
+        url="hf://torch-pointcloud/pointmlp-base.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
@@ -1010,7 +1010,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-elite.scanobjectnn.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp/pointmlp-elite.scanobjectnn.xu-ma.safetensors",
+        url="hf://torch-pointcloud/pointmlp-elite.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
