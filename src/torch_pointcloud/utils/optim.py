@@ -9,6 +9,7 @@ with a trailing "others" group for unmatched parameters. Scalar `match_types` or
 `fnmatch.fnmatchcase` and friends drop in directly:
 
 ```python
+import fnmatch
 from functools import partial
 
 layer_matches = [partial(fnmatch.fnmatchcase, pat="*block*")]
