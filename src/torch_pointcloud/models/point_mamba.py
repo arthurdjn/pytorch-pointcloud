@@ -972,7 +972,7 @@ class PointMambaMAE(BaseModel):
     "point-mamba-base.modelnet40.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba/point-mamba-base.modelnet40.dingkang-liang.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.modelnet40.dingkang-liang/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.64},
         classes=MODELNET40_CLASSES,
@@ -1024,7 +1024,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     "point-mamba-base.scanobjectnn.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn.dingkang-liang.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn.dingkang-liang/resolve/main/model.safetensors",
         dataset="scanobjectnn",
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
@@ -1074,7 +1074,7 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
     "point-mamba-base.scanobjectnn-nobg.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-nobg.dingkang-liang.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-nobg.dingkang-liang/resolve/main/model.safetensors",
         dataset="scanobjectnn-nobg",
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
@@ -1124,7 +1124,7 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
     "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba/point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang/resolve/main/model.safetensors",
         dataset="scanobjectnn-augmentedrot-scale75",
         metrics={"OA": 89.28},
         classes=SCANOBJECTNN_CLASSES,
@@ -1175,7 +1175,7 @@ def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> Poi
     "point-mamba-base.pretrain.dingkang-liang",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba/point-mamba-base.pretrain.dingkang-liang.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.pretrain.dingkang-liang/resolve/main/model.safetensors",
         dataset="shapenet55",
         author="dingkang-liang",
         license="Apache-2.0",
