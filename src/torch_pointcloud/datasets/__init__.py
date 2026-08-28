@@ -4,7 +4,7 @@ from .concat import ConcatDataset, SingleDatasetBatchSampler
 from .kitti import KITTI
 from .mix import MixDataset
 from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResampled
-from .nuscenes import NuScenesMini
+from .nuscenes import NuScenes, NuScenesMini
 from .parislille3d import ParisLille3D
 from .pointcloud import PointCloudDataset
 from .repeat import RepeatDataset
