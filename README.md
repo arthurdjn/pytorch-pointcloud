@@ -1,7 +1,7 @@
 # pytorch-pointcloud
 
 <div align="center" style="width: 100%; margin: auto">
-  <a href="" rel="noopener"><img src="docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
+  <a href="https://arthurdjn.github.io/pytorch-pointcloud/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
 
 [![python](https://img.shields.io/badge/python-3.10+-red.svg?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://www.python.org/)
 [![pytorch](https://img.shields.io/badge/pytorch-2.5+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)
@@ -14,19 +14,79 @@
 </div>
 
 <p align="center">
-    PyTorch Point Cloud models, scripts, pretrained weights -- PointNet, PointNet++, DGCNN, KPConv, RandLA-Net, SPConv, VoteNet, PointGroup, SPVCNN, 3DETR, PointTransformer and more
+A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers,
+behind one <code>create_model</code> factory in the spirit of <a href="https://github.com/huggingface/pytorch-image-models">timm</a>.
 </p>
+
+<br>
+<br>
+
+<table align="center">
+  <tr>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/classification_dark.webp">
+        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/classification.webp" alt="A chair turning a full circle, classified as a chair" width="100%">
+      </picture><br>
+      <b>Object classification</b><br><code>pointnet2-ssg.modelnet40.xu-yan</code>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/part_segmentation_dark.webp">
+        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/part_segmentation.webp" alt="An airplane turning a full circle, its parts colored by class" width="100%">
+      </picture><br>
+      <b>Part segmentation</b><br><code>pointnext-sm.shapenetpart.openpoints</code>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/indoor_dark.webp">
+        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/indoor.webp" alt="A camera gliding through a scanned house, every point colored by semantic class" width="100%">
+      </picture><br>
+      <b>Indoor segmentation / detection</b><br><code>ptv3-base.scannet20.pointcept</code>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/driving_dark.webp">
+        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/driving.webp" alt="A bird's-eye camera riding down a LiDAR sequence with segmented points and detected boxes" width="100%">
+      </picture><br>
+      <b>Outdoor segmentation / detection</b><br><code>spvcnn-119gmacs.semantickitti.mit-han-lab</code><br><code>second.kitti.openpcdet</code>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/survey_dark.webp">
+        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/survey.webp" alt="A slow turn around the Eiffel Tower as an airborne LiDAR survey, colored by embedding" width="100%">
+      </picture><br>
+      <b>Large scale segmentation</b><br><code>utonia-lp.scannet20.pointcept</code>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/similarity_dark.webp">
+        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/similarity.webp" alt="The same house seen by a self-supervised encoder, points lit by similarity to a query" width="100%">
+      </picture><br>
+      <b>Features extraction</b><br><code>sonata-lp.scannet20.fair</code>
+    </td>
+  </tr>
+</table>
 
 <br>
 
 ## 🎉 Highlights
 
-- **36 architectures** for classification, segmentation, detection, and self-supervised pretraining:
-  PointNet, PointNet++, DGCNN, KPConv, RandLA-Net, PointNeXt, PointMLP, Point Transformer V1/V2/V3, SpUNet, SPVCNN, OctFormer, SphereFormer, Sonata, Point-MAE, VoteNet, 3DETR, PointPillars, SECOND, and more.
-- **Pretrained weights** verified against the reference implementations.
-- **Datasets** with download and preprocessing: ModelNet, ScanNet, S3DIS, ScanObjectNN, ShapeNetPart, SemanticKITTI, SunRGBD, Toronto3D, and more.
-- **Dict transforms** (MONAI-style) with tensor-level functional equivalents.
-- **Fully typed** (mypy strict), supports Python 3.10 to 3.13.
+- **35 architectures** for classification, part and semantic segmentation, 3D detection and
+  self-supervised pretraining: PointNet, PointNet++, DGCNN, KPConv, RandLA-Net, PointNeXt, PointMLP, PointConv,
+  PVCNN, Point Transformer V1/V2/V3, SpUNet, SPVCNN, OctFormer, SphereFormer, Sonata, Concerto, Utonia, Point-MAE,
+  Point-BERT, PointGPT, PointMamba, VoteNet, 3DETR, PointPillars, SECOND, PointRCNN, VoxelNeXt, LION and
+  more.
+- **134 pretrained checkpoints**, each carrying its benchmark metrics measured through this library with the
+  reference protocol, and loaded with a single `create_model(..., pretrained=True)`.
+- **Datasets** with download and preprocessing: ModelNet40, ScanObjectNN, ShapeNetPart, S3DIS, ScanNet, SemanticKITTI,
+  nuScenes, KITTI, SUN RGB-D, Paris-Lille-3D, Semantic3D and Toronto3D.
+- **Transforms** as MONAI-style dict transforms with tensor-level functional equivalents, and **inferers** for the
+  usual evaluation protocols (test-time augmentation, voxel partition, sliding window, potential sphere voting).
+- **Packed batches** everywhere: a flat $(N, \ldots)$ tensor plus a $(N,)$ batch index, never padded tensors.
+- **Fully typed** (mypy strict), Python 3.10 to 3.13, an optional Lightning integration.
 
 <br>
 
@@ -36,7 +96,9 @@
 pip install torch-pointcloud
 ```
 
-See the [Installation](docs/installation.md) guide for more details on how to install the optional CUDA extensions.
+The CUDA extensions (PyG kernels, spconv, flash-attention, Mamba, ocnn, torchsparse) are optional and only needed by
+the architectures that use them.
+See the [Installation](https://arthurdjn.github.io/pytorch-pointcloud/installation/) page for the exact install command.
 
 <br>
 
@@ -47,9 +109,9 @@ import torch
 import torch_pointcloud as tp
 
 model = tp.create_model(
-  "pointnext-sm.scanobjectnn.openpoints",
-  task="classification",
-  pretrained=True,
+    "pointnext-sm.scanobjectnn.openpoints",
+    task="classification",
+    pretrained=True,
 ).eval()
 
 pos = torch.randn(2048, 3)  # (N, 3) coordinates
@@ -60,17 +122,26 @@ with torch.no_grad():
     logits = model(x, pos, batch)  # (1, 15)
 ```
 
-Models accept packed batches: a flat $(N, ...)$ tensor plus a $(N,)$ `batch` index, never padded
-$(B, N, ...)$ tensors. Discover registered names (and which ones ship weights) with `list_models`:
+Every checkpoint ships the transform that turns a raw point cloud into what the network expects:
 
 ```python
-import torch_pointcloud as tp
+model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="segmentation", pretrained=True, return_info=True)
+info["transform"]  # the preprocessing pipeline of that checkpoint
+info["weights"]["metrics"]  # {"mIoU": 76.29}
 
-tp.list_models("pointnext*")                          # every registered PointNeXt config
-tp.list_models(task="segmentation", pretrained=True)  # all segmentation checkpoints
+tp.list_models("pointnext*")  # every registered PointNeXt config
+tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```
 
-See the [Get Started](docs/get-started.md) guide for datasets, transforms, and training.
+The [examples](examples/) directory for hands-on usage (benchmarks and training recipes).
+
+<br>
+
+## 📚 Documentation
+
+The [documentation](https://arthurdjn.github.io/pytorch-pointcloud/) covers [installation](https://arthurdjn.github.io/pytorch-pointcloud/installation/), a [get-started](https://arthurdjn.github.io/pytorch-pointcloud/get-started/) guide,
+the [model zoo](https://arthurdjn.github.io/pytorch-pointcloud/models/overview/), [datasets](https://arthurdjn.github.io/pytorch-pointcloud/datasets/overview/), [transforms](https://arthurdjn.github.io/pytorch-pointcloud/transforms/overview/),
+tutorials and the full API reference.
 
 <br>
 
