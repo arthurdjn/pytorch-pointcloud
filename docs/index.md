@@ -69,7 +69,8 @@ transform = info["transform"]
 # Preprocess the input.
 ply = PlyData.read("sample.ply")["vertex"]
 pos = np.stack([ply["x"], ply["y"], ply["z"]], 1).astype("float32")
-sample = {"pos": torch.from_numpy(pos)}
+normal = np.stack([ply["nx"], ply["ny"], ply["nz"]], 1).astype("float32")
+sample = {"pos": torch.from_numpy(pos), "normal": torch.from_numpy(normal)}
 sample = transform(sample)
 
 # Preprocess, pack into a batch, predict.
