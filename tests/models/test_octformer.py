@@ -3,7 +3,7 @@ from typing import Any, Dict
 import pytest
 import torch
 
-from torch_pointcloud.models.octformer import OctFormerClassification, OctFormerSegmentation
+from torch_pointcloud.models.octformer import OctFormerBlock, OctFormerClassification, OctFormerSegmentation
 from torch_pointcloud.utils.imports import _DWCONV_AVAILABLE, _OCNN_AVAILABLE
 from torch_pointcloud.utils.octree import build_octree
 
@@ -107,6 +107,18 @@ def test_octformer_classification_forward(model_clf: OctFormerClassification, da
     logits = model_clf(data["x"], data["octree"], data["depth"])
     assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
     assert logits.dtype == data["x"].dtype
+
+
+def test_octformer_block_cpe_order(model_clf: OctFormerClassification, data: Dict[str, Any]) -> None:
+    model_clf.eval()
+    with torch.no_grad():
+        first = model_clf(data["x"], data["octree"], data["depth"])
+        for block in model_clf.encoder.modules():
+            if isinstance(block, OctFormerBlock):
+                block.cpe_first = False
+        after = model_clf(data["x"], data["octree"], data["depth"])
+    assert first.shape == after.shape
+    assert not torch.allclose(first, after)
 
 
 def test_octformer_classification_reset_classifier(model_clf: OctFormerClassification, data: Dict[str, Any]) -> None:

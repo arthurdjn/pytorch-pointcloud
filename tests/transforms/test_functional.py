@@ -209,6 +209,38 @@ def test_rescale_bbox_all_zeros() -> None:
     assert not torch.isnan(out).any()
 
 
+def test_minimal_enclosing_ball_support_points() -> None:
+    """Two antipodal points define the ball; the third point lies inside it."""
+    points = torch.tensor([[0.0, 0.5, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]])
+    center, radius = F.minimal_enclosing_ball(points)
+    assert torch.allclose(center, torch.zeros(3), atol=1e-6)
+    assert math.isclose(radius.item(), 1.0, abs_tol=1e-6)
+
+
+def test_minimal_enclosing_ball_tetrahedron() -> None:
+    """A regular tetrahedron inscribed in the unit sphere is bounded by that sphere."""
+    points = torch.tensor([[1.0, 1.0, 1.0], [1.0, -1.0, -1.0], [-1.0, 1.0, -1.0], [-1.0, -1.0, 1.0]]) / math.sqrt(3)
+    center, radius = F.minimal_enclosing_ball(points + 2.0)
+    assert torch.allclose(center, torch.full((3,), 2.0), atol=1e-6)
+    assert math.isclose(radius.item(), 1.0, abs_tol=1e-6)
+
+
+def test_minimal_enclosing_ball_encloses_random_points() -> None:
+    torch.manual_seed(0)
+    points = torch.randn(500, 3) * torch.tensor([3.0, 1.0, 0.5])
+    center, radius = F.minimal_enclosing_ball(points)
+    distances = torch.norm(points - center, dim=1)
+    assert distances.max() <= radius + 1e-5
+    assert radius < torch.norm(points - points.mean(0), dim=1).max() + 1e-6
+
+
+def test_rescale_min_sphere_unit_radius() -> None:
+    torch.manual_seed(0)
+    points = torch.rand(200, 3) * 5.0
+    out = F.rescale(points, eps=0.0, method="min_sphere")
+    assert math.isclose(torch.norm(out, dim=1).max().item(), 1.0, abs_tol=1e-5)
+
+
 def test_rescale_invalid_method_raises() -> None:
     points = torch.randn(3, 3)
     with pytest.raises(ValueError, match="Invalid method"):

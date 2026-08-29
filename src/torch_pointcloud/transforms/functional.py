@@ -1,7 +1,7 @@
 """Pure tensor functions backing the dict transforms: sampling, masking, normalization, padding, and rotation."""
 
 import math
-from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, get_args, overload
 
 import torch
 from torch import Tensor
@@ -10,7 +10,7 @@ from torch_pointcloud.utils.cluster import fps, knn
 
 ShiftMethod = Literal["bbox", "centroid", "min"]
 
-RescaleMethod = Literal["centroid", "bbox", "linear"]
+RescaleMethod = Literal["centroid", "bbox", "centroid_extent", "min_sphere"]
 
 PadMode = Literal["below", "above", "all"]
 
@@ -281,9 +281,12 @@ def rescale(
         eps: Small constant added to the scale denominator for numerical stability.
         method:
 
-            * `"centroid"`: subtract the mean over points, then divide by
-              $\max(\max_i \|\mathbf{x}_i - \mathbf{\mu}\|_2, \epsilon)$ (max Euclidean distance
-              from the centroid, clamped from below by `eps`).
+            * `"centroid"`: subtract the mean over points, then divide by the max Euclidean
+              distance from the centroid plus $\epsilon$:
+
+              $$
+              \mathbf{x} \leftarrow \frac{\mathbf{x} - \boldsymbol{\mu}}{\max_i \|\mathbf{x}_i - \boldsymbol{\mu}\|_2 + \epsilon}
+              $$
 
             * `"bbox"`: subtract the axis-aligned bounding-box midpoint (midrange center),
               then divide by half the longest edge of that box plus $\epsilon$ (matches common
@@ -295,7 +298,7 @@ def rescale(
               \mathbf{x} \leftarrow \frac{\mathbf{x} - \mathbf{c}}{r}
               $$
 
-            * `"linear"`: subtract the centroid then divide by the longest axis-aligned
+            * `"centroid_extent"`: subtract the centroid then divide by the longest axis-aligned
               span (the convention used by the published RandLA-Net Toronto-3D /
               Semantic3D checkpoints):
 
@@ -303,11 +306,14 @@ def rescale(
               \mathbf{x} \leftarrow \frac{\mathbf{x} - \boldsymbol{\mu}}{\max_j (x_{\max,j} - x_{\min,j}) + \epsilon}
               $$
 
+            * `"min_sphere"`: subtract the center of the minimal enclosing sphere of all points and divide by
+              its radius plus $\epsilon$ (see `minimal_enclosing_ball`; the OctFormer ModelNet40 normalization).
+
     Returns:
         Normalized tensor, same shape as `points`.
 
     Raises:
-        ValueError: If `method` is not `"centroid"`, `"bbox"`, or `"linear"`.
+        ValueError: If `method` is not `"centroid"`, `"bbox"`, `"centroid_extent"`, or `"min_sphere"`.
     """
     if method not in get_args(RescaleMethod):
         raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(RescaleMethod)}.")
@@ -322,17 +328,80 @@ def rescale(
         radius = (bbmax - bbmin).max() / 2
         return (points - center) / (radius + eps)
 
-    if method == "linear":
+    if method == "centroid_extent":
         bbmin = points.min(dim=-2).values
         bbmax = points.max(dim=-2).values
         scale = (bbmax - bbmin).max()
         centroid = points.mean(dim=-2, keepdim=True)
         return (points - centroid) / (scale + eps)
 
+    if method == "min_sphere":
+        center, radius = minimal_enclosing_ball(points.reshape(-1, points.shape[-1]))
+        return (points - center) / (radius + eps)
+
     centroid = points.mean(dim=-2, keepdim=True)
     points = points - centroid
     scale = torch.norm(points, dim=-1, keepdim=True).max()
     return points / (scale + eps)
+
+
+def _circumsphere(support: Sequence[Tensor]) -> Tuple[Tensor, Tensor]:
+    a = support[0]
+    if len(support) == 1:
+        return a, torch.zeros((), dtype=a.dtype)
+    d = torch.stack([r - a for r in support[1:]])
+    gram = 2 * d @ d.T
+    rhs = (d * d).sum(dim=1)
+    coeffs = torch.linalg.lstsq(gram, rhs.unsqueeze(1)).solution.squeeze(1)
+    center = a + coeffs @ d
+    return center, torch.norm(center - a)
+
+
+def _welzl(points: List[Tensor], support: List[Tensor], dim: int) -> Tuple[Tensor, Tensor]:
+    if support:
+        center, radius = _circumsphere(support)
+    else:
+        center, radius = torch.zeros(dim, dtype=torch.float64), torch.tensor(-1.0, dtype=torch.float64)
+    if len(support) == dim + 1:
+        return center, radius
+    for i in range(len(points)):
+        if torch.norm(points[i] - center) > radius + 1e-9:
+            center, radius = _welzl(points[:i], support + [points[i]], dim)
+            points.insert(0, points.pop(i))
+    return center, radius
+
+
+def minimal_enclosing_ball(points: Tensor) -> Tuple[Tensor, Tensor]:
+    r"""Compute the smallest ball enclosing a point set (Welzl's move-to-front algorithm).
+
+    The recursion only descends on the support set (at most $C + 1$ points), so the depth is bounded by the
+    dimension while the point loop stays iterative; points already known to be inside are moved to the front so
+    that later checks succeed early.
+
+    Args:
+        points: Tensor of shape $(N, C)$ with $N \geq 1$.
+
+    Returns:
+        The ball center $(C,)$ and its radius (a scalar), in the dtype and on the device of `points`.
+
+    Shape:
+        - Input: $(N, C)$
+        - Output: $(C,)$ and $()$
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import functional as F
+
+        points = torch.tensor([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.5, 0.0]])
+        center, radius = F.minimal_enclosing_ball(points)  # tensor([0., 0., 0.]), tensor(1.)
+        ```
+    """
+    if points.dim() != 2 or points.shape[0] == 0:
+        raise ValueError(f"Expected a non-empty (N, C) tensor, got shape {tuple(points.shape)}.")
+    rows = list(points.detach().to("cpu", torch.float64))
+    center, radius = _welzl(rows, [], points.shape[1])
+    return center.to(points.device, points.dtype), radius.to(points.device, points.dtype)
 
 
 @overload
