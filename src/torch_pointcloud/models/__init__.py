@@ -8,7 +8,6 @@ from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
-from .oneformer3d import OneFormer3DSegmentation
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTMaskedTransformer
 from .point_m2ae import PointM2AEClassification, PointM2AEMaskedAutoEncoder, PointM2AESegmentation
 from .point_mae import PointMAEClassification, PointMAEMaskedAutoEncoder, PointMAESegmentation

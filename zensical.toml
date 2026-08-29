@@ -216,7 +216,6 @@ nav = [
             { "kpconv" = "api/models/kpconv.md" },
             { "lion" = "api/models/lion.md" },
             { "octformer" = "api/models/octformer.md" },
-            { "oneformer3d" = "api/models/oneformer3d.md" },
             { "point_bert" = "api/models/point_bert.md" },
             { "point_m2ae" = "api/models/point_m2ae.md" },
             { "point_mae" = "api/models/point_mae.md" },
