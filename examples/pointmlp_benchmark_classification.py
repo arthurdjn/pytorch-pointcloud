@@ -1,7 +1,7 @@
 """Benchmark the PointMLP classifiers on ModelNet40 and ScanObjectNN (single pass, no voting).
 
-NOTE: the ScanObjectNN checkpoints score about 9 points below the README on the hardest split; the reference test script
-has not been re-run on this machine yet, so the cause (weights, split file or protocol) is still open.
+NOTE: the ScanObjectNN weights are the `model31C-demo1` release of ma-xu/pointMLP-pytorch (d2b8dbaa, before its std
+fix); the README's 86.1 / 84.1 belong to the later `fixstd` checkpoints, whose download links are dead.
 
 Results (overall accuracy):
 

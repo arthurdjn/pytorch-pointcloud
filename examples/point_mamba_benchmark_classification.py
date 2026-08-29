@@ -1,7 +1,7 @@
 """Benchmark the PointMamba classifiers on ModelNet40 and ScanObjectNN (single pass, no voting).
 
-NOTE: not able to reproduce the `scanobjectnn-nobg` checkpoint using original code (get 83 OA),
-most likely due to an untracked architecture / norm used at the time of training this checkpoint.
+NOTE: the `scanobjectnn-nobg` checkpoint (`finetune_scan_only.pth`) was saved from an earlier PointMamba block with an
+extra per-block `norm_ffn` LayerNorm; loaded into the released architecture it scores 83 OA with the reference code too.
 
 Results (overall accuracy):
 
