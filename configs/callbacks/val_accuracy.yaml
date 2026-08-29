@@ -1,8 +1,0 @@
-# @package callbacks.val_accuracy
-# Per-epoch accuracy, logged on validation/test.
-
-defaults:
-  - /metric@metric: accuracy
-
-_target_: torch_pointcloud.lightning.MetricCallback
-name: accuracy

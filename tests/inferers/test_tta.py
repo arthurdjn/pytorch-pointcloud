@@ -159,3 +159,31 @@ def test_tta_empty_scene_passes_through_base_output() -> None:
 
     out = TTAInferer(base=SimpleInferer(), transforms=identity, num_passes=2)(data, predictor=predictor)
     assert out.shape == (0, 5)
+
+
+def test_simple_tta_transforms_is_the_13_view_indoor_protocol() -> None:
+    """Every rotation at every scale (scales outermost) plus one flip view; identity factors add no transform."""
+    from torch_pointcloud.inferers import simple_tta_transforms
+
+    transforms = simple_tta_transforms()
+    assert len(transforms) == 13
+    assert len(transforms[0].transforms) == 0
+    assert [type(t).__name__ for t in transforms[1].transforms] == ["RandomRotate"]
+    assert [type(t).__name__ for t in transforms[5].transforms] == ["RandomRotate", "RandomScale"]
+    assert [type(t).__name__ for t in transforms[-1].transforms] == ["RandomFlip"]
+    assert len(simple_tta_transforms(rotations=(0.0,), scales=(0.9, 1.1), flip=False)) == 2
+
+
+def test_simple_tta_transforms_flip_acts_on_positions_and_normals_and_skips_missing_keys() -> None:
+    """The flip view mirrors both `pos` and `normal`, and still applies to a scene without normals."""
+    from torch_pointcloud.inferers import simple_tta_transforms
+
+    data = _toy_data(seed=5)
+    data[DataKeys.NORMAL] = torch.randn(64, 3)
+    view = simple_tta_transforms(rotations=(0.0,), scales=(1.0,))[-1]
+    out = view(dict(data))
+    assert torch.allclose(out[DataKeys.POS][:, :2], -data[DataKeys.POS][:, :2])
+    assert torch.allclose(out[DataKeys.NORMAL][:, :2], -data[DataKeys.NORMAL][:, :2])
+    assert torch.allclose(out[DataKeys.POS][:, 2], data[DataKeys.POS][:, 2])
+    out_no_normal = view(_toy_data(seed=5))
+    assert DataKeys.NORMAL not in out_no_normal

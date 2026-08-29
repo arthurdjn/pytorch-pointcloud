@@ -8,7 +8,7 @@ in any right-handed frame.
 """
 
 import math
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import torch
 from torch import Tensor
@@ -433,23 +433,31 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
-def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshold: float, rotated: bool) -> Tensor:
+def _nms3d_single(
+    boxes: Tensor,
+    scores: Tensor,
+    labels: OptTensor,
+    iou_threshold: float,
+    rotated: bool,
+    max_keep: Optional[int],
+) -> Tensor:
     """Greedy 3D NMS within a single scene; see `nms3d`."""
+    limit = boxes.shape[0] if max_keep is None else max_keep
     if rotated:
         # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
         # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
         # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
         boxes_bev = boxes.clone()
         boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        iou_bev = boxes_iou_bev(boxes_bev, boxes_bev)
         order = scores.argsort(descending=True)
-        keep = []
+        keep: List[Tensor] = []
 
-        while order.numel() > 0:
+        # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
+        while order.numel() > 0 and len(keep) < limit:
             i = order[0]
             keep.append(i)
             rest = order[1:]
-            suppress = iou_bev[i, rest] > iou_threshold
+            suppress = boxes_iou_bev(boxes_bev[i : i + 1], boxes_bev[rest])[0] > iou_threshold
             if labels is not None:
                 suppress = suppress & (labels[rest] == labels[i])
             order = rest[~suppress]
@@ -465,7 +473,7 @@ def _nms3d_single(boxes: Tensor, scores: Tensor, labels: OptTensor, iou_threshol
     order = scores.argsort(descending=True)
     keep = []
 
-    while order.numel() > 0:
+    while order.numel() > 0 and len(keep) < limit:
         i = order[0]
         keep.append(i)
         rest = order[1:]
@@ -489,6 +497,7 @@ def nms3d(
     labels: OptTensor = None,
     batch: OptTensor = None,
     rotated: bool = False,
+    max_keep: Optional[int] = None,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
 
@@ -507,6 +516,8 @@ def nms3d(
         labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
         batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
+        max_keep: Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
+            equals the first `max_keep` entries of the uncapped result.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
@@ -518,13 +529,13 @@ def nms3d(
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated)
+        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep)
 
     keep = []
     for b in torch.unique(batch):
         scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
         scene_labels = None if labels is None else labels[scene]
-        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated)])
+        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated, max_keep)])
 
     return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
 

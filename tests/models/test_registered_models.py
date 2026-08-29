@@ -690,7 +690,7 @@ def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int =
         pytest.param("3detr.sunrgbd.fair", dict(preenc_npoints=128, num_queries=32), id="3detr.sunrgbd.fair"),
         pytest.param(
             "pointrcnn.kitti.openpcdet",
-            dict(sa_npoints=[128, 64, 32, 16], num_sampled_points=64, nms_post_maxsize=16),
+            dict(sa_npoints=[128, 64, 32, 16], num_sampled_points=64, proposal_post_maxsize=16),
             id="pointrcnn.kitti.openpcdet",
         ),
     ],

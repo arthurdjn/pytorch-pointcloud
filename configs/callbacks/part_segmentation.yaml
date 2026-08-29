@@ -1,6 +1,0 @@
-# Default callbacks plus the ShapeNetPart instance / class mIoU protocol (a global multiclass mIoU is
-# not comparable to published part-segmentation numbers). Opt in with `override /callbacks: part_segmentation`.
-defaults:
-  - default
-  - val_ins_miou
-  - _self_

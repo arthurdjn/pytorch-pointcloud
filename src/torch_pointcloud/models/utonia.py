@@ -314,7 +314,7 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
     weights=WeightsDict(
         url="hf://torch-pointcloud/utonia-lp.scannet20.pointcept/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 71.11},
+        metrics={"mIoU": 77.70},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="CC-BY-NC-4.0",

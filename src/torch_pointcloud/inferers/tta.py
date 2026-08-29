@@ -7,13 +7,16 @@ position, predictions from rotated or flipped views are already aligned and can
 be averaged directly without inverting the transform.
 """
 
+import itertools
 import warnings
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Union
 
 import torch
 from torch import Tensor
 
+from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate, RandomScale, Transform
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.types import KeyCollection
 
 from .inferer import Inferer
 
@@ -167,3 +170,52 @@ class TTAInferer(Inferer):
         if self.aggregate == "mean":
             output = output / float(len(passes))
         return output
+
+
+def simple_tta_transforms(
+    rotations: Sequence[float] = (0.0, 90.0, 180.0, 270.0),
+    scales: Sequence[float] = (1.0, 0.95, 1.05),
+    flip: bool = True,
+    axis: int = 2,
+    keys: KeyCollection = (DataKeys.POS, DataKeys.NORMAL),
+    scale_keys: KeyCollection = DataKeys.POS,
+) -> List[Compose]:
+    r"""Default test-time augmentation transforms for indoor semantic segmentation.
+
+    One view per (scale, rotation) pair, scales outermost, plus one x/y flip view when `flip` is set: the defaults
+    give the 13-view precise-evaluation protocol of the ScanNet / ScanNet200 benchmarks. Rotations and the flip act on
+    every key in `keys` (positions and normals); scales act on `scale_keys` only. Missing keys are skipped, so the
+    same views serve scenes with and without normals. A rotation of $0$ or a scale of $1$ adds no transform.
+
+    Args:
+        rotations: Rotation angles in degrees about `axis`, applied at every scale.
+        scales: Isotropic scale factors.
+        flip: Append one view mirrored along the x and y axes.
+        axis: Rotation axis (`2` is the up axis).
+        keys: Keys rotated and flipped.
+        scale_keys: Keys scaled.
+
+    Returns:
+        A list of `len(rotations) * len(scales) + flip` composed transforms for `TTAInferer`.
+
+    Example:
+        ```python
+        from torch_pointcloud.inferers import TTAInferer, VoxelPartitionInferer, simple_tta_transforms
+
+        inferer = TTAInferer(
+            base=VoxelPartitionInferer(voxel_size=0.02, softmax=True, reduce="sum"),
+            transforms=simple_tta_transforms(),
+        )
+        ```
+    """
+    transforms: List[Compose] = []
+    for scale, angle in itertools.product(scales, rotations):
+        steps: List[Transform] = []
+        if angle != 0.0:
+            steps.append(RandomRotate(keys=keys, angle_range=(angle, angle), axis=axis, p=1.0, allow_missing_keys=True))
+        if scale != 1.0:
+            steps.append(RandomScale(keys=scale_keys, scale_range=(scale, scale), p=1.0, allow_missing_keys=True))
+        transforms.append(Compose(steps))
+    if flip:
+        transforms.append(Compose([RandomFlip(keys=keys, axes=(0, 1), p=1.0, allow_missing_keys=True)]))
+    return transforms

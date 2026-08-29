@@ -71,11 +71,10 @@ class MetricCallback(Callback):
     Model- and task-agnostic: the LightningModule's `validation_step` / `test_step` returns a
     `{preds_key: ..., target_key: ...}` dict (the repo's `Lit*` modules do), and this callback updates a
     torchmetrics `Metric` with it each batch, logging the epoch value as `{stage}/{name}`. List one per
-    metric in `configs/callbacks/*.yaml` to plug accuracy, mIoU, mAP, ... onto any model.
+    metric to plug accuracy, mIoU, mAP, ... onto any model.
 
-    `metric` is a ready torchmetrics `Metric` built entirely by Hydra: the experiment's metric config
-    interpolates `num_classes` from `${model.num_classes}` and `ignore_index` from the criterion, so the
-    callback holds it as-is and stays model-agnostic.
+    `metric` is a ready torchmetrics `Metric` whose `num_classes` and `ignore_index` the caller sets to match the
+    model and the criterion, so the callback holds it as-is and stays model-agnostic.
 
     A step output may carry extra entries beyond `preds_key` / `target_key` (the `Lit*` modules' `metric_input_keys`
     passthrough); entries matching a parameter name of the metric's `update` signature (inspected once at construction)

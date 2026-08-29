@@ -1,6 +1,0 @@
-# @package model.inferer
-# Tiled sliding-window inference over cubic blocks, composed into `LitSegmentationModel(inferer=...)`
-# and used on test batches only: `test.py ... inferer=sliding_window model.inferer.block_size=2.0`.
-_target_: torch_pointcloud.inferers.SlidingWindowInferer
-block_size: ???
-softmax: true

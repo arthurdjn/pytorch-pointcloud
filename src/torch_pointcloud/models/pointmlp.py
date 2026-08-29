@@ -150,6 +150,7 @@ class PointMLPEncoderBlock(nn.Module):
         num_pre_blocks: int = 2,
         num_pos_blocks: int = 2,
         normalize: Literal["center", "anchor"] = "center",
+        std_mode: Literal["graph", "batch"] = "graph",
         res_expansion: float = 1.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -189,6 +190,7 @@ class PointMLPEncoderBlock(nn.Module):
             spatial_dim=spatial_dim,
             use_pos=use_pos,
             normalize=normalize,
+            std_mode=std_mode,
             add_self_loops=add_self_loops,
             aggr="max",
         )
@@ -287,6 +289,7 @@ class PointMLPEncoder(nn.Module):
         num_pre_blocks: Union[int, Sequence[int]] = 2,
         num_pos_blocks: Union[int, Sequence[int]] = 2,
         normalize: Literal["center", "anchor"] = "center",
+        std_mode: Literal["graph", "batch"] = "graph",
         res_expansion: float = 1.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -312,6 +315,7 @@ class PointMLPEncoder(nn.Module):
         self.use_pos = use_pos
         self.fps_random_start = fps_random_start
         self.normalize = normalize
+        self.std_mode = std_mode
         self.res_expansion = res_expansion
 
         depth = len(self.channels) - 1
@@ -348,6 +352,7 @@ class PointMLPEncoder(nn.Module):
             num_pre_blocks=self.num_pre_blocks[index],
             num_pos_blocks=self.num_pos_blocks[index],
             normalize=self.normalize,
+            std_mode=self.std_mode,
             res_expansion=self.res_expansion,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -487,6 +492,7 @@ class PointMLPClassification(ClassificationModel):
         num_pre_blocks: Union[int, Sequence[int]] = 2,
         num_pos_blocks: Union[int, Sequence[int]] = 2,
         normalize: Literal["center", "anchor"] = "center",
+        std_mode: Literal["graph", "batch"] = "graph",
         res_expansion: float = 1.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -509,6 +515,7 @@ class PointMLPClassification(ClassificationModel):
         self.num_pre_blocks = num_pre_blocks
         self.num_pos_blocks = num_pos_blocks
         self.normalize = normalize
+        self.std_mode = std_mode
         self.res_expansion = res_expansion
         self.act = act
         self.act_kwargs = act_kwargs
@@ -551,6 +558,7 @@ class PointMLPClassification(ClassificationModel):
             num_pre_blocks=self.num_pre_blocks,
             num_pos_blocks=self.num_pos_blocks,
             normalize=self.normalize,
+            std_mode=self.std_mode,
             res_expansion=self.res_expansion,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -653,6 +661,7 @@ class PointMLPSegmentation(SegmentationModel):
         decoder_channels: Sequence[int],
         decoder_blocks: Sequence[nn.Module],
         normalize: Literal["center", "anchor"] = "center",
+        std_mode: Literal["graph", "batch"] = "graph",
         res_expansion: float = 1.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -674,6 +683,7 @@ class PointMLPSegmentation(SegmentationModel):
         self.num_pre_blocks = num_pre_blocks
         self.num_pos_blocks = num_pos_blocks
         self.normalize = normalize
+        self.std_mode = std_mode
         self.res_expansion = res_expansion
         self.act = act
         self.act_kwargs = act_kwargs
@@ -714,6 +724,7 @@ class PointMLPSegmentation(SegmentationModel):
             num_pre_blocks=self.num_pre_blocks,
             num_pos_blocks=self.num_pos_blocks,
             normalize=self.normalize,
+            std_mode=self.std_mode,
             res_expansion=self.res_expansion,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -915,6 +926,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-base.modelnet40.xu-ma/resolve/main/model.safetensors",
         dataset="modelnet40",
+        metrics={"OA": 93.88},
         classes=MODELNET40_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -943,6 +955,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-elite.modelnet40.xu-ma/resolve/main/model.safetensors",
         dataset="modelnet40",
+        metrics={"OA": 92.79},
         classes=MODELNET40_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -965,24 +978,20 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-# NOTE: The ScanObjectNN weights below are converted from the pre-"std-fix"
-# checkpoints distributed by the original authors (the `model31C-demo1`
-# snapshots in the Google Drive archive at
-# https://drive.google.com/drive/folders/1Jn9HNpPsrq-1XqSmOUtw4cwPMjsIiIpz).
-# Re-evaluating these checkpoints with the verbatim upstream code (model31.py +
-# pointnet2_ops) on the same h5 test split yields ~77% OA / ~73% mAcc, ~9
-# points below the 86.1% / 84.4% headline number quoted in the upstream README.
-# That headline number requires the "fixed pointMLP" checkpoint
-# (`fixstd/scanobjectnn/pointMLP-20220204021453/`), which is hosted only on
-# Northeastern's now-dead `web.northeastern.edu/smilelab/...` URLs.
-# Our conversion reproduces upstream-on-this-checkpoint to within ~1%, so the
-# residual gap is intrinsic to the demo1 weights, not a refactor regression.
+# The ScanObjectNN weights are the `model31C-demo1` checkpoints of the original release
+# (https://drive.google.com/drive/folders/1Jn9HNpPsrq-1XqSmOUtw4cwPMjsIiIpz), trained before the
+# reference repository's std fix, i.e. with one standard deviation over the whole batch
+# (`std_mode="batch"`). That mode scores 77.8 / 75.8 OA at batch size 32 against 77.2 / 75.3 with the
+# per-graph default, so the registrations keep the default and its per-sample independence. The README
+# numbers (86.1 / 84.1 OA) belong to the post-fix `fixstd/scanobjectnn/*` checkpoints, whose download
+# URLs are dead.
 @register_model(
     "pointmlp-base.scanobjectnn.xu-ma",
     task="classification",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-base.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
+        metrics={"OA": 77.48},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -1005,13 +1014,13 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-# NOTE: Same caveat as `pointmlp-base.scanobjectnn.xu-ma`
 @register_model(
     "pointmlp-elite.scanobjectnn.xu-ma",
     task="classification",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-elite.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
+        metrics={"OA": 76.72},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
         license="Apache-2.0",

@@ -48,6 +48,22 @@ def test_geometric_affine_conv_basic(
     assert output.dtype == data["x"].dtype
 
 
+@pytest.mark.parametrize("std_mode, independent", [("graph", True), ("batch", False)])
+def test_geometric_affine_conv_std_mode(data: Dict[str, Tensor], std_mode: str, independent: bool) -> None:
+    conv = GeometricAffineConv(
+        local_nn=MLP([2 * 3 + 3, 32], norm=None),
+        channels=3,
+        normalize="anchor",
+        std_mode=std_mode,  # type: ignore[arg-type]
+    )
+    first = data["batch"] == 0
+    first_edges = first[data["edge_index"][0]] & first[data["edge_index"][1]]
+
+    joint = conv(data["x"], data["pos"], data["batch"], data["edge_index"])
+    alone = conv(data["x"][first], data["pos"][first], data["batch"][first], data["edge_index"][:, first_edges])
+    assert torch.allclose(joint[first], alone, atol=1e-5) == independent
+
+
 def test_geometric_affine_conv_with_self_loops(data: Dict[str, Tensor]) -> None:
     """Test GeometricAffineConv with self loops."""
     local_nn = MLP([2 * 3 + 3, 32])
