@@ -42,10 +42,10 @@ pointgpt-s.scanobjectnn-objbg.guangyan-chen,pointgpt,classification,scanobjectnn
 pointgpt-s.scanobjectnn-objonly.guangyan-chen,pointgpt,classification,scanobjectnn-objonly,true,MIT,29.20,OA,90.0,90.71
 pointmlp-base,pointmlp,classification,,false,,,OA,,
 pointmlp-base.modelnet40.xu-ma,pointmlp,classification,modelnet40,true,Apache-2.0,13.24,OA,94.1,93.88
-pointmlp-base.scanobjectnn.xu-ma,pointmlp,classification,scanobjectnn,true,Apache-2.0,13.23,OA,86.1,77.48
+pointmlp-base.scanobjectnn.xu-ma,pointmlp,classification,scanobjectnn,true,Apache-2.0,13.23,OA,86.1,85.81
 pointmlp-elite,pointmlp,classification,,false,,,OA,,
 pointmlp-elite.modelnet40.xu-ma,pointmlp,classification,modelnet40,true,Apache-2.0,0.72,OA,93.6,92.79
-pointmlp-elite.scanobjectnn.xu-ma,pointmlp,classification,scanobjectnn,true,Apache-2.0,0.71,OA,84.1,76.72
+pointmlp-elite.scanobjectnn.xu-ma,pointmlp,classification,scanobjectnn,true,Apache-2.0,0.71,OA,84.1,84.18
 pointnet.modelnet40,pointnet,classification,modelnet40,false,,3.47,OA,,
 pointnet2-msg.modelnet40.xu-yan,pointnet2,classification,modelnet40,true,MIT,1.75,OA,92.8,92.67
 pointnet2-ssg.modelnet40.xu-yan,pointnet2,classification,modelnet40,true,MIT,1.48,OA,92.0,92.30
