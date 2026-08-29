@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-## 0.1.0 (2026-08-29)
+## 0.0.1 (2026-08-29)
 
 Initial release: a timm-style `create_model` factory and pretrained-weight registry covering
 classification, segmentation, detection, self-supervised, and generative point cloud models,
