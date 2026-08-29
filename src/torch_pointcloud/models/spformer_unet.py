@@ -454,8 +454,8 @@ class SPFormerUNetSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return spconv.SubMConv3d(self.num_features, self.num_classes, kernel_size=1, bias=True)
+            return nn.Identity().train(self.training)
+        return spconv.SubMConv3d(self.num_features, self.num_classes, kernel_size=1, bias=True).train(self.training)
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes

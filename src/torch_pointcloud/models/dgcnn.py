@@ -267,7 +267,7 @@ class DGCNNClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original classification head regularizes after every hidden layer, not only the last one.
         dropout_list = [self.dropout] * (len(channels_list) - 1)
@@ -283,7 +283,7 @@ class DGCNNClassification(ClassificationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(
         self,
@@ -444,7 +444,7 @@ class DGCNNSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original semantic segmentation head regularizes only its last hidden layer.
         dropout_list = [0.0] * (len(channels_list) - 1)
@@ -460,7 +460,7 @@ class DGCNNSegmentation(SegmentationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -637,7 +637,7 @@ class DGCNNPartSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original part segmentation head regularizes every hidden layer except the last one.
         dropout_list = [self.dropout] * (len(channels_list) - 1)
@@ -652,7 +652,7 @@ class DGCNNPartSegmentation(SegmentationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

@@ -322,7 +322,7 @@ class PointBERTClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         head_channels = ensure_list(self.head_channels, none_as_empty=True)
         return MLP(
             [self.num_features, *head_channels, self.num_classes],
@@ -330,7 +330,7 @@ class PointBERTClassification(ClassificationModel):
             norm=None,
             dropout=self.dropout,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

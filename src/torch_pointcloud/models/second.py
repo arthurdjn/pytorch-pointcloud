@@ -237,7 +237,7 @@ class SECONDDetection(DetectionModel):
             num_dir_bins=self.num_dir_bins,
             dir_offset=self.dir_offset,
             dir_limit_offset=self.dir_limit_offset,
-        )
+        ).train(self.training)
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
         voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
@@ -530,7 +530,7 @@ class SECONDMultiHeadDetection(DetectionModel):
             act_kwargs=self.act_kwargs,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
-        )
+        ).train(self.training)
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
         voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)

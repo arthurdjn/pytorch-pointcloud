@@ -1304,7 +1304,7 @@ class LIONDetection(DetectionModel):
             self.voxel_size,
             feature_map_stride=self.feature_map_stride,
             local_max_classes=self.local_max_classes,
-        )
+        ).train(self.training)
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         batch_size = int(batch.max().item()) + 1

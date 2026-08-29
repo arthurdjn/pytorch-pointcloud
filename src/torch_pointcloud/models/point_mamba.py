@@ -749,7 +749,7 @@ class PointMambaClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, *self.head_channels, self.num_classes],
             dropout=0.5,  # the reference recipe pins the head dropout at 0.5
@@ -759,7 +759,7 @@ class PointMambaClassification(ClassificationModel):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-        )
+        ).train(self.training)
 
     def reset_parameters(self) -> None:
         pass
@@ -940,7 +940,7 @@ class PointMambaMAE(BaseModel):
         )
 
     def configure_head(self) -> nn.Module:
-        return nn.Linear(self.embed_dim, 3 * self.group_size)
+        return nn.Linear(self.embed_dim, 3 * self.group_size).train(self.training)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         out = self.encoder(x, pos, batch)

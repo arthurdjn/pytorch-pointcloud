@@ -140,7 +140,11 @@ class UtoniaSegmentation(SegmentationModel):
         return sum(self.encoder_channels)
 
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+        return (
+            nn.Identity()
+            if self.num_classes == 0
+            else nn.Linear(self.num_features, self.num_classes).train(self.training)
+        )
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes

@@ -217,7 +217,11 @@ class PVCNNClassification(ClassificationModel):
         return self.global_channels[-1] if self.global_channels else self.channels[-1]
 
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+        return (
+            nn.Identity()
+            if self.num_classes == 0
+            else nn.Linear(self.num_features, self.num_classes).train(self.training)
+        )
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -392,9 +396,9 @@ class PVCNNSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         if not self.head_channels:
-            return nn.Linear(self.num_features, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
         channels = [self.num_features, *self.head_channels, self.num_classes]
         dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]
@@ -407,7 +411,7 @@ class PVCNNSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
             dropout=dropout,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

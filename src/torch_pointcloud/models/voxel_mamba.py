@@ -712,7 +712,7 @@ class VoxelMambaDetection(DetectionModel):
             self.backbone.num_bev_features,
             self.num_classes,
             shared_conv_channels=self.shared_conv_channels,
-        )
+        ).train(self.training)
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         batch_size = int(batch.max().item()) + 1

@@ -213,7 +213,7 @@ class PointConvDensityClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels = [self.num_features] + ensure_list(self.head_channels) + [self.num_classes]
         return MLP(
             channels,
@@ -225,7 +225,7 @@ class PointConvDensityClassification(ClassificationModel):
             bias=self.bias,
             dropout=self.dropout,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes

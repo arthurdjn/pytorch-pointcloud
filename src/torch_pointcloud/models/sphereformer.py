@@ -697,8 +697,8 @@ class SphereFormerSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+            return nn.Identity().train(self.training)
+        return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
     def reset_parameters(self) -> None:
         for module in self.modules():

@@ -600,7 +600,7 @@ class OctFormerClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         # NOTE: The original OctFormer uses a linear bias only for the last layer, with ReLU activation.
         channels = [self.num_features, *self.head_channels, self.num_classes]
         biases = [False] * max(0, len(channels) - 2) + [True]
@@ -614,7 +614,7 @@ class OctFormerClassification(ClassificationModel):
             bias=biases,
             dropout=self.dropout,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -851,7 +851,7 @@ class OctFormerSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels = [self.num_features, *self.head_channels, self.num_classes]
         return MLP(
             channels,
@@ -862,7 +862,7 @@ class OctFormerSegmentation(SegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

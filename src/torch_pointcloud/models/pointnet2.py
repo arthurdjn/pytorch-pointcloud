@@ -415,9 +415,9 @@ class PointNet2Classification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         if not self.head_channels:
-            return nn.Linear(self.num_features, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
         channels_list = [self.num_features] + list(self.head_channels) + [self.num_classes]
         if isinstance(self.dropout, (int, float)):
@@ -439,7 +439,7 @@ class PointNet2Classification(ClassificationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -656,9 +656,9 @@ class PointNet2Segmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         if not self.head_channels:
-            return nn.Linear(self.num_features, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
         channels_list = [self.num_features] + list(self.head_channels) + [self.num_classes]
         dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
@@ -672,7 +672,7 @@ class PointNet2Segmentation(SegmentationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

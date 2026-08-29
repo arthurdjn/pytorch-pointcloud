@@ -406,7 +406,7 @@ class PointMAEClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, 256, 256, self.num_classes],
             act="relu",
@@ -414,7 +414,7 @@ class PointMAEClassification(ClassificationModel):
             dropout=[self.dropout, self.dropout, 0.0],
             bias=True,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.cls_token, std=0.02)
@@ -614,7 +614,7 @@ class PointMAESegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, 512, 256, self.num_classes],
             act="relu",
@@ -622,7 +622,7 @@ class PointMAESegmentation(SegmentationModel):
             dropout=[self.dropout, 0.0, 0.0],
             bias=True,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

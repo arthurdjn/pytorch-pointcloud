@@ -967,8 +967,8 @@ class KPFCNNClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+            return nn.Identity().train(self.training)
+        return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -1268,9 +1268,9 @@ class KPFCNNSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         if not self.head_channels:
-            return nn.Linear(self.num_features, self.num_classes)
+            return nn.Linear(self.num_features, self.num_classes).train(self.training)
         head_act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
         layers: List[nn.Module] = []
         ch_in = self.num_features
@@ -1278,7 +1278,7 @@ class KPFCNNSegmentation(SegmentationModel):
             layers.append(nn.Sequential(nn.Linear(ch_in, ch, bias=True), head_act))
             ch_in = ch
         layers.append(nn.Linear(ch_in, self.num_classes))
-        return nn.Sequential(*layers)
+        return nn.Sequential(*layers).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
