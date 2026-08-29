@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed unlinked tutorials from the docs for future releases.
 - Fixed `decimate_indices` such that when a generator is provided, it is reseeded for each sample.
 - Updated tutorials docs summaries to better highlight the cards.
 - Updated examples scripts to auto adjust number of classes based on specified dataset.

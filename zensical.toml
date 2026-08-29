@@ -118,8 +118,7 @@ nav = [
             { "Features and Similarity Search" = "examples/06-feature-search.md" },
         ] },
         { "Advanced" = [
-            { "Survey-Scale LiDAR" = "examples/07-large-scale-lidar.md" },
-            { "Driving Detection" = "examples/08-driving-detection.md" },
+            { "Driving Detection" = "examples/07-driving-detection.md" },
         ] },
     ] },
     { "API Reference" = [
