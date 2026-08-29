@@ -75,7 +75,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--root", type=str, default=DATA_DIR)
     parser.add_argument("--dataset", type=str, default="shapenetpart", choices=["shapenetpart", "s3dis"])
-    parser.add_argument("--num-classes", type=int, default=50)
+    parser.add_argument("--num-classes", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--num-workers", type=int, default=6)
@@ -84,7 +84,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--weight-decay", type=float, default=0.05)
     parser.add_argument("--limit-train-batches", type=int, default=None)
     parser.add_argument("--limit-test-batches", type=int, default=None)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.num_classes is None:
+        args.num_classes = 50 if args.dataset == "shapenetpart" else 13
+    return args
 
 
 def train_one_epoch(
