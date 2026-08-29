@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this library, please cite it as below."
+type: software
+title: "PyTorch PointCloud"
+abstract: "A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers to reproduce benchmarks and reuse common layers."
+authors:
+  - family-names: "Dujardin"
+    given-names: "Arthur"
+    email: "arthurdujardin.research@gmail.com"
+version: "0.0.1"
+date-released: "2026-08-29"
+license: "Apache-2.0"
+repository-code: "https://github.com/arthurdjn/pytorch-pointcloud"
+url: "https://pytorch-pointcloud.org/"
+keywords:
+  - "pytorch"
+  - "point cloud"
+  - "3d deep learning"
+  - "segmentation"
+  - "detection"
+  - "pretrained models"

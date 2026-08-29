@@ -150,11 +150,12 @@ tutorials and the full API reference.
 If you find this project useful, please consider citing:
 
 ```bibtex
-@article{pytorch-pointcloud,
-  title={PyTorch PointCloud},
-  author={Arthur Dujardin},
-  journal={GitHub},
-  year={2026}
+@software{dujardin2026pytorchpointcloud,
+  author = {Dujardin, Arthur},
+  title = {PyTorch PointCloud},
+  year = {2026},
+  url = {https://github.com/arthurdjn/pytorch-pointcloud},
+  license = {Apache-2.0}
 }
 ```
 
