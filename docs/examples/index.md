@@ -10,8 +10,8 @@ top of every tutorial.
 
 The three tiers build on each other. **Beginner** gets a pretrained model running and explains the
 conventions everything else assumes. **Intermediate** puts your own data and your own training loop
-in the middle. **Advanced** takes the library to the shapes real projects ship in: survey tiles too
-large for one forward pass, driving sweeps, and whole rooms read by several models at once.
+in the middle. **Advanced** takes the library to the shapes real projects ship in: full driving
+sweeps, turned into oriented 3D boxes.
 
 ## Beginner
 
@@ -68,8 +68,7 @@ Your data, your training loop, and the representation a trained model leaves beh
 
 ## Advanced
 
-Production-shaped problems: clouds too large for one forward pass, oriented boxes in traffic, and
-several models combined into a single answer.
+Production-shaped problems: oriented boxes in traffic, decoded and filtered from a raw sweep.
 
 <div class="grid cards tutorial-cards" markdown>
 
