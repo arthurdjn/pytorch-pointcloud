@@ -108,6 +108,7 @@ See the [Installation](https://pytorch-pointcloud.org/installation/) page for th
 import torch
 import torch_pointcloud as tp
 
+# Requires torch-cluster, torch-scatter
 model = tp.create_model(
     "pointnext-sm.scanobjectnn.openpoints",
     task="classification",
@@ -125,6 +126,7 @@ with torch.no_grad():
 Every checkpoint ships the transform that turns a raw point cloud into what the network expects:
 
 ```python
+# Requires torch-scatter, torch-cluster, spconv
 model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
 info["weights"]["metrics"]  # {"mIoU": 76.29}
