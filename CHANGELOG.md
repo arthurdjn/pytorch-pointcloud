@@ -1,0 +1,15 @@
+# Changelog
+
+All notable changes to this project are documented in this file. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Unreleased
+
+## 0.1.0 (2026-08-29)
+
+Initial release: a timm-style `create_model` factory and pretrained-weight registry covering
+classification, segmentation, detection, self-supervised, and generative point cloud models,
+built on packed PyG-style batches. Ships datasets with disk caching, MONAI-style dict transforms,
+tiling and sliding-window inferers, optional PyTorch Lightning modules, and one training and one benchmark
+script per model under `examples/`.
