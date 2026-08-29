@@ -1,7 +1,7 @@
 # pytorch-pointcloud
 
 <div align="center" style="width: 100%; margin: auto">
-  <a href="https://arthurdjn.github.io/pytorch-pointcloud/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
+  <a href="https://pytorch-pointcloud.org/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
 
 [![python](https://img.shields.io/badge/python-3.10+-red.svg?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://www.python.org/)
 [![pytorch](https://img.shields.io/badge/pytorch-2.5+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)
@@ -98,7 +98,7 @@ pip install torch-pointcloud
 
 The CUDA extensions (PyG kernels, spconv, flash-attention, Mamba, ocnn, torchsparse) are optional and only needed by
 the architectures that use them.
-See the [Installation](https://arthurdjn.github.io/pytorch-pointcloud/installation/) page for the exact install command.
+See the [Installation](https://pytorch-pointcloud.org/installation/) page for the exact install command.
 
 <br>
 
@@ -139,8 +139,8 @@ The [examples](examples/) directory for hands-on usage (benchmarks and training 
 
 ## 📚 Documentation
 
-The [documentation](https://arthurdjn.github.io/pytorch-pointcloud/) covers [installation](https://arthurdjn.github.io/pytorch-pointcloud/installation/), a [get-started](https://arthurdjn.github.io/pytorch-pointcloud/get-started/) guide,
-the [model zoo](https://arthurdjn.github.io/pytorch-pointcloud/models/overview/), [datasets](https://arthurdjn.github.io/pytorch-pointcloud/datasets/overview/), [transforms](https://arthurdjn.github.io/pytorch-pointcloud/transforms/overview/),
+The [documentation](https://pytorch-pointcloud.org/) covers [installation](https://pytorch-pointcloud.org/installation/), a [get-started](https://pytorch-pointcloud.org/get-started/) guide,
+the [model zoo](https://pytorch-pointcloud.org/models/overview/), [datasets](https://pytorch-pointcloud.org/datasets/overview/), [transforms](https://pytorch-pointcloud.org/transforms/overview/),
 tutorials and the full API reference.
 
 <br>
