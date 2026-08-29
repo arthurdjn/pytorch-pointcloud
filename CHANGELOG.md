@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Updated tutorials docs summaries to better highlight the cards.
+- Updated examples scripts to auto adjust number of classes based on specified dataset.
 - Added tests in CI for all Python versions supported by the project (3.10-3.13).
 
 ## 0.0.1 (2026-08-29)

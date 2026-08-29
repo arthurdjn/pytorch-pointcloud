@@ -69,7 +69,7 @@ def parse_args() -> Namespace:
         default="pointnext-base",
         choices=["pointnext-base", "pointnext-sm", "pointnext-lg", "pointnext-xl"],
     )
-    parser.add_argument("--num-classes", type=int, default=50)
+    parser.add_argument("--num-classes", type=int, default=None)
     parser.add_argument("--categories", nargs="+", default=None)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=100)
@@ -79,7 +79,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--weight-decay", type=float, default=0.05)
     parser.add_argument("--limit-train-batches", type=int, default=None)
     parser.add_argument("--limit-test-batches", type=int, default=None)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.num_classes is None:
+        args.num_classes = 50 if args.dataset == "shapenetpart" else 13
+    return args
 
 
 def train_one_epoch(

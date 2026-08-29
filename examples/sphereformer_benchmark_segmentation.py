@@ -69,9 +69,8 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark SphereFormer semantic segmentation on SemanticKITTI.")
-    parser.add_argument(
-        "--model", default="randlanet.semantickitti.tsung-han-wu", help="Registered segmentation model name"
-    )
+    parser.add_argument("--model", default="sphereformer.semantickitti", help="Registered segmentation model name")
+    parser.add_argument("--checkpoint", default=None, help="Path to a local checkpoint of the ported architecture.")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])

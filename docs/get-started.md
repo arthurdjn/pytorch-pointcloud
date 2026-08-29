@@ -30,12 +30,13 @@ model = model.eval()
 # Get associated transform for inference.
 transform = info["transform"]
 
-# Load input data.
+# Load input data. This checkpoint samples points and normals together.
 ply = PlyData.read("sample.ply")["vertex"]
 pos = np.stack([ply["x"], ply["y"], ply["z"]], 1).astype("float32")  # (N, 3)
+normal = np.stack([ply["nx"], ply["ny"], ply["nz"]], 1).astype("float32")  # (N, 3)
 
 # Apply the transform to the sample.
-sample = {"pos": torch.from_numpy(pos)}
+sample = {"pos": torch.from_numpy(pos), "normal": torch.from_numpy(normal)}
 sample = transform(sample)
 
 # Pack into a batch. The provided `collate` function
@@ -64,9 +65,9 @@ The packed-batch convention comes from :pyg: PyTorch Geometric: instead of zero-
 
 ## Using a real dataset
 
-The same model, over a whole dataset. `ModelNetNormalResampled` is what this checkpoint was trained on, and it ships
-triangle meshes, so points are sampled from the faces before the checkpoint's own pipeline runs. It
-downloads on first use.
+The same model, over a whole dataset. `ModelNetNormalResampled` is what this checkpoint was trained on: each shape
+ships as 10,000 surface points with their normals, which is why the snippet above builds a `normal` key.
+It downloads on first use.
 
 ```{.python notest}
 import torch
@@ -77,6 +78,7 @@ from torch_pointcloud.utils.data import PointCloudDataLoader
 
 dataset = ModelNetNormalResampled(
     root="data", 
+    variant="40", 
     train=False, 
     download=True, 
     transform=info["transform"],

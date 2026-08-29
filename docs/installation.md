@@ -15,9 +15,9 @@ updates accordingly. Options without a matching wheel are grayed out. `flash-att
 :pyg: [PyG extensions](https://data.pyg.org/whl/) install as prebuilt wheels, from the
 :astral: [Astral GPU indexes](https://wheels.astral.sh/) and the PyG wheel index.
 
-| Extra         | Required by                                                           |
+| Dependencies  | Required by                                                           |
 | ------------- | --------------------------------------------------------------------- |
-| `pyg-lib`     | FPS, kNN, and scatter pooling (`torch-scatter`, `torch-cluster`, ...) |
+| `pyg-lib`     | FPS, kNN, and scatter pooling (`torch-scatter`, `torch-cluster`, ...); needed by nearly every model |
 | `flash-attn`  | Point Transformer V3, Sonata, Concerto, Utonia                        |
 | `mamba`       | Point-Mamba, Voxel-Mamba, LION                                        |
 | `spconv`      | SpUNet, SPFormer-UNet, voxel-based detectors                          |
@@ -101,4 +101,9 @@ make serve  # Serve the documentation locally
 - **Python**: 3.10+
 - **PyTorch**: the library requires `torch>=2.5`. The tested combination is `torch==2.10.0` with CUDA 12.8
   wheels; the selector above covers `2.9` to `2.13` across CPU and CUDA 12.6 to 13.2.
+- **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) lags new torch releases, and it is
+  the binding constraint on how new a torch you can use. `torch-cluster` (FPS, ball query, kNN graph) stops
+  at `2.11`, `torch-scatter` and `torch-sparse` at `2.12`, and `2.13` carries `pyg-lib` alone. **`torch<=2.11`
+  is the newest version that runs the whole model zoo**; the selector emits the packages that exist for the
+  version you pick and names what is missing.
 - **CUDA**: optional for the point-based families (PointNet, PointNet++, DGCNN, PointNeXt, PointMLP, PointConv, PointCNN, RandLA-Net, and similar), which run inference and training on CPU. The sparse-voxel and flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, and the voxel-based detectors) require a CUDA device and their optional dependencies (`spconv`, `torchsparse`, `ocnn`, `flash-attn`).
