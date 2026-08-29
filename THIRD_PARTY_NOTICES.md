@@ -1,41 +1,34 @@
 # Third-Party Notices
 
-`torch-pointcloud` is released under the Apache License 2.0 (see `LICENSE`). This file records the
-third-party material the package adapts, redistributes, or downloads at runtime, and the terms that
-material stays under.
-
-Pretrained checkpoints are **not** covered by the project's Apache-2.0 grant. Each checkpoint keeps
-the license of the release it was converted from, recorded in the `license` field of its registry
-entry.
+`torch-pointcloud` is Apache-2.0 (see `LICENSE`). This file lists the third-party code, weights and
+datasets used by the package and their licenses.
 
 ## Non-commercial material
 
-The following may be used for research or evaluation only. It is not available for commercial use
-under any terms this project can grant.
+Weights under a non-commercial license.
 
 | material | source | license |
 | --- | --- | --- |
-| `models/oneformer3d.py`, 2 OneFormer3D checkpoints | filaPro/oneformer3d | CC BY-NC 4.0 |
-| 7 Concerto and Utonia checkpoints | Pointcept/Pointcept | CC BY-NC 4.0 |
+| 5 Concerto checkpoints | Pointcept/Concerto | CC BY-NC 4.0 |
+| 2 Utonia checkpoints | Pointcept/Utonia | CC BY-NC 4.0 |
 | 2 Sonata checkpoints | facebookresearch/sonata | CC BY-NC 4.0 |
 
-The Sonata and Pointcept restrictions are inherited from the training data (HM3D, ArkitScenes)
-rather than chosen by the model authors, so they cannot be waived upstream either.
+Sonata, Concerto and Utonia code is Apache-2.0; their weights are CC BY-NC 4.0.
 
 ## Pretrained weights
 
-136 checkpoints are distributed through the model registry. Grouped by the release they were
-converted from:
+Checkpoints in the model registry, grouped by the release they were converted from. Each registry
+entry records its license in the `license` field.
 
 | source | author tag | license | count |
 | --- | --- | --- | --- |
 | guochengqian/PointNeXt, guochengqian/openpoints | `openpoints` | MIT | 36 |
 | CGuangyan-BIT/PointGPT | `guangyan-chen` | MIT | 18 |
 | antao97/dgcnn.pytorch | `an-tao` | MIT | 10 |
-| lulutang0608/Point-BERT | `xumin-yu` | MIT | 8 |
+| Julie-tang00/Point-BERT | `xumin-yu` | MIT | 8 |
 | Pang-Yatian/Point-MAE | `yatian-pang` | MIT | 7 |
-| Pointcept/Pointcept | `pointcept` | CC BY-NC 4.0 | 7 |
 | open-mmlab/OpenPCDet | `openpcdet` | Apache-2.0 | 6 |
+| Pointcept/Concerto | `pointcept` | CC BY-NC 4.0 | 5 |
 | ZrrSkywalker/Point-M2AE | `renrui-zhang` | MIT | 5 |
 | LMD0311/PointMamba | `dingkang-liang` | Apache-2.0 | 5 |
 | HuguesTHOMAS/KPConv-PyTorch | `hugues-thomas` | MIT | 4 |
@@ -45,26 +38,37 @@ converted from:
 | octree-nn/octformer | `octree-nn` | MIT | 3 |
 | yanx27/Pointnet_Pointnet2_pytorch | `xu-yan` | MIT | 3 |
 | facebookresearch/3detr | `fair` | Apache-2.0 | 3 |
+| Pointcept/Utonia | `pointcept` | CC BY-NC 4.0 | 2 |
 | facebookresearch/sonata | `fair` | CC BY-NC 4.0 | 2 |
 | facebookresearch/votenet | `fair` | MIT | 2 |
-| filaPro/oneformer3d | `danila-rukhovich` | CC BY-NC 4.0 | 2 |
 | DylanWusee/pointconv_pytorch | `wenxuan-wu` | MIT | 1 |
-| QingyongHu/RandLA-Net | `tsung-han-wu` | MIT | 1 |
+| tsunghan-wu/RandLA-Net-pytorch | `tsung-han-wu` | MIT | 1 |
 | happinesslz/LION | `zhe-liu` | Apache-2.0 | 1 |
 
-Checkpoints are redistributed converted from the upstream release format to `safetensors`. Where a
-release's class order differed from this project's label order, the head weights were permuted to
-match. No checkpoint was retrained.
+## Training data
+
+Licenses of the datasets the checkpoints were trained on.
+
+| dataset | terms | checkpoints |
+| --- | --- | --- |
+| S3DIS (Stanford 2D-3D-S) | academic research agreement | 43 |
+| ScanObjectNN | terms of use, research only | 24 |
+| ModelNet40 | academic research only | 23 |
+| ShapeNet, ShapeNetPart | non-commercial research and educational use | 14 |
+| ScanNet | terms of use, non-commercial research and educational use | 13 |
+| SemanticKITTI | CC BY-NC-SA 4.0 | 4 |
+| nuScenes | CC BY-NC-SA 4.0 | 4 |
+| KITTI | CC BY-NC-SA 3.0 | 3 |
+| SUN RGB-D | research use | 2 |
+| HM3D, ArkitScenes (self-supervised pretraining) | non-commercial | 6 |
 
 ## Source code
 
-Portions of this package were adapted from the implementations below. Each remains under its own
-license; the adapted files carry a reference to their source.
+Files adapted from other implementations. Paths are relative to `src/torch_pointcloud/`.
 
 | source | license | files |
 | --- | --- | --- |
 | open-mmlab/OpenPCDet | Apache-2.0 | `models/pointpillars.py`, `models/pointrcnn.py`, `models/second.py`, `models/voxelnext.py`, `models/voxel_mamba.py` |
-| filaPro/oneformer3d | CC BY-NC 4.0 | `models/oneformer3d.py` |
 | facebookresearch/3detr | Apache-2.0 | `models/detr3d.py` |
 | facebookresearch/votenet | MIT | `models/votenet.py`, `lightning/callbacks.py` |
 | Pointcept/Pointcept | MIT | `models/point_transformer_v3.py` |
@@ -74,12 +78,10 @@ license; the adapted files carry a reference to their source.
 | mit-han-lab/bevfusion | Apache-2.0 | `models/lion.py` |
 | happinesslz/LION | Apache-2.0 | `models/lion.py` |
 | gwenzhang/Voxel-Mamba | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py` |
-| dvlab-research/VoxelNeXt | Apache-2.0 | `models/voxelnext.py` |
+| JIA-Lab-research/VoxelNeXt | Apache-2.0 | `models/voxelnext.py` |
 | sunjiahao1999/SPFormer | MIT | `models/spformer_unet.py` |
-| lulutang0608/Point-BERT | MIT | `models/point_bert.py` |
+| Julie-tang00/Point-BERT | MIT | `models/point_bert.py` |
 | Pang-Yatian/Point-MAE | MIT | `models/point_mae.py` |
 | ZrrSkywalker/Point-M2AE | MIT | `models/point_m2ae.py` |
 | CGuangyan-BIT/PointGPT | MIT | `models/pointgpt.py` |
 | LMD0311/PointMamba | Apache-2.0 | `models/point_mamba.py` |
-
-Paths are relative to `src/torch_pointcloud/`.

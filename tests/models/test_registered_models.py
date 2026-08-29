@@ -120,9 +120,6 @@ SEGMENTATION_MODELS = [
     "octformer-sm",
     "octformer-base.scannet20.octree-nn",
     "octformer-base.scannet200.octree-nn",
-    "oneformer3d-base.s3dis-area5.danila-rukhovich",
-    "oneformer3d-base.scannet20.danila-rukhovich",
-    "oneformer3d-base.scannet200.danila-rukhovich",
     "point-mae-base.shapenetpart.yatian-pang",
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-transformer.s3dis-area5",
@@ -213,10 +210,8 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "oneformer3d", "spformer")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
-    if model_name.startswith("oneformer3d") and not _TORCH_SCATTER_AVAILABLE:
-        pytest.skip("torch_scatter is not installed")
     if model_name.startswith(("voxelnext", "voxel-mamba")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
@@ -246,7 +241,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "oneformer3d", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
@@ -275,22 +270,6 @@ def _check_output_tensor(output: object, *, label: str, expected_shape: tuple[in
     )
 
 
-def _check_output_dict(output: dict, *, label: str) -> None:
-    """Check a OneFormer3D-style output: a dict of per-scene lists, not per-point logits.
-
-    `cls_preds` is over instance classes (independent of the semantic `num_classes`), so
-    we only check structural validity, not a specific class count.
-    """
-    cls_preds = output["cls_preds"]
-    assert isinstance(cls_preds, list) and len(cls_preds) >= 1, f"{label}: empty cls_preds"
-    last_dims = {cls_pred.shape[-1] for cls_pred in cls_preds}
-    assert len(last_dims) == 1, f"{label}: inconsistent cls_preds class dims {last_dims}"
-    for cls_pred in cls_preds:
-        assert cls_pred.ndim == 2, f"{label}: cls_preds should be 2D, got {cls_pred.ndim}D"
-        assert torch.is_floating_point(cls_pred), f"{label}: non-float cls_preds {cls_pred.dtype}"
-        assert torch.isfinite(cls_pred).all().item(), f"{label}: cls_preds has NaN or Inf"
-
-
 def _check_forward_output(
     output: object,
     *,
@@ -304,9 +283,6 @@ def _check_forward_output(
     torch / CUDA / scatter-op versions and would flap without catching real model bugs.
     """
     label = f"{model_name} ({task})"
-    if isinstance(output, dict):
-        _check_output_dict(output, label=label)
-        return
     # KDE-based density estimation in `pointconv-density` is numerically unstable with
     # random weights at small `in_channels`. Pretrained weights converge to finite output.
     _check_output_tensor(
@@ -628,9 +604,6 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
 def test_model_headless_forward_returns_features(model_name: str, task: str, data_factory: Callable) -> None:
     """`num_classes=0` drops the head: `forward` returns `(rows, num_features)` features."""
     _skip_if_model_not_runnable(model_name)
-    if model_name.startswith("oneformer3d"):
-        pytest.skip("OneFormer3D has no headless mode (the query decoder is the model)")
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = create_model(model_name, task=task, in_channels=3, num_classes=0)  # type: ignore[call-overload]

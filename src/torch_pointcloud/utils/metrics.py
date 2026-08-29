@@ -818,6 +818,7 @@ def nuscenes_detection_metrics(
                 period,
             )
             class_aps.append(_nuscenes_ap(precision, min_recall, min_precision))
+
         out[f"AP/{name}"] = float(np.mean(class_aps)) if class_aps else 0.0
         aps.extend(class_aps)
 
@@ -832,6 +833,7 @@ def nuscenes_detection_metrics(
             tp_threshold,
             period,
         )
+
         excluded: Tuple[str, ...]
         if name == "traffic_cone":
             excluded = ("orient", "vel", "attr")
@@ -920,6 +922,7 @@ def nuscenes_velocity_attributes(
         "bicycle": "cycle.without_rider",
         "pedestrian": "pedestrian.standing",
     }
+
     moving = torch.linalg.norm(velocity, dim=1) > speed_threshold
     attributes = torch.full_like(labels, -1)
     for index, name in enumerate(class_names):
@@ -1178,8 +1181,10 @@ def instance_average_precision(
     for class_index in np.flatnonzero(~np.isnan(strict).any(axis=1)):
         name = class_names[class_index] if class_names is not None else str(class_index)
         out[f"AP/{name}"] = float(np.mean(strict[class_index]))
+
     if np.isnan(strict).all():
         return {"mAP": 0.0, "mAP@0.5": 0.0, "mAP@0.25": 0.0}
+
     out["mAP"] = float(np.nanmean(strict))
     out["mAP@0.5"] = float(np.nanmean(ap[:, np.isclose(overlaps, 0.5)]))
     out["mAP@0.25"] = float(np.nanmean(ap[:, np.isclose(overlaps, 0.25)]))

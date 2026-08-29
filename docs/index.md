@@ -21,7 +21,7 @@ A PyTorch library for deep learning on point clouds. Production-ready models for
 <figure markdown="1">
 <video class="tp-tile tp-tile--light" src="./assets/animations/hero/indoor.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, crossing in turn from its true color, to the semantic class predicted for every point, to a wireframe box around each piece of furniture the instance head found"></video>
 <video class="tp-tile tp-tile--dark" src="./assets/animations/hero/indoor_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, crossing in turn from its true color, to the semantic class predicted for every point, to a wireframe box around each piece of furniture the instance head found"></video>
-<figcaption markdown="span">**Understand a scene**`ptv3-base.scannet20.pointcept`<br>`oneformer3d-base.scannet20.danila-rukhovich`</figcaption>
+<figcaption markdown="span">**Understand a scene**`ptv3-base.scannet20.pointcept`</figcaption>
 </figure>
 
 <figure markdown="1">
