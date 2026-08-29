@@ -1,13 +1,12 @@
 """Sync the model checkpoint catalog from the registry into a CSV.
 
-The registry is the single source of truth for *which* checkpoints exist, whether
-they ship weights, and their documented metrics (`WeightsDict.metrics`). The
-script *merges* rather than overwrites: registry-derived columns are refreshed on
-every run, while any metric or extra columns already filled in the CSV are
-preserved per checkpoint.
+The registry says which checkpoints exist, whether they ship weights, their dataset and license, and those
+columns are refreshed on every run. The measured columns (`reference`, what the reference implementation
+publishes, and `score`, what this package measures with the reference protocol) live in the CSV and are
+preserved per checkpoint. `params` (millions of parameters) is computed once per new checkpoint by
+instantiating the architecture and then kept, so a run without new checkpoints is fast.
 
-The CSV backs the model catalog shown in the docs, so it always matches the
-registry and the metrics you have entered.
+The CSV backs the model catalog in the docs and the tables of the paper.
 
 Usage:
     uv run --no-sync python docs/scripts/build_model_tables.py
@@ -15,35 +14,67 @@ Usage:
 
 import argparse
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import pandas as pd
 
+import torch_pointcloud as tp
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 
-REGISTRY_COLUMNS = ["checkpoint", "architecture", "task", "dataset", "pretrained"]
-DEFAULT_METRIC: Dict[Task, str] = {
-    "classification": "OA",
-    "segmentation": "mIoU",
-    "detection": "mAP",
-    "base": "",
-}
+REPO_DIR = Path(__file__).resolve().parents[2]
+COLUMNS = [
+    "checkpoint",
+    "architecture",
+    "task",
+    "dataset",
+    "pretrained",
+    "license",
+    "params",
+    "metric",
+    "reference",
+    "score",
+]
+KEPT_COLUMNS = ["params", "reference", "score"]
 TASK_ORDER: Dict[Task, int] = {"classification": 0, "segmentation": 1, "detection": 2, "base": 3}
 
 
-def registry_rows() -> List[Dict[str, str]]:
+DEFAULT_METRIC: Dict[Task, str] = {"classification": "OA", "segmentation": "mIoU", "detection": "mAP", "base": ""}
+
+
+def metric_name(task: Task, dataset: str) -> str:
+    """The catalog keeps one metric name per task; the paper refines it per dataset (instance mIoU, KITTI R11)."""
+    return DEFAULT_METRIC[task]
+
+
+def param_count(name: str, task: Task) -> str:
+    try:
+        model = tp.create_model(name, task=task, pretrained=False)
+    except TypeError:
+        # The config registers architecture hparams only, so its size depends on data the catalog has not got.
+        return ""
+    except Exception as exc:  # noqa: BLE001
+        print(f"params: {name}: {type(exc).__name__}: {exc}")
+        return ""
+    return f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f}"
+
+
+def kept_values(csv_path: Path) -> Dict[Tuple[str, str], Dict[str, str]]:
+    """The columns the CSV owns, keyed by (checkpoint, task)."""
+    if not csv_path.exists():
+        return {}
+    existing = pd.read_csv(csv_path, dtype=str).fillna("")
+    columns = [c for c in KEPT_COLUMNS if c in existing.columns]
+    return {(r["checkpoint"], r["task"]): {c: r[c] for c in columns} for _, r in existing.iterrows()}
+
+
+def registry_rows(kept: Dict[Tuple[str, str], Dict[str, str]]) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     for task, entries in _REGISTERED_MODELS.items():
         for name, entry in entries.items():
-            # Registered names follow `{arch}.{dataset}.{author}`; weightless configs may omit both tags.
             weights = entry["weights"]
-            dataset = weights.get("dataset") or "" if weights else (name.split(".")[1] if "." in name else "")
-            metric = DEFAULT_METRIC[task]
-            score = ""
-            metrics = weights.get("metrics") if weights else None
-            if metrics:
-                metric = metric if metric in metrics else next(iter(metrics))
-                score = str(metrics[metric])
+            # Registered names follow `{arch}.{dataset}.{author}`; weightless configs may omit both tags.
+            dataset = (weights.get("dataset") if weights else None) or (name.split(".")[1] if "." in name else "")
+            previous = kept.get((name, task), {})
             rows.append(
                 {
                     "checkpoint": name,
@@ -51,42 +82,34 @@ def registry_rows() -> List[Dict[str, str]]:
                     "task": task,
                     "dataset": dataset,
                     "pretrained": str(bool(weights)).lower(),
-                    "metric": metric,
-                    "score": score,
+                    "license": (weights.get("license") if weights else "") or "",
+                    "params": previous.get("params", "") or param_count(name, task),
+                    "metric": metric_name(task, dataset),
+                    "reference": previous.get("reference", ""),
+                    "score": previous.get("score", ""),
                 }
             )
     return rows
 
 
 def sync(csv_path: Path) -> None:
-    registry = pd.DataFrame(registry_rows())
-
-    if csv_path.exists():
-        existing = pd.read_csv(csv_path, dtype=str).fillna("")
-        # A checkpoint name can appear under several tasks, so the key is (checkpoint, task).
-        existing = existing.drop_duplicates(subset=["checkpoint", "task"])
-        keep = [c for c in existing.columns if c not in REGISTRY_COLUMNS]
-        merged = registry[REGISTRY_COLUMNS].merge(
-            existing[["checkpoint", "task", *keep]], on=["checkpoint", "task"], how="left"
-        )
-        for col in keep:
-            registry_default = registry[col] if col in registry else ""
-            merged[col] = merged[col].where(merged[col].notna() & (merged[col] != ""), registry_default)
-        registry = merged
-
-    registry = registry.fillna("")
-    registry["_order"] = registry["task"].map(TASK_ORDER).fillna(99)
-    registry = registry.sort_values(["_order", "checkpoint"]).drop(columns="_order")
-
+    table = pd.DataFrame(registry_rows(kept_values(csv_path)), columns=COLUMNS)
+    table["_order"] = table["task"].map(TASK_ORDER).fillna(99)
+    table = table.sort_values(["_order", "checkpoint"]).drop(columns="_order")
     csv_path.parent.mkdir(parents=True, exist_ok=True)
-    registry.to_csv(csv_path, index=False)
-    print(f"Synced {len(registry)} checkpoints to {csv_path}")
+    table.to_csv(csv_path, index=False)
+    pretrained = table[table["pretrained"] == "true"]
+    unmeasured = sorted(pretrained[pretrained["score"] == ""]["checkpoint"])
+    print(
+        f"Synced {len(table)} checkpoints to {csv_path}; {len(pretrained) - len(unmeasured)}/{len(pretrained)} pretrained ones measured"
+    )
+    if unmeasured:
+        print("no measured score yet:", ", ".join(unmeasured))
 
 
 def main() -> None:
-    docs_dir = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description="Sync the model catalog CSV from the registry.")
-    parser.add_argument("--csv", default=docs_dir / "data" / "models.csv", type=Path)
+    parser.add_argument("--csv", default=REPO_DIR / "docs" / "data" / "models.csv", type=Path)
     args = parser.parse_args()
     sync(args.csv)
 
