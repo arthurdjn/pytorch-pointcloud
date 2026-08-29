@@ -1,7 +1,5 @@
 """Benchmark LION on nuScenes with the official detection metrics.
 
-NOTE: defaults to the `v1.0-mini` split, whose numbers are smoke checks; only the full `val` split is comparable.
-
 Results (nuScenes val, mAP / NDS):
 
     | Variant                     | reference   | torch-pointcloud |
@@ -10,6 +8,7 @@ Results (nuScenes val, mAP / NDS):
 
 Usage:
     uv run --no-sync python examples/lion_benchmark_detection.py --root /path/to/data
+    uv run --no-sync python examples/lion_benchmark_detection.py --root /path/to/data --split mini
 """
 
 import argparse
@@ -22,7 +21,7 @@ from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import NuScenesMini
+from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.lion import LIONDetection
@@ -50,11 +49,15 @@ def circular_nms(det: Detection3D, local_max_classes: Sequence[int], radius: flo
             local = (labels[scene] == cls).nonzero(as_tuple=False).squeeze(-1)
             if local.numel() == 0:
                 continue
+
             cls_keep = torch.zeros(local.numel(), dtype=torch.bool, device=scene.device)
             cls_keep[nms3d(boxes[scene][local][:, :7], scores[scene][local], radius)] = True
             keep_mask[local] = cls_keep
+
         keep_parts.append(scene[keep_mask])
+
     idx = torch.cat(keep_parts)
+
     return {
         "boxes": boxes[idx],
         "scores": scores[idx],
@@ -121,7 +124,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default="lion-mamba.nuscenes.zhe-liu", help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--version", default="v1.0-mini", help="nuScenes version.")
+    parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
     parser.add_argument("--max-sweeps", default=10, type=int, help="LiDAR sweeps per keyframe.")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--batch-size", default=1, type=int)
@@ -135,18 +138,17 @@ def main() -> None:
     seed_everything(args.seed)
     set_determinism(tf32=False)
 
-    print(f"Benchmarking model {args.model!r} on nuScenes ({args.version})!")
+    print(f"Benchmarking model {args.model!r} on nuScenes ({args.split})!")
     model, model_info = create_model(args.model, task="detection", pretrained=True, return_info=True)
     assert isinstance(model, LIONDetection)
 
-    dataset: Dataset = NuScenesMini(
-        root=args.root,
-        version=args.version,
-        max_sweeps=args.max_sweeps,
-        transform=model_info["transform"],
-    )
+    dataset: Dataset
+    if args.split == "mini":
+        dataset = NuScenesMini(root=args.root, max_sweeps=args.max_sweeps, transform=model_info["transform"])
+    else:
+        dataset = NuScenes(root=args.root, split="val", max_sweeps=args.max_sweeps, transform=model_info["transform"])
     if args.limit is not None:
-        n = min(int(args.limit), len(dataset))  # type: ignore[arg-type]
+        n = min(int(args.limit), len(dataset))
         dataset = Subset(dataset, range(n))
         print(f"Evaluating on a subset of the first {n} keyframes.")
 
@@ -158,7 +160,7 @@ def main() -> None:
         cat_keys=[DataKeys.POS, DataKeys.X, DataKeys.BOX],
     )
 
-    print(f"Test set: {len(dataset)} keyframes")  # type: ignore[arg-type]
+    print(f"Test set: {len(dataset)} keyframes")
     metrics = evaluate(model, dataloader, args.device)
     print("\nResults:")
     for key, value in metrics.items():

@@ -1,17 +1,16 @@
 """Benchmark the SECOND detectors on KITTI and nuScenes with the reference evaluation protocols.
 
-NOTE: nuScenes defaults to the `v1.0-mini` split, whose numbers are smoke checks; only the full `val` split is comparable.
-
 Results:
 
-    | Variant                             | metric                      | reference                     | torch-pointcloud |
-    | ----------------------------------- | --------------------------- | ----------------------------- | ---------------- |
+    | Variant                             | metric                      | reference                     | torch-pointcloud              |
+    | ----------------------------------- | --------------------------- | ----------------------------- | ----------------------------- |
     | second.kitti.openpcdet              | Car / Ped / Cyc / mAP (R11) | 78.62 / 52.98 / 67.15 / 66.25 | 78.63 / 52.98 / 67.16 / 66.26 |
-    | second-multihead.nuscenes.openpcdet | mAP / NDS                   | 50.59 / 62.29                 |                  |
+    | second-multihead.nuscenes.openpcdet | mAP / NDS                   | 50.59 / 62.29                 |                               |
 
 Usage:
     uv run --no-sync python examples/second_benchmark_detection.py --model second.kitti.openpcdet --split-file /path/to/ImageSets/val.txt
     uv run --no-sync python examples/second_benchmark_detection.py --model second-multihead.nuscenes.openpcdet
+    uv run --no-sync python examples/second_benchmark_detection.py --model second-multihead.nuscenes.openpcdet --split mini
 """
 
 import argparse
@@ -25,7 +24,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import KITTI, NuScenesMini
+from torch_pointcloud.datasets import KITTI, NuScenes, NuScenesMini
 from torch_pointcloud.datasets.kitti import KITTI_CLASSES
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
 from torch_pointcloud.models import DetectionModel, create_model
@@ -173,7 +172,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split-file", default=None, help="KITTI frame-id list (e.g. ImageSets/val.txt).")
-    parser.add_argument("--version", default="v1.0-mini", help="nuScenes version.")
+    parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
     parser.add_argument("--max-sweeps", default=10, type=int, help="nuScenes LiDAR sweeps per keyframe.")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--batch-size", default=4, type=int)
@@ -203,14 +202,23 @@ def main() -> None:
         )
         evaluate, stack_keys = evaluate_kitti, [DataKeys.CALIB, DataKeys.IMAGE_SHAPE]
     else:
-        print(f"Benchmarking model {args.model!r} on nuScenes ({args.version})!")
-        dataset = NuScenesMini(
-            root=args.root,
-            version=args.version,
-            max_sweeps=args.max_sweeps,
-            transform=model_info["transform"],
-        )
+        print(f"Benchmarking model {args.model!r} on nuScenes ({args.split})!")
+        if args.split == "mini":
+            dataset = NuScenesMini(
+                root=args.root,
+                max_sweeps=args.max_sweeps,
+                transform=model_info["transform"],
+            )
+        else:
+            dataset = NuScenes(
+                root=args.root,
+                split="val",
+                max_sweeps=args.max_sweeps,
+                transform=model_info["transform"],
+            )
+
         evaluate, stack_keys = evaluate_nuscenes, []
+
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))
         dataset = Subset(dataset, range(n))

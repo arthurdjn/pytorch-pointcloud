@@ -540,11 +540,13 @@ class PointRCNNDetection(DetectionModel):
         num_sampled_points: Points pooled per ROI in stage 2.
         pool_extra_width: Per-axis enlargement of the stage-2 pooling box.
         depth_normalizer: Divisor for the stage-2 point-depth feature.
-        nms_pre_maxsize: Proposals kept before stage-1 NMS.
-        nms_post_maxsize: ROIs kept after stage-1 NMS at inference (the stage-2 batch size per scene).
-        nms_thresh: Stage-1 proposal NMS IoU threshold at inference.
-        train_nms_post_maxsize: Proposals kept after stage-1 NMS during training (before ROI sampling).
-        train_nms_thresh: Stage-1 proposal NMS IoU threshold during training.
+        proposal_pre_maxsize: Proposals kept before stage-1 NMS.
+        proposal_post_maxsize: ROIs kept after stage-1 NMS at inference (the stage-2 batch size per scene).
+        proposal_nms_thresh: Stage-1 proposal NMS IoU threshold at inference.
+        proposal_nms_rotated: Run the stage-1 NMS on the rotated BEV IoU (the reference `nms_gpu`) rather than the
+            axis-aligned 3D IoU.
+        train_proposal_post_maxsize: Proposals kept after stage-1 NMS during training (before ROI sampling).
+        train_proposal_nms_thresh: Stage-1 proposal NMS IoU threshold during training.
         roi_per_image: ROIs sampled per scene for stage-2 training.
         fg_ratio: Target fraction of foreground ROIs in the sampled set.
         reg_fg_thresh: ROI-to-GT IoU at or above which a sampled ROI is foreground (box regression valid).
@@ -582,11 +584,12 @@ class PointRCNNDetection(DetectionModel):
         num_sampled_points: int = 512,
         pool_extra_width: Sequence[float] = (0.0, 0.0, 0.0),
         depth_normalizer: float = 70.0,
-        nms_pre_maxsize: int = 9000,
-        nms_post_maxsize: int = 100,
-        nms_thresh: float = 0.85,
-        train_nms_post_maxsize: int = 512,
-        train_nms_thresh: float = 0.8,
+        proposal_pre_maxsize: int = 9000,
+        proposal_post_maxsize: int = 100,
+        proposal_nms_thresh: float = 0.85,
+        proposal_nms_rotated: bool = True,
+        train_proposal_post_maxsize: int = 512,
+        train_proposal_nms_thresh: float = 0.8,
         roi_per_image: int = 128,
         fg_ratio: float = 0.5,
         reg_fg_thresh: float = 0.55,
@@ -599,11 +602,12 @@ class PointRCNNDetection(DetectionModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.nms_pre_maxsize = nms_pre_maxsize
-        self.nms_post_maxsize = nms_post_maxsize
-        self.nms_thresh = nms_thresh
-        self.train_nms_post_maxsize = train_nms_post_maxsize
-        self.train_nms_thresh = train_nms_thresh
+        self.proposal_pre_maxsize = proposal_pre_maxsize
+        self.proposal_post_maxsize = proposal_post_maxsize
+        self.proposal_nms_thresh = proposal_nms_thresh
+        self.proposal_nms_rotated = proposal_nms_rotated
+        self.train_proposal_post_maxsize = train_proposal_post_maxsize
+        self.train_proposal_nms_thresh = train_proposal_nms_thresh
         self.roi_per_image = roi_per_image
         self.fg_ratio = fg_ratio
         self.reg_fg_thresh = reg_fg_thresh
@@ -738,7 +742,11 @@ class PointRCNNDetection(DetectionModel):
                 "PointRCNN training needs ground-truth boxes; pass `box` / `label` / `batch_box` via `input_keys`."
             )
             rois, _, roi_labels, roi_batch = self._propose(
-                boxes, cls_preds, batch, post_maxsize=self.train_nms_post_maxsize, thresh=self.train_nms_thresh
+                boxes,
+                cls_preds,
+                batch,
+                post_maxsize=self.train_proposal_post_maxsize,
+                thresh=self.train_proposal_nms_thresh,
             )
             sampled = self._sample_proposals(rois, roi_labels, roi_batch, gt_boxes, gt_labels.long() + 1, gt_batch)
             rcnn_cls, rcnn_reg, refined = self.roi_head(pos, x, point_scores, batch, sampled["rois"], sampled["batch"])
@@ -821,8 +829,8 @@ class PointRCNNDetection(DetectionModel):
             boxes: Per-point decoded boxes, shape $(N, 7)$.
             cls_preds: Per-point class logits, shape $(N, \text{num\_classes})$.
             batch: Per-point scene index, shape $(N,)$.
-            post_maxsize: ROIs to keep per scene (defaults to the inference `nms_post_maxsize`).
-            thresh: NMS IoU threshold (defaults to the inference `nms_thresh`).
+            post_maxsize: ROIs to keep per scene (defaults to the inference `proposal_post_maxsize`).
+            thresh: NMS IoU threshold (defaults to the inference `proposal_nms_thresh`).
 
         Returns:
             A tuple `(rois, roi_scores, roi_labels, roi_batch)` of the kept boxes $(M, 7)$, their sigmoid
@@ -832,8 +840,8 @@ class PointRCNNDetection(DetectionModel):
             - boxes: $(N, 7)$, cls_preds: $(N, \text{num\_classes})$
             - output: $(M, 7)$, $(M,)$, $(M,)$, $(M,)$
         """
-        post = self.nms_post_maxsize if post_maxsize is None else post_maxsize
-        iou = self.nms_thresh if thresh is None else thresh
+        post = self.proposal_post_maxsize if post_maxsize is None else post_maxsize
+        iou = self.proposal_nms_thresh if thresh is None else thresh
         scores = torch.sigmoid(cls_preds)
         roi_score, roi_label = scores.max(dim=1)
 
@@ -870,10 +878,10 @@ class PointRCNNDetection(DetectionModel):
         """
         if boxes.numel() == 0:
             return boxes.new_zeros((0,), dtype=torch.long)
-        topk = min(self.nms_pre_maxsize, scores.shape[0])
+        topk = min(self.proposal_pre_maxsize, scores.shape[0])
         top_scores, top_idx = torch.topk(scores, k=topk)
-        keep = nms3d(boxes[top_idx], top_scores, thresh)
-        return top_idx[keep[:post_maxsize]]
+        keep = nms3d(boxes[top_idx], top_scores, thresh, rotated=self.proposal_nms_rotated, max_keep=post_maxsize)
+        return top_idx[keep]
 
     def _sample_proposals(
         self,
@@ -1049,7 +1057,7 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointrcnn.kitti.openpcdet/resolve/main/model.safetensors",
         dataset="kitti",
-        # TODO: metrics not measured yet
+        metrics={"mAP": 69.29},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",
@@ -1094,8 +1102,9 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
         num_sampled_points=512,
         pool_extra_width=[0.0, 0.0, 0.0],
         depth_normalizer=70.0,
-        nms_post_maxsize=100,
-        nms_thresh=0.85,
+        proposal_post_maxsize=100,
+        proposal_nms_thresh=0.85,
+        proposal_nms_rotated=True,
     ),
 )
 def pointrcnn_openpcdet_kitti(**hparams: Any) -> PointRCNNDetection:

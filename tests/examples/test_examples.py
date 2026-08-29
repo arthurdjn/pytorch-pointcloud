@@ -207,7 +207,7 @@ BENCHMARKS = [
     ),
     pytest.param(
         "second_benchmark_detection.py",
-        ("--model", "second-multihead.nuscenes.openpcdet", "--limit", "2"),
+        ("--model", "second-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
         id="second/nuscenes",
     ),
@@ -219,13 +219,20 @@ BENCHMARKS = [
     ),
     pytest.param(
         "pointpillars_benchmark_detection.py",
-        ("--model", "pointpillars-multihead.nuscenes.openpcdet", "--limit", "2"),
+        ("--model", "pointpillars-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
         id="pointpillars/nuscenes",
     ),
     pytest.param("pointrcnn_benchmark_detection.py", ("--limit", "2"), marks=_CLUSTER_SCATTER, id="pointrcnn/kitti"),
-    pytest.param("voxelnext_benchmark_detection.py", ("--limit", "2"), marks=_GPU_SPCONV, id="voxelnext/nuscenes"),
-    pytest.param("lion_benchmark_detection.py", ("--limit", "2"), marks=_GPU_MAMBA, id="lion/nuscenes"),
+    pytest.param(
+        "voxelnext_benchmark_detection.py",
+        ("--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="voxelnext/nuscenes",
+    ),
+    pytest.param(
+        "lion_benchmark_detection.py", ("--split", "mini", "--limit", "2"), marks=_GPU_MAMBA, id="lion/nuscenes"
+    ),
 ]
 
 _SMOKE = ("--limit-train-batches", "2", "--limit-test-batches", "2", "--epochs", "1")

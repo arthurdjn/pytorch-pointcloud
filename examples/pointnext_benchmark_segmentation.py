@@ -1,13 +1,36 @@
 """Benchmark PointNeXt semantic segmentation on S3DIS with the voxel-partition test protocol.
 
-Results (Area 5, mIoU / OA):
+Results (mIoU / OA; the 6-fold rows average the per-area folds, the reference pools their confusion matrices):
 
-    | Variant                               | reference   | torch-pointcloud |
-    | ------------------------------------- | ----------- | ---------------- |
-    | pointnext-sm.s3dis-area5.openpoints   | 64.2 / 88.2 | 64.28 / 88.26    |
-    | pointnext-base.s3dis-area5.openpoints | 67.5 / 89.4 | 67.55 / 89.42    |
-    | pointnext-lg.s3dis-area5.openpoints   | 69.3 / 90.1 | 69.29 / 90.02    |
-    | pointnext-xl.s3dis-area5.openpoints   | 71.1 / 91.0 |                  |
+    | Variant                               | reference   | torch-pointcloud        |
+    | ------------------------------------- | ----------- | ----------------------- |
+    | pointnext-sm.s3dis-area1.openpoints   |             | 74.51 / 89.40           |
+    | pointnext-sm.s3dis-area2.openpoints   |             | 47.58 / 78.68           |
+    | pointnext-sm.s3dis-area3.openpoints   |             | 75.91 / 91.11           |
+    | pointnext-sm.s3dis-area4.openpoints   |             | 59.85 / 86.44           |
+    | pointnext-sm.s3dis-area5.openpoints   | 64.2 / 88.2 | 64.28 / 88.26           |
+    | pointnext-sm.s3dis-area6.openpoints   |             | 83.22 / 93.16           |
+    | pointnext-sm 6-fold mean              | 68.0 / 87.4 | 67.56 / 87.84           |
+    | pointnext-base.s3dis-area1.openpoints |             | 77.78 / 90.46           |
+    | pointnext-base.s3dis-area2.openpoints |             | 58.61 / 82.00           |
+    | pointnext-base.s3dis-area3.openpoints |             | 84.02 / 93.27           |
+    | pointnext-base.s3dis-area4.openpoints |             | 62.61 / 87.03           |
+    | pointnext-base.s3dis-area5.openpoints | 67.5 / 89.4 | 67.55 / 89.42           |
+    | pointnext-base.s3dis-area6.openpoints |             | 84.64 / 93.66           |
+    | pointnext-base 6-fold mean            | 71.5 / 88.8 | 72.53 / 89.31           |
+    | pointnext-lg.s3dis-area1.openpoints   |             | 78.96 / 91.12           |
+    | pointnext-lg.s3dis-area2.openpoints   |             | 61.69 / 84.78           |
+    | pointnext-lg.s3dis-area3.openpoints   |             | 84.06 / 93.39           |
+    | pointnext-lg.s3dis-area4.openpoints   |             | 65.08 / 88.10           |
+    | pointnext-lg.s3dis-area5.openpoints   | 69.3 / 90.1 | 69.29 / 90.02           |
+    | pointnext-lg.s3dis-area6.openpoints   |             | 85.94 / 94.01           |
+    | pointnext-lg 6-fold mean              | 73.9 / 89.8 | 74.17 / 90.24           |
+    | pointnext-xl.s3dis-area1.openpoints   |             | 79.56 / 91.22           |
+    | pointnext-xl.s3dis-area2.openpoints   |             | 63.17 / 85.54           |
+    | pointnext-xl.s3dis-area3.openpoints   |             | 84.88 / 93.70           |
+    | pointnext-xl.s3dis-area4.openpoints   |             | 64.80 / 88.60           |
+    | pointnext-xl.s3dis-area5.openpoints   | 71.1 / 91.0 | 71.20 / 90.95           |
+    | pointnext-xl 6-fold mean              | 74.9 / 90.3 | 72.72 / 90.00 (5 folds) |
 
 Usage:
     uv run --no-sync python examples/pointnext_benchmark_segmentation.py --model pointnext-xl.s3dis-area5.openpoints

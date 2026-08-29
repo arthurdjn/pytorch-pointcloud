@@ -1,7 +1,5 @@
 """Benchmark VoxelNeXt on nuScenes with the official detection metrics.
 
-NOTE: defaults to the `v1.0-mini` split, whose numbers are smoke checks; only the full `val` split is comparable.
-
 Results (nuScenes val, mAP / NDS):
 
     | Variant                      | reference   | torch-pointcloud |
@@ -10,6 +8,7 @@ Results (nuScenes val, mAP / NDS):
 
 Usage:
     uv run --no-sync python examples/voxelnext_benchmark_detection.py --root /path/to/data
+    uv run --no-sync python examples/voxelnext_benchmark_detection.py --root /path/to/data --split mini
 """
 
 import argparse
@@ -22,7 +21,7 @@ from torch.utils.data import Dataset, Subset
 from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import NuScenesMini
+from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
 from torch_pointcloud.models import DetectionModel, create_model
 from torch_pointcloud.utils.box3d import nms3d
@@ -85,6 +84,7 @@ def evaluate(model: DetectionModel, dataloader: PointCloudDataLoader, device: st
 
     pred_labels = torch.cat([p["labels"] for p in preds])
     pred_velocity = torch.cat([p["velocity"] for p in preds])
+
     return nuscenes_detection_metrics(
         torch.cat([torch.cat([p["boxes"], p["velocity"]], dim=1) for p in preds]),
         torch.cat([p["scores"] for p in preds]),
@@ -105,7 +105,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default="voxelnext.nuscenes.openpcdet", help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--version", default="v1.0-mini", help="nuScenes version.")
+    parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
     parser.add_argument("--max-sweeps", default=10, type=int, help="LiDAR sweeps per keyframe.")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--batch-size", default=2, type=int)
@@ -119,18 +119,27 @@ def main() -> None:
     seed_everything(args.seed)
     set_determinism(tf32=False)
 
-    print(f"Benchmarking model {args.model!r} on nuScenes ({args.version})!")
+    print(f"Benchmarking model {args.model!r} on nuScenes ({args.split})!")
     model, model_info = create_model(args.model, task="detection", pretrained=True, return_info=True)
     assert isinstance(model, DetectionModel)
 
-    dataset: Dataset = NuScenesMini(
-        root=args.root,
-        version=args.version,
-        max_sweeps=args.max_sweeps,
-        transform=model_info["transform"],
-    )
+    dataset: Dataset
+    if args.split == "mini":
+        dataset = NuScenesMini(
+            root=args.root,
+            max_sweeps=args.max_sweeps,
+            transform=model_info["transform"],
+        )
+    else:
+        dataset = NuScenes(
+            root=args.root,
+            split="val",
+            max_sweeps=args.max_sweeps,
+            transform=model_info["transform"],
+        )
+
     if args.limit is not None:
-        n = min(int(args.limit), len(dataset))  # type: ignore[arg-type]
+        n = min(int(args.limit), len(dataset))
         dataset = Subset(dataset, range(n))
         print(f"Evaluating on a subset of the first {n} keyframes.")
 
@@ -142,7 +151,7 @@ def main() -> None:
         cat_keys=[DataKeys.BOX, DataKeys.POS_VOXEL],
     )
 
-    print(f"Test set: {len(dataset)} keyframes")  # type: ignore[arg-type]
+    print(f"Test set: {len(dataset)} keyframes")
     metrics = evaluate(model, dataloader, args.device)
     print("\nResults:")
     for key, value in metrics.items():

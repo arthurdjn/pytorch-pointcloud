@@ -7,8 +7,8 @@ Results (mIoU / mAP / mAP@0.5 / mAP@0.25):
 
     | Variant                                       | reference                 | torch-pointcloud |
     | --------------------------------------------- | ------------------------- | ---------------- |
-    | oneformer3d-base.scannet20.danila-rukhovich   | 76.4 / 59.3 / 78.8 / 86.7 |                  |
-    | oneformer3d-base.s3dis-area5.danila-rukhovich | 71.9 / 58.0 / 72.7 / 80.6 |                  |
+    | oneformer3d-base.scannet20.danila-rukhovich   | 76.4 / 59.3 / 78.8 / 86.7 | 76.51 / 59.54 / 78.57 / 86.65 |
+    | oneformer3d-base.s3dis-area5.danila-rukhovich | 71.9 / 58.0 / 72.7 / 80.6 | 71.95 / 58.24 / 72.47 / 80.05 |
 
 Usage:
     uv run --no-sync python examples/oneformer3d_benchmark_segmentation.py --model oneformer3d-base.scannet20.danila-rukhovich --limit 20

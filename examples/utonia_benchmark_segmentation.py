@@ -4,7 +4,7 @@ Results (ScanNet val mIoU):
 
     | Variant                       | reference | torch-pointcloud |
     | ----------------------------- | --------- | ---------------- |
-    | utonia-lp.scannet20.pointcept | 77.7      |                  |
+    | utonia-lp.scannet20.pointcept | 77.7      | 77.70 / 91.88    |
 
 Usage:
     uv run --no-sync python examples/utonia_benchmark_segmentation.py --limit 5

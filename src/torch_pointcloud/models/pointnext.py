@@ -1559,7 +1559,7 @@ _S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 74.51},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1577,7 +1577,7 @@ def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 47.58},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1595,7 +1595,7 @@ def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 75.91},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1613,7 +1613,7 @@ def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 59.85},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1649,7 +1649,7 @@ def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 83.22},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1667,7 +1667,7 @@ def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 77.78},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1685,7 +1685,7 @@ def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 58.61},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1703,7 +1703,7 @@ def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 84.02},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1721,7 +1721,7 @@ def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 62.61},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1757,7 +1757,7 @@ def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 84.64},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1775,7 +1775,7 @@ def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 78.96},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1793,7 +1793,7 @@ def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 61.69},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1811,7 +1811,7 @@ def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 84.06},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1829,7 +1829,7 @@ def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 65.08},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1865,7 +1865,7 @@ def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 85.94},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1883,7 +1883,7 @@ def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 79.56},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1901,7 +1901,7 @@ def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 63.17},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1919,7 +1919,7 @@ def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 84.88},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1937,7 +1937,7 @@ def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 64.80},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1955,7 +1955,7 @@ def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area5.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area5",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 71.20},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",

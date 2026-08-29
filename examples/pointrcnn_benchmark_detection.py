@@ -4,7 +4,7 @@ Results (Car / Pedestrian / Cyclist / mAP, R11):
 
     | Variant                   | reference                     | torch-pointcloud |
     | ------------------------- | ----------------------------- | ---------------- |
-    | pointrcnn.kitti.openpcdet | 78.70 / 54.41 / 72.11 / 68.41 |                  |
+    | pointrcnn.kitti.openpcdet | 78.70 / 54.41 / 72.11 / 68.41 | 78.67 / 56.94 / 72.27 / 69.29 |
 
 Usage:
     uv run --no-sync python examples/pointrcnn_benchmark_detection.py --split-file /path/to/ImageSets/val.txt

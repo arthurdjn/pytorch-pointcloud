@@ -1010,7 +1010,7 @@ def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 74.96},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1028,7 +1028,7 @@ def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 48.22},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1046,7 +1046,7 @@ def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 76.31},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1064,7 +1064,7 @@ def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 59.96},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1100,7 +1100,7 @@ def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
-        # TODO: metrics not measured yet
+        metrics={"mIoU": 82.45},
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",

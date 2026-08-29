@@ -4,9 +4,9 @@ Results (val sequence 08, mIoU):
 
     | Variant                                   | reference | torch-pointcloud |
     | ----------------------------------------- | --------- | ---------------- |
-    | spvcnn-119gmacs.semantickitti.mit-han-lab | 63.8      |                  |
-    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 61.4      |                  |
-    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 60.7      |                  |
+    | spvcnn-119gmacs.semantickitti.mit-han-lab | 63.8      | 63.74            |
+    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 61.4      | 61.59            |
+    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 60.7      | 60.70            |
 
 Usage:
     uv run --no-sync python examples/spvcnn_benchmark_segmentation.py --limit 5

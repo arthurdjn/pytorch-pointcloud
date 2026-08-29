@@ -1,11 +1,17 @@
 """Benchmark the PointNet++ S3DIS semantic-segmentation checkpoints on Area 5, each with its reference protocol.
 
-Results (Area-5 mIoU / OA):
+Results (mIoU / OA; the 6-fold rows average the per-area folds, the reference pools their confusion matrices):
 
-    | Variant                          | reference | torch-pointcloud |
-    | -------------------------------- | --------- | ---------------- |
-    | pointnet2.s3dis-area5.xu-yan     | 53.5      | 54.28 / 83.54    |
-    | pointnet2.s3dis-area5.openpoints | 63.6      | 63.66 / 88.23    |
+    | Variant                          | reference   | torch-pointcloud |
+    | -------------------------------- | ----------- | ---------------- |
+    | pointnet2.s3dis-area5.xu-yan     | 53.5        | 54.28 / 83.54    |
+    | pointnet2.s3dis-area1.openpoints |             | 74.96 / 89.77    |
+    | pointnet2.s3dis-area2.openpoints |             | 48.22 / 80.08    |
+    | pointnet2.s3dis-area3.openpoints |             | 76.31 / 90.89    |
+    | pointnet2.s3dis-area4.openpoints |             | 59.96 / 85.67    |
+    | pointnet2.s3dis-area5.openpoints | 63.6        | 63.66 / 88.23    |
+    | pointnet2.s3dis-area6.openpoints |             | 82.45 / 92.99    |
+    | pointnet2 openpoints 6-fold mean | 68.1 / 87.6 | 67.59 / 87.94    |
 
 Usage:
     uv run --no-sync python examples/pointnet2_benchmark_segmentation.py --model pointnet2.s3dis-area5.xu-yan
@@ -14,7 +20,7 @@ Usage:
 
 import argparse
 import os
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import torch
 from torch.nn import Module
@@ -79,18 +85,23 @@ def build_xu_yan_inferer(inferer_transform: T.Transform, seed: int) -> Inferer:
     return TTAInferer(base=blocks, transforms=T.Compose([]), num_passes=NUM_VOTES)
 
 
-def build_openpoints_inferer(inferer_transform: T.Transform, seed: int) -> Inferer:
+def build_openpoints_inferer(inferer_transform: T.Transform, seed: int, sub_batch_size: int) -> Inferer:
     return VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
         transform=inferer_transform,
-        sub_batch_size=SUB_BATCH_SIZE,
+        sub_batch_size=sub_batch_size,
         seed=seed,
     )
 
 
-PROTOCOLS = {
+PROTOCOLS: Dict[str, Tuple[T.Transform, Optional[T.Transform], Callable[..., Inferer]]] = {
     "pointnet2.s3dis-area5.xu-yan": (XU_YAN_TRANSFORM, XU_YAN_INFERER_TRANSFORM, build_xu_yan_inferer),
+    "pointnet2.s3dis-area1.openpoints": (OPENPOINTS_TRANSFORM, None, build_openpoints_inferer),
+    "pointnet2.s3dis-area2.openpoints": (OPENPOINTS_TRANSFORM, None, build_openpoints_inferer),
+    "pointnet2.s3dis-area3.openpoints": (OPENPOINTS_TRANSFORM, None, build_openpoints_inferer),
+    "pointnet2.s3dis-area4.openpoints": (OPENPOINTS_TRANSFORM, None, build_openpoints_inferer),
     "pointnet2.s3dis-area5.openpoints": (OPENPOINTS_TRANSFORM, None, build_openpoints_inferer),
+    "pointnet2.s3dis-area6.openpoints": (OPENPOINTS_TRANSFORM, None, build_openpoints_inferer),
 }
 
 
@@ -124,6 +135,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument("--sub-batch-size", default=SUB_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
@@ -140,7 +152,11 @@ def main() -> None:
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
     transform, inferer_transform, build_inferer = PROTOCOLS[args.model]
-    inferer = build_inferer(inferer_transform or model_info["transform"], args.seed)
+    inferer_transform = inferer_transform or model_info["transform"]
+    if build_inferer is build_openpoints_inferer:
+        inferer = build_openpoints_inferer(inferer_transform, args.seed, args.sub_batch_size)
+    else:
+        inferer = build_inferer(inferer_transform, args.seed)
 
     dataset: Dataset = S3DIS(
         root=args.root,

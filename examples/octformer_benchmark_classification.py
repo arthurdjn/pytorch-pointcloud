@@ -1,18 +1,15 @@
 """Benchmark the OctFormer ModelNet40 classifier (single pass, no voting).
 
-NOTE: the reference number is the no-voting accuracy of octree-nn/octformer at c2975ab on the test PLYs produced by
-`python tools/cls_modelnet.py`, evaluated with:
-
-    python classification.py --config configs/cls_m40.yaml SOLVER.gpu 0, SOLVER.run test
-
-We score the released weights on points and normals sampled from the ModelNet40 meshes by `datasets.ModelNet40`
-instead of those PLYs; the gap (88.3 vs 92.7) is stable across sampling seeds and has not been traced further.
+NOTE: the released ModelNet40 weights predate two upstream changes, so their registration applies the `CPE` residual
+after the attention (`cpe_first=False`) and normalizes each shape to its minimal enclosing ball after the bounding-box
+rescale; on the authors' own test PLYs (`tools/cls_modelnet.py` at 3ea0a87) this pipeline scores 92.67. The residual
+gap below is the draw of our mesh sampler (`--fresh-sampling` gives 92.38).
 
 Results vs reference (ModelNet40 overall accuracy):
 
     | Variant                             | reference | torch-pointcloud |
     | ----------------------------------- | --------- | ---------------- |
-    | octformer-base.modelnet40.octree-nn | 92.7      | 88.33            |
+    | octformer-base.modelnet40.octree-nn | 92.7      | 92.02            |
 
 Usage:
     uv run --no-sync python examples/octformer_benchmark_classification.py
@@ -61,6 +58,7 @@ SAMPLE_TRANSFORM = T.Compose(
         ),
         T.Shift(keys=DataKeys.POS, method="bbox"),
         T.Rescale(keys=DataKeys.POS, method="bbox"),
+        T.Rescale(keys=DataKeys.POS, method="min_sphere"),
     ]
 )
 
