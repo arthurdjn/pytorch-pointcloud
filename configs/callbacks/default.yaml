@@ -1,6 +1,0 @@
-# The always-on callbacks: checkpointing and LR logging. Task groups (classification, segmentation,
-# votenet) and extras (swa) compose these atomic callback files through their own defaults lists.
-defaults:
-  - model_checkpoint
-  - lr_monitor
-  - _self_

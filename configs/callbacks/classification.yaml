@@ -1,5 +1,0 @@
-# Default callbacks plus a per-epoch accuracy metric. Opt in with `override /callbacks: classification`.
-defaults:
-  - default
-  - val_accuracy
-  - _self_

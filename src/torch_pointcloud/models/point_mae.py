@@ -971,7 +971,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.scanobjectnn-objonly.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-objonly",
-        metrics={"OA": 88.3},
+        metrics={"OA": 88.30},
         classes=SCANOBJECTNN_CLASSES,
         author="yatian-pang",
         license="MIT",
@@ -1037,6 +1037,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.shapenetpart.yatian-pang/resolve/main/model.safetensors",
         dataset="shapenetpart",
+        metrics={"ins_mIoU": 86.05, "cls_mIoU": 84.12},
         author="yatian-pang",
         license="MIT",
     ),

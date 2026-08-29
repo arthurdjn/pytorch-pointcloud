@@ -314,7 +314,6 @@ _AVAILABILITY_FLAGS: Dict[str, Callable[[], bool]] = {
     "_CUDA_AVAILABLE": torch.cuda.is_available,
     "_DWCONV_AVAILABLE": partial(module_available, "dwconv"),
     "_FLASH_ATTN_AVAILABLE": partial(module_available, "flash_attn"),
-    "_HYDRA_AVAILABLE": partial(module_available, "hydra"),
     "_LIGHTNING_AVAILABLE": partial(module_available, "lightning.pytorch"),
     "_MAMBA_SSM_AVAILABLE": partial(module_available, "mamba_ssm"),
     "_OCNN_AVAILABLE": partial(module_available, "ocnn"),

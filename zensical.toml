@@ -119,7 +119,6 @@ nav = [
         { "Advanced" = [
             { "Survey-Scale LiDAR" = "examples/07-large-scale-lidar.md" },
             { "Driving Detection" = "examples/08-driving-detection.md" },
-            { "Indoor Scene Understanding" = "examples/09-indoor-scene.md" },
         ] },
     ] },
     { "API Reference" = [
@@ -264,7 +263,6 @@ nav = [
             { "geometry" = "api/utils/geometry.md" },
             { "heatmap" = "api/utils/heatmap.md" },
             { "hilbert" = "api/utils/hilbert.md" },
-            { "hydra" = "api/utils/hydra.md" },
             { "imports" = "api/utils/imports.md" },
             { "io" = "api/utils/io.md" },
             { "metrics" = "api/utils/metrics.md" },

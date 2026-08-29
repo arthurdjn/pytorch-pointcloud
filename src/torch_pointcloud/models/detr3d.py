@@ -1060,6 +1060,7 @@ _SUNRGBD_TRANSFORM = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/3detr-m.scannet.fair/resolve/main/model.safetensors",
         dataset="scannet",
+        metrics={"mAP@0.25": 65.46, "mAP@0.5": 47.26},
         classes=SCANNET_DETECTION_CLASSES,
         author="fair",
         license="Apache-2.0",
@@ -1084,6 +1085,7 @@ def detr3d_m_scannet(**hparams: Any) -> DETR3DDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/3detr.scannet.fair/resolve/main/model.safetensors",
         dataset="scannet",
+        metrics={"mAP@0.25": 61.37, "mAP@0.5": 38.43},
         classes=SCANNET_DETECTION_CLASSES,
         author="fair",
         license="Apache-2.0",
@@ -1107,6 +1109,7 @@ def detr3d_scannet(**hparams: Any) -> DETR3DDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/3detr.sunrgbd.fair/resolve/main/model.safetensors",
         dataset="sunrgbd",
+        metrics={"mAP@0.25": 58.08, "mAP@0.5": 29.64},
         classes=SUNRGBD_CLASSES,
         author="fair",
         license="Apache-2.0",

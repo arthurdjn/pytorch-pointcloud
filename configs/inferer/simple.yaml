@@ -1,5 +1,0 @@
-# @package model.inferer
-# One forward on the whole batch: the module default, spelled out for experiments that override it back.
-
-_target_: torch_pointcloud.inferers.SimpleInferer
-softmax: false

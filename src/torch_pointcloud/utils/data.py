@@ -51,6 +51,7 @@ class DataKeys(StrEnum):
     INDEX = "index"
     ORIGIN_POS = "origin_pos"
     ORIGIN_SEGMENT = "origin_segment"
+    ORIGIN_INSTANCE = "origin_instance"
     BOX = "box"
     BATCH_BOX = "batch_box"
     VELOCITY = "velocity"

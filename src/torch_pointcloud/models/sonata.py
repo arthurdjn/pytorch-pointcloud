@@ -268,7 +268,7 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
     weights=WeightsDict(
         url="hf://torch-pointcloud/sonata-lp.scannet20.fair/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 71.93},
+        metrics={"mIoU": 72.60},
         classes=SCANNET20_CLASSES,
         author="fair",
         license="CC-BY-NC-4.0",

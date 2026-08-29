@@ -994,7 +994,11 @@ def instance_matches(
 
     empty = gt_instance.new_zeros(0)
     pair_pred, pair_gt, pair_inter = [empty], [empty], [empty]
+    pred_counts = gt_instance.new_zeros(pred_masks.shape[0])
+    pred_void = gt_instance.new_zeros(pred_masks.shape[0])
     for index in range(pred_masks.shape[0]):
+        pred_counts[index] = pred_masks[index].sum()
+        pred_void[index] = (pred_masks[index] & void).sum()
         hits = point_instance[pred_masks[index]]
         inter = torch.bincount(hits[hits >= 0], minlength=num_instances)
         gt_index = ((inter > 0) & (gt_labels == pred_labels[index])).nonzero(as_tuple=True)[0]
@@ -1005,8 +1009,8 @@ def instance_matches(
     return {
         "pred_labels": pred_labels.detach().cpu(),
         "pred_scores": pred_scores.detach().cpu(),
-        "pred_counts": pred_masks.sum(dim=1).cpu(),
-        "pred_void": (pred_masks & void).sum(dim=1).cpu(),
+        "pred_counts": pred_counts.cpu(),
+        "pred_void": pred_void.cpu(),
         "gt_labels": gt_labels.cpu(),
         "gt_counts": gt_counts.cpu(),
         "pair_pred": torch.cat(pair_pred).cpu(),

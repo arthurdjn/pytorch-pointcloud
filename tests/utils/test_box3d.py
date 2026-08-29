@@ -314,3 +314,18 @@ def test_nms3d_degenerate_boxes_both_modes() -> None:
     apart = _boxes([[0.0, 0, 0, 0, 0, 0, 0], [1.0, 0, 0, 0, 0, 0, 0]])
     assert nms3d(apart, scores, 0.3).tolist() == [0, 1]
     assert nms3d(apart, scores, 0.3, rotated=True).tolist() == [0, 1]
+
+
+@pytest.mark.parametrize("rotated", [False, True])
+def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None:
+    torch.manual_seed(0)
+    boxes = torch.cat([torch.randn(96, 3) * 4.0, torch.rand(96, 3) * 3.0 + 0.1, torch.rand(96, 1) * 6.28], dim=1)
+    scores = torch.rand(96)
+    batch = torch.randint(0, 3, (96,)).sort().values
+    full = nms3d(boxes, scores, 0.2, batch=batch, rotated=rotated)
+    capped = nms3d(boxes, scores, 0.2, batch=batch, rotated=rotated, max_keep=5)
+    for scene in range(3):
+        assert torch.equal(full[batch[full] == scene][:5], capped[batch[capped] == scene])
+    assert torch.equal(
+        nms3d(boxes, scores, 0.2, rotated=rotated)[:7], nms3d(boxes, scores, 0.2, rotated=rotated, max_keep=7)
+    )

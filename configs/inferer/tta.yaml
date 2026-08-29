@@ -1,7 +1,0 @@
-# @package model.inferer
-# Test-time augmentation: run the base inferer once per pass transform and aggregate the predictions.
-# The pass transforms are protocol-specific; set `model.inferer.transforms` in the experiment (or CLI).
-_target_: torch_pointcloud.inferers.TTAInferer
-base:
-  _target_: torch_pointcloud.inferers.SimpleInferer
-transforms: ???

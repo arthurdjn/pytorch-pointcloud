@@ -1,9 +1,0 @@
-# @package model.inferer
-# Voxel-partition inference: split the raw scene into `count.max()` sub-clouds that each take one point per voxel,
-# run every sub-cloud through the predictor and scatter the outputs back to the raw points, so every raw point is
-# predicted at least once (the Pointcept `GridSample(mode="test")` / OpenPoints `voxelize` protocols).
-
-_target_: torch_pointcloud.inferers.VoxelPartitionInferer
-voxel_size: ???
-sub_batch_size: 1
-softmax: false

@@ -48,7 +48,7 @@ def _make_pointrcnn(**overrides: Any) -> PointRCNNDetection:
         roi_cls_channels=[128],
         roi_reg_channels=[128],
         num_sampled_points=64,
-        nms_post_maxsize=16,
+        proposal_post_maxsize=16,
     )
     kwargs.update(overrides)
     return PointRCNNDetection(**kwargs)
@@ -77,7 +77,7 @@ def test_pointrcnn_forward_shapes() -> None:
     data = _make_inputs()
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
-    num_rois = 2 * model.nms_post_maxsize
+    num_rois = 2 * model.proposal_post_maxsize
     assert out["rcnn_cls"].shape == (num_rois, 1)
     assert out["boxes"].shape == (num_rois, 7)
     assert out["roi_labels"].shape == (num_rois,)
@@ -155,7 +155,7 @@ def test_rotate_points_along_z_round_trip() -> None:
 def test_pointrcnn_train_forward_detaches_proposals_from_stage_one() -> None:
     """Stage-2 targets must carry no gradient: only the pooled feature paths reach stage 1."""
     torch.manual_seed(0)
-    model = _make_pointrcnn(train_nms_post_maxsize=64, roi_per_image=32).to(DEVICE).train()
+    model = _make_pointrcnn(train_proposal_post_maxsize=64, roi_per_image=32).to(DEVICE).train()
     data = _make_inputs(n_per_scene=4096, batch_size=1)
     gt_boxes = torch.tensor([[10.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.3]], device=DEVICE)
     gt_labels = torch.zeros(1, dtype=torch.long, device=DEVICE)
@@ -237,7 +237,8 @@ def test_pointrcnn_create_model_hparams() -> None:
     assert model.in_channels == 4
     assert model.num_classes == 3
     assert model.encoder.out_channels == 1024
-    assert model.nms_post_maxsize == 100
+    assert model.proposal_post_maxsize == 100
+    assert model.proposal_nms_rotated
     assert len(model.encoder.sa_blocks) == 4
     assert len(model.decoder.fp_blocks) == 4
     assert len(model.roi_head.sa_modules) == 3
@@ -256,6 +257,6 @@ def test_pointrcnn_pretrained_loads_strict() -> None:
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
         det = model.decode(out)
-    assert out["boxes"].shape == (model.nms_post_maxsize, 7)
+    assert out["boxes"].shape == (model.proposal_post_maxsize, 7)
     assert det["boxes"].shape[1] == 7
     assert torch.isfinite(out["boxes"]).all()
