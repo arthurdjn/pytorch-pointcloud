@@ -155,6 +155,7 @@ If you find this project useful, please consider citing:
   title = {PyTorch PointCloud},
   year = {2026},
   url = {https://github.com/arthurdjn/pytorch-pointcloud},
+  doi = {10.5281/zenodo.22159633},
   license = {Apache-2.0}
 }
 ```

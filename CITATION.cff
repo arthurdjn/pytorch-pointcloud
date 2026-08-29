@@ -9,6 +9,11 @@ authors:
     email: "arthurdujardin.research@gmail.com"
 version: "0.0.1"
 date-released: "2026-08-29"
+doi: "10.5281/zenodo.22159633"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22159632"
+    description: "Concept DOI, resolves to the latest version on Zenodo"
 license: "Apache-2.0"
 repository-code: "https://github.com/arthurdjn/pytorch-pointcloud"
 url: "https://pytorch-pointcloud.org/"
