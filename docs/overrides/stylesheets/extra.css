@@ -641,7 +641,7 @@ a.pill.hero-pill {
 }
 @media screen and (max-width: 44.9375em) {
   .md-typeset .tp-tasks {
-    grid-template-columns: 1fr;
+    gap: 0.4rem;
   }
 }
 /* The same surface the cards below the hero sit on, so the two blocks read as one page */
@@ -690,13 +690,21 @@ a.pill.hero-pill {
   line-height: 1.45;
   color: var(--md-default-fg-color--light);
 }
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-tasks figcaption {
+    padding: 0.45rem 0.3rem;
+    font-size: 0.6rem;
+  }
+}
 .md-typeset .tp-tasks figcaption strong {
   display: block;
   color: var(--md-default-fg-color);
 }
+/* Checkpoint names are one unbroken dotted token, which a two-column phone layout cannot fit */
 .md-typeset .tp-tasks figcaption code {
   font-size: 0.92em;
   background-color: transparent;
   padding: 0;
+  overflow-wrap: anywhere;
 }
 /* ----------- End Task tiles ----------- */
