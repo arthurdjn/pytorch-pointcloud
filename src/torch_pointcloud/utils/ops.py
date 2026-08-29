@@ -292,7 +292,8 @@ def decimate_indices(
     Args:
         batch: The packed batch index tensor.
         factor: The factor to decimate the indices by.
-        generator: The generator to use for the random permutation.
+        generator: The generator to use for the random permutation. When given, it is reseeded from each
+            sample's own point count, so a sample's decimation does not depend on the rest of the batch.
 
     Returns:
         The decimated indices and the decimated batch indices.
@@ -321,6 +322,11 @@ def decimate_indices(
         decim_size = max(1, int(size_i // factor))
 
         indices = torch.where(mask_i)[0]
+        if generator is not None:
+            # Reseed per sample: one generator drawn sequentially would make a sample's permutation
+            # depend on how many draws the samples before it in the batch consumed.
+            generator.manual_seed(size_i)
+
         perm = torch.randperm(size_i, device=batch.device, generator=generator)[:decim_size]
 
         # Decimate indices following the random permutation
