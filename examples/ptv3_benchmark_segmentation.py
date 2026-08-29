@@ -3,8 +3,7 @@
 NOTE: the S3DIS checkpoint was trained with mesh normals the public download lacks; normals are estimated here, so that
 row cannot reach the reference.
 
-NOTE: the ScanNet references are the checkpoints' training-log figures; the reference tester has not been re-run on this
-machine for PTv3 (the SpUNet script shows the same kind of gap between a 2023 log and today's data).
+NOTE: the ScanNet references are the checkpoints' training-log figures (Pointcept 0518ccf, `semseg-pt-v3m1-0-base.py`).
 
 Results (val mIoU):
 
