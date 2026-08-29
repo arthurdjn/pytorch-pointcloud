@@ -119,18 +119,6 @@ BENCHMARKS = [
     ),
     pytest.param("octformer_benchmark_classification.py", (), marks=_GPU_OCTREE, id="octformer/modelnet40"),
     pytest.param(
-        "oneformer3d_benchmark_segmentation.py",
-        ("--model", "oneformer3d-base.scannet20.danila-rukhovich", "--limit", "1"),
-        marks=_GPU_SPCONV_SCATTER,
-        id="oneformer3d/scannet",
-    ),
-    pytest.param(
-        "oneformer3d_benchmark_segmentation.py",
-        ("--model", "oneformer3d-base.s3dis-area5.danila-rukhovich", "--limit", "1"),
-        marks=_GPU_SPCONV_SCATTER,
-        id="oneformer3d/s3dis",
-    ),
-    pytest.param(
         "point_bert_benchmark_classification.py",
         ("--model", "point-bert-base.modelnet40.xumin-yu", "--limit", "8"),
         marks=_CLUSTER_SCATTER,

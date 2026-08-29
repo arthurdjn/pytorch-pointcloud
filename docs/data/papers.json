@@ -169,11 +169,6 @@
     "date": "May 2023",
     "title": "PointGPT: Auto-regressively Generative Pre-training from Point Clouds"
   },
-  "2311.14405": {
-    "crop": 0.47,
-    "date": "November 2023",
-    "title": "OneFormer3D: One Transformer for Unified Point Cloud Segmentation"
-  },
   "2312.10035": {
     "crop": 0.47,
     "date": "December 2023",
