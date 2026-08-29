@@ -230,53 +230,6 @@ def test_pretrained_model(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize(
-    "model_name,dataset_name",
-    [
-        ("oneformer3d-base.s3dis-area5.danila-rukhovich", "s3dis"),
-        ("oneformer3d-base.scannet20.danila-rukhovich", "scannet20"),
-    ],
-)
-def test_pretrained_oneformer3d(
-    model_name: str,
-    dataset_name: str,
-    dataset_factory: Callable[..., Dataset],
-    force_regen: bool,
-    models_dir_factory: Callable[..., Path],
-) -> None:
-    """OneFormer3D returns a dict of per-scene lists, so it needs its own snapshot test.
-
-    Run on a single fixture scene. ScanNet exercises superpoint pooling (the fixtures
-    have no real superpoints, so one per voxel is used); S3DIS runs on voxel features.
-    The snapshot is the concatenation of `cls_preds` (and `sem_preds` when present).
-    """
-    if not (_SPCONV_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
-        pytest.skip("spconv / torch_scatter is not installed")
-    if not torch.cuda.is_available():
-        pytest.skip("oneformer3d requires CUDA, none available")
-    models_dir = models_dir_factory("*.safetensors")
-
-    model, info = create_model(model_name, task="segmentation", pretrained=True, return_info=True)
-    dataset = dataset_factory(dataset_name, transform=info["transform"])
-    data = collate([dataset[0]])
-    data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
-    model = model.to(DEVICE).eval()
-
-    x, pos_grid, batch = data["x"], data["pos_grid"], data["batch"].long()
-    with torch.no_grad():
-        if model.superpoint_pooling:
-            out = model(x, pos_grid.long(), batch, data["inverse"], data["inverse"])
-        else:
-            out = model(x, pos_grid.long(), batch)
-
-    parts = list(out["cls_preds"])
-    if "sem_preds" in out:
-        parts += list(out["sem_preds"])
-    reduced = torch.cat([p.reshape(-1) for p in parts])
-    _check_output(reduced, model_name, force_regen, models_dir)
-
-
-@pytest.mark.pretrained
 @pytest.mark.parametrize("model_name", ["votenet.scannet.fair", "votenet.sunrgbd.fair"])
 def test_pretrained_votenet(
     model_name: str,

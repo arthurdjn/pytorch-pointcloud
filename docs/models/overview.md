@@ -93,7 +93,6 @@ Predict **per-point instance masks** on top of semantics (ScanNet, S3DIS).
 
 | Model                                               | Paper                                                                                                         | Benchmark                        |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| [**OneFormer3D**](../api/models/oneformer3d.md)     | :arxiv: [OneFormer3D: One Transformer for Unified Point Cloud Segmentation](https://arxiv.org/abs/2311.14405) | ScanNet20<br>*mIoU: 76.5 / 76.4* |
 | [**SPFormer-UNet**](../api/models/spformer_unet.md) | :arxiv: [Superpoint Transformer for 3D Scene Instance Segmentation](https://arxiv.org/abs/2211.15766)         | –                                |
 
 ### Detection
