@@ -10,6 +10,21 @@ function initInstallSelector() {
     "2.13": { v: "2.13.0", cuda: ["cpu", "cu126", "cu130", "cu132"] }
   };
   var CUDA_DOT = { cu126: "12.6", cu128: "12.8", cu130: "13.0", cu132: "13.2" };
+  // The PyG wheel index lags new torch releases, one kernel at a time. torch-spline-conv is
+  // omitted throughout: it stops at torch 2.10 and the library never imports it.
+  var PYG = {
+    "2.9": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
+    "2.10": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
+    "2.11": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
+    "2.12": ["pyg-lib", "torch-scatter", "torch-sparse"],
+    "2.13": ["pyg-lib"]
+  };
+  var PYG_MISSING = {
+    "2.12": ["# torch-cluster has no torch 2.12 wheel yet, so the models that sample points",
+             "# (PointNet++, PointNeXt, KPConv, ...) cannot run. Use torch 2.11 for the full zoo."],
+    "2.13": ["# The PyG index carries only pyg-lib for torch 2.13; torch-scatter, torch-sparse and",
+             "# torch-cluster have no wheel yet, so most models cannot run. Use torch 2.11 instead."]
+  };
   var state = {
     pm: "uv", torch: "2.10", cuda: "cu128",
     extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, lightning: false }
@@ -39,8 +54,9 @@ function initInstallSelector() {
     lines.push(pipish + " torch==" + v + " \\", "  --index-url https://download.pytorch.org/whl/" + tag);
     if (state.extras.pyg) {
       lines.push("", "# PyG extensions (torch-scatter, torch-cluster, ...)");
+      if (PYG_MISSING[state.torch]) PYG_MISSING[state.torch].forEach(function (l) { lines.push(l); });
       lines.push(pipish + " \\");
-      lines.push("  pyg-lib torch-scatter torch-sparse torch-cluster torch-spline-conv \\");
+      lines.push("  " + PYG[state.torch].join(" ") + " \\");
       lines.push("  -f https://data.pyg.org/whl/torch-" + v + "+" + tag + ".html");
     }
     var astral = [];
