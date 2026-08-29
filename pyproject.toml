@@ -10,7 +10,7 @@ include = ["/src/torch_pointcloud", "/LICENSE", "/THIRD_PARTY_NOTICES.md", "/REA
 
 [project]
 name = "torch-pointcloud"
-version = "0.1.0"
+version = "0.0.1"
 description = "PyTorch Point Cloud models, scripts, pretrained weights and more"
 readme = "README.md"
 license = "Apache-2.0"
