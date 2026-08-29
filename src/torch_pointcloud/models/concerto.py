@@ -286,7 +286,7 @@ def _concerto_encoder_hparams(
     "concerto-tiny.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-tiny.pretrain.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto-tiny.pretrain.pointcept/resolve/main/model.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -305,7 +305,7 @@ def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
     "concerto-small.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-small.pretrain.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto-small.pretrain.pointcept/resolve/main/model.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -324,7 +324,7 @@ def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
     "concerto-base.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-base.pretrain.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto-base.pretrain.pointcept/resolve/main/model.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -343,7 +343,7 @@ def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
     "concerto-large.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-large.pretrain.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto-large.pretrain.pointcept/resolve/main/model.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -362,7 +362,7 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
     "concerto-large-lp.scannet20.pointcept",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto/concerto-large-lp.scannet20.pointcept.safetensors",
+        url="hf://torch-pointcloud/concerto-large-lp.scannet20.pointcept/resolve/main/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 78.59},
         classes=SCANNET20_CLASSES,

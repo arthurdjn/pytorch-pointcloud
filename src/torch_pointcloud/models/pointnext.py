@@ -1239,7 +1239,7 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     "pointnext-sm.scanobjectnn.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.scanobjectnn.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors",
         dataset="scanobjectnn",
         metrics={"OA": 88.17},
         classes=SCANOBJECTNN_CLASSES,
@@ -1292,7 +1292,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     "pointnext-sm-c64.modelnet40.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm-c64.modelnet40.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c64.modelnet40.openpoints/resolve/main/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.80},
         classes=MODELNET40_CLASSES,
@@ -1557,7 +1557,7 @@ _S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
     "pointnext-sm.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area1.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1575,7 +1575,7 @@ def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area2.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1593,7 +1593,7 @@ def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area3.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1611,7 +1611,7 @@ def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area4.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1629,7 +1629,7 @@ def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area5.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area5.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 64.28},
         classes=S3DIS_CLASSES,
@@ -1647,7 +1647,7 @@ def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.s3dis-area6.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1665,7 +1665,7 @@ def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area1.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1683,7 +1683,7 @@ def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area2.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1701,7 +1701,7 @@ def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area3.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1719,7 +1719,7 @@ def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area4.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1737,7 +1737,7 @@ def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area5.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area5.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 67.55},
         classes=S3DIS_CLASSES,
@@ -1755,7 +1755,7 @@ def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-base.s3dis-area6.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1773,7 +1773,7 @@ def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area1.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1791,7 +1791,7 @@ def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area2.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1809,7 +1809,7 @@ def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area3.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1827,7 +1827,7 @@ def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area4.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1845,7 +1845,7 @@ def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area5.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area5.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 69.29},
         classes=S3DIS_CLASSES,
@@ -1863,7 +1863,7 @@ def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-lg.s3dis-area6.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area6.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area6",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1881,7 +1881,7 @@ def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area1.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area1.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area1",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1899,7 +1899,7 @@ def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area2.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area2.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area2",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1917,7 +1917,7 @@ def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area3.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area3.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area3",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1935,7 +1935,7 @@ def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area4.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area4.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area4",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -1953,7 +1953,7 @@ def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-xl.s3dis-area5.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area5.openpoints/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         # TODO: metrics not measured yet
         classes=S3DIS_CLASSES,
@@ -2043,7 +2043,7 @@ _SHAPENETPART_VARIANT_HPARAMS = {
     "pointnext-sm.shapenetpart.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm.shapenetpart.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.shapenetpart.openpoints/resolve/main/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.88, "cls_mIoU": 84.48},
         author="openpoints",
@@ -2060,7 +2060,7 @@ def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
     "pointnext-sm-c64.shapenetpart.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm-c64.shapenetpart.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c64.shapenetpart.openpoints/resolve/main/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.93, "cls_mIoU": 85.24},
         author="openpoints",
@@ -2077,7 +2077,7 @@ def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
     "pointnext-sm-c160.shapenetpart.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext/pointnext-sm-c160.shapenetpart.openpoints.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c160.shapenetpart.openpoints/resolve/main/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 87.11, "cls_mIoU": 85.25},
         author="openpoints",

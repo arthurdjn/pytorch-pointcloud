@@ -860,7 +860,7 @@ _ONEFORMER3D_SCANNET_TRANSFORMS: Callable[..., Any] = T.Compose(
     "oneformer3d-base.scannet20.danila-rukhovich",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.scannet20.danila-rukhovich.safetensors",
+        url="hf://torch-pointcloud/oneformer3d-base.scannet20.danila-rukhovich/resolve/main/model.safetensors",
         dataset="scannet20",
         # TODO: metrics not measured yet
         classes=SCANNET20_CLASSES,
@@ -952,7 +952,7 @@ _ONEFORMER3D_S3DIS_TRANSFORMS: Callable[..., Any] = T.Compose(
     "oneformer3d-base.s3dis-area5.danila-rukhovich",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/oneformer3d/oneformer3d-base.s3dis-area5.danila-rukhovich.safetensors",
+        url="hf://torch-pointcloud/oneformer3d-base.s3dis-area5.danila-rukhovich/resolve/main/model.safetensors",
         dataset="s3dis-area5",
         # TODO: metrics not measured yet
         # Upstream trained this checkpoint on the pre-tiled blocks, so its channels follow that order

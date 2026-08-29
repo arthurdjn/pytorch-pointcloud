@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, Iterator
+from unittest.mock import Mock
 
 import pytest
 import torch
@@ -96,9 +97,9 @@ def _register_pretrained_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     register_model(
         "dummy-pretrained.classification",
         task="classification",
-        weights="hf://torch-pointcloud/dummy/dummy-pretrained.pt",
+        weights="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
     )(_dummy_classification)
-    weights_path = tmp_path / "dummy" / "dummy-pretrained.pt"
+    weights_path = tmp_path / "dummy-pretrained" / "model.pt"
     weights_path.parent.mkdir(parents=True)
     torch.save(DummyClassificationModel().state_dict(), weights_path)
     yield weights_path
@@ -170,12 +171,12 @@ def test_create_model_invalid_task_raises() -> None:
 
 def test_register_model_normalizes_weights_url_string(_register_pretrained_dummy: Path) -> None:
     entry = _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]
-    assert entry["weights"] == {"url": "hf://torch-pointcloud/dummy/dummy-pretrained.pt"}
+    assert entry["weights"] == {"url": "hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt"}
 
 
 def test_register_model_keeps_weights_dict() -> None:
     weights = WeightsDict(
-        url="hf://torch-pointcloud/dummy/dummy-meta.pt",
+        url="hf://torch-pointcloud/dummy-meta/resolve/main/model.pt",
         dataset="modelnet40",
         metrics={"OA": 92.46},
         classes=("airplane", "bathtub"),
@@ -296,10 +297,54 @@ def test_create_model_pretrained_rejects_weight_path_escaping_cache(
     register_model(
         "dummy-escape.classification",
         task="classification",
-        weights="hf://torch-pointcloud/../outside/dummy-escape.pt",
+        weights="hf://torch-pointcloud/../resolve/main/model.pt",
     )(_dummy_classification)
+
     try:
         with pytest.raises(ValueError, match="outside the models cache"):
             create_model("dummy-escape.classification", task="classification", pretrained=True)
     finally:
         _REGISTERED_MODELS["classification"].pop("dummy-escape.classification", None)
+
+
+def test_create_model_pretrained_downloads_missing_weights(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
+    register_model(
+        "dummy-download.classification",
+        task="classification",
+        weights="hf://torch-pointcloud/dummy-download/resolve/v1.0/model.pt",
+    )(_dummy_classification)
+
+    def fake_download(url: str, dst: str, progress: bool = True) -> None:
+        torch.save(DummyClassificationModel().state_dict(), dst)
+
+    download = Mock(side_effect=fake_download)
+    monkeypatch.setattr("torch.hub.download_url_to_file", download)
+
+    try:
+        model = create_model("dummy-download.classification", task="classification", pretrained=True)
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-download.classification", None)
+
+    assert isinstance(model, DummyClassificationModel)
+    assert download.call_args.args[0] == "https://huggingface.co/torch-pointcloud/dummy-download/resolve/v1.0/model.pt"
+    assert (tmp_path / "dummy-download" / "model.pt").exists()
+    assert not list(tmp_path.rglob("*.part"))
+
+
+def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
+    register_model(
+        "dummy-offline.classification",
+        task="classification",
+        weights="hf://torch-pointcloud/dummy-offline/resolve/main/model.pt",
+    )(_dummy_classification)
+    monkeypatch.setattr("torch.hub.download_url_to_file", Mock(side_effect=OSError("offline")))
+
+    try:
+        with pytest.raises(FileNotFoundError, match="Could not download"):
+            create_model("dummy-offline.classification", task="classification", pretrained=True)
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-offline.classification", None)
+
+    assert not (tmp_path / "dummy-offline" / "model.pt").exists()

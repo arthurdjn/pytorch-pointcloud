@@ -205,7 +205,7 @@ class SonataSegmentation(SegmentationModel):
     "sonata-base.pretrain.fair",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/sonata/sonata-base.pretrain.fair.safetensors",
+        url="hf://torch-pointcloud/sonata-base.pretrain.fair/resolve/main/model.safetensors",
         author="fair",
         license="CC-BY-NC-4.0",
     ),
@@ -266,7 +266,7 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
     "sonata-lp.scannet20.fair",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/sonata/sonata-lp.scannet20.fair.safetensors",
+        url="hf://torch-pointcloud/sonata-lp.scannet20.fair/resolve/main/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 72.60},
         classes=SCANNET20_CLASSES,

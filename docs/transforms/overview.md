@@ -67,7 +67,7 @@ Chained steps compose these maps, so they always address the outermost source. R
 
 |                                                                   | Transform                                                                                       | Description                                                        |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| <img src="../assets/transforms/thumbs/rescale.png" width="220">   | [`Rescale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Rescale)     | Center and rescale to unit extent (`centroid` / `bbox` / `linear`) |
+| <img src="../assets/transforms/thumbs/rescale.png" width="220">   | [`Rescale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Rescale)     | Center and rescale to unit extent (`centroid` / `bbox` / `centroid_extent` / `min_sphere`) |
 | <img src="../assets/transforms/thumbs/normalize.png" width="220"> | [`Normalize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Normalize) | Per-channel $(x - \mu) / \sigma$ standardization                   |
 | <img src="../assets/transforms/thumbs/scale.png" width="220">     | [`Scale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Scale)         | Multiply by a scalar                                               |
 | <img src="../assets/transforms/thumbs/divide.png" width="220">    | [`Divide`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Divide)       | Divide by a scalar                                                 |
