@@ -52,8 +52,6 @@ def asint(value: Optional[str]) -> Optional[int]:
         return None
 
 
-# NOTE: We could use pydantic to define this config. Maybe later.
-# For simplicity, we use os.getenv for now (as we have few settings).
 HOME_DIR = Path.home().as_posix()
 CACHE_DIR = os.getenv("TORCH_POINTCLOUD_CACHE_DIR", Path(HOME_DIR, ".cache", "torch-pointcloud").as_posix())
 MODELS_DIR = os.getenv("TORCH_POINTCLOUD_MODELS_DIR", Path(CACHE_DIR, "models").as_posix())
