@@ -75,7 +75,7 @@ def parse_args() -> Namespace:
         default="octformer-base.modelnet40.octree-nn",
         choices=["octformer-base.modelnet40.octree-nn"],
     )
-    parser.add_argument("--num-classes", type=int, default=10)
+    parser.add_argument("--num-classes", type=int, default=None)
     parser.add_argument("--num-points", type=int, default=1024)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=100)
@@ -85,7 +85,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--limit-train-batches", type=int, default=None)
     parser.add_argument("--limit-test-batches", type=int, default=None)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.num_classes is None:
+        args.num_classes = 10 if args.dataset == "modelnet10" else 40
+    return args
 
 
 def train_one_epoch(
