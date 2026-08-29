@@ -26,11 +26,11 @@ probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
 | Inferer                                                         | Runs the predictor on                                 | Reproduces                                             |
 | --------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
 | [`SimpleInferer`](../api/inferers/simple.md)                    | the whole scene, once                                 | single-pass evaluation, the Lightning default          |
-| [`SlidingWindowInferer`](../api/inferers/sliding-window.md)     | cubic blocks on a regular grid                        | block-based S3DIS / ScanNet protocols                  |
-| [`VoxelPartitionInferer`](../api/inferers/voxel-partition.md)   | whole-extent downsamples, one point per voxel         | the fragment protocol of sparse and point transformers |
-| [`KNNWindowInferer`](../api/inferers/knn-window.md)             | fixed-budget kNN crops around the least-covered point | possibility-driven crop voting (RandLA-Net)            |
-| [`PotentialSphereInferer`](../api/inferers/potential-sphere.md) | radius spheres drawn from a potential grid            | potential sphere voting (KPConv)                       |
+| [`SlidingWindowInferer`](../api/inferers/sliding_window.md)     | cubic blocks on a regular grid                        | block-based S3DIS / ScanNet protocols                  |
+| [`VoxelPartitionInferer`](../api/inferers/voxel_partition.md)   | whole-extent downsamples, one point per voxel         | the fragment protocol of sparse and point transformers |
+| [`KNNWindowInferer`](../api/inferers/knn_window.md)             | fixed-budget kNN crops around the least-covered point | possibility-driven crop voting (RandLA-Net)            |
+| [`PotentialSphereInferer`](../api/inferers/potential_sphere.md) | radius spheres drawn from a potential grid            | potential sphere voting (KPConv)                       |
 | [`TTAInferer`](../api/inferers/tta.md)                          | any base inferer, under several views                 | test-time augmentation and voting                      |
-| [`PartRefinementInferer`](../api/inferers/part-refinement.md)   | any base inferer, then a neighbor vote                | part-segmentation label refinement                     |
+| [`PartRefinementInferer`](../api/inferers/part_refinement.md)   | any base inferer, then a neighbor vote                | part-segmentation label refinement                     |
 
 The last two wrap another inferer rather than replacing it.
