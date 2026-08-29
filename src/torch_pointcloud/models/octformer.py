@@ -79,7 +79,11 @@ class CPE(nn.Module):
 
 
 class OctFormerBlock(nn.Module):
-    """Transformer block over octree patches: a `CPE` residual, then octree attention and an MLP, both pre-normed."""
+    """Transformer block over octree patches: a `CPE` residual, octree attention and an MLP, both pre-normed.
+
+    Note:
+        `cpe_first` places the `CPE` residual before the attention; `False` places it after the attention residual.
+    """
 
     def __init__(
         self,
@@ -102,8 +106,10 @@ class OctFormerBlock(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = True,
         use_dwconv: bool = False,
+        cpe_first: bool = True,
     ):
         super().__init__()
+        self.cpe_first = cpe_first
         self.cpe = CPE(channels, kernel_size=3, nempty=nempty, bias=False, use_dwconv=use_dwconv)
         self.norm1 = nn.LayerNorm(channels)
         self.attention = OctreeAttention(
@@ -134,9 +140,15 @@ class OctFormerBlock(nn.Module):
         self.drop_path = ocnn.nn.OctreeDropPath(drop_path, nempty)
 
     def forward(self, x: Tensor, octree: OctreeT, depth: int) -> Tensor:
-        x = self.cpe(x, octree, depth) + x
+        if self.cpe_first:
+            x = self.cpe(x, octree, depth) + x
+
         attn = self.attention(self.norm1(x), octree, depth)
         x = x + self.drop_path(attn, octree, depth)
+
+        if not self.cpe_first:
+            x = self.cpe(x, octree, depth) + x
+
         ffn = self.mlp(self.norm2(x))
         x = x + self.drop_path(ffn, octree, depth)
         return x
@@ -165,6 +177,7 @@ class OctFormerEncoderLayer(nn.Module):
         use_checkpoint: bool = True,
         use_rpe: bool = True,
         use_dwconv: bool = False,
+        cpe_first: bool = True,
         num_blocks: int = 2,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -194,6 +207,7 @@ class OctFormerEncoderLayer(nn.Module):
                 nempty=nempty,
                 use_rpe=use_rpe,
                 use_dwconv=use_dwconv,
+                cpe_first=cpe_first,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -241,6 +255,7 @@ class OctFormerEncoder(nn.Module):
         use_checkpoint: bool = True,
         use_rpe: bool = True,
         use_dwconv: bool = False,
+        cpe_first: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -281,6 +296,7 @@ class OctFormerEncoder(nn.Module):
                 drop_path=drop_paths[sum(num_blocks[:i]) : sum(num_blocks[: i + 1])],
                 use_rpe=use_rpe,
                 use_dwconv=use_dwconv,
+                cpe_first=cpe_first,
                 nempty=nempty,
                 num_blocks=num_blocks[i],
                 act=act,
@@ -489,6 +505,7 @@ class OctFormerClassification(ClassificationModel):
         use_checkpoint: bool = True,
         use_rpe: bool = True,
         use_dwconv: bool = False,
+        cpe_first: bool = True,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -519,6 +536,7 @@ class OctFormerClassification(ClassificationModel):
         self.use_checkpoint = use_checkpoint
         self.use_rpe = use_rpe
         self.use_dwconv = use_dwconv
+        self.cpe_first = cpe_first
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
@@ -566,6 +584,7 @@ class OctFormerClassification(ClassificationModel):
             use_checkpoint=self.use_checkpoint,
             use_rpe=self.use_rpe,
             use_dwconv=self.use_dwconv,
+            cpe_first=self.cpe_first,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -721,6 +740,7 @@ class OctFormerSegmentation(SegmentationModel):
         use_checkpoint: bool = True,
         use_rpe: bool = True,
         use_dwconv: bool = False,
+        cpe_first: bool = True,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -751,6 +771,7 @@ class OctFormerSegmentation(SegmentationModel):
         self.use_checkpoint = use_checkpoint
         self.use_rpe = use_rpe
         self.use_dwconv = use_dwconv
+        self.cpe_first = cpe_first
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
@@ -797,6 +818,7 @@ class OctFormerSegmentation(SegmentationModel):
             use_checkpoint=self.use_checkpoint,
             use_rpe=self.use_rpe,
             use_dwconv=self.use_dwconv,
+            cpe_first=self.cpe_first,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -962,7 +984,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/octformer/octformer-base.modelnet40.octree-nn.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 89.02},
+        metrics={"OA": 92.02},
         classes=MODELNET40_CLASSES,
         author="octree-nn",
         license="MIT",
@@ -987,6 +1009,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
         use_checkpoint=True,
         use_rpe=True,
         use_dwconv=True,
+        cpe_first=False,
         act="gelu",
         act_kwargs=None,
         act_first=False,
@@ -1006,6 +1029,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
             ),
             T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Rescale(keys=DataKeys.POS, method="bbox"),
+            T.Rescale(keys=DataKeys.POS, method="min_sphere"),
             # NOTE: Original OctFormer uses inbox masking to remove outliers, but at the cost of performance drop,
             # we found that removing this step improves performance by ~1% on ModelNet40.
             # T.BoxMask(keys=DataKeys.POS, bbox=(-0.99, -0.99, -0.99, 0.99, 0.99, 0.99), dst_keys=DataKeys.BOX_MASK),
@@ -1064,6 +1088,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         use_checkpoint=True,
         use_rpe=True,
         use_dwconv=True,
+        cpe_first=True,
         act="gelu",
         act_kwargs=None,
         act_first=False,
@@ -1132,6 +1157,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         use_checkpoint=True,
         use_rpe=True,
         use_dwconv=True,
+        cpe_first=True,
         act="gelu",
         act_kwargs=None,
         act_first=False,
@@ -1191,6 +1217,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
         use_checkpoint=True,
         use_rpe=True,
         use_dwconv=True,
+        cpe_first=True,
         act="gelu",
         act_kwargs=None,
         act_first=False,
@@ -1226,6 +1253,7 @@ def octformer_lg_seg(**hparams: Any) -> OctFormerSegmentation:
         use_checkpoint=True,
         use_rpe=True,
         use_dwconv=True,
+        cpe_first=True,
         act="gelu",
         act_kwargs=None,
         act_first=False,

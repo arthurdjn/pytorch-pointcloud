@@ -750,13 +750,14 @@ class Rescale(DictTransform):
     r"""Center a point set and rescale it to a unit extent.
 
     Bundles a centering step and a divide-by-extent step that depend on the
-    same statistics. Three methods, each pairing a center and a denominator:
+    same statistics. Four methods, each pairing a center and a denominator:
 
-    | `method`      | Center on        | Divide by                        |
-    | ------------- | ---------------- | -------------------------------- |
-    | `"centroid"`  | centroid (mean)  | max Euclidean distance to center |
-    | `"bbox"`      | bbox midpoint    | half of the longest axis extent  |
-    | `"linear"`    | centroid (mean)  | longest axis extent              |
+    | `method`              | Center on               | Divide by                        |
+    | --------------------- | ----------------------- | -------------------------------- |
+    | `"centroid"`          | centroid (mean)         | max Euclidean distance to center |
+    | `"bbox"`              | bbox midpoint           | half of the longest axis extent  |
+    | `"centroid_extent"`   | centroid (mean)         | longest axis extent              |
+    | `"min_sphere"`        | min-sphere center       | min-sphere radius                |
 
     Empty inputs (`N=0`) are returned unchanged.
 
@@ -768,9 +769,9 @@ class Rescale(DictTransform):
 
         ![Rescale method=bbox on an object](../../assets/transforms/rescale_bbox.png)
 
-    === "method=linear"
+    === "method=centroid_extent"
 
-        ![Rescale method=linear on an object](../../assets/transforms/rescale_linear.png)
+        ![Rescale method=centroid_extent on an object](../../assets/transforms/rescale_centroid_extent.png)
 
     See Also:
         `torch_pointcloud.transforms.functional.rescale`
@@ -778,7 +779,7 @@ class Rescale(DictTransform):
     Args:
         keys: The keys to rescale.
         eps: Small constant added to the denominator for numerical stability.
-        method: `"centroid"`, `"bbox"`, or `"linear"`.
+        method: `"centroid"`, `"bbox"`, `"centroid_extent"`, or `"min_sphere"`.
         allow_missing_keys: If `True`, the transform will not raise an error if
             the keys are not present in the data.
     """
