@@ -978,20 +978,16 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-# The ScanObjectNN weights are the `model31C-demo1` checkpoints of the original release
-# (https://drive.google.com/drive/folders/1Jn9HNpPsrq-1XqSmOUtw4cwPMjsIiIpz), trained before the
-# reference repository's std fix, i.e. with one standard deviation over the whole batch
-# (`std_mode="batch"`). That mode scores 77.8 / 75.8 OA at batch size 32 against 77.2 / 75.3 with the
-# per-graph default, so the registrations keep the default and its per-sample independence. The README
-# numbers (86.1 / 84.1 OA) belong to the post-fix `fixstd/scanobjectnn/*` checkpoints, whose download
-# URLs are dead.
+# The ScanObjectNN weights are the `model31C-demo1` checkpoints of ma-xu/pointMLP-pytorch (d2b8dba), trained with one
+# standard deviation over the whole batch; their README accuracy holds on shuffled test batches of 32, while the
+# per-sample std of the later releases scores about 9 points lower with these weights.
 @register_model(
     "pointmlp-base.scanobjectnn.xu-ma",
     task="classification",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-base.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
-        metrics={"OA": 77.48},
+        metrics={"OA": 85.81},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -1008,7 +1004,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
             ),
         ]
     ),
-    hparams=_pointmlp_base_clf_hparams(num_classes=15),
+    hparams=_pointmlp_base_clf_hparams(num_classes=15, std_mode="batch"),
 )
 def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
@@ -1020,7 +1016,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-elite.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
-        metrics={"OA": 76.72},
+        metrics={"OA": 84.18},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -1037,7 +1033,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
             ),
         ]
     ),
-    hparams=_pointmlp_elite_clf_hparams(num_classes=15),
+    hparams=_pointmlp_elite_clf_hparams(num_classes=15, std_mode="batch"),
 )
 def pointmlp_elite_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
