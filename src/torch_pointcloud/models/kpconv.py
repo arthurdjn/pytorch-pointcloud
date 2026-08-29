@@ -1431,7 +1431,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-sm.s3dis.hugues-thomas/resolve/main/model.safetensors",
         dataset="s3dis",
-        metrics={"mIoU": 63.92},
+        metrics={"mIoU": 65.39},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -1474,7 +1474,7 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base.s3dis.hugues-thomas/resolve/main/model.safetensors",
         dataset="s3dis",
-        metrics={"mIoU": 65.64},
+        metrics={"mIoU": 66.44},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -1517,7 +1517,7 @@ def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-deform.s3dis.hugues-thomas/resolve/main/model.safetensors",
         dataset="s3dis",
-        metrics={"mIoU": 65.66},
+        metrics={"mIoU": 67.02},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -1560,7 +1560,7 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-sm-deform.s3dis.hugues-thomas/resolve/main/model.safetensors",
         dataset="s3dis",
-        metrics={"mIoU": 64.47},
+        metrics={"mIoU": 66.12},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",

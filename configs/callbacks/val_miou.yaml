@@ -1,8 +1,0 @@
-# @package callbacks.val_miou
-# Per-epoch mean IoU, logged on validation/test.
-
-defaults:
-  - /metric@metric: miou
-
-_target_: torch_pointcloud.lightning.MetricCallback
-name: mIoU

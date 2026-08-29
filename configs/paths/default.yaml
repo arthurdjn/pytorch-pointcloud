@@ -1,7 +1,0 @@
-# Directory layout, resolved at runtime.
-root_dir: ${oc.env:TORCH_POINTCLOUD_ROOT,${hydra:runtime.cwd}}
-data_dir: ${oc.env:TORCH_POINTCLOUD_DATA_DIR,${paths.root_dir}/data}
-# Run dirs, the mlflow file store, and the aim repo all hang off this (set it in .env).
-log_dir: ${oc.env:TORCH_POINTCLOUD_LOG_DIR,${paths.root_dir}/logs}
-output_dir: ${hydra:runtime.output_dir}
-work_dir: ${hydra:runtime.cwd}

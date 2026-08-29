@@ -245,10 +245,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Run pretrained model regression tests (require local weights, skipped by default in CI)",
     )
     parser.addoption(
-        "--run-experiment",
+        "--run-examples",
         action="store_true",
         default=False,
-        help="Run experiment-fit tests that train each experiment config on dummy data (slow, skipped by default)",
+        help="Run every example script on the dummy datasets (slow, needs local weights, skipped by default)",
     )
 
 
@@ -261,16 +261,16 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "experiment: tests that fit an experiment config end-to-end on dummy data. "
-        "Slow; skipped unless --run-experiment is passed.",
+        "example: tests that run an example script end-to-end on the dummy datasets. "
+        "Slow; skipped unless --run-examples is passed.",
     )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip tests marked `pretrained` or `experiment` unless their opt-in flag is passed.
+    """Skip tests marked `pretrained` or `example` unless their opt-in flag is passed.
 
-    `pretrained` tests need local weights CI does not cache; `experiment` tests fit every experiment
-    config end-to-end on dummy data (slow). Both stay opt-in via `--run-pretrained` / `--run-experiment`.
+    `pretrained` tests need local weights CI does not cache; `example` tests run every example script on
+    the dummy datasets (slow). Both stay opt-in via `--run-pretrained` / `--run-examples`.
     """
     if not config.getoption("--run-pretrained"):
         skip_pretrained = pytest.mark.skip(reason="needs --run-pretrained to run")
@@ -278,11 +278,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             if "pretrained" in item.keywords:
                 item.add_marker(skip_pretrained)
 
-    if not config.getoption("--run-experiment"):
-        skip_experiment = pytest.mark.skip(reason="needs --run-experiment to run")
+    if not config.getoption("--run-examples"):
+        skip_example = pytest.mark.skip(reason="needs --run-examples to run")
         for item in items:
-            if "experiment" in item.keywords:
-                item.add_marker(skip_experiment)
+            if "example" in item.keywords:
+                item.add_marker(skip_example)
 
 
 @pytest.fixture

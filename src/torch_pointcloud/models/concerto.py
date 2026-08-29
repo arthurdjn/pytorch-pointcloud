@@ -364,7 +364,7 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
     weights=WeightsDict(
         url="hf://torch-pointcloud/concerto-large-lp.scannet20.pointcept/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 77.68},
+        metrics={"mIoU": 78.59},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="CC-BY-NC-4.0",

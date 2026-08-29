@@ -1,7 +1,0 @@
-# @package model.inferer
-# Coverage-driven KNN windows: crop the k nearest neighbours of the least-covered point until every point is covered,
-# aggregating overlapping predictions by distance-weighted mean.
-
-_target_: torch_pointcloud.inferers.KNNWindowInferer
-roi_num_points: ???
-overlap: 0.5

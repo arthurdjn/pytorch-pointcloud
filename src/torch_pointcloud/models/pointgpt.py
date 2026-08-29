@@ -791,10 +791,10 @@ def _pretrain_hparams(size: str) -> Dict[str, Any]:
 
 _OA: Dict[str, Dict[str, float]] = {
     "modelnet40": {"s": 93.31, "b": 94.37, "l": 93.88},
-    "modelnet40-8k": {"s": 93.76},
+    "modelnet40-8k": {"s": 93.76, "b": 94.25, "l": 93.92},
     "scanobjectnn-hardest": {"s": 86.95, "b": 91.92, "l": 93.75},
     "scanobjectnn-objbg": {"s": 91.57, "b": 97.07, "l": 98.45},
-    "scanobjectnn-objonly": {"s": 90.71, "b": 95.18, "l": 96.9},
+    "scanobjectnn-objonly": {"s": 90.71, "b": 95.18, "l": 96.90},
 }
 
 

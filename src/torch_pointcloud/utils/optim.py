@@ -6,13 +6,13 @@ with a trailing "others" group for unmatched parameters. Scalar `match_types` or
 `lr_values` are broadcast to the length of `layer_matches`.
 
 `"filter"` matchers take the parameter *name* (a `str`) and return a `bool`, so
-`fnmatch.fnmatchcase` and friends drop in directly via Hydra's `_partial_`:
+`fnmatch.fnmatchcase` and friends drop in directly:
 
-```yaml
-layer_matches:
-  - _target_: fnmatch.fnmatchcase
-    _partial_: true
-    pat: "*block*"
+```python
+import fnmatch
+from functools import partial
+
+layer_matches = [partial(fnmatch.fnmatchcase, pat="*block*")]
 ```
 """
 
