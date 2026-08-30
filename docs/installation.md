@@ -101,9 +101,5 @@ make serve  # Serve the documentation locally
 - **Python**: 3.10+
 - **PyTorch**: the library requires `torch>=2.5`. The tested combination is `torch==2.10.0` with CUDA 12.8
   wheels; the selector above covers `2.9` to `2.13` across CPU and CUDA 12.6 to 13.2.
-- **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) lags new torch releases, and it is
-  the binding constraint on how new a torch you can use. `torch-cluster` (FPS, ball query, kNN graph) stops
-  at `2.11`, `torch-scatter` and `torch-sparse` at `2.12`, and `2.13` carries `pyg-lib` alone. **`torch<=2.11`
-  is the newest version that runs the whole model zoo**; the selector emits the packages that exist for the
-  version you pick and names what is missing.
+- **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) deprecated `torch-cluster` recently in favor of `pyg-lib`. We plan to support it directly to benefit from latest `torch` and `torch-geometric` releases.
 - **CUDA**: optional for the point-based families (PointNet, PointNet++, DGCNN, PointNeXt, PointMLP, PointConv, PointCNN, RandLA-Net, and similar), which run inference and training on CPU. The sparse-voxel and flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, and the voxel-based detectors) require a CUDA device and their optional dependencies (`spconv`, `torchsparse`, `ocnn`, `flash-attn`).
