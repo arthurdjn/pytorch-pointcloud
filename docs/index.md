@@ -46,6 +46,8 @@ A PyTorch library for deep learning on point clouds. Production-ready models for
 
 ## In a few lines
 
+Download the [sample.ply](assets/data/sample.ply) to get started.
+
 ```{.python notest}
 import numpy as np
 import torch
@@ -66,17 +68,19 @@ model = model.eval()
 # Get associated transform pipeline.
 transform = info["transform"]
 
-# Preprocess the input.
+# Load sample
 ply = PlyData.read("sample.ply")["vertex"]
 pos = np.stack([ply["x"], ply["y"], ply["z"]], 1).astype("float32")
 normal = np.stack([ply["nx"], ply["ny"], ply["nz"]], 1).astype("float32")
-sample = {"pos": torch.from_numpy(pos), "normal": torch.from_numpy(normal)}
-sample = transform(sample)
 
-# Preprocess, pack into a batch, predict.
-batch = collate([sample])
+# Preprocess and collate in packed format
+data = {"pos": torch.from_numpy(pos), "normal": torch.from_numpy(normal)}
+data = transform(data)
+data = collate([data])
+
+# Run inference
 with torch.no_grad():
-    logits = model(None, batch["pos"], batch["batch"])
+    logits = model(None, data["pos"], data["batch"])
 
 print(f"Prediction: {logits.argmax().item()}")
 # Prediction: 0
