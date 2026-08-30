@@ -10,15 +10,18 @@
 [![uv](https://img.shields.io/badge/uv-packaging-orange.svg?color=EE4C2C&labelColor=11001C&logo=uv&logoColor=white)](https://docs.astral.sh/uv)
 [![mypy](https://img.shields.io/badge/mypy-typing-red.svg?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://mypy-lang.org)
 [![pytest](https://img.shields.io/badge/pytest-testing-red.svg?color=EE4C2C&labelColor=11001C&logo=pytest&logoColor=white)](https://pytest.org)
+[![docs](https://img.shields.io/badge/docs-pytorch--pointcloud.org-red.svg?color=EE4C2C&labelColor=11001C&logo=materialformkdocs&logoColor=white)](https://pytorch-pointcloud.org/)
 
 </div>
 
 <p align="center">
 A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers,
 behind one <code>create_model</code> factory in the spirit of <a href="https://github.com/huggingface/pytorch-image-models">timm</a>.
+<br>
+<br>
+<i>Check out the official docs at <a href="https://www.pytorch-pointcloud.org">pytorch-pointcloud.org</a>!</i>
 </p>
 
-<br>
 <br>
 
 <table align="center">
