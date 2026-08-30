@@ -82,14 +82,11 @@ behind one <code>create_model</code> factory in the spirit of <a href="https://g
   PVCNN, Point Transformer V1/V2/V3, SpUNet, SPVCNN, OctFormer, SphereFormer, Sonata, Concerto, Utonia, Point-MAE,
   Point-BERT, PointGPT, PointMamba, VoteNet, 3DETR, PointPillars, SECOND, PointRCNN, VoxelNeXt, LION and
   more.
-- **134 pretrained checkpoints**, each carrying its benchmark metrics measured through this library with the
-  reference protocol, and loaded with a single `create_model(..., pretrained=True)`.
-- **Datasets** with download and preprocessing: ModelNet40, ScanObjectNN, ShapeNetPart, S3DIS, ScanNet, SemanticKITTI,
+- **134 pretrained checkpoints** available using `create_model(..., pretrained=True)`.
+- **Datasets**: ModelNet40, ScanObjectNN, ShapeNetPart, S3DIS, ScanNet, SemanticKITTI,
   nuScenes, KITTI, SUN RGB-D, Paris-Lille-3D, Semantic3D and Toronto3D.
-- **Transforms** as MONAI-style dict transforms with tensor-level functional equivalents, and **inferers** for the
-  usual evaluation protocols (test-time augmentation, voxel partition, sliding window, potential sphere voting).
-- **Packed batches** everywhere: a flat $(N, \ldots)$ tensor plus a $(N,)$ batch index, never padded tensors.
-- **Fully typed** (mypy strict), Python 3.10 to 3.13, an optional Lightning integration.
+- **Transforms** dict-based transforms and data augmentation, and **inferers** for
+  common evaluation protocols (test-time augmentation, voxel partition, sliding window, potential sphere voting).
 
 <br>
 
