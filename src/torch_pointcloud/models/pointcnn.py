@@ -361,7 +361,7 @@ class PointCNNClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
@@ -377,7 +377,7 @@ class PointCNNClassification(ClassificationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -523,7 +523,7 @@ class PointCNNSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
@@ -539,7 +539,7 @@ class PointCNNSegmentation(SegmentationModel):
             bias=self.bias,
             dropout=dropout_list,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

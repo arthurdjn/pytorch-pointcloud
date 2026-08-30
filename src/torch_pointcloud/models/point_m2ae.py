@@ -530,14 +530,14 @@ class PointM2AEClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, *self.head_channels, self.num_classes],
             act="relu",
             norm="batch_norm",
             dropout=self.dropout,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Any = None, **kwargs: Any) -> None:
         if global_pool is not None:
@@ -686,7 +686,7 @@ class PointM2AESegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, 1024, 512, 256, self.num_classes],
             act="relu",
@@ -694,7 +694,7 @@ class PointM2AESegmentation(SegmentationModel):
             dropout=[0.5, 0.0, 0.0, 0.0],
             bias=True,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

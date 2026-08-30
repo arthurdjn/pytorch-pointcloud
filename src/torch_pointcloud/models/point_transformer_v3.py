@@ -1236,8 +1236,8 @@ class PointTransformerV3Classification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+            return nn.Identity().train(self.training)
+        return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         """Resets the classification head with new parameters.
@@ -1524,8 +1524,8 @@ class PointTransformerV3Segmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+            return nn.Identity().train(self.training)
+        return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         """Resets the segmentation head with new parameters.

@@ -761,8 +761,8 @@ class PointTransformerClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+            return nn.Identity().train(self.training)
+        return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -941,8 +941,8 @@ class PointTransformerSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+            return nn.Identity().train(self.training)
+        return nn.Linear(self.num_features, self.num_classes).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

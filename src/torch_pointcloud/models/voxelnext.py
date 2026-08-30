@@ -528,7 +528,7 @@ class VoxelNeXtDetection(DetectionModel):
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
-        )
+        ).train(self.training)
 
     def forward_features(
         self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Configured heads from `configure_head` are now always in the same mode the current model is in (e.g. `train` or `eval`).
 - Removed unlinked tutorials from the docs for future releases.
 - Fixed `decimate_indices` such that when a generator is provided, it is reseeded for each sample.
 - Updated tutorials docs summaries to better highlight the cards.

@@ -412,9 +412,9 @@ class RandLANetEncoder(nn.Module):
 
             generator: Optional[torch.Generator] = None
             if not self.training:
-                # Stable seed derived from input so eval is reproducible per-input
+                # `decimate_indices` reseeds this per sample, so eval is reproducible per input
+                # and a sample's output does not depend on the rest of the batch.
                 generator = torch.Generator(device=batch.device)
-                generator.manual_seed(int(batch.numel()))
 
             x, pos, batch = random_max_pool(
                 x,
@@ -621,7 +621,11 @@ class RandLANetClassification(ClassificationModel):
         return self.aggr_channels[-1] if self.aggr_channels else self.encoder_channels[-1]
 
     def configure_head(self) -> nn.Module:
-        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+        return (
+            nn.Identity()
+            if self.num_classes == 0
+            else nn.Linear(self.num_features, self.num_classes).train(self.training)
+        )
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
@@ -825,7 +829,7 @@ class RandLANetSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         # Per-point seg head: hidden layers carry `Linear(bias=`self.bias`)+norm+act+Dropout`,
         # the final `plain_last` layer is a bare `Linear(bias=True)`: its bias is
         # meaningful since it sees no normalization.
@@ -840,7 +844,7 @@ class RandLANetSegmentation(SegmentationModel):
             bias=[self.bias] * n_hidden + [True],
             dropout=self.dropout,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

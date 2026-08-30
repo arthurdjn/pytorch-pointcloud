@@ -463,7 +463,7 @@ class PointGPTClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, 256, 256, self.num_classes],
             act=self.head_act,
@@ -471,7 +471,7 @@ class PointGPTClassification(ClassificationModel):
             dropout=[self.dropout, self.dropout, 0.0],
             bias=True,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.cls_token, std=0.02)

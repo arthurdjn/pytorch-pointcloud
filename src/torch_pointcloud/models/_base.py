@@ -64,7 +64,9 @@ class ClassificationModel(nn.Module, metaclass=ABCMeta):
     def configure_head(self) -> nn.Module:
         r"""Build and return the classification head for the current `num_classes` (`nn.Identity` when 0).
 
-        Called from both `__init__` and `reset_classifier` so the two always build the same module.
+        Called from both `__init__` and `reset_classifier` so the two always build the same module. The head
+        is returned in the module's current training mode, so rebuilding it on an `eval()` model does not
+        put BatchNorm and dropout back into train mode.
         """
 
     @abstractmethod
@@ -133,7 +135,9 @@ class SegmentationModel(nn.Module, metaclass=ABCMeta):
     def configure_head(self) -> nn.Module:
         r"""Build and return the segmentation head for the current `num_classes` (`nn.Identity` when 0).
 
-        Called from both `__init__` and `reset_classifier` so the two always build the same module.
+        Called from both `__init__` and `reset_classifier` so the two always build the same module. The head
+        is returned in the module's current training mode, so rebuilding it on an `eval()` model does not
+        put BatchNorm and dropout back into train mode.
         """
 
     @abstractmethod

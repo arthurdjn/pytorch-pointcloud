@@ -311,7 +311,7 @@ class PointNetClassification(ClassificationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, *self.head_channels, self.num_classes],
             act=self.act,
@@ -321,7 +321,7 @@ class PointNetClassification(ClassificationModel):
             dropout=self.dropout,
             act_first=True,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(
         self,
@@ -509,7 +509,7 @@ class PointNetSegmentation(SegmentationModel):
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
-            return nn.Identity()
+            return nn.Identity().train(self.training)
         return MLP(
             [self.num_features, *self.seg_head_dims, self.num_classes],
             act=self.act,
@@ -519,7 +519,7 @@ class PointNetSegmentation(SegmentationModel):
             dropout=self.dropout,
             act_first=True,
             plain_last=True,
-        )
+        ).train(self.training)
 
     def reset_classifier(
         self,
