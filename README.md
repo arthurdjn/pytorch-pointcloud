@@ -16,7 +16,7 @@
 
 <p align="center">
 A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers,
-behind one <code>create_model</code> factory in the spirit of <a href="https://github.com/huggingface/pytorch-image-models">timm</a>.
+behind one <code>create_model</code> factory, inspired by <a href="https://github.com/huggingface/pytorch-image-models">timm</a>.
 <br>
 <br>
 <i>Check out the official docs at <a href="https://www.pytorch-pointcloud.org">pytorch-pointcloud.org</a>!</i>
