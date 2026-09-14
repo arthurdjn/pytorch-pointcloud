@@ -3,14 +3,13 @@
 <div align="center" style="width: 100%; margin: auto">
   <a href="https://pytorch-pointcloud.org/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
 
-[![python](https://img.shields.io/badge/python-3.10+-red.svg?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://www.python.org/)
-[![pytorch](https://img.shields.io/badge/pytorch-2.5+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![cuda](https://img.shields.io/badge/cuda-11.8+-red.svg?color=EE4C2C&labelColor=11001C&logo=nvidia&logoColor=white)](https://pytorch.org/)  
-[![ruff](https://img.shields.io/badge/ruff-linter-red.svg?color=EE4C2C&labelColor=11001C&logo=ruff&logoColor=white)](https://docs.astral.sh/ruff)
-[![uv](https://img.shields.io/badge/uv-packaging-orange.svg?color=EE4C2C&labelColor=11001C&logo=uv&logoColor=white)](https://docs.astral.sh/uv)
-[![mypy](https://img.shields.io/badge/mypy-typing-red.svg?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://mypy-lang.org)
-[![pytest](https://img.shields.io/badge/pytest-testing-red.svg?color=EE4C2C&labelColor=11001C&logo=pytest&logoColor=white)](https://pytest.org)
-[![docs](https://img.shields.io/badge/docs-pytorch--pointcloud.org-red.svg?color=EE4C2C&labelColor=11001C&logo=materialformkdocs&logoColor=white)](https://pytorch-pointcloud.org/)
+[![python](https://img.shields.io/pypi/pyversions/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
+[![pytorch](https://img.shields.io/badge/pytorch-2.5+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)  
+[![tests](https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white)](https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml)
+[![pypi](https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
+[![license](https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C)](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE)
+[![doi](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22159633-red.svg?color=EE4C2C&labelColor=11001C)](https://doi.org/10.5281/zenodo.22159633)
+[![docs](https://img.shields.io/badge/docs-pytorch--pointcloud.org-red.svg?color=EE4C2C&labelColor=11001C&logo=materialformkdocs&logoColor=white)](https://pytorch-pointcloud.org/)  
 
 </div>
 
@@ -75,34 +74,22 @@ behind one <code>create_model</code> factory, inspired by <a href="https://githu
 
 <br>
 
-## 🎉 Highlights
+## Installation
 
-- **35 architectures** for classification, part and semantic segmentation, 3D detection and
-  self-supervised pretraining: PointNet, PointNet++, DGCNN, KPConv, RandLA-Net, PointNeXt, PointMLP, PointConv,
-  PVCNN, Point Transformer V1/V2/V3, SpUNet, SPVCNN, OctFormer, SphereFormer, Sonata, Concerto, Utonia, Point-MAE,
-  Point-BERT, PointGPT, PointMamba, VoteNet, 3DETR, PointPillars, SECOND, PointRCNN, VoxelNeXt, LION and
-  more.
-- **134 pretrained checkpoints** available using `create_model(..., pretrained=True)`.
-- **Datasets**: ModelNet40, ScanObjectNN, ShapeNetPart, S3DIS, ScanNet, SemanticKITTI,
-  nuScenes, KITTI, SUN RGB-D, Paris-Lille-3D, Semantic3D and Toronto3D.
-- **Transforms** dict-based transforms and data augmentation, and **inferers** for
-  common evaluation protocols (test-time augmentation, voxel partition, sliding window, potential sphere voting).
-
-<br>
-
-## 📦 Installation
+Install the library with `pip` (or `uv`):
 
 ```bash
 pip install torch-pointcloud
 ```
 
-The CUDA extensions (PyG kernels, spconv, flash-attention, Mamba, ocnn, torchsparse) are optional and only needed by
-the architectures that use them.
-See the [Installation](https://pytorch-pointcloud.org/installation/) page for the exact install command.
+> [!IMPORTANT]
+> The CUDA extensions (PyG kernels, spconv, flash-attention, Mamba, ocnn, torchsparse) are optional and only needed by
+> the architectures that use them.
+> See the [Installation](https://pytorch-pointcloud.org/installation/) page for the exact install command.
 
 <br>
 
-## 🚀 Quickstart
+## Quickstart
 
 ```python
 import torch
@@ -139,7 +126,7 @@ The [examples](examples/) directory for hands-on usage (benchmarks and training 
 
 <br>
 
-## 📚 Documentation
+## Documentation
 
 The [documentation](https://pytorch-pointcloud.org/) covers [installation](https://pytorch-pointcloud.org/installation/), a [get-started](https://pytorch-pointcloud.org/get-started/) guide,
 the [model zoo](https://pytorch-pointcloud.org/models/overview/), [datasets](https://pytorch-pointcloud.org/datasets/overview/), [transforms](https://pytorch-pointcloud.org/transforms/overview/),
@@ -147,7 +134,7 @@ tutorials and the full API reference.
 
 <br>
 
-## 📝 Citation
+## Citation
 
 If you find this project useful, please consider citing:
 
@@ -164,6 +151,6 @@ If you find this project useful, please consider citing:
 
 <br>
 
-## 📄 License
+## License
 
 Apache 2.0. See [LICENSE](LICENSE).
