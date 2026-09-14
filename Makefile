@@ -71,10 +71,6 @@ notebooks: ## Render the committed notebooks to Markdown (docs/<section>/*.ipynb
 api: ## Regenerate the per-module API reference stubs (docs/api/)
 	$(CMD) python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
 
-.PHONY: assets
-assets: ## Embed author / license metadata in the committed documentation assets
-	$(CMD) python docs/scripts/stamp_asset_metadata.py
-
 .PHONY: papers
 papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
 	$(CMD) python docs/scripts/build_paper_cards.py
