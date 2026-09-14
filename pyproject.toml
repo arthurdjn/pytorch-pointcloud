@@ -51,6 +51,8 @@ dependencies = [
 Homepage = "https://github.com/arthurdjn/pytorch-pointcloud"
 Repository = "https://github.com/arthurdjn/pytorch-pointcloud"
 Issues = "https://github.com/arthurdjn/pytorch-pointcloud/issues"
+Documentation = "https://pytorch-pointcloud.org/"
+Changelog = "https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 lightning = ["lightning>=2.0.0,<2.6.0", "torchmetrics>=1.0.0"]

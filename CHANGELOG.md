@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Updated pypi package URLs metadata, README documentation with better CI badges.
 - Removed unlinked tutorials from the docs for future releases.
 - Fixed `decimate_indices` such that when a generator is provided, it is reseeded for each sample.
 - Updated tutorials docs summaries to better highlight the cards.
