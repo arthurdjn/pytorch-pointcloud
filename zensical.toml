@@ -558,6 +558,9 @@ module_name = "docs/plugins/macros"
 # ----------------------------------------------------------------------------
 # Dynamically generate API documentation
 # ----------------------------------------------------------------------------
+[project.plugins.mkdocstrings]
+custom_templates = "docs/overrides/mkdocstrings"
+
 [project.plugins.mkdocstrings.handlers.python]
 paths = ["src"]
 

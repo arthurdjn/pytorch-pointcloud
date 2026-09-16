@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added source links to classes and functions in the docs.
+
 ## 0.0.2 (2026-09-16)
 
 - Pinned torch version to 2.10 in the CI to match local development.
