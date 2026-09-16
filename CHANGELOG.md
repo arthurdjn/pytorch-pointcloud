@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.2 (2026-09-16)
+
 - Pinned torch version to 2.10 in the CI to match local development.
 - Updated pypi package URLs metadata, README documentation with better CI badges.
 - Removed unlinked tutorials from the docs for future releases.

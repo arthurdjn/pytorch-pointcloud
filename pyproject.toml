@@ -16,7 +16,7 @@ include = [
 
 [project]
 name = "torch-pointcloud"
-version = "0.0.1"
+version = "0.0.2"
 description = "PyTorch Point Cloud models, scripts, pretrained weights and more"
 readme = "README.md"
 license = "Apache-2.0"
