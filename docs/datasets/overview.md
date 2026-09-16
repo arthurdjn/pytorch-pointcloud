@@ -2,7 +2,7 @@
 
 :pytorch-pointcloud-mini: `torch-pointcloud` provides several datasets for benchmarking and training. Each dataset returns a single `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
 
-Each dataset contains a `download` parameter (when possible) to automatically download the dataset. Datasets are organized in a `raw` (containing the raw data) and a `processed` (containing preprocessed data by :pytorch-pointcloud-mini: `torch-pointcloud`) directory as follows:
+Datasets with an automatic download take `download=True`; the others must be downloaded manually. Datasets that preprocess their data keep the original files in `raw` and the cache :pytorch-pointcloud-mini: `torch-pointcloud` builds from them in `processed`:
 
 ```text
 data
@@ -63,18 +63,17 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 
 ### Object classification
 
-| Dataset                                                    | Paper                                                                                                                                                  | Samples | Classes                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ------------------------ |
-| **[ModelNet10 / ModelNet40](../api/datasets/modelnet.md)** | :arxiv: [3D ShapeNets: A Deep Representation for Volumetric Shapes](https://arxiv.org/abs/1406.5670)                                                   | ~12k    | 10 / 40                  |
-| **[ModelNet40Hdf5](../api/datasets/modelnet.md)**          | :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/abs/1612.00593)                               | ~12k    | 40                       |
-| **[ShapeNetPart](../api/datasets/shapenetpart.md)**        | :arxiv: [A Scalable Active Framework for Region Annotation in 3D Shape Collections](https://dl.acm.org/doi/10.1145/2980179.2980238)                    | ~16k    | 16 categories / 50 parts |
-| **[ScanObjectNN](../api/datasets/scanobjectnn.md)**        | :arxiv: [Revisiting Point Cloud Classification: A New Benchmark Dataset and Classification Model on Real-World Data](https://arxiv.org/abs/1908.04616) | 2.9k    | 15                       |
+| Dataset                                                    | Paper                                                                                                                                                  | Samples | Classes |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- |
+| **[ModelNet10 / ModelNet40](../api/datasets/modelnet.md)** | :arxiv: [3D ShapeNets: A Deep Representation for Volumetric Shapes](https://arxiv.org/abs/1406.5670)                                                   | ~12k    | 10 / 40 |
+| **[ModelNet40Hdf5](../api/datasets/modelnet.md)**          | :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/abs/1612.00593)                               | ~12k    | 40      |
+| **[ScanObjectNN](../api/datasets/scanobjectnn.md)**        | :arxiv: [Revisiting Point Cloud Classification: A New Benchmark Dataset and Classification Model on Real-World Data](https://arxiv.org/abs/1908.04616) | 2.9k    | 15      |
 
 ### Indoor scene segmentation
 
 | Dataset                                      | Paper                                                                                                                                                             | Scenes             | Classes          |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ---------------- |
-| **[S3DIS](../api/datasets/s3dis.md)**        | :arxiv: [3D Semantic Parsing of Large-Scale Indoor Spaces](https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf) | 271 rooms, 6 areas | 13               |
+| **[S3DIS](../api/datasets/s3dis.md)**        | :arxiv: [3D Semantic Parsing of Large-Scale Indoor Spaces](https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf) | 272 rooms, 6 areas | 13               |
 | **[ScanNet v2](../api/datasets/scannet.md)** | :arxiv: [ScanNet: Richly-annotated 3D Reconstructions of Indoor Scenes](https://arxiv.org/abs/1702.04405)                                                         | 1.5k scenes        | 20 (NYU40) / 200 |
 
 ### Outdoor / driving segmentation
@@ -86,13 +85,19 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 | **[Toronto3D](../api/datasets/toronto3d.md)**         | :arxiv: [Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways](https://arxiv.org/abs/2003.08284)                                    | 4 areas    | 8       |
 | **[ParisLille3D](../api/datasets/parislille3d.md)**   | :arxiv: [Paris-Lille-3D: a large and high-quality ground truth urban point cloud dataset for automatic segmentation and classification](https://arxiv.org/abs/1712.00032) | 3 scenes   | 9       |
 
+### Part segmentation
+
+| Dataset                                             | Paper                                                                                                                               | Samples | Classes                  |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------ |
+| **[ShapeNetPart](../api/datasets/shapenetpart.md)** | :arxiv: [A Scalable Active Framework for Region Annotation in 3D Shape Collections](https://dl.acm.org/doi/10.1145/2980179.2980238) | ~16k    | 16 categories / 50 parts |
+
 ### Base class
 
 | Dataset                                                | Task  | Notes                                                                                                                                   |
 | ------------------------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **[PointCloudDataset](../api/datasets/pointcloud.md)** | (any) | Abstract base class all loaders build on: `raw/` + `processed/` disk layout, `download` / `process` hooks. Subclass it for custom data. |
 
-## About dict keys
+## Dict keys
 
 All datasets emit dicts using the standard key conventions from `DataKeys` in `torch_pointcloud.utils.data`:
 

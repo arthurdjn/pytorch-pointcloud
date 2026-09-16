@@ -1,7 +1,6 @@
 # Inferers
 
-Inferers are used to process point clouds at inference time. One of their main responsibilities is to split large point clouds into smaller chunks for efficient infererence and avoiding memory issues.
-This is also the place where test-time augmentation (TTA) is applied, if desired.
+Inferers run a model over a point cloud at inference time. Several of them split a large cloud into smaller chunks, to keep inference efficient and within memory.
 
 ```{.python notest}
 from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer

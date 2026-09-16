@@ -1,13 +1,11 @@
 # Transforms
 
-Transforms adopt a dict-based API heavily inspired by :monai: MONAI's API.
-
 A transform takes one sample dict and returns a new one. `Compose` chains them, and a dataset applies the chain to every sample it loads. The API follows :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions.
 
 !!! question "Why a dict-based API?"
-    The dict-based API allows for flexible composition of transforms and what the inputs/outputs.
+    The dict-based API keeps composition flexible and makes the inputs and outputs of each transform explicit.
 
-    :pyg: PyTorch Geometric transforms, in contrast, require a `Data` object as input. This can be limiting if we want to forward more keys (intensity, color, etc.) and make it easier to compose when we don't want to forward all these values (using a `Data` object will required each transform to take care of all the attributes it carries, and defaults to `None` if we don't have them).
+    :pyg: PyTorch Geometric transforms, in contrast, take a `Data` object. That is limiting once you want to carry extra keys such as intensity or color, because every transform then has to handle every attribute the object holds, defaulting the ones you did not provide to `None`.
 
     Transforms are designed to manipulate specific keys of the input data, which makes the operations explicit and easier to compose.
 
@@ -31,7 +29,7 @@ scene = pipeline({"pos": pos, "color": color})
     Each transform is designed as an atomic operation to make it easier to compose and reuse.
 
 !!! note "Pretrained checkpoints"
-    A pretrained checkpoint carries its own preprocessing in `info["transform"]` used for inference on the specified dataset.
+    A pretrained checkpoint carries its own preprocessing in `info["transform"]`, for inference on its dataset.
 
 ## Sampling and downsampling
 
@@ -46,12 +44,12 @@ scene = pipeline({"pos": pos, "color": color})
 
 Any transform that changes the number of points keeps `pos`, `x`, `segment` and `batch` aligned at the new resolution and records how to get back:
 
-| Key              | Shape                       | Written by                                                                                                          | Meaning                                                                    |
-| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `origin_pos`     | $(N_\text{origin}, 3)$      | a `CopyItems` step in every registered pipeline                                                                     | the source cloud, in the same frame as `pos`                               |
-| `origin_segment` | $(N_\text{origin},)$        | the same step, when the pipeline carries labels                                                                     | the source labels, in the model's label space                              |
-| `inverse`        | $(N_\text{origin},)$        | `Voxelize`, `DivisiblePad` through `dst_inverse_key`                                                                | source row to predictor row: `preds[inverse]` scores at full resolution    |
-| `index`          | $(N,)$                      | the selection samplers (`FarthestPointSample`, `RandomSample`, `SphereCrop`, ...) through `dst_index_key`             | predictor row to source row: `origin_pos[index]` is `pos`                  |
+| Key              | Shape                  | Written by                                                                                                | Meaning                                                                 |
+| ---------------- | ---------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `origin_pos`     | $(N_\text{origin}, 3)$ | a `CopyItems` step in every registered pipeline                                                           | the source cloud, in the same frame as `pos`                            |
+| `origin_segment` | $(N_\text{origin},)$   | the same step, when the pipeline carries labels                                                           | the source labels, in the model's label space                           |
+| `inverse`        | $(N_\text{origin},)$   | `Voxelize`, `DivisiblePad` through `dst_inverse_key`                                                      | source row to predictor row: `preds[inverse]` scores at full resolution |
+| `index`          | $(N,)$                 | the selection samplers (`FarthestPointSample`, `RandomSample`, `SphereCrop`, ...) through `dst_index_key` | predictor row to source row: `origin_pos[index]` is `pos`               |
 
 Chained steps compose these maps, so they always address the outermost source. Registered pipelines set the keys; set them on your own samplers to get the maps.
 
@@ -65,12 +63,12 @@ Chained steps compose these maps, so they always address the outermost source. R
 
 ## Scaling / normalization
 
-|                                                                   | Transform                                                                                       | Description                                                        |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+|                                                                   | Transform                                                                                       | Description                                                                                |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | <img src="../assets/transforms/thumbs/rescale.png" width="220">   | [`Rescale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Rescale)     | Center and rescale to unit extent (`centroid` / `bbox` / `centroid_extent` / `min_sphere`) |
-| <img src="../assets/transforms/thumbs/normalize.png" width="220"> | [`Normalize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Normalize) | Per-channel $(x - \mu) / \sigma$ standardization                   |
-| <img src="../assets/transforms/thumbs/scale.png" width="220">     | [`Scale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Scale)         | Multiply by a scalar                                               |
-| <img src="../assets/transforms/thumbs/divide.png" width="220">    | [`Divide`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Divide)       | Divide by a scalar                                                 |
+| <img src="../assets/transforms/thumbs/normalize.png" width="220"> | [`Normalize`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Normalize) | Per-channel $(x - \mu) / \sigma$ standardization                                           |
+| <img src="../assets/transforms/thumbs/scale.png" width="220">     | [`Scale`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Scale)         | Multiply by a scalar                                                                       |
+| <img src="../assets/transforms/thumbs/divide.png" width="220">    | [`Divide`](../api/transforms/transforms.md#torch_pointcloud.transforms.transforms.Divide)       | Divide by a scalar                                                                         |
 
 ## Masking and filtering
 
