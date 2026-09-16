@@ -2,7 +2,7 @@
 
 ![PyTorch-PointCloud](./assets/pytorch-pointcloud.png)
 
-A PyTorch library for deep learning on point clouds. Production-ready models for classification, segmentation, and detection, with a `create_model` factory, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
+A PyTorch library for deep learning on point clouds. Models for classification, segmentation, and detection, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
 
 <div class="tp-tasks" markdown>
 
@@ -92,7 +92,7 @@ print(f"Prediction: {logits.argmax().item()}")
 
 -   :material-rocket-launch: __[Get Started](get-started.md)__
 
-    Install, run your first model, and learn the library's conventions in fifteen lines.
+    Install, run your first model, and learn the library's conventions.
 
 -   :material-cube-outline: __[Models](models/overview.md)__
 
@@ -108,7 +108,7 @@ print(f"Prediction: {logits.argmax().item()}")
 
 -   :material-school: __[Tutorials](examples/index.md)__
 
-    Ready to use notebooks, from a first classification to survey-scale inference.
+    Ready-to-use notebooks, from a first classification to survey-scale inference.
 
 -   :material-book-open-page-variant: __[API Reference](api/index.md)__
 
