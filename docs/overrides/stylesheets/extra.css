@@ -223,6 +223,11 @@ a.pill.hero-pill {
 .doc-heading span.doc-labels {
   flex-shrink: 0;
 }
+.doc-heading a.doc-source-link {
+  margin-left: 0.5em;
+  font-size: 0.7em;
+  font-weight: normal;
+}
 .doc-heading span.doc-object-name > span.doc-object-path {
   color: color-mix(in srgb, var(--md-default-fg-color) 75%, transparent);
 }
