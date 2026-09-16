@@ -33,8 +33,9 @@ jobs:
       - name: Install the CPU torch extensions
         run: |
           uv pip install --no-config --torch-backend=cpu \
-            torch==2.6.0 torchvision==0.21.0 'ocnn==2.3.2' torch-scatter torch-cluster spconv \
-            -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
+            torch==2.10.0+cpu torchvision==0.25.0 ocnn==2.3.3 \
+            pyg-lib torch-scatter torch-sparse torch-cluster spconv \
+            -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
 
       - name: Render the notebooks and the API reference
         run: |

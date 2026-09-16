@@ -25,8 +25,9 @@ jobs:
       - name: Install torch stack (CPU)
         run: |
           uv pip install --no-config --torch-backend=cpu \
-            torch==2.6.0 torchvision==0.21.0 'ocnn==2.3.2' torch-scatter torch-cluster spconv \
-            -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
+            torch==2.10.0+cpu torchvision==0.25.0 ocnn==2.3.3 \
+            pyg-lib torch-scatter torch-sparse torch-cluster spconv \
+            -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
 
       - name: Check types
         if: ${{ always() }}

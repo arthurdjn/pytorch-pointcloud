@@ -66,7 +66,7 @@ A PyTorch library for deep learning on point clouds: models, pretrained weights,
         <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/similarity_dark.webp">
         <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/similarity.webp" alt="The same house seen by a self-supervised encoder, points lit by similarity to a query" width="100%">
       </picture><br>
-      <b>Features extraction</b><br><code>sonata-lp.scannet20.fair</code>
+      <b>Feature extraction</b><br><code>sonata-lp.scannet20.fair</code>
     </td>
   </tr>
 </table>
@@ -121,7 +121,7 @@ tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```
 
-The [examples](examples/) directory for hands-on usage (benchmarks and training recipes).
+See the [examples](examples/) directory for benchmarks and training recipes.
 
 <br>
 
