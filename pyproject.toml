@@ -6,7 +6,13 @@ build-backend = "hatchling.build"
 packages = ["src/torch_pointcloud"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src/torch_pointcloud", "/LICENSE", "/THIRD_PARTY_NOTICES.md", "/README.md", "/pyproject.toml"]
+include = [
+    "/src/torch_pointcloud",
+    "/LICENSE",
+    "/THIRD_PARTY_NOTICES.md",
+    "/README.md",
+    "/pyproject.toml",
+]
 
 [project]
 name = "torch-pointcloud"
@@ -16,7 +22,15 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{ name = "Arthur Dujardin", email = "arthurdujardin.dev@gmail.com" }]
-keywords = ["pytorch", "point cloud", "3d", "deep learning", "segmentation", "detection", "pretrained models"]
+keywords = [
+    "pytorch",
+    "point cloud",
+    "3d",
+    "deep learning",
+    "segmentation",
+    "detection",
+    "pretrained models",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -84,6 +98,8 @@ dev = [
 [tool.uv]
 package = true
 exclude-newer = "14 days"
+# Fix torch version to support all extras deps (PyG, torchsparse, flash-attn, mamba, fvdb).
+constraint-dependencies = ["torch==2.10.0"]
 
 [tool.ruff]
 target-version = "py310"

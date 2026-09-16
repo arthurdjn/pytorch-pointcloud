@@ -53,20 +53,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install package + extras (torch==2.6.0)
+      - name: Install package + extras (torch==2.10.0)
         run: uv sync --extra lightning --frozen
 
-      - name: Install torch deps (python < 3.13)
-        if: matrix.python-version != '3.13'
+      - name: Install torch deps
         run: |
           uv pip install --no-config --torch-backend=cpu \
-            torch==2.6.0 torchvision==0.21.0 'ocnn==2.3.2' torch-scatter torch-cluster spconv \
-            -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
-
-      # python 3.13: torchvision / ocnn / pyg have no 3.13 wheels yet, so install only torch + spconv.
-      - name: Install torch deps (python == 3.13)
-        if: matrix.python-version == '3.13'
-        run: uv pip install --no-config --torch-backend=cpu torch==2.6.0 spconv
+            torch==2.10.0+cpu torchvision==0.25.0 ocnn==2.3.3 \
+            pyg-lib torch-scatter torch-sparse torch-cluster spconv \
+            -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
 
       - name: Test with python ${{ matrix.python-version }}
         run: uv run --no-sync pytest
