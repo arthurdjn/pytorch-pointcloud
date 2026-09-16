@@ -1,6 +1,6 @@
 # Quick Start
 
-This page takes you from zero to running a pretrained model on a point cloud in about fifteen lines.
+This page will help you get started and run a pretrained model on a point cloud.
 
 ## Run a pretrained model
 

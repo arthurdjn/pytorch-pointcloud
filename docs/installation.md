@@ -82,9 +82,9 @@ For the test and docs tooling, install the dev group and all extras:
 uv sync --all-extras --dev
 ```
 
-Similarly to the above section, install the extras dependencies for your machine (CUDA 12.8, torch 2.10.0, etc.).
+As above, install the extra dependencies for your machine (CUDA 12.8, torch 2.10.0, and so on).
 
-We provide several commands to help you get started:
+Common commands:
 
 ```bash
 make test   # Run the test suite
@@ -101,5 +101,5 @@ make serve  # Serve the documentation locally
 - **Python**: 3.10+
 - **PyTorch**: the library requires `torch>=2.5`. The tested combination is `torch==2.10.0` with CUDA 12.8
   wheels; the selector above covers `2.9` to `2.13` across CPU and CUDA 12.6 to 13.2.
-- **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) deprecated `torch-cluster` recently in favor of `pyg-lib`. We plan to support it directly to benefit from latest `torch` and `torch-geometric` releases.
+- **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) has deprecated `torch-cluster` in favor of `pyg-lib`.
 - **CUDA**: optional for the point-based families (PointNet, PointNet++, DGCNN, PointNeXt, PointMLP, PointConv, PointCNN, RandLA-Net, and similar), which run inference and training on CPU. The sparse-voxel and flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, and the voxel-based detectors) require a CUDA device and their optional dependencies (`spconv`, `torchsparse`, `ocnn`, `flash-attn`).

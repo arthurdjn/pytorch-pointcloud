@@ -10,8 +10,7 @@ top of every tutorial.
 
 The three tiers build on each other. **Beginner** gets a pretrained model running and explains the
 conventions everything else assumes. **Intermediate** puts your own data and your own training loop
-in the middle. **Advanced** takes the library to the shapes real projects ship in: full driving
-sweeps, turned into oriented 3D boxes.
+in the middle. **Advanced** decodes a driving LiDAR sweep into oriented 3D boxes.
 
 ## Beginner
 
@@ -42,8 +41,7 @@ committed sample data, with no dataset download.
 
 ## Intermediate
 
-Your data, your training loop, and the representation a trained model leaves behind.
-
+See how to use the library with custom data and vanilla torch training loop.
 <div class="grid cards tutorial-cards" markdown>
 
 -   :material-database-plus: __[Use your own data](04-custom-dataset.md)__
@@ -68,13 +66,12 @@ Your data, your training loop, and the representation a trained model leaves beh
 
 ## Advanced
 
-Production-shaped problems: oriented boxes in traffic, decoded and filtered from a raw sweep.
-
+See how to use this library for pratical challenges like 3D object detection.
 <div class="grid cards tutorial-cards" markdown>
 
 -   :material-car: __[Detect objects in driving LiDAR](07-driving-detection.md)__
 
-    ![A driving LiDAR sweep with oriented boxes around detected vehicles](../assets/tutorials/thumbs/08-driving-detection.png)
+    ![A driving LiDAR sweep with oriented boxes around detected vehicles](../assets/tutorials/thumbs/07-driving-detection.png)
 
     Turn one sweep into oriented 3D boxes: voxel encoding, decoding, non-maximum suppression.
 
