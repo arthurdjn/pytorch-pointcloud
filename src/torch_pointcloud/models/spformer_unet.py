@@ -28,10 +28,15 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import register_model
-from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.conversion import (
+    convert_from_spconv_tensor,
+    convert_to_spconv_tensor,
+    ensure_tuple,
+    ensure_tuple_size,
+)
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -152,9 +157,9 @@ class SPFormerUNetDecoderBlock(nn.Module):
             norm_kwargs=norm_kwargs,
         )
 
-    def forward(self, x: "SparseConvTensor", skip: "SparseConvTensor") -> "SparseConvTensor":
+    def forward(self, x: "SparseConvTensor", skip: Tensor) -> "SparseConvTensor":
         x = self.upsample(x)
-        x = x.replace_feature(torch.cat([skip.features, x.features], dim=1))
+        x = x.replace_feature(torch.cat([skip, x.features], dim=1))
         return self.blocks(x)
 
 
@@ -252,7 +257,7 @@ class SPFormerUNetEncoder(nn.Module):
         batch: Tensor,
         *,
         return_intermediates: Literal[True],
-    ) -> Tuple["SparseConvTensor", List["SparseConvTensor"]]: ...
+    ) -> Tuple["SparseConvTensor", List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -277,11 +282,12 @@ class SPFormerUNetEncoder(nn.Module):
         sparse_x = convert_to_spconv_tensor(x, pos_grid, batch, padding=self.spatial_padding)
         out = self.stem(sparse_x)
 
-        skips: List["SparseConvTensor"] = []
+        skips: List[FeaturesDict] = []
         for i, block in enumerate(self.blocks):
             out = block(out)
-            if i < self.num_levels - 1:
-                skips.append(out)
+            if return_intermediates and i < self.num_levels - 1:
+                x_skip, pos_grid_skip, batch_skip = convert_from_spconv_tensor(out)
+                skips.append({"x": x_skip, "pos_grid": pos_grid_skip, "batch": batch_skip})
         if return_intermediates:
             return out, skips
         return out
@@ -357,10 +363,10 @@ class SPFormerUNetDecoder(nn.Module):
             create_act(act, **act_kwargs) or nn.Identity(),
         )
 
-    def forward(self, x: "SparseConvTensor", skips: List["SparseConvTensor"]) -> "SparseConvTensor":
+    def forward(self, x: "SparseConvTensor", skips: List[FeaturesDict]) -> "SparseConvTensor":
         out = x
         for block, skip in zip(self.blocks, reversed(skips)):
-            out = block(out, skip)
+            out = block(out, skip["x"])
         return self.output_layer(out)
 
 
@@ -461,18 +467,39 @@ class SPFormerUNetSegmentation(SegmentationModel):
         self.num_classes = num_classes
         self.head = self.configure_head()
 
+    @overload
     def forward_features(
         self,
         x: OptTensor,
         pos_grid: Tensor,
         batch: Tensor,
-    ) -> Tuple["SparseConvTensor", List["SparseConvTensor"]]:
-        return self.encoder(x, pos_grid, batch, return_intermediates=True)
+        return_intermediates: Literal[True],
+    ) -> Tuple["SparseConvTensor", List[FeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> "SparseConvTensor": ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        if return_intermediates:
+            return self.encoder(x, pos_grid, batch, return_intermediates=True)
+        return self.encoder(x, pos_grid, batch)
 
     def forward_decoder(
         self,
         x: "SparseConvTensor",
-        skips: List["SparseConvTensor"],
+        skips: List[FeaturesDict],
     ) -> "SparseConvTensor":
         return self.decoder(x, skips)
 
@@ -480,7 +507,7 @@ class SPFormerUNetSegmentation(SegmentationModel):
         return x.features if pre_logits else self.head(x).features
 
     def forward(self, x: OptTensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
-        bottleneck, skips = self.forward_features(x, pos_grid, batch)
+        bottleneck, skips = self.forward_features(x, pos_grid, batch, return_intermediates=True)
         sparse_x = self.forward_decoder(bottleneck, skips)
         return self.forward_head(sparse_x)
 

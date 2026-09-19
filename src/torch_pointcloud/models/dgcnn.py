@@ -3,7 +3,7 @@
 {{ paper("1801.07829") }}
 """
 
-from typing import Any, Callable, Dict, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -24,13 +24,6 @@ from torch_pointcloud.utils.types import AggrType, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
-
-
-class DGCNNIntermediate(NamedTuple):
-    """Per-block encoder features and their batch index."""
-
-    x: Tensor
-    batch: Tensor
 
 
 class DGCNNEncoderBlock(nn.Module):

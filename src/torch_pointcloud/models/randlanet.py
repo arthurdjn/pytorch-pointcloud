@@ -10,7 +10,6 @@ from typing import (
     Dict,
     List,
     Literal,
-    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -34,7 +33,7 @@ from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import decimate_indices, softmax
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
@@ -45,14 +44,6 @@ if TYPE_CHECKING:
 
 scatter_add, _ = optional_import("torch_scatter", "scatter_add", url=_TORCH_SCATTER_GITHUB_URL)
 scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
-
-
-class RandLANetIntermediate(NamedTuple):
-    """Per-stage encoder features, positions and batch index, kept for the decoder skip connections."""
-
-    x: Tensor
-    pos: Tensor
-    batch: Tensor
 
 
 def random_max_pool(
@@ -383,7 +374,7 @@ class RandLANetEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[RandLANetIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -401,14 +392,14 @@ class RandLANetEncoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates: List[RandLANetIntermediate] = []
+        intermediates: List[FeaturesDict] = []
         for i, block in enumerate(self.blocks):
             assert isinstance(block, DilatedResidualBlock)
             x, pos, batch = block(x, pos, batch)
             if return_intermediates and i == 0:
                 # Block 0's pre-decimation output is the only full-resolution skip;
                 # the decoder consumes it last to upsample back to the input resolution.
-                intermediates.append(RandLANetIntermediate(x=x, pos=pos, batch=batch))
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
             generator: Optional[torch.Generator] = None
             if not self.training:
@@ -426,7 +417,7 @@ class RandLANetEncoder(nn.Module):
             )
 
             if return_intermediates and i < len(self.blocks) - 1:
-                intermediates.append(RandLANetIntermediate(x=x, pos=pos, batch=batch))
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
         if return_intermediates:
             return x, pos, batch, intermediates
@@ -504,10 +495,10 @@ class RandLANetDecoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[RandLANetIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         for block, skip in zip(self.fp_blocks, reversed(intermediates)):
-            x, pos, batch = block(x, pos, batch, skip.x, skip.pos, skip.batch)
+            x, pos, batch = block(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
         return x, pos, batch
 
 
@@ -636,7 +627,7 @@ class RandLANetClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[RandLANetIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -658,7 +649,10 @@ class RandLANetClassification(ClassificationModel):
         if self.stem is not None:
             x = self.stem(x)
 
-        x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
+        if return_intermediates:
+            x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
+        else:
+            x, pos, batch = self.encoder(x, pos, batch)
 
         if self.aggr is not None:
             x = self.aggr(x)
@@ -853,7 +847,7 @@ class RandLANetSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[RandLANetIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -892,7 +886,7 @@ class RandLANetSegmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[RandLANetIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tensor:
         x, _, _ = self.decoder(x, pos, batch, intermediates)
         return x

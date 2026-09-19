@@ -1,94 +1,94 @@
 {
-  "num_params": 159906706,
+  "num_params": 160980634,
   "state_dict": {
     "stem.convs.0.conv.weights": [
       27,
       3,
-      24
+      48
     ],
     "stem.convs.0.norm.module.weight": [
-      24
+      48
     ],
     "stem.convs.0.norm.module.bias": [
-      24
+      48
     ],
     "stem.convs.0.norm.module.running_mean": [
-      24
+      48
     ],
     "stem.convs.0.norm.module.running_var": [
-      24
+      48
     ],
     "stem.convs.0.norm.module.num_batches_tracked": [],
     "stem.convs.1.conv.weights": [
       27,
-      48,
-      48
+      96,
+      96
     ],
     "stem.convs.1.norm.module.weight": [
-      48
+      96
     ],
     "stem.convs.1.norm.module.bias": [
-      48
+      96
     ],
     "stem.convs.1.norm.module.running_mean": [
-      48
+      96
     ],
     "stem.convs.1.norm.module.running_var": [
-      48
+      96
     ],
     "stem.convs.1.norm.module.num_batches_tracked": [],
     "stem.convs.2.conv.weights": [
       27,
-      96,
-      96
+      192,
+      192
     ],
     "stem.convs.2.norm.module.weight": [
-      96
+      192
     ],
     "stem.convs.2.norm.module.bias": [
-      96
+      192
     ],
     "stem.convs.2.norm.module.running_mean": [
-      96
+      192
     ],
     "stem.convs.2.norm.module.running_var": [
-      96
+      192
     ],
     "stem.convs.2.norm.module.num_batches_tracked": [],
     "stem.downsamples.0.conv.weights": [
       8,
-      24,
-      48
+      48,
+      96
     ],
     "stem.downsamples.0.norm.module.weight": [
-      48
+      96
     ],
     "stem.downsamples.0.norm.module.bias": [
-      48
+      96
     ],
     "stem.downsamples.0.norm.module.running_mean": [
-      48
+      96
     ],
     "stem.downsamples.0.norm.module.running_var": [
-      48
+      96
     ],
     "stem.downsamples.0.norm.module.num_batches_tracked": [],
     "stem.downsamples.1.conv.weights": [
       8,
-      48,
-      96
+      96,
+      192
     ],
     "stem.downsamples.1.norm.module.weight": [
-      96
+      192
     ],
     "stem.downsamples.1.norm.module.bias": [
-      96
+      192
     ],
     "stem.downsamples.1.norm.module.running_mean": [
-      96
+      192
     ],
     "stem.downsamples.1.norm.module.running_var": [
-      96
+      192
     ],
     "stem.downsamples.1.norm.module.num_batches_tracked": [],
     "encoder.layers.0.blocks.0.cpe.conv.weights": [

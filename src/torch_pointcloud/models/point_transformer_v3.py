@@ -32,13 +32,28 @@ from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_t
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
-from torch_pointcloud.utils.types import OptTensor, ValueCollection
+from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
 
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+
+
+class SerializedFeaturesDict(PooledFeaturesDict):
+    r"""`PooledFeaturesDict` of a Point Transformer V3 stage, carrying the serialization the decoder blocks re-use.
+
+    Attributes:
+        serialized_code: Serialization codes of the stage's points, shape $(L, N_s)$, one row per order.
+        serialized_order: Permutation sorting the points along each order, shape $(L, N_s)$.
+        serialized_inverse: Inverse of `serialized_order`, shape $(L, N_s)$.
+    """
+
+    serialized_code: Tensor
+    serialized_order: Tensor
+    serialized_inverse: Tensor
+
 
 AttentionKind = Literal["default", "rpe", "rope"]
 
@@ -819,7 +834,7 @@ class PointTransformerV3Encoder(nn.Module):
         return_intermediates: Literal[True],
         pos: OptTensor = None,
         condition: Optional[str] = None,
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
     def forward(
@@ -852,9 +867,9 @@ class PointTransformerV3Encoder(nn.Module):
 
         x = self.stem(x, pos_grid, batch, condition=condition)
 
-        intermediates = []
+        intermediates: List[SerializedFeaturesDict] = []
         for i, block in enumerate(self.blocks):
-            intermediate = {
+            intermediate: SerializedFeaturesDict = {
                 "x": x,
                 "pos_grid": pos_grid,
                 "batch": batch,
@@ -886,8 +901,8 @@ class PointTransformerV3Encoder(nn.Module):
                 condition=condition,
             )
 
-            if i > 0:
-                intermediate["inverse"] = inverse
+            if return_intermediates and i > 0:
+                intermediate["pooling_inverse"] = inverse
                 intermediates.append(intermediate)
 
         if return_intermediates:
@@ -1060,13 +1075,20 @@ class PointTransformerV3Decoder(nn.Module):
         return blocks
 
     def forward(
-        self, x: Tensor, intermediates: List[Dict[str, Tensor]], condition: Optional[str] = None
+        self, x: Tensor, intermediates: List[SerializedFeaturesDict], condition: Optional[str] = None
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.blocks, reversed(intermediates)):
-            skip_kwargs = {
-                f"{k}_skip" if k != "inverse" else k: v for k, v in intermediate.items() if k != "serialized_code"
-            }
-            x, pos_grid, batch = block(x, **skip_kwargs, condition=condition)
+        for block, skip in zip(self.blocks, reversed(intermediates)):
+            x, pos_grid, batch = block(
+                x,
+                skip["x"],
+                skip["pos_grid"],
+                skip["batch"],
+                skip["serialized_order"],
+                skip["serialized_inverse"],
+                inverse=skip["pooling_inverse"],
+                pos_skip=skip.get("pos"),
+                condition=condition,
+            )
         return x, pos_grid, batch
 
 
@@ -1265,7 +1287,7 @@ class PointTransformerV3Classification(ClassificationModel):
         return_intermediates: Literal[True],
         pos: OptTensor = None,
         condition: Optional[str] = None,
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1549,7 +1571,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         return_intermediates: Literal[True],
         pos: OptTensor = None,
         condition: Optional[str] = None,
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1576,7 +1598,7 @@ class PointTransformerV3Segmentation(SegmentationModel):
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
 
     def forward_decoder(
-        self, x: Tensor, intermediates: List[Dict[str, Tensor]], condition: Optional[str] = None
+        self, x: Tensor, intermediates: List[SerializedFeaturesDict], condition: Optional[str] = None
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder.forward(x, intermediates, condition=condition)
 

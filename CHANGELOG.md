@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `FeaturesDict` so that `return_intermediates=True` returns the same list for every model: the encoder stages
+  from fine to coarse, each with `x`, `batch` and `pos` or `pos_grid`.
+- Renamed the intermediates keys `features` to `x` and `inverse` to `pooling_inverse`.
+- Updated SpUNet, SPFormer-UNet and SPVCNN `forward_features` to return the skips only with `return_intermediates=True`.
+- Fixed `octformer-lg` stem channels, the model could not run a forward pass.
+- Fixed `reset_classifier` ignoring `global_pool` for PVCNN and PVCNN2.
 - Added source links to classes and functions in the docs.
 
 ## 0.0.2 (2026-09-16)

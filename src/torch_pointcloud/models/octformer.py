@@ -21,7 +21,7 @@ from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _DWCONV_GITHUB_URL, _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.octree import octree_interpolate, octree_upsample
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
@@ -235,7 +235,7 @@ class OctFormerEncoder(nn.Module):
     """Stack of `OctFormerEncoderLayer` stages, each running one octree depth coarser than the previous one.
 
     When `return_intermediates=True` is passed to `forward`, the input features of every stage but
-    the first are returned in coarse-to-fine order, ready to be consumed by `OctFormerDecoder`.
+    the first are returned in fine-to-coarse order, ready to be consumed by `OctFormerDecoder`.
     """
 
     def __init__(
@@ -317,7 +317,7 @@ class OctFormerEncoder(nn.Module):
         octree: OctreeT,
         depth: int,
         return_intermediates: Literal[True] = ...,
-    ) -> Tuple[Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -329,17 +329,18 @@ class OctFormerEncoder(nn.Module):
     ) -> Tensor: ...
 
     def forward(self, x: Tensor, octree: OctreeT, depth: int, return_intermediates: bool = False) -> Any:
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for i, layer in enumerate(self.layers):
             # Track only intermediate features (i.e. not the input or output, but everything in between)
             if return_intermediates and i > 0:
-                intermediates.append(x)
+                px, py, pz, pb = octree.xyzb(depth - i + 1, self.nempty)
+                intermediates.append({"x": x, "pos_grid": torch.stack([px, py, pz], dim=1), "batch": pb.long()})
 
             depth_i = depth - i
             x = layer(x, octree, depth_i)
 
         if return_intermediates:
-            return x, intermediates[::-1]
+            return x, intermediates
         return x
 
 
@@ -387,9 +388,9 @@ class OctFormerDecoder(nn.Module):
             up_block = OctreeDeconvBlock(fpn_channels, fpn_channels, kernel_size=3, stride=2, **kwargs)
             self.up_blocks.append(up_block)
 
-    def forward(self, x: Tensor, octree: "Octree", depth: int, intermediates: List[Tensor]) -> Tensor:
+    def forward(self, x: Tensor, octree: "Octree", depth: int, intermediates: List[FeaturesDict]) -> Tensor:
         # List containing all features from the encoder, from the deepest to the shallowest.
-        x_list = [x, *intermediates]
+        x_list = [x, *(skip["x"] for skip in reversed(intermediates))]
         dst_depth = depth + len(x_list) - 1
 
         x_fpn: Union[Tensor, float] = 0.0
@@ -629,7 +630,7 @@ class OctFormerClassification(ClassificationModel):
         octree: "Octree",
         depth: int,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -875,7 +876,7 @@ class OctFormerSegmentation(SegmentationModel):
         octree: "Octree",
         depth: int,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -918,7 +919,7 @@ class OctFormerSegmentation(SegmentationModel):
 
         return self.encoder(x, octree_t, max_depth, return_intermediates=return_intermediates)
 
-    def forward_decoder(self, x: Tensor, octree: "Octree", depth: int, intermediates: List[Tensor]) -> Tensor:
+    def forward_decoder(self, x: Tensor, octree: "Octree", depth: int, intermediates: List[FeaturesDict]) -> Tensor:
         stem_depth = len(self.stem_channels) - 1
         encoder_depth = len(self.channels) - 1
         max_depth = depth - stem_depth
@@ -1199,7 +1200,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
     name="octformer-lg",
     task="segmentation",
     hparams=dict(
-        stem_channels=(24, 48, 96),
+        stem_channels=(48, 96, 192),
         channels=(192, 384, 768, 768),
         num_blocks=(2, 2, 18, 2),
         num_heads=(12, 24, 48, 48),

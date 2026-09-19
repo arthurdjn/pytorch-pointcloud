@@ -87,12 +87,9 @@ def test_pointconv_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
         return_intermediates=True,
     )
 
-    assert len(intermediates) == 2  # Number of layers
+    assert len(intermediates) == 1  # Every layer but the deepest
     for intermediate in intermediates:
-        assert hasattr(intermediate, "x")
-        assert hasattr(intermediate, "pos")
-        assert hasattr(intermediate, "batch")
-        assert intermediate.x.shape[0] == intermediate.pos.shape[0] == intermediate.batch.shape[0]
+        assert intermediate["x"].shape[0] == intermediate["pos"].shape[0] == intermediate["batch"].shape[0]
 
 
 def test_pointconv_classification_forward(model_clf: PointConvDensityClassification, data: Dict[str, Tensor]) -> None:
@@ -127,7 +124,7 @@ def test_pointconv_classification_forward_features(
     out_features, out_pos, out_batch, intermediates = model_clf.forward_features(
         data["features"], data["pos"], data["batch"], return_intermediates=True
     )
-    assert len(intermediates) == len(model_clf.channels)
+    assert len(intermediates) == len(model_clf.channels) - 1
 
 
 def test_pointconv_classification_num_classes_zero_returns_features(data: Dict[str, Tensor]) -> None:

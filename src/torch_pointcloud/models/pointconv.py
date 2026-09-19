@@ -3,7 +3,7 @@
 {{ paper("1811.07246") }}
 """
 
-from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Type, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Type, Union, overload
 
 import torch.nn as nn
 from torch import Tensor
@@ -21,17 +21,10 @@ from torch_pointcloud.layers import (
 )
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.types import FeaturesDict
 
 from ._base import ClassificationModel
 from ._registry import WeightsDict, register_model
-
-
-class PointConvIntermediate(NamedTuple):
-    """Input features and point cloud of one set-abstraction stage, recorded before it downsamples."""
-
-    x: Tensor
-    pos: Tensor
-    batch: Tensor
 
 
 class PointConvDensityEncoder(nn.Module):
@@ -100,7 +93,7 @@ class PointConvDensityEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Any]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -117,13 +110,12 @@ class PointConvDensityEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: bool = False,
-    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, List[Any]]]:
-        intermediates = []
-        for layer in self.layers:
-            if return_intermediates:
-                intermediates.append(PointConvIntermediate(x, pos, batch))
-
+    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]]:
+        intermediates: List[FeaturesDict] = []
+        for i, layer in enumerate(self.layers):
             x, pos, batch = layer(x, pos, batch)
+            if return_intermediates and i < len(self.layers) - 1:
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
         if return_intermediates:
             return x, pos, batch, intermediates
@@ -240,7 +232,7 @@ class PointConvDensityClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Any]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(

@@ -25,7 +25,7 @@ from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import softmax
-from torch_pointcloud.utils.types import OptTensor, ValueCollection
+from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
 if TYPE_CHECKING:
     from torch_cluster import knn_graph
@@ -578,7 +578,7 @@ class PointTransformerV2Encoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PooledFeaturesDict]]: ...
 
     @overload
     def forward(
@@ -596,12 +596,12 @@ class PointTransformerV2Encoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates = []
+        intermediates: List[PooledFeaturesDict] = []
         for i, block in enumerate(self.blocks):
-            intermediate = {"x": x, "pos": pos, "batch": batch}
+            intermediate: PooledFeaturesDict = {"x": x, "pos": pos, "batch": batch}
 
             x, pos, batch, *rest = block(x, pos, batch, return_inverse=i > 0)
-            if i > 0:
+            if return_intermediates and i > 0:
                 intermediate["pooling_inverse"] = rest[0]
                 intermediates.append(intermediate)
 
@@ -717,10 +717,9 @@ class PointTransformerV2Decoder(nn.Module):
         """Feature dimension $C$ of the decoder output."""
         return self.blocks[-1].blocks[-1].fc3.out_features  # type: ignore[index, union-attr]
 
-    def forward(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.blocks, reversed(intermediates)):
-            skip_kwargs = {f"{k}_skip" if k != "pooling_inverse" else k: v for k, v in intermediate.items()}
-            x, pos, batch = block(x, **skip_kwargs)
+    def forward(self, x: Tensor, intermediates: List[PooledFeaturesDict]) -> Tuple[Tensor, Tensor, Tensor]:
+        for block, skip in zip(self.blocks, reversed(intermediates)):
+            x, pos, batch = block(x, skip["x"], skip["pos"], skip["batch"], skip["pooling_inverse"])
         return x, pos, batch
 
 
@@ -867,7 +866,7 @@ class PointTransformerV2Classification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PooledFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1105,7 +1104,7 @@ class PointTransformerV2Segmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PooledFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1145,7 +1144,7 @@ class PointTransformerV2Segmentation(SegmentationModel):
     def forward_decoder(
         self,
         x: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[PooledFeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder(x, intermediates)
 

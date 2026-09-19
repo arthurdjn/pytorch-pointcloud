@@ -71,7 +71,7 @@ def test_spunet_reset_classifier_initializes_head(model_seg: SparseUNetSegmentat
 def test_spunet_segmentation_forward_features_decoder_head(
     model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]
 ) -> None:
-    sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"])
+    sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     assert len(skips) > 0
     sparse_x = model_seg.forward_decoder(sparse_x, skips)
     logits = model_seg.forward_head(sparse_x)
@@ -79,7 +79,7 @@ def test_spunet_segmentation_forward_features_decoder_head(
 
 
 def test_spunet_forward_head_pre_logits(model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]) -> None:
-    sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"])
+    sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     sparse_x = model_seg.forward_decoder(sparse_x, skips)
     feats = model_seg.forward_head(sparse_x, pre_logits=True)
     assert torch.equal(feats, sparse_x.features)
