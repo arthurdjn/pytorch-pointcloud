@@ -37,6 +37,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+SW_BATCH_SIZE = 8
 SPHERE_RADIUS = {
     "kpfcnn-base.s3dis.hugues-thomas": 1.8,
     "kpfcnn-base-sm.s3dis.hugues-thomas": 1.2,
@@ -54,13 +55,14 @@ INFERER_TRANSFORM = T.Compose(
 )
 
 
-def build_inferer(radius: float, seed: int) -> Inferer:
+def build_inferer(radius: float, sw_batch_size: int, seed: int) -> Inferer:
     return PotentialSphereInferer(
         radius=radius,
         num_votes=10.0,
         inner_ratio=0.7,
         ema_smoothing=0.95,
         transform=INFERER_TRANSFORM,
+        sw_batch_size=sw_batch_size,
         seed=seed,
     )
 
@@ -96,6 +98,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Spheres per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
@@ -112,7 +115,7 @@ def main() -> None:
     model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
     radius = args.radius if args.radius is not None else SPHERE_RADIUS[args.model]
-    inferer = build_inferer(radius, args.seed)
+    inferer = build_inferer(radius, args.sw_batch_size, args.seed)
 
     dataset: Dataset = S3DIS(
         root=args.root,

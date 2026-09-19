@@ -57,6 +57,12 @@ def _mean_pos_predictor(window: Dict[str, Any]) -> Tensor:
     return pos.mean(dim=0, keepdim=True).expand_as(pos).clone()
 
 
+def _per_point_predictor(window: Dict[str, Any]) -> Tensor:
+    """Predictor whose output depends only on each point, so packing windows cannot change it."""
+    pos = window[DataKeys.POS]
+    return torch.stack([pos.sum(dim=-1), pos.prod(dim=-1)], dim=-1)
+
+
 def test_sliding_window_no_overlap_constant_predictor_equals_constant() -> None:
     """With overlap=0 and a constant predictor, every output equals the constant.
 
@@ -368,6 +374,56 @@ def test_sliding_window_roi_num_points_seed_is_reproducible() -> None:
         return [c.args[0][DataKeys.POS] for c in predictor.call_args_list]
 
     assert all(torch.equal(a, b) for a, b in zip(run(7), run(7)))
+
+
+def test_sliding_window_sw_batch_size_packs_blocks_without_changing_output() -> None:
+    """Packing blocks into one `predictor` call cuts the call count and leaves the output identical.
+
+    64-point grid, `block_size=1.0` with `overlap=0` puts every point in its own block: 64 calls at
+    `sw_batch_size=1` against ceil(64 / 8) = 8 calls at 8.
+    """
+    data = _grid_data(steps=4)
+
+    def run(sw_batch_size: int) -> Tuple[Tensor, int]:
+        predictor = Mock(side_effect=_per_point_predictor)
+        out = sliding_window_inference(
+            data,
+            predictor=predictor,
+            block_size=1.0,
+            overlap=0.0,
+            sw_batch_size=sw_batch_size,
+            softmax=False,
+            seed=0,
+        )
+        return out, predictor.call_count
+
+    single, single_calls = run(1)
+    packed, packed_calls = run(8)
+
+    assert single_calls == 64
+    assert packed_calls == 8
+    assert torch.equal(single, packed)
+
+
+def test_sliding_window_sw_batch_size_keeps_roi_num_points_per_element() -> None:
+    """`roi_num_points` stays a per-element cap when blocks are packed: one call of 4 elements,
+    none of them larger than the cap."""
+    data = _grid_data(steps=4)
+    predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
+    sliding_window_inference(
+        data,
+        predictor=predictor,
+        block_size=100.0,
+        overlap=0.0,
+        roi_num_points=20,
+        sw_batch_size=8,
+        softmax=False,
+        seed=0,
+    )
+
+    assert predictor.call_count == 1
+    batch = predictor.call_args_list[0].args[0][DataKeys.BATCH]
+    assert sorted(torch.bincount(batch).tolist()) == [4, 20, 20, 20]
 
 
 def test_sliding_window_validates_args() -> None:

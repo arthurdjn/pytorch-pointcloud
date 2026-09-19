@@ -42,6 +42,8 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.02
+SUB_BATCH_SIZE = 8
+S3DIS_SUB_BATCH_SIZE = 1
 
 INFERER_TRANSFORM = T.Compose(
     [
@@ -75,12 +77,13 @@ def scannet_transform(num_classes: int) -> T.Compose:
     )
 
 
-def build_inferer(views: List[T.Compose], seed: int) -> Inferer:
+def build_inferer(views: List[T.Compose], sub_batch_size: int, seed: int) -> Inferer:
     base = VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
         reduce="sum",
+        sub_batch_size=sub_batch_size,
         seed=seed,
     )
     return TTAInferer(base=base, transforms=views, aggregate="mean")
@@ -129,6 +132,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument(
+        "--sub-batch-size",
+        default=None,
+        type=int,
+        help=f"Voxel fragments per forward. Defaults to {SUB_BATCH_SIZE} on ScanNet, {S3DIS_SUB_BATCH_SIZE} on S3DIS.",
+    )
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
     parser.add_argument("--download", action="store_true", help="Download the dataset if missing.")
@@ -155,7 +164,8 @@ def main() -> None:
             force_process=args.force_process,
             num_workers=args.num_workers,
         )
-        inferer = build_inferer(S3DIS_VIEWS, args.seed)
+        sub_batch_size = S3DIS_SUB_BATCH_SIZE if args.sub_batch_size is None else args.sub_batch_size
+        inferer = build_inferer(S3DIS_VIEWS, sub_batch_size, args.seed)
     else:
         print(f"Benchmarking model {args.model!r} on ScanNet!")
         scannet = ScanNet200 if num_classes == 200 else ScanNet20
@@ -168,7 +178,8 @@ def main() -> None:
             num_workers=args.num_workers,
             use_axis_alignment=False,
         )
-        inferer = build_inferer(simple_tta_transforms(), args.seed)
+        sub_batch_size = SUB_BATCH_SIZE if args.sub_batch_size is None else args.sub_batch_size
+        inferer = build_inferer(simple_tta_transforms(), sub_batch_size, args.seed)
 
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))

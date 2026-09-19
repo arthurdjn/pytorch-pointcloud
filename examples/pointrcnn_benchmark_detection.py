@@ -1,5 +1,7 @@
 """Benchmark PointRCNN on KITTI with the reference evaluation protocol.
 
+NOTE: the eval transform subsamples points at random, so the scores below are tied to the default `--num-workers`.
+
 Results (Car / Pedestrian / Cyclist / mAP, R11):
 
     | Variant                   | reference                     | torch-pointcloud |

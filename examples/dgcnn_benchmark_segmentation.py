@@ -47,6 +47,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 IGNORE_INDEX = 255
 BLOCK_SIZE = 1.5
+SW_BATCH_SIZE = 8
 BLOCK_NUM_POINTS = 8192
 
 SCANNET_TRANSFORM = T.Compose(
@@ -68,13 +69,14 @@ SCANNET_INFERER_TRANSFORM = T.Compose(
 )
 
 
-def build_scannet_inferer(seed: int) -> Inferer:
+def build_scannet_inferer(sw_batch_size: int, seed: int) -> Inferer:
     return SlidingWindowInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),
         padding=1e-8,
         roi_num_points=BLOCK_NUM_POINTS,
+        sw_batch_size=sw_batch_size,
         softmax=False,
         aggregate="mean",
         transform=SCANNET_INFERER_TRANSFORM,
@@ -113,6 +115,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Blocks per forward.")
     parser.add_argument("--batch-size", default=16, type=int, help="Blocks per forward on S3DIS.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes or blocks.")
@@ -140,7 +143,7 @@ def main() -> None:
             num_workers=args.num_workers,
             use_axis_alignment=False,
         )
-        inferer = build_scannet_inferer(args.seed)
+        inferer = build_scannet_inferer(args.sw_batch_size, args.seed)
         batch_size = 1
     else:
         name = f"dgcnn.s3dis-area{args.area}.an-tao"
