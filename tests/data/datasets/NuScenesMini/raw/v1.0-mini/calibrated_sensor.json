@@ -1,0 +1,18 @@
+[
+  {
+    "token": "22389617c344f98dafbf4ce3e3535610",
+    "sensor_token": "6efab8dbf0a2dfd32cb9d94610c2b4a1",
+    "translation": [
+      0.94,
+      0.0,
+      1.84
+    ],
+    "rotation": [
+      0.7071067811865476,
+      0.0,
+      0.0,
+      -0.7071067811865476
+    ],
+    "camera_intrinsic": []
+  }
+]

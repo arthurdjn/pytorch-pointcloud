@@ -1,0 +1,42 @@
+[
+  {
+    "token": "8826d916cdfb21c6c1ff91a761565a70",
+    "name": "vehicle.moving",
+    "description": ""
+  },
+  {
+    "token": "2416da6ec212cddb8d8800160eb686b2",
+    "name": "vehicle.stopped",
+    "description": ""
+  },
+  {
+    "token": "eb819333b5011c188c53c786ed62c2f9",
+    "name": "vehicle.parked",
+    "description": ""
+  },
+  {
+    "token": "71445abc2f0ddac24097acb7a3823bc9",
+    "name": "cycle.with_rider",
+    "description": ""
+  },
+  {
+    "token": "13d16283160ecc206ebdf9d6297e4c73",
+    "name": "cycle.without_rider",
+    "description": ""
+  },
+  {
+    "token": "291017808b9eec5eaf92bb2e667840ed",
+    "name": "pedestrian.sitting_lying_down",
+    "description": ""
+  },
+  {
+    "token": "06ce14c83158d4a4b6a004674d81a0d2",
+    "name": "pedestrian.standing",
+    "description": ""
+  },
+  {
+    "token": "233ea18bca9783713a5151731e512c3a",
+    "name": "pedestrian.moving",
+    "description": ""
+  }
+]

@@ -1,0 +1,226 @@
+[
+  {
+    "token": "9d3dfe774bb9c6ef51c22bee4ddbcd68",
+    "sample_token": "a710839011ee78ab7ae6b7f02a30e96f",
+    "instance_token": "d4c82aec8ebba8be0b4bdc5dc3b7aef7",
+    "visibility_token": "4",
+    "attribute_tokens": [
+      "8826d916cdfb21c6c1ff91a761565a70"
+    ],
+    "translation": [
+      1012.0,
+      2003.0,
+      0.8
+    ],
+    "size": [
+      1.8,
+      4.5,
+      1.6
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "",
+    "next": "c2ee5514026a6aa6256224a217f9a7c9",
+    "num_lidar_pts": 20,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "0617bbec8e561e15cfb7d851119d4b4d",
+    "sample_token": "a710839011ee78ab7ae6b7f02a30e96f",
+    "instance_token": "227d2d69694a69532231d1e78172d65e",
+    "visibility_token": "4",
+    "attribute_tokens": [
+      "06ce14c83158d4a4b6a004674d81a0d2"
+    ],
+    "translation": [
+      1008.0,
+      1996.0,
+      0.9
+    ],
+    "size": [
+      0.6,
+      0.7,
+      1.8
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "",
+    "next": "6d200235e126ad27cf489b94c286c1f8",
+    "num_lidar_pts": 8,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "4eac7fb233dc1b9bc3f8fc7861dc8a41",
+    "sample_token": "a710839011ee78ab7ae6b7f02a30e96f",
+    "instance_token": "1f3a8b1345cf3478d0aeb1cbea318130",
+    "visibility_token": "4",
+    "attribute_tokens": [],
+    "translation": [
+      1015.0,
+      2002.0,
+      0.5
+    ],
+    "size": [
+      2.5,
+      0.5,
+      1.0
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "",
+    "next": "dd91f2c838f0193609716b68f7aa4b44",
+    "num_lidar_pts": 0,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "7b33c2815b6ddc44aed65a7fe938ee56",
+    "sample_token": "a710839011ee78ab7ae6b7f02a30e96f",
+    "instance_token": "f6458376288942213909bdaf4cccc779",
+    "visibility_token": "4",
+    "attribute_tokens": [],
+    "translation": [
+      1010.0,
+      2005.0,
+      0.25
+    ],
+    "size": [
+      0.4,
+      0.8,
+      0.5
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "",
+    "next": "be9ea5c7bc072883498efd6f7a7e5401",
+    "num_lidar_pts": 1,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "c2ee5514026a6aa6256224a217f9a7c9",
+    "sample_token": "b1bd7ce3ce2503bfe386de2c5792acf0",
+    "instance_token": "d4c82aec8ebba8be0b4bdc5dc3b7aef7",
+    "visibility_token": "4",
+    "attribute_tokens": [
+      "8826d916cdfb21c6c1ff91a761565a70"
+    ],
+    "translation": [
+      1014.0,
+      2003.0,
+      0.8
+    ],
+    "size": [
+      1.8,
+      4.5,
+      1.6
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "9d3dfe774bb9c6ef51c22bee4ddbcd68",
+    "next": "",
+    "num_lidar_pts": 20,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "6d200235e126ad27cf489b94c286c1f8",
+    "sample_token": "b1bd7ce3ce2503bfe386de2c5792acf0",
+    "instance_token": "227d2d69694a69532231d1e78172d65e",
+    "visibility_token": "4",
+    "attribute_tokens": [
+      "06ce14c83158d4a4b6a004674d81a0d2"
+    ],
+    "translation": [
+      1008.0,
+      1996.0,
+      0.9
+    ],
+    "size": [
+      0.6,
+      0.7,
+      1.8
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "0617bbec8e561e15cfb7d851119d4b4d",
+    "next": "",
+    "num_lidar_pts": 11,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "dd91f2c838f0193609716b68f7aa4b44",
+    "sample_token": "b1bd7ce3ce2503bfe386de2c5792acf0",
+    "instance_token": "1f3a8b1345cf3478d0aeb1cbea318130",
+    "visibility_token": "4",
+    "attribute_tokens": [],
+    "translation": [
+      1015.0,
+      2002.0,
+      0.5
+    ],
+    "size": [
+      2.5,
+      0.5,
+      1.0
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "4eac7fb233dc1b9bc3f8fc7861dc8a41",
+    "next": "",
+    "num_lidar_pts": 0,
+    "num_radar_pts": 0
+  },
+  {
+    "token": "be9ea5c7bc072883498efd6f7a7e5401",
+    "sample_token": "b1bd7ce3ce2503bfe386de2c5792acf0",
+    "instance_token": "f6458376288942213909bdaf4cccc779",
+    "visibility_token": "4",
+    "attribute_tokens": [],
+    "translation": [
+      1010.0,
+      2005.0,
+      0.25
+    ],
+    "size": [
+      0.4,
+      0.8,
+      0.5
+    ],
+    "rotation": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "prev": "7b33c2815b6ddc44aed65a7fe938ee56",
+    "next": "",
+    "num_lidar_pts": 2,
+    "num_radar_pts": 0
+  }
+]

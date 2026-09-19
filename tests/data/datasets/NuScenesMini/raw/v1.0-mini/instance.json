@@ -1,0 +1,30 @@
+[
+  {
+    "token": "d4c82aec8ebba8be0b4bdc5dc3b7aef7",
+    "category_token": "893463116daa7ff83c931872f795a3e4",
+    "nbr_annotations": 2,
+    "first_annotation_token": "9d3dfe774bb9c6ef51c22bee4ddbcd68",
+    "last_annotation_token": "c2ee5514026a6aa6256224a217f9a7c9"
+  },
+  {
+    "token": "227d2d69694a69532231d1e78172d65e",
+    "category_token": "b0198cad0f2444c710c588c2a4d7d331",
+    "nbr_annotations": 2,
+    "first_annotation_token": "0617bbec8e561e15cfb7d851119d4b4d",
+    "last_annotation_token": "6d200235e126ad27cf489b94c286c1f8"
+  },
+  {
+    "token": "1f3a8b1345cf3478d0aeb1cbea318130",
+    "category_token": "17f2285d17077b7739446f7f3db9360b",
+    "nbr_annotations": 2,
+    "first_annotation_token": "4eac7fb233dc1b9bc3f8fc7861dc8a41",
+    "last_annotation_token": "dd91f2c838f0193609716b68f7aa4b44"
+  },
+  {
+    "token": "f6458376288942213909bdaf4cccc779",
+    "category_token": "a0faeb8b22847f272be24dbed34bdcae",
+    "nbr_annotations": 2,
+    "first_annotation_token": "7b33c2815b6ddc44aed65a7fe938ee56",
+    "last_annotation_token": "be9ea5c7bc072883498efd6f7a7e5401"
+  }
+]

@@ -1,0 +1,4 @@
+## Global alignment angle per disjoint space in Area_3 ##
+## Disjoint Space Name Global Alignment Angle ##
+WC_1 0
+WC_2 270
