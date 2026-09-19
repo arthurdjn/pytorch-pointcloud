@@ -12,7 +12,7 @@ from torch_pointcloud.datasets.shapenetpart import ShapeNetPart, load_shapenet_p
 def test_load_shapenet_part(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that the shapenet part is loaded correctly"""
     datasets_dir = datasets_dir_factory("ShapeNetPart/raw/**/*")
-    file_path = datasets_dir / "ShapeNetPart" / "raw" / "02691156" / "103c9e43cdf6501c62b600da24e0965.txt"
+    file_path = sorted((datasets_dir / "ShapeNetPart" / "raw" / "02691156").glob("*.txt"))[0]
     data = load_shapenet_part_data(file_path)
 
     assert data is not None

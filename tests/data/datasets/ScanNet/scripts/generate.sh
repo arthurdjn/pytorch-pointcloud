@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Subsample real scenes for both v1 and v2; raw v1 reuses v2 PLY/aggregation files
+# Generate the synthetic scenes for both v1 and v2; raw v1 holds the same scenes as v2
 # but ships under a v1-labelled labels file (matching the real version split).
 for VER in v1 v2; do
     for SPLIT in train val test; do

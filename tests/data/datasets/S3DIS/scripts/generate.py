@@ -1,11 +1,9 @@
-"""Generate a tiny S3DIS fixture by subsampling real per-annotation `.txt` files.
+"""Generate a tiny synthetic S3DIS fixture in the layout of the original release.
 
-For each Area, we keep `--max-rooms` rooms and subsample each annotation to
-`--max-points-per-annotation` points. The output respects the original directory
-layout (Area_X/RoomName/Annotations/{class}_N.txt + room-level concatenated file +
-alignmentAngle.txt) so the standard S3DIS loader can read it unchanged.
-
-The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/S3DIS/raw`.
+Each room is a box of walls holding one axis-aligned box per annotation, so every class of `S3DIS_CLASSES` appears in
+every room. The output respects the original directory layout (Area_X/RoomName/Annotations/{class}_N.txt + room-level
+concatenated file + alignmentAngle.txt) so the standard S3DIS loader can read it unchanged. No file of the original
+release is read: the points are drawn from a seeded generator.
 
 Usage:
     uv run --no-sync python scripts/generate.py raw ./raw
@@ -17,7 +15,6 @@ from pathlib import Path
 
 import numpy as np
 
-from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
 
 
@@ -31,24 +28,17 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate S3DIS test data by subsampling real annotation files.")
+    parser = ArgumentParser(description="Generate synthetic S3DIS test data.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     raw_parser = subparsers.add_parser("raw", help="Generate raw test data")
     raw_parser.add_argument("dst_dir", type=str, help="Path to output raw data")
     raw_parser.add_argument(
-        "--src-dir",
-        type=str,
-        default=str(Path(DATA_DIR) / "S3DIS" / "raw"),
-        help="Source S3DIS raw directory (default: $TORCH_POINTCLOUD_DATA_DIR/S3DIS/raw).",
-    )
-    raw_parser.add_argument(
-        "--max-points-per-annotation",
+        "--points-per-annotation",
         type=int,
         default=64,
-        help="Maximum number of points kept per annotation file.",
+        help="Number of points drawn per annotation file.",
     )
-    raw_parser.add_argument("--max-rooms", type=int, default=2, help="Maximum number of rooms per area.")
     raw_parser.add_argument("--seed", type=int, default=42, help="Random seed.")
 
     process_parser = subparsers.add_parser("process", help="Process raw data into final format")
@@ -58,54 +48,70 @@ def parse_args() -> Namespace:
 
 
 def generate_raw(args: Namespace) -> None:
-    src_data_dir = Path(args.src_dir)
     dst_data_dir = Path(args.dst_dir)
-    if not src_data_dir.exists():
-        raise FileNotFoundError(
-            f"Source S3DIS raw directory not found: {src_data_dir!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
-        )
-
     rng = np.random.default_rng(args.seed)
-    max_points = args.max_points_per_annotation
-    max_rooms = args.max_rooms
+    num_points = args.points_per_annotation
 
-    areas = ["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"]
+    rooms = {
+        "Area_1": ("WC_1", "conferenceRoom_1"),
+        "Area_2": ("WC_1", "WC_2"),
+        "Area_3": ("WC_1", "WC_2"),
+        "Area_4": ("WC_1", "WC_2"),
+        "Area_5": ("WC_1", "WC_2"),
+        "Area_6": ("conferenceRoom_1", "copyRoom_1"),
+    }
+    # Annotation name, box min and box max, as fractions of the room extent. `stairs` is not an S3DIS class:
+    # the original release contains such annotations and the loader folds them into `clutter`.
+    boxes = [
+        ("ceiling_1", (0.0, 0.0, 1.0), (1.0, 1.0, 1.0)),
+        ("floor_1", (0.0, 0.0, 0.0), (1.0, 1.0, 0.0)),
+        ("wall_1", (0.0, 0.0, 0.0), (1.0, 0.0, 1.0)),
+        ("wall_2", (0.0, 1.0, 0.0), (1.0, 1.0, 1.0)),
+        ("wall_3", (0.0, 0.0, 0.0), (0.0, 1.0, 1.0)),
+        ("wall_4", (1.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
+        ("beam_1", (0.0, 0.45, 0.9), (1.0, 0.55, 1.0)),
+        ("column_1", (0.0, 0.0, 0.0), (0.1, 0.1, 1.0)),
+        ("window_1", (0.3, 0.0, 0.4), (0.6, 0.0, 0.8)),
+        ("door_1", (1.0, 0.4, 0.0), (1.0, 0.6, 0.7)),
+        ("table_1", (0.4, 0.4, 0.0), (0.6, 0.6, 0.25)),
+        ("chair_1", (0.3, 0.45, 0.0), (0.38, 0.55, 0.3)),
+        ("chair_2", (0.62, 0.45, 0.0), (0.7, 0.55, 0.3)),
+        ("sofa_1", (0.1, 0.8, 0.0), (0.5, 0.95, 0.3)),
+        ("bookcase_1", (0.7, 0.9, 0.0), (0.95, 1.0, 0.7)),
+        ("board_1", (0.0, 0.3, 0.4), (0.0, 0.7, 0.7)),
+        ("clutter_1", (0.8, 0.1, 0.0), (0.9, 0.2, 0.1)),
+        ("clutter_2", (0.45, 0.45, 0.25), (0.55, 0.55, 0.3)),
+        ("stairs_1", (0.75, 0.3, 0.0), (0.95, 0.5, 0.2)),
+    ]
 
-    for area in areas:
-        # Subsample alignment angles
-        alignment_angles_path = src_data_dir / area / f"{area}_alignmentAngle.txt"
-        with open(alignment_angles_path, "r") as f:
-            lines = f.readlines()
-        out_lines = [line for line in lines if line.startswith("#")]
-        out_lines += [line for line in lines if not line.startswith("#")][:max_rooms]
+    for area, room_names in rooms.items():
+        area_dir = dst_data_dir / area
+        area_dir.mkdir(parents=True, exist_ok=True)
 
-        out_alignment_angles_path = dst_data_dir / alignment_angles_path.relative_to(src_data_dir)
-        out_alignment_angles_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_alignment_angles_path, "w") as f:
-            f.writelines(out_lines)
+        lines = [
+            f"## Global alignment angle per disjoint space in {area} ##\n",
+            "## Disjoint Space Name Global Alignment Angle ##\n",
+        ]
+        lines += [f"{room_name} {rng.choice([0, 90, 180, 270])}\n" for room_name in room_names]
+        with open(area_dir / f"{area}_alignmentAngle.txt", "w") as f:
+            f.writelines(lines)
 
-        # Subsample room data
-        room_dirs = sorted(p for p in (src_data_dir / area).iterdir() if p.is_dir())
-        for room_dir in room_dirs[:max_rooms]:
+        for room_name in room_names:
+            annotations_dir = area_dir / room_name / "Annotations"
+            annotations_dir.mkdir(parents=True, exist_ok=True)
+            origin = rng.uniform(-30.0, 30.0, size=3)
+            extent = rng.uniform((3.0, 3.0, 2.5), (8.0, 8.0, 3.5))
+
             room_data = []
-            annotation_paths = sorted((room_dir / "Annotations").glob("*.txt"))
-            for annotation_path in annotation_paths:
-                data = np.loadtxt(annotation_path, dtype=np.float32)
-                if data.size == 0:
-                    continue
-                num_keep = min(max_points, data.shape[0])
-                indices = rng.choice(data.shape[0], size=num_keep, replace=False)
-                indices.sort()
-                data = data[indices]
+            for name, box_min, box_max in boxes:
+                pos = origin + extent * rng.uniform(box_min, box_max, size=(num_points, 3))
+                color = np.clip(rng.integers(0, 256, size=3) + rng.integers(-10, 11, size=(num_points, 3)), 0, 255)
+                data = np.concatenate([pos, color], axis=1)
                 room_data.append(data)
+                np.savetxt(annotations_dir / f"{name}.txt", data, fmt="%.3f")
 
-                out_annotation_path = dst_data_dir / annotation_path.relative_to(src_data_dir)
-                out_annotation_path.parent.mkdir(parents=True, exist_ok=True)
-                np.savetxt(out_annotation_path, data, fmt="%.3f")
-
-            out_room_path = dst_data_dir / room_dir.relative_to(src_data_dir) / f"{room_dir.name}.txt"
-            np.savetxt(out_room_path, np.concatenate(room_data), fmt="%.3f")
-        print(f"  {area}: kept {min(max_rooms, len(room_dirs))} rooms with up to {max_points} pts/annotation")
+            np.savetxt(area_dir / room_name / f"{room_name}.txt", np.concatenate(room_data), fmt="%.3f")
+        print(f"  {area}: wrote {len(room_names)} rooms with {num_points} pts/annotation")
 
 
 def generate_processed(args: Namespace) -> None:

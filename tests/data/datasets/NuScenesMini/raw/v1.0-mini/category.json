@@ -1,17 +1,22 @@
 [
   {
-    "token": "6021b5187b924d64be64a702e5570edf",
-    "name": "vehicle.truck",
-    "description": "Vehicles primarily designed to haul cargo including pick-ups, lorrys, trucks and semi-tractors. Trailers hauled after a semi-tractor should be labeled as vehicle.trailer"
-  },
-  {
-    "token": "fd69059b62a3469fbaef25340c0eab7f",
+    "token": "893463116daa7ff83c931872f795a3e4",
     "name": "vehicle.car",
-    "description": "Vehicle designed primarily for personal use, e.g. sedans, hatch-backs, wagons, vans, mini-vans, SUVs and jeeps. If the vehicle is designed to carry more than 10 people use vehicle.bus. If it is primarily designed to haul cargo use vehicle.truck. "
+    "description": ""
   },
   {
-    "token": "fedb11688db84088883945752e480c2c",
-    "name": "vehicle.bus.rigid",
-    "description": "Rigid bus subcategory."
+    "token": "b0198cad0f2444c710c588c2a4d7d331",
+    "name": "human.pedestrian.adult",
+    "description": ""
+  },
+  {
+    "token": "17f2285d17077b7739446f7f3db9360b",
+    "name": "movable_object.barrier",
+    "description": ""
+  },
+  {
+    "token": "a0faeb8b22847f272be24dbed34bdcae",
+    "name": "animal",
+    "description": ""
   }
 ]

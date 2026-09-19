@@ -1,16 +1,14 @@
-"""Generate a tiny SUN RGB-D fixture by subsampling real scenes.
+"""Generate a tiny synthetic SUN RGB-D fixture in the layout of the official release.
 
 SUN RGB-D's loader streams from the official zips (metadata + split out of `SUNRGBDtoolbox.zip`,
-depth/RGB out of `SUNRGBD.zip`) without ever extracting them, so the fixture ships *tiny subset
-zips* in `raw/` rather than loose files. Two commands, mirroring the other datasets:
+depth/RGB out of `SUNRGBD.zip`) without ever extracting them, so the fixture ships *tiny zips* in
+`raw/` rather than loose files. No file of the official release is read: the images, cameras and
+boxes are drawn from a seeded generator. Two commands, mirroring the other datasets:
 
-- `raw`: writes a small `SUNRGBDtoolbox.zip` (the real 0.16 MB `allsplit.mat`, so `read_split`'s
-  full-count assert passes, plus a `SUNRGBDMeta.mat` rebuilt with only the kept scenes) and a small
-  `SUNRGBD.zip` (only those scenes' depth/RGB PNG members, copied from the real release).
+- `raw`: writes a small `SUNRGBDtoolbox.zip` (an `allsplit.mat` and a `SUNRGBDMeta.mat` listing only
+  the generated scenes) and a small `SUNRGBD.zip` (those scenes' depth PNG and RGB JPEG members).
 - `process`: runs the unchanged loader on that raw fixture and subsamples each cloud to
   `--num-points`, writing `processed/<split>/` (so processed is literally `process(raw)`).
-
-The default source is `$TORCH_POINTCLOUD_DATA_DIR/SunRGBD` (override with `--src-dir`).
 
 Usage:
     uv run --no-sync python scripts/generate.py raw
@@ -22,27 +20,23 @@ import shutil
 import zipfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Dict
 
 import numpy as np
 import scipy.io as sio
 import torch
-from tqdm import tqdm
+from PIL import Image
 
-from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.datasets.sunrgbd import (
+    SUNRGBD_CLASSES,
     SUNRGBD_RELEASE_ZIP,
     SUNRGBD_TOOLBOX_ZIP,
     TOOLBOX_META_MEMBER,
     TOOLBOX_SPLIT_MEMBER,
-    _box_list,
-    rebase_sequence,
 )
 from torch_pointcloud.utils.data import DataKeys
 
-BOX_FIELDS = ("classname", "centroid", "coeffs", "basis", "orientation")
-META_FIELDS = ("sequenceName", "depthpath", "rgbpath", "K", "Rtilt", "groundtruth3DBB")
 SPLIT_KEYS = {"train": "alltrain", "val": "alltest"}
 
 
@@ -55,7 +49,7 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate SUN RGB-D test data by subsampling real scenes.")
+    parser = ArgumentParser(description="Generate synthetic SUN RGB-D test data.")
     common = ArgumentParser(add_help=False)
     common.add_argument(
         "dst_dir",
@@ -65,16 +59,11 @@ def parse_args() -> Namespace:
         help="Output SunRGBD fixture directory (default: the fixture dir next to this script).",
     )
     common.add_argument("--splits", type=str, nargs="+", default=["train", "val"], help="Splits to generate.")
-    common.add_argument("--num-scenes", type=int, default=3, help="Number of scenes kept per split.")
+    common.add_argument("--num-scenes", type=int, default=3, help="Number of scenes per split.")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
     raw = subparsers.add_parser("raw", parents=[common], help="Write the tiny subset zips into raw/.")
-    raw.add_argument(
-        "--src-dir",
-        type=str,
-        default=str(Path(DATA_DIR) / "SunRGBD"),
-        help="Real SunRGBD directory holding raw/ (default: $TORCH_POINTCLOUD_DATA_DIR/SunRGBD).",
-    )
+    raw.add_argument("--seed", type=int, default=42, help="Random seed for the generated scenes.")
     process = subparsers.add_parser("process", parents=[common], help="Process raw/ into processed/.")
     process.add_argument("--num-points", type=int, default=2048, help="Number of points kept per scene.")
     process.add_argument("--seed", type=int, default=42, help="Random seed for point subsampling.")
@@ -82,33 +71,67 @@ def parse_args() -> Namespace:
 
 
 def generate_raw(args: Namespace) -> None:
-    src = Path(args.src_dir)
     dst_raw = Path(args.dst_dir) / "raw"
     dst_raw.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(args.seed)
+    height, width = 72, 96
 
-    with zipfile.ZipFile(src / "raw" / SUNRGBD_TOOLBOX_ZIP) as z:
-        allsplit_bytes = z.read(TOOLBOX_SPLIT_MEMBER)
-        meta = sio.loadmat(io.BytesIO(z.read(TOOLBOX_META_MEMBER)), struct_as_record=False, squeeze_me=True)
-        split = sio.loadmat(io.BytesIO(allsplit_bytes), struct_as_record=False, squeeze_me=True)
+    split: Dict[str, Any] = {}
+    entries = np.empty((len(args.splits) * args.num_scenes,), dtype=object)
+    members: Dict[str, bytes] = {}
+    for s, sp in enumerate(args.splits):
+        sequences = [f"kv1/synthetic/{sp}_{i:04d}" for i in range(args.num_scenes)]
+        split[SPLIT_KEYS[sp]] = np.array([f"/n/fs/sun3d/data/SUNRGBD/{seq}" for seq in sequences], dtype=object)
 
-    by_seq = {rebase_sequence(str(e.sequenceName)): e for e in meta["SUNRGBDMeta"]}
-    entries = []
-    for sp in args.splits:
-        present = [s for s in (rebase_sequence(str(p)) for p in split[SPLIT_KEYS[sp]]) if s in by_seq]
-        entries.extend(by_seq[s] for s in present[: args.num_scenes])
+        for i, seq in enumerate(sequences):
+            # A back wall above a floor ramp, a few closer rectangles, and holes of invalid zero depth.
+            depth_mm = np.full((height, width), rng.integers(2500, 4000), dtype=np.uint16)
+            depth_mm[height // 2 :] = np.linspace(depth_mm[0, 0], 1000, height - height // 2)[:, None]
+            for _ in range(3):
+                top, left = rng.integers(0, height // 2), rng.integers(0, width // 2)
+                depth_mm[top : top + height // 4, left : left + width // 4] = rng.integers(1200, 2400)
+            depth_mm[rng.random((height, width)) < 0.1] = 0
+            rgb = np.clip(rng.integers(0, 256, size=3) + rng.integers(-20, 21, size=(height, width, 3)), 0, 255)
+
+            # The last scene of each split has no box, the first one also holds a box of a class the loader drops.
+            num_boxes = 0 if i == args.num_scenes - 1 else int(rng.integers(1, 5))
+            class_names = list(rng.choice(SUNRGBD_CLASSES, size=num_boxes)) + (["lamp"] if i == 0 else [])
+            gt: Any = np.zeros((0, 0))
+            if class_names:
+                gt = np.empty((len(class_names),), dtype=object)
+                for j, class_name in enumerate(class_names):
+                    theta = rng.uniform(-np.pi, np.pi)
+                    cos, sin = np.cos(theta), np.sin(theta)
+                    gt[j] = {
+                        "classname": str(class_name),
+                        "centroid": rng.uniform((-1.5, 1.5, -1.0), (1.5, 3.5, 0.0)),
+                        "coeffs": rng.uniform(0.2, 0.8, size=3),
+                        "basis": np.array([[cos, sin, 0.0], [-sin, cos, 0.0], [0.0, 0.0, 1.0]]),
+                        "orientation": np.array([cos, sin, 0.0]),
+                    }
+
+            tilt = rng.uniform(0.0, 0.4)
+            entries[s * args.num_scenes + i] = {
+                "sequenceName": f"SUNRGBD/{seq}",
+                "depthpath": f"/n/fs/sun3d/data/SUNRGBD/{seq}/depth/0000001.png",
+                "rgbpath": f"/n/fs/sun3d/data/SUNRGBD/{seq}/image/0000001.jpg",
+                "K": np.array([[0.72 * width, 0.0, width / 2], [0.0, 0.72 * width, height / 2], [0.0, 0.0, 1.0]]),
+                "Rtilt": np.array(
+                    [[1.0, 0.0, 0.0], [0.0, np.cos(tilt), np.sin(tilt)], [0.0, -np.sin(tilt), np.cos(tilt)]]
+                ),
+                "groundtruth3DBB": gt,
+            }
+            # The release stores depth rotated left by 3 bits, see `decode_depth`.
+            members[f"SUNRGBD/{seq}/depth/0000001.png"] = _encode_image(depth_mm << 3, "PNG")
+            members[f"SUNRGBD/{seq}/image/0000001.jpg"] = _encode_image(rgb.astype(np.uint8), "JPEG")
 
     with zipfile.ZipFile(dst_raw / SUNRGBD_TOOLBOX_ZIP, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr(TOOLBOX_SPLIT_MEMBER, allsplit_bytes)
-        z.writestr(TOOLBOX_META_MEMBER, _dump_meta(entries))
+        z.writestr(TOOLBOX_SPLIT_MEMBER, _dump_mat(split))
+        z.writestr(TOOLBOX_META_MEMBER, _dump_mat({"SUNRGBDMeta": entries}))
 
-    with (
-        zipfile.ZipFile(_resolve_release(src)) as zin,
-        zipfile.ZipFile(dst_raw / SUNRGBD_RELEASE_ZIP, "w", zipfile.ZIP_DEFLATED) as zout,
-    ):
-        for e in tqdm(entries, total=len(entries), desc="Copying PNGs"):
-            for path in (str(e.depthpath), str(e.rgbpath)):
-                member = f"SUNRGBD/{rebase_sequence(path)}"
-                zout.writestr(member, zin.read(member))
+    with zipfile.ZipFile(dst_raw / SUNRGBD_RELEASE_ZIP, "w", zipfile.ZIP_DEFLATED) as z:
+        for member, content in members.items():
+            z.writestr(member, content)
     print(f"Wrote {len(entries)} scenes into {dst_raw}")
 
 
@@ -120,38 +143,21 @@ def generate_processed(args: Namespace) -> None:
         dataset = SunRGBD(root=dst.parent, train=split == "train", force_process=True, show_progress=False)
         for scene_dir in dataset.processed_files:
             _subsample_scene(scene_dir, args.num_points, generator)
+        # The committed cache stays unmarked: the tests read it as the legacy layout without a completion marker.
+        (dst / "processed" / split / "meta.json").unlink()
         print(f"Processed {len(dataset.processed_files)} {split} scenes")
 
 
-def _resolve_release(src: Path) -> Path:
-    for candidate in (src / "raw" / SUNRGBD_RELEASE_ZIP, src / SUNRGBD_RELEASE_ZIP):
-        if candidate.is_file():
-            return candidate
-    raise FileNotFoundError(f"Could not find {SUNRGBD_RELEASE_ZIP!r} under {src!r} or its raw/ subdirectory.")
-
-
-def _dump_meta(entries: List[Any]) -> bytes:
-    """Rebuild a `SUNRGBDMeta` struct array holding only the kept scenes, as `.mat` bytes."""
-    cells = np.empty((len(entries),), dtype=object)
-    for i, entry in enumerate(entries):
-        boxes = _box_list(entry.groundtruth3DBB)
-        gt: Any = np.zeros((0, 0))
-        if boxes:
-            gt = np.empty((len(boxes),), dtype=object)
-            for j, box in enumerate(boxes):
-                gt[j] = {field: _field_value(box, field) for field in BOX_FIELDS}
-        cells[i] = {field: _field_value(entry, field) for field in META_FIELDS[:-1]}
-        cells[i]["groundtruth3DBB"] = gt
+def _dump_mat(variables: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
-    sio.savemat(buffer, {"SUNRGBDMeta": cells})
+    sio.savemat(buffer, variables)
     return buffer.getvalue()
 
 
-def _field_value(obj: Any, field: str) -> Any:
-    value = getattr(obj, field)
-    if field in ("classname", "sequenceName", "depthpath", "rgbpath"):
-        return str(value)
-    return np.asarray(value, dtype=np.float64)
+def _encode_image(image: np.ndarray, image_format: str) -> bytes:
+    buffer = io.BytesIO()
+    Image.fromarray(image).save(buffer, format=image_format)
+    return buffer.getvalue()
 
 
 def _subsample_scene(scene_dir: Path, num_points: int, generator: torch.Generator) -> None:
