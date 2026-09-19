@@ -43,6 +43,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 
 BLOCK_SIZE = 1.0
+SW_BATCH_SIZE = 16
 BLOCK_NUM_POINTS = 4096
 NUM_VOTES = 3
 VOXEL_SIZE = 0.04
@@ -69,13 +70,14 @@ XU_YAN_INFERER_TRANSFORM = T.Compose(
 OPENPOINTS_TRANSFORM = T.Compose([T.Shift(keys=DataKeys.POS, method="min")])
 
 
-def build_xu_yan_inferer(inferer_transform: T.Transform, seed: int) -> Inferer:
+def build_xu_yan_inferer(inferer_transform: T.Transform, sw_batch_size: int, seed: int) -> Inferer:
     blocks = SlidingWindowInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),
         padding=0.001,
         roi_num_points=BLOCK_NUM_POINTS,
+        sw_batch_size=sw_batch_size,
         softmax=True,
         aggregate="vote",
         transform=inferer_transform,
@@ -135,6 +137,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Blocks per forward.")
     parser.add_argument("--sub-batch-size", default=SUB_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
@@ -156,7 +159,7 @@ def main() -> None:
     if build_inferer is build_openpoints_inferer:
         inferer = build_openpoints_inferer(inferer_transform, args.seed, args.sub_batch_size)
     else:
-        inferer = build_inferer(inferer_transform, args.seed)
+        inferer = build_xu_yan_inferer(inferer_transform, args.sw_batch_size, args.seed)
 
     dataset: Dataset = S3DIS(
         root=args.root,

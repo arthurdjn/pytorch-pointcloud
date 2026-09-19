@@ -1,5 +1,7 @@
 """Benchmark the 3DETR detectors on SUN RGB-D and ScanNet with the reference evaluation protocol.
 
+NOTE: the eval transform subsamples points at random, so the scores below are tied to the default `--num-workers`.
+
 Results (mAP@0.25 / mAP@0.5):
 
     | Variant              | reference   | torch-pointcloud |

@@ -1,6 +1,7 @@
 """Benchmark the VoteNet detectors on SUN RGB-D and ScanNet with the reference evaluation protocol.
 
 NOTE: SUN RGB-D ground truth comes from the v1 labels of the `SunRGBD` dataset rather than the reference's exported arrays.
+NOTE: the eval transform subsamples points at random, so the scores below are tied to the default `--num-workers`.
 
 Results (mAP@0.25 / mAP@0.5):
 
