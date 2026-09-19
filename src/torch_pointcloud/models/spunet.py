@@ -554,7 +554,7 @@ class SparseUNetSegmentation(SegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/spunet-v1m1.scannet20.pointcept/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 71.81},
+        metrics={"mIoU": 75.67},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="MIT",
@@ -563,7 +563,8 @@ class SparseUNetSegmentation(SegmentationModel):
         [
             T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
+            # The released weights were trained on colors in $[-1, 1]$.
+            T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
             T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
             T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
             T.CopyItems(

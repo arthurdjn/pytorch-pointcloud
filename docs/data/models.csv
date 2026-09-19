@@ -123,9 +123,9 @@ pointnext-xl.s3dis-area5.openpoints,pointnext,segmentation,s3dis-area5,true,MIT,
 pointnext-xl.s3dis-area6.openpoints,pointnext,segmentation,s3dis-area6,false,,41.62,mIoU,,
 ptv2-base.scannet20,point_transformer_v2,segmentation,scannet20,false,,11.32,mIoU,,
 ptv2-base.scannet200,point_transformer_v2,segmentation,scannet200,false,,11.33,mIoU,,
-ptv3-base.s3dis-area5.pointcept,point_transformer_v3,segmentation,s3dis-area5,true,MIT,46.19,mIoU,73.6,32.06
-ptv3-base.scannet20.pointcept,point_transformer_v3,segmentation,scannet20,true,MIT,46.17,mIoU,77.6,76.29
-ptv3-base.scannet200.pointcept,point_transformer_v3,segmentation,scannet200,true,MIT,46.18,mIoU,35.3,33.42
+ptv3-base.s3dis-area5.pointcept,point_transformer_v3,segmentation,s3dis-area5,true,MIT,46.19,mIoU,73.6,72.06
+ptv3-base.scannet20.pointcept,point_transformer_v3,segmentation,scannet20,true,MIT,46.17,mIoU,77.6,77.40
+ptv3-base.scannet200.pointcept,point_transformer_v3,segmentation,scannet200,true,MIT,46.18,mIoU,35.3,34.99
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.54
 pvcnn2.s3dis-area5,pvcnn2,segmentation,s3dis-area5,false,,13.71,mIoU,,
 randlanet.semantickitti.tsung-han-wu,randlanet,segmentation,semantickitti,true,MIT,1.24,mIoU,52.9,55.44
@@ -133,7 +133,7 @@ sonata-lp.scannet20.fair,sonata,segmentation,scannet20,true,CC-BY-NC-4.0,108.49,
 spformer-unet.scannet20,spformer_unet,segmentation,scannet20,false,,10.96,mIoU,,
 sphereformer.nuscenes,sphereformer,segmentation,nuscenes,false,,32.31,mIoU,,
 sphereformer.semantickitti,sphereformer,segmentation,semantickitti,false,,32.31,mIoU,67.8,
-spunet-v1m1.scannet20.pointcept,spunet,segmentation,scannet20,true,MIT,39.16,mIoU,75.67,71.81
+spunet-v1m1.scannet20.pointcept,spunet,segmentation,scannet20,true,MIT,39.16,mIoU,75.67,75.67
 spvcnn-119gmacs.semantickitti.mit-han-lab,spvcnn,segmentation,semantickitti,true,MIT,21.78,mIoU,63.8,63.74
 spvcnn-30gmacs.semantickitti.mit-han-lab,spvcnn,segmentation,semantickitti,true,MIT,5.45,mIoU,60.7,60.70
 spvcnn-47gmacs.semantickitti.mit-han-lab,spvcnn,segmentation,semantickitti,true,MIT,8.79,mIoU,61.4,61.59

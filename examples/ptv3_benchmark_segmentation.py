@@ -1,17 +1,16 @@
 """Benchmark Point Transformer V3 semantic segmentation with the indoor precise-evaluation protocols.
 
-NOTE: the S3DIS checkpoint was trained with mesh normals the public download lacks; normals are estimated here, so that
-row cannot reach the reference.
+NOTE: the S3DIS checkpoint was trained with mesh normals the public download lacks; normals are estimated here.
 
-NOTE: the ScanNet references are the checkpoints' training-log figures (Pointcept 0518ccf, `semseg-pt-v3m1-0-base.py`).
+NOTE: the references are the checkpoints' training-log figures (`semseg-pt-v3m1-0-base.py`, `semseg-pt-v3m1-0-rpe.py`).
 
 Results (val mIoU):
 
     | Variant                         | reference | torch-pointcloud |
     | ------------------------------- | --------- | ---------------- |
-    | ptv3-base.scannet20.pointcept   | 77.6      | 76.29 / 91.39    |
-    | ptv3-base.scannet200.pointcept  | 35.3      | 33.42 / 82.97    |
-    | ptv3-base.s3dis-area5.pointcept | 73.6      | 32.06 / 69.93    |
+    | ptv3-base.scannet20.pointcept   | 77.6      | 77.40 / 92.01    |
+    | ptv3-base.scannet200.pointcept  | 35.3      | 34.99 / 83.27    |
+    | ptv3-base.s3dis-area5.pointcept | 73.6      | 72.06 / 91.16    |
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.scannet20.pointcept --limit 5
@@ -55,7 +54,8 @@ S3DIS_TRANSFORM = T.Compose(
     [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        T.Divide(keys=DataKeys.COLOR, divisor=255),
+        # The released weights were trained on colors in $[-1, 1]$.
+        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
         T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True),
     ]
 )
@@ -71,7 +71,8 @@ def scannet_transform(num_classes: int) -> T.Compose:
         [
             T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
+            # The released weights were trained on colors in $[-1, 1]$.
+            T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
             T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, num_classes + 1), default=-1),
         ]
     )

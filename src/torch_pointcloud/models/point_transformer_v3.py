@@ -1681,7 +1681,8 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     steps: List[Any] = [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        T.Divide(keys=DataKeys.COLOR, divisor=255),
+        # The released weights were trained on colors in $[-1, 1]$.
+        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
     ]
     if estimate_normals:
         steps.append(T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True))
@@ -1715,7 +1716,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.scannet20.pointcept/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 76.29},
+        metrics={"mIoU": 77.40},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="MIT",
@@ -1733,7 +1734,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.scannet200.pointcept/resolve/main/model.safetensors",
         dataset="scannet200",
-        metrics={"mIoU": 33.42},
+        metrics={"mIoU": 34.99},
         author="pointcept",
         license="MIT",
     ),
@@ -1750,7 +1751,7 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.s3dis-area5.pointcept/resolve/main/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 32.06},
+        metrics={"mIoU": 72.06},
         classes=S3DIS_CLASSES,
         author="pointcept",
         license="MIT",
