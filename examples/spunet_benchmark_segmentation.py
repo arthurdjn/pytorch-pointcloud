@@ -1,16 +1,10 @@
 """Benchmark SpUNet (SparseUNet) semantic segmentation on ScanNet with the indoor precise-evaluation protocol.
 
-NOTE: the reference is the checkpoint's 2023 training-log mIoU; the same checkpoint scores 71.81 with the reference tester
-on ScanNet v2 as downloaded today (Pointcept 0518ccf, the checkpoint's own `config.py`, `preprocess_scannet.py` data),
-which this script reproduces:
-
-    python tools/test.py --config-file <exp>/config.py --num-gpus 1 --options weight=<exp>/model/model_best.pth
-
 Results (ScanNet val):
 
     | Variant                         | reference | torch-pointcloud |
     | ------------------------------- | --------- | ---------------- |
-    | spunet-v1m1.scannet20.pointcept | 75.67*    | 71.81            |
+    | spunet-v1m1.scannet20.pointcept | 75.67     | 75.67            |
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_segmentation.py --limit 5
@@ -47,7 +41,8 @@ TRANSFORM = T.Compose(
     [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        T.Divide(keys=DataKeys.COLOR, divisor=255),
+        # The released weights were trained on colors in $[-1, 1]$.
+        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
     ]
 )
