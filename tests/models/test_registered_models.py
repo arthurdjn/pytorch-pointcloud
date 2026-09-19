@@ -1,7 +1,7 @@
 import inspect
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import pytest
 import torch
@@ -508,10 +508,11 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
         spatial_dim: int = 3,
         num_categories: int = 0,
         lengths: tuple = (512, 768),
+        voxel_size: Optional[float] = None,
     ) -> Dict[str, Any]:
         torch.manual_seed(42)
         lengths_tensor = torch.tensor(list(lengths))
-        pos = torch.randn(int(lengths_tensor.sum()), spatial_dim)
+        pos = torch.rand(int(lengths_tensor.sum()), spatial_dim) * 1.8 - 0.9  # inside the octree bounds
         x = torch.randn(int(lengths_tensor.sum()), in_channels) if in_channels > 0 else None
         batch = torch.repeat_interleave(torch.arange(len(lengths_tensor)), lengths_tensor)
         cls_onehot = torch.zeros(len(lengths_tensor), num_categories) if num_categories > 0 else None
@@ -527,7 +528,9 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
             )
             octree.construct_all_neigh()
             x = octree.features[octree.depth]
-            pos = octree.points[octree.depth]
+
+        if voxel_size is not None:
+            pos = (pos - pos.min(dim=0).values) / voxel_size
 
         return dict(
             x=x,
@@ -542,6 +545,10 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
 
     return create_data
 
+
+# SPVCNN takes `pos` in voxel units and strides down to 16 voxels. Its synthetic cloud spans hundreds of voxels:
+# on one spanning only a few strides, two torchsparse forwards of the same model differ.
+SPVCNN_VOXEL_SIZE = 0.005
 
 # The Point-MAE / Point-M2AE part-segmentation heads require a uniform number of points per sample
 # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
@@ -571,6 +578,7 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
         lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
@@ -579,7 +587,8 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
     model = model.to(device)
 
-    output = model(**kwargs)
+    with torch.no_grad():
+        output = model(**kwargs)
     _check_forward_output(output, model_name=model_name, task=task, expected_shape=(expected_rows, num_classes))
 
     if device == "cuda":
@@ -610,6 +619,7 @@ def test_model_headless_forward_returns_features(model_name: str, task: str, dat
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
         lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
@@ -618,7 +628,8 @@ def test_model_headless_forward_returns_features(model_name: str, task: str, dat
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
     model = model.to(device)
 
-    output = model(**kwargs)
+    with torch.no_grad():
+        output = model(**kwargs)
     _check_forward_output(output, model_name=model_name, task=task, expected_shape=(expected_rows, model.num_features))
 
     if device == "cuda":
@@ -746,6 +757,7 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
         lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
     )
     kwargs = {a: data[a] for a in sig.parameters if a != "self" and a in data}
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
@@ -762,13 +774,16 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
     for entry in intermediates:
         if not isinstance(entry, dict) or "x" not in entry:
             continue
+
         x = entry["x"]
         assert isinstance(x, torch.Tensor) and x.dim() == 2, f"{model_name}: intermediate `x` is not a 2D tensor"
         assert entry["batch"].dtype == torch.long, f"{model_name}: intermediate `batch` is {entry['batch'].dtype}"
         for key in ("batch", "pos", "pos_grid"):
             if key in entry:
                 assert entry[key].shape[0] == x.shape[0], f"{model_name}: intermediate `{key}` rows != `x` rows"
+
         rows.append(x.shape[0])
+
     assert rows == sorted(rows, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {rows}"
 
     if device == "cuda":
@@ -803,6 +818,7 @@ def test_model_pre_logits_matches_headless_forward(
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
         lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
     )
     sig = inspect.signature(model.forward)
     kwargs = {a: data[a] for a in sig.parameters if a != "self" and a in data}
@@ -820,7 +836,8 @@ def test_model_pre_logits_matches_headless_forward(
         headless = model.to(device)(**kwargs)
 
     assert pre_logits.shape == headless.shape, f"{model_name}: {tuple(pre_logits.shape)} != {tuple(headless.shape)}"
-    assert torch.allclose(pre_logits, headless, atol=1e-5, equal_nan=True), f"{model_name}: pre_logits != headless"
+    # CUDA scatter reductions are not deterministic: two forwards of one PVCNN differ by 2e-5.
+    assert torch.allclose(pre_logits, headless, atol=1e-4, equal_nan=True), f"{model_name}: pre_logits != headless"
 
     if device == "cuda":
         torch.cuda.empty_cache()
