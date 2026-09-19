@@ -1,4 +1,4 @@
-"""Generate a tiny SemanticKITTI fixture by subsampling real raw scans.
+"""Generate a tiny synthetic SemanticKITTI fixture in the layout of the original release.
 
 The output mirrors the real layout:
 
@@ -8,11 +8,11 @@ The output mirrors the real layout:
 The test split (sequences 11-21 in the real dataset) has velodyne but no `labels/`,
 matching the real release where test labels are withheld.
 
-The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/SemanticKITTI/raw`.
+No scan of the original release is read: every sweep is cast from a seeded generator, one ray per
+(beam, azimuth) pair of a spinning sensor, against a road, a facade and a parked car.
 
 Usage:
     uv run --no-sync python scripts/generate.py raw ./raw
-    uv run --no-sync python scripts/generate.py raw ./raw --src-dir /path/to/SemanticKITTI/raw
 """
 
 from argparse import ArgumentParser, Namespace
@@ -20,85 +20,63 @@ from pathlib import Path
 
 import numpy as np
 
-from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_SEQUENCES_PER_SPLIT
-
-
-def _subsample_scan(src_bin: Path, dst_bin: Path, indices: np.ndarray) -> None:
-    scan = np.fromfile(src_bin, dtype=np.float32).reshape(-1, 4)
-    dst_bin.parent.mkdir(parents=True, exist_ok=True)
-    scan[indices].astype(np.float32).tofile(dst_bin)
-
-
-def _subsample_label(src_label: Path, dst_label: Path, indices: np.ndarray) -> None:
-    labels = np.fromfile(src_label, dtype=np.uint32)
-    dst_label.parent.mkdir(parents=True, exist_ok=True)
-    labels[indices].astype(np.uint32).tofile(dst_label)
 
 
 def generate(args: Namespace) -> None:
     rng = np.random.default_rng(args.seed)
-    src_root = Path(args.src_dir)
     out_root = Path(args.dst_dir)
 
-    if not src_root.exists():
-        raise FileNotFoundError(
-            f"Source SemanticKITTI raw directory not found: {src_root!r}. "
-            f"Set --src-dir or TORCH_POINTCLOUD_DATA_DIR to a folder containing 'sequences/'."
-        )
-
-    # Pick a few sequences from each split. Keeping it tiny — 1 sequence per split,
-    # 2 frames per sequence — is enough to exercise enumeration and per-split routing.
+    # Keeping it tiny (1 sequence per split, 2 frames per sequence) is enough to exercise enumeration
+    # and per-split routing.
     plan = {
         "train": (SEMANTIC_KITTI_SEQUENCES_PER_SPLIT["train"][0], 2),  # seq 00
         "val": (SEMANTIC_KITTI_SEQUENCES_PER_SPLIT["val"][0], 2),  # seq 08
         "test": (SEMANTIC_KITTI_SEQUENCES_PER_SPLIT["test"][0], 2),  # seq 11 (no labels)
     }
 
+    num_beams = 16
+    azimuth, elevation = np.meshgrid(
+        np.linspace(-np.pi, np.pi, args.num_points // num_beams, endpoint=False),
+        np.deg2rad(np.linspace(-24.8, -0.5, num_beams)),
+    )
+    azimuth, elevation = azimuth.ravel(), elevation.ravel()
+
     for split, (seq, num_frames) in plan.items():
-        src_seq_dir = src_root / "sequences" / seq
-        src_velodyne = src_seq_dir / "velodyne"
-        src_labels = src_seq_dir / "labels"
-
-        if not src_velodyne.exists():
-            raise FileNotFoundError(f"Missing velodyne directory for sequence {seq!r}: {src_velodyne!r}")
-
-        bin_paths = sorted(src_velodyne.glob("*.bin"))[:num_frames]
-        if not bin_paths:
-            raise FileNotFoundError(f"No .bin scans found in {src_velodyne!r}")
-
         dst_seq_dir = out_root / "sequences" / seq
-        for src_bin in bin_paths:
-            scan = np.fromfile(src_bin, dtype=np.float32).reshape(-1, 4)
-            num_total = scan.shape[0]
-            num_keep = min(args.num_points, num_total)
-            indices = rng.choice(num_total, size=num_keep, replace=False)
-            indices.sort()
+        for frame in range(num_frames):
+            # Horizontal distance at which each ray stops: on the road 1.73 m below the sensor, on a facade,
+            # or on a car parked in a narrow azimuth sector.
+            road = 1.73 / np.tan(-elevation)
+            facade = np.full_like(road, rng.uniform(8.0, 40.0))
+            car_azimuth = rng.uniform(-np.pi, np.pi - 0.4)
+            car = np.where((azimuth > car_azimuth) & (azimuth < car_azimuth + 0.4), rng.uniform(4.0, 7.0), np.inf)
+            distance = np.stack([road, facade, car])
+            hit = distance.argmin(axis=0)
+            distance = distance.min(axis=0)
 
-            dst_bin = dst_seq_dir / "velodyne" / src_bin.name
-            _subsample_scan(src_bin, dst_bin, indices)
+            pos = np.stack(
+                [distance * np.cos(azimuth), distance * np.sin(azimuth), distance * np.tan(elevation)], axis=1
+            )
+            pos += rng.normal(0.0, 0.02, size=pos.shape)
+            scan = np.concatenate([pos, rng.uniform(0.0, 1.0, size=(len(pos), 1))], axis=1)
+            (dst_seq_dir / "velodyne").mkdir(parents=True, exist_ok=True)
+            scan.astype(np.float32).tofile(dst_seq_dir / "velodyne" / f"{frame:06d}.bin")
 
             if split != "test":
-                src_label = src_labels / f"{src_bin.stem}.label"
-                if not src_label.exists():
-                    raise FileNotFoundError(f"Missing label file for {src_bin.name!r}: {src_label!r}")
-                dst_label = dst_seq_dir / "labels" / f"{src_bin.stem}.label"
-                _subsample_label(src_label, dst_label, indices)
+                semantic = np.array([40, 50, 10], dtype=np.uint32)[hit]  # road, building, car
+                instance = (hit == 2).astype(np.uint32)
+                (dst_seq_dir / "labels").mkdir(parents=True, exist_ok=True)
+                ((instance << 16) | semantic).tofile(dst_seq_dir / "labels" / f"{frame:06d}.label")
 
-        print(f"generated {split:>5}: sequences/{seq} ({len(bin_paths)} frames, {args.num_points} pts each)")
+        print(f"generated {split:>5}: sequences/{seq} ({num_frames} frames, {args.num_points} pts each)")
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate a tiny SemanticKITTI test fixture by subsampling real scans.")
+    parser = ArgumentParser(description="Generate a tiny synthetic SemanticKITTI test fixture.")
     parser.add_argument("command", choices=["raw"], help="What to generate (only 'raw' is supported).")
     parser.add_argument("dst_dir", type=str, help="Output directory (e.g. ./raw).")
-    parser.add_argument(
-        "--src-dir",
-        type=str,
-        default=str(Path(DATA_DIR) / "SemanticKITTI" / "raw"),
-        help="Source SemanticKITTI raw directory (default: $TORCH_POINTCLOUD_DATA_DIR/SemanticKITTI/raw).",
-    )
-    parser.add_argument("--num-points", type=int, default=1024, help="Points per scan after subsampling.")
+    parser.add_argument("--num-points", type=int, default=1024, help="Points per scan.")
     parser.add_argument("--seed", type=int, default=42, help="RNG seed.")
     return parser.parse_args()
 

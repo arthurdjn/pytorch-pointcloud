@@ -1,17 +1,13 @@
-"""Generate a tiny ScanNet fixture by subsampling real scenes.
+"""Generate a tiny synthetic ScanNet fixture in the layout of the original release.
 
-For each scene picked from `metadata/scannetv2_{split}.txt`, we keep `--num-points`
-vertices from `{scene_id}_vh_clean_2.ply`, propagate the subsample to the
-`segs.json` (per-vertex segment id), and rewrite the faces array to keep only
-triangles whose three vertices were all retained. The aggregation JSON and
-metadata `.txt` are copied verbatim — they reference `objectId` / segment ids
-that survive subsampling.
+Each scene is a room of triangulated planar patches, one per object, so the loader can estimate vertex
+normals from the faces. A scene ships the four files of the release: the `_vh_clean_2.ply` mesh, the
+`segs.json` over-segmentation (per-vertex segment id), the `aggregation.json` grouping segments into labelled
+objects, and the metadata `.txt` holding the `axisAlignment` matrix. One patch belongs to no object, so every
+scene holds unlabelled vertices next to the 0-based `objectId` 0. No scan of the original release is read: the
+scenes are drawn from a seeded generator.
 
-If the official split file references scene IDs that aren't present in
-`--src-dir`, the script falls back to whichever scene IDs *are* present and
-writes a fixture-local split file matching the kept scenes.
-
-The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/ScanNet/raw`.
+The labels file under `{version}/tasks/` is not written by this script.
 
 Usage:
     uv run --no-sync python scripts/generate.py raw ./raw --version v2 --split train
@@ -19,17 +15,13 @@ Usage:
 """
 
 import json
-import shutil
 import warnings
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import plyfile
-from tqdm import tqdm
 
-from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet, ScanNet20
 
 
@@ -46,19 +38,11 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate ScanNet test data by subsampling real scenes.")
+    parser = ArgumentParser(description="Generate synthetic ScanNet test data.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     raw_parser = subparsers.add_parser("raw", help="Generate raw test data")
     raw_parser.add_argument("dst_dir", type=str, help="Path to output raw data")
-    raw_parser.add_argument(
-        "--src-dir",
-        type=str,
-        default=str(Path(DATA_DIR) / "ScanNet" / "raw"),
-        help="Source ScanNet raw directory (default: $TORCH_POINTCLOUD_DATA_DIR/ScanNet/raw).",
-    )
-    raw_parser.add_argument("--num-points", type=int, default=1024, help="Number of vertices kept per scene.")
-    raw_parser.add_argument("--num-scenes", type=int, default=5, help="Number of scenes per split/version.")
     raw_parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     raw_parser.add_argument("--version", type=str, default="v2", help="ScanNet version (v1 or v2).")
     raw_parser.add_argument("--split", type=str, default="train", help="Split (train, val, test).")
@@ -73,178 +57,123 @@ def parse_args() -> Namespace:
 
 
 def generate_raw(args: Namespace) -> None:
-    rng = np.random.default_rng(args.seed)
-    src_root = Path(args.src_dir)
     dst_root = Path(args.dst_dir)
-    if not src_root.exists():
-        raise FileNotFoundError(
-            f"Source ScanNet raw directory not found: {src_root!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
-        )
+    scene_ids = {
+        "train": ["scene0191_00", "scene0191_01", "scene0191_02", "scene0119_00", "scene0230_00"],
+        "val": ["scene0568_00", "scene0568_01", "scene0568_02", "scene0304_00", "scene0488_00"],
+        "test": ["scene0000_00", "scene0000_01", "scene0000_02", "scene0001_00", "scene0001_01"],
+    }
+    # Seeded per split and not per version, so v1 and v2 hold the same scenes like the real releases do.
+    rng = np.random.default_rng([args.seed, list(scene_ids).index(args.split)])
 
-    # The source ships only v2 scans; we use the same vertex data for v1 too.
-    src_scans_root = src_root / "v2" / "scans"
-    if not src_scans_root.exists():
-        raise FileNotFoundError(f"Missing v2 scans directory: {src_scans_root!r}")
-
-    # Copy the version-specific labels file from wherever the source keeps it.
-    labels_filename = "scannetv2-labels.combined.tsv" if args.version == "v2" else "scannet-labels.combined.tsv"
-    src_labels = _find_labels_file(src_root, labels_filename)
-    dst_labels = dst_root / args.version / "tasks" / labels_filename
-    dst_labels.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src_labels, dst_labels)
-
-    # Decide which scenes to ship. Prefer scenes from the official split file that
-    # exist locally; otherwise fall back to the first `num_scenes` scenes on disk.
-    src_split = src_root / "metadata" / f"scannetv2_{args.split}.txt"
-    candidate_ids: List[str] = []
-    if src_split.exists():
-        with open(src_split) as f:
-            candidate_ids = [line.strip() for line in f if line.strip()]
-    available = {p.name for p in src_scans_root.iterdir() if p.is_dir()}
-    kept_ids = [sid for sid in candidate_ids if sid in available][: args.num_scenes]
-    if not kept_ids:
-        # Fallback: no split-listed scenes are present; pick whatever we have.
-        kept_ids = sorted(available)[: args.num_scenes]
-
-    # Write the fixture's own split file listing the kept scenes.
     dst_split = dst_root / "metadata" / f"scannetv2_{args.split}.txt"
     dst_split.parent.mkdir(parents=True, exist_ok=True)
     with open(dst_split, "w") as f:
-        f.write("\n".join(kept_ids) + "\n")
+        f.write("\n".join(scene_ids[args.split]) + "\n")
 
-    for scene_id in tqdm(kept_ids, total=len(kept_ids), desc=f"Generating {args.version}/{args.split}"):
-        src_scene_dir = src_scans_root / scene_id
-        dst_scene_dir = dst_root / args.version / "scans" / scene_id
-        dst_scene_dir.mkdir(parents=True, exist_ok=True)
-
-        keep_indices = _subsample_scene(src_scene_dir, dst_scene_dir, scene_id, args.num_points, rng)
-        _subsample_segs(src_scene_dir, dst_scene_dir, scene_id, keep_indices)
-        # Test scenes are released without aggregation/segs in the real release.
-        # But we already wrote segs (vertex-to-segment) above; only skip aggregation
-        # for test if it isn't present in the source.
-        _copy_aggregation(src_scene_dir, dst_scene_dir, scene_id, optional=(args.split == "test"))
-        _copy_metadata(src_scene_dir, dst_scene_dir, scene_id)
+    for scene_id in scene_ids[args.split]:
+        scene_dir = dst_root / args.version / "scans" / scene_id
+        scene_dir.mkdir(parents=True, exist_ok=True)
+        _write_scene(scene_dir, scene_id, rng)
+    print(f"  {args.version}/{args.split}: wrote {len(scene_ids[args.split])} scenes")
 
 
-def _find_labels_file(src_root: Path, filename: str) -> Path:
-    for candidate in (
-        src_root / "v2" / "tasks" / filename,
-        src_root / "metadata" / filename,
-        src_root / "v1" / "tasks" / filename,
-    ):
-        if candidate.exists():
-            return candidate
-    # Cross-version fallback: ship the v2 file named as v1.
-    cross = src_root / "v2" / "tasks" / "scannetv2-labels.combined.tsv"
-    if cross.exists():
-        return cross
-    raise FileNotFoundError(f"Could not find labels file {filename!r} under {src_root!r}.")
+def _write_scene(scene_dir: Path, scene_id: str, rng: np.random.Generator) -> None:
+    # `raw_category` names of the labels file; `couch` and `refrigerator` differ from their `nyu40class`.
+    furniture = [
+        "chair",
+        "couch",
+        "table",
+        "door",
+        "window",
+        "bookshelf",
+        "cabinet",
+        "bed",
+        "desk",
+        "curtain",
+        "refrigerator",
+        "toilet",
+        "sink",
+        "bathtub",
+        "picture",
+        "counter",
+        "shower curtain",
+    ]
+    labels = ["wall", "wall", "floor", *rng.choice(furniture, size=8, replace=False), None]
+    size_x, size_y = rng.uniform(4.0, 8.0, size=2)
 
+    # One planar patch per object, as an origin and two edge vectors. The last patch belongs to no object.
+    patches = [
+        ((0.0, 0.0, 0.0), (size_x, 0.0, 0.0), (0.0, 0.0, 2.5)),
+        ((0.0, 0.0, 0.0), (0.0, size_y, 0.0), (0.0, 0.0, 2.5)),
+        ((0.0, 0.0, 0.0), (size_x, 0.0, 0.0), (0.0, size_y, 0.0)),
+    ]
+    for _ in labels[3:]:
+        corner = (*rng.uniform((0.0, 0.0), (size_x - 1.0, size_y - 1.0)), rng.uniform(0.3, 1.2))
+        patches.append((corner, (rng.uniform(0.4, 1.0), 0.0, 0.0), (0.0, rng.uniform(0.4, 1.0), 0.0)))
 
-def _subsample_scene(
-    src_scene_dir: Path,
-    dst_scene_dir: Path,
-    scene_id: str,
-    num_points: int,
-    rng: np.random.Generator,
-) -> np.ndarray:
-    """Subsample the `_vh_clean_2.ply` mesh, returning the kept vertex indices.
+    resolution = 8
+    u, v = np.meshgrid(np.linspace(0.0, 1.0, resolution), np.linspace(0.0, 1.0, resolution), indexing="ij")
+    i, j = np.meshgrid(np.arange(resolution - 1), np.arange(resolution - 1), indexing="ij")
+    corners = (i * resolution + j).ravel()
+    patch_faces = np.concatenate(
+        [
+            np.stack([corners, corners + resolution, corners + 1], axis=1),
+            np.stack([corners + 1, corners + resolution, corners + resolution + 1], axis=1),
+        ]
+    )
 
-    We sample triangles first and keep their unique vertices, which preserves the
-    mesh connectivity needed for `vertex_normals` (random vertex sampling would
-    leave most faces with at least one dropped corner and produce an empty face
-    array).
-    """
-    src_ply = src_scene_dir / f"{scene_id}_vh_clean_2.ply"
-    if not src_ply.exists():
-        raise FileNotFoundError(f"Missing PLY: {src_ply!r}")
+    pos, color, faces, seg_indices, seg_groups = [], [], [], [], []
+    segment_ids = rng.choice(30000, size=2 * len(patches), replace=False)
+    for k, (label, (origin, edge_u, edge_v)) in enumerate(zip(labels, patches)):
+        grid = np.asarray(origin) + u[..., None] * np.asarray(edge_u) + v[..., None] * np.asarray(edge_v)
+        # Scanner-like noise: perfectly flat patches make the pretrained snapshots sensitive to kernel round-off.
+        pos.append(grid.reshape(-1, 3) + rng.normal(0.0, 0.01, size=(resolution**2, 3)))
+        color.append(np.clip(rng.integers(0, 256, size=3) + rng.integers(-10, 11, size=(resolution**2, 3)), 0, 255))
+        faces.append(patch_faces + k * resolution**2)
+        # Every patch is over-segmented into two segments.
+        segments = segment_ids[2 * k : 2 * k + 2]
+        seg_indices.append(np.repeat(segments, resolution**2 // 2))
+        if label is not None:
+            seg_groups.append({"id": k, "objectId": k, "segments": segments.tolist(), "label": str(label)})
 
-    with open(src_ply, "rb") as f:
-        plydata = plyfile.PlyData.read(f)
-    src_vertex = plydata["vertex"].data
-    src_face = plydata["face"].data
+    # The mesh is stored in the scanner frame: `axisAlignment` maps it back onto the axis-aligned room.
+    theta = rng.uniform(-np.pi, np.pi)
+    alignment = np.eye(4)
+    alignment[:2, :2] = [[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]
+    alignment[:3, 3] = rng.uniform(-4.0, 4.0, size=3)
+    raw_pos = (np.concatenate(pos) - alignment[:3, 3]) @ alignment[:3, :3]
 
-    n_vertices = src_vertex.shape[0]
-    src_face_indices = np.stack([np.asarray(face, dtype=np.int64) for face in src_face["vertex_indices"]], axis=0)
-    n_faces = src_face_indices.shape[0]
+    vertex = np.empty(
+        len(raw_pos),
+        dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("red", "u1"), ("green", "u1"), ("blue", "u1"), ("alpha", "u1")],
+    )
+    vertex["x"], vertex["y"], vertex["z"] = raw_pos.T
+    vertex["red"], vertex["green"], vertex["blue"] = np.concatenate(color).T
+    vertex["alpha"] = 255
+    face = np.empty(len(faces) * len(patch_faces), dtype=[("vertex_indices", "i4", (3,))])
+    face["vertex_indices"] = np.concatenate(faces)
+    plyfile.PlyData(
+        [plyfile.PlyElement.describe(vertex, "vertex"), plyfile.PlyElement.describe(face, "face")],
+        text=False,
+    ).write(str(scene_dir / f"{scene_id}_vh_clean_2.ply"))
 
-    # Pick enough faces so the unique-vertex set has roughly `num_points` entries.
-    # `num_points * 2 // 3` is an empirical heuristic (≈3 verts/face minus shared).
-    target_faces = min(n_faces, max(1, num_points * 2 // 3))
-    face_indices = rng.choice(n_faces, size=target_faces, replace=False)
-    face_indices.sort()
-    selected_faces = src_face_indices[face_indices]
-
-    keep_indices = np.unique(selected_faces.ravel())
-    if keep_indices.size > num_points:
-        keep_indices = rng.choice(keep_indices, size=num_points, replace=False)
-        keep_indices.sort()
-        # Filter faces again so all three corners survive.
-        old_to_new_partial = np.full(n_vertices, -1, dtype=np.int64)
-        old_to_new_partial[keep_indices] = np.arange(keep_indices.size, dtype=np.int64)
-        valid = (old_to_new_partial[selected_faces] >= 0).all(axis=1)
-        selected_faces = selected_faces[valid]
-
-    new_vertex = src_vertex[keep_indices]
-    old_to_new = np.full(n_vertices, -1, dtype=np.int64)
-    old_to_new[keep_indices] = np.arange(keep_indices.size, dtype=np.int64)
-    remapped = old_to_new[selected_faces]
-    if remapped.size == 0:
-        # Pathological case: keep at least one degenerate face referencing the
-        # first three vertices so downstream readers don't choke on an empty array.
-        remapped = np.array([[0, min(1, keep_indices.size - 1), min(2, keep_indices.size - 1)]], dtype=np.int64)
-
-    new_face_data = np.empty(remapped.shape[0], dtype=src_face.dtype)
-    new_face_data["vertex_indices"] = [tuple(row) for row in remapped]
-
-    vertex_element = plyfile.PlyElement.describe(new_vertex, "vertex")
-    face_element = plyfile.PlyElement.describe(new_face_data, "face")
-
-    dst_ply = dst_scene_dir / f"{scene_id}_vh_clean_2.ply"
-    plyfile.PlyData([vertex_element, face_element], text=False).write(str(dst_ply))
-    return keep_indices
-
-
-def _subsample_segs(
-    src_scene_dir: Path,
-    dst_scene_dir: Path,
-    scene_id: str,
-    keep_indices: np.ndarray,
-) -> None:
-    src_segs = src_scene_dir / f"{scene_id}_vh_clean_2.0.010000.segs.json"
-    if not src_segs.exists():
-        return
-    with open(src_segs, "r") as f:
-        segs = json.load(f)
-
-    src_seg_indices = np.asarray(segs["segIndices"], dtype=np.int64)
-    new_seg_indices = src_seg_indices[keep_indices].tolist()
-    segs["segIndices"] = new_seg_indices
-
-    dst_segs = dst_scene_dir / f"{scene_id}_vh_clean_2.0.010000.segs.json"
-    with open(dst_segs, "w") as f:
-        json.dump(segs, f)
-
-
-def _copy_aggregation(src_scene_dir: Path, dst_scene_dir: Path, scene_id: str, optional: bool = False) -> None:
-    src_agg = src_scene_dir / f"{scene_id}.aggregation.json"
-    if not src_agg.exists():
-        # Some scenes ship the aggregation under `_vh_clean.aggregation.json`. Either is fine.
-        alt = src_scene_dir / f"{scene_id}_vh_clean.aggregation.json"
-        if alt.exists():
-            src_agg = alt
-        elif optional:
-            return
-        else:
-            raise FileNotFoundError(f"Missing aggregation file for scene {scene_id!r}: {src_agg!r}")
-    dst_agg = dst_scene_dir / f"{scene_id}.aggregation.json"
-    shutil.copyfile(src_agg, dst_agg)
-
-
-def _copy_metadata(src_scene_dir: Path, dst_scene_dir: Path, scene_id: str) -> None:
-    src_meta = src_scene_dir / f"{scene_id}.txt"
-    dst_meta = dst_scene_dir / f"{scene_id}.txt"
-    shutil.copyfile(src_meta, dst_meta)
+    segs_name = f"{scene_id}_vh_clean_2.0.010000.segs.json"
+    with open(scene_dir / segs_name, "w") as f:
+        json.dump({"sceneId": scene_id, "segIndices": np.concatenate(seg_indices).tolist()}, f)
+    with open(scene_dir / f"{scene_id}.aggregation.json", "w") as f:
+        json.dump(
+            {
+                "sceneId": f"scannet.{scene_id}",
+                "appId": "Aggregator.v2",
+                "segGroups": seg_groups,
+                "segmentsFile": f"scannet.{segs_name}",
+            },
+            f,
+        )
+    with open(scene_dir / f"{scene_id}.txt", "w") as f:
+        f.write(f"axisAlignment = {' '.join(f'{value:.6f}' for value in alignment.ravel())} \n")
+        f.write("colorHeight = 968\ncolorWidth = 1296\nfx_color = 1170.187988\nsceneType = Misc.\n")
 
 
 def generate_processed(args: Namespace) -> None:
@@ -267,6 +196,20 @@ def generate_processed(args: Namespace) -> None:
         show_progress=True,
         force_process=True,
     )
+    # The tiling tests read the val split without the axis alignment (lives under `processed_noalign_20/`).
+    if args.split == "val":
+        _ = ScanNet20(
+            root=root,
+            version=args.version,
+            split=args.split,
+            use_axis_alignment=False,
+            show_progress=True,
+            force_process=True,
+        )
+
+    # v1 and v2 are processed into the same directories, and a completion marker would pin them to one version.
+    for meta_path in Path(root, "ScanNet").glob(f"processed*/{args.split}/meta.json"):
+        meta_path.unlink()
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Updated all tests datasets to use random data instead of subsampled versions of original ones (for testing).
 - Added `sw_batch_size` parameter for `SlidingWindowInferer` for faster inference.
 - Updated benchmark scripts to use `batch_size > 1` for faster benchmarking.
 - Updated the `SerializedRPE` attention module operation to use less memory.

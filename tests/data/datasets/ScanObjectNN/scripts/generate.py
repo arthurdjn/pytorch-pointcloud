@@ -1,9 +1,8 @@
-"""Generate a tiny ScanObjectNN fixture by subsampling real `.h5` archives.
+"""Generate a tiny synthetic ScanObjectNN fixture in the layout of the original release.
 
-For each (partition, background, split, variant) combination, we keep one real example
-per class (15 classes) and randomly subsample its points down to `--num-points`.
-
-The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/ScanObjectNN/raw`.
+For each (partition, background, split, variant) combination, we write an `.h5` archive of `--num-objects`
+objects with `--num-points` points each. No archive of the original release is read: every object is a noisy
+ellipsoid drawn from a seeded generator, standing on a floor patch in the archives that keep the background.
 
 Usage:
     uv run --no-sync python scripts/generate.py raw ./raw
@@ -16,7 +15,6 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanObjectNN
 from torch_pointcloud.datasets.scanobjectnn import (
     SCANOBJECTNN_CLASSES,
@@ -54,18 +52,12 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate ScanObjectNN test data by subsampling real .h5 files.")
+    parser = ArgumentParser(description="Generate synthetic ScanObjectNN test data.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     raw_parser = subparsers.add_parser("raw", help="Generate raw test data")
     raw_parser.add_argument("dst_dir", type=str, help="Path to output raw data directory")
-    raw_parser.add_argument(
-        "--src-dir",
-        type=str,
-        default=str(Path(DATA_DIR) / "ScanObjectNN" / "raw"),
-        help="Source ScanObjectNN raw directory (default: $TORCH_POINTCLOUD_DATA_DIR/ScanObjectNN/raw).",
-    )
-    raw_parser.add_argument("--num-points", type=int, default=1024, help="Points per object after subsampling.")
+    raw_parser.add_argument("--num-points", type=int, default=1024, help="Points per object.")
     raw_parser.add_argument(
         "--num-objects",
         type=int,
@@ -80,17 +72,6 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def _pick_one_per_class(labels: np.ndarray) -> np.ndarray:
-    """Return indices of the first occurrence of each class id in `labels`."""
-    picked = []
-    for cls in range(NUM_CLASSES):
-        matches = np.flatnonzero(labels == cls)
-        if matches.size == 0:
-            continue
-        picked.append(int(matches[0]))
-    return np.asarray(picked, dtype=np.int64)
-
-
 # Files that must contain one example per class so per-class unit tests pass.
 # All others only need a couple of examples (enough for batch_size=2 forwards).
 _FULL_COVERAGE_FILES: set[str] = {
@@ -99,12 +80,6 @@ _FULL_COVERAGE_FILES: set[str] = {
 
 
 def generate_raw(args: Namespace) -> None:
-    src_root = Path(args.src_dir)
-    if not src_root.exists():
-        raise FileNotFoundError(
-            f"Source ScanObjectNN raw directory not found: {src_root!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
-        )
-
     rng = np.random.default_rng(args.seed)
 
     for split_dir in SPLIT_DIRS:
@@ -112,45 +87,28 @@ def generate_raw(args: Namespace) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
 
         for stem in FILE_STEMS:
-            src_h5 = src_root / split_dir / f"{stem}.h5"
-            if not src_h5.exists():
-                # Some variants exist only for a subset of splits; fall back to the
-                # first available source file so the fixture preserves the layout.
-                fallback = _find_fallback(src_root, stem)
-                if fallback is None:
-                    raise FileNotFoundError(f"Could not find any source .h5 for stem {stem!r} under {src_root!r}.")
-                src_h5 = fallback
-
-            with h5py.File(src_h5, "r") as f:
-                src_pos = f["data"][:]  # (N, 2048, 3)
-                src_labels = f["label"][:]  # (N,)
-
-            relpath = f"{split_dir}/{stem}.h5"
-            if relpath in _FULL_COVERAGE_FILES:
-                indices = _pick_one_per_class(src_labels.astype(np.int64))
+            if f"{split_dir}/{stem}.h5" in _FULL_COVERAGE_FILES:
+                labels = np.arange(NUM_CLASSES, dtype=np.int64)
             else:
-                indices = np.arange(min(args.num_objects, src_pos.shape[0]), dtype=np.int64)
-            pos = src_pos[indices]
-            labels = src_labels[indices].astype(np.int64)
+                labels = rng.integers(0, NUM_CLASSES, size=args.num_objects)
 
-            num_pts = min(args.num_points, pos.shape[1])
-            point_idx = rng.choice(pos.shape[1], size=num_pts, replace=False)
-            point_idx.sort()
-            pos = pos[:, point_idx, :].astype(np.float32)
+            direction = rng.normal(size=(len(labels), args.num_points, 3))
+            direction /= np.linalg.norm(direction, axis=2, keepdims=True)
+            pos = rng.uniform(0.2, 0.8, size=(len(labels), 1, 3)) * direction
+            pos += rng.normal(0.0, 0.01, size=pos.shape)
+            if not split_dir.endswith("_nobg"):
+                # A quarter of the points lie on the floor the object stands on.
+                num_floor = args.num_points // 4
+                pos[:, :num_floor, :2] = rng.uniform(-1.0, 1.0, size=(len(labels), num_floor, 2))
+                pos[:, :num_floor, 2] = pos[:, :, 2].min(axis=1, keepdims=True)
 
             dst_h5 = out_dir / f"{stem}.h5"
             with h5py.File(dst_h5, "w") as f:
-                f.create_dataset("data", data=pos)
+                f.create_dataset("data", data=pos.astype(np.float32))
                 f.create_dataset("label", data=labels)
-            print(f"  {dst_h5}  (objects={len(labels)}, points={num_pts})")
+            print(f"  {dst_h5}  (objects={len(labels)}, points={args.num_points})")
 
     print("Done!")
-
-
-def _find_fallback(src_root: Path, stem: str) -> Path | None:
-    for candidate in src_root.rglob(f"{stem}.h5"):
-        return candidate
-    return None
 
 
 def generate_processed(args: Namespace) -> None:

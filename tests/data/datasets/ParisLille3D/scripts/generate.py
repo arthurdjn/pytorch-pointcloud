@@ -1,11 +1,9 @@
-"""Generate a tiny Paris-Lille-3D fixture by subsampling real `.ply` scans.
+"""Generate a tiny synthetic Paris-Lille-3D fixture in the layout of the original release.
 
-For each PLY file shipped with the 10-class benchmark
-(`Lille1_1`, `Lille1_2`, `Lille2`, `Paris`), we keep `--num-points` randomly
-sampled vertices and preserve the original schema
-(`x`, `y`, `z`, `reflectance`, `class`).
-
-The default source directory is `$TORCH_POINTCLOUD_DATA_DIR/ParisLille3D/raw`.
+For each PLY file of the 10-class benchmark (`Lille1_1`, `Lille1_2`, `Lille2`, `Paris`), we write
+`--num-points` vertices in the original schema (`x`, `y`, `z`, `reflectance`, `class`). No scan of the
+original release is read: every tile is a street drawn from a seeded generator, where each of the 10
+classes sits in its own height range above the road.
 
 Usage:
     uv run --no-sync python scripts/generate.py raw ./raw
@@ -17,8 +15,6 @@ from pathlib import Path
 import numpy as np
 import plyfile
 
-from torch_pointcloud.config import DATA_DIR
-
 DEFAULT_FILES = ("Lille1_1.ply", "Lille1_2.ply", "Lille2.ply", "Paris.ply")
 
 
@@ -29,56 +25,57 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Generate Paris-Lille-3D test data by subsampling real .ply files.")
+    parser = ArgumentParser(description="Generate synthetic Paris-Lille-3D test data.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     raw_parser = subparsers.add_parser("raw", help="Generate raw test data")
     raw_parser.add_argument("dst_dir", type=str, help="Path to output raw directory.")
-    raw_parser.add_argument(
-        "--src-dir",
-        type=str,
-        default=str(Path(DATA_DIR) / "ParisLille3D" / "raw"),
-        help="Source ParisLille3D raw directory (default: $TORCH_POINTCLOUD_DATA_DIR/ParisLille3D/raw).",
-    )
-    raw_parser.add_argument("--num-points", type=int, default=1024, help="Vertices kept per PLY after subsampling.")
+    raw_parser.add_argument("--num-points", type=int, default=1024, help="Vertices per PLY.")
     raw_parser.add_argument(
         "--files",
         nargs="+",
         default=list(DEFAULT_FILES),
-        help="PLY file names to subsample (relative to --src-dir).",
+        help="PLY file names to write.",
     )
     raw_parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     return parser.parse_args()
 
 
 def generate_raw(args: Namespace) -> None:
-    src_root = Path(args.src_dir)
     dst_root = Path(args.dst_dir)
-    if not src_root.exists():
-        raise FileNotFoundError(
-            f"Source ParisLille3D raw directory not found: {src_root!r}. Set --src-dir or TORCH_POINTCLOUD_DATA_DIR."
-        )
-
     rng = np.random.default_rng(args.seed)
     dst_root.mkdir(parents=True, exist_ok=True)
 
-    for fname in args.files:
-        src = src_root / fname
-        if not src.exists():
-            raise FileNotFoundError(f"Missing source PLY: {src!r}")
+    # Lowest and highest height above the road per class, in `PARISLILLE3D_CLASSES` order.
+    height_range = np.array(
+        [
+            [0.0, 3.0],
+            [0.0, 0.05],
+            [0.0, 20.0],
+            [0.0, 6.0],
+            [0.0, 1.0],
+            [0.0, 1.2],
+            [0.0, 1.0],
+            [0.0, 1.8],
+            [0.0, 1.6],
+            [0.5, 8.0],
+        ]
+    )
+    dtype = [("x", "f4"), ("y", "f4"), ("z", "f4"), ("reflectance", "u1"), ("class", "i4")]
 
-        plydata = plyfile.PlyData.read(src.as_posix())
-        v = plydata["vertex"].data
-        n = v.shape[0]
-        keep_n = min(args.num_points, n)
-        indices = rng.choice(n, size=keep_n, replace=False)
-        indices.sort()
-        new_v = v[indices].copy()
+    for k, fname in enumerate(args.files):
+        vertex = np.empty(args.num_points, dtype=dtype)
+        label = rng.integers(0, len(height_range), size=args.num_points)
+        # Consecutive 300 m tiles of one street, 40 m wide, 30 m above sea level.
+        vertex["x"] = rng.uniform(0.0, 40.0, size=args.num_points)
+        vertex["y"] = 300.0 * k + rng.uniform(0.0, 300.0, size=args.num_points)
+        vertex["z"] = 30.0 + rng.uniform(height_range[label, 0], height_range[label, 1])
+        vertex["reflectance"] = rng.integers(0, 256, size=args.num_points)
+        vertex["class"] = label
 
-        vertex_element = plyfile.PlyElement.describe(new_v, "vertex")
         dst = dst_root / fname
-        plyfile.PlyData([vertex_element], text=False).write(dst.as_posix())
-        print(f"  {dst}  (vertices={keep_n})")
+        plyfile.PlyData([plyfile.PlyElement.describe(vertex, "vertex")], text=False).write(dst.as_posix())
+        print(f"  {dst}  (vertices={args.num_points})")
 
 
 if __name__ == "__main__":

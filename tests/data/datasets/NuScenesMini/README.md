@@ -1,28 +1,7 @@
 # NuScenesMini
 
-Tiny nuScenes-mini 3D object-detection fixture obtained by subsampling real keyframes from the
-`v1.0-mini` release (2 LIDAR keyframes, 3 LIDAR clouds each, 1024 points per scan). Only the point
-clouds are subsampled; every metadata record is copied verbatim.
-
-The metadata tables the loader reads are kept as a consistent slice: the chosen keyframes, the prior
-sweeps reachable along their `prev` chains, and the ego poses, sensor calibration, annotations (plus
-their `prev` / `next` neighbors, so velocities resolve), samples, attributes, instances and
-categories those records reference. Keyframes are chosen with the fewest annotations (so the fixture
-stays tiny) among those with a full sweep chain and at least one detection-class object.
-
-The on-disk layout matches the extracted `v1.0-mini`:
-
-```text
-raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance, attribute,
-                                  # sample, sample_annotation, sample_data, scene (consistent subset, verbatim)
-raw/samples/LIDAR_TOP/*.pcd.bin   # float32 (N, 5) = (x, y, z, intensity, ring) keyframes
-raw/sweeps/LIDAR_TOP/*.pcd.bin    # float32 (N, 5) prior sweeps
-```
-
-## Generation
-
-`scripts/generate.py` reads from `$TORCH_POINTCLOUD_DATA_DIR/NuScenesMini` by default (override with
-`--src-dir`).
+Synthetic nuScenes `v1.0-mini`: one `mini_val` scene with 2 keyframes of 3 LiDAR clouds each (1024 points), plus the 9
+metadata tables. It holds a moving car, a pedestrian, a barrier and a non-detection category.
 
 ```bash
 uv run --no-sync python scripts/generate.py

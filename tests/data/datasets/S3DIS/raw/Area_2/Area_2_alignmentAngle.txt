@@ -1,4 +1,4 @@
-## Global alignment angle per disjoint space in Area_1 ##
+## Global alignment angle per disjoint space in Area_2 ##
 ## Disjoint Space Name Global Alignment Angle ##
-auditorium_1 270
-auditorium_2 0
+WC_1 180
+WC_2 270
