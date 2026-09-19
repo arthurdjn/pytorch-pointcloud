@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - Added `sw_batch_size` parameter for `SlidingWindowInferer` for faster inference.
 - Updated benchmark scripts to use `batch_size > 1` for faster benchmarking.
+- Updated the `SerializedRPE` attention module operation to use less memory.
 - Added `FeaturesDict` so that `return_intermediates=True` returns the same list for every model: the encoder stages
   from fine to coarse, each with `x`, `batch` and `pos` or `pos_grid`.
 - Renamed the intermediates keys `features` to `x` and `inverse` to `pooling_inverse`.

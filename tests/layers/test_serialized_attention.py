@@ -15,8 +15,8 @@ from torch_pointcloud.transforms.functional import divisible_pad
 
 def test_relative_positional_encoding_forward() -> None:
     rpe = RelativePositionalEncoding(patch_size=8, num_heads=4)
-    # (B, K, K, 3) of relative voxel offsets
-    coords = torch.randint(-2, 3, (2, 8, 8, 3))
+    # (P, K, 3) of per-patch voxel coordinates
+    coords = torch.randint(0, 16, (2, 8, 3))
     out = rpe(coords)
     assert out.shape == (2, 4, 8, 8)
 
@@ -64,6 +64,26 @@ def test_serialized_attention_rpe_forward() -> None:
     batch = torch.cat([torch.zeros(16), torch.ones(16)]).long()
     out = attn(x, pos_grid, batch, serialized_order=None, serialized_inverse=None, pos=None)
     assert out.shape == (n, 16)
+
+
+def test_relative_positional_encoding_sums_the_three_axis_rows() -> None:
+    """The bias at $(i, j)$ is the sum of the three per-axis table rows its relative offset selects."""
+    rpe = RelativePositionalEncoding(patch_size=8, num_heads=4)
+    with torch.no_grad():
+        rpe.rpe_table.copy_(torch.arange(rpe.rpe_table.numel(), dtype=torch.float32).view_as(rpe.rpe_table))
+
+    pos_grid = torch.tensor([[[0, 5, 2], [40, 1, 2], [3, 3, 9]]])
+    out = rpe(pos_grid)
+
+    boundary, stride = rpe.coords_boundary, rpe.rpe_num
+    for i in range(3):
+        for j in range(3):
+            rows = [
+                int((pos_grid[0, i, axis] - pos_grid[0, j, axis]).clamp(-boundary, boundary)) + boundary + axis * stride
+                for axis in range(3)
+            ]
+            expected = rpe.rpe_table[rows].sum(dim=0)
+            assert torch.equal(out[0, :, i, j], expected)
 
 
 def test_serialized_attention_rpe_requires_pos_grid() -> None:
