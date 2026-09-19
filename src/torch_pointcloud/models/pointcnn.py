@@ -9,7 +9,6 @@ from typing import (
     Dict,
     List,
     Literal,
-    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -27,18 +26,10 @@ from torch_pointcloud.layers import FPS, PoolLike, XConv, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
-
-
-class PointCNNIntermediate(NamedTuple):
-    """Per-stage encoder features and the point cloud they live on, consumed as decoder skips."""
-
-    x: Tensor
-    pos: Tensor
-    batch: Tensor
 
 
 class PointCNNEncoderBlock(nn.Module):
@@ -143,7 +134,7 @@ class PointCNNEncoder(nn.Module):
 
     A stage with a ratio of `0` keeps every point and only transforms features. When
     `return_intermediates=True` is passed to `forward`, the pre-downsampling features of each
-    decimating stage are returned in coarse-to-fine order for `PointCNNDecoder`.
+    decimating stage are returned in fine-to-coarse order for `PointCNNDecoder`.
     """
 
     def __init__(
@@ -199,7 +190,7 @@ class PointCNNEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointCNNIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -217,16 +208,15 @@ class PointCNNEncoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for block in self.blocks:
             if return_intermediates and hasattr(block, "downsample") and block.downsample is not None:
-                intermediate = PointCNNIntermediate(x, pos, batch)
-                intermediates.append(intermediate)
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
             x, pos, batch = block(x, pos, batch)
 
         if return_intermediates:
-            return x, pos, batch, intermediates[::-1]
+            return x, pos, batch, intermediates
         return x, pos, batch
 
 
@@ -280,10 +270,10 @@ class PointCNNDecoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointCNNIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.blocks, intermediates):
-            x, pos, batch = block(x, pos, batch, *intermediate)
+        for block, skip in zip(self.blocks, reversed(intermediates)):
+            x, pos, batch = block(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
 
         return x, pos, batch
 
@@ -392,7 +382,7 @@ class PointCNNClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointCNNIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -552,7 +542,7 @@ class PointCNNSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointCNNIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -577,7 +567,7 @@ class PointCNNSegmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointCNNIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder(x, pos, batch, intermediates)
 

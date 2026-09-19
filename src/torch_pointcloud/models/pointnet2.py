@@ -19,7 +19,7 @@ from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
@@ -155,7 +155,7 @@ class PointNet2Encoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -178,7 +178,7 @@ class PointNet2Encoder(nn.Module):
         if self.stem is not None:
             x = self.stem(x)
 
-        intermediates = [{"x": x, "pos": pos, "batch": batch}] if return_intermediates else []
+        intermediates: List[FeaturesDict] = [{"x": x, "pos": pos, "batch": batch}] if return_intermediates else []
         for i, block in enumerate(self.sa_blocks):
             x, pos, batch = block(x, pos, batch)
             if return_intermediates and i < len(self.sa_blocks) - 1:
@@ -273,7 +273,7 @@ class PointNet2Decoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: Sequence[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         for i, (block, intermediate) in enumerate(zip(self.fp_blocks, reversed(intermediates))):
             x_skip = intermediate["x"] if self.skip_channels[i] > 0 else None
@@ -454,7 +454,7 @@ class PointNet2Classification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -685,7 +685,7 @@ class PointNet2Segmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -722,7 +722,7 @@ class PointNet2Segmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[FeaturesDict],
     ) -> Tensor:
         x, _, _ = self.decoder(x, pos, batch, intermediates)
         return x

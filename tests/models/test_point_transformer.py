@@ -126,7 +126,7 @@ def test_point_transformer_clf_forward_features(
     )
     assert len(intermediates) == len(model_clf.encoder.blocks)
     for intermediate in intermediates:
-        assert "features" in intermediate
+        assert "x" in intermediate
         assert "pos" in intermediate
         assert "batch" in intermediate
 

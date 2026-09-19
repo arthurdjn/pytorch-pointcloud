@@ -9,7 +9,6 @@ from typing import (
     Dict,
     List,
     Literal,
-    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -36,17 +35,9 @@ from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.ops import knn_interpolate
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
-
-
-class PointMLPIntermediate(NamedTuple):
-    """Input features and point cloud of one encoder block, recorded before it downsamples."""
-
-    x: Tensor
-    pos: Tensor
-    batch: Tensor
 
 
 class ResidualLinearBlock(nn.Module):
@@ -276,7 +267,7 @@ class PointMLPEncoder(nn.Module):
 
     A stage with a ratio of `0` keeps every point and only transforms features. When
     `return_intermediates=True` is passed to `forward`, the pre-downsampling features of every stage
-    are returned in coarse-to-fine order, ready to be consumed as decoder skips.
+    are returned in fine-to-coarse order, ready to be consumed as decoder skips.
     """
 
     def __init__(
@@ -372,7 +363,7 @@ class PointMLPEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointMLPIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -390,16 +381,15 @@ class PointMLPEncoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates: List[PointMLPIntermediate] = []
+        intermediates: List[FeaturesDict] = []
         for block in self.blocks:
             if return_intermediates:
-                intermediate = PointMLPIntermediate(x, pos, batch)
-                intermediates.append(intermediate)
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
             x, pos, batch = block(x, pos, batch)
 
         if return_intermediates:
-            return x, pos, batch, intermediates[::-1]
+            return x, pos, batch, intermediates
         return x, pos, batch
 
 
@@ -462,10 +452,10 @@ class PointMLPDecoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointMLPIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.blocks, intermediates):
-            x, pos, batch = block(x, pos, batch, *intermediate)
+        for block, skip in zip(self.blocks, reversed(intermediates)):
+            x, pos, batch = block(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
         return x, pos, batch
 
 
@@ -605,7 +595,7 @@ class PointMLPClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointMLPIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -772,7 +762,7 @@ class PointMLPSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointMLPIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -799,7 +789,7 @@ class PointMLPSegmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointMLPIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder(x, pos, batch, intermediates)
 

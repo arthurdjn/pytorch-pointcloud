@@ -63,6 +63,32 @@ class Detection3D(Boxes3D):
     velocity: NotRequired[Tensor]
 
 
+class FeaturesDict(TypedDict):
+    r"""Features of one encoder stage on a packed point cloud, as returned in the `return_intermediates` list.
+
+    Attributes:
+        x: Stage features, shape $(N_s, C_s)$.
+        batch: Per-point batch index, shape $(N_s,)$.
+        pos: Positions of the stage's points, shape $(N_s, 3)$.
+        pos_grid: Integer grid coordinates of the stage's voxels, shape $(N_s, 3)$.
+    """
+
+    x: Tensor
+    batch: Tensor
+    pos: NotRequired[Tensor]
+    pos_grid: NotRequired[Tensor]
+
+
+class PooledFeaturesDict(FeaturesDict):
+    r"""`FeaturesDict` of a stage pooled by clustering, keeping the map into the next coarser stage.
+
+    Attributes:
+        pooling_inverse: Index of each point's cluster in the next stage, shape $(N_s,)$.
+    """
+
+    pooling_inverse: NotRequired[Tensor]
+
+
 # Flow and aggregation types for message passing
 FlowType = Literal["source_to_target", "target_to_source"]
 AggrType = Literal["add", "mean", "max"]

@@ -3,7 +3,7 @@
 {{ paper("2206.04670") }}
 """
 
-from typing import Any, Callable, Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -20,18 +20,10 @@ from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtResidualBlock, PointNeXtSetAbstraction
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import AggrType, OptTensor
+from torch_pointcloud.utils.types import AggrType, FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
-
-
-class PointNeXtIntermediate(NamedTuple):
-    """Input features and point cloud of one encoder block, recorded before it downsamples."""
-
-    x: Tensor
-    pos: Tensor
-    batch: Tensor
 
 
 class PointNeXtEncoderBlock(nn.Module):
@@ -93,7 +85,7 @@ class PointNeXtEncoder(nn.Module):
     r"""Stack of `PointNeXtEncoderBlock` stages, each preceded by a set-abstraction downsampling.
 
     When `return_intermediates=True` is passed to `forward`, the pre-downsampling features of every
-    stage are returned in coarse-to-fine order, ready to be consumed as decoder skips.
+    stage are returned in fine-to-coarse order, ready to be consumed as decoder skips.
 
     Note:
         `radiuses` and `num_neighbors` hold one entry per channel: entry $i$ configures the
@@ -215,7 +207,7 @@ class PointNeXtEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -233,16 +225,15 @@ class PointNeXtEncoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for block in self.blocks:
             if return_intermediates:
-                intermediate = PointNeXtIntermediate(x, pos, batch)
-                intermediates.append(intermediate)
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
             x, pos, batch = block(x, pos, batch)
 
         if return_intermediates:
-            return x, pos, batch, intermediates[::-1]
+            return x, pos, batch, intermediates
         return x, pos, batch
 
 
@@ -317,10 +308,10 @@ class PointNeXtDecoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointNeXtIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for block, intermediate in zip(self.blocks, intermediates):
-            x, pos, batch = block(x, pos, batch, *intermediate)
+        for block, skip in zip(self.blocks, reversed(intermediates)):
+            x, pos, batch = block(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
         return x, pos, batch
 
 
@@ -406,13 +397,12 @@ class PointNeXtPartDecoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         category: Tensor,
-        intermediates: List[PointNeXtIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # Global features from the bottleneck and deepest skip
         # (computed BEFORE any decoder blocks modify x, matching the reference convention).
-        # intermediates are ordered deep-to-shallow: [0]=deepest, [-1]=shallowest
-        x_deep_skip = intermediates[0].x  # encoder_channels[-2] channels
-        b_deep_skip = intermediates[0].batch
+        x_deep_skip = intermediates[-1]["x"]  # encoder_channels[-2] channels
+        b_deep_skip = intermediates[-1]["batch"]
 
         emb1 = self.global_conv1(x_deep_skip)  # (N_deep, 64)
         emb1 = global_max_pool(emb1, b_deep_skip)  # (B, 64)
@@ -420,12 +410,12 @@ class PointNeXtPartDecoder(nn.Module):
         emb2 = self.global_conv2(x)  # bottleneck, (N_bot, 128)
         emb2 = global_max_pool(emb2, batch)  # (B, 128)
 
-        # Run all decoder blocks except the shallowest (last in the list)
-        for block, intermediate in zip(self.blocks[:-1], intermediates[:-1]):
-            x, pos, batch = block(x, pos, batch, *intermediate)
+        # Run all decoder blocks except the shallowest (first in the list)
+        for block, skip in zip(self.blocks[:-1], reversed(intermediates[1:])):
+            x, pos, batch = block(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
 
         # Expand global features to match the shallowest skip resolution
-        skip_x, skip_pos, skip_batch = intermediates[-1]
+        skip_x, skip_pos, skip_batch = intermediates[0]["x"], intermediates[0]["pos"], intermediates[0]["batch"]
 
         # Scatter-expand: (B, C) -> (N, C) using skip_batch
         emb1_exp = emb1[skip_batch]  # (N, 64)
@@ -433,10 +423,9 @@ class PointNeXtPartDecoder(nn.Module):
         cls_exp = category[skip_batch]  # (N, num_categories)
 
         aug_skip_x = torch.cat([skip_x, emb1_exp, emb2_exp, cls_exp], dim=1)
-        aug_intermediate = PointNeXtIntermediate(aug_skip_x, skip_pos, skip_batch)
 
         # Run the shallowest FP block
-        x, pos, batch = self.blocks[-1](x, pos, batch, *aug_intermediate)
+        x, pos, batch = self.blocks[-1](x, pos, batch, aug_skip_x, skip_pos, skip_batch)
         return x, pos, batch
 
 
@@ -615,7 +604,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -645,7 +634,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         category: Tensor,
-        intermediates: List[PointNeXtIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder(x, pos, batch, category, intermediates)
 
@@ -855,7 +844,7 @@ class PointNeXtClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1079,7 +1068,7 @@ class PointNeXtSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[PointNeXtIntermediate]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1108,7 +1097,7 @@ class PointNeXtSegmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[PointNeXtIntermediate],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder(x, pos, batch, intermediates)
 

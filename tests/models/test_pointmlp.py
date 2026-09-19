@@ -81,10 +81,7 @@ def test_pointmlp_encoder_with_intermediates(data: Dict[str, Tensor]) -> None:
 
     assert len(intermediates) == 3  # Number of blocks
     for intermediate in intermediates:
-        assert hasattr(intermediate, "x")
-        assert hasattr(intermediate, "pos")
-        assert hasattr(intermediate, "batch")
-        assert intermediate.x.shape[0] == intermediate.pos.shape[0] == intermediate.batch.shape[0]
+        assert intermediate["x"].shape[0] == intermediate["pos"].shape[0] == intermediate["batch"].shape[0]
 
 
 def test_pointmlp_encoder_decoder_basic(data: Dict[str, Tensor]) -> None:
@@ -150,9 +147,7 @@ def test_pointmlp_classification_forward_features(
     )
     assert len(intermediates) == len(model_clf.encoder.blocks)
     for intermediate in intermediates:
-        assert hasattr(intermediate, "x")
-        assert hasattr(intermediate, "pos")
-        assert hasattr(intermediate, "batch")
+        assert intermediate["x"].shape[0] == intermediate["pos"].shape[0] == intermediate["batch"].shape[0]
 
 
 def test_pointmlp_classification_forward_features_and_head(

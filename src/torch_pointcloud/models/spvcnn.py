@@ -525,7 +525,7 @@ class SPVCNNDecoderBlock(nn.Module):
         return x_voxels, x_points
 
 
-class SPVCNNIntermediateDict(TypedDict):
+class SPVCNNFeaturesDict(TypedDict):
     """Per-stage encoder features kept for the decoder skip connections."""
 
     x_voxels: "SparseTensor"
@@ -619,7 +619,7 @@ class SPVCNNEncoder(nn.Module):
         x_voxels: "SparseTensor",
         x_points: "PointTensor",
         return_intermediates: Literal[True],
-    ) -> Tuple["SparseTensor", "PointTensor", List[SPVCNNIntermediateDict]]: ...
+    ) -> Tuple["SparseTensor", "PointTensor", List[SPVCNNFeaturesDict]]: ...
 
     @overload
     def forward(
@@ -635,7 +635,7 @@ class SPVCNNEncoder(nn.Module):
         x_points: "PointTensor",
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates: List[SPVCNNIntermediateDict] = []
+        intermediates: List[SPVCNNFeaturesDict] = []
         for i in range(self.num_blocks):
             block = self.get_submodule(self.block_name.format(i=i))
             if return_intermediates:
@@ -726,7 +726,7 @@ class SPVCNNDecoder(nn.Module):
         self,
         x_voxels: "SparseTensor",
         x_points: "PointTensor",
-        intermediates: List[SPVCNNIntermediateDict],
+        intermediates: List[SPVCNNFeaturesDict],
     ) -> Tuple["SparseTensor", "PointTensor"]:
         for i, intermediate in enumerate(reversed(intermediates)):
             block = self.get_submodule(self.block_name.format(i=i))
@@ -1038,12 +1038,31 @@ class SPVCNNSegmentation(SegmentationModel):
         self.num_classes = num_classes
         self.head = self.configure_head()
 
+    @overload
     def forward_features(
         self,
         x: Optional[Tensor],
         pos: Tensor,
         batch: Tensor,
-    ) -> Tuple["SparseTensor", "PointTensor", List[SPVCNNIntermediateDict]]:
+        return_intermediates: Literal[True],
+    ) -> Tuple["SparseTensor", "PointTensor", List[SPVCNNFeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: Optional[Tensor],
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple["SparseTensor", "PointTensor"]: ...
+
+    def forward_features(
+        self,
+        x: Optional[Tensor],
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
         x = pos.float() if x is None else x
         coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
         x_points = PointTensor(x, coords)
@@ -1052,13 +1071,15 @@ class SPVCNNSegmentation(SegmentationModel):
         x_voxels = self.stem(x_voxels)
         x_points = voxel_to_point(x_voxels, x_points)
 
-        return self.encoder(x_voxels, x_points, return_intermediates=True)
+        if return_intermediates:
+            return self.encoder(x_voxels, x_points, return_intermediates=True)
+        return self.encoder(x_voxels, x_points)
 
     def forward_decoder(
         self,
         x_voxels: "SparseTensor",
         x_points: "PointTensor",
-        intermediates: List[SPVCNNIntermediateDict],
+        intermediates: List[SPVCNNFeaturesDict],
     ) -> Tuple["SparseTensor", "PointTensor"]:
         return self.decoder(x_voxels, x_points, intermediates)
 
@@ -1071,7 +1092,7 @@ class SPVCNNSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
     ) -> Tensor:
-        x_voxels, x_points, intermediates = self.forward_features(x, pos, batch)
+        x_voxels, x_points, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x_voxels, x_points = self.forward_decoder(x_voxels, x_points, intermediates)
         return self.forward_head(x_points.F)
 

@@ -29,10 +29,10 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
+from torch_pointcloud.utils.conversion import convert_from_spconv_tensor, convert_to_spconv_tensor
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -242,7 +242,7 @@ class SparseUNetEncoder(nn.Module):
         batch: Tensor,
         *,
         return_intermediates: Literal[True],
-    ) -> Tuple["SparseConvTensor", List["SparseConvTensor"]]: ...
+    ) -> Tuple["SparseConvTensor", List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -268,12 +268,16 @@ class SparseUNetEncoder(nn.Module):
         sparse_x = convert_to_spconv_tensor(x, pos_grid, batch, padding=self.spatial_padding)
         sparse_x = self.conv_input(sparse_x)
 
-        skips: List["SparseConvTensor"] = [sparse_x]
+        skips: List[FeaturesDict] = []
+        if return_intermediates:
+            x_skip, pos_grid_skip, batch_skip = convert_from_spconv_tensor(sparse_x)
+            skips.append({"x": x_skip, "pos_grid": pos_grid_skip, "batch": batch_skip})
         for s in range(self.num_stages):
             sparse_x = self.down[s](sparse_x)
             sparse_x = self.enc[s](sparse_x)
-            if s < self.num_stages - 1:
-                skips.append(sparse_x)
+            if return_intermediates and s < self.num_stages - 1:
+                x_skip, pos_grid_skip, batch_skip = convert_from_spconv_tensor(sparse_x)
+                skips.append({"x": x_skip, "pos_grid": pos_grid_skip, "batch": batch_skip})
 
         if return_intermediates:
             return sparse_x, skips
@@ -366,13 +370,11 @@ class SparseUNetDecoder(nn.Module):
     def forward(
         self,
         x: "SparseConvTensor",
-        skips: List["SparseConvTensor"],
+        skips: List[FeaturesDict],
     ) -> "SparseConvTensor":
-        skips = list(skips)
         for s in reversed(range(self.num_stages)):
             x = self.up[s](x)
-            skip = skips.pop()
-            x = x.replace_feature(torch.cat([x.features, skip.features], dim=1))
+            x = x.replace_feature(torch.cat([x.features, skips[s]["x"]], dim=1))
             x = self.dec[s](x)
         return x
 
@@ -498,18 +500,39 @@ class SparseUNetSegmentation(SegmentationModel):
         self.head = self.configure_head()
         self.head.apply(_init_spunet_weights)
 
+    @overload
     def forward_features(
         self,
         x: OptTensor,
         pos_grid: Tensor,
         batch: Tensor,
-    ) -> Tuple["SparseConvTensor", List["SparseConvTensor"]]:
-        return self.encoder(x, pos_grid, batch, return_intermediates=True)
+        return_intermediates: Literal[True],
+    ) -> Tuple["SparseConvTensor", List[FeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> "SparseConvTensor": ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        if return_intermediates:
+            return self.encoder(x, pos_grid, batch, return_intermediates=True)
+        return self.encoder(x, pos_grid, batch)
 
     def forward_decoder(
         self,
         x: "SparseConvTensor",
-        skips: List["SparseConvTensor"],
+        skips: List[FeaturesDict],
     ) -> "SparseConvTensor":
         return self.decoder(x, skips)
 
@@ -520,7 +543,7 @@ class SparseUNetSegmentation(SegmentationModel):
         return out.features if hasattr(out, "features") else out
 
     def forward(self, x: OptTensor, pos_grid: Tensor, batch: Tensor) -> Tensor:
-        sparse_x, skips = self.forward_features(x, pos_grid, batch)
+        sparse_x, skips = self.forward_features(x, pos_grid, batch, return_intermediates=True)
         sparse_x = self.forward_decoder(sparse_x, skips)
         return self.forward_head(sparse_x)
 

@@ -671,17 +671,12 @@ class PointMAESegmentation(SegmentationModel):
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         B, _, N = x.shape
         x = x.transpose(1, 2).reshape(B * N, -1)
-        if pre_logits:
-            return x
-        x = self.head(x)
-        return x.reshape(B, N, -1).transpose(1, 2)
+        return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x_feat, center, batch = self.forward_features(x, pos, batch)
         x = self.forward_decoder(x_feat, pos, batch, center, category)
-        logits = self.forward_head(x)
-        B, C, N = logits.shape
-        return logits.permute(0, 2, 1).reshape(B * N, C)
+        return self.forward_head(x)
 
 
 class PointMAEMaskedAutoEncoder(BaseModel):

@@ -64,7 +64,7 @@ def test_spformer_unet_reset_classifier(model: SPFormerUNetSegmentation, data: D
 
 
 def test_spformer_unet_forward_features_decoder_head(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:
-    bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"])
+    bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     assert len(skips) == len(CHANNELS) - 1
     assert bottleneck.features.shape[1] == CHANNELS[-1]
     sparse_x = model.forward_decoder(bottleneck, skips)
@@ -74,7 +74,7 @@ def test_spformer_unet_forward_features_decoder_head(model: SPFormerUNetSegmenta
 
 
 def test_spformer_unet_forward_head_pre_logits(model: SPFormerUNetSegmentation, data: Dict[str, Tensor]) -> None:
-    bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"])
+    bottleneck, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     sparse_x = model.forward_decoder(bottleneck, skips)
     feats = model.forward_head(sparse_x, pre_logits=True)
     assert torch.equal(feats, sparse_x.features)

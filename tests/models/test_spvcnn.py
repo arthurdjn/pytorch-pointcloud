@@ -83,7 +83,9 @@ def test_spvcnn_segmentation_forward(model_seg: SPVCNNSegmentation, data: Dict[s
 def test_spvcnn_segmentation_forward_features_decoder_head(
     model_seg: SPVCNNSegmentation, data: Dict[str, Tensor]
 ) -> None:
-    x_voxels, x_points, intermediates = model_seg.forward_features(data["x"], data["pos"], data["batch"])
+    x_voxels, x_points, intermediates = model_seg.forward_features(
+        data["x"], data["pos"], data["batch"], return_intermediates=True
+    )
     assert len(intermediates) > 0
     x_voxels, x_points = model_seg.forward_decoder(x_voxels, x_points, intermediates)
     assert x_points.F.shape[0] == data["pos"].shape[0]
