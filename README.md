@@ -115,7 +115,7 @@ Every checkpoint ships the transform that turns a raw point cloud into what the 
 # Requires torch-scatter, torch-cluster, spconv
 model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
-info["weights"]["metrics"]  # {"mIoU": 76.29}
+info["weights"]["metrics"]  # {"mIoU": 77.40}
 
 tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
