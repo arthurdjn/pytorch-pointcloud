@@ -18,7 +18,7 @@ from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
@@ -82,7 +82,7 @@ class PVConvBlock(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -94,11 +94,11 @@ class PVConvBlock(nn.Module):
     ) -> Tensor: ...
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for layer in self.layers:
             x = layer(x) if isinstance(layer, MLP) else layer(x, pos, batch)
             if return_intermediates:
-                intermediates.append(x)
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
 
         if return_intermediates:
             return x, intermediates
@@ -219,8 +219,10 @@ class PVCNNClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
-    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -230,7 +232,7 @@ class PVCNNClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -243,7 +245,7 @@ class PVCNNClassification(ClassificationModel):
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
         x = x if x is not None else pos
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for block in self.blocks:
             x = block(x, pos, batch, return_intermediates=return_intermediates)
             if return_intermediates:
@@ -409,8 +411,10 @@ class PVCNNSegmentation(SegmentationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -420,7 +424,7 @@ class PVCNNSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -433,7 +437,7 @@ class PVCNNSegmentation(SegmentationModel):
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
         x = x if x is not None else pos
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for block in self.blocks:
             x = block(x, pos, batch, return_intermediates=return_intermediates)
             if return_intermediates:
@@ -444,12 +448,12 @@ class PVCNNSegmentation(SegmentationModel):
             return x, intermediates
         return x
 
-    def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[Tensor]) -> Tensor:
+    def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[FeaturesDict]) -> Tensor:
         x_global = self.global_pool(x, batch)
         if self.global_mlp:
             x_global = self.global_mlp(x_global)
 
-        return torch.cat([*intermediates, x_global[batch]], dim=1)
+        return torch.cat([*(skip["x"] for skip in intermediates), x_global[batch]], dim=1)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         if self.dropout and not self.head_channels:

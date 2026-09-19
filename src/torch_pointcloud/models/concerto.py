@@ -14,7 +14,11 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.models.point_transformer_v3 import AttentionKind, PointTransformerV3Encoder
+from torch_pointcloud.models.point_transformer_v3 import (
+    AttentionKind,
+    PointTransformerV3Encoder,
+    SerializedFeaturesDict,
+)
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.serialization import SerializationOrder
 from torch_pointcloud.utils.types import OptTensor
@@ -154,7 +158,7 @@ class ConcertoSegmentation(SegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -176,10 +180,10 @@ class ConcertoSegmentation(SegmentationModel):
             return self.encoder.forward(x, pos_grid, batch, return_intermediates=True)
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False)
 
-    def forward_decoder(self, x: Tensor, intermediates: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward_decoder(self, x: Tensor, intermediates: List[SerializedFeaturesDict]) -> Tuple[Tensor, Tensor, Tensor]:
         pos_grid = batch = None
         for intermediate in reversed(intermediates):
-            inverse = intermediate["inverse"]
+            inverse = intermediate["pooling_inverse"]
             x = torch.cat([intermediate["x"], x[inverse]], dim=-1)
             pos_grid = intermediate["pos_grid"]
             batch = intermediate["batch"]

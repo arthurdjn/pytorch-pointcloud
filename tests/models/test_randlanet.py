@@ -9,7 +9,6 @@ from torch_pointcloud.models.randlanet import (
     RandLANetClassification,
     RandLANetDecoder,
     RandLANetEncoder,
-    RandLANetIntermediate,
     RandLANetSegmentation,
     random_max_pool,
 )
@@ -63,17 +62,6 @@ def model_seg() -> RandLANetSegmentation:
     )
 
 
-def test_randlanet_intermediate_namedtuple() -> None:
-    intermediate = RandLANetIntermediate(
-        x=torch.randn(10, 4),
-        pos=torch.randn(10, 3),
-        batch=torch.zeros(10, dtype=torch.long),
-    )
-    assert intermediate.x.shape == (10, 4)
-    assert intermediate.pos.shape == (10, 3)
-    assert intermediate.batch.shape == (10,)
-
-
 def test_randlanet_random_max_pool(data: Dict[str, Tensor]) -> None:
     pooled, pos_decim, batch_decim = random_max_pool(
         data["features"], data["pos"], data["batch"], factor=4, num_neighbors=8
@@ -123,10 +111,9 @@ def test_randlanet_encoder_intermediates(data: Dict[str, Tensor], mlp_kwargs: Di
     _, _, _, intermediates = encoder(data["features"], data["pos"], data["batch"], return_intermediates=True)
     assert len(intermediates) == 3
     for inter in intermediates:
-        assert isinstance(inter, RandLANetIntermediate)
-        assert inter.x.shape[0] == inter.pos.shape[0] == inter.batch.shape[0]
+        assert inter["x"].shape[0] == inter["pos"].shape[0] == inter["batch"].shape[0]
     # First intermediate is the full-resolution skip (pre-decimation block-0 output).
-    assert intermediates[0].x.shape == (data["pos"].shape[0], 16)
+    assert intermediates[0]["x"].shape == (data["pos"].shape[0], 16)
 
 
 def test_randlanet_encoder_odd_channels_raises(mlp_kwargs: Dict[str, Any]) -> None:

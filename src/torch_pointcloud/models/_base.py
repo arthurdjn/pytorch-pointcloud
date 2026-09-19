@@ -87,8 +87,11 @@ class ClassificationModel(nn.Module, metaclass=ABCMeta):
     def forward_features(self, *args: Any, **kwargs: Any) -> Any:
         r"""Encode a packed point cloud into features for `forward_head`.
 
-        Canonical signature: `forward_features(x, pos, batch)`, returning the encoded features (often with
-        the downsampled `pos` / `batch`).
+        Canonical signature: `forward_features(x, pos, batch, return_intermediates=False)`, returning the encoded
+        features (often with the downsampled `pos` / `batch`). With `return_intermediates=True`, the finer encoder
+        stages are appended as the last element of the return: a `List[FeaturesDict]` in fine-to-coarse order, each
+        entry holding `x`, `batch` and the stage's `pos` or `pos_grid`. Models add the keys their decoder needs or use
+        their own container when a stage is not a packed point set (dense tokens, voxel-point pairs).
         """
 
     @abstractmethod
@@ -157,8 +160,11 @@ class SegmentationModel(nn.Module, metaclass=ABCMeta):
     def forward_features(self, *args: Any, **kwargs: Any) -> Any:
         r"""Encode a packed point cloud, keeping what `forward_decoder` needs for the skip connections.
 
-        Canonical signature: `forward_features(x, pos, batch)`, returning the encoder output together with
-        the per-stage intermediates.
+        Canonical signature: `forward_features(x, pos, batch, return_intermediates=False)`, returning the encoder
+        output. With `return_intermediates=True`, the finer encoder stages are appended as the last element of the
+        return: a `List[FeaturesDict]` in fine-to-coarse order, each entry holding `x`, `batch` and the stage's `pos`
+        or `pos_grid`. Models add the keys their decoder needs (e.g. `pooling_inverse`) or use their own container
+        when a stage is not a packed point set (dense tokens, voxel-point pairs).
         """
 
     def forward_decoder(self, *args: Any, **kwargs: Any) -> Any:

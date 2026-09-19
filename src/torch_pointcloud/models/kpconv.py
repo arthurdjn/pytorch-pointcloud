@@ -27,7 +27,7 @@ from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import OptTensor
+from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
@@ -770,7 +770,7 @@ class KPFCNNEncoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PooledFeaturesDict]]: ...
 
     @overload
     def forward(
@@ -788,12 +788,12 @@ class KPFCNNEncoder(nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates = []
+        intermediates: List[PooledFeaturesDict] = []
         for i, block in enumerate(self.blocks):
-            intermediate = {"x": x, "pos": pos, "batch": batch}
+            intermediate: PooledFeaturesDict = {"x": x, "pos": pos, "batch": batch}
             x, pos, batch, inv = block(x, pos, batch, return_inverse=True)
 
-            if i > 0:
+            if return_intermediates and i > 0:
                 intermediate["pooling_inverse"] = inv
                 intermediates.append(intermediate)
 
@@ -994,7 +994,7 @@ class KPFCNNClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PooledFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1291,7 +1291,7 @@ class KPFCNNSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[PooledFeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -1331,20 +1331,19 @@ class KPFCNNSegmentation(SegmentationModel):
             else:
                 x = self.stem(x)
 
-        intermediates = [{"x": x, "pos": pos, "batch": batch}]
-        x, pos, batch, encoder_intermediates = self.encoder(x, pos, batch, return_intermediates=True)
-        intermediates.extend(encoder_intermediates)
+        if not return_intermediates:
+            return self.encoder(x, pos, batch)
 
-        if return_intermediates:
-            return x, pos, batch, intermediates
-        return x, pos, batch
+        skip: PooledFeaturesDict = {"x": x, "pos": pos, "batch": batch}
+        x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
+        return x, pos, batch, [skip, *intermediates]
 
     def forward_decoder(
         self,
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[PooledFeaturesDict],
     ) -> Tensor:
         x, _, _ = self.decoder(x, pos, batch, intermediates)
         return x

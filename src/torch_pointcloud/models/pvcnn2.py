@@ -18,6 +18,7 @@ from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.types import FeaturesDict
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import register_model
@@ -220,7 +221,7 @@ class PVCNN2Encoder(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -232,11 +233,11 @@ class PVCNN2Encoder(nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
 
         for block in self.blocks:
             if return_intermediates:
-                intermediates.append({"features": x, "pos": pos, "batch": batch})
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
             x, pos, batch = block(x, pos, batch)
 
         if return_intermediates:
@@ -438,7 +439,7 @@ class PVCNN2Decoder(nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if len(intermediates) < len(self.blocks):
             raise ValueError(f"Expected at least {len(self.blocks)} intermediates, got {len(intermediates)}.")
@@ -446,7 +447,7 @@ class PVCNN2Decoder(nn.Module):
         skips = [intermediates[-1 - i] for i in range(len(self.blocks) - 1)]
         skips.append(intermediates[0])
         for block, intermediate in zip(self.blocks, skips):
-            x_skip, pos_skip, batch_skip = intermediate["features"], intermediate["pos"], intermediate["batch"]
+            x_skip, pos_skip, batch_skip = intermediate["x"], intermediate["pos"], intermediate["batch"]
             x, pos, batch = block(x, pos, batch, x_skip, pos_skip, batch_skip)
         return x, pos, batch
 
@@ -571,8 +572,10 @@ class PVCNN2Classification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
 
-    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
         self.num_classes = num_classes
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
         self.head = self.configure_head()
 
     @overload
@@ -582,7 +585,7 @@ class PVCNN2Classification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -814,7 +817,7 @@ class PVCNN2Segmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -840,12 +843,15 @@ class PVCNN2Segmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         # The full-resolution skip is the extra-features slice: the reference feeds inputs[:, 3:]
         # (features without the 3 leading coordinate channels) as the final skip.
-        first = dict(intermediates[0])
-        first["features"] = first["features"][:, 3:]
+        first: FeaturesDict = {
+            "x": intermediates[0]["x"][:, 3:],
+            "pos": intermediates[0]["pos"],
+            "batch": intermediates[0]["batch"],
+        }
         return self.decoder(x, pos, batch, [first, *intermediates[1:]])
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:

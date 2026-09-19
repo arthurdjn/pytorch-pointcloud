@@ -1,7 +1,7 @@
 import inspect
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import pytest
 import torch
@@ -229,10 +229,6 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
 _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
     {
         "octformer-base.modelnet40.octree-nn",
-        "octformer-lg",
-        "sonata-lp.scannet20.fair",
-        "concerto-large-lp.scannet20.pointcept",
-        "utonia-lp.scannet20.pointcept",
     }
 )
 
@@ -512,10 +508,11 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
         spatial_dim: int = 3,
         num_categories: int = 0,
         lengths: tuple = (512, 768),
+        voxel_size: Optional[float] = None,
     ) -> Dict[str, Any]:
         torch.manual_seed(42)
         lengths_tensor = torch.tensor(list(lengths))
-        pos = torch.randn(int(lengths_tensor.sum()), spatial_dim)
+        pos = torch.rand(int(lengths_tensor.sum()), spatial_dim) * 1.8 - 0.9  # inside the octree bounds
         x = torch.randn(int(lengths_tensor.sum()), in_channels) if in_channels > 0 else None
         batch = torch.repeat_interleave(torch.arange(len(lengths_tensor)), lengths_tensor)
         cls_onehot = torch.zeros(len(lengths_tensor), num_categories) if num_categories > 0 else None
@@ -531,7 +528,9 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
             )
             octree.construct_all_neigh()
             x = octree.features[octree.depth]
-            pos = octree.points[octree.depth]
+
+        if voxel_size is not None:
+            pos = (pos - pos.min(dim=0).values) / voxel_size
 
         return dict(
             x=x,
@@ -546,6 +545,10 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
 
     return create_data
 
+
+# SPVCNN takes `pos` in voxel units and strides down to 16 voxels. Its synthetic cloud spans hundreds of voxels:
+# on one spanning only a few strides, two torchsparse forwards of the same model differ.
+SPVCNN_VOXEL_SIZE = 0.005
 
 # The Point-MAE / Point-M2AE part-segmentation heads require a uniform number of points per sample
 # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
@@ -575,6 +578,7 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
         lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
@@ -583,7 +587,8 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
     model = model.to(device)
 
-    output = model(**kwargs)
+    with torch.no_grad():
+        output = model(**kwargs)
     _check_forward_output(output, model_name=model_name, task=task, expected_shape=(expected_rows, num_classes))
 
     if device == "cuda":
@@ -614,6 +619,7 @@ def test_model_headless_forward_returns_features(model_name: str, task: str, dat
         spatial_dim=getattr(model, "spatial_dim", 3),
         num_categories=getattr(model, "num_categories", 0),
         lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
     )
     expected_rows = int(data["batch"].max().item()) + 1 if task == "classification" else data["pos"].shape[0]
 
@@ -622,7 +628,8 @@ def test_model_headless_forward_returns_features(model_name: str, task: str, dat
     kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
     model = model.to(device)
 
-    output = model(**kwargs)
+    with torch.no_grad():
+        output = model(**kwargs)
     _check_forward_output(output, model_name=model_name, task=task, expected_shape=(expected_rows, model.num_features))
 
     if device == "cuda":
@@ -723,3 +730,114 @@ def test_registered_weights_urls_name_the_hub_repo() -> None:
             assert weights["url"] == f"hf://torch-pointcloud/{name}/resolve/main/model.safetensors", name
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
             assert weights["author"], name
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize(
+    "model_name,task",
+    [
+        *[(model, "classification") for model in CLASSIFICATION_MODELS],
+        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+    ],
+)
+def test_model_forward_features_intermediates(model_name: str, task: str, data_factory: Callable) -> None:
+    """`return_intermediates=True` appends the finer encoder stages, fine to coarse, as `FeaturesDict` entries."""
+    _skip_if_model_not_runnable(model_name)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    sig = inspect.signature(model.forward_features)
+    if "return_intermediates" not in sig.parameters:
+        pytest.skip(f"{model_name}: `forward_features` has no intermediates")
+    data = data_factory(
+        in_channels=model.in_channels,
+        spatial_dim=getattr(model, "spatial_dim", 3),
+        num_categories=getattr(model, "num_categories", 0),
+        lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
+    )
+    kwargs = {a: data[a] for a in sig.parameters if a != "self" and a in data}
+    kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
+    model = model.to(device).eval()
+
+    with torch.no_grad():
+        *outputs, intermediates = model.forward_features(**kwargs, return_intermediates=True)
+        plain = model.forward_features(**kwargs)
+    plain_outputs = list(plain) if isinstance(plain, tuple) else [plain]
+    assert len(plain_outputs) == len(outputs), f"{model_name}: the flag must only append the intermediates"
+    assert isinstance(intermediates, list) and intermediates, f"{model_name}: no intermediates returned"
+
+    rows = []
+    for entry in intermediates:
+        if not isinstance(entry, dict) or "x" not in entry:
+            continue
+
+        x = entry["x"]
+        assert isinstance(x, torch.Tensor) and x.dim() == 2, f"{model_name}: intermediate `x` is not a 2D tensor"
+        assert entry["batch"].dtype == torch.long, f"{model_name}: intermediate `batch` is {entry['batch'].dtype}"
+        for key in ("batch", "pos", "pos_grid"):
+            if key in entry:
+                assert entry[key].shape[0] == x.shape[0], f"{model_name}: intermediate `{key}` rows != `x` rows"
+
+        rows.append(x.shape[0])
+
+    assert rows == sorted(rows, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {rows}"
+
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize(
+    "model_name,task",
+    [
+        *[(model, "classification") for model in CLASSIFICATION_MODELS],
+        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+    ],
+)
+def test_model_pre_logits_matches_headless_forward(
+    model_name: str,
+    task: str,
+    data_factory: Callable,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`forward_head(..., pre_logits=True)` returns the features `forward` returns after `reset_classifier(0)`."""
+    _skip_if_model_not_runnable(model_name)
+    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    data = data_factory(
+        in_channels=model.in_channels,
+        spatial_dim=getattr(model, "spatial_dim", 3),
+        num_categories=getattr(model, "num_categories", 0),
+        lengths=(512, 512) if model_name in UNIFORM_POINT_MODELS else (512, 768),
+        voxel_size=SPVCNN_VOXEL_SIZE if model_name.startswith("spvcnn") else None,
+    )
+    sig = inspect.signature(model.forward)
+    kwargs = {a: data[a] for a in sig.parameters if a != "self" and a in data}
+    kwargs = {k: v.to(device) if hasattr(v, "to") else v for k, v in kwargs.items()}
+    model = model.to(device).eval()
+
+    forward_head = model.forward_head
+    with torch.no_grad():
+        monkeypatch.setattr(
+            model, "forward_head", lambda *args, **kw: forward_head(*args, **{**kw, "pre_logits": True})
+        )
+        pre_logits = model(**kwargs)
+        monkeypatch.setattr(model, "forward_head", forward_head)
+        model.reset_classifier(0)
+        headless = model.to(device)(**kwargs)
+
+    assert pre_logits.shape == headless.shape, f"{model_name}: {tuple(pre_logits.shape)} != {tuple(headless.shape)}"
+    # CUDA scatter reductions are not deterministic: two forwards of one PVCNN differ by 2e-5.
+    assert torch.allclose(pre_logits, headless, atol=1e-4, equal_nan=True), f"{model_name}: pre_logits != headless"
+
+    if device == "cuda":
+        torch.cuda.empty_cache()

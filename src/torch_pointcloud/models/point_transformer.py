@@ -24,7 +24,7 @@ from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import MessagePassingParams
+from torch_pointcloud.utils.types import FeaturesDict, MessagePassingParams
 
 
 # Adapted from: https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/nn/conv/transformer_conv.py
@@ -552,7 +552,7 @@ class PointTransformerEncoder(torch.nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward(
@@ -570,10 +570,10 @@ class PointTransformerEncoder(torch.nn.Module):
         batch: Tensor,
         return_intermediates: bool = False,
     ) -> Any:
-        intermediates = []
+        intermediates: List[FeaturesDict] = []
         for block in self.blocks:
             if return_intermediates:
-                intermediates.append({"features": x, "pos": pos, "batch": batch})
+                intermediates.append({"x": x, "pos": pos, "batch": batch})
             x, pos, batch = block(x, pos, batch)
 
         if return_intermediates:
@@ -650,10 +650,10 @@ class PointTransformerDecoder(torch.nn.Module):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         for block, intermediate in zip(self.blocks, reversed(intermediates)):
-            x, pos, batch = block(x, pos, batch, intermediate["features"], intermediate["pos"], intermediate["batch"])
+            x, pos, batch = block(x, pos, batch, intermediate["x"], intermediate["pos"], intermediate["batch"])
         return x, pos, batch
 
 
@@ -777,7 +777,7 @@ class PointTransformerClassification(ClassificationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -955,7 +955,7 @@ class PointTransformerSegmentation(SegmentationModel):
         pos: Tensor,
         batch: Tensor,
         return_intermediates: Literal[True],
-    ) -> Tuple[Tensor, Tensor, Tensor, List[Dict[str, Tensor]]]: ...
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
 
     @overload
     def forward_features(
@@ -982,7 +982,7 @@ class PointTransformerSegmentation(SegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[Dict[str, Tensor]],
+        intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder(x, pos, batch, intermediates)
 

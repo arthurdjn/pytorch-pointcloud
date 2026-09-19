@@ -743,19 +743,12 @@ class PointM2AESegmentation(SegmentationModel):
 
         x = torch.cat((x_global_feature, x), 1)
         x = x.transpose(1, 2).reshape(B * N, -1)
-        if pre_logits:
-            return x
-        x = self.head(x)
-        return x.reshape(B, N, -1).transpose(1, 2)
+        return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
-        batch_size = int(batch.max().item()) + 1
-        num_points = pos.size(0) // batch_size
-
         x_vis_list, centers = self.forward_features(x, pos, batch)
         x = self.forward_decoder(x_vis_list, centers, pos, batch)
-        logits = self.forward_head(x, category)
-        return logits.permute(0, 2, 1).reshape(batch_size * num_points, -1)
+        return self.forward_head(x, category)
 
 
 class PointM2AEMaskedAutoEncoder(BaseModel):

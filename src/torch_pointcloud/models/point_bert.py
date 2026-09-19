@@ -159,7 +159,7 @@ class PointBERTEncoder(nn.Module):
     @overload
     def forward(
         self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[True]
-    ) -> Tuple[Tensor, Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[Tensor]]: ...
 
     @overload
     def forward(
@@ -194,7 +194,7 @@ class PointBERTEncoder(nn.Module):
 
         x = self.norm(x)
         if return_intermediates:
-            return x, center, intermediates
+            return x, intermediates
         return x
 
 
@@ -332,14 +332,20 @@ class PointBERTClassification(ClassificationModel):
             plain_last=True,
         )
 
-    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: Any = None, **kwargs: Any) -> None:
+        if global_pool is not None:
+            raise ValueError(
+                f"{self.__class__.__name__} pools with a fixed cls-token + max-pool concatenation; "
+                "`global_pool` is not configurable."
+            )
+
         self.num_classes = num_classes
         self.head = self.configure_head()
 
     @overload
     def forward_features(
         self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[True]
-    ) -> Tuple[Tensor, Tensor, List[Tensor]]: ...
+    ) -> Tuple[Tensor, List[Tensor]]: ...
 
     @overload
     def forward_features(
