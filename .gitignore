@@ -164,6 +164,7 @@ cython_debug/
 weights/**
 data/**
 docs/api/**
+docs/assets/data/
 docs/examples/**
 docs/scripts/**
 !docs/examples/*.ipynb

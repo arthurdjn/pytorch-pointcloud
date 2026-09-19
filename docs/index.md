@@ -46,17 +46,16 @@ A PyTorch library for deep learning on point clouds. Models for classification, 
 
 ## In a few lines
 
-Download the [sample.ply](assets/data/sample.ply) to get started.
+The example reads one object of the ModelNet40 test set, downloaded on first use.
 
 ```{.python notest}
-import numpy as np
 import torch
-from plyfile import PlyData
 
 import torch_pointcloud as tp
+from torch_pointcloud.datasets import ModelNetNormalResampled
 from torch_pointcloud.utils.data import collate
 
-# Load pretrained checkpoint and sample cloud.
+# Load pretrained checkpoint.
 model, info = tp.create_model(
     "pointnet2-ssg.modelnet40.xu-yan",
     task="classification",
@@ -68,15 +67,9 @@ model = model.eval()
 # Get associated transform pipeline.
 transform = info["transform"]
 
-# Load sample
-ply = PlyData.read("sample.ply")["vertex"]
-pos = np.stack([ply["x"], ply["y"], ply["z"]], 1).astype("float32")
-normal = np.stack([ply["nx"], ply["ny"], ply["nz"]], 1).astype("float32")
-
-# Preprocess and collate in packed format
-data = {"pos": torch.from_numpy(pos), "normal": torch.from_numpy(normal)}
-data = transform(data)
-data = collate([data])
+# Load a preprocessed sample and collate in packed format
+dataset = ModelNetNormalResampled(root="data", variant="40", train=False, download=True, transform=transform)
+data = collate([dataset[0]])
 
 # Run inference
 with torch.no_grad():

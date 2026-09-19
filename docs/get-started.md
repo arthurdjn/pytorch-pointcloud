@@ -4,18 +4,14 @@ This page will help you get started and run a pretrained model on a point cloud.
 
 ## Run a pretrained model
 
-Download the [`sample.ply`](../assets/data/sample.ply) point cloud from the ModelNet40 dataset:
-
-```bash
-curl -LO https://github.com/arthurdjn/pytorch-pointcloud/raw/main/docs/assets/data/sample.ply
-```
+The example reads one object of the ModelNet40 test set, which
+[`ModelNetNormalResampled`](api/datasets/modelnet.md) downloads on first use:
 
 ```{.python notest}
-import numpy as np
 import torch
-from plyfile import PlyData
 
 import torch_pointcloud as tp
+from torch_pointcloud.datasets import ModelNetNormalResampled
 from torch_pointcloud.utils.data import collate
 
 # Instantiate the model and return associated info.
@@ -30,14 +26,9 @@ model = model.eval()
 # Get associated transform for inference.
 transform = info["transform"]
 
-# Load input data. This checkpoint samples points and normals together.
-ply = PlyData.read("sample.ply")["vertex"]
-pos = np.stack([ply["x"], ply["y"], ply["z"]], 1).astype("float32")  # (N, 3)
-normal = np.stack([ply["nx"], ply["ny"], ply["nz"]], 1).astype("float32")  # (N, 3)
-
-# Apply the transform to the sample.
-sample = {"pos": torch.from_numpy(pos), "normal": torch.from_numpy(normal)}
-sample = transform(sample)
+# Load input data. The dataset applies the transform, which samples points and normals together.
+dataset = ModelNetNormalResampled(root="data", variant="40", train=False, download=True, transform=transform)
+sample = dataset[0]
 
 # Pack into a batch. The provided `collate` function
 # handles the packed-batch convention, but you can use your own.
@@ -56,7 +47,7 @@ for index, score in zip(top.indices[0].tolist(), top.values[0].tolist()):
 ```text
     airplane  1.00
        plant  0.00
-      stairs  0.00
+      guitar  0.00
 ```
 
 ![Six committed sample objects, each captioned with the class this checkpoint gives it](./assets/tasks/classification.png)
