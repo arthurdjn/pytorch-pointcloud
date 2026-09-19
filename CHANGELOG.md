@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `sw_batch_size` parameter for `SlidingWindowInferer` for faster inference.
+- Updated benchmark scripts to use `batch_size > 1` for faster benchmarking.
 - Updated the `SerializedRPE` attention module operation to use less memory.
 - Added `FeaturesDict` so that `return_intermediates=True` returns the same list for every model: the encoder stages
   from fine to coarse, each with `x`, `batch` and `pos` or `pos_grid`.
@@ -13,6 +15,7 @@ All notable changes to this project are documented in this file. The format is b
 - Updated SpUNet, SPFormer-UNet and SPVCNN `forward_features` to return the skips only with `return_intermediates=True`.
 - Fixed `octformer-lg` stem channels, the model could not run a forward pass.
 - Fixed `reset_classifier` ignoring `global_pool` for PVCNN and PVCNN2.
+- Fixed Point-MAE and Point-M2AE segmentation `forward_head` returning dense logits but packed `pre_logits` features.
 - Added source links to classes and functions in the docs.
 
 ## 0.0.2 (2026-09-16)

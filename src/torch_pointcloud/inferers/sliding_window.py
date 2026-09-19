@@ -27,7 +27,7 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
-from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.data import DataKeys, collate
 
 from ._utils import check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
@@ -194,6 +194,7 @@ def sliding_window_inference(
     mode: WindowMode = "constant",
     sigma_scale: float = 0.125,
     roi_num_points: Optional[int] = None,
+    sw_batch_size: int = 1,
     softmax: bool = True,
     aggregate: AggregateMode = "mean",
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -239,13 +240,18 @@ def sliding_window_inference(
             $D_\text{tiled}$ the number of tiled axes.
         sigma_scale: Gaussian sigma scale factor. Only used when
             `mode="gaussian"`.
-        roi_num_points: Optional cap on points per `predictor` call. Blocks
+        roi_num_points: Optional cap on points per batch element. Blocks
             exceeding this are split into random sub-batches and every point is
             predicted exactly once per block pass. `None` passes the whole block
-            in one call. To enforce a fixed-N predictor input, pair the inferer
+            in one element. At the default `sw_batch_size=1` an element is a call,
+            so this also caps the points per `predictor` call. To enforce a fixed-N predictor input, pair the inferer
             with a `DivisiblePad`-style `transform` that pads each block to a
             multiple of `roi_num_points` and writes its source-to-padded index
             map under `inverse_key`.
+        sw_batch_size: Number of batch elements packed into a single `predictor` call. Blocks are
+            independent, so they are collated along the batch index and their predictions are
+            accumulated in block order: only the number of calls changes. Small blocks are
+            dominated by per-call overhead, where a larger value is several times faster.
         softmax: If `True`, softmax each block's logits before accumulating.
             Use `True` when averaging predictions across multiple blocks or
             TTA passes. Set `False` to accumulate raw logits. `"max"` and
@@ -307,6 +313,8 @@ def sliding_window_inference(
         raise ValueError(f"`aggregate` must be 'mean', 'max' or 'vote', got {aggregate!r}.")
     if roi_num_points is not None and roi_num_points < 1:
         raise ValueError(f"`roi_num_points` must be >= 1 or None, got {roi_num_points}.")
+    if sw_batch_size < 1:
+        raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
     if padding < 0.0:
         raise ValueError(f"`padding` must be >= 0, got {padding}.")
 
@@ -343,59 +351,97 @@ def sliding_window_inference(
         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
         confidence_b = torch.full((n_b,), -1.0, device=device, dtype=torch.float32)
 
-        for point_ids, w, bbox in tqdm(
-            zip(point_groups, weight_groups, bbox_groups),
-            total=len(point_groups),
+        blocks = list(zip(point_groups, weight_groups, bbox_groups))
+        for start in tqdm(
+            range(0, len(blocks), sw_batch_size),
+            total=math.ceil(len(blocks) / sw_batch_size),
             desc=f"batch {int(b)}",
             leave=False,
             disable=not progress,
         ):
-            n_block = int(point_ids.numel())
-            window = index_select_dict(data_b, point_ids, n_b)
-            window[batch_key] = torch.zeros(n_block, device=device, dtype=torch.long)
-            window[block_bbox_key] = bbox
-            if inverse_key is not None:
-                window.pop(inverse_key, None)
-            if transform is not None:
-                window = transform(window)
+            windows: List[Dict[str, Any]] = []
+            inverse_maps: List[Optional[Tensor]] = []
+            samples: List[Dict[str, Any]] = []
+            owners: List[Tuple[int, Tensor]] = []
 
-            n_window = int(window[pos_key].size(0))
-            inverse_map = window.pop(inverse_key, None) if inverse_key is not None else None
+            for point_ids, _, bbox in blocks[start : start + sw_batch_size]:
+                n_block = int(point_ids.numel())
+                window = index_select_dict(data_b, point_ids, n_b)
+                window[batch_key] = torch.zeros(n_block, device=device, dtype=torch.long)
+                window[block_bbox_key] = bbox
+                if inverse_key is not None:
+                    window.pop(inverse_key, None)
+                if transform is not None:
+                    window = transform(window)
 
-            chunks = split_chunks(n_window, roi_num_points, rng)
+                n_window = int(window[pos_key].size(0))
+                inverse_maps.append(window.pop(inverse_key, None) if inverse_key is not None else None)
+                windows.append(window)
 
-            window_preds: Optional[Tensor] = None
-            for chunk_local in chunks:
-                sub_window = index_select_dict(window, chunk_local, n_window)
-                sub_window[batch_key] = torch.zeros(chunk_local.numel(), device=device, dtype=torch.long)
-                logits = predictor(sub_window)
-                if window_preds is None:
-                    window_preds = torch.zeros(n_window, int(logits.size(-1)), device=device, dtype=torch.float32)
-                preds = torch.softmax(logits, dim=-1) if softmax or aggregate != "mean" else logits
-                window_preds[chunk_local] = preds.to(window_preds)
+                for chunk_local in split_chunks(n_window, roi_num_points, rng):
+                    sub_window = index_select_dict(window, chunk_local, n_window)
+                    samples.append(sub_window)
+                    owners.append((len(windows) - 1, chunk_local))
 
-            if window_preds is None:
+            if not samples:
                 continue
 
-            preds_at_block = window_preds if inverse_map is None else window_preds[inverse_map]
-            if scores_b is None:
-                scores_b = torch.zeros(n_b, int(window_preds.size(-1)), device=device, dtype=torch.float32)
+            parts: List[Tensor] = []
+            for pack_start in range(0, len(samples), sw_batch_size):
+                packed = collate(
+                    samples[pack_start : pack_start + sw_batch_size],
+                    batch_from=pos_key,
+                    batch_key=batch_key,
+                )
+                logits = predictor(packed)
+                parts.append(torch.softmax(logits, dim=-1) if softmax or aggregate != "mean" else logits)
+            preds = torch.cat(parts)
 
-            if aggregate == "max":
-                confidence, _ = preds_at_block.max(dim=-1)
-                better = confidence > confidence_b[point_ids]
-                scores_b[point_ids[better]] = preds_at_block[better]
-                confidence_b[point_ids[better]] = confidence[better]
-                weights_b[point_ids] = 1.0
-                continue
+            window_preds: List[Optional[Tensor]] = [None] * len(windows)
+            offset = 0
+            for (index, chunk_local), sample in zip(owners, samples):
+                count = int(sample[pos_key].size(0))
+                chunk_preds = preds[offset : offset + count]
+                offset += count
+                preds_at_window = window_preds[index]
+                if preds_at_window is None:
+                    n_window = int(windows[index][pos_key].size(0))
+                    preds_at_window = torch.zeros(
+                        n_window,
+                        int(chunk_preds.size(-1)),
+                        device=device,
+                        dtype=torch.float32,
+                    )
+                    window_preds[index] = preds_at_window
+                preds_at_window[chunk_local] = chunk_preds.to(preds_at_window)
 
-            if aggregate == "vote":
-                preds_at_block = torch.nn.functional.one_hot(
-                    preds_at_block.argmax(dim=-1), num_classes=int(preds_at_block.size(-1))
-                ).to(scores_b.dtype)
+            for (point_ids, w, _), block_preds, inverse_map in zip(
+                blocks[start : start + sw_batch_size],
+                window_preds,
+                inverse_maps,
+            ):
+                if block_preds is None:
+                    continue
 
-            scores_b.index_add_(0, point_ids, preds_at_block * w.unsqueeze(-1))
-            weights_b.index_add_(0, point_ids, w)
+                preds_at_block = block_preds if inverse_map is None else block_preds[inverse_map]
+                if scores_b is None:
+                    scores_b = torch.zeros(n_b, int(block_preds.size(-1)), device=device, dtype=torch.float32)
+
+                if aggregate == "max":
+                    confidence, _ = preds_at_block.max(dim=-1)
+                    better = confidence > confidence_b[point_ids]
+                    scores_b[point_ids[better]] = preds_at_block[better]
+                    confidence_b[point_ids[better]] = confidence[better]
+                    weights_b[point_ids] = 1.0
+                    continue
+
+                if aggregate == "vote":
+                    preds_at_block = torch.nn.functional.one_hot(
+                        preds_at_block.argmax(dim=-1), num_classes=int(preds_at_block.size(-1))
+                    ).to(scores_b.dtype)
+
+                scores_b.index_add_(0, point_ids, preds_at_block * w.unsqueeze(-1))
+                weights_b.index_add_(0, point_ids, w)
 
         if scores_b is None:
             continue
@@ -442,6 +488,7 @@ class SlidingWindowInferer(Inferer):
         mode: WindowMode = "constant",
         sigma_scale: float = 0.125,
         roi_num_points: Optional[int] = None,
+        sw_batch_size: int = 1,
         softmax: bool = True,
         aggregate: AggregateMode = "mean",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -459,6 +506,7 @@ class SlidingWindowInferer(Inferer):
         self.mode = mode
         self.sigma_scale = sigma_scale
         self.roi_num_points = roi_num_points
+        self.sw_batch_size = sw_batch_size
         self.softmax = softmax
         self.aggregate = aggregate
         self.transform = transform
@@ -484,6 +532,7 @@ class SlidingWindowInferer(Inferer):
             mode=self.mode,
             sigma_scale=self.sigma_scale,
             roi_num_points=self.roi_num_points,
+            sw_batch_size=self.sw_batch_size,
             softmax=self.softmax,
             aggregate=self.aggregate,
             transform=self.transform,

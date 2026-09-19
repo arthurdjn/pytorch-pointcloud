@@ -35,6 +35,7 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.02
+SUB_BATCH_SIZE = 4
 
 TRANSFORM = T.Compose(
     [
@@ -53,12 +54,13 @@ INFERER_TRANSFORM = T.Compose(
 )
 
 
-def build_inferer(seed: int) -> Inferer:
+def build_inferer(sub_batch_size: int, seed: int) -> Inferer:
     base = VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
         reduce="sum",
+        sub_batch_size=sub_batch_size,
         seed=seed,
     )
     return TTAInferer(base=base, transforms=simple_tta_transforms(), aggregate="mean")
@@ -97,6 +99,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument("--sub-batch-size", default=SUB_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
     parser.add_argument("--download", action="store_true", help="Download ScanNet if missing.")
@@ -112,7 +115,7 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on ScanNet!")
     model = create_model(args.model, task="segmentation", pretrained=True)
     num_classes = int(model.num_classes)
-    inferer = build_inferer(args.seed)
+    inferer = build_inferer(args.sub_batch_size, args.seed)
 
     dataset: Dataset = ScanNet20(
         root=args.root,

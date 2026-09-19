@@ -35,6 +35,7 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 BLOCK_SIZE = 1.5
+SW_BATCH_SIZE = 8
 BLOCK_NUM_POINTS = 4096
 
 TRANSFORM = T.Compose(
@@ -57,12 +58,13 @@ INFERER_TRANSFORM = T.Compose(
 )
 
 
-def build_inferer(seed: int) -> Inferer:
+def build_inferer(sw_batch_size: int, seed: int) -> Inferer:
     return SlidingWindowInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),
         roi_num_points=BLOCK_NUM_POINTS,
+        sw_batch_size=sw_batch_size,
         softmax=True,
         aggregate="max",
         transform=INFERER_TRANSFORM,
@@ -101,6 +103,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
+    parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Blocks per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
@@ -116,7 +119,7 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on S3DIS (areas={args.areas})!")
     model = create_model(args.model, task="segmentation", pretrained=True)
     num_classes = int(model.num_classes)
-    inferer = build_inferer(args.seed)
+    inferer = build_inferer(args.sw_batch_size, args.seed)
 
     dataset: Dataset = S3DIS(
         root=args.root,
