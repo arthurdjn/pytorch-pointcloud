@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Updated the `SerializedRPE` attention module operation to use less memory.
 - Added `FeaturesDict` so that `return_intermediates=True` returns the same list for every model: the encoder stages
   from fine to coarse, each with `x`, `batch` and `pos` or `pos_grid`.
 - Renamed the intermediates keys `features` to `x` and `inverse` to `pooling_inverse`.
