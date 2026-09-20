@@ -1,6 +1,7 @@
 """Point-mask instance-segmentation metrics: per-scene instance matches and their average precision."""
 
-from typing import Dict, List, Mapping, Optional, Sequence, TypedDict
+import math
+from typing import Dict, List, Literal, Mapping, Optional, Sequence, TypedDict, Union, overload
 
 import numpy as np
 import torch
@@ -223,34 +224,79 @@ def _instance_class_ap(
     return _instance_ap(np.array(y_true), np.array(y_score), num_missed)
 
 
+@overload
 def instance_average_precision(
     matches: Sequence[InstanceMatches],
     *,
-    num_classes: int,
+    iou_threshold: Union[float, Sequence[float]] = ...,
+    average: Literal["macro"] = ...,
+    num_classes: Optional[int] = ...,
+    class_names: Optional[Sequence[str]] = ...,
+    min_points: int = ...,
+) -> float: ...
+
+
+@overload
+def instance_average_precision(
+    matches: Sequence[InstanceMatches],
+    *,
+    iou_threshold: Union[float, Sequence[float]] = ...,
+    average: Literal["none"],
+    num_classes: Optional[int] = ...,
+    class_names: None = ...,
+    min_points: int = ...,
+) -> Tensor: ...
+
+
+@overload
+def instance_average_precision(
+    matches: Sequence[InstanceMatches],
+    *,
+    iou_threshold: Union[float, Sequence[float]] = ...,
+    average: Literal["none"],
+    num_classes: Optional[int] = ...,
+    class_names: Sequence[str],
+    min_points: int = ...,
+) -> Dict[str, float]: ...
+
+
+def instance_average_precision(
+    matches: Sequence[InstanceMatches],
+    *,
+    iou_threshold: Union[float, Sequence[float]] = (0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9),
+    average: Literal["macro", "none"] = "macro",
+    num_classes: Optional[int] = None,
     class_names: Optional[Sequence[str]] = None,
     min_points: int = 100,
-) -> Dict[str, float]:
-    r"""Point-mask instance-segmentation AP over per-scene `instance_matches` records.
+) -> Union[float, Tensor, Dict[str, float]]:
+    r"""Point-mask instance-segmentation average precision (AP) of matched instance predictions.
 
     Follows the standard indoor instance-segmentation protocol (the ScanNet benchmark): per class and
     IoU threshold, ground-truth instances greedily consume overlapping predicted masks above the
     threshold, duplicates on a matched instance count as false positives with the lower score, and an
     unmatched prediction whose void / small-instance point fraction exceeds the threshold is excused.
-    The AP integrates the score-swept precision-recall curve with centered recall steps. `mAP` averages
-    per-class APs over the thresholds $0.5, 0.55, \ldots, 0.9$; `mAP@0.5` and `mAP@0.25` report the
-    single-threshold values. Classes without any ground-truth instance are excluded from the means and
-    get no `AP/<class>` entry.
+    The AP integrates the score-swept precision-recall curve with centered recall steps, and is averaged
+    over the IoU thresholds: the default sweep $0.5, 0.55, \ldots, 0.9$ is the benchmark's headline AP,
+    `iou_threshold=0.5` and `0.25` its AP50 and AP25. A class is scored when it has ground truth.
 
     Args:
-        matches: One `instance_matches` record per scene.
-        num_classes: Number of instance classes.
-        class_names: Optional names for the `AP/<class>` keys; falls back to the class index.
+        matches: The `instance_matches` record of every evaluated scene.
+        iou_threshold: IoU a match must exceed, or a sequence of them to average the AP over.
+        average: `"macro"` returns the mean AP (mAP) over the scored classes; `"none"` returns the per-class AP.
+        num_classes: Number of instance classes, i.e. the length of the `average="none"` output; defaults to the
+            number of `class_names`, else to the largest class index met plus one.
+        class_names: Name of each class index; with `average="none"` the per-class AP comes back as a
+            `{name: ap}` dict instead of a tensor.
         min_points: Minimum point count for a prediction or ground-truth instance to be scored;
             smaller ground-truth instances count as ignore regions.
 
     Returns:
-        A dict `{"AP/<class>": ap, ..., "mAP": ..., "mAP@0.5": ..., "mAP@0.25": ...}` where each
-        `AP/<class>` is that class's AP averaged over the $0.5{:}0.05{:}0.9$ thresholds.
+        The mAP as a float with `average="macro"` ($0$ when no class is scored), or the per-class AP, shape
+        $(C,)$ float64, with `average="none"` (a `{name: ap}` dict when `class_names` is given), holding NaN
+        for the classes without ground truth.
+
+    Shape:
+        - output: scalar, or $(C,)$ with `average="none"`
 
     Example:
         ```pycon
@@ -262,12 +308,26 @@ def instance_average_precision(
         ...     torch.tensor([0, 0, 0, 1]),
         ...     torch.tensor([0, 0, 0, 1]),
         ... )
-        >>> out = instance_average_precision([match], num_classes=2, min_points=1)
-        >>> out["mAP"], out["mAP@0.5"], out["mAP@0.25"]
-        (1.0, 1.0, 1.0)
+        >>> instance_average_precision([match], min_points=1)
+        1.0
+        >>> instance_average_precision([match], iou_threshold=0.5, average="none", class_names=["chair", "table"], min_points=1)
+        {'chair': 1.0, 'table': 1.0}
 
         ```
     """
+    if class_names is not None and num_classes not in (None, len(class_names)):
+        raise ValueError(f"Got {len(class_names)} `class_names` for `num_classes={num_classes}`.")
+    if num_classes is None and class_names is not None:
+        num_classes = len(class_names)
+    if num_classes is None:
+        indices = [
+            int(labels.max())
+            for match in matches
+            for labels in (match["pred_labels"], match["gt_labels"])
+            if labels.numel()
+        ]
+        num_classes = max(indices, default=-1) + 1
+
     scenes = [
         {
             "pred_labels": match["pred_labels"].numpy(),
@@ -282,22 +342,18 @@ def instance_average_precision(
         }
         for match in matches
     ]
-    overlaps = np.append(np.arange(0.5, 0.95, 0.05), 0.25)
-    ap = np.zeros((num_classes, len(overlaps)))
+    thresholds = (
+        [float(iou_threshold)] if isinstance(iou_threshold, (int, float)) else [float(t) for t in iou_threshold]
+    )
+    ap = np.full((num_classes, len(thresholds)), np.nan)
     for class_index in range(num_classes):
-        for overlap_index, threshold in enumerate(overlaps):
-            ap[class_index, overlap_index] = _instance_class_ap(scenes, class_index, float(threshold), min_points)
+        for threshold_index, threshold in enumerate(thresholds):
+            ap[class_index, threshold_index] = _instance_class_ap(scenes, class_index, threshold, min_points)
 
-    strict = ap[:, ~np.isclose(overlaps, 0.25)]
-    out: Dict[str, float] = {}
-    for class_index in np.flatnonzero(~np.isnan(strict).any(axis=1)):
-        name = class_names[class_index] if class_names is not None else str(class_index)
-        out[f"AP/{name}"] = float(np.mean(strict[class_index]))
-
-    if np.isnan(strict).all():
-        return {"mAP": 0.0, "mAP@0.5": 0.0, "mAP@0.25": 0.0}
-
-    out["mAP"] = float(np.nanmean(strict))
-    out["mAP@0.5"] = float(np.nanmean(ap[:, np.isclose(overlaps, 0.5)]))
-    out["mAP@0.25"] = float(np.nanmean(ap[:, np.isclose(overlaps, 0.25)]))
-    return out
+    per_class = [float(np.mean(row)) for row in ap]
+    if average == "none":
+        return (
+            torch.tensor(per_class, dtype=torch.float64) if class_names is None else dict(zip(class_names, per_class))
+        )
+    scored = [value for value in per_class if not math.isnan(value)]
+    return float(np.mean(scored)) if scored else 0.0

@@ -472,10 +472,15 @@ def test_instance_average_precision_matches_functional_across_updates() -> None:
     metric.update(scene1)
     metric.update(scene2)
     out = metric.compute()
-    expected = instance_average_precision([scene1, scene2], num_classes=2, class_names=["chair", "table"], min_points=1)
-    assert out == expected
-    assert "AP/chair" in out
-    assert "AP/table" in out
+    matches = [scene1, scene2]
+    per_class = instance_average_precision(matches, average="none", class_names=["chair", "table"], min_points=1)
+    assert out == {
+        "AP/chair": per_class["chair"],
+        "AP/table": per_class["table"],
+        "mAP": instance_average_precision(matches, num_classes=2, min_points=1),
+        "mAP@0.5": instance_average_precision(matches, iou_threshold=0.5, num_classes=2, min_points=1),
+        "mAP@0.25": instance_average_precision(matches, iou_threshold=0.25, num_classes=2, min_points=1),
+    }
 
 
 def test_nuscenes_detection_compute_without_updates() -> None:

@@ -1,7 +1,9 @@
 """Evaluation metrics for 3D detection, instance segmentation, and part segmentation."""
 
+import math
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Sequence
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -364,12 +366,30 @@ class InstanceAveragePrecision(Metric):
 
     def compute(self) -> Dict[str, float]:
         """Score the accumulated scene records and return the per-class average precisions and their mean."""
-        return instance_average_precision(
+        per_class = instance_average_precision(
             self.matches,
+            average="none",
             num_classes=self.num_classes,
-            class_names=self.class_names,
             min_points=self.min_points,
         )
+
+        out: Dict[str, float] = {}
+        for label, ap in enumerate(per_class.tolist()):
+            if not math.isnan(ap):
+                name = self.class_names[label] if self.class_names is not None else str(label)
+                out[f"AP/{name}"] = ap
+
+        # The mAP is the mean of the per-class APs above, so the threshold sweep is not run a second time.
+        out["mAP"] = float(np.mean(list(out.values()))) if out else 0.0
+        for threshold in (0.5, 0.25):
+            out[f"mAP@{threshold:g}"] = instance_average_precision(
+                self.matches,
+                iou_threshold=threshold,
+                num_classes=self.num_classes,
+                min_points=self.min_points,
+            )
+
+        return out
 
 
 class InstancePartMeanIoU(Metric):
