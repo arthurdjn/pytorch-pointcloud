@@ -17,11 +17,11 @@ from torch_pointcloud.lightning import (
     PointCloudDataModule,
 )
 from torch_pointcloud.lightning.metrics import AveragePrecision3D
+from torch_pointcloud.metrics import average_precision3d, box_matches
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.box3d import projected_ignore_mask
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.metrics import average_precision3d, box_matches
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 pytest.importorskip("lightning.pytorch")

@@ -22,10 +22,10 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20, ScanNet200
+from torch_pointcloud.metrics import confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
-from torch_pointcloud.utils.metrics import confusion_matrix
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 if TYPE_CHECKING:

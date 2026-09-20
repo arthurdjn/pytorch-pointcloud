@@ -50,9 +50,9 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.inferers import Inferer, VoxelPartitionInferer
+from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()

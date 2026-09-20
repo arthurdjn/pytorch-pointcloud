@@ -23,9 +23,9 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ShapeNetPart
 from torch_pointcloud.inferers import Inferer, SimpleInferer
+from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import part_intersection_over_union, part_mean_intersection_over_union
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
@@ -56,8 +56,11 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
         ious.append(shape_ious)
         categories.append(category)
 
-    metrics = part_mean_intersection_over_union(torch.cat(ious), torch.cat(categories))
-    return {f"test/{key}": value for key, value in metrics.items()}
+    shape_ious, category = torch.cat(ious), torch.cat(categories)
+    return {
+        "test/ins_mIoU": part_mean_intersection_over_union(shape_ious, category),
+        "test/cls_mIoU": part_mean_intersection_over_union(shape_ious, category, average="macro"),
+    }
 
 
 def parse_args() -> argparse.Namespace:

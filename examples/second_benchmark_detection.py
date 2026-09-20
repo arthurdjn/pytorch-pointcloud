@@ -27,10 +27,11 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI, NuScenes, NuScenesMini
 from torch_pointcloud.datasets.kitti import KITTI_CLASSES
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
+from torch_pointcloud.metrics import average_precision3d, box_matches, nuscenes_detection_metrics
+from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DetectionModel, create_model
 from torch_pointcloud.utils.box3d import nms3d, projected_ignore_mask
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import BoxMatches, average_precision3d, box_matches, nuscenes_detection_metrics
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 

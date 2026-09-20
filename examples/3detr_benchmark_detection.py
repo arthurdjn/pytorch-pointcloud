@@ -27,10 +27,11 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet, SunRGBD
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_LABELS
+from torch_pointcloud.metrics import average_precision3d, box_matches
+from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DETR3DDetection, create_model
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import BoxMatches, average_precision3d, box_matches
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 

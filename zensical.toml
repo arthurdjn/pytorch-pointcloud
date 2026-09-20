@@ -208,6 +208,14 @@ nav = [
             { "transfusion" = "api/losses/transfusion.md" },
             { "votenet" = "api/losses/votenet.md" },
         ] },
+        { Metrics = [
+            { "Overview" = "api/metrics/index.md" },
+            { "classification" = "api/metrics/classification.md" },
+            { "detection" = "api/metrics/detection.md" },
+            { "instance_segmentation" = "api/metrics/instance_segmentation.md" },
+            { "nuscenes" = "api/metrics/nuscenes.md" },
+            { "segmentation" = "api/metrics/segmentation.md" },
+        ] },
         { Models = [
             { "Overview" = "api/models/index.md" },
             { "concerto" = "api/models/concerto.md" },
@@ -264,7 +272,6 @@ nav = [
             { "hilbert" = "api/utils/hilbert.md" },
             { "imports" = "api/utils/imports.md" },
             { "io" = "api/utils/io.md" },
-            { "metrics" = "api/utils/metrics.md" },
             { "misc" = "api/utils/misc.md" },
             { "neighbors" = "api/utils/neighbors.md" },
             { "octree" = "api/utils/octree.md" },

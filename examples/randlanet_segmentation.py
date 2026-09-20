@@ -12,9 +12,9 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, ShapeNetPart
+from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import RandLANetSegmentation
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.utils.random import seed_everything
 
 
