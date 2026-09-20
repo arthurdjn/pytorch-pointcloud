@@ -76,6 +76,7 @@ class DataKeys(StrEnum):
     ROOM_MAX = "room_max"
     SCENE_MAX = "scene_max"
     BLOCK_CENTER = "block_center"
+    BLOCK_BBOX = "block_bbox"
     POINT_INDICES = "point_indices"
     SCENE_INDEX = "scene_index"
     NUM_SCENE_POINTS = "num_scene_points"

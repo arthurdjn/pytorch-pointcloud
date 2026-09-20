@@ -19,11 +19,11 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys
 
-from ._utils import check_batch_alignment, gaussian_weights, index_select_dict
+from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict
 from .inferer import Inferer
 
 WindowMode = Literal["constant", "gaussian"]
-AggregateMode = Literal["weighted_mean", "ema"]
+AggregateMode = Literal["mean", "ema"]
 
 
 def _knn_centers(pos_src: Tensor, centers: Tensor, k: int) -> Tensor:
@@ -62,12 +62,13 @@ def knn_window_inference(
     overlap: float = 0.5,
     mode: WindowMode = "constant",
     sigma_scale: float = 0.125,
-    aggregate: AggregateMode = "weighted_mean",
+    aggregate: AggregateMode = "mean",
     ema_smoothing: float = 0.95,
     softmax: bool = False,
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
+    inverse_key: Optional[str] = None,
     progress: bool = False,
     seed: Optional[int] = None,
 ) -> Tensor:
@@ -81,7 +82,7 @@ def knn_window_inference(
 
     `aggregate` controls how overlapping window predictions are combined:
 
-    - `"weighted_mean"`: accumulates distance-weighted logits and divides by total
+    - `"mean"`: accumulates distance-weighted logits and divides by total
       weight at the end, producing a weighted-average logit tensor.
     - `"ema"`: per-update softmax EMA
       ($\text{new} = \alpha \cdot \text{old} + (1 - \alpha) \cdot \text{softmax}(\text{logits})$),
@@ -109,10 +110,10 @@ def knn_window_inference(
         mode: Distance weighting for each window. `"constant"` gives equal weight
             to every point; `"gaussian"` weights by $\exp(-d^2 / 2\sigma^2)$ with
             $\sigma = \text{sigma\_scale} \cdot \max_i d_i$. `"gaussian"` requires
-            `aggregate="weighted_mean"`; EMA updates ignore distance weights.
+            `aggregate="mean"`; EMA updates ignore distance weights.
         sigma_scale: Gaussian sigma scale factor (only used when `mode="gaussian"`).
         aggregate: How predictions from overlapping windows are combined.
-            `"weighted_mean"`: weighted-average logits (divide by total weight at end).
+            `"mean"`: weighted-average logits (divide by total weight at end).
             `"ema"`: softmax EMA
             ($\text{new} = \alpha \cdot \text{old} + (1 - \alpha) \cdot \text{softmax}(\text{logits})$);
             use `sw_batch_size=1` with EMA to match the reference evaluation protocol.
@@ -123,14 +124,23 @@ def knn_window_inference(
             softmax probabilities.
         transform: Optional callable applied to each window's data dict before the
             predictor (typical example: `T.Shift(keys=DataKeys.POS, method="centroid")`).
+            If it changes the row count (pad, voxelize, ...) it must record a
+            source-to-predictor index map under `inverse_key` so the inferer can gather
+            predictions back to the window's points.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
+        inverse_key: Dict key under which a row-altering `transform` records a
+            source-to-predictor long index map of shape $(k,)$ with values in
+            $[0, N_\text{predictor})$. Any scene-level value at this key is dropped before
+            `transform` runs, and the map is popped before the predictor is called. Leave
+            `None` when the transform preserves row count.
         progress: If `True`, show a `tqdm` progress bar per batch element.
-        seed: RNG seed for the per-point initial possibility scores.
+        seed: RNG seed for the per-point initial possibility scores. `None` draws from the global generator, so
+            `torch.manual_seed` seeds the inferer together with the transforms.
 
     Returns:
         Per-point output tensor of shape $(N, C_\text{out})$. Aggregation produces
-        logits when `aggregate="weighted_mean"` (probabilities with `softmax=True`)
+        logits when `aggregate="mean"` (probabilities with `softmax=True`)
         and probabilities when `aggregate="ema"`. An empty scene ($N = 0$) returns
         a $(0, 0)$ tensor: the predictor is never called, so the channel count
         cannot be inferred.
@@ -143,8 +153,8 @@ def knn_window_inference(
         raise ValueError(f"`overlap` must be in (0, 1), got {overlap}.")
     if mode not in ("constant", "gaussian"):
         raise ValueError(f"`mode` must be 'constant' or 'gaussian', got {mode!r}.")
-    if aggregate not in ("weighted_mean", "ema"):
-        raise ValueError(f"`aggregate` must be 'weighted_mean' or 'ema', got {aggregate!r}.")
+    if aggregate not in ("mean", "ema"):
+        raise ValueError(f"`aggregate` must be 'mean' or 'ema', got {aggregate!r}.")
     if sw_batch_size < 1:
         raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
     if not 0.0 <= ema_smoothing < 1.0:
@@ -152,7 +162,7 @@ def knn_window_inference(
     if aggregate == "ema" and mode == "gaussian":
         raise ValueError(
             "`mode='gaussian'` is incompatible with `aggregate='ema'`: EMA updates blend by `ema_smoothing`, not "
-            "by per-point distance weights. Use `aggregate='weighted_mean'` or `mode='constant'`."
+            "by per-point distance weights. Use `aggregate='mean'` or `mode='constant'`."
         )
     if aggregate == "ema" and sw_batch_size > 1:
         warnings.warn(
@@ -170,9 +180,7 @@ def knn_window_inference(
     n_total = pos.size(0)
     output: Optional[Tensor] = None
 
-    rng = torch.Generator(device=device)
-    if seed is not None:
-        rng.manual_seed(int(seed))
+    rng = None if seed is None else torch.Generator(device=device).manual_seed(int(seed))
 
     for b in torch.unique(batch).tolist():
         idx_b = torch.where(batch == b)[0]
@@ -201,37 +209,39 @@ def knn_window_inference(
                 local_idxs = _knn_centers(pos_b, center_pos, k)
                 flat_idxs = local_idxs.reshape(-1)
                 per_window_dicts: List[Dict[str, Any]] = []
+                inverse_maps: List[Optional[Tensor]] = []
                 for w_i in range(sw):
                     w_idx = local_idxs[w_i]
                     wd = index_select_dict(data_b, w_idx, n_b)
                     wd[batch_key] = torch.full((k,), w_i, device=device, dtype=torch.long)
-                    if transform is not None:
-                        wd = transform(wd)
-                        if int(wd[pos_key].size(0)) != k:
-                            raise ValueError(
-                                f"`transform` must preserve each window's row count; got {k} -> "
-                                f"{int(wd[pos_key].size(0))} rows."
-                            )
-
+                    wd, inverse_map = apply_transform(wd, transform, pos_key=pos_key, inverse_key=inverse_key)
+                    wd[batch_key] = torch.full((int(wd[pos_key].size(0)),), w_i, device=device, dtype=torch.long)
                     per_window_dicts.append(wd)
+                    inverse_maps.append(inverse_map)
 
+                sizes = [int(wd[pos_key].size(0)) for wd in per_window_dicts]
                 window_data: Dict[str, Any] = {}
                 for key in per_window_dicts[0]:
                     values = [wd[key] for wd in per_window_dicts]
-                    if torch.is_tensor(values[0]) and values[0].dim() > 0 and values[0].size(0) == k:
+                    if torch.is_tensor(values[0]) and values[0].dim() > 0 and values[0].size(0) == sizes[0]:
                         window_data[key] = torch.cat(values, dim=0)
                     else:
                         window_data[key] = values[0]
 
                 window_logits = predictor(window_data).to(device)
                 num_classes = int(window_logits.size(-1))
-                window_logits = window_logits.reshape(sw, k, num_classes)
+                window_logits = torch.stack(
+                    [
+                        part if inverse_map is None else part[inverse_map]
+                        for part, inverse_map in zip(window_logits.split(sizes), inverse_maps)
+                    ]
+                )  # (sw, k, C)
 
                 if output is None:
                     output = torch.zeros(n_total, num_classes, device=device, dtype=torch.float32)
                 if scores_b is None:
                     scores_b = torch.zeros(n_b, num_classes, device=device, dtype=torch.float32)
-                    if aggregate == "weighted_mean":
+                    if aggregate == "mean":
                         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
 
                 distances = torch.linalg.norm(pos_b[local_idxs] - center_pos.unsqueeze(1), dim=-1)
@@ -289,7 +299,9 @@ class KNNWindowInferer(Inferer):
     the least-covered points until all points are covered. Reuse the same instance
     across scenes; compose with `TTAInferer` for multi-augmentation averaging.
 
-    All parameters are forwarded verbatim to `knn_window_inference`.
+    All parameters are forwarded verbatim to `knn_window_inference`, except `seed`, which is offset by
+    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
+    numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python
@@ -308,12 +320,13 @@ class KNNWindowInferer(Inferer):
         overlap: float = 0.5,
         mode: WindowMode = "constant",
         sigma_scale: float = 0.125,
-        aggregate: AggregateMode = "weighted_mean",
+        aggregate: AggregateMode = "mean",
         ema_smoothing: float = 0.95,
         softmax: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
+        inverse_key: Optional[str] = None,
         progress: bool = False,
         seed: Optional[int] = None,
     ) -> None:
@@ -328,14 +341,18 @@ class KNNWindowInferer(Inferer):
         self.transform = transform
         self.pos_key = pos_key
         self.batch_key = batch_key
+        self.inverse_key = inverse_key
         self.progress = progress
         self.seed = seed
+        self._num_calls = 0
 
     def forward(
         self,
         data: Dict[str, Any],
         predictor: Callable[[Dict[str, Any]], Tensor],
     ) -> Tensor:
+        seed = None if self.seed is None else self.seed + self._num_calls
+        self._num_calls += 1
         return knn_window_inference(
             data,
             predictor=predictor,
@@ -350,6 +367,7 @@ class KNNWindowInferer(Inferer):
             transform=self.transform,
             pos_key=self.pos_key,
             batch_key=self.batch_key,
+            inverse_key=self.inverse_key,
             progress=self.progress,
-            seed=self.seed,
+            seed=seed,
         )

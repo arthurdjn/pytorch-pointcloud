@@ -291,7 +291,7 @@ def test_sliding_window_overlap_without_padding_blocks_contain_their_points() ->
     seen: List[Tuple[Tensor, Tensor]] = []
 
     def spy(window: Dict[str, Any]) -> Dict[str, Any]:
-        seen.append((window[DataKeys.POS].clone(), window["block_bbox"].clone()))
+        seen.append((window[DataKeys.POS].clone(), window[DataKeys.BLOCK_BBOX].clone()))
         return window
 
     pred = _constant_predictor(1.0, num_classes=2)

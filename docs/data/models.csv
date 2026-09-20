@@ -88,7 +88,7 @@ pointnet2.s3dis-area2.openpoints,pointnet2,segmentation,s3dis-area2,true,MIT,0.9
 pointnet2.s3dis-area3.openpoints,pointnet2,segmentation,s3dis-area3,true,MIT,0.97,mIoU,,76.31
 pointnet2.s3dis-area4.openpoints,pointnet2,segmentation,s3dis-area4,true,MIT,0.97,mIoU,,59.96
 pointnet2.s3dis-area5.openpoints,pointnet2,segmentation,s3dis-area5,true,MIT,0.97,mIoU,63.6,63.66
-pointnet2.s3dis-area5.xu-yan,pointnet2,segmentation,s3dis-area5,true,MIT,0.97,mIoU,53.5,54.28
+pointnet2.s3dis-area5.xu-yan,pointnet2,segmentation,s3dis-area5,true,MIT,0.97,mIoU,53.5,54.83
 pointnet2.s3dis-area6.openpoints,pointnet2,segmentation,s3dis-area6,true,MIT,0.97,mIoU,,82.45
 pointnext-base,pointnext,segmentation,,false,,,mIoU,,
 pointnext-base.s3dis-area1.openpoints,pointnext,segmentation,s3dis-area1,true,MIT,3.84,mIoU,,77.78

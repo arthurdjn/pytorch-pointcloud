@@ -15,7 +15,7 @@ from tqdm import tqdm
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.ops import voxel_grid_fnv
 
-from ._utils import check_batch_alignment, index_select_dict
+from ._utils import apply_transform, check_batch_alignment, index_select_dict
 from .inferer import Inferer
 
 
@@ -23,7 +23,7 @@ def _next_sphere(
     pos_b: Tensor,
     coarse_pos: Tensor,
     potentials: Tensor,
-    rng: torch.Generator,
+    rng: Optional[torch.Generator],
     radius: float,
     jitter: float,
 ) -> Tuple[Tensor, Tensor]:
@@ -55,6 +55,7 @@ def potential_sphere_inference(
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
+    inverse_key: Optional[str] = None,
     progress: bool = False,
     seed: Optional[int] = None,
 ) -> Tensor:
@@ -91,12 +92,19 @@ def potential_sphere_inference(
         sw_batch_size: Number of spheres packed into one predictor call. Centers are still drawn one at a
             time with the potentials updated in between, as the reference sampler does.
         transform: Optional per-sphere callable applied to the centered sphere dict before the predictor.
-            The transform must preserve the sphere's row count and keep positions centered on the sphere (the
-            `inner_ratio` mask is evaluated on the transformed positions, as the reference does).
+            The transform must keep positions centered on the sphere (the `inner_ratio` mask is evaluated on
+            the transformed positions, as the reference does). If it changes the row count (pad, voxelize, ...)
+            it must record a source-to-predictor index map under `inverse_key` so the inferer can gather
+            predictions and the mask back to the sphere's points.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
+        inverse_key: Dict key under which a row-altering `transform` records a source-to-predictor long index
+            map of shape $(N_\text{sphere},)$ with values in $[0, N_\text{predictor})$. Any scene-level value at
+            this key is dropped before `transform` runs, and the map is popped before the predictor is called.
+            Leave `None` when the transform preserves row count.
         progress: If `True`, show a `tqdm` progress bar per batch element.
-        seed: Optional RNG seed for the initial potentials and the center jitter.
+        seed: RNG seed for the initial potentials and the center jitter. `None` draws from the global generator, so
+            `torch.manual_seed` seeds the inferer together with the transforms.
 
     Returns:
         Per-point score tensor of shape $(N, C)$: the EMA of softmax probabilities over the spheres covering
@@ -132,9 +140,7 @@ def potential_sphere_inference(
     n = pos.size(0)
     inner_sq = (inner_ratio * radius) ** 2
 
-    rng = torch.Generator(device=device)
-    if seed is not None:
-        rng.manual_seed(int(seed))
+    rng = None if seed is None else torch.Generator(device=device).manual_seed(int(seed))
 
     output: Optional[Tensor] = None
     for b in torch.unique(batch).tolist():
@@ -152,6 +158,7 @@ def potential_sphere_inference(
             while float(potentials.min().item()) < num_votes:
                 spheres: List[Dict[str, Any]] = []
                 sphere_idx: List[Tensor] = []
+                inverse_maps: List[Optional[Tensor]] = []
                 for _ in range(sw_batch_size):
                     if float(potentials.min().item()) >= num_votes:
                         break
@@ -162,16 +169,11 @@ def potential_sphere_inference(
 
                     sphere = index_select_dict(data_b, idx, n_b)
                     sphere[pos_key] = sphere[pos_key] - center
-                    if transform is not None:
-                        sphere = transform(sphere)
-                        if int(sphere[pos_key].size(0)) != int(idx.numel()):
-                            raise ValueError(
-                                f"`transform` must preserve each sphere's row count; got {int(idx.numel())} -> "
-                                f"{int(sphere[pos_key].size(0))} rows."
-                            )
+                    sphere, inverse_map = apply_transform(sphere, transform, pos_key=pos_key, inverse_key=inverse_key)
 
                     spheres.append(sphere)
                     sphere_idx.append(idx)
+                    inverse_maps.append(inverse_map)
 
                 if not spheres:
                     continue
@@ -182,11 +184,14 @@ def potential_sphere_inference(
                     scores_b = torch.zeros(n_b, int(probs.size(-1)), device=device, dtype=probs.dtype)
 
                 offset = 0
-                for sphere, idx in zip(spheres, sphere_idx):
-                    count = int(idx.numel())
+                for sphere, idx, inverse_map in zip(spheres, sphere_idx, inverse_maps):
+                    count = int(sphere[pos_key].size(0))
                     sphere_probs = probs[offset : offset + count]
                     offset += count
                     inner = sphere[pos_key].square().sum(dim=-1) < inner_sq
+                    if inverse_map is not None:
+                        sphere_probs = sphere_probs[inverse_map]
+                        inner = inner[inverse_map]
                     rows = idx[inner]
                     scores_b[rows] = ema_smoothing * scores_b[rows] + (1.0 - ema_smoothing) * (
                         sphere_probs[inner].to(scores_b.dtype)
@@ -225,7 +230,9 @@ class PotentialSphereInferer(Inferer):
     each sphere's softmax predictions into the running per-point scores by an exponential moving average,
     until every region has been covered about `num_votes` times.
 
-    All parameters are forwarded verbatim to `potential_sphere_inference`.
+    All parameters are forwarded verbatim to `potential_sphere_inference`, except `seed`, which is offset by
+    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
+    numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```{.python notest}
@@ -248,6 +255,7 @@ class PotentialSphereInferer(Inferer):
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
+        inverse_key: Optional[str] = None,
         progress: bool = False,
         seed: Optional[int] = None,
     ) -> None:
@@ -261,14 +269,18 @@ class PotentialSphereInferer(Inferer):
         self.transform = transform
         self.pos_key = pos_key
         self.batch_key = batch_key
+        self.inverse_key = inverse_key
         self.progress = progress
         self.seed = seed
+        self._num_calls = 0
 
     def forward(
         self,
         data: Dict[str, Any],
         predictor: Callable[[Dict[str, Any]], Tensor],
     ) -> Tensor:
+        seed = None if self.seed is None else self.seed + self._num_calls
+        self._num_calls += 1
         return potential_sphere_inference(
             data,
             predictor=predictor,
@@ -282,6 +294,7 @@ class PotentialSphereInferer(Inferer):
             transform=self.transform,
             pos_key=self.pos_key,
             batch_key=self.batch_key,
+            inverse_key=self.inverse_key,
             progress=self.progress,
-            seed=self.seed,
+            seed=seed,
         )

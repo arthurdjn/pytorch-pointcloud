@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys, collate
 
-from ._utils import check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
+from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
 
 WindowMode = Literal["constant", "gaussian"]
@@ -191,25 +191,17 @@ def _build_window(
     *,
     n_b: int,
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]],
+    pos_key: str,
     batch_key: str,
     block_bbox_key: str,
     inverse_key: Optional[str],
 ) -> Tuple[Dict[str, Any], Optional[Tensor]]:
-    """Slice one block out of `data_b` and run `transform` over it, returning it and its inverse map.
-
-    Any scene-level value at `inverse_key` is dropped before `transform` runs, so a registered pipeline's
-    `inverse` never becomes the prior the block's own map composes through.
-    """
+    """Slice one block out of `data_b` and run `transform` over it, returning it and its inverse map."""
     n_block = int(point_ids.numel())
     window = index_select_dict(data_b, point_ids, n_b)
     window[batch_key] = torch.zeros(n_block, device=point_ids.device, dtype=torch.long)
     window[block_bbox_key] = bbox
-    if inverse_key is not None:
-        window.pop(inverse_key, None)
-    if transform is not None:
-        window = transform(window)
-    inverse_map = window.pop(inverse_key, None) if inverse_key is not None else None
-    return window, inverse_map
+    return apply_transform(window, transform, pos_key=pos_key, inverse_key=inverse_key)
 
 
 def _predict_packed(
@@ -248,7 +240,7 @@ def sliding_window_inference(
     padding: float = 0.0,
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
-    block_bbox_key: str = "block_bbox",
+    block_bbox_key: str = DataKeys.BLOCK_BBOX,
     inverse_key: Optional[str] = None,
     progress: bool = False,
     seed: Optional[int] = None,
@@ -336,7 +328,8 @@ def sliding_window_inference(
             predictions back to block-local rows. Leave `None` when the transform
             preserves row count, or when no transform is used.
         progress: If `True`, show a `tqdm` progress bar per batch element.
-        seed: RNG seed for sub-batch permutations when `roi_num_points` is set.
+        seed: RNG seed for sub-batch permutations when `roi_num_points` is set. `None` draws from the global generator, so
+            `torch.manual_seed` seeds the inferer together with the transforms.
 
     Returns:
         Per-point output tensor of shape $(N, C_\text{out})$: with
@@ -373,9 +366,7 @@ def sliding_window_inference(
     n_total = pos.size(0)
     output: Optional[Tensor] = None
 
-    rng = torch.Generator(device=device)
-    if seed is not None:
-        rng.manual_seed(int(seed))
+    rng = None if seed is None else torch.Generator(device=device).manual_seed(int(seed))
     apply_softmax = softmax or aggregate != "mean"
 
     for b in torch.unique(batch).tolist():
@@ -419,12 +410,13 @@ def sliding_window_inference(
                     bbox,
                     n_b=n_b,
                     transform=transform,
+                    pos_key=pos_key,
                     batch_key=batch_key,
                     block_bbox_key=block_bbox_key,
                     inverse_key=inverse_key,
                 )
                 n_window = int(window[pos_key].size(0))
-                chunks = split_chunks(n_window, roi_num_points, rng)
+                chunks = split_chunks(n_window, roi_num_points, rng, device)
                 samples.extend(index_select_dict(window, chunk, n_window) for chunk in chunks)
                 prepared.append((n_window, inverse_map, chunks))
 
@@ -491,7 +483,9 @@ class SlidingWindowInferer(Inferer):
     At `overlap=0` each point lands in exactly one block and the weight division
     is a no-op.
 
-    All parameters are forwarded verbatim to `sliding_window_inference`.
+    All parameters are forwarded verbatim to `sliding_window_inference`, except `seed`, which is offset by
+    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
+    numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python
@@ -521,7 +515,7 @@ class SlidingWindowInferer(Inferer):
         padding: float = 0.0,
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
-        block_bbox_key: str = "block_bbox",
+        block_bbox_key: str = DataKeys.BLOCK_BBOX,
         inverse_key: Optional[str] = None,
         progress: bool = False,
         seed: Optional[int] = None,
@@ -543,12 +537,15 @@ class SlidingWindowInferer(Inferer):
         self.inverse_key = inverse_key
         self.progress = progress
         self.seed = seed
+        self._num_calls = 0
 
     def forward(
         self,
         data: Dict[str, Any],
         predictor: Callable[[Dict[str, Any]], Tensor],
     ) -> Tensor:
+        seed = None if self.seed is None else self.seed + self._num_calls
+        self._num_calls += 1
         return sliding_window_inference(
             data,
             predictor=predictor,
@@ -568,5 +565,5 @@ class SlidingWindowInferer(Inferer):
             block_bbox_key=self.block_bbox_key,
             inverse_key=self.inverse_key,
             progress=self.progress,
-            seed=self.seed,
+            seed=seed,
         )

@@ -20,6 +20,30 @@ data = {"pos": torch.randn(1000, 3), "x": torch.randn(1000, 3), "batch": torch.z
 probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
 ```
 
+## Per-fragment transforms
+
+The inferers that split the scene take a `transform`, applied to every block, sub-cloud, sphere or crop after it is sliced out of the scene and before it reaches the predictor. This is where the preprocessing that depends on the fragment belongs: centering, feature stacking, padding, voxelization.
+
+A transform that changes the number of rows records a source-to-predictor index map. Pass the key of that map as `inverse_key` and the inferer gathers the predictions back to the fragment's own points:
+
+```python
+import torch_pointcloud.transforms as T
+from torch_pointcloud.inferers import VoxelPartitionInferer
+from torch_pointcloud.utils.data import DataKeys
+
+inferer = VoxelPartitionInferer(
+    voxel_size=0.04,
+    transform=T.DivisiblePad(num_samples=4096, dst_inverse_key=DataKeys.INVERSE),
+    inverse_key=DataKeys.INVERSE,
+)
+```
+
+`SlidingWindowInferer`, `VoxelPartitionInferer`, `KNNWindowInferer` and `PotentialSphereInferer` all take `inverse_key`. The map is removed from the fragment before the predictor is called, and a transform that changes the row count without recording one raises.
+
+A step belongs on the dataset when it needs the whole scene: label remapping, scene statistics such as the room extent, a subsampling of the scene done once. It belongs in the inferer when it depends on the fragment: centering on the fragment, coordinates relative to the block, grid coordinates, padding, and the feature stack built from them. The inferer returns one prediction per point of the scene it was given, scored against that scene's labels.
+
+The transform registered with a checkpoint is the single-pass pipeline, where the fragment is the whole scene. Depending on the protocol its steps go to the dataset, to the inferer, or are split between the two, and the sampling step (`Voxelize`, a crop) is the one the inferer replaces.
+
 ## Which one to use
 
 | Inferer                                                         | Runs the predictor on                                 | Reproduces                                             |
@@ -31,5 +55,3 @@ probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
 | [`PotentialSphereInferer`](../api/inferers/potential_sphere.md) | radius spheres drawn from a potential grid            | potential sphere voting (KPConv)                       |
 | [`TTAInferer`](../api/inferers/tta.md)                          | any base inferer, under several views                 | test-time augmentation and voting                      |
 | [`PartRefinementInferer`](../api/inferers/part_refinement.md)   | any base inferer, then a neighbor vote                | part-segmentation label refinement                     |
-
-The last two wrap another inferer rather than replacing it.

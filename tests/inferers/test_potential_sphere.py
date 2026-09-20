@@ -4,6 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.inferers import PotentialSphereInferer, potential_sphere_inference
 from torch_pointcloud.utils.data import DataKeys
 
@@ -90,12 +91,36 @@ def test_potential_sphere_batched_matches_per_scene() -> None:
         DataKeys.BATCH: torch.cat([torch.zeros(500, dtype=torch.long), torch.ones(300, dtype=torch.long)]),
         "x": torch.cat([a["x"], b["x"]]),
     }
-    inferer = PotentialSphereInferer(radius=1.5, num_votes=1.0, seed=0)
-    out = inferer(packed, predictor=_left_right_predictor)
-    out_a = inferer(a, predictor=_left_right_predictor)
+    out = PotentialSphereInferer(radius=1.5, num_votes=1.0, seed=0)(packed, predictor=_left_right_predictor)
+    out_a = PotentialSphereInferer(radius=1.5, num_votes=1.0, seed=0)(a, predictor=_left_right_predictor)
     assert out.shape == (800, 2)
     # Scene 0 is processed first with the same generator state either way.
     assert torch.allclose(out[:500], out_a)
+
+
+def test_potential_sphere_with_divisible_pad_matches_unpadded_scores() -> None:
+    """`DivisiblePad` + `inverse_key` round-trips: the predictor is pointwise, so padding changes nothing."""
+    data = _room(n=600)
+    rows_seen: List[int] = []
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        assert DataKeys.INVERSE not in window
+        rows_seen.append(int(window[DataKeys.POS].size(0)))
+        return _left_right_predictor(window)
+
+    out = PotentialSphereInferer(radius=1.5, num_votes=2.0, sw_batch_size=2, seed=0)(
+        data, predictor=_left_right_predictor
+    )
+    out_pad = PotentialSphereInferer(
+        radius=1.5,
+        num_votes=2.0,
+        sw_batch_size=2,
+        transform=T.DivisiblePad(num_samples=64, dst_inverse_key=DataKeys.INVERSE),
+        inverse_key=DataKeys.INVERSE,
+        seed=0,
+    )(data, predictor=predictor)
+    assert all(rows % 64 == 0 for rows in rows_seen)
+    assert torch.equal(out_pad, out)
 
 
 def test_potential_sphere_row_altering_transform_raises() -> None:
