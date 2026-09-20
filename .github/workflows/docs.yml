@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
   workflow_dispatch:
 
@@ -17,6 +19,7 @@ concurrency:
 jobs:
   build:
     name: Build the site
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,26 +48,59 @@ jobs:
       - name: Build the site
         run: JUPYTER_PLATFORM_DIRS=1 uv run --no-sync zensical build --strict
 
-      - name: Upload the site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
   deploy:
     name: Deploy to GitHub Pages
     if: github.event_name != 'pull_request'
-    needs: build
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write
+    concurrency:
+      group: ${{ github.workflow }}-deploy
+      cancel-in-progress: false
     steps:
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # mike reads the deployed versions from origin/gh-pages before committing the new one.
+          fetch-depth: 0
 
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install the package and the docs tooling
+        run: uv sync --frozen --dev
+
+      - name: Install the CPU torch extensions
+        run: |
+          uv pip install --no-config --torch-backend=cpu \
+            torch==2.10.0+cpu torchvision==0.25.0 ocnn==2.3.3 \
+            pyg-lib torch-scatter torch-sparse torch-cluster spconv \
+            -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
+
+      - name: Install mike
+        # The Zensical-compatible fork is not on PyPI, and it drives `zensical build` as a
+        # subprocess, so it has to share the venv that carries the plugins.
+        run: uv pip install git+https://github.com/squidfunk/mike.git
+
+      - name: Render the notebooks and the API reference
+        run: |
+          uv run --no-sync python docs/scripts/build_notebooks.py
+          uv run --no-sync python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
+
+      - name: Configure the committer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy the development version
+        if: github.ref_type == 'branch'
+        run: JUPYTER_PLATFORM_DIRS=1 uv run --no-sync mike deploy --push dev
+
+      - name: Deploy the released version
+        if: github.ref_type == 'tag'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          JUPYTER_PLATFORM_DIRS=1 uv run --no-sync mike deploy --push --update-aliases "$VERSION" latest
+          uv run --no-sync mike set-default --push latest

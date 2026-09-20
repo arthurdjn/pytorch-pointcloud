@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added versioning of the documentation with mike.
 - Moved the metrics from `torch_pointcloud.utils.metrics` to the `torch_pointcloud.metrics` sub-package.
 - Added `intersection_over_union` and `accuracy` of a `confusion_matrix`, with `average`, `ignore_index`, `class_names`.
 - Removed `compute_iou`, `compute_mean_iou`, `overall_accuracy` and `per_class_accuracy`, superseded by the above.
