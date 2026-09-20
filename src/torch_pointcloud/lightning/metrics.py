@@ -6,17 +6,17 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.datasets.shapenetpart import ShapeNetPart
-from torch_pointcloud.utils.imports import _TORCHMETRICS_GITHUB_URL, optional_import
-from torch_pointcloud.utils.metrics import (
-    BoxMatches,
-    Interpolation,
+from torch_pointcloud.metrics import (
     average_precision3d,
     box_matches,
     instance_average_precision,
     nuscenes_detection_metrics,
-    nuscenes_velocity_attributes,
     part_intersection_over_union,
 )
+from torch_pointcloud.metrics.detection import BoxMatches, Interpolation
+from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
+from torch_pointcloud.metrics.nuscenes import nuscenes_velocity_attributes
+from torch_pointcloud.utils.imports import _TORCHMETRICS_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Boxes3D, Detection3D, OptTensor
 
 if TYPE_CHECKING:
@@ -335,7 +335,7 @@ class InstanceAveragePrecision(Metric):
         kwargs: Forwarded to `torchmetrics.Metric`.
     """
 
-    matches: List[Mapping[str, Tensor]]
+    matches: List[InstanceMatches]
     higher_is_better = True
     full_state_update = False
 
@@ -353,7 +353,7 @@ class InstanceAveragePrecision(Metric):
         self.min_points = min_points
         self.add_state("matches", default=[], dist_reduce_fx=None)
 
-    def update(self, match: Mapping[str, Tensor]) -> None:
+    def update(self, match: InstanceMatches) -> None:
         r"""Append one scene's `instance_matches` record.
 
         Args:

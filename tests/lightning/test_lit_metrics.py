@@ -11,17 +11,17 @@ from torch_pointcloud.lightning.metrics import (
     MeanAveragePrecision3D,
     NuScenesDetection,
 )
-from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
-from torch_pointcloud.utils.metrics import (
+from torch_pointcloud.metrics import (
     average_precision3d,
     box_matches,
     instance_average_precision,
     instance_matches,
     nuscenes_detection_metrics,
-    nuscenes_velocity_attributes,
     part_intersection_over_union,
     part_mean_intersection_over_union,
 )
+from torch_pointcloud.metrics.nuscenes import nuscenes_velocity_attributes
+from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 pytestmark = pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed")
@@ -100,9 +100,10 @@ def test_instance_part_mean_iou_matches_functional_across_updates() -> None:
     category = torch.tensor([0, 15, 0, 7])
     batch = torch.cat([batches[0], batches[1] + 2])
     ious = part_intersection_over_union(torch.cat(preds), torch.cat(targets), part_ids, category, batch)
-    expected = part_mean_intersection_over_union(ious, category)
-    assert out["ins_mIoU"].item() == pytest.approx(expected["ins_mIoU"], abs=1e-6)
-    assert out["cls_mIoU"].item() == pytest.approx(expected["cls_mIoU"], abs=1e-6)
+    instance_miou = part_mean_intersection_over_union(ious, category)
+    class_miou = part_mean_intersection_over_union(ious, category, average="macro")
+    assert out["ins_mIoU"].item() == pytest.approx(instance_miou, abs=1e-6)
+    assert out["cls_mIoU"].item() == pytest.approx(class_miou, abs=1e-6)
 
 
 def test_instance_part_mean_iou_derives_category_from_target() -> None:

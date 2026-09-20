@@ -1,1 +1,1 @@
-"""Tensor utilities: clustering, voxelization, geometry, serialization, metrics, and I/O."""
+"""Tensor utilities: clustering, voxelization, geometry, serialization, and I/O."""
