@@ -73,9 +73,9 @@ def gaussian_radius(height: Tensor, width: Tensor, min_overlap: float = 0.5) -> 
 def _gaussian_2d(diameter: int, sigma: float, device: torch.device) -> Tensor:
     r"""Isotropic 2D Gaussian on a $(\text{diameter}, \text{diameter})$ grid, peak $1$ at the center."""
     radius = (diameter - 1) // 2
-    coords = torch.arange(-radius, radius + 1, dtype=torch.float64, device=device)
-    y = coords[:, None]
-    x = coords[None, :]
+    offsets = torch.arange(-radius, radius + 1, dtype=torch.float64, device=device)
+    y = offsets[:, None]
+    x = offsets[None, :]
     h = torch.exp(-(x * x + y * y) / (2 * sigma * sigma))
     h[h < torch.finfo(torch.float64).eps * h.max()] = 0
     return h
@@ -208,11 +208,11 @@ def draw_heatmap_targets(
         return heatmap, reg_targets, inds, mask
 
     x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
-    coord_x = (x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride
-    coord_y = (y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride
-    coord_x = torch.clamp(coord_x, min=0, max=width - 0.5)
-    coord_y = torch.clamp(coord_y, min=0, max=height - 0.5)
-    center = torch.stack([coord_x, coord_y], dim=-1)
+    pos_x = (x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride
+    pos_y = (y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride
+    pos_x = torch.clamp(pos_x, min=0, max=width - 0.5)
+    pos_y = torch.clamp(pos_y, min=0, max=height - 0.5)
+    center = torch.stack([pos_x, pos_y], dim=-1)
     center_int = center.int()
     center_int_float = center_int.float()
 

@@ -74,8 +74,8 @@ def build_hilbert_template(rank: int, z_max: int, device: Union[str, torch.devic
         y = torch.arange(n, device=device).view(n, 1).expand(n, n)
         x = torch.arange(n, device=device).view(1, n).expand(n, n)
         z = torch.full((n, n), z0, device=device)
-        coords_zyx = torch.stack([z.reshape(-1), y.reshape(-1), x.reshape(-1)], dim=1)
-        chunks.append(hilbert_encode(coords_zyx, num_dims=3, num_bits=rank).long())
+        pos_zyx = torch.stack([z.reshape(-1), y.reshape(-1), x.reshape(-1)], dim=1)
+        chunks.append(hilbert_encode(pos_zyx, num_dims=3, num_bits=rank).long())
     return torch.cat(chunks)
 
 

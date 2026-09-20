@@ -16,8 +16,8 @@ from torch_pointcloud.transforms.functional import divisible_pad
 def test_relative_positional_encoding_forward() -> None:
     rpe = RelativePositionalEncoding(patch_size=8, num_heads=4)
     # (P, K, 3) of per-patch voxel coordinates
-    coords = torch.randint(0, 16, (2, 8, 3))
-    out = rpe(coords)
+    pos_grid = torch.randint(0, 16, (2, 8, 3))
+    out = rpe(pos_grid)
     assert out.shape == (2, 4, 8, 8)
 
 
@@ -75,7 +75,7 @@ def test_relative_positional_encoding_sums_the_three_axis_rows() -> None:
     pos_grid = torch.tensor([[[0, 5, 2], [40, 1, 2], [3, 3, 9]]])
     out = rpe(pos_grid)
 
-    boundary, stride = rpe.coords_boundary, rpe.rpe_num
+    boundary, stride = rpe.pos_boundary, rpe.rpe_num
     for i in range(3):
         for j in range(3):
             rows = [

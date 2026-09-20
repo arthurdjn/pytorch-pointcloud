@@ -36,7 +36,7 @@ from torch_pointcloud.utils.imports import (
     _TORCH_SCATTER_GITHUB_URL,
     optional_import,
 )
-from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
+from torch_pointcloud.utils.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import BaseModel, ClassificationModel
@@ -74,7 +74,7 @@ def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Te
         )
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
     depth = max(int(pos_grid.max()).bit_length(), 1)
-    serialized_code = serialize_coords(pos_grid, batch, depth=depth, order=order)
+    serialized_code = serialize_pos(pos_grid, batch, depth=depth, order=order)
     serialized_order = torch.argsort(serialized_code)
     return serialized_order
 

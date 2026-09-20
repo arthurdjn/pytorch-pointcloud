@@ -160,7 +160,7 @@ def test_sphere_crop_max_nodes_above_count_is_noop() -> None:
     assert out["pos"].shape[0] == 3
 
 
-def test_sphere_crop_accepts_integer_coords() -> None:
+def test_sphere_crop_accepts_integer_pos() -> None:
     # Grid coordinates are integer-typed; SphereCrop must not choke on them.
     pos = torch.tensor([[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], dtype=torch.long)
     out = T.SphereCrop(pos_key="pos", radius=1000.0, max_nodes=2, center="centroid")({"pos": pos})

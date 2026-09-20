@@ -98,7 +98,7 @@ def test_encode_decode_roundtrip(num_dims: int, num_bits: int) -> None:
     assert torch.equal(decode(codes, num_dims=num_dims, num_bits=num_bits), locs)
 
 
-def test_distinct_coords_give_distinct_codes() -> None:
+def test_distinct_locs_give_distinct_codes() -> None:
     num_bits = 6
     g = torch.Generator().manual_seed(0)
     flat = torch.randperm(2 ** (3 * num_bits), generator=g)[:1024]
