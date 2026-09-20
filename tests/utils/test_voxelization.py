@@ -97,14 +97,14 @@ def test_point_to_voxel_generator_cache_is_bounded() -> None:
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
-def test_hard_voxelize_known_coords() -> None:
+def test_hard_voxelize_known_voxel_indices() -> None:
     points = torch.tensor([[0.25, 0.25, 0.25], [0.75, 0.25, 0.25]])
     batch = torch.zeros(2, dtype=torch.long)
-    voxels, coords, num_points = hard_voxelize(
+    voxels, voxel_indices, num_points = hard_voxelize(
         points, batch, (0.5, 0.5, 0.5), (0, 0, 0, 1, 1, 1), max_num_points=5, max_num_voxels=10
     )
     assert voxels.shape == (2, 5, 3)
-    assert coords.tolist() == [[0, 0, 0, 0], [0, 0, 0, 1]]  # (batch, z, y, x)
+    assert voxel_indices.tolist() == [[0, 0, 0, 0], [0, 0, 0, 1]]  # (batch, z, y, x)
     assert num_points.tolist() == [1, 1]
     assert voxels[0, 0].tolist() == [0.25, 0.25, 0.25]
     assert voxels[1, 0].tolist() == [0.75, 0.25, 0.25]
@@ -114,17 +114,17 @@ def test_hard_voxelize_known_coords() -> None:
 def test_hard_voxelize_batch_column() -> None:
     points = torch.tensor([[0.25, 0.25, 0.25], [0.25, 0.25, 0.25]])
     batch = torch.tensor([0, 1])
-    voxels, coords, num_points = hard_voxelize(
+    voxels, voxel_indices, num_points = hard_voxelize(
         points, batch, (0.5, 0.5, 0.5), (0, 0, 0, 1, 1, 1), max_num_points=5, max_num_voxels=10
     )
-    assert coords.shape == (2, 4)
-    assert coords[:, 0].tolist() == [0, 1]
+    assert voxel_indices.shape == (2, 4)
+    assert voxel_indices[:, 0].tolist() == [0, 1]
     assert num_points.tolist() == [1, 1]
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 def test_hard_voxelize_empty_input_returns_empty_outputs() -> None:
-    voxels, coords, num_points = hard_voxelize(
+    voxels, voxel_indices, num_points = hard_voxelize(
         torch.zeros(0, 4),
         torch.zeros(0, dtype=torch.long),
         (0.1, 0.1, 0.1),
@@ -133,7 +133,7 @@ def test_hard_voxelize_empty_input_returns_empty_outputs() -> None:
         max_num_voxels=10,
     )
     assert voxels.shape == (0, 5, 4)
-    assert coords.shape == (0, 4)
+    assert voxel_indices.shape == (0, 4)
     assert num_points.shape == (0,)
-    assert coords.dtype == torch.int32
+    assert voxel_indices.dtype == torch.int32
     assert num_points.dtype == torch.int32

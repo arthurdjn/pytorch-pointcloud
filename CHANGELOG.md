@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file. The format is b
 - Removed `mean_average_precision3d`, superseded by `average_precision3d`.
 - Updated `instance_average_precision` to take `iou_threshold`, `average` and `class_names`, like the other metrics.
 - Updated box AP and `count_points_in_boxes` for faster detection benchmarks.
+- Renamed `serialize_coords` to `serialize_pos` and `RelativePositionalEncoding.coords_boundary` to `pos_boundary`.
 
 ## 0.0.3 (2026-09-19)
 
