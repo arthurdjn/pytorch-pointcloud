@@ -8,7 +8,7 @@
 [![tests](https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white)](https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml)
 [![pypi](https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
 [![license](https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C)](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE)
-[![doi](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22159633-red.svg?color=EE4C2C&labelColor=11001C)](https://doi.org/10.5281/zenodo.22159633)
+[![doi](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22159632-red.svg?color=EE4C2C&labelColor=11001C)](https://doi.org/10.5281/zenodo.22159632)
 [![docs](https://img.shields.io/badge/docs-pytorch--pointcloud.org-red.svg?color=EE4C2C&labelColor=11001C&logo=materialformkdocs&logoColor=white)](https://pytorch-pointcloud.org/)  
 
 </div>
@@ -143,7 +143,7 @@ If you find this project useful, please consider citing:
   title = {PyTorch PointCloud},
   year = {2026},
   url = {https://github.com/arthurdjn/pytorch-pointcloud},
-  doi = {10.5281/zenodo.22159633},
+  doi = {10.5281/zenodo.22159632},
   license = {Apache-2.0}
 }
 ```
