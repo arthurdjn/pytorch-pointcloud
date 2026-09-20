@@ -5,7 +5,7 @@ Results:
     | Variant                             | metric                      | reference                     | torch-pointcloud              |
     | ----------------------------------- | --------------------------- | ----------------------------- | ----------------------------- |
     | second.kitti.openpcdet              | Car / Ped / Cyc / mAP (R11) | 78.62 / 52.98 / 67.15 / 66.25 | 78.63 / 52.98 / 67.16 / 66.26 |
-    | second-multihead.nuscenes.openpcdet | mAP / NDS                   | 50.59 / 62.29                 |                               |
+    | second-multihead.nuscenes.openpcdet | mAP / NDS                   | 50.59 / 62.29                 | 50.75 / 61.89                 |
 
 Usage:
     uv run --no-sync python examples/second_benchmark_detection.py --model second.kitti.openpcdet --split-file /path/to/ImageSets/val.txt

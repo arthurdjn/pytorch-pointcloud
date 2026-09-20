@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added performances of object detection models on nuScenes.
+
 ## 0.0.4 (2026-09-20)
 
 - Added versioning of the documentation with mike.

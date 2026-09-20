@@ -563,7 +563,7 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars-multihead.nuscenes.openpcdet/resolve/main/model.safetensors",
         dataset="nuscenes",
-        # TODO: metrics not measured yet
+        metrics={"mAP": 44.34, "NDS": 57.08},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

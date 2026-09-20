@@ -4,7 +4,7 @@ Results (nuScenes val, mAP / NDS):
 
     | Variant                      | reference   | torch-pointcloud |
     | ---------------------------- | ----------- | ---------------- |
-    | voxelnext.nuscenes.openpcdet | 60.5 / 66.6 |                  |
+    | voxelnext.nuscenes.openpcdet | 60.5 / 66.6 | 61.20 / 66.81    |
 
 Usage:
     uv run --no-sync python examples/voxelnext_benchmark_detection.py --root /path/to/data

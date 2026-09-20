@@ -5,7 +5,7 @@ Results:
     | Variant                                   | metric                      | reference                     | torch-pointcloud              |
     | ----------------------------------------- | --------------------------- | ----------------------------- | ----------------------------- |
     | pointpillars.kitti.openpcdet              | Car / Ped / Cyc / mAP (R11) | 77.28 / 52.29 / 62.68 / 64.08 | 77.35 / 52.39 / 62.74 / 64.16 |
-    | pointpillars-multihead.nuscenes.openpcdet | mAP / NDS                   | 44.63 / 58.23                 |                               |
+    | pointpillars-multihead.nuscenes.openpcdet | mAP / NDS                   | 44.63 / 58.23                 | 44.34 / 57.08                 |
 
 Usage:
     uv run --no-sync python examples/pointpillars_benchmark_detection.py --model pointpillars.kitti.openpcdet --split-file /path/to/ImageSets/val.txt
