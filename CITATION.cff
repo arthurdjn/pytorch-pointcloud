@@ -6,14 +6,12 @@ abstract: "A PyTorch library for deep learning on point clouds: models, pretrain
 authors:
   - family-names: "Dujardin"
     given-names: "Arthur"
-    email: "arthurdujardin.research@gmail.com"
-version: "0.0.1"
-date-released: "2026-08-29"
-doi: "10.5281/zenodo.22159633"
+    email: "arthurdujardin.dev@gmail.com"
+doi: "10.5281/zenodo.22159632"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.22159632"
-    description: "Concept DOI, resolves to the latest version on Zenodo"
+    description: "Concept DOI, resolves to the latest one"
 license: "Apache-2.0"
 repository-code: "https://github.com/arthurdjn/pytorch-pointcloud"
 url: "https://pytorch-pointcloud.org/"
