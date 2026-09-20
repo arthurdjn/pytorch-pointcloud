@@ -8,13 +8,14 @@ from torch import Tensor
 from torch_pointcloud.datasets.shapenetpart import ShapeNetPart
 from torch_pointcloud.utils.imports import _TORCHMETRICS_GITHUB_URL, optional_import
 from torch_pointcloud.utils.metrics import (
+    BoxMatches,
     Interpolation,
     average_precision3d,
+    box_matches,
     instance_average_precision,
-    mean_average_precision3d,
     nuscenes_detection_metrics,
     nuscenes_velocity_attributes,
-    part_iou,
+    part_intersection_over_union,
 )
 from torch_pointcloud.utils.types import Boxes3D, Detection3D, OptTensor
 
@@ -27,12 +28,12 @@ else:
 class MeanAveragePrecision3D(Metric):
     r"""Packed 3D-detection mean average precision as a `torchmetrics` metric.
 
-    A stateful wrapper of `mean_average_precision3d`: each `update` appends one batch's packed predictions
-    and ground truth, and `compute` returns `{"mAP@t": ...}` (averaged over the classes present in the
-    targets) for each IoU threshold. An `ignore_mask` passed to `update` is stored as the predictions'
-    `ignore_mask` entry, excluding the flagged predictions from scoring entirely (the KITTI min-height
-    rule). The state is a per-process list of batches (not gathered across processes), so run detection
-    validation on a single device.
+    A stateful wrapper of `average_precision3d`: each `update` reduces one batch's packed predictions
+    and ground truth to its compact `box_matches` record, and `compute` returns `{"mAP@t": ...}` (averaged
+    over the classes present in the targets) for each IoU threshold. An `ignore_mask` passed to `update`
+    is used as the predictions' `ignore_mask` entry, excluding the flagged predictions from scoring
+    entirely (the KITTI min-height rule). The state is a per-process list of records (not gathered across
+    processes), so run detection validation on a single device.
 
     Args:
         iou_thresholds: IoU thresholds at which `mAP@t` is reported.
@@ -41,8 +42,7 @@ class MeanAveragePrecision3D(Metric):
         kwargs: Forwarded to `torchmetrics.Metric`.
     """
 
-    preds: List[Detection3D]
-    targets: List[Boxes3D]
+    matches: List[BoxMatches]
     higher_is_better = True
     full_state_update = False
 
@@ -56,45 +56,45 @@ class MeanAveragePrecision3D(Metric):
         super().__init__(**kwargs)
         self.iou_thresholds = tuple(iou_thresholds)
         self.interpolation: Interpolation = interpolation
-        self.add_state("preds", default=[], dist_reduce_fx=None)
-        self.add_state("targets", default=[], dist_reduce_fx=None)
+        self.add_state("matches", default=[], dist_reduce_fx=None)
 
     def update(self, preds: Detection3D, target: Boxes3D, ignore_mask: OptTensor = None) -> None:
-        r"""Append one batch's packed predictions and ground truth.
+        r"""Reduce one batch's packed predictions and ground truth to its `box_matches` record and append it.
 
         Args:
             preds: Packed predictions (one `decode` output), `{"boxes", "scores", "labels", "batch"}`.
             target: Packed ground truth aligned to `preds`, `{"boxes", "labels", "batch"}`.
-            ignore_mask: Optional per-prediction ignore mask, shape $(N,)$ bool, stored as the predictions'
+            ignore_mask: Optional per-prediction ignore mask, shape $(N,)$ bool, used as the predictions'
                 `ignore_mask` entry; flagged predictions are excluded from scoring entirely.
         """
         if ignore_mask is not None:
             preds = {**preds, "ignore_mask": ignore_mask}
 
-        self.preds.append(preds)
-        self.targets.append(target)
+        self.matches.append(box_matches(preds, target))
 
     def compute(self) -> Dict[str, float]:
         """Score the accumulated batches and return one `mAP@t` entry per IoU threshold."""
-        return mean_average_precision3d(
-            self.preds,
-            self.targets,
-            iou_thresholds=self.iou_thresholds,
-            interpolation=self.interpolation,
-        )
+        out: Dict[str, float] = {}
+        for threshold in self.iou_thresholds:
+            out[f"mAP@{threshold:g}"] = average_precision3d(
+                self.matches,
+                iou_threshold=threshold,
+                interpolation=self.interpolation,
+            )
+        return out
 
 
 class AveragePrecision3D(Metric):
     r"""Packed 3D-detection per-class average precision as a `torchmetrics` metric.
 
-    A stateful wrapper of `average_precision3d`: each `update` appends one batch's packed predictions and
-    ground truth, and `compute` returns one `AP/<class>` entry per class plus their mean as `mAP`, each
-    class matched at its own IoU threshold (the KITTI / nuScenes convention, e.g. Car@0.7 and
-    Pedestrian/Cyclist@0.5). Targets may carry an `ignore_mask` so predictions overlapping an ignore region
-    are not counted as false positives. An `ignore_mask` passed to `update` is stored as the predictions'
-    `ignore_mask` entry, excluding the flagged predictions from scoring entirely (the KITTI min-height
-    rule). The state is a per-process list of batches (not gathered across processes), so run detection
-    validation on a single device.
+    A stateful wrapper of `average_precision3d`: each `update` reduces one batch's packed predictions and
+    ground truth to its compact `box_matches` record, and `compute` returns one `AP/<class>` entry per
+    class plus their mean as `mAP`, each class matched at its own IoU threshold (the KITTI / nuScenes
+    convention, e.g. Car@0.7 and Pedestrian/Cyclist@0.5). Targets may carry an `ignore_mask` so predictions
+    overlapping an ignore region are not counted as false positives. An `ignore_mask` passed to `update`
+    is used as the predictions' `ignore_mask` entry, excluding the flagged predictions from scoring
+    entirely (the KITTI min-height rule). The state is a per-process list of records (not gathered across
+    processes), so run detection validation on a single device.
 
     Args:
         iou_per_class: Mapping of class index to the IoU threshold used to match its boxes. Keys are
@@ -105,8 +105,7 @@ class AveragePrecision3D(Metric):
         kwargs: Forwarded to `torchmetrics.Metric`.
     """
 
-    preds: List[Detection3D]
-    targets: List[Boxes3D]
+    matches: List[BoxMatches]
     higher_is_better = True
     full_state_update = False
 
@@ -122,34 +121,41 @@ class AveragePrecision3D(Metric):
         self.iou_per_class = {int(key): float(value) for key, value in iou_per_class.items()}
         self.class_names = list(class_names) if class_names is not None else None
         self.interpolation: Interpolation = interpolation
-        self.add_state("preds", default=[], dist_reduce_fx=None)
-        self.add_state("targets", default=[], dist_reduce_fx=None)
+        self.add_state("matches", default=[], dist_reduce_fx=None)
 
     def update(self, preds: Detection3D, target: Boxes3D, ignore_mask: OptTensor = None) -> None:
-        r"""Append one batch's packed predictions and ground truth.
+        r"""Reduce one batch's packed predictions and ground truth to its `box_matches` record and append it.
 
         Args:
             preds: Packed predictions (one `decode` output), `{"boxes", "scores", "labels", "batch"}`.
             target: Packed ground truth aligned to `preds`, `{"boxes", "labels", "batch"}` with an
                 optional `ignore_mask`.
-            ignore_mask: Optional per-prediction ignore mask, shape $(N,)$ bool, stored as the predictions'
+            ignore_mask: Optional per-prediction ignore mask, shape $(N,)$ bool, used as the predictions'
                 `ignore_mask` entry; flagged predictions are excluded from scoring entirely.
         """
         if ignore_mask is not None:
             preds = {**preds, "ignore_mask": ignore_mask}
 
-        self.preds.append(preds)
-        self.targets.append(target)
+        self.matches.append(box_matches(preds, target))
 
     def compute(self) -> Dict[str, float]:
         """Score the accumulated batches and return one `AP/<class>` entry per class plus their `mAP`."""
-        return average_precision3d(
-            self.preds,
-            self.targets,
-            iou_per_class=self.iou_per_class,
-            class_names=self.class_names,
+        per_class = average_precision3d(
+            self.matches,
+            iou_threshold=self.iou_per_class,
+            average="none",
             interpolation=self.interpolation,
         )
+        out: Dict[str, float] = {}
+        for label in self.iou_per_class:
+            name = self.class_names[label] if self.class_names is not None else str(label)
+            out[f"AP/{name}"] = float(per_class[label])
+        out["mAP"] = average_precision3d(
+            self.matches,
+            iou_threshold=self.iou_per_class,
+            interpolation=self.interpolation,
+        )
+        return out
 
 
 class NuScenesDetection(Metric):
@@ -369,7 +375,7 @@ class InstanceAveragePrecision(Metric):
 class InstancePartMeanIoU(Metric):
     r"""ShapeNetPart instance / class mean IoU as a `torchmetrics` metric.
 
-    A stateful wrapper of `part_iou`: each shape is scored only over the part labels its category owns
+    A stateful wrapper of `part_intersection_over_union`: each shape is scored only over the part labels its category owns
     (a part absent from both the prediction and the target counts as IoU $1$), per-category IoU sums and
     shape counts accumulate across `update` calls (summed across processes), and `compute` returns the
     protocol's two numbers: `ins_mIoU` (mean over shapes) and `cls_mIoU` (mean per category, then over
@@ -430,7 +436,7 @@ class InstancePartMeanIoU(Metric):
                 preds = preds.masked_fill(~allowed, float("-inf"))
             preds = preds.argmax(dim=1)
 
-        ious = part_iou(preds, target, self.part_ids, category, batch)
+        ious = part_intersection_over_union(preds, target, self.part_ids, category, batch)
         self.iou_sum.index_add_(0, category, ious)
         self.count += torch.bincount(category, minlength=self.count.numel())
 
@@ -440,6 +446,7 @@ class InstancePartMeanIoU(Metric):
         if not bool(present.any()):
             zero = self.iou_sum.sum()
             return {"ins_mIoU": zero, "cls_mIoU": zero.clone()}
+
         ins_miou = self.iou_sum.sum() / self.count.sum()
         cls_miou = (self.iou_sum[present] / self.count[present]).mean()
         return {"ins_mIoU": ins_miou, "cls_mIoU": cls_miou}

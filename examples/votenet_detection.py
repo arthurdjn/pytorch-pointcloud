@@ -25,7 +25,7 @@ from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.models import VoteNetDetection, create_model
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import mean_average_precision3d
+from torch_pointcloud.utils.metrics import BoxMatches, average_precision3d, box_matches
 from torch_pointcloud.utils.random import seed_everything
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
@@ -105,8 +105,7 @@ def train_one_epoch(
 def evaluate(model: VoteNetDetection, dataloader: PointCloudDataLoader, device: str) -> Dict[str, float]:
     model.eval()
     num_classes = model.num_classes
-    preds: List[Detection3D] = []
-    targets: List[Boxes3D] = []
+    matches: List[BoxMatches] = []
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
@@ -119,17 +118,20 @@ def evaluate(model: VoteNetDetection, dataloader: PointCloudDataLoader, device: 
         keep = keep[scores[keep] > SCORE_THRESHOLD]
         # Indoor AP convention: score every surviving box against each class by its class probability.
         class_probs = det["class_probs"][keep]
-        preds.append(
-            {
-                "boxes": boxes[keep].repeat_interleave(num_classes, dim=0),
-                "scores": (class_probs * scores[keep, None]).reshape(-1),
-                "labels": torch.arange(num_classes, device=device).repeat(keep.numel()),
-                "batch": det_batch[keep].repeat_interleave(num_classes),
-            }
-        )
-        targets.append({"boxes": data[DataKeys.BOX], "labels": data[DataKeys.LABEL], "batch": data[DataKeys.BATCH_BOX]})
+        preds: Detection3D = {
+            "boxes": boxes[keep].repeat_interleave(num_classes, dim=0),
+            "scores": (class_probs * scores[keep, None]).reshape(-1),
+            "labels": torch.arange(num_classes, device=device).repeat(keep.numel()),
+            "batch": det_batch[keep].repeat_interleave(num_classes),
+        }
+        target: Boxes3D = {
+            "boxes": data[DataKeys.BOX],
+            "labels": data[DataKeys.LABEL],
+            "batch": data[DataKeys.BATCH_BOX],
+        }
+        matches.append(box_matches(preds, target))
 
-    return mean_average_precision3d(preds, targets, iou_thresholds=IOU_THRESHOLDS)
+    return {f"mAP@{threshold:g}": average_precision3d(matches, iou_threshold=threshold) for threshold in IOU_THRESHOLDS}
 
 
 def parse_args() -> argparse.Namespace:

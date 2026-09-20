@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `intersection_over_union` and `accuracy` of a `confusion_matrix`, with `average`, `ignore_index`, `class_names`.
+- Removed `compute_iou`, `compute_mean_iou`, `overall_accuracy` and `per_class_accuracy`, superseded by the above.
+- Renamed `part_iou` to `part_intersection_over_union`; `part_mean_intersection_over_union` now takes its output.
+- Added `box_matches`; `average_precision3d` now scores its records, with `average` and `class_names`.
+- Removed `mean_average_precision3d`, superseded by `average_precision3d`.
+- Updated box AP and `count_points_in_boxes` for faster detection benchmarks.
+
 ## 0.0.3 (2026-09-19)
 
 - Fixed SPUNet and PTv3 color normalizations to reproduce the same processing as original.

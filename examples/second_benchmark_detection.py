@@ -30,7 +30,7 @@ from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, veloc
 from torch_pointcloud.models import DetectionModel, create_model
 from torch_pointcloud.utils.box3d import nms3d, projected_ignore_mask
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import average_precision3d, nuscenes_detection_metrics
+from torch_pointcloud.utils.metrics import BoxMatches, average_precision3d, box_matches, nuscenes_detection_metrics
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
@@ -69,8 +69,7 @@ def forward(model: DetectionModel, data: Dict[str, Tensor]) -> Detection3D:
 @torch.no_grad()
 def evaluate_kitti(model: DetectionModel, dataloader: PointCloudDataLoader, device: str) -> Dict[str, float]:
     model.to(device).eval()
-    preds: List[Detection3D] = []
-    targets: List[Boxes3D] = []
+    matches: List[BoxMatches] = []
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
@@ -80,31 +79,31 @@ def evaluate_kitti(model: DetectionModel, dataloader: PointCloudDataLoader, devi
         idx = nms3d(boxes, scores, KITTI_NMS_IOU, batch=batch, rotated=True)
         boxes, scores, labels, batch = boxes[idx], scores[idx], labels[idx], batch[idx]
         ignore_mask = projected_ignore_mask(boxes, data[DataKeys.CALIB][batch], data[DataKeys.IMAGE_SHAPE][batch])
-        preds.append(
-            {
-                "boxes": boxes.cpu(),
-                "scores": scores.cpu(),
-                "labels": labels.cpu(),
-                "batch": batch.cpu(),
-                "ignore_mask": ignore_mask.cpu(),
-            }
-        )
-        targets.append(
-            {
-                "boxes": data[DataKeys.BOX].cpu(),
-                "labels": data[DataKeys.LABEL].cpu(),
-                "batch": data[DataKeys.BATCH_BOX].cpu(),
-                "ignore_mask": data["ignore_mask"].cpu(),
-            }
-        )
+        preds: Detection3D = {
+            "boxes": boxes,
+            "scores": scores,
+            "labels": labels,
+            "batch": batch,
+            "ignore_mask": ignore_mask,
+        }
+        target: Boxes3D = {
+            "boxes": data[DataKeys.BOX],
+            "labels": data[DataKeys.LABEL],
+            "batch": data[DataKeys.BATCH_BOX],
+            "ignore_mask": data["ignore_mask"],
+        }
+        matches.append(box_matches(preds, target))
 
-    return average_precision3d(
-        preds,
-        targets,
-        iou_per_class=KITTI_IOU,
+    per_class = average_precision3d(
+        matches,
+        iou_threshold=KITTI_IOU,
+        average="none",
         class_names=KITTI_DETECTION_CLASSES,
         interpolation="r11",
     )
+    metrics = {f"AP/{name}": ap for name, ap in per_class.items()}
+    metrics["mAP"] = average_precision3d(matches, iou_threshold=KITTI_IOU, interpolation="r11")
+    return metrics
 
 
 @torch.no_grad()

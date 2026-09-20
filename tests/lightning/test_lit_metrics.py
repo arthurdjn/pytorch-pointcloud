@@ -14,12 +14,13 @@ from torch_pointcloud.lightning.metrics import (
 from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
 from torch_pointcloud.utils.metrics import (
     average_precision3d,
+    box_matches,
     instance_average_precision,
     instance_matches,
-    mean_average_precision3d,
     nuscenes_detection_metrics,
     nuscenes_velocity_attributes,
-    part_mean_iou,
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
 )
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
@@ -47,7 +48,7 @@ def test_mean_average_precision3d_perfect_match_scores_one() -> None:
 
 
 def test_mean_average_precision3d_reset_clears_state() -> None:
-    """`reset` empties the accumulated per-batch lists."""
+    """`reset` empties the accumulated per-batch records."""
     metric = MeanAveragePrecision3D()
     pred: Detection3D = {
         "boxes": torch.empty(0, 7),
@@ -57,9 +58,9 @@ def test_mean_average_precision3d_reset_clears_state() -> None:
     }
     target: Boxes3D = {"boxes": torch.empty(0, 7), "labels": torch.empty(0), "batch": torch.empty(0)}
     metric.update(pred, target)
-    assert len(metric.preds) == 1
+    assert len(metric.matches) == 1
     metric.reset()
-    assert metric.preds == []
+    assert metric.matches == []
 
 
 def test_average_precision3d_matches_each_class_at_its_own_iou() -> None:
@@ -98,7 +99,8 @@ def test_instance_part_mean_iou_matches_functional_across_updates() -> None:
     part_ids = list(ShapeNetPart.seg_ids.values())
     category = torch.tensor([0, 15, 0, 7])
     batch = torch.cat([batches[0], batches[1] + 2])
-    expected = part_mean_iou(torch.cat(preds), torch.cat(targets), part_ids, category, batch)
+    ious = part_intersection_over_union(torch.cat(preds), torch.cat(targets), part_ids, category, batch)
+    expected = part_mean_intersection_over_union(ious, category)
     assert out["ins_mIoU"].item() == pytest.approx(expected["ins_mIoU"], abs=1e-6)
     assert out["cls_mIoU"].item() == pytest.approx(expected["cls_mIoU"], abs=1e-6)
 
@@ -201,8 +203,9 @@ def test_mean_average_precision3d_r11_matches_functional_across_updates() -> Non
     for pred, target in zip(preds, targets):
         metric.update(pred, target)
     out = metric.compute()
-    assert out == mean_average_precision3d(preds, targets, iou_thresholds=(0.5,), interpolation="r11")
-    assert out != mean_average_precision3d(preds, targets, iou_thresholds=(0.5,))
+    matches = [box_matches(pred, target) for pred, target in zip(preds, targets)]
+    assert out == {"mAP@0.5": average_precision3d(matches, iou_threshold=0.5, interpolation="r11")}
+    assert out != {"mAP@0.5": average_precision3d(matches, iou_threshold=0.5)}
 
 
 def test_mean_average_precision3d_update_ignore_mask_matches_functional() -> None:
@@ -223,9 +226,9 @@ def test_mean_average_precision3d_update_ignore_mask_matches_functional() -> Non
     metric.update(preds, target, ignore_mask=ignore_mask)
     out = metric.compute()
     masked: Detection3D = {**preds, "ignore_mask": ignore_mask}
-    assert out == mean_average_precision3d([masked], [target], iou_thresholds=(0.5,))
+    assert out == {"mAP@0.5": average_precision3d([box_matches(masked, target)], iou_threshold=0.5)}
     assert out["mAP@0.5"] == pytest.approx(1.0)
-    assert mean_average_precision3d([preds], [target], iou_thresholds=(0.5,))["mAP@0.5"] == pytest.approx(0.5)
+    assert average_precision3d([box_matches(preds, target)], iou_threshold=0.5) == pytest.approx(0.5)
 
 
 def test_average_precision3d_r11_matches_functional() -> None:
@@ -244,8 +247,10 @@ def test_average_precision3d_r11_matches_functional() -> None:
     metric = AveragePrecision3D(iou_per_class={0: 0.5}, interpolation="r11")
     metric.update(preds, target)
     out = metric.compute()
-    assert out == average_precision3d([preds], [target], iou_per_class={0: 0.5}, interpolation="r11")
-    assert out != average_precision3d([preds], [target], iou_per_class={0: 0.5})
+    matches = [box_matches(preds, target)]
+    r11 = average_precision3d(matches, iou_threshold={0: 0.5}, interpolation="r11")
+    assert out == {"AP/0": r11, "mAP": r11}
+    assert r11 != average_precision3d(matches, iou_threshold={0: 0.5})
 
 
 def test_average_precision3d_update_ignore_mask_excludes_predictions() -> None:
@@ -266,9 +271,10 @@ def test_average_precision3d_update_ignore_mask_excludes_predictions() -> None:
     metric.update(preds, target, ignore_mask=ignore_mask)
     out = metric.compute()
     masked: Detection3D = {**preds, "ignore_mask": ignore_mask}
-    assert out == average_precision3d([masked], [target], iou_per_class={0: 0.5})
+    expected = average_precision3d([box_matches(masked, target)], iou_threshold={0: 0.5})
+    assert out == {"AP/0": expected, "mAP": expected}
     assert out["AP/0"] == pytest.approx(1.0)
-    assert average_precision3d([preds], [target], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(0.5)
+    assert average_precision3d([box_matches(preds, target)], iou_threshold={0: 0.5}) == pytest.approx(0.5)
 
 
 def test_nuscenes_detection_matches_functional_across_updates() -> None:

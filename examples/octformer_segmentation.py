@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Dict
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -250,28 +249,6 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     )
 
     return train_dataloader, test_dataloader
-
-
-def compute_intersection_union(
-    preds: Tensor,
-    target: Tensor,
-    num_classes: int,
-    ignore_index: int = -1,
-) -> tuple[Tensor, Tensor]:
-    valid_mask = target != ignore_index
-    preds = preds[valid_mask]
-    target = target[valid_mask]
-
-    confusion_matrix = torch.zeros(num_classes, num_classes, device=preds.device)
-    indices = num_classes * target + preds
-    confusion_matrix = confusion_matrix.view(-1)
-    confusion_matrix.index_add_(0, indices, torch.ones_like(indices, dtype=torch.float))
-    confusion_matrix = confusion_matrix.view(num_classes, num_classes)
-
-    intersection = torch.diag(confusion_matrix)
-    union = confusion_matrix.sum(dim=0) + confusion_matrix.sum(dim=1) - intersection
-
-    return intersection, union
 
 
 if __name__ == "__main__":

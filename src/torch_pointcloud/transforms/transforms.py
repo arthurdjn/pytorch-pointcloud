@@ -1789,8 +1789,8 @@ class RelabelBoxes(DictTransform):
 
     All keys in `keys` (the box tensor and every per-box attribute, including those named in
     `ignore_fields`) are filtered together by the keep mask so they stay row-aligned. The output adds the
-    boolean `ignore_mask_key` consumed by `average_precision3d` / `mean_average_precision3d`, which
-    excuse an unmatched prediction only on ignore boxes labeled with the evaluated class.
+    boolean `ignore_mask_key` consumed by `box_matches`, which excuses an unmatched prediction only on ignore
+    boxes labeled with its class.
 
     ![RelabelBoxes before / after](../../assets/transforms/relabel_boxes.png)
 
