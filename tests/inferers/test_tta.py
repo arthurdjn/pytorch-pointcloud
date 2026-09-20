@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, List
 
 import pytest
 import torch
@@ -124,7 +124,7 @@ def test_tta_ema_aggregation_returns_probabilities() -> None:
 def test_tta_without_transforms_votes_over_the_base_inferer() -> None:
     """`transforms=None` runs the base `num_passes` times on the untouched input and averages the passes."""
     data = _toy_data()
-    calls = []
+    calls: List[int] = []
 
     def predictor(window: Dict[str, Any]) -> Tensor:
         assert torch.equal(window[DataKeys.POS], data[DataKeys.POS])
