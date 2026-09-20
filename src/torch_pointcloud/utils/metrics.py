@@ -193,10 +193,12 @@ def intersection_over_union(
     """
     if class_names is not None and len(class_names) != cm.shape[0]:
         raise ValueError(f"Got {len(class_names)} `class_names` for a confusion matrix of {cm.shape[0]} classes.")
+
     cm, keep = _ignore_classes(cm, ignore_index)
     intersection = cm.diag()
     union = (cm.sum(dim=0) + cm.sum(dim=1) - intersection) * keep
     per_class = safe_divide(intersection.float(), union.float(), default=zero_division)
+
     if average == "none":
         return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
     return per_class[keep].mean().item()
@@ -349,11 +351,14 @@ def accuracy(
     """
     if class_names is not None and len(class_names) != cm.shape[0]:
         raise ValueError(f"Got {len(class_names)} `class_names` for a confusion matrix of {cm.shape[0]} classes.")
+
     cm, keep = _ignore_classes(cm, ignore_index)
     if average == "micro":
         overall = safe_divide(cm.diag().sum().float(), cm.sum().float(), default=zero_division)
+
         return overall.item()
     per_class = safe_divide(cm.diag().float(), cm.sum(dim=1).float(), default=zero_division)
+
     if average == "none":
         return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
     return per_class[keep].mean().item()
@@ -378,6 +383,7 @@ def _voc_ap(recall: np.ndarray, precision: np.ndarray, interpolation: Interpolat
     num_samples = 41
     sampled = np.zeros(num_samples)
     tp_idx = np.where(np.diff(recall, prepend=0.0) > 0)[0]
+
     current_recall = 0.0
     slot = 0
     for j, d in enumerate(tp_idx):
@@ -390,6 +396,7 @@ def _voc_ap(recall: np.ndarray, precision: np.ndarray, interpolation: Interpolat
         sampled[slot] = precision[d]
         slot += 1
         current_recall += 1.0 / (num_samples - 1)
+
     interpolated = np.maximum.accumulate(sampled[::-1])[::-1]
     return float(interpolated[::4].mean() if interpolation == "r11" else interpolated[1:].mean())
 
@@ -672,6 +679,7 @@ def average_precision3d(
     """
     if class_names is not None and num_classes not in (None, len(class_names)):
         raise ValueError(f"Got {len(class_names)} `class_names` for `num_classes={num_classes}`.")
+
     if num_classes is None and class_names is not None:
         num_classes = len(class_names)
     if num_classes is None:
@@ -679,6 +687,7 @@ def average_precision3d(
         for match in matches:
             indices += [int(labels.max()) for labels in (match["pred_labels"], match["gt_labels"]) if labels.numel()]
         num_classes = max(indices, default=-1) + 1
+
     thresholds = torch.full((num_classes,), math.nan, dtype=torch.float64)
     if isinstance(iou_threshold, Mapping):
         for index, value in iou_threshold.items():
@@ -697,6 +706,7 @@ def average_precision3d(
         in_range = (pred_labels >= 0) & (pred_labels < num_classes)
         pred_thresholds = lookup[torch.where(in_range, pred_labels, num_classes)].to(match["pred_iou"].dtype)
         outcomes.append(_box_outcomes(match, pred_thresholds))
+
     scores = cat([match["pred_scores"] for match in matches])
     labels = cat([match["pred_labels"] for match in matches]).long()
     gt_labels = cat([match["gt_labels"] for match in matches]).long()
@@ -710,10 +720,12 @@ def average_precision3d(
     for label in range(num_classes):
         if not bool(scored[label]):
             continue
+
         keep = labels == label
         ap = _ranked_ap(scores[keep], true_positive[keep], false_positive[keep], int(npos[label]), interpolation)
         per_class[label] = ap
         aps.append(ap)
+
     if average == "none":
         return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
     return float(np.mean(aps)) if aps else 0.0
