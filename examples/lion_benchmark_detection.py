@@ -4,7 +4,7 @@ Results (nuScenes val, mAP / NDS):
 
     | Variant                     | reference   | torch-pointcloud |
     | --------------------------- | ----------- | ---------------- |
-    | lion-mamba.nuscenes.zhe-liu | 68.0 / 72.1 |                  |
+    | lion-mamba.nuscenes.zhe-liu | 68.0 / 72.1 | 68.78 / 72.32    |
 
 Usage:
     uv run --no-sync python examples/lion_benchmark_detection.py --root /path/to/data

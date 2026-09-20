@@ -610,7 +610,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/main/model.safetensors",
         dataset="nuscenes",
-        # TODO: metrics not measured yet
+        metrics={"mAP": 50.75, "NDS": 61.89},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",
