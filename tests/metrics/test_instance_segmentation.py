@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import torch
 from torch import Tensor
@@ -38,12 +40,11 @@ def test_instance_average_precision_perfect_two_scenes() -> None:
         gt_label = torch.tensor([0, 0, 0, 1, 1, 1])
         masks = torch.stack([_mask(6, [0, 1, 2]), _mask(6, [3, 4, 5])])
         matches.append(instance_matches(masks, torch.tensor([0, 1]), torch.tensor([0.9, 0.8]), gt_instance, gt_label))
-    out = instance_average_precision(matches, num_classes=2, class_names=("chair", "table"), min_points=1)
-    assert out["AP/chair"] == pytest.approx(1.0)
-    assert out["AP/table"] == pytest.approx(1.0)
-    assert out["mAP"] == pytest.approx(1.0)
-    assert out["mAP@0.5"] == pytest.approx(1.0)
-    assert out["mAP@0.25"] == pytest.approx(1.0)
+    per_class = instance_average_precision(matches, average="none", class_names=("chair", "table"), min_points=1)
+    assert per_class == pytest.approx({"chair": 1.0, "table": 1.0})
+    assert instance_average_precision(matches, num_classes=2, min_points=1) == pytest.approx(1.0)
+    assert instance_average_precision(matches, iou_threshold=0.5, num_classes=2, min_points=1) == pytest.approx(1.0)
+    assert instance_average_precision(matches, iou_threshold=0.25, num_classes=2, min_points=1) == pytest.approx(1.0)
 
 
 def test_instance_average_precision_hand_scenario() -> None:
@@ -70,12 +71,11 @@ def test_instance_average_precision_hand_scenario() -> None:
     labels = torch.tensor([0, 0, 0, 1, 1])
     scores = torch.tensor([0.9, 0.8, 0.3, 0.7, 0.95])
     match = instance_matches(masks, labels, scores, gt_instance, gt_label)
-    out = instance_average_precision([match], num_classes=2, min_points=1)
-    assert out["AP/0"] == pytest.approx(19.0 / 24.0)
-    assert out["AP/1"] == pytest.approx(2.0 / 3.0)
-    assert out["mAP"] == pytest.approx(35.0 / 48.0)
-    assert out["mAP@0.5"] == pytest.approx(43.0 / 48.0)
-    assert out["mAP@0.25"] == pytest.approx(43.0 / 48.0)
+    per_class = instance_average_precision([match], average="none", num_classes=2, min_points=1)
+    assert per_class.tolist() == pytest.approx([19.0 / 24.0, 2.0 / 3.0])
+    assert instance_average_precision([match], num_classes=2, min_points=1) == pytest.approx(35.0 / 48.0)
+    assert instance_average_precision([match], iou_threshold=0.5, min_points=1) == pytest.approx(43.0 / 48.0)
+    assert instance_average_precision([match], iou_threshold=0.25, min_points=1) == pytest.approx(43.0 / 48.0)
 
 
 def test_instance_average_precision_void_overlap_excused() -> None:
@@ -92,14 +92,12 @@ def test_instance_average_precision_void_overlap_excused() -> None:
 
     gt_void = torch.tensor([0] * 10 + [-1] * 10)
     match = instance_matches(masks, labels, scores, gt_instance, gt_void)
-    out = instance_average_precision([match], num_classes=1, min_points=1)
-    assert out["mAP"] == pytest.approx(1.0)
+    assert instance_average_precision([match], num_classes=1, min_points=1) == pytest.approx(1.0)
 
     gt_valid = torch.tensor([0] * 20)
     match = instance_matches(masks, labels, scores, gt_instance, gt_valid)
-    out = instance_average_precision([match], num_classes=1, min_points=1)
-    assert out["mAP"] == pytest.approx(0.25)
-    assert out["mAP@0.25"] == pytest.approx(0.25)
+    assert instance_average_precision([match], num_classes=1, min_points=1) == pytest.approx(0.25)
+    assert instance_average_precision([match], iou_threshold=0.25, min_points=1) == pytest.approx(0.25)
 
 
 def test_instance_average_precision_min_points_gates() -> None:
@@ -116,11 +114,11 @@ def test_instance_average_precision_min_points_gates() -> None:
     labels = torch.tensor([0, 1, 1])
     scores = torch.tensor([0.9, 0.8, 0.99])
     match = instance_matches(masks, labels, scores, gt_instance, gt_label)
-    out = instance_average_precision([match], num_classes=2, min_points=5)
-    assert "AP/0" not in out
-    assert out["AP/1"] == pytest.approx(1.0)
-    assert out["mAP"] == pytest.approx(1.0)
-    assert out["mAP@0.5"] == pytest.approx(1.0)
+    per_class = instance_average_precision([match], average="none", num_classes=2, min_points=5)
+    assert math.isnan(per_class[0].item())
+    assert per_class[1].item() == pytest.approx(1.0)
+    assert instance_average_precision([match], num_classes=2, min_points=5) == pytest.approx(1.0)
+    assert instance_average_precision([match], iou_threshold=0.5, num_classes=2, min_points=5) == pytest.approx(1.0)
 
 
 def test_instance_average_precision_empty_edges() -> None:
@@ -130,9 +128,8 @@ def test_instance_average_precision_empty_edges() -> None:
     empty = instance_matches(
         torch.zeros(0, 10, dtype=torch.bool), torch.zeros(0, dtype=torch.long), torch.zeros(0), gt_instance, gt_label
     )
-    out = instance_average_precision([empty], num_classes=1, min_points=1)
-    assert out["AP/0"] == 0.0
-    assert out["mAP"] == 0.0
+    assert instance_average_precision([empty], average="none", num_classes=1, min_points=1).tolist() == [0.0]
+    assert instance_average_precision([empty], num_classes=1, min_points=1) == 0.0
 
     no_gt = instance_matches(
         torch.stack([_mask(10, [0, 1])]),
@@ -141,5 +138,8 @@ def test_instance_average_precision_empty_edges() -> None:
         torch.full((10,), -1),
         torch.full((10,), -1),
     )
-    out = instance_average_precision([no_gt], num_classes=1, min_points=1)
-    assert out == {"mAP": 0.0, "mAP@0.5": 0.0, "mAP@0.25": 0.0}
+    assert math.isnan(instance_average_precision([no_gt], average="none", num_classes=1, min_points=1)[0].item())
+    assert instance_average_precision([no_gt], num_classes=1, min_points=1) == 0.0
+    assert instance_average_precision([no_gt], iou_threshold=0.25, num_classes=1, min_points=1) == 0.0
+    with pytest.raises(ValueError, match="class_names"):
+        instance_average_precision([no_gt], num_classes=1, class_names=["chair", "table"])

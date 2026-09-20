@@ -29,7 +29,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40
-from torch_pointcloud.metrics import confusion_matrix
+from torch_pointcloud.metrics import accuracy, confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
@@ -217,16 +217,12 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, *, num_classes:
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), label.cpu(), num_classes)
-        oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)
-        pbar.set_postfix({"oa": f"{oa.item():.4f}"})
-
-    oa = cm.diag().sum().float() / cm.sum().float()
-    per_class_acc = cm.diag().float() / cm.sum(dim=1).float().clamp_min(1)
-    mean_class_acc = per_class_acc.mean()
+        oa = accuracy(cm)
+        pbar.set_postfix({"oa": f"{oa:.4f}"})
 
     return {
-        "test/overall_acc": oa.item(),
-        "test/mean_class_acc": mean_class_acc.item(),
+        "test/overall_acc": accuracy(cm),
+        "test/mean_class_acc": accuracy(cm, average="macro"),
     }
 
 

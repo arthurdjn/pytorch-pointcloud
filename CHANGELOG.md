@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 - Renamed `part_iou` to `part_intersection_over_union`; `part_mean_intersection_over_union` scores it with `average`.
 - Added `box_matches`; `average_precision3d` now scores its records, with `average` and `class_names`.
 - Removed `mean_average_precision3d`, superseded by `average_precision3d`.
+- Updated `instance_average_precision` to take `iou_threshold`, `average` and `class_names`, like the other metrics.
 - Updated box AP and `count_points_in_boxes` for faster detection benchmarks.
 
 ## 0.0.3 (2026-09-19)

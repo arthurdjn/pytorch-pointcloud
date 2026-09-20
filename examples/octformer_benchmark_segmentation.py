@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20, ScanNet200
-from torch_pointcloud.metrics import confusion_matrix
+from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
@@ -150,22 +150,13 @@ def evaluate(
         preds = logits.argmax(dim=1)
 
         cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=ignore_index)
-        oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)
-        pbar.set_postfix({"oa": f"{oa.item():.4f}"})
-
-    intersection = cm.diag().float()
-    union = cm.sum(dim=1).float() + cm.sum(dim=0).float() - intersection
-    iou_per_class = intersection / union.clamp_min(1e-10)
-
-    valid = torch.ones(num_classes, dtype=torch.bool)
-    valid[ignore_index] = False
-    miou = iou_per_class[valid].mean()
-    oa = cm.diag().sum().float() / cm.sum().float()
+        oa = accuracy(cm)
+        pbar.set_postfix({"oa": f"{oa:.4f}"})
 
     return {
-        "test/mIoU": miou.item(),
-        "test/oa": oa.item(),
-        "test/iou_per_class": iou_per_class,
+        "test/mIoU": intersection_over_union(cm, ignore_index=ignore_index),
+        "test/oa": accuracy(cm),
+        "test/iou_per_class": intersection_over_union(cm, average="none", ignore_index=ignore_index),
     }
 
 
