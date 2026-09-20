@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.4 (2026-09-20)
+
 - Added versioning of the documentation with mike.
 - Moved the metrics from `torch_pointcloud.utils.metrics` to the `torch_pointcloud.metrics` sub-package.
 - Added `intersection_over_union` and `accuracy` of a `confusion_matrix`, with `average`, `ignore_index`, `class_names`.
