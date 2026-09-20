@@ -30,7 +30,9 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src src
 COPY docker/install.sh docker/install.sh
-RUN --mount=type=cache,target=/root/.cache/uv \
+# uv caches a source-built extension by commit and python tag only, so the cache is scoped to the CUDA / torch
+# pair the extension was compiled against.
+RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cu${CUDA_VERSION}-torch${TORCH_VERSION} \
     bash docker/install.sh "${CUDA_VERSION}" "${TORCH_VERSION}" "${EXTRAS}"
 
 FROM nvidia/cuda:${CUDA_VERSION}-${CUDNN_TAG}-runtime-ubuntu${UBUNTU_VERSION} AS runtime
