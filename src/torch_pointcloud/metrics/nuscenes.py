@@ -11,17 +11,16 @@ _TP_KEYS = ("trans", "scale", "orient", "vel", "attr")
 
 
 def _cummean(values: np.ndarray) -> np.ndarray:
-    """Cumulative mean over the non-NaN entries; an all-NaN input yields the full-error sentinel of ones."""
     valid = ~np.isnan(values)
     if not valid.any():
         return np.ones(len(values))
+
     count = np.cumsum(valid)
     total = np.nancumsum(values)
     return np.divide(total, count, out=np.zeros_like(total), where=count > 0)
 
 
 def _top_score_mask(scores: Tensor, batch: Tensor, max_boxes: int) -> Tensor:
-    """Boolean mask keeping each sample's `max_boxes` highest-scoring entries."""
     order = torch.argsort(scores, descending=True, stable=True)
     grouped = order[torch.argsort(batch[order], stable=True)]
     counts = torch.bincount(batch)
@@ -69,10 +68,12 @@ def _nuscenes_accumulate(
         candidates = np.flatnonzero((gt_batch == pred_batch[index]) & ~matched)
         if len(candidates) == 0:
             continue
+
         dist = np.linalg.norm(gt_boxes[candidates, :2] - pred_boxes[index, :2], axis=1)
         best = int(np.argmin(dist))
         if float(dist[best]) >= dist_threshold:
             continue
+
         gt, pred = gt_boxes[candidates[best]], pred_boxes[index]
         matched[candidates[best]] = True
         tp[position] = 1.0
@@ -88,6 +89,7 @@ def _nuscenes_accumulate(
         else:
             errors["attr"].append(float(int(gt_attributes[candidates[best]]) != int(pred_attributes[index])))
         match_conf.append(float(pred_scores[index]))
+
     if not match_conf:
         return sentinel
 
@@ -316,6 +318,7 @@ def nuscenes_detection_metrics(
         error = float(np.mean(tp_errors[key])) if tp_errors[key] else 1.0
         out[metric_name] = error
         score_sum += max(0.0, 1.0 - error)
+
     out["NDS"] = (5.0 * out["mAP"] + score_sum) / 10.0
     return out
 
