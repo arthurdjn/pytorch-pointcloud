@@ -25,6 +25,7 @@ All notable changes to this project are documented in this file. The format is b
   an int `seed` now advances on each call, and `seed=None` follows the global generator like the transforms.
 - Updated the `pointnet2.s3dis-area5.xu-yan` benchmark to 54.83 mIoU (from 54.28), now that its three votes differ.
 - Updated the inferers overview in the docs.
+- Renamed `serialize_coords` to `serialize_pos` and `RelativePositionalEncoding.coords_boundary` to `pos_boundary`.
 
 ## 0.0.3 (2026-09-19)
 

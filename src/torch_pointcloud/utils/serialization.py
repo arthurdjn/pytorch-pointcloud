@@ -33,7 +33,7 @@ def _hilbert_encode(pos_grid: Tensor, depth: int) -> Tensor:
 
 
 @torch.no_grad()
-def serialize_coords(
+def serialize_pos(
     pos_grid: Tensor,
     batch: OptTensor,
     depth: int,
@@ -47,7 +47,7 @@ def serialize_coords(
     Note:
         To get the code's order and inverse, you can use `torch.argsort` twice:
         ```pycon
-        >>> code = serialize_coords(pos_grid, batch, depth, order)  # doctest: +SKIP
+        >>> code = serialize_pos(pos_grid, batch, depth, order)  # doctest: +SKIP
         >>> order = torch.argsort(code)  # doctest: +SKIP
         >>> inverse = torch.argsort(order)  # doctest: +SKIP
 
@@ -75,7 +75,7 @@ def serialize_coords(
         >>> grid_size = 0.1
         >>> pos_grid = torch.div(pos - pos.min(0).values, grid_size, rounding_mode="trunc")
         >>> batch = torch.zeros(10, dtype=torch.long)
-        >>> code = serialize_coords(pos_grid, batch, depth=5, order="z")  # doctest: +SKIP
+        >>> code = serialize_pos(pos_grid, batch, depth=5, order="z")  # doctest: +SKIP
 
         ```
     """

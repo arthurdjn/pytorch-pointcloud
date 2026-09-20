@@ -440,8 +440,8 @@ def spherical_points_lloyd(
     # Initialize the approximation points
     if approximation == "discretization":
         side_n = int(approx_n ** (1.0 / 3))
-        coords = torch.linspace(-radius0, radius0, side_n, device=kernel_points.device)
-        mesh = torch.meshgrid([coords] * 3, indexing="ij")
+        axis = torch.linspace(-radius0, radius0, side_n, device=kernel_points.device)
+        mesh = torch.meshgrid([axis] * 3, indexing="ij")
         X = torch.stack([m.flatten() for m in mesh], dim=-1)
     else:
         X = torch.empty((0, 3), device=kernel_points.device)

@@ -20,8 +20,8 @@ def _grid_data(steps: int = 4, spacing: float = 1.0) -> Dict[str, Any]:
     `(steps // k)**3` blocks of `k**3` points each -- block assignments are exact
     and verifiable without tolerance.
     """
-    coords = torch.arange(steps, dtype=torch.float32) * spacing
-    pos = torch.stack(torch.meshgrid(coords, coords, coords, indexing="ij"), dim=-1).reshape(-1, 3)
+    axis = torch.arange(steps, dtype=torch.float32) * spacing
+    pos = torch.stack(torch.meshgrid(axis, axis, axis, indexing="ij"), dim=-1).reshape(-1, 3)
     return {
         DataKeys.POS: pos,
         DataKeys.BATCH: torch.zeros(len(pos), dtype=torch.long),

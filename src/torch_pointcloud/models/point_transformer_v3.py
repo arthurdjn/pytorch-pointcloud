@@ -31,7 +31,7 @@ from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.serialization import SerializationOrder, serialize_coords
+from torch_pointcloud.utils.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
 if TYPE_CHECKING:
@@ -147,7 +147,7 @@ def serialize(
         )
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
     depth = max(int(pos_grid.max()).bit_length(), 1)
-    serialized_code = torch.stack([serialize_coords(pos_grid, batch, depth=depth, order=order) for order in orders])
+    serialized_code = torch.stack([serialize_pos(pos_grid, batch, depth=depth, order=order) for order in orders])
     serialized_order = torch.argsort(serialized_code, dim=1)
     serialized_inverse = torch.argsort(serialized_order, dim=1)
     return serialized_code, serialized_order, serialized_inverse

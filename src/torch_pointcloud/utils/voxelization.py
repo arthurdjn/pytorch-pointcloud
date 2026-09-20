@@ -86,8 +86,8 @@ def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, reso
     pos_frac = pos_clamped - pos_floor
 
     # Convert to integer coordinates
-    coords_lo = pos_floor.long()  # (N, 3)
-    coords_hi = torch.minimum(coords_lo + 1, torch.tensor(R - 1, device=device))  # (N, 3)
+    pos_lo = pos_floor.long()  # (N, 3)
+    pos_hi = torch.minimum(pos_lo + 1, torch.tensor(R - 1, device=device))  # (N, 3)
 
     # Compute interpolation weights for each dimension
     d_0 = pos_frac  # (N, 3) - distance from lower corner
@@ -109,9 +109,9 @@ def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, reso
     )  # (8, 3)
 
     corner_offsets = corner_offsets.unsqueeze(0).expand(N, -1, -1)  # (N, 8, 3)
-    coords_lo_expanded = coords_lo.unsqueeze(1).expand(-1, 8, -1)  # (N, 8, 3)
-    coords_hi_expanded = coords_hi.unsqueeze(1).expand(-1, 8, -1)  # (N, 8, 3)
-    corners = torch.where(corner_offsets == 0, coords_lo_expanded, coords_hi_expanded)  # (N, 8, 3)
+    pos_lo_expanded = pos_lo.unsqueeze(1).expand(-1, 8, -1)  # (N, 8, 3)
+    pos_hi_expanded = pos_hi.unsqueeze(1).expand(-1, 8, -1)  # (N, 8, 3)
+    corners = torch.where(corner_offsets == 0, pos_lo_expanded, pos_hi_expanded)  # (N, 8, 3)
 
     # Compute weights for each corner
     d_0_expanded = d_0.unsqueeze(1).expand(-1, 8, -1)  # (N, 8, 3)

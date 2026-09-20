@@ -449,9 +449,9 @@ class PositionEmbeddingFourier(nn.Module):
         d_out = self.d_pos // 2
         lo, hi = input_range
         diff = (hi - lo).unsqueeze(1)
-        coord = (pos - lo.unsqueeze(1)) / diff
-        coord = coord * (2 * math.pi)
-        proj = torch.mm(coord.reshape(-1, d_in), self.gauss_b[:, :d_out]).view(bsize, npoints, d_out)
+        pos_normalized = (pos - lo.unsqueeze(1)) / diff
+        pos_normalized = pos_normalized * (2 * math.pi)
+        proj = torch.mm(pos_normalized.reshape(-1, d_in), self.gauss_b[:, :d_out]).view(bsize, npoints, d_out)
         embed = torch.cat([proj.sin(), proj.cos()], dim=2).permute(0, 2, 1)
         return embed
 

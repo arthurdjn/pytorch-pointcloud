@@ -94,14 +94,14 @@ def train_one_epoch(
 
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        coords = data[DataKeys.POS].to(device)
+        pos = data[DataKeys.POS].to(device)
         normal = data[DataKeys.NORMAL].to(device)
         target = data[DataKeys.LABEL].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        features = torch.cat([coords, normal], dim=1)
+        features = torch.cat([pos, normal], dim=1)
 
         optimizer.zero_grad()
-        logits = model(features, coords, batch)
+        logits = model(features, pos, batch)
         preds = F.log_softmax(logits, dim=1)
         loss = F.nll_loss(preds, target)
         loss.backward()
@@ -119,14 +119,14 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, device: str = "cuda") 
     model.eval()
     correct = 0
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
-        coords = data[DataKeys.POS].to(device)
+        pos = data[DataKeys.POS].to(device)
         normal = data[DataKeys.NORMAL].to(device)
         target = data[DataKeys.LABEL].to(device)
         batch = data[DataKeys.BATCH].to(device)
-        features = torch.cat([coords, normal], dim=1)
+        features = torch.cat([pos, normal], dim=1)
 
         with torch.no_grad():
-            preds = model(features, coords, batch).max(1)[1]
+            preds = model(features, pos, batch).max(1)[1]
         correct += preds.eq(target).sum().item()
     return {"val/acc": correct / len(dataloader.dataset)}  # type: ignore[arg-type]
 

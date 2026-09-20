@@ -128,18 +128,18 @@ def initial_voxelize(z: "PointTensor", init_res: float = 1.0, after_res: float =
     Mutates `z.C` to the rescaled (voxel-unit) float coordinates so subsequent
     `voxel_to_point` calls can stay in voxel space.
     """
-    new_float_coord = torch.cat(
+    new_float_pos = torch.cat(
         [z.C[:, 0].view(-1, 1), (z.C[:, 1:] * init_res) / after_res],
         1,
     )
-    new_int_coord = torch.floor(new_float_coord).int()
-    sparse_coord = torch.unique(new_int_coord, dim=0)
-    idx_query = _sphashquery(new_int_coord, sparse_coord).reshape(-1)
+    new_int_pos = torch.floor(new_float_pos).int()
+    sparse_pos = torch.unique(new_int_pos, dim=0)
+    idx_query = _sphashquery(new_int_pos, sparse_pos).reshape(-1)
 
     sparse_feat = torch_scatter.scatter_mean(z.F, idx_query.long(), dim=0)
-    new_tensor = SparseTensor(sparse_feat, sparse_coord, 1)
+    new_tensor = SparseTensor(sparse_feat, sparse_pos, 1)
     z._caches.idx_query[z.s] = idx_query
-    z.C = new_float_coord
+    z.C = new_float_pos
     return new_tensor
 
 
@@ -147,14 +147,14 @@ def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
     """Aggregate point features (`z.F`) onto the voxel grid of `x`."""
     if z._caches.idx_query.get(x.s) is None:
         # x.C has been downsampled by stride x.s[0]; re-query against the new grid.
-        new_int_coord = torch.cat(
+        new_int_pos = torch.cat(
             [
                 z.C[:, 0].int().view(-1, 1),
                 torch.floor(z.C[:, 1:] / x.s[0]).int(),
             ],
             1,
         )
-        idx_query = _sphashquery(new_int_coord, x.C)
+        idx_query = _sphashquery(new_int_pos, x.C)
         z._caches.idx_query[x.s] = idx_query
     else:
         idx_query = z._caches.idx_query[x.s]
@@ -172,13 +172,13 @@ def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
 def voxel_to_point(x: "SparseTensor", z: "PointTensor", nearest: bool = False) -> "PointTensor":
     """Trilinearly interpolate voxel features (`x.F`) at point positions (`z.C`)."""
     if z._caches.idx_query_devox.get(x.s) is None or z._caches.weights_devox.get(x.s) is None:
-        point_coords_float = torch.cat(
+        point_pos_float = torch.cat(
             [z.C[:, 0].int().view(-1, 1), z.C[:, 1:] / x.s[0]],
             1,
         )
-        point_coords_int = torch.floor(point_coords_float).int()
-        idx_query = _sphashquery(point_coords_int, x.C, kernel_size=2)
-        weights = spF.calc_ti_weights(point_coords_float[:, 1:], idx_query, scale=1)
+        point_pos_int = torch.floor(point_pos_float).int()
+        idx_query = _sphashquery(point_pos_int, x.C, kernel_size=2)
+        weights = spF.calc_ti_weights(point_pos_float[:, 1:], idx_query, scale=1)
 
         if nearest:
             weights[:, 1:] = 0.0
@@ -865,8 +865,8 @@ class SPVCNNClassification(ClassificationModel):
 
     def forward_features(self, x: Optional[Tensor], pos: Tensor, batch: Tensor) -> Tensor:
         x = pos.float() if x is None else x
-        coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
-        x_points = PointTensor(x, coords)
+        pos_batched = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
+        x_points = PointTensor(x, pos_batched)
         x_voxels = initial_voxelize(x_points)
 
         x_voxels = self.stem(x_voxels)
@@ -1064,8 +1064,8 @@ class SPVCNNSegmentation(SegmentationModel):
         return_intermediates: bool = False,
     ) -> Any:
         x = pos.float() if x is None else x
-        coords = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
-        x_points = PointTensor(x, coords)
+        pos_batched = torch.cat([batch.unsqueeze(-1).float(), pos.float()], dim=1).contiguous()
+        x_points = PointTensor(x, pos_batched)
         x_voxels = initial_voxelize(x_points)
 
         x_voxels = self.stem(x_voxels)

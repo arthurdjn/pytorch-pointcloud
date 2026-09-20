@@ -50,15 +50,15 @@ class RelativePositionalEncoding(nn.Module):
         super().__init__()
         self.patch_size = patch_size
         self.num_heads = num_heads
-        self.coords_boundary = int(math.pow(4 * patch_size, 1 / 3) * 2)
-        self.rpe_num = 2 * self.coords_boundary + 1
+        self.pos_boundary = int(math.pow(4 * patch_size, 1 / 3) * 2)
+        self.rpe_num = 2 * self.pos_boundary + 1
         self.rpe_table = nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads))
         nn.init.trunc_normal_(self.rpe_table, std=0.02)
 
-    def _relative_index(self, coord: Tensor) -> Tensor:
+    def _relative_index(self, pos: Tensor) -> Tensor:
         r"""Clamped relative offset of every point pair along one axis. $(P, K) \to (P, K, K)$."""
-        relative = coord.unsqueeze(2) - coord.unsqueeze(1)
-        return relative.clamp(-self.coords_boundary, self.coords_boundary) + self.coords_boundary
+        relative = pos.unsqueeze(2) - pos.unsqueeze(1)
+        return relative.clamp(-self.pos_boundary, self.pos_boundary) + self.pos_boundary
 
     def forward(self, pos_grid: Tensor) -> Tensor:
         table = self.rpe_table.view(3, self.rpe_num, self.num_heads)

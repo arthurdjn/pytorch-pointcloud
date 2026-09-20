@@ -314,9 +314,9 @@ def _assign_sparse_scene(
         return heatmap, reg_targets, inds, mask
 
     x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
-    coord_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
-    coord_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
-    center = torch.stack([coord_x, coord_y], dim=-1)
+    pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
+    pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
+    center = torch.stack([pos_x, pos_y], dim=-1)
 
     dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
     dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
