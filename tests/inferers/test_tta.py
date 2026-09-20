@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, List
 
 import pytest
 import torch
@@ -114,11 +114,28 @@ def test_tta_ema_aggregation_returns_probabilities() -> None:
         return torch.randn(window[DataKeys.POS].size(0), 5)
 
     aug = Compose([RandomRotate(keys=DataKeys.POS, angle_range=(0.0, 0.0), axis=2, p=1.0)])
-    inferer = TTAInferer(base=base, transforms=aug, num_passes=3, aggregate="ema", ema_smoothing=0.5)
+    inferer = TTAInferer(base=base, transforms=aug, num_passes=3, aggregate="ema", ema_smoothing=0.5, softmax=True)
     out = inferer(data, predictor=random_logits)
     assert (out >= 0).all()
     sums = out.sum(dim=1)
     assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
+
+
+def test_tta_without_transforms_votes_over_the_base_inferer() -> None:
+    """`transforms=None` runs the base `num_passes` times on the untouched input and averages the passes."""
+    data = _toy_data()
+    calls: List[int] = []
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        assert torch.equal(window[DataKeys.POS], data[DataKeys.POS])
+        calls.append(len(calls))
+        return torch.full((window[DataKeys.POS].size(0), 2), float(len(calls)))
+
+    out = TTAInferer(base=SimpleInferer(), num_passes=3)(data, predictor=predictor)
+    assert len(calls) == 3
+    assert torch.allclose(out, torch.full((64, 2), 2.0))
+    with pytest.raises(ValueError, match="num_passes"):
+        TTAInferer(base=SimpleInferer())
 
 
 def test_tta_invalid_num_passes_raises() -> None:

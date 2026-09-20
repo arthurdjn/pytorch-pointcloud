@@ -14,6 +14,17 @@ All notable changes to this project are documented in this file. The format is b
 - Removed `mean_average_precision3d`, superseded by `average_precision3d`.
 - Updated `instance_average_precision` to take `iou_threshold`, `average` and `class_names`, like the other metrics.
 - Updated box AP and `count_points_in_boxes` for faster detection benchmarks.
+- Added `inverse_key` to `VoxelPartitionInferer`, `KNNWindowInferer` and `PotentialSphereInferer`, so a `transform`
+  that changes the number of points (pad, voxelize) works in every inferer, as it did in `SlidingWindowInferer`.
+- Renamed `VoxelPartitionInferer(reduce=...)` to `aggregate`, and the `"weighted_mean"` mode of `KNNWindowInferer`
+  to `"mean"`, so every inferer names its aggregation the same way.
+- Renamed `TTAInferer(ema_softmax=...)` to `softmax`, now `False` by default and applied in both aggregation modes.
+- Added `TTAInferer(transforms=None, num_passes=...)` to repeat the base inferer without augmentation.
+- Added `DataKeys.BLOCK_BBOX`, the key `SlidingWindowInferer` writes the block bounds under.
+- Fixed seeded inferers drawing the same fragments on every call, which made the votes of a `TTAInferer` identical:
+  an int `seed` now advances on each call, and `seed=None` follows the global generator like the transforms.
+- Updated the `pointnet2.s3dis-area5.xu-yan` benchmark to 54.83 mIoU (from 54.28), now that its three votes differ.
+- Updated the inferers overview in the docs.
 - Renamed `serialize_coords` to `serialize_pos` and `RelativePositionalEncoding.coords_boundary` to `pos_boundary`.
 
 ## 0.0.3 (2026-09-19)

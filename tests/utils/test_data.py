@@ -325,6 +325,7 @@ def test_dataloader_collate_fn_kwarg_overrides_spec() -> None:
         (DataKeys.ROOM_MAX, "room_max"),
         (DataKeys.SCENE_MAX, "scene_max"),
         (DataKeys.BLOCK_CENTER, "block_center"),
+        (DataKeys.BLOCK_BBOX, "block_bbox"),
         (DataKeys.POINT_INDICES, "point_indices"),
         (DataKeys.SCENE_INDEX, "scene_index"),
         (DataKeys.NUM_SCENE_POINTS, "num_scene_points"),

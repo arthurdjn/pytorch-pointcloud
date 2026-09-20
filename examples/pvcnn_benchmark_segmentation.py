@@ -46,7 +46,7 @@ TRANSFORM = T.Compose(
 )
 INFERER_TRANSFORM = T.Compose(
     [
-        T.BBoxCenter(keys="block_bbox", dst_keys=DataKeys.BLOCK_CENTER),
+        T.BBoxCenter(keys=DataKeys.BLOCK_BBOX, dst_keys=DataKeys.BLOCK_CENTER),
         T.CopyItems(keys=DataKeys.POS, names=DataKeys.NORM_POS),
         T.DivideKey(keys=DataKeys.NORM_POS, div_keys="coord_max"),
         T.SubtractKey(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),

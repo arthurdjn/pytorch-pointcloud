@@ -38,8 +38,8 @@ def test_voxel_partition_uniform_voxels_average_to_their_own_x() -> None:
     assert torch.allclose(out.squeeze(-1).float(), data[DataKeys.POS][:, 0])
 
 
-def test_voxel_partition_reduce_sum_skips_the_count_division() -> None:
-    """`reduce="sum"` returns the plain accumulated predictions: a point in a voxel of $c_v$ points is picked
+def test_voxel_partition_aggregate_sum_skips_the_count_division() -> None:
+    """`aggregate="sum"` returns the plain accumulated predictions: a point in a voxel of $c_v$ points is picked
     $K / c_v$ times, so its summed x-logit equals $K / c_v$ times its own x."""
     voxel_size = 1.0
     dense = _make_grid(4, 2, voxel_size)  # K = 4
@@ -50,7 +50,7 @@ def test_voxel_partition_reduce_sum_skips_the_count_division() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = VoxelPartitionInferer(voxel_size=voxel_size, reduce="sum", seed=0)(data, predictor=predictor)
+    out = VoxelPartitionInferer(voxel_size=voxel_size, aggregate="sum", seed=0)(data, predictor=predictor)
     expected = pos[:, 0].clone()
     expected[-1] *= 4.0  # the lone point sits in all K = 4 sub-clouds
     assert torch.allclose(out.squeeze(-1).float(), expected)
@@ -160,8 +160,36 @@ def test_voxel_partition_batched_matches_per_scene() -> None:
     assert torch.equal(out_joint[20:], out_b)
 
 
+def test_voxel_partition_with_divisible_pad_recovers_per_point_input() -> None:
+    """`DivisiblePad` + `inverse_key` round-trips: each padded sub-cloud is gathered back to source rows.
+
+    Every sub-cloud holds 5 points and is padded to 8 rows. The predictor returns each row's x-coordinate, so
+    after the gather every point's output must equal its own x, and the map never reaches the predictor.
+    """
+    from torch_pointcloud import transforms as T
+
+    data = _make_grid(n_per_voxel=3, n_voxels=5, voxel_size=1.0)
+    rows_seen = []
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        assert DataKeys.INVERSE not in window
+        rows_seen.append(int(window[DataKeys.POS].size(0)))
+        return window[DataKeys.POS][:, :1].clone()
+
+    out = VoxelPartitionInferer(
+        voxel_size=1.0,
+        transform=T.DivisiblePad(num_samples=8, dst_inverse_key=DataKeys.INVERSE),
+        sub_batch_size=2,
+        inverse_key=DataKeys.INVERSE,
+        seed=0,
+    )(data, predictor=predictor)
+    assert rows_seen == [16, 8]
+    assert out.shape == (15, 1)
+    assert torch.allclose(out.squeeze(-1), data[DataKeys.POS][:, 0])
+
+
 def test_voxel_partition_row_altering_transform_raises() -> None:
-    """A `transform` that changes the sub-cloud row count is rejected with a clear error."""
+    """A `transform` that changes the sub-cloud row count without an index map is rejected with a clear error."""
     data = _make_grid(n_per_voxel=2, n_voxels=3, voxel_size=1.0)
 
     def drop_last(sample: Dict[str, Any]) -> Dict[str, Any]:
@@ -179,8 +207,8 @@ def test_voxel_partition_validates_args() -> None:
         VoxelPartitionInferer(voxel_size=0.0)
     with pytest.raises(ValueError, match="sub_batch_size"):
         VoxelPartitionInferer(voxel_size=1.0, sub_batch_size=0)
-    with pytest.raises(ValueError, match="reduce"):
-        VoxelPartitionInferer(voxel_size=1.0, reduce="max")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="aggregate"):
+        VoxelPartitionInferer(voxel_size=1.0, aggregate="max")  # type: ignore[arg-type]
 
 
 def test_voxel_partition_missing_pos_key_raises() -> None:

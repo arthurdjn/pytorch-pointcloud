@@ -59,7 +59,7 @@ def build_inferer(sub_batch_size: int, seed: int) -> Inferer:
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
-        reduce="sum",
+        aggregate="sum",
         sub_batch_size=sub_batch_size,
         seed=seed,
     )

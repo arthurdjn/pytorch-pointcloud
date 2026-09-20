@@ -27,21 +27,27 @@ class Inferer(metaclass=ABCMeta):
 
     `data` is a packed-batch dict (at minimum containing position and batch indices).
     `predictor` is any callable taking such a dict and returning per-point logits of shape
-    $(N, C_\text{out})$. Inferers are stateless with respect to the scene, so
-    one instance can be reused across scenes and wrapped by another inferer.
+    $(N, C_\text{out})$. Inferers keep nothing of the scene, so one instance can be
+    reused across scenes and wrapped by another inferer.
 
-    Every concrete inferer exposes a knob controlling whether partial predictions are
-    converted to softmax probabilities before aggregation. The defaults differ:
+    Inferers that draw random numbers take a `seed`. `None` follows the global generator,
+    like the transforms do, so one `torch.manual_seed` (or `seed_everything`) seeds the
+    whole evaluation. An int gives the inferer its own stream, offset by the number of
+    calls the instance has made: successive calls (e.g. `TTAInferer` votes) draw different
+    numbers, and a fresh instance replays the same sequence.
 
-    | Inferer                  | Parameter     | Default | Aggregated quantity                                          |
-    | ------------------------ | ------------- | ------- | ------------------------------------------------------------ |
-    | `SimpleInferer`          | `softmax`     | `False` | predictor output as-is                                       |
-    | `SlidingWindowInferer`   | `softmax`     | `True`  | softmax probabilities per block (`"max"` / `"vote"` always)  |
-    | `KNNWindowInferer`       | `softmax`     | `False` | raw logits (`"weighted_mean"`); always probabilities (`"ema"`) |
-    | `VoxelPartitionInferer`  | `softmax`     | `False` | raw logits per pass                                          |
-    | `PotentialSphereInferer` | none          |         | always an EMA of softmax probabilities                        |
-    | `TTAInferer`             | `ema_softmax` | `True`  | base output as-is (`"mean"`); softmax of base output (`"ema"`) |
-    | `PartRefinementInferer`  | none          |         | one-hot refined labels of the base output's argmax           |
+    The `softmax` parameter controls whether partial predictions are converted to softmax
+    probabilities before aggregation, and `aggregate` how they are combined:
+
+    | Inferer                  | `softmax` | Aggregated quantity                                         |
+    | ------------------------ | --------- | ----------------------------------------------------------- |
+    | `SimpleInferer`          | `False`   | predictor output as-is                                      |
+    | `SlidingWindowInferer`   | `True`    | softmax probabilities per block (`"max"` / `"vote"` always) |
+    | `KNNWindowInferer`       | `False`   | raw logits (`"mean"`); always probabilities (`"ema"`)       |
+    | `VoxelPartitionInferer`  | `False`   | raw logits per pass                                         |
+    | `PotentialSphereInferer` | none      | always an EMA of softmax probabilities                      |
+    | `TTAInferer`             | `False`   | base output as-is                                           |
+    | `PartRefinementInferer`  | none      | one-hot refined labels of the base output's argmax          |
 
     When the input scene is empty ($N = 0$), inferers that never call the predictor
     return a $(0, 0)$ tensor (the channel count cannot be inferred without a predictor

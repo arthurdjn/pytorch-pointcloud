@@ -4,6 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.inferers import KNNWindowInferer, knn_window_inference
 from torch_pointcloud.utils.data import DataKeys
 
@@ -36,7 +37,7 @@ def test_knn_window_inference_constant_weighted_mean_constant_predictor() -> Non
         sw_batch_size=4,
         overlap=0.3,
         mode="constant",
-        aggregate="weighted_mean",
+        aggregate="mean",
         seed=42,
     )
     assert out.shape == (n, 5)
@@ -63,7 +64,7 @@ def test_knn_window_inference_gaussian_runs_and_preserves_direction() -> None:
         sw_batch_size=2,
         mode="gaussian",
         sigma_scale=0.125,
-        aggregate="weighted_mean",
+        aggregate="mean",
         overlap=0.3,
         seed=7,
     )
@@ -186,7 +187,7 @@ def test_knn_window_gaussian_small_sigma_divides_by_true_weight() -> None:
         sw_batch_size=2,
         mode="gaussian",
         sigma_scale=0.05,
-        aggregate="weighted_mean",
+        aggregate="mean",
         overlap=0.3,
         seed=7,
     )
@@ -224,7 +225,7 @@ def test_knn_window_inferer_class_matches_function() -> None:
         return torch.ones(pos.size(0), 3, device=pos.device) * pos.mean()
 
     kwargs: Dict[str, Any] = dict(
-        roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=5, mode="constant", aggregate="weighted_mean"
+        roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=5, mode="constant", aggregate="mean"
     )
     out_fn = knn_window_inference(data, predictor=predictor, **kwargs)
     out_cls = KNNWindowInferer(**kwargs)(data, predictor=predictor)
@@ -303,3 +304,33 @@ def test_knn_window_rejects_row_altering_transform() -> None:
 
     with pytest.raises(ValueError, match="row count"):
         knn_window_inference(data, predictor=predictor, roi_num_points=16, transform=drop_row, seed=0)
+
+
+def test_knn_window_with_divisible_pad_matches_unpadded_scores() -> None:
+    """`DivisiblePad` + `inverse_key` round-trips: the predictor is pointwise, so padding changes nothing.
+
+    Every 20-point window is padded to 32 rows, the predictor sees the padded rows under the right batch
+    index, and the gather brings each window back to its own 20 points.
+    """
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(200, 3), DataKeys.BATCH: torch.zeros(200, dtype=torch.long)}
+    batches_seen: List[Tensor] = []
+
+    def pointwise(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS].clone()
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        assert DataKeys.INVERSE not in window
+        batches_seen.append(window[DataKeys.BATCH].clone())
+        return pointwise(window)
+
+    kwargs: Dict[str, Any] = {"roi_num_points": 20, "sw_batch_size": 3, "overlap": 0.3, "seed": 0}
+    out = knn_window_inference(data, predictor=pointwise, **kwargs)
+    out_pad = knn_window_inference(
+        data,
+        predictor=predictor,
+        transform=T.DivisiblePad(num_samples=32, dst_inverse_key=DataKeys.INVERSE),
+        inverse_key=DataKeys.INVERSE,
+        **kwargs,
+    )
+    assert all(torch.equal(batch, torch.arange(3).repeat_interleave(32)) for batch in batches_seen)
+    assert torch.equal(out_pad, out)

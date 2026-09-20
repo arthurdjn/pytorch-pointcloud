@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys, collate
 
-from ._utils import check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
+from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
 
 WindowMode = Literal["constant", "gaussian"]
@@ -184,6 +184,44 @@ def _assign_point_blocks(
     return list(point_groups), list(weight_groups), bbox_groups
 
 
+def _build_window(
+    data_b: Dict[str, Any],
+    point_ids: Tensor,
+    bbox: Tensor,
+    *,
+    n_b: int,
+    transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]],
+    pos_key: str,
+    batch_key: str,
+    block_bbox_key: str,
+    inverse_key: Optional[str],
+) -> Tuple[Dict[str, Any], Optional[Tensor]]:
+    """Slice one block out of `data_b` and run `transform` over it, returning it and its inverse map."""
+    n_block = int(point_ids.numel())
+    window = index_select_dict(data_b, point_ids, n_b)
+    window[batch_key] = torch.zeros(n_block, device=point_ids.device, dtype=torch.long)
+    window[block_bbox_key] = bbox
+    return apply_transform(window, transform, pos_key=pos_key, inverse_key=inverse_key)
+
+
+def _predict_packed(
+    samples: List[Dict[str, Any]],
+    *,
+    predictor: Callable[[Dict[str, Any]], Tensor],
+    sw_batch_size: int,
+    apply_softmax: bool,
+    pos_key: str,
+    batch_key: str,
+) -> Tensor:
+    """Collate `samples` into packs of at most `sw_batch_size` elements, predict each pack, concatenate."""
+    parts: List[Tensor] = []
+    for start in range(0, len(samples), sw_batch_size):
+        packed = collate(samples[start : start + sw_batch_size], batch_from=pos_key, batch_key=batch_key)
+        logits = predictor(packed)
+        parts.append(torch.softmax(logits, dim=-1) if apply_softmax else logits)
+    return torch.cat(parts)
+
+
 @torch.no_grad()
 def sliding_window_inference(
     data: Dict[str, Any],
@@ -202,7 +240,7 @@ def sliding_window_inference(
     padding: float = 0.0,
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
-    block_bbox_key: str = "block_bbox",
+    block_bbox_key: str = DataKeys.BLOCK_BBOX,
     inverse_key: Optional[str] = None,
     progress: bool = False,
     seed: Optional[int] = None,
@@ -240,18 +278,20 @@ def sliding_window_inference(
             $D_\text{tiled}$ the number of tiled axes.
         sigma_scale: Gaussian sigma scale factor. Only used when
             `mode="gaussian"`.
-        roi_num_points: Optional cap on points per batch element. Blocks
-            exceeding this are split into random sub-batches and every point is
-            predicted exactly once per block pass. `None` passes the whole block
-            in one element. At the default `sw_batch_size=1` an element is a call,
-            so this also caps the points per `predictor` call. To enforce a fixed-N predictor input, pair the inferer
-            with a `DivisiblePad`-style `transform` that pads each block to a
-            multiple of `roi_num_points` and writes its source-to-padded index
-            map under `inverse_key`.
-        sw_batch_size: Number of batch elements packed into a single `predictor` call. Blocks are
-            independent, so they are collated along the batch index and their predictions are
-            accumulated in block order: only the number of calls changes. Small blocks are
-            dominated by per-call overhead, where a larger value is several times faster.
+        roi_num_points: Maximum points in one batch element. A block with more is split into random
+            sub-batches, each predicted exactly once per block pass. `None` passes the whole block as
+            one element. Use it when the architecture needs a bounded or fixed $N$: pair it with a
+            `DivisiblePad`-style `transform` that pads each block to a multiple of `roi_num_points`
+            and writes its source-to-padded index map under `inverse_key`, and every element is then
+            exactly `roi_num_points` long.
+        sw_batch_size: Number of elements collated into one `predictor` call. Purely a throughput
+            knob: it changes the number of calls, never the output and never the size of an element.
+            Set together with `roi_num_points`, a call holds at most `sw_batch_size` elements of at
+            most `roi_num_points` points each. Small blocks are dominated by per-call overhead, where
+            a larger value is several times faster. Output-neutrality assumes `predictor` respects the
+            packed batch index; one that pools globally without it will differ at `sw_batch_size > 1`.
+            Peak memory holds `sw_batch_size` transformed windows at once, so it scales with
+            `block_size` rather than with `roi_num_points`.
         softmax: If `True`, softmax each block's logits before accumulating.
             Use `True` when averaging predictions across multiple blocks or
             TTA passes. Set `False` to accumulate raw logits. `"max"` and
@@ -288,7 +328,8 @@ def sliding_window_inference(
             predictions back to block-local rows. Leave `None` when the transform
             preserves row count, or when no transform is used.
         progress: If `True`, show a `tqdm` progress bar per batch element.
-        seed: RNG seed for sub-batch permutations when `roi_num_points` is set.
+        seed: RNG seed for sub-batch permutations when `roi_num_points` is set. `None` draws from the global generator, so
+            `torch.manual_seed` seeds the inferer together with the transforms.
 
     Returns:
         Per-point output tensor of shape $(N, C_\text{out})$: with
@@ -325,9 +366,8 @@ def sliding_window_inference(
     n_total = pos.size(0)
     output: Optional[Tensor] = None
 
-    rng = torch.Generator(device=device)
-    if seed is not None:
-        rng.manual_seed(int(seed))
+    rng = None if seed is None else torch.Generator(device=device).manual_seed(int(seed))
+    apply_softmax = softmax or aggregate != "mean"
 
     for b in torch.unique(batch).tolist():
         idx_b = torch.where(batch == b)[0]
@@ -359,73 +399,50 @@ def sliding_window_inference(
             leave=False,
             disable=not progress,
         ):
-            windows: List[Dict[str, Any]] = []
-            inverse_maps: List[Optional[Tensor]] = []
+            batch_blocks = blocks[start : start + sw_batch_size]
+            prepared: List[Tuple[int, Optional[Tensor], List[Tensor]]] = []  # (n_window, inverse_map, chunks)
             samples: List[Dict[str, Any]] = []
-            owners: List[Tuple[int, Tensor]] = []
 
-            for point_ids, _, bbox in blocks[start : start + sw_batch_size]:
-                n_block = int(point_ids.numel())
-                window = index_select_dict(data_b, point_ids, n_b)
-                window[batch_key] = torch.zeros(n_block, device=device, dtype=torch.long)
-                window[block_bbox_key] = bbox
-                if inverse_key is not None:
-                    window.pop(inverse_key, None)
-                if transform is not None:
-                    window = transform(window)
-
+            for point_ids, _, bbox in batch_blocks:
+                window, inverse_map = _build_window(
+                    data_b,
+                    point_ids,
+                    bbox,
+                    n_b=n_b,
+                    transform=transform,
+                    pos_key=pos_key,
+                    batch_key=batch_key,
+                    block_bbox_key=block_bbox_key,
+                    inverse_key=inverse_key,
+                )
                 n_window = int(window[pos_key].size(0))
-                inverse_maps.append(window.pop(inverse_key, None) if inverse_key is not None else None)
-                windows.append(window)
-
-                for chunk_local in split_chunks(n_window, roi_num_points, rng):
-                    sub_window = index_select_dict(window, chunk_local, n_window)
-                    samples.append(sub_window)
-                    owners.append((len(windows) - 1, chunk_local))
+                chunks = split_chunks(n_window, roi_num_points, rng, device)
+                samples.extend(index_select_dict(window, chunk, n_window) for chunk in chunks)
+                prepared.append((n_window, inverse_map, chunks))
 
             if not samples:
                 continue
 
-            parts: List[Tensor] = []
-            for pack_start in range(0, len(samples), sw_batch_size):
-                packed = collate(
-                    samples[pack_start : pack_start + sw_batch_size],
-                    batch_from=pos_key,
-                    batch_key=batch_key,
-                )
-                logits = predictor(packed)
-                parts.append(torch.softmax(logits, dim=-1) if softmax or aggregate != "mean" else logits)
-            preds = torch.cat(parts)
+            preds = _predict_packed(
+                samples,
+                predictor=predictor,
+                sw_batch_size=sw_batch_size,
+                apply_softmax=apply_softmax,
+                pos_key=pos_key,
+                batch_key=batch_key,
+            )
 
-            window_preds: List[Optional[Tensor]] = [None] * len(windows)
-            offset = 0
-            for (index, chunk_local), sample in zip(owners, samples):
-                count = int(sample[pos_key].size(0))
-                chunk_preds = preds[offset : offset + count]
-                offset += count
-                preds_at_window = window_preds[index]
-                if preds_at_window is None:
-                    n_window = int(windows[index][pos_key].size(0))
-                    preds_at_window = torch.zeros(
-                        n_window,
-                        int(chunk_preds.size(-1)),
-                        device=device,
-                        dtype=torch.float32,
-                    )
-                    window_preds[index] = preds_at_window
-                preds_at_window[chunk_local] = chunk_preds.to(preds_at_window)
+            num_classes = int(preds.size(-1))
+            if scores_b is None:
+                scores_b = torch.zeros(n_b, num_classes, device=device, dtype=torch.float32)
+            chunk_preds = iter(preds.split([int(chunk.numel()) for _, _, chunks in prepared for chunk in chunks]))
 
-            for (point_ids, w, _), block_preds, inverse_map in zip(
-                blocks[start : start + sw_batch_size],
-                window_preds,
-                inverse_maps,
-            ):
-                if block_preds is None:
-                    continue
+            for (point_ids, w, _), (n_window, inverse_map, chunks) in zip(batch_blocks, prepared):
+                block_preds = torch.zeros(n_window, num_classes, device=device, dtype=torch.float32)
+                for chunk in chunks:
+                    block_preds[chunk] = next(chunk_preds).to(block_preds)
 
                 preds_at_block = block_preds if inverse_map is None else block_preds[inverse_map]
-                if scores_b is None:
-                    scores_b = torch.zeros(n_b, int(block_preds.size(-1)), device=device, dtype=torch.float32)
 
                 if aggregate == "max":
                     confidence, _ = preds_at_block.max(dim=-1)
@@ -437,7 +454,7 @@ def sliding_window_inference(
 
                 if aggregate == "vote":
                     preds_at_block = torch.nn.functional.one_hot(
-                        preds_at_block.argmax(dim=-1), num_classes=int(preds_at_block.size(-1))
+                        preds_at_block.argmax(dim=-1), num_classes=num_classes
                     ).to(scores_b.dtype)
 
                 scores_b.index_add_(0, point_ids, preds_at_block * w.unsqueeze(-1))
@@ -466,7 +483,9 @@ class SlidingWindowInferer(Inferer):
     At `overlap=0` each point lands in exactly one block and the weight division
     is a no-op.
 
-    All parameters are forwarded verbatim to `sliding_window_inference`.
+    All parameters are forwarded verbatim to `sliding_window_inference`, except `seed`, which is offset by
+    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
+    numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python
@@ -496,7 +515,7 @@ class SlidingWindowInferer(Inferer):
         padding: float = 0.0,
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
-        block_bbox_key: str = "block_bbox",
+        block_bbox_key: str = DataKeys.BLOCK_BBOX,
         inverse_key: Optional[str] = None,
         progress: bool = False,
         seed: Optional[int] = None,
@@ -518,12 +537,15 @@ class SlidingWindowInferer(Inferer):
         self.inverse_key = inverse_key
         self.progress = progress
         self.seed = seed
+        self._num_calls = 0
 
     def forward(
         self,
         data: Dict[str, Any],
         predictor: Callable[[Dict[str, Any]], Tensor],
     ) -> Tensor:
+        seed = None if self.seed is None else self.seed + self._num_calls
+        self._num_calls += 1
         return sliding_window_inference(
             data,
             predictor=predictor,
@@ -543,5 +565,5 @@ class SlidingWindowInferer(Inferer):
             block_bbox_key=self.block_bbox_key,
             inverse_key=self.inverse_key,
             progress=self.progress,
-            seed=self.seed,
+            seed=seed,
         )

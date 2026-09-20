@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from torch_pointcloud.inferers._utils import (
+    apply_transform,
     check_batch_alignment,
     gaussian_weights,
     index_select_dict,
@@ -15,14 +16,14 @@ from torch_pointcloud.inferers._utils import (
 
 def test_split_chunks_no_cap_returns_single_in_order_chunk() -> None:
     """`max_size=None` yields one chunk holding every index in order."""
-    chunks = split_chunks(10, None, torch.Generator())
+    chunks = split_chunks(10, None, torch.Generator(), torch.device("cpu"))
     assert len(chunks) == 1
     assert torch.equal(chunks[0], torch.arange(10))
 
 
 def test_split_chunks_below_cap_returns_single_chunk() -> None:
     """A count within the cap is not split."""
-    chunks = split_chunks(5, 20, torch.Generator())
+    chunks = split_chunks(5, 20, torch.Generator(), torch.device("cpu"))
     assert len(chunks) == 1
     assert torch.equal(chunks[0], torch.arange(5))
 
@@ -30,7 +31,7 @@ def test_split_chunks_below_cap_returns_single_chunk() -> None:
 def test_split_chunks_above_cap_partitions_within_cap() -> None:
     """A count above the cap splits into ceil(n / max_size) chunks, each within the
     cap, together covering every index exactly once."""
-    chunks = split_chunks(64, 20, torch.Generator().manual_seed(0))
+    chunks = split_chunks(64, 20, torch.Generator().manual_seed(0), torch.device("cpu"))
     assert len(chunks) == 4  # ceil(64 / 20)
     assert sorted(c.numel() for c in chunks) == [4, 20, 20, 20]
     assert all(c.numel() <= 20 for c in chunks)
@@ -39,8 +40,8 @@ def test_split_chunks_above_cap_partitions_within_cap() -> None:
 
 def test_split_chunks_same_seed_is_reproducible() -> None:
     """The same generator seed produces the same partition."""
-    chunks_a = split_chunks(64, 20, torch.Generator().manual_seed(7))
-    chunks_b = split_chunks(64, 20, torch.Generator().manual_seed(7))
+    chunks_a = split_chunks(64, 20, torch.Generator().manual_seed(7), torch.device("cpu"))
+    chunks_b = split_chunks(64, 20, torch.Generator().manual_seed(7), torch.device("cpu"))
     assert all(torch.equal(a, b) for a, b in zip(chunks_a, chunks_b))
 
 
@@ -92,3 +93,42 @@ def test_check_batch_alignment_rejects_a_shorter_index() -> None:
     """A batch index over voxels rather than points raises instead of leaving the tail unpredicted."""
     with pytest.raises(ValueError, match="has 4 rows but `data\\['pos'\\]` has 6"):
         check_batch_alignment(torch.zeros(6, 3), torch.zeros(4, dtype=torch.long), "pos", "batch")
+
+
+def test_apply_transform_without_transform_returns_the_sample_and_no_map() -> None:
+    """`transform=None` leaves the rows untouched and reports no inverse map."""
+    sample: Dict[str, Any] = {"pos": torch.rand(5, 3)}
+    out, inverse_map = apply_transform(sample, None, pos_key="pos", inverse_key="inverse")
+    assert inverse_map is None
+    assert torch.equal(out["pos"], sample["pos"])
+
+
+def test_apply_transform_pops_the_map_and_drops_a_scene_level_one() -> None:
+    """The fragment's own map is returned, never the stale scene-level value, and the caller's dict is untouched."""
+    sample: Dict[str, Any] = {"pos": torch.arange(3.0).unsqueeze(-1), "inverse": torch.tensor([9, 9, 9, 9])}
+    seen: Dict[str, Any] = {}
+
+    def duplicate(data: Dict[str, Any]) -> Dict[str, Any]:
+        seen.update(data)
+        return {"pos": data["pos"].repeat(2, 1), "inverse": torch.arange(3)}
+
+    out, inverse_map = apply_transform(sample, duplicate, pos_key="pos", inverse_key="inverse")
+    assert "inverse" not in seen
+    assert "inverse" not in out
+    assert inverse_map is not None
+    assert torch.equal(inverse_map, torch.arange(3))
+    assert torch.equal(out["pos"][inverse_map], sample["pos"])
+    assert torch.equal(sample["inverse"], torch.tensor([9, 9, 9, 9]))
+
+
+def test_apply_transform_rejects_a_row_change_without_a_map() -> None:
+    """A row-altering transform with no recorded map raises, with or without an `inverse_key`."""
+    sample: Dict[str, Any] = {"pos": torch.rand(5, 3)}
+
+    def drop_last(data: Dict[str, Any]) -> Dict[str, Any]:
+        return {"pos": data["pos"][:-1]}
+
+    with pytest.raises(ValueError, match="row count \\(5 -> 4\\)"):
+        apply_transform(sample, drop_last, pos_key="pos", inverse_key=None)
+    with pytest.raises(ValueError, match="row count \\(5 -> 4\\)"):
+        apply_transform(sample, drop_last, pos_key="pos", inverse_key="inverse")

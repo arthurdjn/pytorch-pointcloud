@@ -83,7 +83,7 @@ def build_inferer(views: List[T.Compose], sub_batch_size: int, seed: int) -> Inf
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
-        reduce="sum",
+        aggregate="sum",
         sub_batch_size=sub_batch_size,
         seed=seed,
     )

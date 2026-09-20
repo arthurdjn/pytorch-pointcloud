@@ -4,7 +4,7 @@ Results (mIoU / OA; the 6-fold rows average the per-area folds, the reference po
 
     | Variant                          | reference   | torch-pointcloud |
     | -------------------------------- | ----------- | ---------------- |
-    | pointnet2.s3dis-area5.xu-yan     | 53.5        | 54.28 / 83.54    |
+    | pointnet2.s3dis-area5.xu-yan     | 53.5        | 54.83 / 83.71    |
     | pointnet2.s3dis-area1.openpoints |             | 74.96 / 89.77    |
     | pointnet2.s3dis-area2.openpoints |             | 48.22 / 80.08    |
     | pointnet2.s3dis-area3.openpoints |             | 76.31 / 90.89    |
@@ -57,7 +57,7 @@ XU_YAN_TRANSFORM = T.Compose(
 )
 XU_YAN_INFERER_TRANSFORM = T.Compose(
     [
-        T.BBoxCenter(keys="block_bbox", dst_keys=DataKeys.BLOCK_CENTER),
+        T.BBoxCenter(keys=DataKeys.BLOCK_BBOX, dst_keys=DataKeys.BLOCK_CENTER),
         T.CopyItems(keys=DataKeys.POS, names=DataKeys.NORM_POS),
         T.DivideKey(keys=DataKeys.NORM_POS, div_keys="coord_max"),
         T.SubtractKey(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
@@ -84,7 +84,7 @@ def build_xu_yan_inferer(inferer_transform: T.Transform, sw_batch_size: int, see
         inverse_key=DataKeys.INVERSE,
         seed=seed,
     )
-    return TTAInferer(base=blocks, transforms=T.Compose([]), num_passes=NUM_VOTES)
+    return TTAInferer(base=blocks, num_passes=NUM_VOTES)
 
 
 def build_openpoints_inferer(inferer_transform: T.Transform, seed: int, sub_batch_size: int) -> Inferer:

@@ -30,35 +30,37 @@ class TTAInferer(Inferer):
     Runs the wrapped `base` inferer once per augmentation pass and aggregates
     the per-point predictions across passes.
 
-    Two augmentation modes are supported:
+    Three modes are supported:
 
     - **Single callable**: re-sampled independently each pass. Use for random
       augmentations such as uniformly random rotation. Requires `num_passes`.
     - **Sequence of callables**: each element is applied to exactly one pass in
       order. Use for a fixed view set (e.g. 8 evenly-spaced rotations).
       `num_passes` is inferred from the sequence length.
+    - **`None`**: the input is left as-is and the base inferer is simply run
+      `num_passes` times, voting over its own randomness (random sub-batches,
+      random padding).
 
     Args:
         base: Underlying `Inferer` invoked once per pass. Any concrete inferer
             works: `SimpleInferer()`, `SlidingWindowInferer(...)`,
             `KNNWindowInferer(...)`.
-        transforms: Single callable (re-sampled each pass) or a sequence of
-            callables for fixed views. Any `Dict[str, Any] -> Dict[str, Any]`
-            callable works, including `Compose`. When a sequence is given,
-            `num_passes` is ignored.
-        num_passes: Number of TTA passes when `transforms` is a single callable.
-            Must be $\geq 1$.
+        transforms: Single callable (re-sampled each pass), a sequence of
+            callables for fixed views, or `None` for un-augmented passes. Any
+            `Dict[str, Any] -> Dict[str, Any]` callable works, including
+            `Compose`. When a sequence is given, `num_passes` is ignored.
+        num_passes: Number of TTA passes when `transforms` is a single callable
+            or `None`. Must be $\geq 1$.
         include_identity: If `True`, run one extra pass on the un-augmented input
             before the augmented passes (the "clean + N random views" voting
             protocol), so the total pass count is `num_passes + 1`.
         aggregate: How per-point predictions are combined across passes.
-            `"mean"` averages per-pass outputs (works for logits or probabilities).
-            `"ema"` maintains an exponential moving average of softmax
-            probabilities.
+            `"mean"` averages per-pass outputs. `"ema"` maintains an exponential
+            moving average of them.
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ used when `aggregate="ema"`.
-        ema_softmax: When `aggregate="ema"`, softmax each pass's output before
-            accumulating. Set `False` if the base inferer already returns
-            probabilities (e.g. `SlidingWindowInferer(softmax=True)`).
+        softmax: If `True`, softmax each pass's output before aggregating. Leave
+            `False` when the base inferer already returns probabilities (e.g.
+            `SlidingWindowInferer(softmax=True)`).
         pos_key: Dict key for the position tensor (used for the empty-output fallback).
 
     Example:
@@ -90,20 +92,21 @@ class TTAInferer(Inferer):
     def __init__(
         self,
         base: Inferer,
-        transforms: Union[TransformFn, Sequence[TransformFn]],
+        transforms: Union[TransformFn, Sequence[TransformFn], None] = None,
         num_passes: Optional[int] = None,
         include_identity: bool = False,
         aggregate: AggregateMode = "mean",
         ema_smoothing: float = 0.95,
-        ema_softmax: bool = True,
+        softmax: bool = False,
         pos_key: str = DataKeys.POS,
     ) -> None:
-        if callable(transforms):
+        if transforms is None or callable(transforms):
             self._sequence: Optional[Sequence[TransformFn]] = None
             self._sample: Optional[TransformFn] = transforms
             if num_passes is None or num_passes < 1:
                 raise ValueError(
-                    f"`num_passes` must be an int >= 1 when `transforms` is a single callable, got {num_passes!r}."
+                    "`num_passes` must be an int >= 1 when `transforms` is a single callable or `None`, "
+                    f"got {num_passes!r}."
                 )
             self.num_passes = int(num_passes)
         else:
@@ -129,7 +132,7 @@ class TTAInferer(Inferer):
         self.include_identity = include_identity
         self.aggregate = aggregate
         self.ema_smoothing = ema_smoothing
-        self.ema_softmax = ema_softmax
+        self.softmax = softmax
         self.pos_key = pos_key
 
     @torch.no_grad()
@@ -152,13 +155,14 @@ class TTAInferer(Inferer):
         for aug in passes:
             data_aug = dict(data) if aug is None else aug(dict(data))
             pass_output = self.base(data_aug, predictor)
+            if self.softmax:
+                pass_output = torch.softmax(pass_output, dim=-1)
 
             if self.aggregate == "ema":
-                preds = torch.softmax(pass_output, dim=-1) if self.ema_softmax else pass_output
                 if output is None:
-                    output = preds.clone()
+                    output = pass_output.clone()
                 else:
-                    output = self.ema_smoothing * output + (1.0 - self.ema_smoothing) * preds
+                    output = self.ema_smoothing * output + (1.0 - self.ema_smoothing) * pass_output
             else:
                 if output is None:
                     output = pass_output.clone()
@@ -203,7 +207,7 @@ def simple_tta_transforms(
         from torch_pointcloud.inferers import TTAInferer, VoxelPartitionInferer, simple_tta_transforms
 
         inferer = TTAInferer(
-            base=VoxelPartitionInferer(voxel_size=0.02, softmax=True, reduce="sum"),
+            base=VoxelPartitionInferer(voxel_size=0.02, softmax=True, aggregate="sum"),
             transforms=simple_tta_transforms(),
         )
         ```
