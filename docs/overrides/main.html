@@ -6,6 +6,15 @@
 {% endblock %}
 <!-- end announce block -->
 
+<!-- start outdated block -->
+{% block outdated %}
+  You are viewing the documentation of an older version.
+  <a href="{{ '../' ~ base_url }}">
+    <strong>Go to the latest version.</strong>
+  </a>
+{% endblock %}
+<!-- end outdated block -->
+
 <!-- start extrahead block -->
 {% block extrahead %}
   <link rel="icon" type="image/svg+xml" href="{{ 'assets/favicon.svg' | url }}">
