@@ -1,9 +1,8 @@
 from argparse import ArgumentParser, Namespace
-from typing import Any, Callable
+from typing import Callable
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -15,6 +14,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, ShapeNetPart
 from torch_pointcloud.models import PointNetSegmentation
 from torch_pointcloud.utils.data import DataKeys, collate
+from torch_pointcloud.utils.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.utils.random import seed_everything
 
 
@@ -120,8 +120,7 @@ def eval_one_epoch(
 ) -> dict[str, float]:
     model.eval()
 
-    val_intersection: Any = []
-    val_union: Any = []
+    cm = torch.zeros(num_classes, num_classes, dtype=torch.long, device=device)
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         pos = data[DataKeys.POS].to(device)
@@ -132,23 +131,9 @@ def eval_one_epoch(
             logits = model(None, pos, batch)
             preds = logits.argmax(dim=1)
 
-        intersection, union = compute_intersection_union(
-            preds,
-            target,
-            num_classes=num_classes,
-            ignore_index=-1,
-        )
+        cm += confusion_matrix(preds, target, num_classes, ignore_index=-1)
 
-        val_intersection.append(intersection)
-        val_union.append(union)
-
-    val_union = torch.stack(val_union).sum(dim=0)
-    val_intersection = torch.stack(val_intersection).sum(dim=0)
-
-    iou_class = val_intersection / (val_union + 1e-10)
-    m_iou = iou_class.mean()
-
-    return {"val/mIoU": m_iou}
+    return {"val/mIoU": intersection_over_union(cm)}
 
 
 def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
@@ -217,28 +202,6 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     )
 
     return train_dataloader, test_dataloader
-
-
-def compute_intersection_union(
-    preds: Tensor,
-    target: Tensor,
-    num_classes: int,
-    ignore_index: int = -1,
-) -> tuple[Tensor, Tensor]:
-    valid_mask = target != ignore_index
-    preds = preds[valid_mask]
-    target = target[valid_mask]
-
-    confusion_matrix = torch.zeros(num_classes, num_classes, device=preds.device)
-    indices = num_classes * target + preds
-    confusion_matrix = confusion_matrix.view(-1)
-    confusion_matrix.index_add_(0, indices, torch.ones_like(indices, dtype=torch.float))
-    confusion_matrix = confusion_matrix.view(num_classes, num_classes)
-
-    intersection = torch.diag(confusion_matrix)
-    union = confusion_matrix.sum(dim=0) + confusion_matrix.sum(dim=1) - intersection
-
-    return intersection, union
 
 
 if __name__ == "__main__":

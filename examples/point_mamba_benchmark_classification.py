@@ -29,7 +29,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNetNormalResampled, ScanObjectNN
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import confusion_matrix
+from torch_pointcloud.utils.metrics import accuracy, confusion_matrix
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
@@ -87,13 +87,12 @@ def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: in
         logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH])
         preds = logits.argmax(dim=1)
         cm += confusion_matrix(preds.cpu(), data[DataKeys.LABEL].cpu(), num_classes)
-        oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)
-        pbar.set_postfix({"oa": f"{oa.item():.4f}"})
+        oa = accuracy(cm)
+        pbar.set_postfix({"oa": f"{oa:.4f}"})
 
-    per_class_acc = cm.diag().float() / cm.sum(dim=1).float().clamp_min(1)
     return {
-        "test/overall_acc": (cm.diag().sum().float() / cm.sum().float().clamp_min(1)).item(),
-        "test/mean_class_acc": per_class_acc.mean().item(),
+        "test/overall_acc": accuracy(cm),
+        "test/mean_class_acc": accuracy(cm, average="macro"),
     }
 
 

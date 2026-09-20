@@ -28,7 +28,7 @@ from torch_pointcloud.datasets import ShapeNetPart
 from torch_pointcloud.inferers import Inferer, PartRefinementInferer, SimpleInferer, TTAInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import part_mean_iou
+from torch_pointcloud.utils.metrics import part_intersection_over_union, part_mean_intersection_over_union
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
@@ -55,11 +55,9 @@ def build_inferer() -> Inferer:
 @torch.no_grad()
 def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: str) -> Dict[str, Any]:
     model.to(device).eval()
-    preds: List[Tensor] = []
-    targets: List[Tensor] = []
+    part_ids = list(ShapeNetPart.seg_ids.values())
+    ious: List[Tensor] = []
     categories: List[Tensor] = []
-    batches: List[Tensor] = []
-    num_shapes = 0
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
@@ -67,19 +65,15 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
             data,
             predictor=lambda d: model(d[DataKeys.X], d[DataKeys.POS], d[DataKeys.BATCH], d[DataKeys.CATEGORY]),
         )
-        preds.append(scores.argmax(dim=1).cpu())
-        targets.append(data[DataKeys.SEGMENT].cpu())
-        categories.append(data[DataKeys.CATEGORY].argmax(dim=1).cpu())
-        batches.append(data[DataKeys.BATCH].cpu() + num_shapes)
-        num_shapes += int(data[DataKeys.CATEGORY].shape[0])
+        preds = scores.argmax(dim=1).cpu()
+        category = data[DataKeys.CATEGORY].argmax(dim=1).cpu()
+        shape_ious = part_intersection_over_union(
+            preds, data[DataKeys.SEGMENT].cpu(), part_ids, category, data[DataKeys.BATCH].cpu()
+        )
+        ious.append(shape_ious)
+        categories.append(category)
 
-    metrics = part_mean_iou(
-        torch.cat(preds),
-        torch.cat(targets),
-        list(ShapeNetPart.seg_ids.values()),
-        torch.cat(categories),
-        torch.cat(batches),
-    )
+    metrics = part_mean_intersection_over_union(torch.cat(ious), torch.cat(categories))
     return {f"test/{key}": value for key, value in metrics.items()}
 
 

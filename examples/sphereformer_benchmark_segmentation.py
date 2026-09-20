@@ -27,7 +27,7 @@ from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
-from torch_pointcloud.utils.metrics import confusion_matrix
+from torch_pointcloud.utils.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
 CUDA_AVAILABLE = torch.cuda.is_available()
@@ -55,15 +55,12 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
         )
         preds = scores.argmax(dim=1)[data[DataKeys.INVERSE]]
         cm += confusion_matrix(preds.cpu(), data[DataKeys.ORIGIN_SEGMENT].cpu(), num_classes, ignore_index=IGNORE_INDEX)
-        oa = cm.diag().sum().float() / cm.sum().float().clamp_min(1)
-        pbar.set_postfix({"oa": f"{oa.item():.4f}"})
+        oa = accuracy(cm)
+        pbar.set_postfix({"oa": f"{oa:.4f}"})
 
-    intersection = cm.diag().float()
-    union = cm.sum(dim=1).float() + cm.sum(dim=0).float() - intersection
-    iou_per_class = intersection / union.clamp_min(1e-10)
     return {
-        "test/mIoU": iou_per_class.mean().item(),
-        "test/oa": (cm.diag().sum().float() / cm.sum().float().clamp_min(1)).item(),
+        "test/mIoU": intersection_over_union(cm),
+        "test/oa": accuracy(cm),
     }
 
 

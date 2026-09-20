@@ -5,21 +5,19 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.metrics import (
+    accuracy,
     average_precision3d,
+    box_matches,
     compute_intersection_union,
-    compute_iou,
-    compute_mean_iou,
     confusion_matrix,
     filter_boxes_by_range,
     instance_average_precision,
     instance_matches,
-    mean_average_precision3d,
+    intersection_over_union,
     nuscenes_detection_metrics,
     nuscenes_velocity_attributes,
-    overall_accuracy,
-    part_iou,
-    part_mean_iou,
-    per_class_accuracy,
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
 )
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
@@ -148,15 +146,16 @@ def test_intersection_union_per_batch_all_ignored_returns_zeros() -> None:
 
 def test_iou_perfect_is_one(perfect_preds: tuple[Tensor, Tensor]) -> None:
     preds, target = perfect_preds
-    iou = compute_iou(preds, target, num_classes=3)
-    assert torch.allclose(iou, torch.ones(3))
+    cm = confusion_matrix(preds, target, num_classes=3)
+    assert torch.allclose(intersection_over_union(cm, average="none"), torch.ones(3))
 
 
 def test_iou_absent_class_default_zero() -> None:
     # Class 2 is absent from both preds and target -> union is 0 -> safe_divide returns default.
     preds = torch.tensor([0, 1, 1])
     target = torch.tensor([0, 1, 1])
-    iou = compute_iou(preds, target, num_classes=3)
+    cm = confusion_matrix(preds, target, num_classes=3)
+    iou = intersection_over_union(cm, average="none")
     assert iou[0].item() == 1.0
     assert iou[1].item() == 1.0
     assert iou[2].item() == 0.0
@@ -165,7 +164,8 @@ def test_iou_absent_class_default_zero() -> None:
 def test_iou_absent_class_nan_default() -> None:
     preds = torch.tensor([0, 1, 1])
     target = torch.tensor([0, 1, 1])
-    iou = compute_iou(preds, target, num_classes=3, default=float("nan"))
+    cm = confusion_matrix(preds, target, num_classes=3)
+    iou = intersection_over_union(cm, average="none", zero_division=float("nan"))
     assert math.isnan(iou[2].item())
 
 
@@ -174,67 +174,31 @@ def test_iou_partial_overlap() -> None:
     # Class 1: tgt={3,4}, pred at those={1,1} -> inter=2, area_pred=3, area_tgt=2, union=3 -> 2/3.
     preds = torch.tensor([0, 0, 1, 1, 1])
     target = torch.tensor([0, 0, 0, 1, 1])
-    iou = compute_iou(preds, target, num_classes=2)
-    assert torch.allclose(iou, torch.tensor([2.0 / 3.0, 2.0 / 3.0]))
+    cm = confusion_matrix(preds, target, num_classes=2)
+    assert torch.allclose(intersection_over_union(cm, average="none"), torch.tensor([2.0 / 3.0, 2.0 / 3.0]))
 
 
 def test_iou_ignore_index_zeros_class() -> None:
     target = torch.tensor([0, 1, 1, 255, 255])
     preds = torch.tensor([0, 1, 1, 0, 1])
     # ignore_index outside [0, num_classes) just drops points, doesn't zero a class slot.
-    iou = compute_iou(preds, target, num_classes=2, ignore_index=255)
-    assert torch.allclose(iou, torch.tensor([1.0, 1.0]))
+    cm = confusion_matrix(preds, target, num_classes=2, ignore_index=255)
+    assert torch.allclose(intersection_over_union(cm, average="none"), torch.tensor([1.0, 1.0]))
 
 
 def test_mean_iou_perfect(perfect_preds: tuple[Tensor, Tensor]) -> None:
     preds, target = perfect_preds
-    miou = compute_mean_iou(preds, target, num_classes=3)
-    assert miou.item() == pytest.approx(1.0)
+    cm = confusion_matrix(preds, target, num_classes=3)
+    assert intersection_over_union(cm) == pytest.approx(1.0)
 
 
 def test_mean_iou_ignore_index_excluded_from_mean() -> None:
     # Class 2 is absent (iou=0 with default=0.0). Without ignore_index, that pulls the mean down.
     preds = torch.tensor([0, 1, 1])
     target = torch.tensor([0, 1, 1])
-    miou_all = compute_mean_iou(preds, target, num_classes=3)
-    miou_ignored = compute_mean_iou(preds, target, num_classes=3, ignore_index=2)
-    assert miou_all.item() == pytest.approx(2.0 / 3.0)
-    assert miou_ignored.item() == pytest.approx(1.0)
-
-
-def test_mean_iou_per_batch() -> None:
-    target = torch.tensor([0, 1, 0, 1])
-    preds = torch.tensor([0, 1, 0, 0])
-    batch = torch.tensor([0, 0, 1, 1])
-    miou = compute_mean_iou(preds, target, num_classes=2, batch=batch)
-    # Sample 0 is perfect -> mean(1, 1) = 1.
-    # Sample 1: class 0 iou=1/2 (pred extra), class 1 iou=0/1 -> mean(0.5, 0) = 0.25.
-    assert miou.shape == (2,)
-    assert miou[0].item() == pytest.approx(1.0)
-    assert miou[1].item() == pytest.approx(0.25)
-
-
-def test_mean_iou_per_batch_absent_classes_excluded_from_sample_mean() -> None:
-    # Perfect predictions: sample 0 contains 2 of 20 classes, sample 1 contains 1 of 20.
-    # Each sample averages only over its present classes, so both score 1.
-    target = torch.tensor([0, 0, 1, 1, 2, 2])
-    preds = target.clone()
-    batch = torch.tensor([0, 0, 0, 0, 1, 1])
-    miou = compute_mean_iou(preds, target, num_classes=20, batch=batch)
-    assert miou.shape == (2,)
-    assert miou[0].item() == pytest.approx(1.0)
-    assert miou[1].item() == pytest.approx(1.0)
-
-
-def test_mean_iou_per_batch_fully_ignored_sample_scores_zero() -> None:
-    # Sample 1 has no present classes after masking, so its mIoU is defined as 0.
-    target = torch.tensor([0, 1, 255, 255])
-    preds = torch.tensor([0, 1, 0, 1])
-    batch = torch.tensor([0, 0, 1, 1])
-    miou = compute_mean_iou(preds, target, num_classes=2, batch=batch, ignore_index=255)
-    assert miou.shape == (2,)
-    assert miou[0].item() == pytest.approx(1.0)
-    assert miou[1].item() == pytest.approx(0.0)
+    cm = confusion_matrix(preds, target, num_classes=3)
+    assert intersection_over_union(cm) == pytest.approx(2.0 / 3.0)
+    assert intersection_over_union(cm, ignore_index=2) == pytest.approx(1.0)
 
 
 def test_part_iou_two_shapes_hand_checked() -> None:
@@ -245,7 +209,7 @@ def test_part_iou_two_shapes_hand_checked() -> None:
     target = torch.tensor([0, 0, 1, 1, 2, 2])
     category = torch.tensor([0, 1])
     batch = torch.tensor([0, 0, 0, 0, 1, 1])
-    ious = part_iou(preds, target, part_ids, category, batch)
+    ious = part_intersection_over_union(preds, target, part_ids, category, batch)
     assert torch.allclose(ious, torch.tensor([7.0 / 12.0, 1.0]))
 
 
@@ -254,7 +218,7 @@ def test_part_iou_absent_parts_count_as_one() -> None:
     part_ids = [[0, 1, 2]]
     preds = torch.tensor([0, 0])
     target = torch.tensor([0, 0])
-    ious = part_iou(preds, target, part_ids, torch.tensor([0]), torch.tensor([0, 0]))
+    ious = part_intersection_over_union(preds, target, part_ids, torch.tensor([0]), torch.tensor([0, 0]))
     assert ious.item() == pytest.approx(1.0)
 
 
@@ -264,7 +228,7 @@ def test_part_iou_scores_only_the_category_parts() -> None:
     part_ids = [[0, 1], [2, 3], [4]]
     preds = torch.tensor([0, 4])
     target = torch.tensor([0, 0])
-    ious = part_iou(preds, target, part_ids, torch.tensor([0]), torch.tensor([0, 0]))
+    ious = part_intersection_over_union(preds, target, part_ids, torch.tensor([0]), torch.tensor([0, 0]))
     # class 0 iou 1/2, class 1 absent -> 1 -> mean 3/4.
     assert ious.item() == pytest.approx(0.75)
 
@@ -277,52 +241,58 @@ def test_part_mean_iou_instance_vs_class_averaging() -> None:
     target = torch.tensor([0, 0, 1, 1, 2, 2, 3])
     category = torch.tensor([0, 1, 1])
     batch = torch.tensor([0, 0, 0, 0, 1, 1, 2])
-    out = part_mean_iou(preds, target, part_ids, category, batch)
+    ious = part_intersection_over_union(preds, target, part_ids, category, batch)
+    out = part_mean_intersection_over_union(ious, category)
     assert out["ins_mIoU"] == pytest.approx(19.0 / 36.0)
     assert out["cls_mIoU"] == pytest.approx(13.0 / 24.0)
 
 
 def test_overall_accuracy_perfect(perfect_preds: tuple[Tensor, Tensor]) -> None:
     preds, target = perfect_preds
-    assert overall_accuracy(preds, target) == pytest.approx(1.0)
+    cm = confusion_matrix(preds, target, num_classes=3)
+    assert accuracy(cm) == pytest.approx(1.0)
 
 
 def test_overall_accuracy_partial() -> None:
     preds = torch.tensor([0, 1, 1, 0])
     target = torch.tensor([0, 1, 0, 0])
-    assert overall_accuracy(preds, target) == pytest.approx(0.75)
+    cm = confusion_matrix(preds, target, num_classes=2)
+    assert accuracy(cm) == pytest.approx(0.75)
 
 
 def test_overall_accuracy_ignore_index() -> None:
     preds = torch.tensor([0, 1, 0])
     target = torch.tensor([0, 1, 255])
-    assert overall_accuracy(preds, target, ignore_index=255) == pytest.approx(1.0)
+    cm = confusion_matrix(preds, target, num_classes=2, ignore_index=255)
+    assert accuracy(cm) == pytest.approx(1.0)
 
 
 def test_overall_accuracy_fully_ignored_returns_zero() -> None:
     preds = torch.tensor([0, 1])
     target = torch.tensor([255, 255])
-    assert overall_accuracy(preds, target, ignore_index=255) == 0.0
+    cm = confusion_matrix(preds, target, num_classes=2, ignore_index=255)
+    assert accuracy(cm) == 0.0
 
 
 def test_per_class_accuracy_perfect(perfect_preds: tuple[Tensor, Tensor]) -> None:
     preds, target = perfect_preds
-    acc = per_class_accuracy(preds, target, num_classes=3)
-    assert torch.allclose(acc, torch.ones(3), atol=1e-6)
+    cm = confusion_matrix(preds, target, num_classes=3)
+    assert torch.allclose(accuracy(cm, average="none"), torch.ones(3), atol=1e-6)
 
 
 def test_per_class_accuracy_partial() -> None:
     # class 0: 2/3 correct, class 1: 2/2 correct.
     preds = torch.tensor([0, 0, 1, 1, 1])
     target = torch.tensor([0, 0, 0, 1, 1])
-    acc = per_class_accuracy(preds, target, num_classes=2)
-    assert torch.allclose(acc, torch.tensor([2.0 / 3.0, 1.0]), atol=1e-6)
+    cm = confusion_matrix(preds, target, num_classes=2)
+    assert torch.allclose(accuracy(cm, average="none"), torch.tensor([2.0 / 3.0, 1.0]), atol=1e-6)
 
 
 def test_per_class_accuracy_ignore_index_zeros_class() -> None:
     preds = torch.tensor([0, 1, 1])
     target = torch.tensor([0, 1, 1])
-    acc = per_class_accuracy(preds, target, num_classes=3, ignore_index=2)
+    cm = confusion_matrix(preds, target, num_classes=3, ignore_index=2)
+    acc = accuracy(cm, average="none", ignore_index=2)
     assert acc[2].item() == 0.0
     assert acc[0].item() == pytest.approx(1.0)
     assert acc[1].item() == pytest.approx(1.0)
@@ -342,8 +312,12 @@ def test_average_precision3d_per_class_iou() -> None:
         "labels": torch.tensor([0]),
         "batch": torch.tensor([0]),
     }
-    assert average_precision3d([pred], [gt], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(1.0)
-    assert average_precision3d([pred], [gt], iou_per_class={0: 0.7})["AP/0"] == pytest.approx(0.0)
+    assert average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, average="none")[0].item() == pytest.approx(
+        1.0
+    )
+    assert average_precision3d([box_matches(pred, gt)], iou_threshold=0.7, average="none")[0].item() == pytest.approx(
+        0.0
+    )
 
 
 def test_average_precision3d_ignore_mask() -> None:
@@ -363,8 +337,10 @@ def test_average_precision3d_ignore_mask() -> None:
         "batch": batch,
         "ignore_mask": torch.tensor([False, True]),
     }
-    assert average_precision3d([pred], [no_ignore], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(0.5)
-    assert average_precision3d([pred], [with_ignore], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(1.0)
+    penalized = average_precision3d([box_matches(pred, no_ignore)], iou_threshold=0.5, average="none")
+    excused = average_precision3d([box_matches(pred, with_ignore)], iou_threshold=0.5, average="none")
+    assert penalized[0].item() == pytest.approx(0.5)
+    assert excused[0].item() == pytest.approx(1.0)
 
 
 def test_average_precision3d_ignore_attribution_per_class() -> None:
@@ -385,11 +361,11 @@ def test_average_precision3d_ignore_attribution_per_class() -> None:
         "labels": torch.tensor([1, 1, 0, 0]),
         "batch": torch.tensor([0, 0, 0, 0]),
     }
-    out = average_precision3d([pred], [gt], iou_per_class={0: 0.5, 1: 0.5})
+    out = average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, average="none")
     # The Pedestrian prediction on the Van is a false positive (the Van only excuses Car predictions).
-    assert out["AP/1"] == pytest.approx(0.5)
+    assert out[1].item() == pytest.approx(0.5)
     # The Car prediction on the Van stays excused.
-    assert out["AP/0"] == pytest.approx(1.0)
+    assert out[0].item() == pytest.approx(1.0)
 
 
 def test_average_precision3d_prediction_ignore_mask() -> None:
@@ -405,9 +381,13 @@ def test_average_precision3d_prediction_ignore_mask() -> None:
         "labels": torch.tensor([0, 0]),
         "batch": torch.tensor([0, 0]),
     }
-    assert average_precision3d([pred], [gt], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(0.5)
+    assert average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, average="none")[0].item() == pytest.approx(
+        0.5
+    )
     flagged: Detection3D = {**pred, "ignore_mask": torch.tensor([True, False])}
-    assert average_precision3d([flagged], [gt], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(1.0)
+    assert average_precision3d([box_matches(flagged, gt)], iou_threshold=0.5, average="none")[
+        0
+    ].item() == pytest.approx(1.0)
     # A flagged prediction on the GT cannot consume it: the unflagged lower-score prediction still matches.
     on_gt: Detection3D = {
         "boxes": torch.tensor([[0.0, 0, 0, 4, 2, 1.5, 0], [0, 0, 0, 4, 2, 1.5, 0]]),
@@ -416,7 +396,9 @@ def test_average_precision3d_prediction_ignore_mask() -> None:
         "batch": torch.tensor([0, 0]),
         "ignore_mask": torch.tensor([True, False]),
     }
-    assert average_precision3d([on_gt], [gt], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(1.0)
+    assert average_precision3d([box_matches(on_gt, gt)], iou_threshold=0.5, average="none")[0].item() == pytest.approx(
+        1.0
+    )
 
 
 def test_average_precision3d_interpolation_modes() -> None:
@@ -438,17 +420,21 @@ def test_average_precision3d_interpolation_modes() -> None:
         "labels": torch.tensor([0, 0, 0]),
         "batch": torch.tensor([0, 0, 0]),
     }
-    ap_all = average_precision3d([pred], [gt], iou_per_class={0: 0.5})["AP/0"]
-    ap_r11 = average_precision3d([pred], [gt], iou_per_class={0: 0.5}, interpolation="r11")["AP/0"]
-    ap_r40 = average_precision3d([pred], [gt], iou_per_class={0: 0.5}, interpolation="r40")["AP/0"]
+    ap_all = average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, average="none")[0].item()
+    ap_r11 = average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, average="none", interpolation="r11")[
+        0
+    ].item()
+    ap_r40 = average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, average="none", interpolation="r40")[
+        0
+    ].item()
     assert ap_all == pytest.approx(5.0 / 6.0)
     assert ap_r11 == pytest.approx(1.0 / 11.0)
     assert ap_r40 == pytest.approx((2.0 / 3.0) / 40.0)
-    out = mean_average_precision3d([pred], [gt], iou_thresholds=(0.5,), interpolation="r11")
-    assert out["mAP@0.5"] == pytest.approx(1.0 / 11.0)
+    mean_ap = average_precision3d([box_matches(pred, gt)], iou_threshold=0.5, interpolation="r11")
+    assert mean_ap == pytest.approx(1.0 / 11.0)
 
 
-def test_mean_average_precision3d_perfect_rotated_match_is_one() -> None:
+def test_average_precision3d_perfect_rotated_match_is_one() -> None:
     """Predictions identical to the GT at a non-zero heading score mAP 1.0 at every threshold."""
     gt: Boxes3D = {
         "boxes": torch.tensor([[0.0, 0, 0, 4, 2, 1.5, 0.7], [3.0, 3, 0, 2, 2, 1.0, 0.7]]),
@@ -461,12 +447,12 @@ def test_mean_average_precision3d_perfect_rotated_match_is_one() -> None:
         "labels": gt["labels"].clone(),
         "batch": gt["batch"].clone(),
     }
-    out = mean_average_precision3d([pred], [gt])
-    assert out["mAP@0.25"] == pytest.approx(1.0)
-    assert out["mAP@0.5"] == pytest.approx(1.0)
+    matches = [box_matches(pred, gt)]
+    assert average_precision3d(matches, iou_threshold=0.25) == pytest.approx(1.0)
+    assert average_precision3d(matches, iou_threshold=0.5) == pytest.approx(1.0)
 
 
-def test_mean_average_precision3d_no_predictions_is_zero() -> None:
+def test_average_precision3d_no_predictions_is_zero() -> None:
     """A batch with GT but zero predicted boxes scores 0.0 at every threshold, without NaN."""
     gt: Boxes3D = {
         "boxes": torch.tensor([[0.0, 0, 0, 4, 2, 1.5, 0]]),
@@ -479,10 +465,12 @@ def test_mean_average_precision3d_no_predictions_is_zero() -> None:
         "labels": torch.empty(0, dtype=torch.long),
         "batch": torch.empty(0, dtype=torch.long),
     }
-    assert mean_average_precision3d([pred], [gt]) == {"mAP@0.25": 0.0, "mAP@0.5": 0.0}
+    matches = [box_matches(pred, gt)]
+    assert average_precision3d(matches, iou_threshold=0.25) == 0.0
+    assert average_precision3d(matches, iou_threshold=0.5) == 0.0
 
 
-def test_mean_average_precision3d_empty_targets_is_zero() -> None:
+def test_average_precision3d_empty_targets_is_zero() -> None:
     """With no GT boxes there is no class to average over, so every threshold reports 0.0."""
     gt: Boxes3D = {
         "boxes": torch.empty(0, 7),
@@ -495,10 +483,12 @@ def test_mean_average_precision3d_empty_targets_is_zero() -> None:
         "labels": torch.tensor([0]),
         "batch": torch.tensor([0]),
     }
-    assert mean_average_precision3d([pred], [gt]) == {"mAP@0.25": 0.0, "mAP@0.5": 0.0}
+    matches = [box_matches(pred, gt)]
+    assert average_precision3d(matches, iou_threshold=0.25) == 0.0
+    assert average_precision3d(matches, iou_threshold=0.5) == 0.0
 
 
-def test_mean_average_precision3d_scene_without_predictions_counts_misses() -> None:
+def test_average_precision3d_scene_without_predictions_counts_misses() -> None:
     """One of two scenes has zero predicted boxes: its GT stays unmatched and halves the recall."""
     gt: Boxes3D = {
         "boxes": torch.tensor([[0.0, 0, 0, 4, 2, 1.5, 0], [0.0, 0, 0, 4, 2, 1.5, 0]]),
@@ -511,7 +501,9 @@ def test_mean_average_precision3d_scene_without_predictions_counts_misses() -> N
         "labels": torch.tensor([0]),
         "batch": torch.tensor([1]),
     }
-    assert mean_average_precision3d([pred], [gt]) == {"mAP@0.25": 0.5, "mAP@0.5": 0.5}
+    matches = [box_matches(pred, gt)]
+    assert average_precision3d(matches, iou_threshold=0.25) == 0.5
+    assert average_precision3d(matches, iou_threshold=0.5) == 0.5
 
 
 def test_average_precision3d_class_without_gt_boxes_is_zero() -> None:
@@ -527,14 +519,139 @@ def test_average_precision3d_class_without_gt_boxes_is_zero() -> None:
         "labels": torch.tensor([0, 7]),
         "batch": torch.tensor([0, 0]),
     }
-    out = average_precision3d([pred], [gt], iou_per_class={0: 0.5, 7: 0.5})
-    assert out["AP/0"] == pytest.approx(1.0)
-    assert out["AP/7"] == pytest.approx(0.0)
-    assert out["mAP"] == pytest.approx(0.5)
+    matches = [box_matches(pred, gt)]
+    out = average_precision3d(matches, iou_threshold={0: 0.5, 7: 0.5}, average="none")
+    assert out[0].item() == pytest.approx(1.0)
+    assert out[7].item() == pytest.approx(0.0)
+    assert average_precision3d(matches, iou_threshold={0: 0.5, 7: 0.5}) == pytest.approx(0.5)
 
 
 def _box(x: float, y: float, yaw: float = 0.0) -> list[float]:
     return [x, y, 0.0, 4.0, 2.0, 1.5, yaw]
+
+
+def test_box_matches_record() -> None:
+    """Each kept prediction records its best same-class box; ignored predictions and regions stay out of the ground truth."""
+    pred: Detection3D = {
+        "boxes": torch.tensor(
+            [
+                [0.0, 0, 0, 4, 2, 1.5, 0],
+                [20.0, 0, 0, 4, 2, 1.5, 0],
+                [0.0, 0, 0, 4, 2, 1.5, 0],
+                [40.0, 0, 0, 4, 2, 1.5, 0],
+                [0.0, 0, 0, 4, 2, 1.5, 0],
+            ]
+        ),
+        "scores": torch.tensor([0.9, 0.8, 0.7, 0.6, 0.5]),
+        "labels": torch.tensor([0, 0, 1, 0, 0]),
+        "batch": torch.tensor([0, 0, 0, 1, 0]),
+        "ignore_mask": torch.tensor([False, False, False, False, True]),
+    }
+    gt: Boxes3D = {
+        "boxes": torch.tensor([[20.0, 0, 0, 4, 2, 1.5, 0], [0.0, 0, 0, 4, 2, 1.5, 0], [40.0, 0, 0, 4, 2, 1.5, 0]]),
+        "labels": torch.tensor([0, 0, 0]),
+        "batch": torch.tensor([0, 0, 0]),
+        "ignore_mask": torch.tensor([True, False, False]),
+    }
+    match = box_matches(pred, gt)
+
+    assert match["pred_iou"].device.type == "cpu"
+    assert match["gt_labels"].device.type == "cpu"
+    assert match["gt_labels"].tolist() == [0, 0]
+    # sample 0 first, then sample 1; the flagged prediction is gone
+    assert match["pred_scores"].tolist() == pytest.approx([0.9, 0.8, 0.7, 0.6])
+    assert match["pred_labels"].tolist() == [0, 0, 1, 0]
+    # class 1 has no box, and sample 1 holds no box at all: both carry the -1 sentinel
+    assert match["pred_iou"].tolist() == pytest.approx([1.0, 0.0, -1.0, -1.0])
+    assert match["pred_gt"].tolist() == [0, 0, -1, -1]
+    assert match["pred_ignore_iou"].tolist() == pytest.approx([0.0, 1.0, -1.0, -1.0])
+
+
+def test_box_matches_empty_batch() -> None:
+    pred: Detection3D = {
+        "boxes": torch.empty(0, 7),
+        "scores": torch.empty(0),
+        "labels": torch.empty(0, dtype=torch.long),
+        "batch": torch.empty(0, dtype=torch.long),
+    }
+    gt: Boxes3D = {"boxes": torch.tensor([_box(0, 0)]), "labels": torch.tensor([2]), "batch": torch.tensor([0])}
+    match = box_matches(pred, gt)
+
+    assert match["gt_labels"].tolist() == [2]
+    assert match["pred_scores"].numel() == 0
+    assert match["pred_iou"].numel() == 0
+    assert match["pred_gt"].numel() == 0
+
+
+def test_average_precision3d_is_independent_of_batching() -> None:
+    """Records gathered batch by batch score exactly like the record of the same samples packed as one batch."""
+    generator = torch.Generator().manual_seed(0)
+    scale = torch.tensor([6.0, 6.0, 1.0, 3.0, 3.0, 1.5, 3.14])
+    preds: list[Detection3D] = []
+    targets: list[Boxes3D] = []
+    for _ in range(3):
+        preds.append(
+            {
+                "boxes": torch.rand(24, 7, generator=generator) * scale + 0.5,
+                "scores": torch.rand(24, generator=generator),
+                "labels": torch.randint(0, 3, (24,), generator=generator),
+                "batch": torch.randint(0, 2, (24,), generator=generator),
+            }
+        )
+        targets.append(
+            {
+                "boxes": torch.rand(8, 7, generator=generator) * scale + 0.5,
+                "labels": torch.randint(0, 3, (8,), generator=generator),
+                "batch": torch.randint(0, 2, (8,), generator=generator),
+                "ignore_mask": torch.rand(8, generator=generator) < 0.25,
+            }
+        )
+    matches = [box_matches(pred, target) for pred, target in zip(preds, targets)]
+    packed_pred: Detection3D = {
+        "boxes": torch.cat([pred["boxes"] for pred in preds]),
+        "scores": torch.cat([pred["scores"] for pred in preds]),
+        "labels": torch.cat([pred["labels"] for pred in preds]),
+        "batch": torch.cat([pred["batch"] + 2 * index for index, pred in enumerate(preds)]),
+    }
+    packed_target: Boxes3D = {
+        "boxes": torch.cat([target["boxes"] for target in targets]),
+        "labels": torch.cat([target["labels"] for target in targets]),
+        "batch": torch.cat([target["batch"] + 2 * index for index, target in enumerate(targets)]),
+        "ignore_mask": torch.cat([target["ignore_mask"] for target in targets]),
+    }
+    packed = [box_matches(packed_pred, packed_target)]
+
+    for iou_threshold in (0.25, {0: 0.25, 1: 0.5, 2: 0.25}):
+        per_class = average_precision3d(matches, iou_threshold=iou_threshold, average="none")
+        assert torch.equal(per_class, average_precision3d(packed, iou_threshold=iou_threshold, average="none"))
+        assert average_precision3d(matches, iou_threshold=iou_threshold) == pytest.approx(per_class.nanmean().item())
+    assert average_precision3d(matches, iou_threshold=0.25) > 0.0
+
+
+def test_average_precision3d_without_records() -> None:
+    assert average_precision3d([]) == 0.0
+    assert average_precision3d([], average="none").numel() == 0
+    assert average_precision3d([], iou_threshold={0: 0.5}, average="none").tolist() == [0.0]
+
+
+def test_average_precision3d_class_names() -> None:
+    """`class_names` names the per-class output and fixes its length; a class without ground truth is NaN."""
+    pred: Detection3D = {
+        "boxes": torch.tensor([_box(0, 0), _box(20, 0)]),
+        "scores": torch.tensor([0.9, 0.8]),
+        "labels": torch.tensor([0, 1]),
+        "batch": torch.tensor([0, 0]),
+    }
+    gt: Boxes3D = {"boxes": torch.tensor([_box(0, 0)]), "labels": torch.tensor([0]), "batch": torch.tensor([0])}
+    matches = [box_matches(pred, gt)]
+
+    out = average_precision3d(matches, average="none", class_names=["Car", "Pedestrian", "Cyclist"])
+    assert list(out) == ["Car", "Pedestrian", "Cyclist"]
+    assert out["Car"] == 1.0
+    assert math.isnan(out["Pedestrian"]) and math.isnan(out["Cyclist"])
+    assert average_precision3d(matches, average="none", num_classes=4).shape == (4,)
+    with pytest.raises(ValueError, match="class_names"):
+        average_precision3d(matches, average="none", num_classes=2, class_names=["Car", "Pedestrian", "Cyclist"])
 
 
 def test_nuscenes_detection_metrics_ap_distinct_per_threshold() -> None:
@@ -981,3 +1098,108 @@ def test_nuscenes_velocity_attributes_speed_threshold() -> None:
     velocity = torch.tensor([[1.0, 0.0]])
     assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",)).tolist() == [2]
     assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",), speed_threshold=0.5).tolist() == [0]
+
+
+def test_confusion_matrix_metrics_accumulate_batches() -> None:
+    """Confusion matrices add up: the sum over batches is the matrix of all the points, so every metric agrees."""
+    generator = torch.Generator().manual_seed(0)
+    num_classes = 6
+    batches = []
+    for _ in range(4):
+        target = torch.randint(-1, num_classes - 1, (500,), generator=generator)  # the last class occurs nowhere
+        noise = torch.randint(0, num_classes - 1, (500,), generator=generator)
+        preds = torch.where(torch.rand(500, generator=generator) < 0.7, target.clamp_min(0), noise)
+        batches.append((preds, target))
+    cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
+    for preds, target in batches:
+        cm += confusion_matrix(preds, target, num_classes, ignore_index=-1)
+    all_preds = torch.cat([preds for preds, _ in batches])
+    all_target = torch.cat([target for _, target in batches])
+
+    assert torch.equal(cm, confusion_matrix(all_preds, all_target, num_classes, ignore_index=-1))
+    assert 0.0 < intersection_over_union(cm) < 1.0
+    assert accuracy(cm) == pytest.approx((all_preds == all_target)[all_target != -1].float().mean().item())
+    assert intersection_over_union(cm, average="none")[-1] == 0.0
+    assert intersection_over_union(cm, average="none", zero_division=1.0)[-1] == 1.0
+
+
+def test_mean_iou_excludes_ignore_index() -> None:
+    cm = torch.tensor([[0, 0, 0], [5, 3, 1], [0, 2, 4]])
+
+    assert intersection_over_union(cm, average="none", ignore_index=0).tolist() == pytest.approx([0.0, 3 / 11, 4 / 7])
+    assert intersection_over_union(cm, ignore_index=0) == pytest.approx((3 / 11 + 4 / 7) / 2)
+    assert intersection_over_union(cm) == pytest.approx((0.0 + 3 / 11 + 4 / 7) / 3)
+
+
+def test_accuracy_empty_matrix_is_zero_division() -> None:
+    cm = torch.zeros(3, 3, dtype=torch.long)
+    assert accuracy(cm) == 0.0
+    assert accuracy(cm, zero_division=1.0) == 1.0
+
+
+def test_part_mean_iou_accumulates_batches() -> None:
+    """A shape's IoU ignores the rest of its batch, so IoUs gathered batch by batch equal those of one big batch."""
+    part_ids = [[0, 1], [2, 3]]
+    first = (torch.tensor([0, 1, 1, 1]), torch.tensor([0, 1, 0, 1]), torch.tensor([0, 0]), torch.tensor([0, 0, 1, 1]))
+    second = (torch.tensor([2, 2]), torch.tensor([2, 3]), torch.tensor([1]), torch.tensor([0, 0]))
+    ious = torch.cat(
+        [
+            part_intersection_over_union(preds, target, part_ids, category, batch)
+            for preds, target, category, batch in (first, second)
+        ]
+    )
+    category = torch.cat([first[2], second[2]])
+
+    whole = part_intersection_over_union(
+        torch.cat([first[0], second[0]]),
+        torch.cat([first[1], second[1]]),
+        part_ids,
+        category,
+        torch.cat([first[3], second[3] + 2]),
+    )
+    assert torch.equal(ious, whole)
+    out = part_mean_intersection_over_union(ious, category)
+    assert out["cls_mIoU"] != out["ins_mIoU"]
+
+
+def test_accuracy_averages() -> None:
+    # class 0: 1/2 correct, class 1: 3/3 correct, class 2: no point.
+    cm = torch.tensor([[1, 1, 0], [0, 3, 0], [0, 0, 0]])
+
+    assert accuracy(cm) == pytest.approx(4 / 5)
+    assert accuracy(cm, average="macro") == pytest.approx((0.5 + 1.0 + 0.0) / 3)
+    assert accuracy(cm, average="none").tolist() == pytest.approx([0.5, 1.0, 0.0])
+    assert accuracy(cm, average="none", zero_division=1.0).tolist() == pytest.approx([0.5, 1.0, 1.0])
+
+
+def test_label_metrics_class_names() -> None:
+    """`class_names` turns the per-class tensor into a `{name: value}` dict and must match the matrix."""
+    cm = torch.tensor([[1, 1, 0], [0, 3, 0], [0, 0, 0]])
+    names = ["wall", "floor", "chair"]
+
+    ious = intersection_over_union(cm, average="none", class_names=names)
+    assert list(ious) == names
+    assert ious == pytest.approx({"wall": 0.5, "floor": 0.75, "chair": 0.0})
+    assert accuracy(cm, average="none", class_names=names) == pytest.approx({"wall": 0.5, "floor": 1.0, "chair": 0.0})
+    # averaged results stay floats, whatever the names
+    assert intersection_over_union(cm, class_names=names) == intersection_over_union(cm)
+    assert accuracy(cm, average="macro", class_names=names) == accuracy(cm, average="macro")
+    with pytest.raises(ValueError, match="class_names"):
+        intersection_over_union(cm, average="none", class_names=names[:2])
+    with pytest.raises(ValueError, match="class_names"):
+        accuracy(cm, average="none", class_names=names[:2])
+
+
+def test_metrics_ignore_several_indices() -> None:
+    """Ignoring a class drops the points it truly labels, even in a matrix that still counts them."""
+    cm = torch.tensor([[4, 0, 1, 0], [2, 3, 0, 1], [0, 0, 5, 0], [6, 0, 0, 2]])
+    kept = torch.tensor([[0, 0, 0, 0], [2, 3, 0, 1], [0, 0, 5, 0], [0, 0, 0, 0]])
+
+    assert accuracy(cm, ignore_index=[0, 3]) == pytest.approx(8 / 11)
+    assert accuracy(cm, average="macro", ignore_index=[0, 3]) == pytest.approx((3 / 6 + 5 / 5) / 2)
+    assert intersection_over_union(cm, ignore_index=[0, 3]) == pytest.approx((3 / 6 + 5 / 5) / 2)
+    assert torch.equal(
+        intersection_over_union(cm, average="none", ignore_index=[0, 3]),
+        intersection_over_union(kept, average="none", ignore_index=[0, 3]),
+    )
+    assert intersection_over_union(cm, ignore_index=255) == intersection_over_union(cm)

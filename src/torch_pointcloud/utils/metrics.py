@@ -1,7 +1,7 @@
 """Segmentation, detection, and instance metrics: IoU, accuracy, and average precision variants."""
 
 import math
-from typing import Dict, List, Literal, Mapping, Optional, Sequence, Tuple
+from typing import Dict, List, Literal, Mapping, Optional, Sequence, Tuple, TypedDict, Union, overload
 
 import numpy as np
 import torch
@@ -104,89 +104,105 @@ def compute_intersection_union(
     return inter, union
 
 
-def compute_iou(
-    preds: Tensor,
-    target: Tensor,
-    num_classes: int,
-    batch: Optional[Tensor] = None,
-    ignore_index: Optional[int] = None,
-    default: float | Tensor = 0.0,
-) -> Tensor:
-    r"""Compute the Intersection over Union (IoU) for each class.
+def _ignore_classes(cm: Tensor, ignore_index: Union[int, Sequence[int], None]) -> Tuple[Tensor, Tensor]:
+    """Zero the confusion-matrix rows of the ignored true classes and return the mask of the classes kept."""
+    keep = torch.ones(cm.shape[0], dtype=torch.bool, device=cm.device)
+    indices = [] if ignore_index is None else [ignore_index] if isinstance(ignore_index, int) else list(ignore_index)
+    for index in indices:
+        if 0 <= index < cm.shape[0]:
+            keep[index] = False
+    return cm * keep[:, None], keep
+
+
+@overload
+def intersection_over_union(
+    cm: Tensor,
+    *,
+    average: Literal["macro"] = ...,
+    ignore_index: Union[int, Sequence[int], None] = ...,
+    zero_division: float = ...,
+    class_names: Optional[Sequence[str]] = ...,
+) -> float: ...
+
+
+@overload
+def intersection_over_union(
+    cm: Tensor,
+    *,
+    average: Literal["none"],
+    ignore_index: Union[int, Sequence[int], None] = ...,
+    zero_division: float = ...,
+    class_names: None = ...,
+) -> Tensor: ...
+
+
+@overload
+def intersection_over_union(
+    cm: Tensor,
+    *,
+    average: Literal["none"],
+    ignore_index: Union[int, Sequence[int], None] = ...,
+    zero_division: float = ...,
+    class_names: Sequence[str],
+) -> Dict[str, float]: ...
+
+
+def intersection_over_union(
+    cm: Tensor,
+    *,
+    average: Literal["macro", "none"] = "macro",
+    ignore_index: Union[int, Sequence[int], None] = None,
+    zero_division: float = 0.0,
+    class_names: Optional[Sequence[str]] = None,
+) -> Union[float, Tensor, Dict[str, float]]:
+    r"""Intersection over Union (IoU, the Jaccard index) of a confusion matrix.
+
+    Confusion matrices add up, so the matrix may describe one batch or the sum of `confusion_matrix` over a
+    whole split. With `average="macro"` a class absent from the whole matrix (zero union) counts as
+    `zero_division`, matching sklearn's `jaccard_score(zero_division=0)`; toolboxes that average only over
+    present classes report a higher value on splits missing a class, so compare published numbers accordingly.
 
     Args:
-        preds: Predicted class indices, shape $(N,)$.
-        target: Ground truth class indices, shape $(N,)$.
-        num_classes: Total number of classes.
-        batch: Optional per-point batch index for per-sample IoU.
-        ignore_index: Class index to exclude from computation.
-            The returned IoU at this index will be $0$.
-        default: Value returned for classes with zero union (avoids division by zero).
+        cm: Confusion matrix with true classes as rows, shape $(C, C)$ (see `confusion_matrix`).
+        average: `"macro"` returns the mean IoU (mIoU) over the classes; `"none"` returns the per-class IoU.
+        ignore_index: Class index, or indices, to ignore: points whose true class is ignored are dropped, and
+            the ignored classes are left out of the mean. Indices outside $[0, C)$ have no effect.
+        zero_division: IoU given to a class with zero union (and to the ignored classes with `average="none"`).
+        class_names: Name of each class index; with `average="none"` the per-class IoU comes back as a
+            `{name: iou}` dict instead of a tensor.
 
     Returns:
-        Per-class IoU tensor of shape $(\text{num\_classes},)$
-        or $(\text{batch\_size}, \text{num\_classes})$ if `batch` is provided.
+        The mean IoU as a float with `average="macro"`, or the per-class IoU, shape $(C,)$, with `average="none"`
+        (a `{name: iou}` dict when `class_names` is given).
+
+    Shape:
+        - cm: $(C, C)$
+        - output: scalar, or $(C,)$ with `average="none"`
+
+    Example:
+        ```pycon
+        >>> cm = confusion_matrix(torch.tensor([0, 1, 1]), torch.tensor([0, 1, 0]), num_classes=2)
+        >>> intersection_over_union(cm)
+        0.5
+        >>> intersection_over_union(cm, average="none")
+        tensor([0.5000, 0.5000])
+        >>> intersection_over_union(cm, average="none", class_names=["wall", "floor"])
+        {'wall': 0.5, 'floor': 0.5}
+
+        ```
     """
-    inter, union = compute_intersection_union(
-        preds=preds,
-        target=target,
-        num_classes=num_classes,
-        batch=batch,
-        ignore_index=ignore_index,
-    )
-
-    return safe_divide(inter.float(), union.float(), default=default)
-
-
-def compute_mean_iou(
-    preds: Tensor,
-    target: Tensor,
-    num_classes: int,
-    batch: Optional[Tensor] = None,
-    ignore_index: Optional[int] = None,
-) -> Tensor:
-    r"""Compute the mean Intersection over Union (mIoU).
-
-    Averages IoU over all classes except `ignore_index`; a class absent from the whole input
-    (zero union) counts as IoU $0$, matching sklearn's `jaccard_score(zero_division=0)`. Toolboxes
-    that average only over present classes (a nanmean over nonzero unions) report a higher value
-    on splits missing a class, so compare published numbers accordingly. With `batch`, each sample
-    is averaged only over the classes present in it (nonzero union), so a perfect prediction
-    scores $1$ regardless of how many of the dataset's classes the sample contains.
-
-    Args:
-        preds: Predicted class indices, shape $(N,)$.
-        target: Ground truth class indices, shape $(N,)$.
-        num_classes: Total number of classes.
-        batch: Optional per-point batch index for per-sample mIoU, averaged over each
-            sample's present classes. A sample whose points are all ignored scores $0$.
-        ignore_index: Class index to exclude from the mean.
-
-    Returns:
-        Scalar mIoU value or per-batch mIoU value if `batch` is provided.
-    """
-    inter, union = compute_intersection_union(
-        preds=preds,
-        target=target,
-        num_classes=num_classes,
-        batch=batch,
-        ignore_index=ignore_index,
-    )
-
-    if ignore_index is not None and 0 <= ignore_index < num_classes:
-        mask = torch.ones(num_classes, dtype=torch.bool, device=union.device)
-        mask[ignore_index] = False
-        inter = inter[..., mask]
-        union = union[..., mask]
-
-    iou = safe_divide(inter.float(), union.float(), default=0.0)
-    if batch is None:
-        return iou.mean(dim=-1)
-    present = (union > 0).float()
-    return safe_divide((iou * present).sum(dim=-1), present.sum(dim=-1), default=0.0)
+    if class_names is not None and len(class_names) != cm.shape[0]:
+        raise ValueError(f"Got {len(class_names)} `class_names` for a confusion matrix of {cm.shape[0]} classes.")
+    cm, keep = _ignore_classes(cm, ignore_index)
+    intersection = cm.diag()
+    union = (cm.sum(dim=0) + cm.sum(dim=1) - intersection) * keep
+    per_class = safe_divide(intersection.float(), union.float(), default=zero_division)
+    if average == "none":
+        return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
+    return per_class[keep].mean().item()
 
 
-def part_iou(
+def part_intersection_over_union(
     preds: Tensor,
     target: Tensor,
     part_ids: Sequence[Sequence[int]],
@@ -220,102 +236,127 @@ def part_iou(
     return (iou * shape_mask).sum(dim=1) / shape_mask.sum(dim=1)
 
 
-def part_mean_iou(
-    preds: Tensor,
-    target: Tensor,
-    part_ids: Sequence[Sequence[int]],
-    category: Tensor,
-    batch: Tensor,
-) -> Dict[str, float]:
-    r"""ShapeNetPart instance and class mean IoU.
+def part_mean_intersection_over_union(ious: Tensor, category: Tensor) -> Dict[str, float]:
+    r"""ShapeNetPart instance and class mean IoU of per-shape IoUs.
 
-    `part_iou` scores each shape over its category's parts; the instance mIoU averages these per-shape
-    IoUs over all shapes, and the class mIoU averages them per category first, then over the categories
-    present in `category`.
+    A shape's IoU does not depend on the other shapes of its batch, so the IoUs may come from one batch or be
+    the `part_intersection_over_union` of every batch of a split, concatenated. The instance mIoU averages them over all shapes;
+    the class mIoU averages them per category first, then over the categories present in `category`.
 
     Args:
-        preds: Predicted part indices, shape $(N,)$.
-        target: Ground truth part indices, shape $(N,)$.
-        part_ids: Part labels owned by each category, e.g. `ShapeNetPart.seg_ids.values()`.
-        category: Per-shape category index into `part_ids`, shape $(B,)$.
-        batch: Per-point shape index, shape $(N,)$.
+        ious: Per-shape IoUs (see `part_intersection_over_union`), shape $(B,)$.
+        category: Per-shape category index, shape $(B,)$.
 
     Returns:
-        A dict `{"ins_mIoU": ..., "cls_mIoU": ...}`.
+        A dict `{"ins_mIoU": ..., "cls_mIoU": ...}`: the mean over the shapes, and the mean over the categories
+        present in `category` of their per-category means.
+
+    Shape:
+        - ious: $(B,)$
+        - category: $(B,)$
 
     Example:
         ```pycon
-        >>> part_ids = [[0, 1], [2, 3]]
-        >>> preds = torch.tensor([0, 1, 2, 2])
-        >>> target = torch.tensor([0, 1, 2, 3])
-        >>> category = torch.tensor([0, 1])
-        >>> batch = torch.tensor([0, 0, 1, 1])
-        >>> part_mean_iou(preds, target, part_ids, category, batch)
-        {'ins_mIoU': 0.625, 'cls_mIoU': 0.625}
+        >>> part_mean_intersection_over_union(torch.tensor([1.0, 0.5, 0.0]), torch.tensor([0, 0, 1]))
+        {'ins_mIoU': 0.5, 'cls_mIoU': 0.375}
 
         ```
     """
-    ious = part_iou(preds, target, part_ids, category, batch)
     category = category.long()
-    count = torch.bincount(category, minlength=len(part_ids))
-    iou_sum = torch.zeros(len(part_ids), device=ious.device).index_add_(0, category, ious)
+    count = torch.bincount(category)
+    iou_sum = torch.zeros(count.numel(), device=ious.device).index_add_(0, category, ious)
     present = count > 0
     cls_miou = (iou_sum[present] / count[present]).mean()
     return {"ins_mIoU": float(ious.mean()), "cls_mIoU": float(cls_miou)}
 
 
-def overall_accuracy(
-    preds: Tensor,
-    target: Tensor,
-    ignore_index: Optional[int] = None,
-) -> float:
-    """Compute the overall prediction accuracy.
+@overload
+def accuracy(
+    cm: Tensor,
+    *,
+    average: Literal["micro", "macro"] = ...,
+    ignore_index: Union[int, Sequence[int], None] = ...,
+    zero_division: float = ...,
+    class_names: Optional[Sequence[str]] = ...,
+) -> float: ...
+
+
+@overload
+def accuracy(
+    cm: Tensor,
+    *,
+    average: Literal["none"],
+    ignore_index: Union[int, Sequence[int], None] = ...,
+    zero_division: float = ...,
+    class_names: None = ...,
+) -> Tensor: ...
+
+
+@overload
+def accuracy(
+    cm: Tensor,
+    *,
+    average: Literal["none"],
+    ignore_index: Union[int, Sequence[int], None] = ...,
+    zero_division: float = ...,
+    class_names: Sequence[str],
+) -> Dict[str, float]: ...
+
+
+def accuracy(
+    cm: Tensor,
+    *,
+    average: Literal["micro", "macro", "none"] = "micro",
+    ignore_index: Union[int, Sequence[int], None] = None,
+    zero_division: float = 0.0,
+    class_names: Optional[Sequence[str]] = None,
+) -> Union[float, Tensor, Dict[str, float]]:
+    r"""Accuracy of a confusion matrix.
+
+    Confusion matrices add up, so the matrix may describe one batch or the sum of `confusion_matrix` over a
+    whole split.
 
     Args:
-        preds: Predicted class indices, shape $(N,)$.
-        target: Ground truth class indices, shape $(N,)$.
-        ignore_index: Class index to exclude from computation.
+        cm: Confusion matrix with true classes as rows, shape $(C, C)$ (see `confusion_matrix`).
+        average: `"micro"` returns the overall accuracy (the fraction of points on the diagonal); `"macro"`
+            returns the mean class accuracy (the mean of the per-class recalls); `"none"` returns the per-class
+            accuracy.
+        ignore_index: Class index, or indices, to ignore: points whose true class is ignored are dropped, and
+            the ignored classes are left out of the mean. Indices outside $[0, C)$ have no effect.
+        zero_division: Accuracy given to a class without any point (and to an empty matrix with `"micro"`).
+        class_names: Name of each class index; with `average="none"` the per-class accuracy comes back as a
+            `{name: accuracy}` dict instead of a tensor.
 
     Returns:
-        Scalar accuracy value, or `0.0` when no points remain after `ignore_index` masking.
+        The accuracy as a float with `average="micro"` or `"macro"`, or the per-class accuracy, shape $(C,)$,
+        with `average="none"` (a `{name: accuracy}` dict when `class_names` is given).
+
+    Shape:
+        - cm: $(C, C)$
+        - output: scalar, or $(C,)$ with `average="none"`
+
+    Example:
+        ```pycon
+        >>> cm = confusion_matrix(torch.tensor([0, 1, 1, 1]), torch.tensor([0, 1, 0, 1]), num_classes=2)
+        >>> accuracy(cm), accuracy(cm, average="macro")
+        (0.75, 0.75)
+        >>> accuracy(cm, average="none")
+        tensor([0.5000, 1.0000])
+        >>> accuracy(cm, average="none", class_names=["wall", "floor"])
+        {'wall': 0.5, 'floor': 1.0}
+
+        ```
     """
-    if ignore_index is not None:
-        mask = target != ignore_index
-        preds = preds[mask]
-        target = target[mask]
-
-    if target.numel() == 0:
-        return 0.0
-    return preds.eq(target).float().mean().item()
-
-
-def per_class_accuracy(
-    preds: Tensor,
-    target: Tensor,
-    num_classes: int,
-    ignore_index: Optional[int] = None,
-    eps: float = 1e-10,
-) -> Tensor:
-    r"""Compute the accuracy for each class.
-
-    Args:
-        preds: Predicted class indices, shape $(N,)$.
-        target: Ground truth class indices, shape $(N,)$.
-        num_classes: Total number of classes.
-        ignore_index: Class index to exclude. The returned accuracy
-            at this index will be `0`.
-        eps: Small constant to avoid division by zero.
-
-    Returns:
-        Per-class accuracy tensor of shape $(\text{num\_classes},)$.
-    """
-    cm = confusion_matrix(preds, target, num_classes, ignore_index=ignore_index)
-    per_class = cm.diag().float() / (cm.sum(dim=1).float() + eps)
-
-    if ignore_index is not None and 0 <= ignore_index < num_classes:
-        per_class[ignore_index] = 0.0
-
-    return per_class
+    if class_names is not None and len(class_names) != cm.shape[0]:
+        raise ValueError(f"Got {len(class_names)} `class_names` for a confusion matrix of {cm.shape[0]} classes.")
+    cm, keep = _ignore_classes(cm, ignore_index)
+    if average == "micro":
+        overall = safe_divide(cm.diag().sum().float(), cm.sum().float(), default=zero_division)
+        return overall.item()
+    per_class = safe_divide(cm.diag().float(), cm.sum(dim=1).float(), default=zero_division)
+    if average == "none":
+        return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
+    return per_class[keep].mean().item()
 
 
 def _voc_ap(recall: np.ndarray, precision: np.ndarray, interpolation: Interpolation = "all") -> float:
@@ -330,8 +371,7 @@ def _voc_ap(recall: np.ndarray, precision: np.ndarray, interpolation: Interpolat
     if interpolation == "all":
         mrec = np.concatenate(([0.0], recall, [1.0]))
         mpre = np.concatenate(([0.0], precision, [0.0]))
-        for i in range(mpre.size - 1, 0, -1):
-            mpre[i - 1] = max(mpre[i - 1], mpre[i])
+        mpre = np.maximum.accumulate(mpre[::-1])[::-1]
         idx = np.where(mrec[1:] != mrec[:-1])[0]
         return float(np.sum((mrec[idx + 1] - mrec[idx]) * mpre[idx + 1]))
 
@@ -350,196 +390,333 @@ def _voc_ap(recall: np.ndarray, precision: np.ndarray, interpolation: Interpolat
         sampled[slot] = precision[d]
         slot += 1
         current_recall += 1.0 / (num_samples - 1)
-    for i in range(num_samples - 1, 0, -1):
-        sampled[i - 1] = max(sampled[i - 1], sampled[i])
-    return float(sampled[::4].mean() if interpolation == "r11" else sampled[1:].mean())
+    interpolated = np.maximum.accumulate(sampled[::-1])[::-1]
+    return float(interpolated[::4].mean() if interpolation == "r11" else interpolated[1:].mean())
 
 
-def _average_precision3d(
-    scene_preds: List[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-    scene_gts: List[Tuple[np.ndarray, np.ndarray]],
-    label: int,
-    iou_threshold: float,
-    scene_ignore: Optional[List[Tuple[np.ndarray, np.ndarray]]] = None,
-    scene_pred_ignore: Optional[List[np.ndarray]] = None,
+def _best_same_class_iou(
+    corners: Tensor,
+    labels: Tensor,
+    batch: Tensor,
+    other_corners: Tensor,
+    other_labels: Tensor,
+    other_batch: Tensor,
+) -> Tuple[Tensor, Tensor]:
+    """Largest IoU of each box with a same-class box of `other` in its sample and that box's row, both $-1$ if none."""
+    overlap = box3d_overlap(corners, other_corners)[1]
+    mismatch = (labels[:, None] != other_labels[None, :]) | (batch[:, None] != other_batch[None, :])
+    # A trailing -1 column keeps the row max defined when `other` holds no box at all.
+    overlap = torch.cat([overlap.masked_fill(mismatch, -1.0), overlap.new_full((overlap.shape[0], 1), -1.0)], dim=1)
+    best_iou, best_row = overlap.max(dim=1)
+    return best_iou, best_row.masked_fill(best_iou < 0, -1)
+
+
+class BoxMatches(TypedDict):
+    r"""One batch of box predictions reduced against its ground truth (the output of `box_matches`).
+
+    Holds what scoring needs and nothing box-sized: $P$ predictions are left after the prediction `ignore_mask`,
+    $G$ ground-truth boxes after the target `ignore_mask`. A prediction with no same-class box (or ignore region)
+    in its sample carries $-1$ in the matching fields.
+
+    Attributes:
+        pred_scores: Per-prediction confidence score, shape $(P,)$.
+        pred_labels: Per-prediction class, shape $(P,)$.
+        pred_iou: Largest IoU with a same-class ground-truth box of the same sample, shape $(P,)$.
+        pred_gt: Row of that box in `gt_labels`, shape $(P,)$.
+        pred_ignore_iou: Largest IoU with a same-class ignore region of the same sample, shape $(P,)$.
+        gt_labels: Per-box class of the ground truth, shape $(G,)$.
+    """
+
+    pred_scores: Tensor
+    pred_labels: Tensor
+    pred_iou: Tensor
+    pred_gt: Tensor
+    pred_ignore_iou: Tensor
+    gt_labels: Tensor
+
+
+def box_matches(preds: Detection3D, target: Boxes3D) -> BoxMatches:
+    r"""Match one batch of box predictions to its ground truth, the record scored by `average_precision3d`.
+
+    Which ground-truth box a prediction overlaps most, and by how much, depends on neither the IoU threshold
+    nor on what the other predictions matched. The oriented IoU is therefore paid here, once per batch and on
+    the device of the inputs, and nothing box-sized outlives the call: a whole validation split accumulates
+    as a few flat tensors per batch, so keep one record per batch in a list and score the list.
+
+    Target boxes flagged by `ignore_mask` (see `Boxes3D`) are ignore regions rather than ground truth; their
+    `labels` entry names the class they excuse. Predictions flagged by their own `ignore_mask` are left out
+    of the record, so they can neither match a box nor count as a false positive (the KITTI min-height rule).
+
+    Args:
+        preds: Packed predictions (one `decode` output), `{"boxes", "scores", "labels", "batch"}` with an
+            optional `ignore_mask`.
+        target: Packed ground truth aligned to `preds`, `{"boxes", "labels", "batch"}` with an optional
+            `ignore_mask`.
+
+    Returns:
+        The `BoxMatches` record of the batch, as CPU tensors.
+
+    Shape:
+        - preds["boxes"]: $(P, 7)$
+        - target["boxes"]: $(G, 7)$
+        - output: six tensors of shape $(P',)$ or $(G',)$, the predictions and boxes left after the ignore masks
+
+    Example:
+        ```pycon
+        >>> boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [9.0, 9.0, 9.0, 1.0, 1.0, 1.0, 0.0]])
+        >>> index = torch.zeros(2, dtype=torch.long)
+        >>> preds = {"boxes": boxes, "scores": torch.tensor([0.9, 0.4]), "labels": index, "batch": index}
+        >>> match = box_matches(preds, {"boxes": boxes[:1], "labels": index[:1], "batch": index[:1]})
+        >>> match["pred_iou"].tolist(), match["pred_gt"].tolist()
+        ([1.0, 0.0], [0, 0])
+        >>> average_precision3d([match], iou_threshold=0.5)
+        1.0
+
+        ```
+    """
+    pred_ignore, region_mask = preds.get("ignore_mask"), target.get("ignore_mask")
+    pred_keep = torch.ones_like(preds["labels"], dtype=torch.bool) if pred_ignore is None else ~pred_ignore.bool()
+    is_region = torch.zeros_like(target["labels"], dtype=torch.bool) if region_mask is None else region_mask.bool()
+
+    pred_corners = box_corners(preds["boxes"].detach().reshape(-1, 7)[pred_keep])
+    pred_scores, pred_labels, pred_batch = (
+        preds["scores"][pred_keep],
+        preds["labels"][pred_keep],
+        preds["batch"][pred_keep],
+    )
+    target_corners = box_corners(target["boxes"].detach().reshape(-1, 7))
+    gt_corners, gt_labels, gt_batch = (
+        target_corners[~is_region],
+        target["labels"][~is_region],
+        target["batch"][~is_region],
+    )
+    region_corners, region_labels = target_corners[is_region], target["labels"][is_region]
+    region_batch = target["batch"][is_region]
+
+    # Records list the predictions sample by sample. On GPU the launch overhead of one IoU call per sample outweighs
+    # the masked cross-sample pairs of a single call, as long as the batch stays within 2^16 pairs.
+    order = torch.argsort(pred_batch, stable=True)
+    single_call = pred_corners.is_cuda and pred_corners.shape[0] * target_corners.shape[0] <= 1 << 16
+    sample_sizes = pred_batch.unique(return_counts=True)[1].tolist()
+    groups = [order] if single_call else order.split(sample_sizes)
+
+    pred_iou: List[Tensor] = []
+    pred_gt: List[Tensor] = []
+    pred_ignore_iou: List[Tensor] = []
+    for rows in groups if order.numel() > 0 else []:
+        gt_rows = torch.isin(gt_batch, pred_batch[rows]).nonzero(as_tuple=False).squeeze(-1)
+        region_rows = torch.isin(region_batch, pred_batch[rows]).nonzero(as_tuple=False).squeeze(-1)
+        best_iou, best_row = _best_same_class_iou(
+            pred_corners[rows],
+            pred_labels[rows],
+            pred_batch[rows],
+            gt_corners[gt_rows],
+            gt_labels[gt_rows],
+            gt_batch[gt_rows],
+        )
+        ignore_iou, _ = _best_same_class_iou(
+            pred_corners[rows],
+            pred_labels[rows],
+            pred_batch[rows],
+            region_corners[region_rows],
+            region_labels[region_rows],
+            region_batch[region_rows],
+        )
+        pred_iou.append(best_iou)
+        pred_gt.append(torch.cat([gt_rows, gt_rows.new_full((1,), -1)])[best_row])
+        pred_ignore_iou.append(ignore_iou)
+
+    def cat(tensors: List[Tensor], dtype: torch.dtype) -> Tensor:
+        return torch.cat(tensors).detach().cpu() if tensors else torch.zeros(0, dtype=dtype)
+
+    return {
+        "pred_scores": pred_scores[order].detach().cpu(),
+        "pred_labels": pred_labels[order].detach().cpu(),
+        "pred_iou": cat(pred_iou, pred_corners.dtype),
+        "pred_gt": cat(pred_gt, torch.long),
+        "pred_ignore_iou": cat(pred_ignore_iou, pred_corners.dtype),
+        "gt_labels": gt_labels.detach().cpu(),
+    }
+
+
+def _box_outcomes(match: BoxMatches, iou_threshold: Tensor) -> Tuple[Tensor, Tensor]:
+    """True- and false-positive flags of one `box_matches` record, given the IoU threshold of each prediction.
+
+    A prediction only ever claims its best box, so a box goes to the highest-scored prediction whose best box it
+    is above the threshold; every other prediction is a false positive, unless it overlaps a same-class ignore
+    region above the threshold, which drops it (neither flag set).
+    """
+    pred_iou, pred_gt = match["pred_iou"], match["pred_gt"]
+    claims = pred_iou > iou_threshold
+    order = torch.argsort(match["pred_scores"], descending=True, stable=True)
+    rank = torch.empty_like(order)
+    rank[order] = torch.arange(order.numel())
+    best_rank = torch.full((match["gt_labels"].numel(),), order.numel(), dtype=torch.long)
+    best_rank.scatter_reduce_(0, pred_gt[claims], rank[claims], reduce="amin")
+    true_positive = claims.clone()
+    true_positive[claims] = rank[claims] == best_rank[pred_gt[claims]]
+    false_positive = ~true_positive & (match["pred_ignore_iou"] <= iou_threshold)
+    return true_positive, false_positive
+
+
+def _ranked_ap(
+    scores: Tensor,
+    true_positive: Tensor,
+    false_positive: Tensor,
+    npos: int,
     interpolation: Interpolation = "all",
 ) -> float:
-    """Greedy VOC AP for one class: rank predictions by score, match each to an unused GT box by IoU.
-
-    A prediction flagged in `scene_pred_ignore` is skipped outright: it can neither match a GT box nor
-    count as a false positive. An unmatched prediction that overlaps an ignore region attributed to the
-    evaluated class (`scene_ignore` rows whose label equals `label`) above the threshold is dropped
-    (counted as neither a true nor a false positive).
-    """
-    gt_corners = [corners[labels == label] for corners, labels in scene_gts]
-    matched = [np.zeros(len(c), dtype=bool) for c in gt_corners]
-    npos = sum(len(c) for c in gt_corners)
-
-    entries: List[Tuple[float, int, np.ndarray]] = []
-    for scene, (corners, scores, labels) in enumerate(scene_preds):
-        keep = labels == label
-        if scene_pred_ignore is not None:
-            keep = keep & ~scene_pred_ignore[scene]
-        entries.extend((float(score), scene, corner) for corner, score in zip(corners[keep], scores[keep]))
-    if not entries:
+    """VOC AP of one class from its predictions' scores and outcome flags, against `npos` ground-truth boxes."""
+    if scores.numel() == 0:
         return 0.0
-    entries.sort(key=lambda e: -e[0])
 
-    tp = np.zeros(len(entries))
-    fp = np.zeros(len(entries))
-    for d, (_, scene, corner) in enumerate(entries):
-        gts = gt_corners[scene]
-        if len(gts) > 0:
-            iou = box3d_overlap(torch.from_numpy(corner)[None], torch.from_numpy(gts))[1][0].numpy()
-            jmax = int(iou.argmax())
-            if iou[jmax] > iou_threshold and not matched[scene][jmax]:
-                tp[d] = 1.0
-                matched[scene][jmax] = True
-                continue
-
-        if scene_ignore is not None:
-            ignore_corners, ignore_labels = scene_ignore[scene]
-            ignore_corners = ignore_corners[ignore_labels == label]
-            if len(ignore_corners) > 0:
-                iou_ignore = box3d_overlap(torch.from_numpy(corner)[None], torch.from_numpy(ignore_corners))[1][0]
-                if float(iou_ignore.max()) > iou_threshold:
-                    continue
-
-        fp[d] = 1.0
-
-    tp_cum, fp_cum = np.cumsum(tp), np.cumsum(fp)
+    order = torch.argsort(scores, descending=True, stable=True)
+    tp_cum = np.cumsum(true_positive[order].numpy().astype(np.float64))
+    fp_cum = np.cumsum(false_positive[order].numpy().astype(np.float64))
     recall = tp_cum / max(npos, 1)
     precision = tp_cum / np.maximum(tp_cum + fp_cum, np.finfo(np.float64).eps)
     return _voc_ap(recall, precision, interpolation)
 
 
-def _split_scenes(
-    preds: Sequence[Detection3D], targets: Sequence[Boxes3D]
-) -> Tuple[
-    List[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-    List[Tuple[np.ndarray, np.ndarray]],
-    List[Tuple[np.ndarray, np.ndarray]],
-    List[np.ndarray],
-]:
-    """Flatten packed preds/targets into per-scene prediction, ground-truth, ignore-region and pred-ignore arrays.
-
-    Target boxes flagged via the optional `ignore_mask` are split out as per-scene `(corners, labels)`
-    ignore regions (excluded from the ground truth, used only to suppress false positives of the class
-    their label attributes them to). The optional prediction-side `ignore_mask` becomes a per-scene
-    boolean mask of predictions excluded from scoring.
-    """
-
-    def to_corners(boxes: Tensor) -> np.ndarray:
-        return box_corners(boxes).detach().cpu().numpy() if boxes.numel() else np.zeros((0, 8, 3))
-
-    def num_scenes(batch: Tensor) -> int:
-        return int(batch.max().item()) + 1 if batch.numel() else 0
-
-    def to_mask(mask: Optional[Tensor], length: int) -> np.ndarray:
-        return mask.detach().cpu().numpy().astype(bool) if mask is not None else np.zeros(length, dtype=bool)
-
-    scene_preds: List[Tuple[np.ndarray, np.ndarray, np.ndarray]] = []
-    scene_gts: List[Tuple[np.ndarray, np.ndarray]] = []
-    scene_ignore: List[Tuple[np.ndarray, np.ndarray]] = []
-    scene_pred_ignore: List[np.ndarray] = []
-    for pred, target in zip(preds, targets):
-        pred_corners, pred_batch = to_corners(pred["boxes"]), pred["batch"].detach().cpu().numpy()
-        pred_scores, pred_labels = pred["scores"].detach().cpu().numpy(), pred["labels"].detach().cpu().numpy()
-        pred_ignore = to_mask(pred.get("ignore_mask"), len(pred_labels))
-        gt_corners, gt_batch = to_corners(target["boxes"]), target["batch"].detach().cpu().numpy()
-        gt_labels = target["labels"].detach().cpu().numpy()
-        ignore_mask = to_mask(target.get("ignore_mask"), len(gt_labels))
-        for s in range(max(num_scenes(pred["batch"]), num_scenes(target["batch"]))):
-            p = pred_batch == s
-            g = (gt_batch == s) & ~ignore_mask
-            ig = (gt_batch == s) & ignore_mask
-            scene_preds.append((pred_corners[p], pred_scores[p], pred_labels[p]))
-            scene_gts.append((gt_corners[g], gt_labels[g]))
-            scene_ignore.append((gt_corners[ig], gt_labels[ig]))
-            scene_pred_ignore.append(pred_ignore[p])
-    return scene_preds, scene_gts, scene_ignore, scene_pred_ignore
-
-
-def mean_average_precision3d(
-    preds: Sequence[Detection3D],
-    targets: Sequence[Boxes3D],
+@overload
+def average_precision3d(
+    matches: Sequence[BoxMatches],
     *,
-    iou_thresholds: Sequence[float] = (0.25, 0.5),
-    interpolation: Interpolation = "all",
-) -> Dict[str, float]:
-    r"""3D detection mean average precision over one or more IoU thresholds (same IoU for every class).
+    iou_threshold: Union[float, Mapping[int, float]] = ...,
+    average: Literal["macro"] = ...,
+    num_classes: Optional[int] = ...,
+    class_names: Optional[Sequence[str]] = ...,
+    interpolation: Interpolation = ...,
+) -> float: ...
 
-    Dataset- and model-agnostic: predictions and targets are packed dicts of parameterized boxes (see
-    `box_corners`) carrying a per-box scene index, so any detector emitting `(boxes, scores, labels, batch)`
-    is scored the same way. `mAP@t` averages the per-class AP over the classes present in the targets.
-    Targets may carry an `ignore_mask` (see `Boxes3D`); an ignore box's `labels` entry names the class it
-    excuses, and unmatched predictions of that class overlapping it are not penalized. Predictions may
-    carry an `ignore_mask` of their own; flagged predictions are excluded from scoring entirely (the
-    KITTI min-height rule). Use `average_precision3d` for per-class IoU thresholds.
 
-    Args:
-        preds: Packed predictions (one `decode` output per batch), each
-            `{"boxes": (N, 7), "scores": (N,), "labels": (N,), "batch": (N,)}`.
-        targets: Packed ground truth aligned to `preds` batch-for-batch, each `{"boxes", "labels", "batch"}`.
-        iou_thresholds: IoU thresholds at which `mAP@t` is reported.
-        interpolation: AP interpolation: `"all"` integrates the full precision-recall curve; `"r11"` /
-            `"r40"` sample the KITTI 11- / 40-point recall grids.
+@overload
+def average_precision3d(
+    matches: Sequence[BoxMatches],
+    *,
+    iou_threshold: Union[float, Mapping[int, float]] = ...,
+    average: Literal["none"],
+    num_classes: Optional[int] = ...,
+    class_names: None = ...,
+    interpolation: Interpolation = ...,
+) -> Tensor: ...
 
-    Returns:
-        A dict `{"mAP@0.25": ..., "mAP@0.5": ...}` keyed by threshold.
-    """
-    scene_preds, scene_gts, scene_ignore, scene_pred_ignore = _split_scenes(preds, targets)
-    classes = sorted({int(c) for _, labels in scene_gts for c in labels.tolist()})
-    out: Dict[str, float] = {}
-    for threshold in iou_thresholds:
-        aps = [
-            _average_precision3d(scene_preds, scene_gts, c, threshold, scene_ignore, scene_pred_ignore, interpolation)
-            for c in classes
-        ]
-        out[f"mAP@{threshold:g}"] = float(np.mean(aps)) if aps else 0.0
-    return out
+
+@overload
+def average_precision3d(
+    matches: Sequence[BoxMatches],
+    *,
+    iou_threshold: Union[float, Mapping[int, float]] = ...,
+    average: Literal["none"],
+    num_classes: Optional[int] = ...,
+    class_names: Sequence[str],
+    interpolation: Interpolation = ...,
+) -> Dict[str, float]: ...
 
 
 def average_precision3d(
-    preds: Sequence[Detection3D],
-    targets: Sequence[Boxes3D],
+    matches: Sequence[BoxMatches],
     *,
-    iou_per_class: Mapping[int, float],
+    iou_threshold: Union[float, Mapping[int, float]] = 0.5,
+    average: Literal["macro", "none"] = "macro",
+    num_classes: Optional[int] = None,
     class_names: Optional[Sequence[str]] = None,
     interpolation: Interpolation = "all",
-) -> Dict[str, float]:
-    r"""Per-class 3D AP, each class scored at its own IoU threshold (e.g. KITTI Car@0.7, Ped/Cyc@0.5).
+) -> Union[float, Tensor, Dict[str, float]]:
+    r"""3D detection average precision (AP) of matched box predictions.
 
-    Like `mean_average_precision3d` but reports one AP per class at a class-specific IoU, the convention
-    of the KITTI / nuScenes detection metrics. Targets may carry an `ignore_mask` (see `Boxes3D`): an
-    ignore box's `labels` entry names the class it excuses (e.g. an ignored KITTI `Van` attributed to
-    `Car`), and unmatched predictions of that class overlapping it are not counted as false positives.
-    Predictions may carry an `ignore_mask` of their own; flagged predictions are excluded from scoring
-    entirely (the KITTI min-height rule).
+    Dataset- and model-agnostic: `box_matches` reduces any detector's packed `(boxes, scores, labels, batch)`
+    output to the same record, one per batch, and the records of a whole split are scored together. Within a
+    class, predictions claim their best ground-truth box in descending score order: the first one above the IoU
+    threshold is a true positive, the others are false positives, and the AP is the area under the resulting
+    precision-recall curve.
+
+    With one `iou_threshold` for every class, the classes that have ground truth are scored. With one per class
+    index, exactly those classes are scored, and one without ground truth scores $0$ (its predictions are all
+    false positives).
 
     Args:
-        preds: Packed predictions aligned to `targets` batch-for-batch.
-        targets: Packed ground truth, each `{"boxes", "labels", "batch"}` with an optional `ignore_mask`.
-        iou_per_class: IoU threshold per class index, e.g. `{0: 0.7, 1: 0.5, 2: 0.5}`.
-        class_names: Optional names for the output keys (indexed by class); falls back to the index.
+        matches: The `box_matches` record of every evaluated batch.
+        iou_threshold: IoU a match must exceed: one value for every class (e.g. `0.25`), or one per class index
+            (e.g. KITTI's `{0: 0.7, 1: 0.5, 2: 0.5}`).
+        average: `"macro"` returns the mean AP (mAP) over the scored classes; `"none"` returns the per-class AP.
+        num_classes: Number of classes, i.e. the length of the `average="none"` output; defaults to the number of
+            `class_names`, else to the largest class index met plus one.
+        class_names: Name of each class index; with `average="none"` the per-class AP comes back as a
+            `{name: ap}` dict instead of a tensor.
         interpolation: AP interpolation: `"all"` integrates the full precision-recall curve; `"r11"` /
             `"r40"` sample the KITTI 11- / 40-point recall grids.
 
     Returns:
-        A dict `{"AP/<class>": ap, ..., "mAP": mean}` (the mean is over `iou_per_class`).
+        The mAP as a float with `average="macro"` ($0$ when no class is scored), or the per-class AP, shape
+        $(C,)$ float64, with `average="none"` (a `{name: ap}` dict when `class_names` is given), holding NaN for
+        the classes that are not scored.
+
+    Shape:
+        - output: scalar, or $(C,)$ with `average="none"`
+
+    Example:
+        ```pycon
+        >>> boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [9.0, 9.0, 9.0, 1.0, 1.0, 1.0, 0.0]])
+        >>> labels, batch = torch.tensor([0, 1]), torch.tensor([0, 0])
+        >>> preds = {"boxes": boxes, "scores": torch.tensor([0.9, 0.4]), "labels": labels, "batch": batch}
+        >>> matches = [box_matches(preds, {"boxes": boxes[:1], "labels": labels[:1], "batch": batch[:1]})]
+        >>> average_precision3d(matches, iou_threshold=0.25)
+        1.0
+        >>> average_precision3d(matches, iou_threshold={0: 0.7, 1: 0.5}, average="none")
+        tensor([1., 0.], dtype=torch.float64)
+        >>> average_precision3d(matches, average="none", class_names=["Car", "Cyclist"])
+        {'Car': 1.0, 'Cyclist': nan}
+
+        ```
     """
-    scene_preds, scene_gts, scene_ignore, scene_pred_ignore = _split_scenes(preds, targets)
-    out: Dict[str, float] = {}
+    if class_names is not None and num_classes not in (None, len(class_names)):
+        raise ValueError(f"Got {len(class_names)} `class_names` for `num_classes={num_classes}`.")
+    if num_classes is None and class_names is not None:
+        num_classes = len(class_names)
+    if num_classes is None:
+        indices = [int(index) for index in iou_threshold] if isinstance(iou_threshold, Mapping) else []
+        for match in matches:
+            indices += [int(labels.max()) for labels in (match["pred_labels"], match["gt_labels"]) if labels.numel()]
+        num_classes = max(indices, default=-1) + 1
+    thresholds = torch.full((num_classes,), math.nan, dtype=torch.float64)
+    if isinstance(iou_threshold, Mapping):
+        for index, value in iou_threshold.items():
+            thresholds[int(index)] = float(value)
+    else:
+        thresholds[:] = float(iou_threshold)
+
+    def cat(tensors: List[Tensor]) -> Tensor:
+        return torch.cat(tensors) if tensors else torch.zeros(0)
+
+    # Labels outside [0, C), e.g. a negative "don't care" class, read the trailing NaN and are never scored.
+    lookup = torch.cat([thresholds, thresholds.new_full((1,), math.nan)])
+    outcomes = []
+    for match in matches:
+        pred_labels = match["pred_labels"].long()
+        in_range = (pred_labels >= 0) & (pred_labels < num_classes)
+        pred_thresholds = lookup[torch.where(in_range, pred_labels, num_classes)].to(match["pred_iou"].dtype)
+        outcomes.append(_box_outcomes(match, pred_thresholds))
+    scores = cat([match["pred_scores"] for match in matches])
+    labels = cat([match["pred_labels"] for match in matches]).long()
+    gt_labels = cat([match["gt_labels"] for match in matches]).long()
+    true_positive = cat([tp for tp, _ in outcomes]).bool()
+    false_positive = cat([fp for _, fp in outcomes]).bool()
+    npos = torch.bincount(gt_labels[(gt_labels >= 0) & (gt_labels < num_classes)], minlength=num_classes)
+    scored = ~thresholds.isnan() if isinstance(iou_threshold, Mapping) else npos > 0
+
+    per_class = torch.full((num_classes,), math.nan, dtype=torch.float64)
     aps: List[float] = []
-    for label, iou in iou_per_class.items():
-        ap = _average_precision3d(
-            scene_preds, scene_gts, int(label), float(iou), scene_ignore, scene_pred_ignore, interpolation
-        )
-        name = class_names[label] if class_names is not None else str(label)
-        out[f"AP/{name}"] = ap
+    for label in range(num_classes):
+        if not bool(scored[label]):
+            continue
+        keep = labels == label
+        ap = _ranked_ap(scores[keep], true_positive[keep], false_positive[keep], int(npos[label]), interpolation)
+        per_class[label] = ap
         aps.append(ap)
-    out["mAP"] = float(np.mean(aps)) if aps else 0.0
-    return out
+    if average == "none":
+        return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
+    return float(np.mean(aps)) if aps else 0.0
 
 
 _TP_KEYS = ("trans", "scale", "orient", "vel", "attr")

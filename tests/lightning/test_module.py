@@ -21,7 +21,7 @@ from torch_pointcloud.models import ClassificationModel, DetectionModel, Segment
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.box3d import projected_ignore_mask
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.metrics import average_precision3d
+from torch_pointcloud.utils.metrics import average_precision3d, box_matches
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 pytest.importorskip("lightning.pytorch")
@@ -1019,9 +1019,10 @@ def test_detection_eval_ignore_mask_flows_into_ap_as_functional(monkeypatch: pyt
     }
     masked: Detection3D = {**unmasked, "ignore_mask": projected_ignore_mask(decoded["boxes"], calib, image_shape)}
     target: Boxes3D = {"boxes": batch["box"], "labels": batch["label"], "batch": batch["batch_box"]}
-    assert metric.compute() == average_precision3d([masked], [target], iou_per_class={0: 0.5})
+    expected = average_precision3d([box_matches(masked, target)], iou_threshold={0: 0.5})
+    assert metric.compute() == {"AP/0": expected, "mAP": expected}
     assert metric.compute()["AP/0"] == pytest.approx(1.0)
-    assert average_precision3d([unmasked], [target], iou_per_class={0: 0.5})["AP/0"] == pytest.approx(0.5)
+    assert average_precision3d([box_matches(unmasked, target)], iou_threshold={0: 0.5}) == pytest.approx(0.5)
 
 
 def test_detection_nms_rotated_saved_to_hparams_default_false() -> None:

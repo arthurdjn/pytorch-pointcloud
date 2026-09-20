@@ -13,7 +13,6 @@ from typing import List, Optional, Tuple
 import torch
 from torch import Tensor
 
-import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.utils.types import OptTensor
 
 _CORNER_X = torch.tensor([1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0])
@@ -575,11 +574,28 @@ def count_points_in_boxes(
     """
     if (pos_batch is None) != (box_batch is None):
         raise ValueError("`pos_batch` and `box_batch` must be given together; got exactly one of them.")
+    if pos_batch is None or box_batch is None:
+        pos_batch = pos.new_zeros(pos.shape[0], dtype=torch.long)
+        box_batch = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
+
     counts = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
-    for k in range(boxes.shape[0]):
-        scene_pos = pos if pos_batch is None or box_batch is None else pos[pos_batch == box_batch[k]]
-        half_box = torch.cat([boxes[k, :3], boxes[k, 3:6] / 2, boxes[k, 6:7]])
-        counts[k] = int(F.points_in_oriented_box(scene_pos, half_box).sum())
+    center, half = boxes[:, :3], boxes[:, 3:6] / 2
+    cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
+    for scene in box_batch.unique().tolist():
+        scene_pos = pos[pos_batch == scene]
+        scene_boxes = (box_batch == scene).nonzero(as_tuple=False).squeeze(-1)
+        # Boxes go through in chunks so the (K, N) point-in-box test stays within 2^24 pairs.
+        chunk_size = max(1, (1 << 24) // max(scene_pos.shape[0], 1))
+        for index in scene_boxes.split(chunk_size):
+            offset = scene_pos[None] - center[index, None]  # (K, N, 3)
+            local_x = offset[..., 0] * cos[index, None] + offset[..., 1] * sin[index, None]
+            local_y = offset[..., 1] * cos[index, None] - offset[..., 0] * sin[index, None]
+            inside = (
+                (local_x.abs() <= half[index, 0:1])
+                & (local_y.abs() <= half[index, 1:2])
+                & (offset[..., 2].abs() <= half[index, 2:3])
+            )
+            counts[index] = inside.sum(dim=1)
     return counts
 
 
@@ -597,7 +613,7 @@ def projected_ignore_mask(
     the image rows $[0, \text{height} - 1]$, and a box is flagged when its clipped pixel height is
     strictly below `min_height`. Only the vertical extent is used; the width entry of `image_shape` keeps
     the dataset's $(\text{height}, \text{width})$ contract. The KITTI protocol excludes such predictions
-    from scoring (the prediction-side `ignore_mask` of `average_precision3d`), with `min_height` at
+    from scoring (the prediction-side `ignore_mask` of `box_matches`), with `min_height` at
     $40$ / $25$ / $25$ px for the easy / moderate / hard difficulties. For KITTI, compose the calib as
     $P_2 \cdot [R_0 T_\text{velo}; 0\ 0\ 0\ 1]$ with the third row taken from $R_0 T_\text{velo}$, so the
     perspective divide is by the rectified depth.
