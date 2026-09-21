@@ -4,7 +4,7 @@ Results (Area-5 mIoU / OA):
 
     | Variant                       | reference | torch-pointcloud |
     | ----------------------------- | --------- | ---------------- |
-    | pvcnn.s3dis-area5.mit-han-lab | 56.64     | 57.54 / 86.57    |
+    | pvcnn.s3dis-area5.mit-han-lab | 56.64     | 57.51 / 86.58    |
 
 Usage:
     uv run --no-sync python examples/pvcnn_benchmark_segmentation.py

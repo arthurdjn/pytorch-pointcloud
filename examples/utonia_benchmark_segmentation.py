@@ -35,7 +35,7 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.01
-SUB_BATCH_SIZE = 8
+SUB_BATCH_SIZE = 2
 
 TRANSFORM = T.Compose(
     [

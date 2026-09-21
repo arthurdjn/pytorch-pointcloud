@@ -4,7 +4,6 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models import list_models
 from torch_pointcloud.models.pointnext import (
     PointNeXtClassification,
     PointNeXtDecoder,
@@ -322,10 +321,3 @@ def test_pointnext_segmentation_reset_classifier_keeps_head_channels() -> None:
     )
     model.reset_classifier(num_classes=7)
     assert model.head.channel_list == [model.num_features, 16, 7]
-
-
-def test_pointnext_xl_s3dis_area6_registered_without_weights() -> None:
-    pretrained = list_models("pointnext-xl.s3dis*", task="segmentation", pretrained=True)
-    assert "pointnext-xl.s3dis-area6.openpoints" not in pretrained
-    assert "pointnext-xl.s3dis-area5.openpoints" in pretrained
-    assert "pointnext-xl.s3dis-area6.openpoints" in list_models("pointnext-xl*", task="segmentation")

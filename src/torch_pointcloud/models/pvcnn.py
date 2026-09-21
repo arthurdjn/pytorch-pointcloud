@@ -473,7 +473,7 @@ class PVCNNSegmentation(SegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn.s3dis-area5.mit-han-lab/resolve/main/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 57.54},
+        metrics={"mIoU": 57.51, "OA": 86.58},
         classes=S3DIS_CLASSES,
         author="mit-han-lab",
         license="MIT",

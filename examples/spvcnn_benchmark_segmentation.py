@@ -1,12 +1,12 @@
 """Benchmark SPVCNN semantic segmentation on SemanticKITTI (single pass, full-resolution scoring).
 
-Results (val sequence 08, mIoU):
+Results (val sequence 08, mIoU / OA):
 
     | Variant                                   | reference | torch-pointcloud |
     | ----------------------------------------- | --------- | ---------------- |
-    | spvcnn-119gmacs.semantickitti.mit-han-lab | 63.8      | 63.74            |
-    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 61.4      | 61.59            |
-    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 60.7      | 60.70            |
+    | spvcnn-119gmacs.semantickitti.mit-han-lab | 63.8      | 63.74 / 92.46    |
+    | spvcnn-47gmacs.semantickitti.mit-han-lab  | 61.4      | 61.59 / 92.22    |
+    | spvcnn-30gmacs.semantickitti.mit-han-lab  | 60.7      | 60.70 / 91.94    |
 
 Usage:
     uv run --no-sync python examples/spvcnn_benchmark_segmentation.py --limit 5

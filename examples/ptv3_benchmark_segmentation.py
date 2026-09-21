@@ -14,7 +14,7 @@ Results (val mIoU):
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.scannet20.pointcept --limit 5
-    uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.s3dis-area5.pointcept
+    uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.s3dis-area5.pointcept --sub-batch-size 1
 """
 
 import argparse
@@ -42,7 +42,6 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.02
 SUB_BATCH_SIZE = 8
-S3DIS_SUB_BATCH_SIZE = 1
 
 INFERER_TRANSFORM = T.Compose(
     [
@@ -94,28 +93,19 @@ def build_inferer(views: List[T.Compose], sub_batch_size: int, seed: int) -> Inf
 def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: str, num_classes: int) -> Dict[str, Any]:
     model.to(device).eval()
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
-    skipped = 0
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        try:
-            scores = inferer(data, predictor=lambda d: model(d[DataKeys.X], d[DataKeys.POS_GRID], d[DataKeys.BATCH]))
-        except torch.cuda.OutOfMemoryError:
-            # RPE attention materialises the full per-patch score matrix, so the largest rooms can exceed GPU memory.
-            torch.cuda.empty_cache()
-            skipped += 1
-            continue
-
+        scores = inferer(data, predictor=lambda d: model(d[DataKeys.X], d[DataKeys.POS_GRID], d[DataKeys.BATCH]))
         preds = scores.argmax(dim=1)
         cm += confusion_matrix(preds.cpu(), data[DataKeys.SEGMENT].cpu(), num_classes, ignore_index=-1)
         oa = accuracy(cm)
-        pbar.set_postfix({"oa": f"{oa:.4f}", "skipped": skipped})
+        pbar.set_postfix({"oa": f"{oa:.4f}"})
 
     return {
         "test/mIoU": intersection_over_union(cm),
         "test/oa": accuracy(cm),
-        "test/skipped": float(skipped),
     }
 
 
@@ -129,12 +119,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
-    parser.add_argument(
-        "--sub-batch-size",
-        default=None,
-        type=int,
-        help=f"Voxel fragments per forward. Defaults to {SUB_BATCH_SIZE} on ScanNet, {S3DIS_SUB_BATCH_SIZE} on S3DIS.",
-    )
+    parser.add_argument("--sub-batch-size", default=SUB_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
     parser.add_argument("--download", action="store_true", help="Download the dataset if missing.")
@@ -161,8 +146,7 @@ def main() -> None:
             force_process=args.force_process,
             num_workers=args.num_workers,
         )
-        sub_batch_size = S3DIS_SUB_BATCH_SIZE if args.sub_batch_size is None else args.sub_batch_size
-        inferer = build_inferer(S3DIS_VIEWS, sub_batch_size, args.seed)
+        inferer = build_inferer(S3DIS_VIEWS, args.sub_batch_size, args.seed)
     else:
         print(f"Benchmarking model {args.model!r} on ScanNet!")
         scannet = ScanNet200 if num_classes == 200 else ScanNet20
@@ -175,8 +159,7 @@ def main() -> None:
             num_workers=args.num_workers,
             use_axis_alignment=False,
         )
-        sub_batch_size = SUB_BATCH_SIZE if args.sub_batch_size is None else args.sub_batch_size
-        inferer = build_inferer(simple_tta_transforms(), sub_batch_size, args.seed)
+        inferer = build_inferer(simple_tta_transforms(), args.sub_batch_size, args.seed)
 
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))

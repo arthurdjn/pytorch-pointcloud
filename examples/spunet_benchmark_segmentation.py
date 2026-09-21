@@ -1,10 +1,10 @@
 """Benchmark SpUNet (SparseUNet) semantic segmentation on ScanNet with the indoor precise-evaluation protocol.
 
-Results (ScanNet val):
+Results (ScanNet val, mIoU / OA):
 
     | Variant                         | reference | torch-pointcloud |
     | ------------------------------- | --------- | ---------------- |
-    | spunet-v1m1.scannet20.pointcept | 75.67     | 75.67            |
+    | spunet-v1m1.scannet20.pointcept | 75.67     | 75.67 / 91.28    |
 
 Usage:
     uv run --no-sync python examples/spunet_benchmark_segmentation.py --limit 5

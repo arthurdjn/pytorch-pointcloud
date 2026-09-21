@@ -1,15 +1,15 @@
 """Benchmark the Point-BERT classifiers on ModelNet40 and ScanObjectNN (single pass, no voting).
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                                       | reference | torch-pointcloud |
     | --------------------------------------------- | --------- | ---------------- |
-    | point-bert-base.modelnet40.xumin-yu           | 92.67     | 92.63            |
-    | point-bert-base.modelnet40-4k.xumin-yu        | 92.91     | 93.03            |
-    | point-bert-base.modelnet40-8k.xumin-yu        | 93.19     | 93.07            |
-    | point-bert-base.scanobjectnn-objbg.xumin-yu   | 87.43     | 87.44            |
-    | point-bert-base.scanobjectnn-objonly.xumin-yu | 88.12     | 88.12            |
-    | point-bert-base.scanobjectnn-hardest.xumin-yu | 83.07     | 83.07            |
+    | point-bert-base.modelnet40.xumin-yu           | 92.67     | 92.63 / 89.56    |
+    | point-bert-base.modelnet40-4k.xumin-yu        | 92.91     | 92.99 / 89.69    |
+    | point-bert-base.modelnet40-8k.xumin-yu        | 93.19     | 93.07 / 89.92    |
+    | point-bert-base.scanobjectnn-objbg.xumin-yu   | 87.43     | 87.44 / 84.01    |
+    | point-bert-base.scanobjectnn-objonly.xumin-yu | 88.12     | 88.12 / 85.93    |
+    | point-bert-base.scanobjectnn-hardest.xumin-yu | 83.07     | 83.07 / 79.33    |
 
 Usage:
     uv run --no-sync python examples/point_bert_benchmark_classification.py --model point-bert-base.modelnet40.xumin-yu

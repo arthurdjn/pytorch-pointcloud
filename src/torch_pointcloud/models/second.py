@@ -569,7 +569,7 @@ class SECONDMultiHeadDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/second.kitti.openpcdet/resolve/main/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 66.26},
+        metrics={"mAP": 66.26, "AP/Car": 78.63, "AP/Pedestrian": 52.98, "AP/Cyclist": 67.16},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",

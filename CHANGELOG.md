@@ -15,6 +15,11 @@ All notable changes to this project are documented in this file. The format is b
 - Added the dependencies and their licenses to `THIRD_PARTY_NOTICES.md`.
 - Updated the README with a warning on the required PyG kernels.
 - Added social cards to the documentation.
+- Added `examples/benchmark.sh` to run every benchmark.
+- Removed the `pointnext-xl.s3dis-area6.openpoints` registration (no weights).
+- Removed the out-of-memory skip of the PTv3 benchmark.
+- Updated the benchmark results after the inferers seed fix.
+- Added the secondary metrics (`mAcc`, `OA`, per-class AP) to the registry.
 
 ## 0.0.4 (2026-09-20)
 

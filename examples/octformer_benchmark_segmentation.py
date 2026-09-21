@@ -1,11 +1,11 @@
 """Benchmark the OctFormer ScanNet semantic-segmentation models on the val split (single pass).
 
-Results (val mIoU):
+Results (val mIoU / OA):
 
     | Variant                             | reference | torch-pointcloud |
     | ----------------------------------- | --------- | ---------------- |
-    | octformer-base.scannet20.octree-nn  | 74.8      | 74.78            |
-    | octformer-base.scannet200.octree-nn | 31.7      | 31.71            |
+    | octformer-base.scannet20.octree-nn  | 74.8      | 74.78 / 90.90    |
+    | octformer-base.scannet200.octree-nn | 31.7      | 31.71 / 82.00    |
 
 Usage:
     uv run --no-sync python examples/octformer_benchmark_segmentation.py --model octformer-base.scannet20.octree-nn

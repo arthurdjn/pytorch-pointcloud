@@ -3,14 +3,14 @@
 NOTE: the `scanobjectnn-nobg` checkpoint (`finetune_scan_only.pth`) was saved from an earlier PointMamba block with an
 extra per-block `norm_ffn` LayerNorm; loaded into the released architecture it scores 83 OA with the reference code too.
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                                                           | reference | torch-pointcloud |
     | ----------------------------------------------------------------- | --------- | ---------------- |
-    | point-mamba-base.modelnet40.dingkang-liang                        | 93.6      | 93.64            |
-    | point-mamba-base.scanobjectnn.dingkang-liang                      | 94.32     | 94.15            |
-    | point-mamba-base.scanobjectnn-nobg.dingkang-liang                 | 92.60     | 83.82            |
-    | point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang | 89.31     | 89.28            |
+    | point-mamba-base.modelnet40.dingkang-liang                        | 93.6      | 93.64 / 90.40    |
+    | point-mamba-base.scanobjectnn.dingkang-liang                      | 94.32     | 94.32 / 92.66    |
+    | point-mamba-base.scanobjectnn-nobg.dingkang-liang                 | 92.60     | 83.30 / 81.31    |
+    | point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang | 89.31     | 89.28 / 88.06    |
 
 Usage:
     uv run --no-sync python examples/point_mamba_benchmark_classification.py --model point-mamba-base.modelnet40.dingkang-liang

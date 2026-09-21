@@ -855,7 +855,7 @@ _MODELNET_TRANSFORM = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.modelnet40.yatian-pang/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 92.87},
+        metrics={"OA": 92.87, "mAcc": 90.09},
         classes=MODELNET40_CLASSES,
         author="yatian-pang",
         license="MIT",
@@ -888,7 +888,7 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.modelnet40-8k.yatian-pang/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.35},
+        metrics={"OA": 93.35, "mAcc": 90.54},
         classes=MODELNET40_CLASSES,
         author="yatian-pang",
         license="MIT",
@@ -933,7 +933,7 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.scanobjectnn-objbg.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-objbg",
-        metrics={"OA": 90.19},
+        metrics={"OA": 90.19, "mAcc": 87.92},
         classes=SCANOBJECTNN_CLASSES,
         author="yatian-pang",
         license="MIT",
@@ -966,7 +966,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.scanobjectnn-objonly.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-objonly",
-        metrics={"OA": 88.30},
+        metrics={"OA": 88.30, "mAcc": 87.09},
         classes=SCANOBJECTNN_CLASSES,
         author="yatian-pang",
         license="MIT",
@@ -999,7 +999,7 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.scanobjectnn-hardest.yatian-pang/resolve/main/model.safetensors",
         dataset="scanobjectnn-hardest",
-        metrics={"OA": 85.05},
+        metrics={"OA": 85.05, "mAcc": 82.97},
         classes=SCANOBJECTNN_CLASSES,
         author="yatian-pang",
         license="MIT",

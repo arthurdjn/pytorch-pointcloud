@@ -3,14 +3,14 @@
 NOTE: the ScanObjectNN weights normalize with one std over the whole batch (`std_mode="batch"`, ma-xu/pointMLP-pytorch
 d2b8dba), so they are scored on shuffled batches of 32 like the reference; per sample the same weights score 77.5 / 76.7.
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                           | reference | torch-pointcloud |
     | --------------------------------- | --------- | ---------------- |
-    | pointmlp-base.modelnet40.xu-ma    | 94.1      | 93.88            |
-    | pointmlp-elite.modelnet40.xu-ma   | 93.6      | 92.79            |
-    | pointmlp-base.scanobjectnn.xu-ma  | 86.1      | 85.81            |
-    | pointmlp-elite.scanobjectnn.xu-ma | 84.1      | 84.18            |
+    | pointmlp-base.modelnet40.xu-ma    | 94.1      | 93.88 / 90.51    |
+    | pointmlp-elite.modelnet40.xu-ma   | 93.6      | 92.79 / 89.36    |
+    | pointmlp-base.scanobjectnn.xu-ma  | 86.1      | 85.81 / 84.29    |
+    | pointmlp-elite.scanobjectnn.xu-ma | 84.1      | 84.18 / 81.77    |
 
 Usage:
     uv run --no-sync python examples/pointmlp_benchmark_classification.py --model pointmlp-base.modelnet40.xu-ma

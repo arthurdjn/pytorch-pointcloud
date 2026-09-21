@@ -1121,7 +1121,7 @@ class HierarchicalEncoderMAE(nn.Module):
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.modelnet40.renrui-zhang/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 92.87},
+        metrics={"OA": 92.87, "mAcc": 90.13},
         classes=MODELNET40_CLASSES,
         author="renrui-zhang",
         license="MIT",
@@ -1166,7 +1166,7 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.scanobjectnn-hardest.renrui-zhang/resolve/main/model.safetensors",
         dataset="scanobjectnn-hardest",
-        metrics={"OA": 86.54},
+        metrics={"OA": 86.54, "mAcc": 85.21},
         classes=SCANOBJECTNN_CLASSES,
         author="renrui-zhang",
         license="MIT",
@@ -1209,7 +1209,7 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.scanobjectnn-objbg.renrui-zhang/resolve/main/model.safetensors",
         dataset="scanobjectnn-objbg",
-        metrics={"OA": 91.22},
+        metrics={"OA": 91.22, "mAcc": 89.28},
         classes=SCANOBJECTNN_CLASSES,
         author="renrui-zhang",
         license="MIT",

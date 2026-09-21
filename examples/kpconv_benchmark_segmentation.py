@@ -1,13 +1,13 @@
 """Benchmark the KP-FCNN S3DIS semantic-segmentation models on Area 5 with the reference voting protocol.
 
-Results (Area-5 mIoU):
+Results (Area-5 mIoU / OA):
 
     | Variant                                   | radius | reference | torch-pointcloud |
     | ----------------------------------------- | ------ | --------- | ---------------- |
-    | kpfcnn-base.s3dis.hugues-thomas           | 1.8    | 66.4      | 66.44            |
-    | kpfcnn-base-sm.s3dis.hugues-thomas        | 1.2    | 65.4      | 65.39            |
-    | kpfcnn-base-deform.s3dis.hugues-thomas    | 1.5    | 67.3      | 67.02            |
-    | kpfcnn-base-sm-deform.s3dis.hugues-thomas | 1.2    | 66.7      | 66.12            |
+    | kpfcnn-base.s3dis.hugues-thomas           | 1.8    | 66.4      | 66.60 / 89.63    |
+    | kpfcnn-base-sm.s3dis.hugues-thomas        | 1.2    | 65.4      | 65.27 / 88.93    |
+    | kpfcnn-base-deform.s3dis.hugues-thomas    | 1.5    | 67.3      | 67.05 / 89.93    |
+    | kpfcnn-base-sm-deform.s3dis.hugues-thomas | 1.2    | 66.7      | 66.01 / 89.53    |
 
 Usage:
     uv run --no-sync python examples/kpconv_benchmark_segmentation.py --model kpfcnn-base.s3dis.hugues-thomas

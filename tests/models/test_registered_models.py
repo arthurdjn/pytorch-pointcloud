@@ -173,7 +173,6 @@ SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area3.openpoints",
     "pointnext-xl.s3dis-area4.openpoints",
     "pointnext-xl.s3dis-area5.openpoints",
-    "pointnext-xl.s3dis-area6.openpoints",
     "randlanet.semantickitti.tsung-han-wu",
     "sonata-lp.scannet20.fair",
     "spformer-unet.scannet20",
