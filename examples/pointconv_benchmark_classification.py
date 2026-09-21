@@ -1,10 +1,10 @@
 """Benchmark the PointConv classifier on ModelNet40 (single pass, no voting).
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                                      | reference | torch-pointcloud |
     | -------------------------------------------- | --------- | ---------------- |
-    | pointconv-density-base.modelnet40.wenxuan-wu | 92.5      | 92.02            |
+    | pointconv-density-base.modelnet40.wenxuan-wu | 92.5      | 92.30 / 89.50    |
 
 Usage:
     uv run --no-sync python examples/pointconv_benchmark_classification.py --model pointconv-density-base.modelnet40.wenxuan-wu

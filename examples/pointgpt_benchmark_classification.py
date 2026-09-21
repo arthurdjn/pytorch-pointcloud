@@ -2,25 +2,25 @@
 
 NOTE: the ModelNet40 references are the paper's voted numbers; this script runs a single pass.
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                                       | reference | torch-pointcloud |
     | --------------------------------------------- | --------- | ---------------- |
-    | pointgpt-s.modelnet40.guangyan-chen           | 94.0      | 93.31            |
-    | pointgpt-b.modelnet40.guangyan-chen           | 94.4      | 94.37            |
-    | pointgpt-l.modelnet40.guangyan-chen           | 94.7      | 93.88            |
-    | pointgpt-s.modelnet40-8k.guangyan-chen        | 94.2      | 93.76            |
-    | pointgpt-b.modelnet40-8k.guangyan-chen        |           | 94.25            |
-    | pointgpt-l.modelnet40-8k.guangyan-chen        |           | 93.92            |
-    | pointgpt-s.scanobjectnn-objbg.guangyan-chen   | 91.6      | 91.57            |
-    | pointgpt-b.scanobjectnn-objbg.guangyan-chen   | 95.8      | 97.07            |
-    | pointgpt-l.scanobjectnn-objbg.guangyan-chen   | 97.2      | 98.45            |
-    | pointgpt-s.scanobjectnn-objonly.guangyan-chen | 90.0      | 90.71            |
-    | pointgpt-b.scanobjectnn-objonly.guangyan-chen | 95.2      | 95.18            |
-    | pointgpt-l.scanobjectnn-objonly.guangyan-chen | 96.6      | 96.90            |
-    | pointgpt-s.scanobjectnn-hardest.guangyan-chen | 86.9      | 86.95            |
-    | pointgpt-b.scanobjectnn-hardest.guangyan-chen | 91.9      | 91.92            |
-    | pointgpt-l.scanobjectnn-hardest.guangyan-chen | 93.4      | 93.75            |
+    | pointgpt-s.modelnet40.guangyan-chen           | 94.0      | 93.31 / 90.82    |
+    | pointgpt-b.modelnet40.guangyan-chen           | 94.4      | 94.37 / 91.65    |
+    | pointgpt-l.modelnet40.guangyan-chen           | 94.7      | 93.88 / 92.05    |
+    | pointgpt-s.modelnet40-8k.guangyan-chen        | 94.2      | 93.72 / 90.38    |
+    | pointgpt-b.modelnet40-8k.guangyan-chen        |           | 94.25 / 90.99    |
+    | pointgpt-l.modelnet40-8k.guangyan-chen        |           | 93.92 / 92.06    |
+    | pointgpt-s.scanobjectnn-objbg.guangyan-chen   | 91.6      | 91.57 / 89.98    |
+    | pointgpt-b.scanobjectnn-objbg.guangyan-chen   | 95.8      | 97.07 / 96.19    |
+    | pointgpt-l.scanobjectnn-objbg.guangyan-chen   | 97.2      | 98.45 / 98.19    |
+    | pointgpt-s.scanobjectnn-objonly.guangyan-chen | 90.0      | 90.71 / 89.57    |
+    | pointgpt-b.scanobjectnn-objonly.guangyan-chen | 95.2      | 95.18 / 94.91    |
+    | pointgpt-l.scanobjectnn-objonly.guangyan-chen | 96.6      | 96.90 / 96.56    |
+    | pointgpt-s.scanobjectnn-hardest.guangyan-chen | 86.9      | 86.95 / 85.51    |
+    | pointgpt-b.scanobjectnn-hardest.guangyan-chen | 91.9      | 91.92 / 90.80    |
+    | pointgpt-l.scanobjectnn-hardest.guangyan-chen | 93.4      | 93.75 / 93.66    |
 
 Usage:
     uv run --no-sync python examples/pointgpt_benchmark_classification.py --model pointgpt-s.modelnet40.guangyan-chen

@@ -678,14 +678,14 @@ class DGCNNPartSegmentation(SegmentationModel):
         return self.forward_head(x, batch)
 
 
-def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
+def _dgcnn_antao_s3dis_cfg(area: int, miou: float, oa: float) -> dict[str, Any]:
     return dict(
         name=f"dgcnn.s3dis-area{area}.an-tao",
         task="segmentation",
         weights=WeightsDict(
             url=f"hf://torch-pointcloud/dgcnn.s3dis-area{area}.an-tao/resolve/main/model.safetensors",
             dataset=f"s3dis-area{area}",
-            metrics={"mIoU": miou},
+            metrics={"mIoU": miou, "OA": oa},
             classes=S3DIS_CLASSES,
             author="an-tao",
             license="MIT",
@@ -715,7 +715,7 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float) -> dict[str, Any]:
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.modelnet40-1024.an-tao/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.27},
+        metrics={"OA": 93.27, "mAcc": 90.89},
         classes=MODELNET40_CLASSES,
         author="an-tao",
         license="MIT",
@@ -759,7 +759,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.modelnet40-2048.an-tao/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.60},
+        metrics={"OA": 93.60, "mAcc": 91.18},
         classes=MODELNET40_CLASSES,
         author="an-tao",
         license="MIT",
@@ -846,32 +846,32 @@ def dgcnn_antao_shapenet_partseg(**hparams: Any) -> DGCNNPartSegmentation:
     return DGCNNPartSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(1, miou=69.19))
+@register_model(**_dgcnn_antao_s3dis_cfg(1, miou=69.19, oa=89.69))
 def dgcnn_antao_s3dis_area1_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(2, miou=43.50))
+@register_model(**_dgcnn_antao_s3dis_cfg(2, miou=43.50, oa=81.69))
 def dgcnn_antao_s3dis_area2_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(3, miou=68.73))
+@register_model(**_dgcnn_antao_s3dis_cfg(3, miou=68.73, oa=90.86))
 def dgcnn_antao_s3dis_area3_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(4, miou=50.68))
+@register_model(**_dgcnn_antao_s3dis_cfg(4, miou=50.68, oa=85.06))
 def dgcnn_antao_s3dis_area4_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(5, miou=50.30))
+@register_model(**_dgcnn_antao_s3dis_cfg(5, miou=50.30, oa=84.92))
 def dgcnn_antao_s3dis_area5_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(6, miou=75.60))
+@register_model(**_dgcnn_antao_s3dis_cfg(6, miou=75.60, oa=92.10))
 def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
@@ -882,7 +882,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.scannet20.an-tao/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 53.06},
+        metrics={"mIoU": 52.89, "OA": 81.76},
         classes=SCANNET20_CLASSES,
         author="an-tao",
         license="MIT",

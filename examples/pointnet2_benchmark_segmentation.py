@@ -5,13 +5,13 @@ Results (mIoU / OA; the 6-fold rows average the per-area folds, the reference po
     | Variant                          | reference   | torch-pointcloud |
     | -------------------------------- | ----------- | ---------------- |
     | pointnet2.s3dis-area5.xu-yan     | 53.5        | 54.83 / 83.71    |
-    | pointnet2.s3dis-area1.openpoints |             | 74.96 / 89.77    |
-    | pointnet2.s3dis-area2.openpoints |             | 48.22 / 80.08    |
-    | pointnet2.s3dis-area3.openpoints |             | 76.31 / 90.89    |
-    | pointnet2.s3dis-area4.openpoints |             | 59.96 / 85.67    |
-    | pointnet2.s3dis-area5.openpoints | 63.6        | 63.66 / 88.23    |
-    | pointnet2.s3dis-area6.openpoints |             | 82.45 / 92.99    |
-    | pointnet2 openpoints 6-fold mean | 68.1 / 87.6 | 67.59 / 87.94    |
+    | pointnet2.s3dis-area1.openpoints |             | 74.96 / 89.78    |
+    | pointnet2.s3dis-area2.openpoints |             | 48.31 / 80.14    |
+    | pointnet2.s3dis-area3.openpoints |             | 76.36 / 90.89    |
+    | pointnet2.s3dis-area4.openpoints |             | 60.05 / 85.69    |
+    | pointnet2.s3dis-area5.openpoints | 63.6        | 63.67 / 88.24    |
+    | pointnet2.s3dis-area6.openpoints |             | 82.46 / 92.99    |
+    | pointnet2 openpoints 6-fold mean | 68.1 / 87.6 | 67.64 / 87.95    |
 
 Usage:
     uv run --no-sync python examples/pointnet2_benchmark_segmentation.py --model pointnet2.s3dis-area5.xu-yan

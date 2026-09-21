@@ -4,7 +4,7 @@ Results (instance mIoU / class mIoU):
 
     | Variant                                 | reference     | torch-pointcloud |
     | --------------------------------------- | ------------- | ---------------- |
-    | point-mae-base.shapenetpart.yatian-pang | 86.1 / 84.19  | 86.09 / 84.12    |
+    | point-mae-base.shapenetpart.yatian-pang | 86.1 / 84.19  | 86.05 / 84.12    |
 
 Usage:
     uv run --no-sync python examples/point_mae_benchmark_part_segmentation.py

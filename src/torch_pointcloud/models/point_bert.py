@@ -982,7 +982,7 @@ _CLS_HPARAMS = dict(
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.modelnet40.xumin-yu/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 92.63},
+        metrics={"OA": 92.63, "mAcc": 89.56},
         classes=MODELNET40_CLASSES,
         author="xumin-yu",
         license="MIT",
@@ -1000,7 +1000,7 @@ def point_bert_base_modelnet40(**kwargs: Any) -> PointBERTClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.modelnet40-4k.xumin-yu/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.03},
+        metrics={"OA": 92.99, "mAcc": 89.69},
         classes=MODELNET40_CLASSES,
         author="xumin-yu",
         license="MIT",
@@ -1018,7 +1018,7 @@ def point_bert_base_modelnet40_4k(**kwargs: Any) -> PointBERTClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.modelnet40-8k.xumin-yu/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.07},
+        metrics={"OA": 93.07, "mAcc": 89.92},
         classes=MODELNET40_CLASSES,
         author="xumin-yu",
         license="MIT",
@@ -1036,7 +1036,7 @@ def point_bert_base_modelnet40_8k(**kwargs: Any) -> PointBERTClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.scanobjectnn-objonly.xumin-yu/resolve/main/model.safetensors",
         dataset="scanobjectnn-objonly",
-        metrics={"OA": 88.12},
+        metrics={"OA": 88.12, "mAcc": 85.93},
         author="xumin-yu",
         license="MIT",
     ),
@@ -1053,7 +1053,7 @@ def point_bert_base_scanobjectnn_objonly(**kwargs: Any) -> PointBERTClassificati
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.scanobjectnn-objbg.xumin-yu/resolve/main/model.safetensors",
         dataset="scanobjectnn-objbg",
-        metrics={"OA": 87.44},
+        metrics={"OA": 87.44, "mAcc": 84.01},
         author="xumin-yu",
         license="MIT",
     ),
@@ -1070,7 +1070,7 @@ def point_bert_base_scanobjectnn_objbg(**kwargs: Any) -> PointBERTClassification
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.scanobjectnn-hardest.xumin-yu/resolve/main/model.safetensors",
         dataset="scanobjectnn-hardest",
-        metrics={"OA": 83.07},
+        metrics={"OA": 83.07, "mAcc": 79.33},
         author="xumin-yu",
         license="MIT",
     ),

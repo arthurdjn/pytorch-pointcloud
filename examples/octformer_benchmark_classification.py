@@ -5,11 +5,11 @@ after the attention (`cpe_first=False`) and normalizes each shape to its minimal
 rescale; on the authors' own test PLYs (`tools/cls_modelnet.py` at 3ea0a87) this pipeline scores 92.67. The residual
 gap below is the draw of our mesh sampler (`--fresh-sampling` gives 92.38).
 
-Results vs reference (ModelNet40 overall accuracy):
+Results vs reference (ModelNet40 overall accuracy / mean class accuracy):
 
     | Variant                             | reference | torch-pointcloud |
     | ----------------------------------- | --------- | ---------------- |
-    | octformer-base.modelnet40.octree-nn | 92.7      | 92.02            |
+    | octformer-base.modelnet40.octree-nn | 92.7      | 92.02 / 89.79    |
 
 Usage:
     uv run --no-sync python examples/octformer_benchmark_classification.py

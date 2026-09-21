@@ -314,6 +314,7 @@ class KITTI(PointCloudDataset):
         root: PathLike,
         *,
         train: bool = True,
+        # TODO: move to a train=bool flag for train/val split? instead of pointing to the filepath
         split_file: Optional[PathLike] = None,
         fov: bool = True,
         return_calib: bool = False,

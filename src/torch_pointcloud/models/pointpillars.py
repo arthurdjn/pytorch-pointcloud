@@ -522,7 +522,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars.kitti.openpcdet/resolve/main/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 64.16},
+        metrics={"mAP": 64.16, "AP/Car": 77.35, "AP/Pedestrian": 52.39, "AP/Cyclist": 62.74},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",

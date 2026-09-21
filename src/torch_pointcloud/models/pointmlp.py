@@ -916,7 +916,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-base.modelnet40.xu-ma/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.88},
+        metrics={"OA": 93.88, "mAcc": 90.51},
         classes=MODELNET40_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -945,7 +945,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-elite.modelnet40.xu-ma/resolve/main/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 92.79},
+        metrics={"OA": 92.79, "mAcc": 89.36},
         classes=MODELNET40_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -977,7 +977,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-base.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
-        metrics={"OA": 85.81},
+        metrics={"OA": 85.81, "mAcc": 84.29},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
         license="Apache-2.0",
@@ -1006,7 +1006,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointmlp-elite.scanobjectnn.xu-ma/resolve/main/model.safetensors",
         dataset="scanobjectnn",
-        metrics={"OA": 84.18},
+        metrics={"OA": 84.18, "mAcc": 81.77},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
         license="Apache-2.0",

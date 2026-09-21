@@ -554,7 +554,7 @@ class SparseUNetSegmentation(SegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/spunet-v1m1.scannet20.pointcept/resolve/main/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 75.67},
+        metrics={"mIoU": 75.67, "OA": 91.28},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="MIT",

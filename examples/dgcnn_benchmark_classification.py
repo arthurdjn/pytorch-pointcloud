@@ -1,11 +1,11 @@
 """Benchmark the DGCNN ModelNet40 classifiers (single pass, no voting).
 
-Results (ModelNet40 overall accuracy):
+Results (ModelNet40 overall accuracy / mean class accuracy):
 
     | Variant                      | reference | torch-pointcloud |
     | ---------------------------- | --------- | ---------------- |
-    | dgcnn.modelnet40-1024.an-tao | 93.3      | 93.27            |
-    | dgcnn.modelnet40-2048.an-tao | 93.6      | 93.60            |
+    | dgcnn.modelnet40-1024.an-tao | 93.3      | 93.27 / 90.89    |
+    | dgcnn.modelnet40-2048.an-tao | 93.6      | 93.60 / 91.18    |
 
 Usage:
     uv run --no-sync python examples/dgcnn_benchmark_classification.py --model dgcnn.modelnet40-1024.an-tao

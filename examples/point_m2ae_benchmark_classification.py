@@ -1,12 +1,12 @@
 """Benchmark the Point-M2AE classifiers on ModelNet40 and ScanObjectNN (single pass, no voting).
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                                           | reference | torch-pointcloud |
     | ------------------------------------------------- | --------- | ---------------- |
-    | point-m2ae-base.modelnet40.renrui-zhang           | 93.43     | 92.87            |
-    | point-m2ae-base.scanobjectnn-objbg.renrui-zhang   | 91.22     | 91.22            |
-    | point-m2ae-base.scanobjectnn-hardest.renrui-zhang | 86.43     | 86.54            |
+    | point-m2ae-base.modelnet40.renrui-zhang           | 93.43     | 92.87 / 90.13    |
+    | point-m2ae-base.scanobjectnn-objbg.renrui-zhang   | 91.22     | 91.22 / 89.28    |
+    | point-m2ae-base.scanobjectnn-hardest.renrui-zhang | 86.43     | 86.54 / 85.21    |
 
 Usage:
     uv run --no-sync python examples/point_m2ae_benchmark_classification.py --model point-m2ae-base.modelnet40.renrui-zhang

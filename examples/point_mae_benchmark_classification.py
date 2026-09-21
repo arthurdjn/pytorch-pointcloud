@@ -1,14 +1,14 @@
 """Benchmark the Point-MAE classifiers on ModelNet40 and ScanObjectNN (single pass, no voting).
 
-Results (overall accuracy):
+Results (overall accuracy / mean class accuracy):
 
     | Variant                                         | reference | torch-pointcloud |
     | ----------------------------------------------- | --------- | ---------------- |
-    | point-mae-base.modelnet40.yatian-pang           | 93.19     | 92.87            |
-    | point-mae-base.modelnet40-8k.yatian-pang        | 94.04     | 93.35            |
-    | point-mae-base.scanobjectnn-objbg.yatian-pang   | 90.02     | 90.19            |
-    | point-mae-base.scanobjectnn-objonly.yatian-pang | 88.29     | 88.30            |
-    | point-mae-base.scanobjectnn-hardest.yatian-pang | 85.18     | 85.05            |
+    | point-mae-base.modelnet40.yatian-pang           | 93.19     | 92.87 / 90.09    |
+    | point-mae-base.modelnet40-8k.yatian-pang        | 94.04     | 93.35 / 90.54    |
+    | point-mae-base.scanobjectnn-objbg.yatian-pang   | 90.02     | 90.19 / 87.92    |
+    | point-mae-base.scanobjectnn-objonly.yatian-pang | 88.29     | 88.30 / 87.09    |
+    | point-mae-base.scanobjectnn-hardest.yatian-pang | 85.18     | 85.05 / 82.97    |
 
 Usage:
     uv run --no-sync python examples/point_mae_benchmark_classification.py --model point-mae-base.modelnet40.yatian-pang
