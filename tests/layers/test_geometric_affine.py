@@ -4,9 +4,10 @@ import pytest
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP, knn, knn_graph
+from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
+from torch_pointcloud.utils.cluster import knn, knn_graph
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = pytest.mark.skipif(

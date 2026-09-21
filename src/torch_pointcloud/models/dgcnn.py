@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn import MLP, DynamicEdgeConv, global_max_pool
+from torch_geometric.nn import MLP, EdgeConv, global_max_pool
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
@@ -58,13 +58,12 @@ class DGCNNEncoderBlock(nn.Module):
             bias=bias,
         )
         self.k = num_neighbors
-        self.conv = DynamicEdgeConv(nn_module, k=num_neighbors, aggr=aggr)
+        self.conv = EdgeConv(nn_module, aggr=aggr)
 
     def forward(self, x: Tensor, batch: Tensor, x_knn: Optional[Tensor] = None) -> Tensor:
         src = x_knn if x_knn is not None else x
         edge_index = knn(src, src, self.k, batch_x=batch, batch_y=batch).flip([0])  # type: ignore[arg-type]
-        # Fix, we might integrate our own knn into the DynamicEdgeConv later
-        return self.conv.propagate(edge_index, x=(x, x))
+        return self.conv(x, edge_index)
 
 
 class DGCNNEncoder(nn.Module):

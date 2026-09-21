@@ -3,10 +3,17 @@ from typing import Dict
 import pytest
 import torch
 from torch import Tensor
-from torch_geometric.nn import MLP, radius_graph
+from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.pointnext_blocks import PointNeXtConv, PointNeXtResidualBlock, PointNeXtSetAbstraction
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import (
+    _TORCH_CLUSTER_AVAILABLE,
+    _TORCH_CLUSTER_GITHUB_URL,
+    _TORCH_SCATTER_AVAILABLE,
+    optional_import,
+)
+
+radius_graph, _ = optional_import("torch_cluster", name="radius_graph", url=_TORCH_CLUSTER_GITHUB_URL)
 
 pytestmark = pytest.mark.skipif(
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
