@@ -14,8 +14,8 @@ in the middle. **Advanced** decodes a driving LiDAR sweep into oriented 3D boxes
 
 ## Beginner
 
-Start here if you have not run a point cloud model before. Everything in this tier runs from
-committed sample data, with no dataset download.
+Start here if you have not run a point cloud model before. The quickstart downloads ModelNet40 on first use;
+the scene tutorial reads a ScanNet scan, which requires accepting the ScanNet terms of use.
 
 <div class="grid cards tutorial-cards" markdown>
 

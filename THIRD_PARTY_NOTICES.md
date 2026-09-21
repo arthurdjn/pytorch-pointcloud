@@ -85,3 +85,34 @@ Files adapted from other implementations. Paths are relative to `src/torch_point
 | ZrrSkywalker/Point-M2AE | MIT | `models/point_m2ae.py` |
 | CGuangyan-BIT/PointGPT | MIT | `models/pointgpt.py` |
 | LMD0311/PointMamba | Apache-2.0 | `models/point_mamba.py` |
+
+## Dependencies
+
+Installed by `pip` next to the package, never bundled with it.
+
+| dependency | license |
+| --- | --- |
+| `torch` | BSD-3-Clause |
+| `torch-geometric` | MIT |
+| `numpy`, `scipy`, `pandas`, `h5py`, `joblib` | BSD-3-Clause |
+| `safetensors` | Apache-2.0 |
+| `packaging` | Apache-2.0 OR BSD-2-Clause |
+| `pillow` | MIT-CMU |
+| `tqdm` | MPL-2.0 AND MIT |
+| `typing-extensions` | PSF-2.0 |
+| `plyfile` | GPL-3.0-or-later |
+
+## Optional dependencies
+
+Installed separately, only for the architectures that need them.
+
+| dependency | license |
+| --- | --- |
+| `pyg-lib`, `torch-scatter`, `torch-sparse`, `torch-cluster` | MIT |
+| `spconv` | Apache-2.0 |
+| `torchsparse` | MIT |
+| `ocnn`, `dwconv` | MIT |
+| `flash-attn` | BSD-3-Clause |
+| `mamba-ssm`, `causal-conv1d` | Apache-2.0 AND BSD-3-Clause |
+| `sptr` (JIA-Lab-research/SparseTransformer, installed from the arthurdjn/SparseTransformer fork) | Apache-2.0 |
+| `lightning`, `torchmetrics` | Apache-2.0 |
