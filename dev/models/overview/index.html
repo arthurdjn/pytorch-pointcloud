@@ -93,6 +93,25 @@
     
     
   <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+  
+  
+    
+  
+  
+  
+  
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PyTorch PointCloud">
+  <meta property="og:title" content="Models - PyTorch PointCloud">
+  <meta property="og:description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png">
+  
+    <meta property="og:url" content="https://pytorch-pointcloud.org/dev/models/overview/">
+  
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Models - PyTorch PointCloud">
+  <meta name="twitter:description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png">
 
   </head>
   
@@ -1456,6 +1475,14 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">models</span> <span class="o">=</span> <span class="n">tp</span><span class="o">.</span><span class="n">list_models</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;classification&quot;</span><span class="p">)</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># or task=&quot;segmentation&quot;, &quot;detection&quot;, ...</span>
 </code></pre></div>
+<p>Weights are downloaded from the Hugging Face Hub on first use and cached under <code>~/.cache/torch-pointcloud/models</code>.
+Set <code>TORCH_POINTCLOUD_MODELS_DIR</code> (or <code>TORCH_POINTCLOUD_CACHE_DIR</code> for the whole cache) to store them elsewhere.</p>
+<div class="admonition warning">
+<p class="admonition-title">Licenses</p>
+<p>Each checkpoint keeps the license of its source, listed in the tables of the task pages, and a few are restricted to
+non-commercial use. The datasets they were trained on carry their own terms. See
+<a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md"><code>THIRD_PARTY_NOTICES.md</code></a>.</p>
+</div>
 <p><img alt="Five pretrained checkpoints on two committed sample clouds: object classification, part segmentation, scene segmentation, 3D detection, and LiDAR segmentation" src="../../assets/tasks/hero.png" /></p>
 <h2 id="tasks">Tasks<a class="headerlink" href="#tasks" title="Anchor link to this section">&para;</a></h2>
 <div class="grid cards">
