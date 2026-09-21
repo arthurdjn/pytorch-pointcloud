@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+<!-- start announce block -->
+{% block announce %}
+  {% include 'announce.html' ignore missing %}
+{% endblock %}
+<!-- end announce block -->
+
+<!-- start outdated block -->
+{% block outdated %}
+  You are viewing the documentation of an older version.
+  <a href="{{ '../' ~ base_url }}">
+    <strong>Go to the latest version.</strong>
+  </a>
+{% endblock %}
+<!-- end outdated block -->
+
+<!-- start extrahead block -->
+{% block extrahead %}
+  <link rel="icon" type="image/svg+xml" href="{{ 'assets/favicon.svg' | url }}">
+  {% set card_title = config.site_name %}
+  {% if page and page.title and page.title != config.site_name %}
+    {% set card_title = page.title ~ " - " ~ config.site_name %}
+  {% endif %}
+  {% set card_description = config.site_description %}
+  {% if page and page.meta and page.meta.description %}
+    {% set card_description = page.meta.description %}
+  {% endif %}
+  {% set card_image = "https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png" %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+  <meta property="og:title" content="{{ card_title }}">
+  <meta property="og:description" content="{{ card_description }}">
+  <meta property="og:image" content="{{ card_image }}">
+  {% if page and page.canonical_url %}
+    <meta property="og:url" content="{{ page.canonical_url }}">
+  {% endif %}
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ card_title }}">
+  <meta name="twitter:description" content="{{ card_description }}">
+  <meta name="twitter:image" content="{{ card_image }}">
+{% endblock %}
+<!-- end extrahead block -->
+
+{% block content %}
+  {% if page.nb_url %}
+    <a href="{{ page.nb_url }}" title="Download Notebook" class="md-content__button md-icon">
+      {% include ".icons/material/download.svg" %}
+    </a>
+  {% endif %}
+
+  {{ super() }}
+{% endblock %}

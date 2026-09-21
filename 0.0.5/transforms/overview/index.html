@@ -1,0 +1,1751 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
+      
+      
+        <meta name="author" content="Arthur Dujardin">
+      
+      
+        <link rel="canonical" href="https://pytorch-pointcloud.org/0.0.5/transforms/overview/">
+      
+      
+        <link rel="prev" href="../../datasets/detection/">
+      
+      
+        <link rel="next" href="../../inferers/overview/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="zensical-0.0.53">
+    
+    
+      
+        <title>Transforms - PyTorch PointCloud</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.20815dad.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20class%3D%22lucide%20lucide-book-open-check%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%205v16M16%2012l2%202%204-4%22/%3E%3Cpath%20d%3D%22M22%206V5a2%202%200%200%200-1.999-2L16%203.002A5%205%200%200%200%2012%205a5%205%200%200%200-4-2H4a2%202%200%200%200-2%202v12a2%202%200%200%200%201.999%202H8a5%205%200%200%201%204%202%205%205%200%200%201%204-2h4.001A2%202%200%200%200%2022%2017v-1.344%22/%3E%3C/svg%3E');--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20class%3D%22lucide%20lucide-info%22%20viewBox%3D%220%200%2024%2024%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%2210%22/%3E%3Cpath%20d%3D%22M12%2016v-4M12%208h.01%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20class%3D%22lucide%20lucide-lightbulb%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M15%2014c.2-1%20.7-1.7%201.5-2.5%201-.9%201.5-2.2%201.5-3.5A6%206%200%200%200%206%208c0%201%20.2%202.2%201.5%203.5.7.7%201.3%201.5%201.5%202.5M9%2018h6M10%2022h4%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetbrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"Jetbrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../overrides/stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="../../overrides/stylesheets/install-selector.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+  
+  
+    
+  
+  
+  
+  
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PyTorch PointCloud">
+  <meta property="og:title" content="Transforms - PyTorch PointCloud">
+  <meta property="og:description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png">
+  
+    <meta property="og:url" content="https://pytorch-pointcloud.org/0.0.5/transforms/overview/">
+  
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Transforms - PyTorch PointCloud">
+  <meta name="twitter:description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png">
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#transforms" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            
+            
+  <b>First release!</b> <a href="https://github.com/arthurdjn/pytorch-pointcloud">torch_pointcloud</a> is open in alpha! 🎉 
+<i>Please try it, and tell us what you think!</i>
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are viewing the documentation of an older version.
+  <a href="../../..">
+    <strong>Go to the latest version.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PyTorch PointCloud" class="md-header__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>pytorch-pointcloud - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g fill="#EE4C2C">
+	<circle class="dot" cx="54.13" cy="97.53" r="7.66" />
+	<circle class="dot" cx="30.89" cy="120.77" r="7.66" />
+	<circle class="dot" cx="54.13" cy="120.77" r="10.21" />
+	<circle class="dot" cx="30.89" cy="144" r="10.21" />
+	<circle class="dot" cx="54.13" cy="144" r="7.66" />
+	<circle class="dot" cx="7.66" cy="167.23" r="5.11" />
+	<circle class="dot" cx="30.89" cy="167.23" r="10.21" />
+	<circle class="dot" cx="54.13" cy="167.23" r="5.11" />
+	<circle class="dot" cx="7.66" cy="190.47" r="7.66" />
+	<circle class="dot" cx="30.89" cy="190.47" r="10.21" />
+	<circle class="dot" cx="7.66" cy="213.7" r="7.66" />
+	<circle class="dot" cx="30.89" cy="213.7" r="10.21" />
+	<circle class="dot" cx="7.66" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="236.94" r="10.21" />
+	<circle class="dot" cx="54.13" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="260.17" r="7.66" />
+	<circle class="dot" cx="54.13" cy="260.17" r="10.21" />
+	<circle class="dot" cx="30.89" cy="283.4" r="5.11" />
+	<circle class="dot" cx="54.13" cy="283.4" r="10.21" />
+	<circle class="dot" cx="54.13" cy="306.64" r="5.11" />
+	<circle class="dot" cx="147.02" cy="5.11" r="5.11" />
+	<circle class="dot" cx="123.78" cy="28.34" r="7.66" />
+	<circle class="dot" cx="147.02" cy="28.34" r="7.66" />
+	<circle class="dot" cx="100.55" cy="51.57" r="7.66" />
+	<circle class="dot" cx="123.78" cy="51.57" r="10.21" />
+	<circle class="dot" cx="147.02" cy="51.57" r="5.11" />
+	<circle class="dot" cx="193.48" cy="51.57" r="5.11" />
+	<circle class="dot" cx="77.31" cy="74.81" r="7.66" />
+	<circle class="dot" cx="100.55" cy="74.81" r="10.21" />
+	<circle class="dot" cx="123.78" cy="74.81" r="5.11" />
+	<circle class="dot" cx="170.25" cy="74.81" r="5.11" />
+	<circle class="dot" cx="193.48" cy="74.81" r="10.21" />
+	<circle class="dot" cx="77.31" cy="98.04" r="10.21" />
+	<circle class="dot" cx="100.55" cy="98.04" r="5.11" />
+	<circle class="dot" cx="193.48" cy="98.04" r="5.11" />
+	<circle class="dot" cx="77.31" cy="121.28" r="5.11" />
+	<circle class="dot" cx="77.31" cy="283.91" r="7.66" />
+	<circle class="dot" cx="100.55" cy="283.91" r="5.11" />
+	<circle class="dot" cx="193.48" cy="283.91" r="5.11" />
+	<circle class="dot" cx="77.31" cy="307.15" r="7.66" />
+	<circle class="dot" cx="100.55" cy="307.15" r="10.21" />
+	<circle class="dot" cx="123.78" cy="307.15" r="10.21" />
+	<circle class="dot" cx="147.02" cy="307.15" r="7.66" />
+	<circle class="dot" cx="170.25" cy="307.15" r="10.21" />
+	<circle class="dot" cx="193.48" cy="307.15" r="10.21" />
+	<circle class="dot" cx="100.55" cy="330.38" r="5.11" />
+	<circle class="dot" cx="123.78" cy="330.38" r="7.66" />
+	<circle class="dot" cx="147.02" cy="330.38" r="10.21" />
+	<circle class="dot" cx="170.25" cy="330.38" r="7.66" />
+	<circle class="dot" cx="193.48" cy="330.38" r="5.11" />
+	<circle class="dot" cx="216.67" cy="75.32" r="5.11" />
+	<circle class="dot" cx="239.9" cy="98.55" r="5.11" />
+	<circle class="dot" cx="239.9" cy="121.79" r="10.21" />
+	<circle class="dot" cx="263.14" cy="121.79" r="7.66" />
+	<circle class="dot" cx="239.9" cy="145.02" r="7.66" />
+	<circle class="dot" cx="263.14" cy="145.02" r="10.21" />
+	<circle class="dot" cx="239.9" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="168.26" r="10.21" />
+	<circle class="dot" cx="286.37" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="191.49" r="10.21" />
+	<circle class="dot" cx="286.37" cy="191.49" r="7.66" />
+	<circle class="dot" cx="263.14" cy="214.72" r="10.21" />
+	<circle class="dot" cx="286.37" cy="214.72" r="7.66" />
+	<circle class="dot" cx="239.9" cy="237.96" r="5.11" />
+	<circle class="dot" cx="263.14" cy="237.96" r="10.21" />
+	<circle class="dot" cx="286.37" cy="237.96" r="5.11" />
+	<circle class="dot" cx="239.9" cy="261.19" r="10.21" />
+	<circle class="dot" cx="263.14" cy="261.19" r="7.66" />
+	<circle class="dot" cx="216.67" cy="284.43" r="7.66" />
+	<circle class="dot" cx="239.9" cy="284.43" r="10.21" />
+	<circle class="dot" cx="263.14" cy="284.43" r="5.11" />
+	<circle class="dot" cx="216.67" cy="307.66" r="7.66" />
+	<circle class="dot" cx="239.9" cy="307.66" r="5.11" />
+	<circle class="dot" cx="216.67" cy="121.79" r="5.11" />
+    </g>
+</svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PyTorch PointCloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Transforms
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-eclipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-eclipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/arthurdjn/pytorch-pointcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    arthurdjn/pytorch-pointcloud
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  Get Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../models/overview/" class="md-tabs__link">
+          
+  
+  Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../datasets/overview/" class="md-tabs__link">
+          
+  
+  Datasets
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="././" class="md-tabs__link">
+        
+  
+  Transforms
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../inferers/overview/" class="md-tabs__link">
+        
+  
+  Inferers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../examples/" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PyTorch PointCloud" class="md-nav__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>pytorch-pointcloud - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g fill="#EE4C2C">
+	<circle class="dot" cx="54.13" cy="97.53" r="7.66" />
+	<circle class="dot" cx="30.89" cy="120.77" r="7.66" />
+	<circle class="dot" cx="54.13" cy="120.77" r="10.21" />
+	<circle class="dot" cx="30.89" cy="144" r="10.21" />
+	<circle class="dot" cx="54.13" cy="144" r="7.66" />
+	<circle class="dot" cx="7.66" cy="167.23" r="5.11" />
+	<circle class="dot" cx="30.89" cy="167.23" r="10.21" />
+	<circle class="dot" cx="54.13" cy="167.23" r="5.11" />
+	<circle class="dot" cx="7.66" cy="190.47" r="7.66" />
+	<circle class="dot" cx="30.89" cy="190.47" r="10.21" />
+	<circle class="dot" cx="7.66" cy="213.7" r="7.66" />
+	<circle class="dot" cx="30.89" cy="213.7" r="10.21" />
+	<circle class="dot" cx="7.66" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="236.94" r="10.21" />
+	<circle class="dot" cx="54.13" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="260.17" r="7.66" />
+	<circle class="dot" cx="54.13" cy="260.17" r="10.21" />
+	<circle class="dot" cx="30.89" cy="283.4" r="5.11" />
+	<circle class="dot" cx="54.13" cy="283.4" r="10.21" />
+	<circle class="dot" cx="54.13" cy="306.64" r="5.11" />
+	<circle class="dot" cx="147.02" cy="5.11" r="5.11" />
+	<circle class="dot" cx="123.78" cy="28.34" r="7.66" />
+	<circle class="dot" cx="147.02" cy="28.34" r="7.66" />
+	<circle class="dot" cx="100.55" cy="51.57" r="7.66" />
+	<circle class="dot" cx="123.78" cy="51.57" r="10.21" />
+	<circle class="dot" cx="147.02" cy="51.57" r="5.11" />
+	<circle class="dot" cx="193.48" cy="51.57" r="5.11" />
+	<circle class="dot" cx="77.31" cy="74.81" r="7.66" />
+	<circle class="dot" cx="100.55" cy="74.81" r="10.21" />
+	<circle class="dot" cx="123.78" cy="74.81" r="5.11" />
+	<circle class="dot" cx="170.25" cy="74.81" r="5.11" />
+	<circle class="dot" cx="193.48" cy="74.81" r="10.21" />
+	<circle class="dot" cx="77.31" cy="98.04" r="10.21" />
+	<circle class="dot" cx="100.55" cy="98.04" r="5.11" />
+	<circle class="dot" cx="193.48" cy="98.04" r="5.11" />
+	<circle class="dot" cx="77.31" cy="121.28" r="5.11" />
+	<circle class="dot" cx="77.31" cy="283.91" r="7.66" />
+	<circle class="dot" cx="100.55" cy="283.91" r="5.11" />
+	<circle class="dot" cx="193.48" cy="283.91" r="5.11" />
+	<circle class="dot" cx="77.31" cy="307.15" r="7.66" />
+	<circle class="dot" cx="100.55" cy="307.15" r="10.21" />
+	<circle class="dot" cx="123.78" cy="307.15" r="10.21" />
+	<circle class="dot" cx="147.02" cy="307.15" r="7.66" />
+	<circle class="dot" cx="170.25" cy="307.15" r="10.21" />
+	<circle class="dot" cx="193.48" cy="307.15" r="10.21" />
+	<circle class="dot" cx="100.55" cy="330.38" r="5.11" />
+	<circle class="dot" cx="123.78" cy="330.38" r="7.66" />
+	<circle class="dot" cx="147.02" cy="330.38" r="10.21" />
+	<circle class="dot" cx="170.25" cy="330.38" r="7.66" />
+	<circle class="dot" cx="193.48" cy="330.38" r="5.11" />
+	<circle class="dot" cx="216.67" cy="75.32" r="5.11" />
+	<circle class="dot" cx="239.9" cy="98.55" r="5.11" />
+	<circle class="dot" cx="239.9" cy="121.79" r="10.21" />
+	<circle class="dot" cx="263.14" cy="121.79" r="7.66" />
+	<circle class="dot" cx="239.9" cy="145.02" r="7.66" />
+	<circle class="dot" cx="263.14" cy="145.02" r="10.21" />
+	<circle class="dot" cx="239.9" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="168.26" r="10.21" />
+	<circle class="dot" cx="286.37" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="191.49" r="10.21" />
+	<circle class="dot" cx="286.37" cy="191.49" r="7.66" />
+	<circle class="dot" cx="263.14" cy="214.72" r="10.21" />
+	<circle class="dot" cx="286.37" cy="214.72" r="7.66" />
+	<circle class="dot" cx="239.9" cy="237.96" r="5.11" />
+	<circle class="dot" cx="263.14" cy="237.96" r="10.21" />
+	<circle class="dot" cx="286.37" cy="237.96" r="5.11" />
+	<circle class="dot" cx="239.9" cy="261.19" r="10.21" />
+	<circle class="dot" cx="263.14" cy="261.19" r="7.66" />
+	<circle class="dot" cx="216.67" cy="284.43" r="7.66" />
+	<circle class="dot" cx="239.9" cy="284.43" r="10.21" />
+	<circle class="dot" cx="263.14" cy="284.43" r="5.11" />
+	<circle class="dot" cx="216.67" cy="307.66" r="7.66" />
+	<circle class="dot" cx="239.9" cy="307.66" r="5.11" />
+	<circle class="dot" cx="216.67" cy="121.79" r="5.11" />
+    </g>
+</svg>
+
+    </a>
+    PyTorch PointCloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/arthurdjn/pytorch-pointcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    arthurdjn/pytorch-pointcloud
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../.." class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get Started
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../models/overview/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Models
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../datasets/overview/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Datasets
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Transforms
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Transforms
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sampling-and-downsampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sampling and downsampling
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sampling and downsampling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sampling-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sampling keys
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry-shifting" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Geometry / shifting
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaling-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Scaling / normalization
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#masking-and-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Masking and filtering
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-dict-manipulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Key / dict manipulation
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#type-device" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Type / device
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#octree-optional-requires-ocnn" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Octree (optional, requires <code>ocnn</code>)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../inferers/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Inferers
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../examples/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Tutorials
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../api/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sampling-and-downsampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sampling and downsampling
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sampling and downsampling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sampling-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sampling keys
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry-shifting" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Geometry / shifting
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaling-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Scaling / normalization
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#masking-and-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Masking and filtering
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-dict-manipulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Key / dict manipulation
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#type-device" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Type / device
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#octree-optional-requires-ocnn" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Octree (optional, requires <code>ocnn</code>)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+
+  
+                  
+  
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/edit/main/docs/transforms/overview.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/raw/main/docs/transforms/overview.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="transforms">Transforms<a class="headerlink" href="#transforms" title="Anchor link to this section">&para;</a></h1>
+<p>A transform takes one sample dict and returns a new one. <code>Compose</code> chains them, and a dataset applies the chain to every sample it loads. The API follows <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 226 226"><path d="M188.30 81.81L37.70 81.81 M188.30 81.81L81.81 188.30 M144.19 37.70L37.70 144.19 M144.19 37.70L144.19 188.30 M81.81 37.70L81.81 188.30 M81.81 37.70L188.30 144.19 M37.70 81.81L144.19 188.30 M37.70 144.19L188.30 144.19 M188.30 81.81L37.70 144.19 M144.19 37.70L81.81 188.30 M81.81 37.70L144.19 188.30 M37.70 81.81L188.30 144.19" fill="none" stroke="#98d9d5" stroke-width="2.4"/><path d="M188.30 81.81L81.81 37.70 M188.30 81.81L144.19 188.30 M144.19 37.70L37.70 81.81 M144.19 37.70L188.30 144.19 M81.81 37.70L37.70 144.19 M37.70 81.81L81.81 188.30 M37.70 144.19L144.19 188.30 M81.81 188.30L188.30 144.19" fill="none" stroke="#5dc1b7" stroke-width="2.9"/><g fill="#5dc1b7"><circle cx="188.30" cy="81.81" r="5.0"/><circle cx="144.19" cy="37.70" r="5.0"/><circle cx="81.81" cy="37.70" r="5.0"/><circle cx="37.70" cy="81.81" r="5.0"/><circle cx="37.70" cy="144.19" r="5.0"/><circle cx="81.81" cy="188.30" r="5.0"/><circle cx="144.19" cy="188.30" r="5.0"/><circle cx="188.30" cy="144.19" r="5.0"/></g><path d="M215.25 70.65 L155.35 10.75 L70.65 10.75 L10.75 70.65 L10.75 155.35 L70.65 215.25 L155.35 215.25 L215.25 155.35 Z" fill="none" stroke="#5dc1b7" stroke-width="21.5" stroke-linejoin="round"/></svg></span> MONAI's dict transforms and <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
+</span> PyTorch Geometric's <code>Data</code> conventions.</p>
+<div class="admonition question">
+<p class="admonition-title">Why a dict-based API?</p>
+<p>The dict-based API keeps composition flexible and makes the inputs and outputs of each transform explicit.</p>
+<p><span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
+</span> PyTorch Geometric transforms, in contrast, take a <code>Data</code> object. That is limiting once you want to carry extra keys such as intensity or color, because every transform then has to handle every attribute the object holds, defaulting the ones you did not provide to <code>None</code>.</p>
+<p>Transforms are designed to manipulate specific keys of the input data, which makes the operations explicit and easier to compose.</p>
+</div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2048</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">color</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2048</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">T</span><span class="o">.</span><span class="n">Rescale</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;centroid&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">T</span><span class="o">.</span><span class="n">Shift</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;bbox&quot;</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">T</span><span class="o">.</span><span class="n">RandomSample</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">),</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">1024</span><span class="p">),</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">])</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">scene</span> <span class="o">=</span> <span class="n">pipeline</span><span class="p">({</span><span class="s2">&quot;pos&quot;</span><span class="p">:</span> <span class="n">pos</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="n">color</span><span class="p">})</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Atomic operations</p>
+<p>Each transform is designed as an atomic operation to make it easier to compose and reuse.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Pretrained checkpoints</p>
+<p>A pretrained checkpoint carries its own preprocessing in <code>info["transform"]</code>, for inference on its dataset.</p>
+</div>
+<h2 id="sampling-and-downsampling">Sampling and downsampling<a class="headerlink" href="#sampling-and-downsampling" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/random_sample.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.RandomSample"><code>RandomSample</code></a></td>
+<td>Uniform random subsample with shared indices across keys</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/farthest_point_sample.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.FarthestPointSample"><code>FarthestPointSample</code></a></td>
+<td>FPS subsample (well-distributed)</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/random_sample_face_vertices.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.RandomSampleFaceVertices"><code>RandomSampleFaceVertices</code></a></td>
+<td>Sample points on a mesh's faces</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/voxelize.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Voxelize"><code>Voxelize</code></a></td>
+<td>Voxel-grid downsample with per-voxel reduction</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sampling-keys">Sampling keys<a class="headerlink" href="#sampling-keys" title="Anchor link to this section">&para;</a></h3>
+<p>Any transform that changes the number of points keeps <code>pos</code>, <code>x</code>, <code>segment</code> and <code>batch</code> aligned at the new resolution and records how to get back:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Shape</th>
+<th>Written by</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>origin_pos</code></td>
+<td><span class="arithmatex">\((N_\text{origin}, 3)\)</span></td>
+<td>a <code>CopyItems</code> step in every registered pipeline</td>
+<td>the source cloud, in the same frame as <code>pos</code></td>
+</tr>
+<tr>
+<td><code>origin_segment</code></td>
+<td><span class="arithmatex">\((N_\text{origin},)\)</span></td>
+<td>the same step, when the pipeline carries labels</td>
+<td>the source labels, in the model's label space</td>
+</tr>
+<tr>
+<td><code>inverse</code></td>
+<td><span class="arithmatex">\((N_\text{origin},)\)</span></td>
+<td><code>Voxelize</code>, <code>DivisiblePad</code> through <code>dst_inverse_key</code></td>
+<td>source row to predictor row: <code>preds[inverse]</code> scores at full resolution</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td><span class="arithmatex">\((N,)\)</span></td>
+<td>the selection samplers (<code>FarthestPointSample</code>, <code>RandomSample</code>, <code>SphereCrop</code>, ...) through <code>dst_index_key</code></td>
+<td>predictor row to source row: <code>origin_pos[index]</code> is <code>pos</code></td>
+</tr>
+</tbody>
+</table>
+<p>Chained steps compose these maps, so they always address the outermost source. Registered pipelines set the keys; set them on your own samplers to get the maps.</p>
+<h2 id="geometry-shifting">Geometry / shifting<a class="headerlink" href="#geometry-shifting" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/shift.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Shift"><code>Shift</code></a></td>
+<td>Subtract a computed offset (<code>bbox</code>, <code>centroid</code>, or <code>min</code>)</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/align_axis.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.AlignAxis"><code>AlignAxis</code></a></td>
+<td>Shift one axis so its min is zero</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/axis_min_offset.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.AxisMinOffset"><code>AxisMinOffset</code></a></td>
+<td>Per-point offset from axis minimum (height feature)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="scaling-normalization">Scaling / normalization<a class="headerlink" href="#scaling-normalization" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/rescale.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Rescale"><code>Rescale</code></a></td>
+<td>Center and rescale to unit extent (<code>centroid</code> / <code>bbox</code> / <code>centroid_extent</code> / <code>min_sphere</code>)</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/normalize.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Normalize"><code>Normalize</code></a></td>
+<td>Per-channel <span class="arithmatex">\((x - \mu) / \sigma\)</span> standardization</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/scale.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Scale"><code>Scale</code></a></td>
+<td>Multiply by a scalar</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/divide.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Divide"><code>Divide</code></a></td>
+<td>Divide by a scalar</td>
+</tr>
+</tbody>
+</table>
+<h2 id="masking-and-filtering">Masking and filtering<a class="headerlink" href="#masking-and-filtering" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Geometry</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/box_mask.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.BoxMask"><code>BoxMask</code></a></td>
+<td>Axis-aligned bounding box (AABB)</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/cube_mask.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.CubeMask"><code>CubeMask</code></a></td>
+<td>L∞ / Chebyshev ball (hypercube)</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/sphere_mask.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.SphereMask"><code>SphereMask</code></a></td>
+<td>L2 / Euclidean ball</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/apply_mask.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.ApplyMask"><code>ApplyMask</code></a></td>
+<td>Apply any precomputed mask to one or more keys</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/remove_near_origin.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.RemoveNearOrigin"><code>RemoveNearOrigin</code></a></td>
+<td>One-shot L2 filter around origin</td>
+</tr>
+</tbody>
+</table>
+<h2 id="key-dict-manipulation">Key / dict manipulation<a class="headerlink" href="#key-dict-manipulation" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/cat.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Cat"><code>Cat</code></a></td>
+<td>Concatenate multiple keys' tensors along a dim</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/copy_items.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.CopyItems"><code>CopyItems</code></a></td>
+<td>Clone a key's value under a new name</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/rename_items.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.RenameItems"><code>RenameItems</code></a></td>
+<td>Move a key to a new name</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/keep_items.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.KeepItems"><code>KeepItems</code></a></td>
+<td>Drop everything not in a whitelist</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/set_value.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.SetValue"><code>SetValue</code></a></td>
+<td>Set keys to literal values</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/subtract_key.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.SubtractKey"><code>SubtractKey</code></a></td>
+<td><code>data[k] - data[sub_k]</code> element-wise</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/divide_key.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.DivideKey"><code>DivideKey</code></a></td>
+<td><code>data[k] / data[div_k]</code> element-wise</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/reduce.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Reduce"><code>Reduce</code></a></td>
+<td>Reduce a tensor along a dim (<code>min</code>/<code>max</code>/<code>mean</code>/<code>sum</code>)</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/one_hot.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.OneHot"><code>OneHot</code></a></td>
+<td>One-hot encode integer labels</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/relabel.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Relabel"><code>Relabel</code></a></td>
+<td>Remap integer labels via a lookup table</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/abs.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.Abs"><code>Abs</code></a></td>
+<td>Element-wise absolute value</td>
+</tr>
+</tbody>
+</table>
+<h2 id="type-device">Type / device<a class="headerlink" href="#type-device" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/to_float.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.ToFloat"><code>ToFloat</code></a></td>
+<td>Cast tensors to float32</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/to_tensor.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.ToTensor"><code>ToTensor</code></a></td>
+<td>Convert lists / arrays to tensors</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/to_device.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.ToDevice"><code>ToDevice</code></a></td>
+<td>Move to a device</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/ones_like.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.OnesLike"><code>OnesLike</code></a></td>
+<td>Add a key whose tensor is <code>torch.ones_like(...)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="octree-optional-requires-ocnn">Octree (optional, requires <code>ocnn</code>)<a class="headerlink" href="#octree-optional-requires-ocnn" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Transform</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="../../assets/transforms/thumbs/build_octree.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.BuildOctree"><code>BuildOctree</code></a></td>
+<td>Build an octree from positions</td>
+</tr>
+<tr>
+<td><img src="../../assets/transforms/thumbs/octree_features.png" width="220"></td>
+<td><a href="../../api/transforms/transforms/#torch_pointcloud.transforms.transforms.OctreeFeatures"><code>OctreeFeatures</code></a></td>
+<td>Extract per-node features from an octree</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../datasets/detection/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Detection">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Detection
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../inferers/overview/" class="md-footer__link md-footer__link--next" aria-label="Next: Inferers">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Inferers
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 Arthur Dujardin
+
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M216.5 362.5c-66-8-112.5-55.5-112.5-117 0-25 9-52 24-70-6.5-16.5-5.5-51.5 2-66 20-2.5 47 8 63 22.5 19-6 39-9 63.5-9s44.5 3 62.5 8.5c15.5-14 43-24.5 63-22 7 13.5 8 48.5 1.5 65.5 16 19 24.5 44.5 24.5 70.5 0 61.5-46.5 108-113.5 116.5 17 11 28.5 35 28.5 62.5v52c0 15 12.5 23.5 27.5 17.5C441 459.5 512 369 512 257 512 115.5 397 0 255.5 0S0 115.5 0 257c0 111 70.5 203 165.5 237.5 13.5 5 26.5-4 26.5-17.5v-40c-7 3-16 5-24 5-33 0-52.5-18-66.5-51.5-5.5-13.5-11.5-21.5-23-23-6-.5-8-3-8-6 0-6 10-10.5 20-10.5 14.5 0 27 9 40 27.5 10 14.5 20.5 21 33 21s20.5-4.5 32-16c8.5-8.5 15-16 21-21"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["announce.dismiss","content.action.edit","content.action.view","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.instant","navigation.instant.prefetch","navigation.instant.preview","navigation.instant.progress","navigation.path","navigation.prune","navigation.sections","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.69c251d7.min.js"></script>
+      
+        <script src="../../overrides/javascripts/extra.js"></script>
+      
+        <script src="../../overrides/javascripts/install-selector.js"></script>
+      
+        <script src="../../overrides/javascripts/links.js"></script>
+      
+        <script src="../../overrides/javascripts/tablesort.js"></script>
+      
+        <script src="../../overrides/javascripts/table-wordbreak.js"></script>
+      
+        <script src="../../overrides/javascripts/katex.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"></script>
+      
+    
+  </body>
+</html>
