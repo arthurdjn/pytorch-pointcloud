@@ -5170,7 +5170,7 @@ requires-dist = [
     { name = "plyfile", specifier = ">=1.1" },
     { name = "safetensors", specifier = ">=0.7.0" },
     { name = "scipy", specifier = ">=1.10.0" },
-    { name = "torch", specifier = ">=2.5.0,<3.0.0" },
+    { name = "torch", specifier = ">=2.8.0,<3.0.0" },
     { name = "torch-geometric", specifier = ">=2.6.1" },
     { name = "torchmetrics", marker = "extra == 'lightning'", specifier = ">=1.0.0" },
     { name = "tqdm", specifier = ">=4.67.1" },

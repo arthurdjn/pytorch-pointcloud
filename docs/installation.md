@@ -33,6 +33,7 @@ updates accordingly. Options without a matching wheel are grayed out. `flash-att
     <button data-dim="pm" data-val="conda">conda</button>
   </span></div>
   <div class="isel-row"><span class="isel-label">PyTorch</span><span class="isel-opts">
+    <button data-dim="torch" data-val="2.8">2.8</button>
     <button data-dim="torch" data-val="2.9">2.9</button>
     <button data-dim="torch" data-val="2.10" class="isel-active">2.10</button>
     <button data-dim="torch" data-val="2.11">2.11</button>
@@ -43,6 +44,7 @@ updates accordingly. Options without a matching wheel are grayed out. `flash-att
     <button data-dim="cuda" data-val="cpu">CPU</button>
     <button data-dim="cuda" data-val="cu126">CUDA 12.6</button>
     <button data-dim="cuda" data-val="cu128" class="isel-active">CUDA 12.8</button>
+    <button data-dim="cuda" data-val="cu129">CUDA 12.9</button>
     <button data-dim="cuda" data-val="cu130">CUDA 13.0</button>
     <button data-dim="cuda" data-val="cu132">CUDA 13.2</button>
   </span></div>
@@ -58,7 +60,14 @@ updates accordingly. Options without a matching wheel are grayed out. `flash-att
   </span></div>
   <div class="isel-output">
     <button class="isel-copy" id="isel-copy" title="Copy to clipboard" aria-label="Copy to clipboard"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1Z"/></svg></button>
-    <pre><code id="isel-command"></code></pre>
+    <pre><code id="isel-command"># torch-pointcloud + torch 2.10.0 + CUDA 12.8
+uv pip install torch-pointcloud
+uv pip install torch==2.10.0 \
+  --index-url https://download.pytorch.org/whl/cu128
+# PyG extensions (torch-scatter, torch-cluster, ...)
+uv pip install \
+  pyg-lib torch-scatter torch-sparse torch-cluster \
+  -f https://data.pyg.org/whl/torch-2.10.0+cu128.html</code></pre>
   </div>
 </div>
 
@@ -99,7 +108,8 @@ make serve  # Serve the documentation locally
 ## Compatibility
 
 - **Python**: 3.10+
-- **PyTorch**: the library requires `torch>=2.5`. The tested combination is `torch==2.10.0` with CUDA 12.8
-  wheels; the selector above covers `2.9` to `2.13` across CPU and CUDA 12.6 to 13.2.
+- **PyTorch**: `torch>=2.8`. CI runs the test suite on the lowest supported version (`torch==2.8.0`). The benchmark
+  results use `torch==2.10.0` with CUDA 12.8.
 - **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) has deprecated `torch-cluster` in favor of `pyg-lib`.
+  From `torch-geometric>=2.8`, sampling and neighbor search need `pyg-lib>=0.6`, which is built for `torch>=2.8` only.
 - **CUDA**: optional for the point-based families (PointNet, PointNet++, DGCNN, PointNeXt, PointMLP, PointConv, PointCNN, RandLA-Net, and similar), which run inference and training on CPU. The sparse-voxel and flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, and the voxel-based detectors) require a CUDA device and their optional dependencies (`spconv`, `torchsparse`, `ocnn`, `flash-attn`).

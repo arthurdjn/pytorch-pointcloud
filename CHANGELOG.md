@@ -7,6 +7,9 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Added performances of object detection models on nuScenes.
+- Updated the minimum `torch` version to 2.8.
+- Updated the CI to test on `torch` 2.8 and to run on pull requests.
+- Added `torch` 2.8 to the install selector.
 
 ## 0.0.4 (2026-09-20)
 

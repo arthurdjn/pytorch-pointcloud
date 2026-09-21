@@ -212,7 +212,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("torchsparse is not installed")
     if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
-    if model_name.startswith(("voxelnext", "voxel-mamba")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("second", "voxelnext", "voxel-mamba")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")

@@ -1,6 +1,10 @@
 name: Tests
 
-on: push
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,6 +41,7 @@ jobs:
 
   # Full tests with all extras (except non-regression tests with pretrained models)
   # Here most of optional imports are installed depending on the runner's capabilities.
+  # Runs on the lowest supported torch.
   full:
     runs-on: ubuntu-latest
     strategy:
@@ -53,15 +58,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install package + extras (torch==2.10.0)
+      - name: Install package + extras
         run: uv sync --extra lightning --frozen
 
-      - name: Install torch deps
+      - name: Install torch deps (torch==2.8.0)
         run: |
           uv pip install --no-config --torch-backend=cpu \
-            torch==2.10.0+cpu torchvision==0.25.0 ocnn==2.3.3 \
+            torch==2.8.0+cpu torchvision==0.23.0 ocnn==2.3.3 \
             pyg-lib torch-scatter torch-sparse torch-cluster spconv \
-            -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
+            -f https://data.pyg.org/whl/torch-2.8.0+cpu.html
 
       - name: Test with python ${{ matrix.python-version }}
         run: uv run --no-sync pytest
