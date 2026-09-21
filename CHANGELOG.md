@@ -11,6 +11,10 @@ All notable changes to this project are documented in this file. The format is b
 - Updated the CI to test on `torch` 2.8 and to run on pull requests.
 - Added `torch` 2.8 to the install selector.
 - Updated DGCNN, T-Net, PointNeXt and Point Transformer to use the library's `knn`, `knn_graph` and `radius`.
+- Added `CONTRIBUTING.md` and issue templates.
+- Added the dependencies and their licenses to `THIRD_PARTY_NOTICES.md`.
+- Updated the README with a warning on the required PyG kernels.
+- Added social cards to the documentation.
 
 ## 0.0.4 (2026-09-20)
 

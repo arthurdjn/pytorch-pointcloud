@@ -81,7 +81,7 @@ Install the library with `pip` (or `uv`):
 pip install torch-pointcloud
 ```
 
-> [!IMPORTANT]
+> [!WARNING]
 > The CUDA extensions (PyG kernels, spconv, flash-attention, Mamba, ocnn, torchsparse) are optional and only needed by
 > the architectures that use them.
 > See the [Installation](https://pytorch-pointcloud.org/installation/) page for the exact install command.
@@ -112,10 +112,12 @@ with torch.no_grad():
 Every checkpoint ships the transform that turns a raw point cloud into what the network expects:
 
 ```python
+import torch_pointcloud as tp
+
 # Requires torch-scatter, torch-cluster, spconv
 model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
-info["weights"]["metrics"]  # {"mIoU": 77.40}
+info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}
 
 tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
@@ -127,9 +129,15 @@ See the [examples](examples/) directory for benchmarks and training recipes.
 
 ## Documentation
 
-The [documentation](https://pytorch-pointcloud.org/) covers [installation](https://pytorch-pointcloud.org/installation/), a [get-started](https://pytorch-pointcloud.org/get-started/) guide,
-the [model zoo](https://pytorch-pointcloud.org/models/overview/), [datasets](https://pytorch-pointcloud.org/datasets/overview/), [transforms](https://pytorch-pointcloud.org/transforms/overview/),
+The [documentation](https://pytorch-pointcloud.org/) covers [installation](https://pytorch-pointcloud.org/latest/installation/), a [get-started](https://pytorch-pointcloud.org/latest/get-started/) guide,
+the [model zoo](https://pytorch-pointcloud.org/latest/models/overview/), [datasets](https://pytorch-pointcloud.org/latest/datasets/overview/), [transforms](https://pytorch-pointcloud.org/latest/transforms/overview/),
 tutorials and the full API reference.
+
+<br>
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and the pull request checks.
 
 <br>
 
@@ -153,3 +161,6 @@ If you find this project useful, please consider citing:
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
+
+Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to
+non-commercial use. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

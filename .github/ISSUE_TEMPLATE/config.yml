@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://pytorch-pointcloud.org/
+    about: Installation, tutorials and the API reference

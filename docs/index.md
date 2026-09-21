@@ -116,3 +116,5 @@ print(f"Prediction: {logits.argmax().item()}")
 ## License
 
 Apache 2.0. See [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
+
+Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to non-commercial use. See [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).

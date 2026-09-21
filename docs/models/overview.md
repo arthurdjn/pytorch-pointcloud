@@ -21,6 +21,15 @@ models = tp.list_models(task="classification")
 # or task="segmentation", "detection", ...
 ```
 
+Weights are downloaded from the Hugging Face Hub on first use and cached under `~/.cache/torch-pointcloud/models`.
+Set `TORCH_POINTCLOUD_MODELS_DIR` (or `TORCH_POINTCLOUD_CACHE_DIR` for the whole cache) to store them elsewhere.
+
+!!! warning "Licenses"
+
+    Each checkpoint keeps the license of its source, listed in the tables of the task pages, and a few are restricted to
+    non-commercial use. The datasets they were trained on carry their own terms. See
+    [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
+
 ![Five pretrained checkpoints on two committed sample clouds: object classification, part segmentation, scene segmentation, 3D detection, and LiDAR segmentation](../assets/tasks/hero.png)
 
 ## Tasks
