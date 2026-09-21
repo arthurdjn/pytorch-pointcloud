@@ -3,16 +3,18 @@ function initInstallSelector() {
   if (!root || root.dataset.iselInit) return;
   root.dataset.iselInit = "1";
   var TORCH = {
+    "2.8": { v: "2.8.0", cuda: ["cpu", "cu126", "cu128", "cu129"] },
     "2.9": { v: "2.9.1", cuda: ["cpu", "cu126", "cu128", "cu130"] },
     "2.10": { v: "2.10.0", cuda: ["cpu", "cu126", "cu128", "cu130"] },
     "2.11": { v: "2.11.0", cuda: ["cpu", "cu126", "cu128", "cu130"] },
     "2.12": { v: "2.12.1", cuda: ["cpu", "cu126", "cu130", "cu132"] },
     "2.13": { v: "2.13.0", cuda: ["cpu", "cu126", "cu130", "cu132"] }
   };
-  var CUDA_DOT = { cu126: "12.6", cu128: "12.8", cu130: "13.0", cu132: "13.2" };
+  var CUDA_DOT = { cu126: "12.6", cu128: "12.8", cu129: "12.9", cu130: "13.0", cu132: "13.2" };
   // The PyG wheel index lags new torch releases, one kernel at a time. torch-spline-conv is
   // omitted throughout: it stops at torch 2.10 and the library never imports it.
   var PYG = {
+    "2.8": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
     "2.9": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
     "2.10": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
     "2.11": ["pyg-lib", "torch-scatter", "torch-sparse", "torch-cluster"],
@@ -76,7 +78,7 @@ function initInstallSelector() {
         lines.push("# spconv on CPU is partial; most kernels need CUDA");
         lines.push(pipish + " spconv");
       } else {
-        if (tag === "cu128") lines.push("# no cu128 build; the cu126 wheel runs on the CUDA 12.8 runtime");
+        if (tag !== "cu126") lines.push("# no " + tag + " build; the cu126 wheel runs on the CUDA " + CUDA_DOT[tag] + " runtime");
         lines.push(pipish + " spconv-cu126");
       }
     }
