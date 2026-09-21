@@ -4,7 +4,7 @@
   <a href="https://pytorch-pointcloud.org/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
 
 [![python](https://img.shields.io/pypi/pyversions/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
-[![pytorch](https://img.shields.io/badge/pytorch-2.5+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)  
+[![pytorch](https://img.shields.io/badge/pytorch-2.8+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)  
 [![tests](https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white)](https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml)
 [![pypi](https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
 [![license](https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C)](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE)

@@ -100,8 +100,8 @@ GPU_ARGS:=--gpus all
 MAKE:=make
 
 DOCKER_MATRIX:=\
-	11.8.0:3.10:2.6.0:pyg-lib,spconv,lightning \
-	12.4.1:3.11:2.6.0:pyg-lib,spconv,ocnn,lightning \
+	12.6.3:3.10:2.8.0:pyg-lib,spconv,lightning \
+	12.8.1:3.11:2.10.0:pyg-lib,ocnn,lightning \
 	12.6.3:3.12:2.8.0:pyg-lib,spconv,ocnn,lightning,torchsparse,mamba,dwconv \
 	12.8.1:3.13:2.8.0:pyg-lib,lightning
 
