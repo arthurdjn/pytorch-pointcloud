@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP, DynamicEdgeConv
+from torch_geometric.nn import MLP, EdgeConv
 
+from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import AggrType
@@ -127,11 +128,11 @@ class DynamicTNet(nn.Module):
     """Dynamic graph-based Transformation Network as used in the DGCNN part segmentation model.
 
     Unlike `TNet` which applies a point-wise MLP, this variant first builds a
-    kNN graph and processes edge features with a `DynamicEdgeConv`, matching the
+    kNN graph and processes edge features with an `EdgeConv`, matching the
     `Transform_Net` from :github: [antao97/dgcnn.pytorch](https://github.com/antao97/dgcnn.pytorch).
 
     Architecture:
-        1. `edge_conv`: `DynamicEdgeConv` over kNN graph features `[2*k, ...edge_channels]`
+        1. `edge_conv`: `EdgeConv` over kNN graph features `[2*k, ...edge_channels]`
         2. `local_nn`:  Point-wise MLP `[edge_channels[-1], ...local_channels]`, then scatter max
         3. `global_nn`: Global MLP `[local_channels[-1], ...global_channels]`
         4. `transform`: Linear projection to `k * k` matrix (initialized as identity)
@@ -181,6 +182,7 @@ class DynamicTNet(nn.Module):
         )
 
         self.k = k
+        self.num_neighbors = num_neighbors
         self.aggr = aggr
 
         edge_channels = [2 * k] + ensure_list(edge_channels)
@@ -188,7 +190,7 @@ class DynamicTNet(nn.Module):
         global_channels = [local_channels[-1]] + ensure_list(global_channels)
 
         edge_nn = MLP(edge_channels, **kwargs)
-        self.edge_conv = DynamicEdgeConv(edge_nn, k=num_neighbors, aggr=aggr)
+        self.edge_conv = EdgeConv(edge_nn, aggr=aggr)
         self.local_nn = MLP(local_channels, **kwargs)
         self.global_nn = MLP(global_channels, **kwargs)
         self.transform = nn.Linear(global_channels[-1], k * k)
@@ -208,7 +210,8 @@ class DynamicTNet(nn.Module):
         Returns:
             Transformed features of shape $(N, k)$.
         """
-        xt = self.edge_conv(x, batch)
+        edge_index = knn(x, x, self.num_neighbors, batch_x=batch, batch_y=batch).flip([0])
+        xt = self.edge_conv(x, edge_index)
         xt = self.local_nn(xt)
         xt = scatter(xt, batch, dim=0, reduce=self.aggr)
         xt = self.global_nn(xt)

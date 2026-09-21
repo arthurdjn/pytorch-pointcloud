@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file. The format is b
 - Updated the minimum `torch` version to 2.8.
 - Updated the CI to test on `torch` 2.8 and to run on pull requests.
 - Added `torch` 2.8 to the install selector.
+- Updated DGCNN, T-Net, PointNeXt and Point Transformer to use the library's `knn`, `knn_graph` and `radius`.
 
 ## 0.0.4 (2026-09-20)
 

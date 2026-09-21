@@ -1,6 +1,6 @@
 import pytest
 import torch
-from torch_geometric.nn import MLP, knn_graph
+from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.pointnet2_blocks import (
     GlobalSAModule,
@@ -9,6 +9,7 @@ from torch_pointcloud.layers.pointnet2_blocks import (
     PointNet2GlobalSetAbstraction,
     PointNet2SetAbstraction,
 )
+from torch_pointcloud.utils.cluster import knn_graph
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
