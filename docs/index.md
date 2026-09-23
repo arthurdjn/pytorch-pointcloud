@@ -4,6 +4,8 @@
 
 A PyTorch library for deep learning on point clouds. Models for classification, segmentation, and detection, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
 
+:pytorch-pointcloud-mini: `torch-pointcloud` is an independent project built for :pytorch: [PyTorch](https://pytorch.org). It is not affiliated with or endorsed by the PyTorch project or the PyTorch Foundation.
+
 <div class="tp-tasks" markdown>
 
 <figure markdown="1">
@@ -117,4 +119,4 @@ print(f"Prediction: {logits.argmax().item()}")
 
 Apache 2.0. See [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
 
-Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to non-commercial use. See [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
+Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to non-commercial use. Most were trained on research-only datasets, whose terms also apply to the weights. See [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).

@@ -15,7 +15,7 @@ site_name = "PyTorch PointCloud"
 # The site_description is included in the HTML head and should contain a
 # meaningful description of the site content for use by search engines.
 # Read more: https://zensical.org/docs/setup/basics/#site_description
-site_description = "PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards."
+site_description = "A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project."
 
 # The site_author attribute. This is used in the HTML head element.
 # Read more: https://zensical.org/docs/setup/basics/#site_author
@@ -336,18 +336,6 @@ features = [
     # https://zensical.org/docs/setup/header/#announcement-bar
     "announce.dismiss",
 
-    # If you have a repository configured and turn on this feature, Zensical
-    # will generate an edit button for the page. This works for common
-    # repository hosting services.
-    # https://zensical.org/docs/setup/repository/#code-actions
-    "content.action.edit",
-
-    # If you have a repository configured and turn on this feature, Zensical
-    # will generate a button that allows the user to view the Markdown
-    # code for the current page.
-    # https://zensical.org/docs/setup/repository/#code-actions
-    "content.action.view",
-
     # Code annotations allow you to add an icon with a tooltip to your
     # code blocks to provide explanations at crucial points.
     # https://zensical.org/docs/authoring/code-blocks/#code-annotations
@@ -595,6 +583,10 @@ summary = true
 # ----------------------------------------------------------------------------
 [project.extra.version]
 provider = "mike"
+
+# Canonical URLs point at the `latest` alias, so shared links outlive a release.
+[project.plugins.mike]
+canonical_version = "latest"
 
 # ----------------------------------------------------------------------------
 # Exclude files from the build

@@ -26,19 +26,24 @@
   {% if page and page.meta and page.meta.description %}
     {% set card_description = page.meta.description %}
   {% endif %}
-  {% set card_image = "https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png" %}
+  {% set card_image = "https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png" %}
+  {% set card_alt = "PyTorch PointCloud: deep learning on point clouds with PyTorch" %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ config.site_name }}">
   <meta property="og:title" content="{{ card_title }}">
   <meta property="og:description" content="{{ card_description }}">
   <meta property="og:image" content="{{ card_image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{ card_alt }}">
   {% if page and page.canonical_url %}
     <meta property="og:url" content="{{ page.canonical_url }}">
   {% endif %}
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ card_title }}">
   <meta name="twitter:description" content="{{ card_description }}">
   <meta name="twitter:image" content="{{ card_image }}">
+  <meta name="twitter:image:alt" content="{{ card_alt }}">
 {% endblock %}
 <!-- end extrahead block -->
 

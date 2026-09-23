@@ -19,7 +19,7 @@ updates accordingly. Options without a matching wheel are grayed out. `flash-att
 | ------------- | --------------------------------------------------------------------- |
 | `pyg-lib`     | FPS, kNN, and scatter pooling (`torch-scatter`, `torch-cluster`, ...); needed by nearly every model |
 | `flash-attn`  | Point Transformer V3, Sonata, Concerto, Utonia                        |
-| `mamba`       | Point-Mamba, Voxel-Mamba, LION                                        |
+| `mamba`       | PointMamba, Voxel-Mamba, LION                                         |
 | `spconv`      | SpUNet, SPFormer-UNet, voxel-based detectors                          |
 | `ocnn`        | OctFormer (installed together with `dwconv`)                          |
 | `torchsparse` | SPVCNN                                                                |
@@ -61,9 +61,9 @@ updates accordingly. Options without a matching wheel are grayed out. `flash-att
   <div class="isel-output">
     <button class="isel-copy" id="isel-copy" title="Copy to clipboard" aria-label="Copy to clipboard"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1Z"/></svg></button>
     <pre><code id="isel-command"># torch-pointcloud + torch 2.10.0 + CUDA 12.8
-uv pip install torch-pointcloud
 uv pip install torch==2.10.0 \
   --index-url https://download.pytorch.org/whl/cu128
+uv pip install torch-pointcloud
 # PyG extensions (torch-scatter, torch-cluster, ...)
 uv pip install \
   pyg-lib torch-scatter torch-sparse torch-cluster \
@@ -71,7 +71,16 @@ uv pip install \
   </div>
 </div>
 
-The combination tested in CI and used for the benchmark results is `torch==2.10.0` with CUDA 12.8.
+The benchmark results were measured with `torch==2.10.0` and CUDA 12.8. CI runs the test suite on CPU, with
+`torch==2.8.0`, so the CUDA-only families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer
+and the voxel-based detectors) are only exercised on a GPU machine.
+
+!!! warning "Install torch before the package"
+
+    A bare `pip install torch-pointcloud` resolves the newest torch, and the :pyg: [PyG wheel index](https://data.pyg.org/whl/)
+    ships `torch-cluster` up to torch 2.11 and `torch-scatter` up to torch 2.12 only. Without those kernels no model
+    can run, so pin torch to a version listed above first, then install the package and the kernels.
+
 Other torch or CUDA versions and exact wheel pins are listed on the :astral: [Astral GPU indexes](https://wheels.astral.sh/)
 and the :pyg: [PyG wheel index](https://data.pyg.org/whl/).
 
@@ -108,8 +117,8 @@ make serve  # Serve the documentation locally
 ## Compatibility
 
 - **Python**: 3.10+
-- **PyTorch**: `torch>=2.8`. CI runs the test suite on the lowest supported version (`torch==2.8.0`). The benchmark
-  results use `torch==2.10.0` with CUDA 12.8.
+- **PyTorch**: `torch>=2.8`. CI runs the test suite on CPU with the lowest supported version (`torch==2.8.0`); the
+  benchmark results use `torch==2.10.0` with CUDA 12.8.
 - **PyG kernels**: the :pyg: [PyG wheel index](https://data.pyg.org/whl/) has deprecated `torch-cluster` in favor of `pyg-lib`.
   From `torch-geometric>=2.8`, sampling and neighbor search need `pyg-lib>=0.6`, which is built for `torch>=2.8` only.
 - **CUDA**: optional for the point-based families (PointNet, PointNet++, DGCNN, PointNeXt, PointMLP, PointConv, PointCNN, RandLA-Net, and similar), which run inference and training on CPU. The sparse-voxel and flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, and the voxel-based detectors) require a CUDA device and their optional dependencies (`spconv`, `torchsparse`, `ocnn`, `flash-attn`).
