@@ -400,7 +400,8 @@ def create_model(
         The model, or a `(model, info)` tuple when `return_info` is true.
 
     Raises:
-        ValueError: If `task` or `name` is unknown, or both `pretrained` and `checkpoint_path` are passed.
+        ValueError: If `task` or `name` is unknown, if both `pretrained` and `checkpoint_path` are passed, or if
+            `pretrained` is requested for an entry that registers no weights.
         TypeError: If the entry registers architecture hparams only and the data-dependent arguments
             (typically `in_channels` and `num_classes`) are not passed.
         FileNotFoundError: If the checkpoint file does not exist, or if the registered weights are absent from
@@ -456,14 +457,19 @@ def create_model(
     if pretrained:
         weights = model_info["weights"]
         if weights is None:
-            warnings.warn(f"No pretrained weights available for model {name!r}.", stacklevel=2)
-        else:
-            local_path = resolve_weights(name, weights["url"])
-            load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+            raise ValueError(
+                f"No pretrained weights are registered for model {name!r}. Pass `pretrained=False` for a random "
+                f"initialization, or use `list_models(task={task!r}, pretrained=True)` to list the models that ship "
+                "weights."
+            )
+
+        local_path = resolve_weights(name, weights["url"])
+        load_state_dict(model, read_state_dict(local_path), source=weights["url"])
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)
         if not path.exists():
             raise FileNotFoundError(f"Checkpoint not found at {path.as_posix()}.")
+
         load_state_dict(model, read_state_dict(path), source=path.as_posix())
 
     if return_info:
