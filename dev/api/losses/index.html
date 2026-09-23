@@ -3172,17 +3172,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.losses.DETR3DLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        DETR3DLoss
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#torch_pointcloud.losses.LovaszLoss" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -3209,6 +3198,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         SumLoss
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.losses.ThreeDETRLoss" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ThreeDETRLoss
       </span>
     </span>
   </a>
@@ -3345,14 +3345,14 @@
   
   
     <li class="md-nav__item">
-      <a href="./detr3d/" class="md-nav__link">
+      <a href="./threedetr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  detr3d
+  threedetr
 
     
   </span>
@@ -3849,14 +3849,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../models/detr3d/" class="md-nav__link">
+      <a href="../models/threedetr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  detr3d
+  threedetr
 
     
   </span>
@@ -5605,17 +5605,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.losses.DETR3DLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        DETR3DLoss
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#torch_pointcloud.losses.LovaszLoss" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -5642,6 +5631,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         SumLoss
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.losses.ThreeDETRLoss" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ThreeDETRLoss
       </span>
     </span>
   </a>
@@ -5802,13 +5802,6 @@
           </div>
         </li>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.losses.detr3d" href="detr3d/#torch_pointcloud.losses.detr3d">detr3d</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>3DETR set-prediction detection loss: Hungarian query-to-object matching with per-layer aux losses.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.losses.lovasz" href="lovasz/#torch_pointcloud.losses.lovasz">lovasz</a></code></b>
           –
           <div class="doc-md-description">
@@ -5827,6 +5820,13 @@
           –
           <div class="doc-md-description">
             <p>Composite loss: sum of several <code>(logits, target)</code> losses.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.losses.threedetr" href="threedetr/#torch_pointcloud.losses.threedetr">threedetr</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>3DETR set-prediction detection loss: Hungarian query-to-object matching with per-layer aux losses.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -5856,7 +5856,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L91-L300&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.AnchorLoss">AnchorLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L91-L300&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.AnchorLoss">AnchorLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Single-stage anchor detection loss (classification, box regression, direction).</p>
@@ -5866,7 +5866,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiHeadAnchorLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L303-L551&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.MultiHeadAnchorLoss">MultiHeadAnchorLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L303-L551&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.MultiHeadAnchorLoss">MultiHeadAnchorLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Separate-multihead anchor detection loss (per-head classification, sincos + velocity box regression).</p>
@@ -5876,7 +5876,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CenterLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L101-L255&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.CenterLoss">CenterLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L101-L255&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.CenterLoss">CenterLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Dense center-based detection loss (CenterHead / Voxel Mamba).</p>
@@ -5886,27 +5886,17 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseCenterLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L350-L494&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SparseCenterLoss">SparseCenterLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L350-L494&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SparseCenterLoss">SparseCenterLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Fully sparse center-based detection loss (VoxelNeXt).</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DETR3DLoss&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/detr3d.py#L72-L454&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.DETR3DLoss">DETR3DLoss</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>3DETR Hungarian set-prediction detection loss.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;LovaszLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L51-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.LovaszLoss">LovaszLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L51-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.LovaszLoss">LovaszLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Lovász-Softmax loss: a smooth surrogate for the mean-IoU objective.</p>
@@ -5916,7 +5906,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointRCNNLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/pointrcnn.py#L72-L343&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.PointRCNNLoss">PointRCNNLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/pointrcnn.py#L72-L343&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.PointRCNNLoss">PointRCNNLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Two-stage PointRCNN detection loss (per-point proposal head + ROI refinement head).</p>
@@ -5926,17 +5916,27 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SumLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/sum.py#L9-L25&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SumLoss">SumLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/sum.py#L9-L25&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SumLoss">SumLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Sum of several loss modules sharing a <code>(logits, target)</code> signature.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;ThreeDETRLoss&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L72-L454&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.ThreeDETRLoss">ThreeDETRLoss</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>3DETR Hungarian set-prediction detection loss.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;TransFusionLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/transfusion.py#L39-L295&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.TransFusionLoss">TransFusionLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/transfusion.py#L39-L295&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.TransFusionLoss">TransFusionLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Query-based TransFusion detection loss (dense heatmap, matched classification, box, IoU rescore).</p>
@@ -5946,7 +5946,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/votenet.py#L33-L264&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.VoteNetLoss">VoteNetLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/votenet.py#L33-L264&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.VoteNetLoss">VoteNetLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Multi-task VoteNet detection loss (vote, objectness, box, semantic).</p>
@@ -5963,7 +5963,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;chamfer_distance&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/chamfer.py#L8-L58&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer_distance">chamfer_distance</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/chamfer.py#L8-L58&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer_distance">chamfer_distance</a></code></b>
             –
             <div class="doc-md-description">
               <p>Symmetric Chamfer distance between two batched point sets.</p>
@@ -5993,7 +5993,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">AnchorLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L91-L300" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L91-L300" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.AnchorLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">AnchorLoss</span><span class="p">(</span>
@@ -6042,7 +6042,7 @@ axis-aligned anchors are matched to that class's ground-truth boxes
 (<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;assign_anchor_targets&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/layers/anchors.py#L107-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.assign_anchor_targets"><code>assign_anchor_targets</code></a>) using per-class
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/layers/anchors.py#L107-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.assign_anchor_targets"><code>assign_anchor_targets</code></a>) using per-class
 IoU thresholds, giving per-anchor class labels (<span class="arithmatex">\(-1\)</span> ignore, <span class="arithmatex">\(0\)</span> background, <span class="arithmatex">\(\ge 1\)</span> foreground) and
 residual box targets. Three terms are then summed:</p>
 <ul>
@@ -6057,7 +6057,7 @@ residual box targets. Three terms are then summed:</p>
 (<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;generate_anchors&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/layers/anchors.py#L46-L97&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.generate_anchors"><code>generate_anchors</code></a>); the loss holds no
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/layers/anchors.py#L46-L97&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.generate_anchors"><code>generate_anchors</code></a>); the loss holds no
 reference to the model.</p>
 
 
@@ -6266,7 +6266,7 @@ reference to the model.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L198-L234&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.AnchorLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L198-L234&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.AnchorLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the anchor detection loss and its components.</p>
@@ -6297,7 +6297,7 @@ reference to the model.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L198-L234" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L198-L234" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.AnchorLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
@@ -6365,7 +6365,7 @@ and <code>batch_box</code> <span class="arithmatex">\((K,)\)</span> per-box scen
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">MultiHeadAnchorLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L303-L551" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L303-L551" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.MultiHeadAnchorLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">MultiHeadAnchorLoss</span><span class="p">(</span>
@@ -6417,7 +6417,7 @@ class's axis-aligned anchors are matched to that class's ground-truth boxes
 (<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;assign_anchor_targets&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/layers/anchors.py#L107-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.assign_anchor_targets"><code>assign_anchor_targets</code></a>) using per-class IoU
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/layers/anchors.py#L107-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.assign_anchor_targets"><code>assign_anchor_targets</code></a>) using per-class IoU
 thresholds, giving per-anchor class labels (<span class="arithmatex">\(-1\)</span> ignore, <span class="arithmatex">\(0\)</span> background, <span class="arithmatex">\(\ge 1\)</span> foreground) and residual
 box targets. Two terms are summed:</p>
 <ul>
@@ -6438,7 +6438,7 @@ does so.</p>
 (<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;generate_anchors&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/layers/anchors.py#L46-L97&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.generate_anchors"><code>generate_anchors</code></a>), in the head's class-group
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/layers/anchors.py#L46-L97&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.generate_anchors"><code>generate_anchors</code></a>), in the head's class-group
 order; the loss holds no reference to the model.</p>
 
 
@@ -6637,7 +6637,7 @@ enumerate the classes <span class="arithmatex">\(0 \ldots C - 1\)</span> in asce
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L427-L457&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.MultiHeadAnchorLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L427-L457&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.MultiHeadAnchorLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the multihead anchor detection loss and its components.</p>
@@ -6668,14 +6668,14 @@ enumerate the classes <span class="arithmatex">\(0 \ldots C - 1\)</span> in asce
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/anchor.py#L427-L457" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/anchor.py#L427-L457" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.MultiHeadAnchorLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHeadMultiOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/layers/anchors.py#L323-L329&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/layers/anchors.py#L323-L329&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
 </code></pre></div>
 
@@ -6691,7 +6691,7 @@ enumerate the classes <span class="arithmatex">\(0 \ldots C - 1\)</span> in asce
               (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHeadMultiOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/layers/anchors.py#L323-L329&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></code>)
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/layers/anchors.py#L323-L329&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../layers/anchors/#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></code>)
           –
           <div class="doc-md-description">
             <p>The head's raw output: per-head <code>cls</code> <span class="arithmatex">\((B, A_g, C_g)\)</span> and <code>box</code> <span class="arithmatex">\((B, A_g, 10)\)</span> lists,
@@ -6749,7 +6749,7 @@ plus <code>multihead_label_mapping</code> (per-head 1-based global class indices
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">CenterLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L101-L255" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L101-L255" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.CenterLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CenterLoss</span><span class="p">(</span>
@@ -6905,7 +6905,7 @@ its matched box.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L163-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.CenterLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L163-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.CenterLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the dense center loss and its components.</p>
@@ -6936,7 +6936,7 @@ its matched box.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L163-L219" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L163-L219" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.CenterLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
@@ -7003,7 +7003,7 @@ its matched box.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SparseCenterLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L350-L494" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L350-L494" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.SparseCenterLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SparseCenterLoss</span><span class="p">(</span>
@@ -7147,7 +7147,7 @@ masked, code-weighted <span class="arithmatex">\(L_1\)</span>. Classes are split
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L411-L483&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SparseCenterLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L411-L483&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SparseCenterLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the sparse center loss summed over class groups.</p>
@@ -7178,7 +7178,7 @@ masked, code-weighted <span class="arithmatex">\(L_1\)</span>. Classes are split
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/center.py#L411-L483" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/center.py#L411-L483" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.SparseCenterLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
@@ -7242,326 +7242,11 @@ masked, code-weighted <span class="arithmatex">\(L_1\)</span>. Classes are split
 
 
 
-<h3 id="torch_pointcloud.losses.DETR3DLoss" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DETR3DLoss</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/detr3d.py#L72-L454" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.losses.DETR3DLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">DETR3DLoss</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_angle_bin</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">matcher_cls_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">matcher_giou_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">matcher_center_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">matcher_objectness_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">loss_giou_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">loss_sem_cls_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">loss_no_object_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">loss_angle_cls_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">loss_angle_reg_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">loss_center_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">loss_size_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
-
-
-
-        <p>3DETR Hungarian set-prediction detection loss.</p>
-<p>Reference: <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/2109.08141">Misra et al., 2021</a>.</p>
-<p>Object queries are matched to ground-truth boxes one-to-one per scene by a Hungarian assignment whose
-cost combines the negative predicted class probability, the negative generalized 3D IoU, the <span class="arithmatex">\(L_1\)</span>
-center distance (in the per-scene min-max normalized frame) and the negative objectness. Every decoder
-layer is supervised (the last layer plus the intermediate layers as auxiliary outputs), each with the
-same weighted objective, and the per-layer losses are summed:</p>
-<ul>
-<li><strong>Semantic classification:</strong> per-query weighted cross-entropy over the <span class="arithmatex">\(C + 1\)</span> class logits, with
-  unmatched queries assigned the background slot and that slot down-weighted by <code>loss_no_object_weight</code>.</li>
-<li><strong>Center:</strong> <span class="arithmatex">\(L_1\)</span> distance between matched query and box centers in the normalized frame.</li>
-<li><strong>Size:</strong> <span class="arithmatex">\(L_1\)</span> distance between matched query and box sizes in the normalized frame.</li>
-<li><strong>Angle:</strong> cross-entropy on the heading bin plus a Huber loss on the in-bin residual, over matches.</li>
-<li><strong>GIoU:</strong> <span class="arithmatex">\(1 - \text{gIoU}_{3D}\)</span> between matched query and box, over matches.</li>
-<li><strong>Cardinality:</strong> the <span class="arithmatex">\(L_1\)</span> error between the count of non-background queries and the object count
-  (logged only, never optimized).</li>
-</ul>
-<p>Ground truth is read packed from the batch (full-extent <span class="arithmatex">\((K, 7)\)</span> boxes with counter-clockwise
-headings, plus per-box classes) and densified per scene; the headings are negated into the model's
-native heading space before binning. The normalization uses the model's <code>point_cloud_dims</code>, so the
-loss holds no reference to the model.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>num_classes</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of semantic classes (the class head predicts one extra background slot).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_angle_bin</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Heading-angle bins (<span class="arithmatex">\(1\)</span> for axis-aligned ScanNet, <span class="arithmatex">\(12\)</span> for oriented SUN RGB-D).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>matcher_cls_cost</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Matcher weight on the negative class probability.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>matcher_giou_cost</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>2.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Matcher weight on the negative generalized 3D IoU.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>matcher_center_cost</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Matcher weight on the normalized-center <span class="arithmatex">\(L_1\)</span> distance.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>matcher_objectness_cost</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Matcher weight on the negative objectness.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_giou_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weight of the GIoU term in the total. The reference trains with <span class="arithmatex">\(0\)</span> (the GIoU
-drives only the matcher); note the rotated-box GIoU (scenes with non-zero headings) is
-computed without gradients, so a non-zero weight trains only axis-aligned scenes.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_sem_cls_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weight of the semantic-classification term in the total.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_no_object_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.2</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Cross-entropy weight of the background class.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_angle_cls_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weight of the heading-bin classification term in the total.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_angle_reg_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.5</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weight of the heading-residual regression term in the total.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_center_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>5.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weight of the center term in the total.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loss_size_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weight of the size term in the total.</p>
-          </div>
-        </li>
-    </ul>
-
-
-
-
-
-
-
-
-
-
-
-
-<p><span class="doc-section-title">Methods:</span></p>
-    <ul>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/detr3d.py#L152-L196&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.DETR3DLoss.forward">forward</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Compute the 3DETR set-prediction loss and its components.</p>
-            </div>
-          </li>
-    </ul>
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="torch_pointcloud.losses.DETR3DLoss.forward" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/detr3d.py#L152-L196" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.losses.DETR3DLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Compute the 3DETR set-prediction loss and its components.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>output</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>A training-mode <code>DETR3DTrainOutput</code>: <code>aux_outputs</code> (a per-decoder-layer list of head
-dicts with <code>sem_cls_logits</code>, <code>sem_cls_prob</code>, <code>objectness_prob</code>, <code>center_normalized</code>,
-<code>center_unnormalized</code>, <code>size_normalized</code>, <code>size_unnormalized</code>, <code>angle_logits</code>,
-<code>angle_residual_normalized</code>, <code>angle_continuous</code>) and <code>point_cloud_dims</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed ground truth: <code>DataKeys.BOX</code> <span class="arithmatex">\((K, 7)\)</span> full-extent boxes with counter-clockwise
-headings, <code>DataKeys.LABEL</code> <span class="arithmatex">\((K,)\)</span> per-box classes and <code>DataKeys.BATCH_BOX</code> <span class="arithmatex">\((K,)\)</span> per-box
-scene index.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
-          –
-          <div class="doc-md-description">
-            <p>A dict with the scalar <code>loss</code> (summed over decoder layers) and detached <code>loss_sem_cls</code>,</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
-          –
-          <div class="doc-md-description">
-            <p><code>loss_center</code>, <code>loss_size</code>, <code>loss_angle_cls</code>, <code>loss_angle_reg</code>, <code>loss_giou</code>, <code>loss_cardinality</code></p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
-          –
-          <div class="doc-md-description">
-            <p>(each summed over decoder layers).</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
 <h3 id="torch_pointcloud.losses.LovaszLoss" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">LovaszLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L51-L76" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L51-L76" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.LovaszLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">LovaszLoss</span><span class="p">(</span>
@@ -7633,7 +7318,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L73-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.LovaszLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L73-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.LovaszLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the loss from per-point logits <span class="arithmatex">\((N, C)\)</span> and labels <span class="arithmatex">\((N,)\)</span>.</p>
@@ -7664,7 +7349,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L73-L76" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L73-L76" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.LovaszLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -7695,7 +7380,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointRCNNLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/pointrcnn.py#L72-L343" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/pointrcnn.py#L72-L343" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.PointRCNNLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointRCNNLoss</span><span class="p">(</span>
@@ -7919,7 +7604,7 @@ box in its training-mode output. The loss holds no reference to the model.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/pointrcnn.py#L164-L205&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.PointRCNNLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/pointrcnn.py#L164-L205&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.PointRCNNLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the two-stage PointRCNN loss and its components.</p>
@@ -7950,7 +7635,7 @@ box in its training-mode output. The loss holds no reference to the model.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/pointrcnn.py#L164-L205" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/pointrcnn.py#L164-L205" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.PointRCNNLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
@@ -8028,7 +7713,7 @@ matched box) and <code>roi_ious</code> <span class="arithmatex">\((M,)\)</span>.
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SumLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/sum.py#L9-L25" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/sum.py#L9-L25" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.SumLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SumLoss</span><span class="p">(</span><span class="n">losses</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">])</span>
@@ -8074,7 +7759,7 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/sum.py#L23-L25&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SumLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/sum.py#L23-L25&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.SumLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the summed loss over all sub-losses.</p>
@@ -8105,7 +7790,7 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/sum.py#L23-L25" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/sum.py#L23-L25" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.SumLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -8132,11 +7817,326 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
 
 
 
+<h3 id="torch_pointcloud.losses.ThreeDETRLoss" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ThreeDETRLoss</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L72-L454" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.losses.ThreeDETRLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ThreeDETRLoss</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_angle_bin</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">matcher_cls_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">matcher_giou_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">matcher_center_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">matcher_objectness_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">loss_giou_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">loss_sem_cls_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">loss_no_object_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">loss_angle_cls_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">loss_angle_reg_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">loss_center_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">loss_size_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+        <p>3DETR Hungarian set-prediction detection loss.</p>
+<p>Reference: <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/2109.08141">Misra et al., 2021</a>.</p>
+<p>Object queries are matched to ground-truth boxes one-to-one per scene by a Hungarian assignment whose
+cost combines the negative predicted class probability, the negative generalized 3D IoU, the <span class="arithmatex">\(L_1\)</span>
+center distance (in the per-scene min-max normalized frame) and the negative objectness. Every decoder
+layer is supervised (the last layer plus the intermediate layers as auxiliary outputs), each with the
+same weighted objective, and the per-layer losses are summed:</p>
+<ul>
+<li><strong>Semantic classification:</strong> per-query weighted cross-entropy over the <span class="arithmatex">\(C + 1\)</span> class logits, with
+  unmatched queries assigned the background slot and that slot down-weighted by <code>loss_no_object_weight</code>.</li>
+<li><strong>Center:</strong> <span class="arithmatex">\(L_1\)</span> distance between matched query and box centers in the normalized frame.</li>
+<li><strong>Size:</strong> <span class="arithmatex">\(L_1\)</span> distance between matched query and box sizes in the normalized frame.</li>
+<li><strong>Angle:</strong> cross-entropy on the heading bin plus a Huber loss on the in-bin residual, over matches.</li>
+<li><strong>GIoU:</strong> <span class="arithmatex">\(1 - \text{gIoU}_{3D}\)</span> between matched query and box, over matches.</li>
+<li><strong>Cardinality:</strong> the <span class="arithmatex">\(L_1\)</span> error between the count of non-background queries and the object count
+  (logged only, never optimized).</li>
+</ul>
+<p>Ground truth is read packed from the batch (full-extent <span class="arithmatex">\((K, 7)\)</span> boxes with counter-clockwise
+headings, plus per-box classes) and densified per scene; the headings are negated into the model's
+native heading space before binning. The normalization uses the model's <code>point_cloud_dims</code>, so the
+loss holds no reference to the model.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>num_classes</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of semantic classes (the class head predicts one extra background slot).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_angle_bin</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Heading-angle bins (<span class="arithmatex">\(1\)</span> for axis-aligned ScanNet, <span class="arithmatex">\(12\)</span> for oriented SUN RGB-D).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>matcher_cls_cost</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Matcher weight on the negative class probability.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>matcher_giou_cost</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>2.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Matcher weight on the negative generalized 3D IoU.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>matcher_center_cost</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Matcher weight on the normalized-center <span class="arithmatex">\(L_1\)</span> distance.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>matcher_objectness_cost</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Matcher weight on the negative objectness.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_giou_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Weight of the GIoU term in the total. The reference trains with <span class="arithmatex">\(0\)</span> (the GIoU
+drives only the matcher); note the rotated-box GIoU (scenes with non-zero headings) is
+computed without gradients, so a non-zero weight trains only axis-aligned scenes.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_sem_cls_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Weight of the semantic-classification term in the total.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_no_object_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.2</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Cross-entropy weight of the background class.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_angle_cls_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.1</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Weight of the heading-bin classification term in the total.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_angle_reg_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.5</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Weight of the heading-residual regression term in the total.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_center_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>5.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Weight of the center term in the total.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>loss_size_weight</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Weight of the size term in the total.</p>
+          </div>
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+<p><span class="doc-section-title">Methods:</span></p>
+    <ul>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L152-L196&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.ThreeDETRLoss.forward">forward</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Compute the 3DETR set-prediction loss and its components.</p>
+            </div>
+          </li>
+    </ul>
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="torch_pointcloud.losses.ThreeDETRLoss.forward" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L152-L196" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.losses.ThreeDETRLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compute the 3DETR set-prediction loss and its components.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>output</code></b>
+              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>A training-mode <code>ThreeDETRTrainOutput</code>: <code>aux_outputs</code> (a per-decoder-layer list of head
+dicts with <code>sem_cls_logits</code>, <code>sem_cls_prob</code>, <code>objectness_prob</code>, <code>center_normalized</code>,
+<code>center_unnormalized</code>, <code>size_normalized</code>, <code>size_unnormalized</code>, <code>angle_logits</code>,
+<code>angle_residual_normalized</code>, <code>angle_continuous</code>) and <code>point_cloud_dims</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>batch</code></b>
+              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Packed ground truth: <code>DataKeys.BOX</code> <span class="arithmatex">\((K, 7)\)</span> full-extent boxes with counter-clockwise
+headings, <code>DataKeys.LABEL</code> <span class="arithmatex">\((K,)\)</span> per-box classes and <code>DataKeys.BATCH_BOX</code> <span class="arithmatex">\((K,)\)</span> per-box
+scene index.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
+          –
+          <div class="doc-md-description">
+            <p>A dict with the scalar <code>loss</code> (summed over decoder layers) and detached <code>loss_sem_cls</code>,</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
+          –
+          <div class="doc-md-description">
+            <p><code>loss_center</code>, <code>loss_size</code>, <code>loss_angle_cls</code>, <code>loss_angle_reg</code>, <code>loss_giou</code>, <code>loss_cardinality</code></p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
+          –
+          <div class="doc-md-description">
+            <p>(each summed over decoder layers).</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h3 id="torch_pointcloud.losses.TransFusionLoss" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TransFusionLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/transfusion.py#L39-L295" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/transfusion.py#L39-L295" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.TransFusionLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TransFusionLoss</span><span class="p">(</span>
@@ -8386,7 +8386,7 @@ default <code>code_weights</code> zeroes the last two (velocity) codes to leave 
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/transfusion.py#L135-L203&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.TransFusionLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/transfusion.py#L135-L203&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.TransFusionLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the TransFusion loss and its components.</p>
@@ -8417,7 +8417,7 @@ default <code>code_weights</code> zeroes the last two (velocity) codes to leave 
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/transfusion.py#L135-L203" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/transfusion.py#L135-L203" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.TransFusionLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
@@ -8493,7 +8493,7 @@ default <code>code_weights</code> zeroes the last two (velocity) codes to leave 
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/votenet.py#L33-L264" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/votenet.py#L33-L264" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.VoteNetLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoteNetLoss</span><span class="p">(</span>
@@ -8616,7 +8616,7 @@ each object seed's vote toward its object center (the closest of up to three can
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/votenet.py#L82-L124&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.VoteNetLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/votenet.py#L82-L124&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.VoteNetLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the VoteNet loss and its components.</p>
@@ -8647,7 +8647,7 @@ each object seed's vote toward its object center (the closest of up to three can
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/votenet.py#L82-L124" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/votenet.py#L82-L124" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.VoteNetLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
@@ -8734,7 +8734,7 @@ and re-binned internally into the model's native (negated) heading space.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">chamfer_distance</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/chamfer.py#L8-L58" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/chamfer.py#L8-L58" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.chamfer_distance" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">chamfer_distance</span><span class="p">(</span>

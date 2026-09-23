@@ -283,7 +283,7 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/chamfer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/losses/detr3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/threedetr/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/lovasz/</loc>
@@ -325,7 +325,7 @@
         <loc>https://pytorch-pointcloud.org/latest/api/models/concerto/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/models/detr3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/threedetr/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/dgcnn/</loc>

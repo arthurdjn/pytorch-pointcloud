@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/losses/lovasz/">
       
       
-        <link rel="prev" href="../detr3d/">
+        <link rel="prev" href="../threedetr/">
       
       
         <link rel="next" href="../pointrcnn/">
@@ -3179,14 +3179,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../detr3d/" class="md-nav__link">
+      <a href="../threedetr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  detr3d
+  threedetr
 
     
   </span>
@@ -3739,14 +3739,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/detr3d/" class="md-nav__link">
+      <a href="../../models/threedetr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  detr3d
+  threedetr
 
     
   </span>
@@ -5568,7 +5568,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;LovaszLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L51-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.lovasz.LovaszLoss">LovaszLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L51-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.lovasz.LovaszLoss">LovaszLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Lovász-Softmax loss: a smooth surrogate for the mean-IoU objective.</p>
@@ -5600,7 +5600,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">LovaszLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L51-L76" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L51-L76" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.lovasz.LovaszLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">LovaszLoss</span><span class="p">(</span>
@@ -5672,7 +5672,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L73-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.lovasz.LovaszLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L73-L76&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.lovasz.LovaszLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the loss from per-point logits <span class="arithmatex">\((N, C)\)</span> and labels <span class="arithmatex">\((N,)\)</span>.</p>
@@ -5703,7 +5703,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/losses/lovasz.py#L73-L76" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/lovasz.py#L73-L76" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.lovasz.LovaszLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -5777,7 +5777,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../detr3d/" class="md-footer__link md-footer__link--prev" aria-label="Previous: detr3d">
+          <a href="../threedetr/" class="md-footer__link md-footer__link--prev" aria-label="Previous: threedetr">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -5787,7 +5787,7 @@ cross-entropy. See <span class="twemoji"><svg id="logomark" xmlns="http://www.w3
                 Previous
               </span>
               <div class="md-ellipsis">
-                detr3d
+                threedetr
               </div>
             </div>
           </a>
