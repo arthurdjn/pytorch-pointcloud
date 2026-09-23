@@ -972,7 +972,7 @@ class PointMambaMAE(BaseModel):
     "point-mamba-base.modelnet40.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba-base.modelnet40.dingkang-liang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.modelnet40.dingkang-liang/resolve/08f6b9539f84c9e7660aa556fe98de68ee014939/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.64, "mAcc": 90.40},
         classes=MODELNET40_CLASSES,
@@ -1021,11 +1021,11 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
 
 
 @register_model(
-    "point-mamba-base.scanobjectnn.dingkang-liang",
+    "point-mamba-base.scanobjectnn-objbg.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn.dingkang-liang/resolve/main/model.safetensors",
-        dataset="scanobjectnn",
+        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-objbg.dingkang-liang/resolve/fc9ed92b71b2af6425df7c766f42e00a564f7362/model.safetensors",
+        dataset="scanobjectnn-objbg",
         metrics={"OA": 94.32, "mAcc": 92.66},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
@@ -1067,17 +1067,17 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
         head_channels=(256, 256),
     ),
 )
-def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification:
+def point_mamba_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMambaClassification:
     return PointMambaClassification(**kwargs)
 
 
 @register_model(
-    "point-mamba-base.scanobjectnn-nobg.dingkang-liang",
+    "point-mamba-base.scanobjectnn-objonly.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-nobg.dingkang-liang/resolve/main/model.safetensors",
-        dataset="scanobjectnn-nobg",
-        metrics={"OA": 83.30, "mAcc": 81.31},
+        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-objonly.dingkang-liang/resolve/ddf45a0c372c84566a0dd0f17137b88f95f2c82e/model.safetensors",
+        dataset="scanobjectnn-objonly",
+        metrics={"OA": 92.60, "mAcc": 92.40},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
         license="Apache-2.0",
@@ -1118,16 +1118,16 @@ def point_mamba_base_scanobjectnn_clf(**kwargs: Any) -> PointMambaClassification
         head_channels=(256, 256),
     ),
 )
-def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassification:
+def point_mamba_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMambaClassification:
     return PointMambaClassification(**kwargs)
 
 
 @register_model(
-    "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang",
+    "point-mamba-base.scanobjectnn-hardest.dingkang-liang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang/resolve/main/model.safetensors",
-        dataset="scanobjectnn-augmentedrot-scale75",
+        url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-hardest.dingkang-liang/resolve/a9fa499b294c8675cca40419834deb1759d997ef/model.safetensors",
+        dataset="scanobjectnn-hardest",
         metrics={"OA": 89.28, "mAcc": 88.06},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
@@ -1169,7 +1169,7 @@ def point_mamba_base_scanobjectnn_nobg_clf(**kwargs: Any) -> PointMambaClassific
         head_channels=(256, 256),
     ),
 )
-def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> PointMambaClassification:
+def point_mamba_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMambaClassification:
     return PointMambaClassification(**kwargs)
 
 
@@ -1177,7 +1177,7 @@ def point_mamba_base_scanobjectnn_augmentedrot_scale75_clf(**kwargs: Any) -> Poi
     "point-mamba-base.pretrain.dingkang-liang",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-mamba-base.pretrain.dingkang-liang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-mamba-base.pretrain.dingkang-liang/resolve/be4fa60f4b6a9aa02eca045db5d80023f0667757/model.safetensors",
         dataset="shapenet55",
         author="dingkang-liang",
         license="Apache-2.0",

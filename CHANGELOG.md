@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Renamed the ScanObjectNN checkpoints to name their split (`-hardest`, `-objbg`, `-objonly`) and the KPConv checkpoints to `s3dis-area5`.
+- Pinned every registered weight URL to its Hub commit.
+- Fixed the `point-mamba-base.scanobjectnn-objonly.dingkang-liang` weights (block norms taken from the unused `norm_ffn` layer): OA 83.30 to 92.60.
 - Added `accept_terms` to `S3DIS`, `S3DISHdf5`, `ScanNet` and `ScanObjectNN`; `download` asks for it on the terminal otherwise.
 - Updated `create_model(pretrained=True)` to raise when the model registers no weights.
 - Added `torch_pointcloud.metrics` to the package namespace.

@@ -1,5 +1,6 @@
 import inspect
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -47,9 +48,9 @@ CLASSIFICATION_MODELS = [
     "point-mae-base.scanobjectnn-objbg.yatian-pang",
     "point-mae-base.scanobjectnn-objonly.yatian-pang",
     "point-mamba-base.modelnet40.dingkang-liang",
-    "point-mamba-base.scanobjectnn.dingkang-liang",
-    "point-mamba-base.scanobjectnn-nobg.dingkang-liang",
-    "point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang",
+    "point-mamba-base.scanobjectnn-objbg.dingkang-liang",
+    "point-mamba-base.scanobjectnn-objonly.dingkang-liang",
+    "point-mamba-base.scanobjectnn-hardest.dingkang-liang",
     "point-transformer.modelnet40",
     "pointgpt-s.modelnet40.guangyan-chen",
     "pointgpt-s.modelnet40-8k.guangyan-chen",
@@ -68,20 +69,20 @@ CLASSIFICATION_MODELS = [
     "pointgpt-l.scanobjectnn-objonly.guangyan-chen",
     "pointmlp-base",
     "pointmlp-base.modelnet40.xu-ma",
-    "pointmlp-base.scanobjectnn.xu-ma",
+    "pointmlp-base.scanobjectnn-hardest.xu-ma",
     "pointmlp-elite",
     "pointmlp-elite.modelnet40.xu-ma",
-    "pointmlp-elite.scanobjectnn.xu-ma",
+    "pointmlp-elite.scanobjectnn-hardest.xu-ma",
     "pointnet.modelnet40",
     "pointnet2.modelnet40.openpoints",
-    "pointnet2.scanobjectnn.openpoints",
+    "pointnet2.scanobjectnn-hardest.openpoints",
     "pointnet2-msg.modelnet40.xu-yan",
     "pointnet2-ssg.modelnet40.xu-yan",
     "pointnext-base",
     "pointnext-lg",
     "pointnext-sm",
     "pointnext-sm-c64.modelnet40.openpoints",
-    "pointnext-sm.scanobjectnn.openpoints",
+    "pointnext-sm.scanobjectnn-hardest.openpoints",
     "pointnext-xl",
 ]
 BASE_MODELS = [
@@ -112,10 +113,10 @@ SEGMENTATION_MODELS = [
     "dgcnn.s3dis-area5.an-tao",
     "dgcnn.s3dis-area6.an-tao",
     "dgcnn.scannet20.an-tao",
-    "kpfcnn-base.s3dis.hugues-thomas",
-    "kpfcnn-base-sm.s3dis.hugues-thomas",
-    "kpfcnn-base-deform.s3dis.hugues-thomas",
-    "kpfcnn-base-sm-deform.s3dis.hugues-thomas",
+    "kpfcnn-base.s3dis-area5.hugues-thomas",
+    "kpfcnn-base-sm.s3dis-area5.hugues-thomas",
+    "kpfcnn-base-deform.s3dis-area5.hugues-thomas",
+    "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas",
     "octformer-lg",
     "octformer-sm",
     "octformer-base.scannet20.octree-nn",
@@ -726,7 +727,9 @@ def test_registered_weights_urls_name_the_hub_repo() -> None:
             if weights is None:
                 continue
 
-            assert weights["url"] == f"hf://torch-pointcloud/{name}/resolve/main/model.safetensors", name
+            assert re.fullmatch(
+                rf"hf://torch-pointcloud/{re.escape(name)}/resolve/[0-9a-f]{{40}}/model\.safetensors", weights["url"]
+            ), name
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
             assert weights["author"], name
 

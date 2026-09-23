@@ -297,7 +297,7 @@ def _utonia_encoder_hparams() -> Dict[str, Any]:
     "utonia.pretrain.pointcept",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/utonia.pretrain.pointcept/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/utonia.pretrain.pointcept/resolve/33e4b0c0c25e4400ba420d9d9d373daba3433f67/model.safetensors",
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
@@ -312,7 +312,7 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
     "utonia-lp.scannet20.pointcept",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/utonia-lp.scannet20.pointcept/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/utonia-lp.scannet20.pointcept/resolve/1811ef3a4de3df47bf17b932f07eb72e80472e37/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 77.70, "OA": 91.88},
         classes=SCANNET20_CLASSES,

@@ -1225,11 +1225,11 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
 
 
 @register_model(
-    "pointnext-sm.scanobjectnn.openpoints",
+    "pointnext-sm.scanobjectnn-hardest.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors",
-        dataset="scanobjectnn",
+        url="hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors",
+        dataset="scanobjectnn-hardest",
         metrics={"OA": 88.17, "mAcc": 86.75},
         classes=SCANOBJECTNN_CLASSES,
         author="openpoints",
@@ -1281,7 +1281,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     "pointnext-sm-c64.modelnet40.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm-c64.modelnet40.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c64.modelnet40.openpoints/resolve/083de42a5522ae2e18086fd6f979f9043118346d/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.80, "mAcc": 90.93},
         classes=MODELNET40_CLASSES,
@@ -1546,7 +1546,7 @@ _S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
     "pointnext-sm.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.s3dis-area1.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area1.openpoints/resolve/39812a57073c0a0752b8da3892adb242cc61ab45/model.safetensors",
         dataset="s3dis-area1",
         metrics={"mIoU": 74.46, "OA": 89.37},
         classes=S3DIS_CLASSES,
@@ -1564,7 +1564,7 @@ def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.s3dis-area2.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area2.openpoints/resolve/352339b71b5381e2895130e10f04b63cfc6682e0/model.safetensors",
         dataset="s3dis-area2",
         metrics={"mIoU": 47.63, "OA": 78.69},
         classes=S3DIS_CLASSES,
@@ -1582,7 +1582,7 @@ def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.s3dis-area3.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area3.openpoints/resolve/00ed6b00bfc7a8266a0b8b7beb621d41b259df08/model.safetensors",
         dataset="s3dis-area3",
         metrics={"mIoU": 75.94, "OA": 91.11},
         classes=S3DIS_CLASSES,
@@ -1600,7 +1600,7 @@ def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.s3dis-area4.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area4.openpoints/resolve/134813d2e9947ad0029f9156be04787a3545a9d3/model.safetensors",
         dataset="s3dis-area4",
         metrics={"mIoU": 59.94, "OA": 86.46},
         classes=S3DIS_CLASSES,
@@ -1618,7 +1618,7 @@ def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.s3dis-area5.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area5.openpoints/resolve/9ced8297997443c421ab240fe9e0d3879478f14a/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 64.30, "OA": 88.26},
         classes=S3DIS_CLASSES,
@@ -1636,7 +1636,7 @@ def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-sm.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.s3dis-area6.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.s3dis-area6.openpoints/resolve/3298e4680216df5ee265593dc41163f4b82afa02/model.safetensors",
         dataset="s3dis-area6",
         metrics={"mIoU": 83.23, "OA": 93.17},
         classes=S3DIS_CLASSES,
@@ -1654,7 +1654,7 @@ def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-base.s3dis-area1.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area1.openpoints/resolve/42914f6c5748475c9de09c2a08b5a017495872ba/model.safetensors",
         dataset="s3dis-area1",
         metrics={"mIoU": 77.73, "OA": 90.46},
         classes=S3DIS_CLASSES,
@@ -1672,7 +1672,7 @@ def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-base.s3dis-area2.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area2.openpoints/resolve/60faf16389be38602a66c729f7ebd4125888cae8/model.safetensors",
         dataset="s3dis-area2",
         metrics={"mIoU": 58.60, "OA": 82.00},
         classes=S3DIS_CLASSES,
@@ -1690,7 +1690,7 @@ def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-base.s3dis-area3.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area3.openpoints/resolve/c9a41d00deb0be939d063018f040ed0b42f21550/model.safetensors",
         dataset="s3dis-area3",
         metrics={"mIoU": 84.00, "OA": 93.26},
         classes=S3DIS_CLASSES,
@@ -1708,7 +1708,7 @@ def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-base.s3dis-area4.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area4.openpoints/resolve/d86310698bc34193b42191e2908a68be3678224c/model.safetensors",
         dataset="s3dis-area4",
         metrics={"mIoU": 62.63, "OA": 87.03},
         classes=S3DIS_CLASSES,
@@ -1726,7 +1726,7 @@ def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-base.s3dis-area5.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area5.openpoints/resolve/f4e2eefc9abbe8996a0eb42247965f0e7fe91ffa/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 67.51, "OA": 89.42},
         classes=S3DIS_CLASSES,
@@ -1744,7 +1744,7 @@ def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-base.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-base.s3dis-area6.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-base.s3dis-area6.openpoints/resolve/15bc76e0b58fc7ad12bb9654c6bad26b5fb7fdad/model.safetensors",
         dataset="s3dis-area6",
         metrics={"mIoU": 84.62, "OA": 93.66},
         classes=S3DIS_CLASSES,
@@ -1762,7 +1762,7 @@ def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-lg.s3dis-area1.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area1.openpoints/resolve/0c6dec00e6e9a65d832e8cad1568241fc3965e8d/model.safetensors",
         dataset="s3dis-area1",
         metrics={"mIoU": 78.98, "OA": 91.13},
         classes=S3DIS_CLASSES,
@@ -1780,7 +1780,7 @@ def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-lg.s3dis-area2.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area2.openpoints/resolve/2e60234e6aebb1630689b882fb386868b5b6d3a6/model.safetensors",
         dataset="s3dis-area2",
         metrics={"mIoU": 61.81, "OA": 84.80},
         classes=S3DIS_CLASSES,
@@ -1798,7 +1798,7 @@ def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-lg.s3dis-area3.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area3.openpoints/resolve/42ffef65a2fa6429758734b97fa1e28d8277f11d/model.safetensors",
         dataset="s3dis-area3",
         metrics={"mIoU": 84.06, "OA": 93.39},
         classes=S3DIS_CLASSES,
@@ -1816,7 +1816,7 @@ def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-lg.s3dis-area4.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area4.openpoints/resolve/dab363329b66bb2f304baaedd76ffaee4752681d/model.safetensors",
         dataset="s3dis-area4",
         metrics={"mIoU": 65.09, "OA": 88.09},
         classes=S3DIS_CLASSES,
@@ -1834,7 +1834,7 @@ def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-lg.s3dis-area5.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area5.openpoints/resolve/3d3ed60e7e034404eb4a3c6305df86521f495194/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 69.29, "OA": 90.03},
         classes=S3DIS_CLASSES,
@@ -1852,7 +1852,7 @@ def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-lg.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-lg.s3dis-area6.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-lg.s3dis-area6.openpoints/resolve/886b9da0294d76c8742834e963d5f81f3b27d6f1/model.safetensors",
         dataset="s3dis-area6",
         metrics={"mIoU": 85.90, "OA": 93.99},
         classes=S3DIS_CLASSES,
@@ -1870,7 +1870,7 @@ def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-xl.s3dis-area1.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area1.openpoints/resolve/974d69556464006745dff240db7344fdeadd0c05/model.safetensors",
         dataset="s3dis-area1",
         metrics={"mIoU": 79.59, "OA": 91.22},
         classes=S3DIS_CLASSES,
@@ -1888,7 +1888,7 @@ def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-xl.s3dis-area2.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area2.openpoints/resolve/4ce369de2bcc4df21281813fc24bb0aef132e6fb/model.safetensors",
         dataset="s3dis-area2",
         metrics={"mIoU": 63.16, "OA": 85.55},
         classes=S3DIS_CLASSES,
@@ -1906,7 +1906,7 @@ def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-xl.s3dis-area3.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area3.openpoints/resolve/cb0b3b524943897c186825cb4d19ba457b0767f6/model.safetensors",
         dataset="s3dis-area3",
         metrics={"mIoU": 84.95, "OA": 93.72},
         classes=S3DIS_CLASSES,
@@ -1924,7 +1924,7 @@ def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-xl.s3dis-area4.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area4.openpoints/resolve/7c19ad05f3b699fbb5d83276f04f5d40c78848fe/model.safetensors",
         dataset="s3dis-area4",
         metrics={"mIoU": 64.78, "OA": 88.61},
         classes=S3DIS_CLASSES,
@@ -1942,7 +1942,7 @@ def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
     "pointnext-xl.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-xl.s3dis-area5.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-xl.s3dis-area5.openpoints/resolve/1e2bbf52f4a7f3277ac6a41cd9eaf11498269ceb/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 71.24, "OA": 90.95},
         classes=S3DIS_CLASSES,
@@ -2020,7 +2020,7 @@ _SHAPENETPART_VARIANT_HPARAMS = {
     "pointnext-sm.shapenetpart.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.shapenetpart.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.shapenetpart.openpoints/resolve/5149d99e21da44d3fd24e67b6fb2a612f2c92a3e/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.88, "cls_mIoU": 84.48},
         author="openpoints",
@@ -2037,7 +2037,7 @@ def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
     "pointnext-sm-c64.shapenetpart.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm-c64.shapenetpart.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c64.shapenetpart.openpoints/resolve/030359b2b0af6a03f70bbe27f7e719177ced3581/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.93, "cls_mIoU": 85.24},
         author="openpoints",
@@ -2054,7 +2054,7 @@ def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
     "pointnext-sm-c160.shapenetpart.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm-c160.shapenetpart.openpoints/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c160.shapenetpart.openpoints/resolve/87f26001939b4553c8977ea9bfa73e1124a96921/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 87.11, "cls_mIoU": 85.25},
         author="openpoints",

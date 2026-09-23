@@ -6,7 +6,7 @@
 import torch_pointcloud as tp
 
 model = tp.create_model(
-    "pointnext-sm.scanobjectnn.openpoints", 
+    "pointnext-sm.scanobjectnn-hardest.openpoints", 
     task="classification",
     pretrained=True,
 )

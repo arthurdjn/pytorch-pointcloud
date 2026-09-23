@@ -805,9 +805,32 @@ _MACC: Dict[str, Dict[str, float]] = {
 }
 
 
+_REVISIONS = {
+    "pointgpt-b.modelnet40-8k.guangyan-chen": "c6733a50218d08eea8cbb6762e341fdffd9de15c",
+    "pointgpt-b.modelnet40.guangyan-chen": "a2d43e7f4908c4e283093b9e915eb96c38e5c7b9",
+    "pointgpt-b.pretrain.guangyan-chen": "7390bc297925d3c241653bddaa9143edf20cc2d8",
+    "pointgpt-b.scanobjectnn-hardest.guangyan-chen": "ed7090c0e874c4ce1b5eca3ba6f355fea16a4352",
+    "pointgpt-b.scanobjectnn-objbg.guangyan-chen": "a7b3e7aef3ba9811c77c47ff55665c89d72478c1",
+    "pointgpt-b.scanobjectnn-objonly.guangyan-chen": "5b25ad63177fdd529f6b3973b93d39791e769213",
+    "pointgpt-l.modelnet40-8k.guangyan-chen": "7c3dbde3ff917c1d5e1a6c438bb5796d34712a83",
+    "pointgpt-l.modelnet40.guangyan-chen": "9e399ab55593cad42e459c15077b51e1b0538e6b",
+    "pointgpt-l.pretrain.guangyan-chen": "0e83640c82e6b6e742ee9be4bf657cb064f49efa",
+    "pointgpt-l.scanobjectnn-hardest.guangyan-chen": "529649f41803c2814905395f03ad0e4ac3968545",
+    "pointgpt-l.scanobjectnn-objbg.guangyan-chen": "6e121e2b249f836723177963c14d374923d56a4c",
+    "pointgpt-l.scanobjectnn-objonly.guangyan-chen": "87946ac32f65aa89ca7075844d74c51f3f60a76a",
+    "pointgpt-s.modelnet40-8k.guangyan-chen": "55852773fae4adb4e1ddb2fa507c67dd5ced97e9",
+    "pointgpt-s.modelnet40.guangyan-chen": "d5d3b80eb846df24051dc753cd9187d2b369f7f7",
+    "pointgpt-s.pretrain.guangyan-chen": "60f2989ead639ac920878c2d4cd467f36fbe6584",
+    "pointgpt-s.scanobjectnn-hardest.guangyan-chen": "27fb50b626547e92252f9caf61fca7fa39a5a7a3",
+    "pointgpt-s.scanobjectnn-objbg.guangyan-chen": "391f078316a4fb24d54d805df280fb86eb6945b6",
+    "pointgpt-s.scanobjectnn-objonly.guangyan-chen": "ccfdb72ef5c8bc365cba1b857e2e30551cc56fb3",
+}
+
+
 def _weights(size: str, checkpoint: str, dataset: str, classes: Optional[Sequence[str]] = None) -> WeightsDict:
+    name = f"pointgpt-{size}.{checkpoint}.guangyan-chen"
     weights = WeightsDict(
-        url=f"hf://torch-pointcloud/pointgpt-{size}.{checkpoint}.guangyan-chen/resolve/main/model.safetensors",
+        url=f"hf://torch-pointcloud/{name}/resolve/{_REVISIONS[name]}/model.safetensors",
         dataset=dataset,
         author="guangyan-chen",
         license="MIT",

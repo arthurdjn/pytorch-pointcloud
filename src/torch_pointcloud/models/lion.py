@@ -1332,7 +1332,7 @@ class LIONDetection(DetectionModel):
     "lion-mamba.nuscenes.zhe-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/lion-mamba.nuscenes.zhe-liu/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/lion-mamba.nuscenes.zhe-liu/resolve/b1ae6f97552a25244766c6873fa9e24b8660648b/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 68.78, "NDS": 72.32},
         classes=NUSCENES_DETECTION_CLASSES,

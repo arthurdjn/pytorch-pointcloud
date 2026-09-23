@@ -284,7 +284,7 @@ def pointconv_density_clf(in_channels: int, num_classes: int, **kwargs: Any) -> 
     "pointconv-density-base.modelnet40.wenxuan-wu",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointconv-density-base.modelnet40.wenxuan-wu/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointconv-density-base.modelnet40.wenxuan-wu/resolve/ef33466ea9c7c7f474c2c63ea9695cd2156a89fb/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.30, "mAcc": 89.50},
         classes=MODELNET40_CLASSES,

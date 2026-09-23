@@ -29,7 +29,7 @@ class WeightsDict(TypedDict):
 
     Attributes:
         url: Location of the weight file, mirroring the Hub path so that `hf://` stands for
-            `https://huggingface.co/` (e.g. `hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors`).
+            `https://huggingface.co/` (e.g. `hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors`).
         dataset: Benchmark the checkpoint was trained on (e.g. `scanobjectnn`, `s3dis-area5`).
         metrics: Scores measured with this package's benchmark scripts, keyed by metric name
             (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
@@ -122,7 +122,7 @@ def register_model(
     normalized to a `WeightsDict`, so registry consumers always see the structured form.
 
     Args:
-        name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn.openpoints`).
+        name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn-hardest.openpoints`).
         task: Registry the model belongs to (`base`, `classification`, `segmentation`, or `detection`).
         hparams: Default keyword arguments the entry point is called with; `create_model` kwargs override them.
         transform: Evaluation transform reproducing the preprocessing the weights were trained with.
@@ -194,7 +194,7 @@ def cache_path(url: str) -> Path:
     ```python
     from torch_pointcloud.models._registry import cache_path
 
-    path = cache_path("hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors")
+    path = cache_path("hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors")
     ```
     """
     if url.startswith("hf://"):
@@ -228,8 +228,8 @@ def resolve_weights(name: str, url: str) -> Path:
     from torch_pointcloud.models._registry import resolve_weights
 
     path = resolve_weights(
-        "pointnext-sm.scanobjectnn.openpoints",
-        "hf://torch-pointcloud/pointnext-sm.scanobjectnn.openpoints/resolve/main/model.safetensors",
+        "pointnext-sm.scanobjectnn-hardest.openpoints",
+        "hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors",
     )
     ```
     """

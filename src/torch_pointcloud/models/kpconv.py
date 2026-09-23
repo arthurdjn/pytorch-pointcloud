@@ -1424,12 +1424,12 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
 
 
 @register_model(
-    "kpfcnn-base-sm.s3dis.hugues-thomas",
+    "kpfcnn-base-sm.s3dis-area5.hugues-thomas",
     task="segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn-base-sm.s3dis.hugues-thomas/resolve/main/model.safetensors",
-        dataset="s3dis",
+        url="hf://torch-pointcloud/kpfcnn-base-sm.s3dis-area5.hugues-thomas/resolve/2162b440c28ddcf97e130a3cdfbf6cf740db5388/model.safetensors",
+        dataset="s3dis-area5",
         metrics={"mIoU": 65.27, "OA": 88.93},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
@@ -1467,12 +1467,12 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 
 @register_model(
-    "kpfcnn-base.s3dis.hugues-thomas",
+    "kpfcnn-base.s3dis-area5.hugues-thomas",
     task="segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn-base.s3dis.hugues-thomas/resolve/main/model.safetensors",
-        dataset="s3dis",
+        url="hf://torch-pointcloud/kpfcnn-base.s3dis-area5.hugues-thomas/resolve/7b241427afada125eb8e0dcedd30d8352e2e7d7a/model.safetensors",
+        dataset="s3dis-area5",
         metrics={"mIoU": 66.60, "OA": 89.63},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
@@ -1510,12 +1510,12 @@ def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 
 @register_model(
-    "kpfcnn-base-deform.s3dis.hugues-thomas",
+    "kpfcnn-base-deform.s3dis-area5.hugues-thomas",
     task="segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn-base-deform.s3dis.hugues-thomas/resolve/main/model.safetensors",
-        dataset="s3dis",
+        url="hf://torch-pointcloud/kpfcnn-base-deform.s3dis-area5.hugues-thomas/resolve/bbeeb89dc1b1f5bc72ed713d47e90a84f263aa59/model.safetensors",
+        dataset="s3dis-area5",
         metrics={"mIoU": 67.05, "OA": 89.93},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
@@ -1553,12 +1553,12 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 
 @register_model(
-    "kpfcnn-base-sm-deform.s3dis.hugues-thomas",
+    "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas",
     task="segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn-base-sm-deform.s3dis.hugues-thomas/resolve/main/model.safetensors",
-        dataset="s3dis",
+        url="hf://torch-pointcloud/kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas/resolve/ebb67bd500167d5ec7249a63a68eae2b76b72f53/model.safetensors",
+        dataset="s3dis-area5",
         metrics={"mIoU": 66.01, "OA": 89.53},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
