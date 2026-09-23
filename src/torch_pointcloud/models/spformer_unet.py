@@ -205,7 +205,9 @@ class SPFormerUNetEncoder(nn.Module):
         self.channels = ensure_tuple(channels)
         self.num_levels = len(self.channels)
         self.depths = ensure_tuple_size(
-            depths, size=self.num_levels, extra_msg="`depths` must match `channels` length."
+            depths,
+            size=self.num_levels,
+            extra_msg="`depths` must match `channels` length.",
         )
         self.spatial_padding = spatial_padding
         norm_kwargs = norm_kwargs or {}
@@ -329,7 +331,9 @@ class SPFormerUNetDecoder(nn.Module):
         self.channels = ensure_tuple(channels)
         self.num_levels = len(self.channels)
         self.depths = ensure_tuple_size(
-            depths, size=self.num_levels, extra_msg="`depths` must match `channels` length."
+            depths,
+            size=self.num_levels,
+            extra_msg="`depths` must match `channels` length.",
         )
         norm_kwargs = norm_kwargs or {}
         act_kwargs = act_kwargs or {}
@@ -415,7 +419,9 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.channels = ensure_tuple(channels)
         self.depths = ensure_tuple_size(
-            depths, size=len(self.channels), extra_msg="`depths` must match `channels` length."
+            depths,
+            size=len(self.channels),
+            extra_msg="`depths` must match `channels` length.",
         )
         self.stem_kernel_size = stem_kernel_size
         self.spatial_padding = spatial_padding

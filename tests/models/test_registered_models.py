@@ -697,10 +697,14 @@ def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int =
     "model_name,model_kwargs",
     [
         pytest.param(
-            "votenet.scannet.fair", dict(sa_num_points=[128, 64, 32, 16], num_proposals=32), id="votenet.scannet.fair"
+            "votenet.scannet.fair",
+            dict(sa_num_points=[128, 64, 32, 16], num_proposals=32),
+            id="votenet.scannet.fair",
         ),
         pytest.param(
-            "votenet.sunrgbd.fair", dict(sa_num_points=[128, 64, 32, 16], num_proposals=32), id="votenet.sunrgbd.fair"
+            "votenet.sunrgbd.fair",
+            dict(sa_num_points=[128, 64, 32, 16], num_proposals=32),
+            id="votenet.sunrgbd.fair",
         ),
         pytest.param("3detr.scannet.fair", dict(preencoder_num_points=128, num_queries=32), id="3detr.scannet.fair"),
         pytest.param(
