@@ -25,7 +25,8 @@ class DataKeys(StrEnum):
     """Standard keys of a sample dict, shared by the datasets, transforms and models.
 
     Members are plain strings, so a key is usable wherever a literal is (e.g. `data[DataKeys.POS]` and
-    `data["pos"]` address the same entry).
+    `data["pos"]` address the same entry). Keys are singular (`box`, `label`), while the metric records
+    (`Boxes3D`, `Detection3D`) use plural fields (`boxes`, `labels`).
     """
 
     # General keys (PyG convention)
@@ -39,11 +40,9 @@ class DataKeys(StrEnum):
     NORMAL = "normal"
     FACE = "face"
     SEGMENT = "segment"
-    SEMANTIC = "semantic"
     INSTANCE = "instance"
     SUPERPOINT = "superpoint"
     INTENSITY = "intensity"
-    REFLECTANCE = "reflectance"
     CATEGORY = "category"
     LABEL = "label"
     BATCH = "batch"
@@ -73,7 +72,6 @@ class DataKeys(StrEnum):
     SCENE = "scene"
     SEQUENCE = "sequence"
     # Tiling keys (fixed-size block datasets)
-    ROOM_MAX = "room_max"
     SCENE_MAX = "scene_max"
     BLOCK_CENTER = "block_center"
     BLOCK_BBOX = "block_bbox"
@@ -82,7 +80,7 @@ class DataKeys(StrEnum):
     NUM_SCENE_POINTS = "num_scene_points"
     # Octree-based keys (OCNN convention)
     OCTREE = "octree"
-    POINTS = "points"
+    OCTREE_POINTS = "octree_points"
     BOX_MASK = "box_mask"
 
 

@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed `DataKeys.SEMANTIC`, `REFLECTANCE` and `ROOM_MAX`: `ParisLille3D` emits `intensity` and the S3DIS blocks `scene_max`, like the other datasets.
+- Renamed `DataKeys.POINTS` to `OCTREE_POINTS`.
 - Renamed `num_group`, `num_heading_bin` (and `num_angle_bin`), `num_size_cluster` and `num_proposal` to their plurals in the models, losses, box transforms and `utils.cluster.group`.
 - Renamed `sa_npoints`, `roi_sa_npoints` and `preenc_npoints` to `sa_num_points`, `roi_sa_num_points` and `preencoder_num_points`.
 - Renamed the PointNet `mlp1_dims` / `mlp2_dims` to `mlp1_channels` / `mlp2_channels`, and the Point Transformer `encoder_num_groups` / `decoder_num_groups` to `encoder_attention_groups` / `decoder_attention_groups`.

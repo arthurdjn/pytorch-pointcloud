@@ -227,7 +227,7 @@ def test_s3dis_tile_blocks(datasets_dir_factory: Callable[..., Path]) -> None:
     for data in dataset_blocks:
         assert data["pos"].shape == (64, 3)
         assert data["segment"].shape == (64,)
-        assert "room_max" in data
+        assert "scene_max" in data
 
 
 def test_s3dis_tile_blocks_preserves_cache(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -256,16 +256,16 @@ def test_s3dis_tile_blocks_preserves_cache(datasets_dir_factory: Callable[..., P
     assert len(dataset_a) != len(dataset_b) or dataset_a[0]["pos"].shape != dataset_b[0]["pos"].shape
 
 
-def test_s3dis_tile_room_blocks_own_their_room_max() -> None:
-    """Editing one block's `room_max` in place must not leak into the other blocks"""
+def test_s3dis_tile_room_blocks_own_their_scene_max() -> None:
+    """Editing one block's `scene_max` in place must not leak into the other blocks"""
     generator = torch.Generator().manual_seed(0)
     room = {"pos": torch.rand(300, 3, generator=generator) * torch.tensor([2.5, 2.5, 1.0])}
     blocks = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=32, min_num_nodes=1)
 
     assert len(blocks) > 1
-    expected = blocks[1]["room_max"].clone()
-    blocks[0]["room_max"].mul_(0.0)
-    assert torch.equal(blocks[1]["room_max"], expected)
+    expected = blocks[1]["scene_max"].clone()
+    blocks[0]["scene_max"].mul_(0.0)
+    assert torch.equal(blocks[1]["scene_max"], expected)
 
 
 def test_s3dis_process_writes_final_files_only(datasets_dir_factory: Callable[..., Path]) -> None:

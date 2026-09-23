@@ -25,7 +25,7 @@ SPLIT_TO_FILES = {
 
 
 def test_load_parislille3d_data_shapes(datasets_dir: Path) -> None:
-    """`.ply` loader returns positions, reflectance, and segment with expected shapes/dtypes."""
+    """`.ply` loader returns positions, intensity, and segment with expected shapes/dtypes."""
     ply_path = datasets_dir / "ParisLille3D" / "raw" / "Lille1_1.ply"
     data = load_parislille3d_data(ply_path)
 
@@ -33,9 +33,9 @@ def test_load_parislille3d_data_shapes(datasets_dir: Path) -> None:
     assert data["pos"].shape == (NUM_POINTS_PER_SCAN, 3)
     assert data["pos"].dtype == torch.float32
 
-    assert isinstance(data["reflectance"], torch.Tensor)
-    assert data["reflectance"].shape == (NUM_POINTS_PER_SCAN, 1)
-    assert data["reflectance"].dtype == torch.uint8
+    assert isinstance(data["intensity"], torch.Tensor)
+    assert data["intensity"].shape == (NUM_POINTS_PER_SCAN, 1)
+    assert data["intensity"].dtype == torch.uint8
 
     assert isinstance(data["segment"], torch.Tensor)
     assert data["segment"].shape == (NUM_POINTS_PER_SCAN,)
@@ -96,8 +96,8 @@ def test_parislille3d_dataset_returns_expected_shapes(datasets_dir_factory: Call
         sample = dataset[index]
         assert sample["pos"].shape == (NUM_POINTS_PER_SCAN, 3)
         assert sample["pos"].dtype == torch.float32
-        assert sample["reflectance"].shape == (NUM_POINTS_PER_SCAN, 1)
-        assert sample["reflectance"].dtype == torch.uint8
+        assert sample["intensity"].shape == (NUM_POINTS_PER_SCAN, 1)
+        assert sample["intensity"].dtype == torch.uint8
         assert sample["segment"].shape == (NUM_POINTS_PER_SCAN,)
         assert sample["segment"].dtype == torch.int64
         assert isinstance(sample["name"], str) and sample["name"]
