@@ -6,6 +6,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+from typing_extensions import Self
 
 log = logging.getLogger(__name__)
 
@@ -61,3 +62,52 @@ def set_determinism(*, tf32: bool = False) -> None:
     """
     torch.backends.cuda.matmul.allow_tf32 = tf32
     torch.backends.cudnn.allow_tf32 = tf32
+
+
+# inspired by: https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/transforms/transform.py#L174
+class Randomizable:
+    r"""Mixin for objects that draw random numbers from their own stream, set by `set_random_state`.
+
+    `R` is the object's generator. It is `None` by default, and the draws then come from the global generator,
+    which PyTorch seeds per `DataLoader` worker and per epoch: one `torch.manual_seed` makes a run reproducible. A
+    seeded `R` is copied as is into every `DataLoader` worker; `PointCloudDataLoader` re-seeds it per worker (see
+    `torch_pointcloud.utils.data.seed_worker`), so that workers and epochs draw different numbers.
+
+    Example:
+        ```python
+        import torch
+
+        from torch_pointcloud.transforms import RandomJitter
+
+        jitter = RandomJitter(keys="pos", sigma=0.01, seed=0)
+        first = jitter({"pos": torch.zeros(4, 3)})["pos"]
+        jitter.set_random_state(seed=0)
+        assert torch.equal(jitter({"pos": torch.zeros(4, 3)})["pos"], first)
+        ```
+    """
+
+    R: Optional[torch.Generator] = None
+
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[torch.Generator] = None) -> Self:
+        """Give the object its own random stream, or return it to the global generator.
+
+        Args:
+            seed: Seed of a new generator.
+            state: Generator to draw from, shared with the caller.
+
+        Returns:
+            The object itself, for chaining.
+
+        Raises:
+            ValueError: If both `seed` and `state` are given.
+        """
+        if seed is not None and state is not None:
+            raise ValueError("Pass either `seed` or `state` to `set_random_state`, not both.")
+
+        if state is not None:
+            self.R = state
+        elif seed is not None:
+            self.R = torch.Generator().manual_seed(seed)
+        else:
+            self.R = None
+        return self

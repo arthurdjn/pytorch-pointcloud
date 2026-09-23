@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Replaced the `generator` argument of the random transforms and `MixDataset` with `seed`, and added `set_random_state`.
+- Fixed seeded random transforms repeating the same draws in every `DataLoader` worker (`seed_worker`).
 - Updated PointNet++, VoteNet, PointRCNN, 3DETR, PVCNN++, Point-MAE and Point-M2AE to use the `PointNet2*` layers.
 - Removed `SAModule`, `GlobalSAModule` and `FPModule`, replaced by `PointNet2SetAbstraction`, `PointNet2GlobalSetAbstraction` and `PointNet2FeaturePropagation`.
 - Renamed the `pool` argument of `PointNet2Encoder` to `aggr` and of the PointNet++ models to `sa_aggr`.

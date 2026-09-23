@@ -1,11 +1,11 @@
-"""Data loading: standard sample keys, packed-batch collation, and the point cloud data loader."""
+"""Data loading: standard sample keys, packed-batch collation, worker seeding, and the point cloud data loader."""
 
 import functools
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Set
 
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, get_worker_info
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
@@ -189,6 +189,89 @@ def collate(
     return out
 
 
+# inspired by: https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/data/utils.py#L719
+# Unlike there, the walk does not stop at the first object with `set_random_state`, so the transforms held by a
+# random `MixDataset` are re-seeded too.
+def set_random_states(obj: Any, seed: int) -> int:
+    """Re-seed every seeded random object reachable from `obj`, each with its own seed.
+
+    A random object exposes `set_random_state(seed=...)` and its generator as `R` (e.g. a `Randomizable` transform).
+    Objects are found through sequences, mappings and instance attributes, such as a dataset's `transform`. Objects
+    drawing from the global generator (`R is None`) are left as they are.
+
+    Args:
+        obj: Root object, typically a dataset.
+        seed: Seed of the first object; the next ones get `seed + 1`, `seed + 2`, ...
+
+    Returns:
+        The seed following the last one used.
+
+    Example:
+        ```python
+        from torch_pointcloud.transforms import RandomJitter
+        from torch_pointcloud.utils.data import set_random_states
+
+        jitter = RandomJitter(keys="pos", seed=0)
+        set_random_states({"transform": jitter}, seed=7)
+        ```
+    """
+    seen: Set[int] = set()
+
+    def visit(item: Any, seed: int) -> int:
+        if id(item) in seen or isinstance(item, (Tensor, str, bytes)):
+            return seed
+
+        seen.add(id(item))
+        if getattr(item, "R", None) is not None and callable(getattr(item, "set_random_state", None)):
+            item.set_random_state(seed=seed % 2**63)
+            seed += 1
+
+        if isinstance(item, (list, tuple)):
+            for value in item:
+                seed = visit(value, seed)
+        elif isinstance(item, dict):
+            for value in item.values():
+                seed = visit(value, seed)
+        elif hasattr(item, "__dict__"):
+            for value in vars(item).values():
+                seed = visit(value, seed)
+        return seed
+
+    return visit(obj, seed)
+
+
+# inspired by: https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/data/utils.py#L709
+def seed_worker(worker_id: int) -> None:
+    """`worker_init_fn` re-seeding the dataset's seeded random objects from the worker's seed.
+
+    Every worker receives a copy of the dataset, so a seeded transform would replay the same numbers in every worker.
+    This re-seeds them from `torch.utils.data.get_worker_info().seed`, which differs per worker and per epoch and is
+    reproducible under `torch.manual_seed`. `PointCloudDataLoader` applies it by default; pass it as `worker_init_fn`
+    to a plain `DataLoader`.
+
+    Args:
+        worker_id: Index of the worker, as passed by the `DataLoader`.
+
+    Example:
+        ```{.python notest}
+        from torch.utils.data import DataLoader
+
+        from torch_pointcloud.utils.data import seed_worker
+
+        loader = DataLoader(dataset, num_workers=4, worker_init_fn=seed_worker)
+        ```
+    """
+    info = get_worker_info()
+    if info is not None:
+        set_random_states(info.dataset, seed=info.seed)
+
+
+def _worker_init_fn(worker_init_fn: Optional[Callable[[int], None]], worker_id: int) -> None:
+    seed_worker(worker_id)
+    if worker_init_fn is not None:
+        worker_init_fn(worker_id)
+
+
 class PointCloudDataLoader(DataLoader):
     r"""`DataLoader` that batches point clouds with the packed-batch `collate` by default.
 
@@ -199,6 +282,9 @@ class PointCloudDataLoader(DataLoader):
     read off the dataset: transforms rewrite the key set downstream of the dataset (a `box` key may
     be derived from an object by a transform), so only the code building the loader knows which keys
     must stack or cat. Passing `collate_fn=...` via the usual `DataLoader` kwarg overrides the spec.
+
+    Workers are re-seeded with [`seed_worker`][torch_pointcloud.utils.data.seed_worker] before any `worker_init_fn`
+    passed in `kwargs`, so seeded random transforms draw different numbers in every worker and epoch.
 
     Args:
         dataset: The dataset to load from.
@@ -227,4 +313,5 @@ class PointCloudDataLoader(DataLoader):
             cat_keys=cat_keys,
         )
         kwargs.setdefault("collate_fn", collate_fn)
+        kwargs["worker_init_fn"] = functools.partial(_worker_init_fn, kwargs.get("worker_init_fn"))
         super().__init__(dataset, **kwargs)

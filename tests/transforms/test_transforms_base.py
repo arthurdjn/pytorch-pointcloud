@@ -203,3 +203,34 @@ def test_compose_allow_missing_keys_skips_non_dict_transforms() -> None:
     plain = Plain()
     T.Compose([plain], allow_missing_keys=True)
     assert not hasattr(plain, "allow_missing_keys")
+
+
+def test_set_random_state_replays_the_stream() -> None:
+    jitter = T.RandomJitter(keys="pos", sigma=1.0, clip=None, seed=0)
+    first = jitter({"pos": torch.zeros(8, 3)})["pos"]
+    jitter.set_random_state(seed=0)
+    assert torch.equal(jitter({"pos": torch.zeros(8, 3)})["pos"], first)
+
+
+def test_set_random_state_shares_a_given_generator() -> None:
+    generator = torch.Generator().manual_seed(0)
+    jitter = T.RandomJitter(keys="pos", sigma=1.0, clip=None).set_random_state(state=generator)
+    assert jitter.R is generator
+
+
+def test_set_random_state_rejects_seed_and_state() -> None:
+    with pytest.raises(ValueError, match="not both"):
+        T.RandomJitter(keys="pos").set_random_state(seed=0, state=torch.Generator())
+
+
+def test_compose_set_random_state_seeds_random_children() -> None:
+    pipeline = T.Compose([T.RandomJitter(keys="pos", sigma=1.0, clip=None), T.Scale(keys="pos", scale=2.0)])
+    pipeline.set_random_state(seed=3)
+    first = pipeline({"pos": torch.zeros(8, 3)})["pos"]
+    assert pipeline.transforms[0].R is not None
+
+    pipeline.set_random_state(seed=3)
+    assert torch.equal(pipeline({"pos": torch.zeros(8, 3)})["pos"], first)
+
+    pipeline.set_random_state()
+    assert pipeline.transforms[0].R is None

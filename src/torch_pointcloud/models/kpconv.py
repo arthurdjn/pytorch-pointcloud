@@ -4,7 +4,6 @@
 """
 
 import math
-import random
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
@@ -96,7 +95,7 @@ def create_kernel_points(
         # Create the first vector in cartesian coordinates
         u = torch.tensor([math.cos(theta) * math.cos(phi), math.sin(theta) * math.cos(phi), math.sin(phi)])
         # Choose a random rotation angle
-        alpha = random.random() * 2 * math.pi
+        alpha = torch.rand(1).item() * 2 * math.pi
         R = rodrigues_rotation_matrix(u, theta=alpha)
 
     # Add a small noise, scale and rotate

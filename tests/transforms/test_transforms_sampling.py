@@ -14,8 +14,7 @@ def test_random_sample_preserves_correspondence() -> None:
     other = torch.tensor([42.0])
     data = {"pos": pos, "normal": normal, "other": other}
 
-    gen = torch.Generator().manual_seed(0)
-    result = T.RandomSample(keys=["pos", "normal"], num_samples=5, generator=gen)(data)
+    result = T.RandomSample(keys=["pos", "normal"], num_samples=5, seed=0)(data)
 
     assert result["pos"].shape == (5, 2)
     assert result["normal"].shape == (5, 1)
@@ -39,17 +38,14 @@ def test_random_sample_replace_false_upsamples_oversample() -> None:
 
 def test_random_sample_replace_true_allows_oversample() -> None:
     data = {"pos": torch.arange(6, dtype=torch.float32).reshape(3, 2)}
-    gen = torch.Generator().manual_seed(0)
-    result = T.RandomSample(keys=["pos"], num_samples=10, replace=True, generator=gen)(data)
+    result = T.RandomSample(keys=["pos"], num_samples=10, replace=True, seed=0)(data)
     assert result["pos"].shape == (10, 2)
 
 
 def test_random_sample_determinism() -> None:
     data = {"pos": torch.randn(50, 3)}
-    g1 = torch.Generator().manual_seed(7)
-    g2 = torch.Generator().manual_seed(7)
-    a = T.RandomSample(keys=["pos"], num_samples=10, generator=g1)(data)
-    b = T.RandomSample(keys=["pos"], num_samples=10, generator=g2)(data)
+    a = T.RandomSample(keys=["pos"], num_samples=10, seed=7)(data)
+    b = T.RandomSample(keys=["pos"], num_samples=10, seed=7)(data)
     assert torch.equal(a["pos"], b["pos"])
 
 
@@ -60,9 +56,8 @@ def test_random_sample_face_vertices_basic() -> None:
     face = torch.tensor([[0, 1, 2], [1, 2, 3]], dtype=torch.long)
     data = {"vertices": vertices, "face": face, "other": sentinel.other}
 
-    gen = torch.Generator().manual_seed(0)
     transform = T.RandomSampleFaceVertices(
-        keys=["vertices"], face_key="face", normal_key="normal", num_samples=5, generator=gen
+        keys=["vertices"], face_key="face", normal_key="normal", num_samples=5, seed=0
     )
     result = transform(data)
 
@@ -76,12 +71,10 @@ def test_random_sample_face_vertices_basic() -> None:
 def test_random_sample_face_vertices_determinism() -> None:
     vertices = torch.randn(8, 3)
     face = torch.tensor([[0, 1, 2], [3, 4, 5], [5, 6, 7]], dtype=torch.long)
-    g1 = torch.Generator().manual_seed(1)
-    g2 = torch.Generator().manual_seed(1)
-    a = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, generator=g1)(
+    a = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, seed=1)(
         {"vertices": vertices, "face": face}
     )
-    b = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, generator=g2)(
+    b = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, seed=1)(
         {"vertices": vertices, "face": face}
     )
     assert torch.equal(a["vertices"], b["vertices"])
@@ -111,8 +104,7 @@ def test_farthest_point_sample_ratio() -> None:
 def test_random_dropout_preserves_correspondence() -> None:
     pos = torch.arange(20, dtype=torch.float32).reshape(10, 2)
     color = torch.arange(10, dtype=torch.float32).reshape(10, 1)
-    g = torch.Generator().manual_seed(0)
-    out = T.RandomDropout(keys=("pos", "color"), p_drop=0.5, generator=g)({"pos": pos.clone(), "color": color.clone()})
+    out = T.RandomDropout(keys=("pos", "color"), p_drop=0.5, seed=0)({"pos": pos.clone(), "color": color.clone()})
     assert out["pos"].shape[0] == out["color"].shape[0]
     # Surviving (pos, color) pairs match the original mapping.
     for i in range(out["pos"].shape[0]):
@@ -128,8 +120,7 @@ def test_random_dropout_invalid_p_drop() -> None:
 def test_shuffle_point_preserves_correspondence_and_count() -> None:
     pos = torch.arange(20, dtype=torch.float32).reshape(10, 2)
     color = torch.arange(10, dtype=torch.float32).reshape(10, 1)
-    g = torch.Generator().manual_seed(0)
-    out = T.ShufflePoint(keys=("pos", "color"), generator=g)({"pos": pos.clone(), "color": color.clone()})
+    out = T.ShufflePoint(keys=("pos", "color"), seed=0)({"pos": pos.clone(), "color": color.clone()})
     assert out["pos"].shape == pos.shape
     # Per-row correspondence is preserved.
     for i in range(10):
@@ -139,10 +130,8 @@ def test_shuffle_point_preserves_correspondence_and_count() -> None:
 
 def test_shuffle_point_determinism() -> None:
     pos = torch.randn(20, 3)
-    g1 = torch.Generator().manual_seed(7)
-    g2 = torch.Generator().manual_seed(7)
-    a = T.ShufflePoint(keys="pos", generator=g1)({"pos": pos.clone()})
-    b = T.ShufflePoint(keys="pos", generator=g2)({"pos": pos.clone()})
+    a = T.ShufflePoint(keys="pos", seed=7)({"pos": pos.clone()})
+    b = T.ShufflePoint(keys="pos", seed=7)({"pos": pos.clone()})
     assert torch.equal(a["pos"], b["pos"])
 
 
@@ -243,10 +232,9 @@ def test_selection_sampler_default_writes_no_index(transform: T.DictTransform) -
 
 def test_index_composes_through_prior() -> None:
     scene = SELECTION_SCENE
-    g = torch.Generator().manual_seed(0)
     out = T.Compose(
         [
-            T.RandomSample(keys=["pos", "color"], num_samples=8, generator=g, dst_index_key="index"),
+            T.RandomSample(keys=["pos", "color"], num_samples=8, seed=0, dst_index_key="index"),
             T.Slice(keys=["pos", "color"], stop=4, dst_index_key="index"),
         ],
     )(scene)
@@ -255,7 +243,7 @@ def test_index_composes_through_prior() -> None:
     out = T.Compose(
         [
             T.ApplyMask(keys=["pos", "color"], mask_key="mask", dst_index_key="index"),
-            T.RandomSample(keys=["pos", "color"], num_samples=3, generator=g, dst_index_key="index"),
+            T.RandomSample(keys=["pos", "color"], num_samples=3, seed=0, dst_index_key="index"),
         ]
     )(scene)
     assert out["index"].shape == (3,)
