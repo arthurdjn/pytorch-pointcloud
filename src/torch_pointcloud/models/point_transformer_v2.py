@@ -19,7 +19,7 @@ from torch_pointcloud.layers import (
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -934,7 +934,7 @@ class PointTransformerV2Classification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointTransformerV2Segmentation(SegmentationModel):
+class PointTransformerV2Segmentation(SemanticSegmentationModel):
     r"""Implementation of the Point Transformer V2 model for semantic segmentation as described in the paper
     :arxiv: [Point Transformer V2: Grouped Vector Attention and Partition-based Pooling](https://arxiv.org/abs/2210.05666)
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
@@ -1180,7 +1180,7 @@ class PointTransformerV2Segmentation(SegmentationModel):
 
 @register_model(
     "ptv2-base.scannet20",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=None,
     transform=T.Compose(
         [
@@ -1231,7 +1231,7 @@ def ptv2_base_scannet20(**hparams: Any) -> PointTransformerV2Segmentation:
 
 @register_model(
     "ptv2-base.scannet200",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=None,
     transform=T.Compose(
         [

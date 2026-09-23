@@ -35,7 +35,7 @@ from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_i
 from torch_pointcloud.utils.ops import decimate_indices, softmax
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
@@ -672,7 +672,7 @@ class RandLANetClassification(ClassificationModel):
         return self.forward_head(x, batch, pre_logits=False)
 
 
-class RandLANetSegmentation(SegmentationModel):
+class RandLANetSegmentation(SemanticSegmentationModel):
     """RandLA-Net segmentation model from
     :arxiv: [RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds](https://arxiv.org/abs/1911.11236)
     by Qingyong Hu, Bo Yang, Linhai Xie, Stefano Rosa, Yulan Guo, Zhihua Wang, Niki Trigoni, Andrew Markham.
@@ -902,7 +902,7 @@ class RandLANetSegmentation(SegmentationModel):
 
 @register_model(
     "randlanet.semantickitti.tsung-han-wu",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/randlanet.semantickitti.tsung-han-wu/resolve/dc47307d49653d40e7e5450c1bf4ae2012992b93/model.safetensors",
         dataset="semantickitti",

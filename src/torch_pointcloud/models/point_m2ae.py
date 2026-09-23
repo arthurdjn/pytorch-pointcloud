@@ -19,7 +19,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import BaseModel, ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, PartSegmentationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
@@ -575,7 +575,7 @@ class PointM2AEClassification(ClassificationModel):
         return self.forward_head(x_vis)
 
 
-class PointM2AESegmentation(SegmentationModel):
+class PointM2AEPartSegmentation(PartSegmentationModel):
     r"""Implementation of the Point-M2AE part-segmentation model.
 
     :arxiv: [Point-M2AE: Multi-scale Masked Autoencoders for Hierarchical Point Cloud Pre-training](https://arxiv.org/abs/2205.14401).
@@ -620,7 +620,7 @@ class PointM2AESegmentation(SegmentationModel):
         local_radius: Sequence[float] = (0.32, 0.64, 1.28),
         num_heads: int = 6,
     ):
-        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
         self.group_sizes = list(group_sizes)
         self.num_groups = list(num_groups)
         self.encoder_depths = list(encoder_depths)
@@ -629,7 +629,6 @@ class PointM2AESegmentation(SegmentationModel):
         self.token_global_channels = token_global_channels
         self.local_radius = list(local_radius)
         self.num_heads = num_heads
-        self.num_categories = num_categories
         self.embed_dim = encoder_dims[-1]
 
         self.h_encoder = self.configure_h_encoder()
@@ -751,7 +750,7 @@ class PointM2AESegmentation(SegmentationModel):
         return self.forward_head(x, category)
 
 
-class PointM2AEMaskedAutoEncoder(BaseModel):
+class PointM2AEPretraining(PretrainingModel):
     r"""Implementation of the Point-M2AE pre-training model.
 
     :arxiv: [Point-M2AE: Multi-scale Masked Autoencoders for Hierarchical Point Cloud Pre-training](https://arxiv.org/abs/2205.14401).
@@ -1248,7 +1247,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
 
 @register_model(
     "point-m2ae-base.shapenetpart.renrui-zhang",
-    task="segmentation",
+    task="part-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.shapenetpart.renrui-zhang/resolve/539d06ae3865cd6c47bee941ff674e0db4148d1e/model.safetensors",
         dataset="shapenetpart",
@@ -1284,13 +1283,13 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
         num_heads=6,
     ),
 )
-def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AESegmentation:
-    return PointM2AESegmentation(**kwargs)
+def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AEPartSegmentation:
+    return PointM2AEPartSegmentation(**kwargs)
 
 
 @register_model(
     "point-m2ae-base.pretrain.renrui-zhang",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.pretrain.renrui-zhang/resolve/8e22a423991a9a5c4be3f53d52d8e598239d10b9/model.safetensors",
         dataset="shapenet55",
@@ -1314,5 +1313,5 @@ def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AESegmentation:
         drop_path=0.1,
     ),
 )
-def point_m2ae_base_pretrain(**kwargs: Any) -> PointM2AEMaskedAutoEncoder:
-    return PointM2AEMaskedAutoEncoder(**kwargs)
+def point_m2ae_base_pretrain(**kwargs: Any) -> PointM2AEPretraining:
+    return PointM2AEPretraining(**kwargs)

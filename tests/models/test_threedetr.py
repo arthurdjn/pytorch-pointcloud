@@ -7,7 +7,7 @@ from torch import Tensor
 
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.detr3d import DETR3DDetection, DETR3DOutput
+from torch_pointcloud.models.threedetr import ThreeDETRDetection, ThreeDETROutput
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -18,7 +18,7 @@ pytestmark = [
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def _small_detr3d(**overrides: Any) -> DETR3DDetection:
+def _small_threedetr(**overrides: Any) -> ThreeDETRDetection:
     kwargs: Dict[str, Any] = dict(
         in_channels=0,
         num_classes=5,
@@ -36,7 +36,7 @@ def _small_detr3d(**overrides: Any) -> DETR3DDetection:
         decoder_depth=2,
     )
     kwargs.update(overrides)
-    return DETR3DDetection(**kwargs)
+    return ThreeDETRDetection(**kwargs)
 
 
 def _make_inputs(n_per_scene: int = 1024, batch_size: int = 2) -> Dict[str, Tensor]:
@@ -48,7 +48,7 @@ def _make_inputs(n_per_scene: int = 1024, batch_size: int = 2) -> Dict[str, Tens
     return {"pos": pos.to(DEVICE), "batch": batch.to(DEVICE)}
 
 
-def _assert_output_shapes(out: DETR3DOutput, batch_size: int, num_queries: int, num_classes: int, nb: int) -> None:
+def _assert_output_shapes(out: ThreeDETROutput, batch_size: int, num_queries: int, num_classes: int, nb: int) -> None:
     assert out["sem_cls_logits"].shape == (batch_size, num_queries, num_classes + 1)
     assert out["center_unnormalized"].shape == (batch_size, num_queries, 3)
     assert out["size_unnormalized"].shape == (batch_size, num_queries, 3)
@@ -58,8 +58,8 @@ def _assert_output_shapes(out: DETR3DOutput, batch_size: int, num_queries: int, 
     assert out["sem_cls_prob"].shape == (batch_size, num_queries, num_classes)
 
 
-def test_detr3d_vanilla_forward_shapes() -> None:
-    model = _small_detr3d().to(DEVICE).eval()
+def test_threedetr_vanilla_forward_shapes() -> None:
+    model = _small_threedetr().to(DEVICE).eval()
     data = _make_inputs()
     with torch.no_grad():
         out = model(None, data["pos"], data["batch"])
@@ -69,17 +69,17 @@ def test_detr3d_vanilla_forward_shapes() -> None:
     assert torch.isfinite(out["center_unnormalized"]).all()
 
 
-def test_detr3d_masked_forward_shapes() -> None:
+def test_threedetr_masked_forward_shapes() -> None:
     # 3DETR-m halves the token count via one interim downsampling; 12 oriented heading bins.
-    model = _small_detr3d(encoder_type="masked", num_angle_bin=12).to(DEVICE).eval()
+    model = _small_threedetr(encoder_type="masked", num_angle_bin=12).to(DEVICE).eval()
     data = _make_inputs()
     with torch.no_grad():
         out = model(None, data["pos"], data["batch"])
     _assert_output_shapes(out, batch_size=2, num_queries=16, num_classes=5, nb=12)
 
 
-def test_detr3d_decode_packed_detections() -> None:
-    model = _small_detr3d().to(DEVICE).eval()
+def test_threedetr_decode_packed_detections() -> None:
+    model = _small_threedetr().to(DEVICE).eval()
     data = _make_inputs()
     with torch.no_grad():
         out = model(None, data["pos"], data["batch"])
@@ -95,12 +95,12 @@ def test_detr3d_decode_packed_detections() -> None:
     assert det["labels"].max() < model.num_classes if n else True
 
 
-def test_detr3d_decode_negates_native_heading() -> None:
+def test_threedetr_decode_negates_native_heading() -> None:
     """`decode` returns counter-clockwise headings: the negated `angle_continuous`; all else is unchanged."""
     torch.manual_seed(0)
-    model = _small_detr3d(num_angle_bin=12).eval()
+    model = _small_threedetr(num_angle_bin=12).eval()
     b, q, nb = 2, 16, 12
-    out: DETR3DOutput = {
+    out: ThreeDETROutput = {
         "sem_cls_logits": torch.randn(b, q, 6),
         "center_unnormalized": torch.randn(b, q, 3),
         "size_unnormalized": torch.rand(b, q, 3) + 0.5,
@@ -118,8 +118,8 @@ def test_detr3d_decode_negates_native_heading() -> None:
     assert torch.equal(det["labels"], out["sem_cls_prob"].argmax(-1).reshape(-1))
 
 
-def test_detr3d_reset_classifier() -> None:
-    model = _small_detr3d().eval()
+def test_threedetr_reset_classifier() -> None:
+    model = _small_threedetr().eval()
     model.reset_classifier(num_classes=9)
     assert model.num_classes == 9
     model = model.to(DEVICE)
@@ -130,30 +130,30 @@ def test_detr3d_reset_classifier() -> None:
     assert out["sem_cls_prob"].shape[-1] == 9
 
 
-def test_detr3d_bad_encoder_type() -> None:
+def test_threedetr_bad_encoder_type() -> None:
     with pytest.raises(ValueError, match="encoder_type"):
-        _small_detr3d(encoder_type="bogus")
+        _small_threedetr(encoder_type="bogus")
 
 
-def test_detr3d_registered_variants() -> None:
+def test_threedetr_registered_variants() -> None:
     names = list_models("3detr*", task="detection")
     assert "3detr-m.scannet.fair" in names
     assert "3detr.scannet.fair" in names
     assert "3detr.sunrgbd.fair" in names
 
 
-def test_detr3d_create_model_no_pretrained() -> None:
+def test_threedetr_create_model_no_pretrained() -> None:
     model = create_model("3detr.sunrgbd.fair", task="detection")
-    assert isinstance(model, DETR3DDetection)
+    assert isinstance(model, ThreeDETRDetection)
     assert model.num_classes == 10
     assert model.num_angle_bin == 12
     assert model.num_queries == 128
     assert model.encoder_type == "vanilla"
 
 
-def test_detr3d_masked_variant_config() -> None:
+def test_threedetr_masked_variant_config() -> None:
     model = create_model("3detr-m.scannet.fair", task="detection")
-    assert isinstance(model, DETR3DDetection)
+    assert isinstance(model, ThreeDETRDetection)
     assert model.encoder_type == "masked"
     assert model.num_classes == 18
     assert model.num_angle_bin == 1
@@ -163,9 +163,9 @@ def test_detr3d_masked_variant_config() -> None:
     not Path(MODELS_DIR, "3detr", "3detr-m.scannet.fair.safetensors").exists(),
     reason="3detr-m.scannet.fair pretrained weights not available",
 )
-def test_detr3d_pretrained_smoke() -> None:
+def test_threedetr_pretrained_smoke() -> None:
     model = create_model("3detr-m.scannet.fair", task="detection", pretrained=True).to(DEVICE).eval()
-    assert isinstance(model, DETR3DDetection)
+    assert isinstance(model, ThreeDETRDetection)
     torch.manual_seed(0)
     pos = (torch.rand(40000, 3, device=DEVICE) * 4.0).contiguous()
     batch = torch.zeros(40000, dtype=torch.long, device=DEVICE)

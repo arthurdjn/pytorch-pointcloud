@@ -12,7 +12,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
-from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import (
     AttentionKind,
@@ -24,7 +24,7 @@ from torch_pointcloud.utils.serialization import SerializationOrder
 from torch_pointcloud.utils.types import OptTensor
 
 
-class SonataSegmentation(SegmentationModel):
+class SonataSegmentation(SemanticSegmentationModel):
     """Sonata linear-probing segmentation model.
 
     This variant follows the segmentation demo from
@@ -207,7 +207,7 @@ class SonataSegmentation(SegmentationModel):
 
 @register_model(
     "sonata-base.pretrain.fair",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/sonata-base.pretrain.fair/resolve/26b9ca196f66540b193bf5a48b2b093e785e63ba/model.safetensors",
         author="fair",
@@ -268,7 +268,7 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
 
 @register_model(
     "sonata-lp.scannet20.fair",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/sonata-lp.scannet20.fair/resolve/140cf11dc2301ecc2f1e540ae11b04ff78457103/model.safetensors",
         dataset="scannet20",

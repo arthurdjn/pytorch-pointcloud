@@ -83,7 +83,7 @@ def main() -> None:
     set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on ShapeNetPart!")
-    model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
+    model, model_info = create_model(args.model, task="part-segmentation", pretrained=True, return_info=True)
     inferer = SimpleInferer()
 
     dataset: Dataset = ShapeNetPart(root=args.root, split="test", transform=model_info["transform"])

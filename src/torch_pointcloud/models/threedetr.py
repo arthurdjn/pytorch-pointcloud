@@ -44,7 +44,7 @@ def _to_dense(x: Tensor, batch: Tensor, num_points: int) -> Tensor:
     return x.view(batch_size, num_points, x.size(-1))
 
 
-class DETR3DOutput(TypedDict):
+class ThreeDETROutput(TypedDict):
     r"""Decoded 3DETR predictions for a batch of $B$ scenes with $Q$ queries each (last decoder layer)."""
 
     sem_cls_logits: Tensor
@@ -57,14 +57,14 @@ class DETR3DOutput(TypedDict):
     sem_cls_prob: Tensor
 
 
-class DETR3DTrainOutput(DETR3DOutput, total=False):
-    r"""Training-mode 3DETR output: the eval `DETR3DOutput` plus the per-decoder-layer head outputs.
+class ThreeDETRTrainOutput(ThreeDETROutput, total=False):
+    r"""Training-mode 3DETR output: the eval `ThreeDETROutput` plus the per-decoder-layer head outputs.
 
     `aux_outputs` holds one dict per decoder layer (the last entry mirrors the top-level eval fields),
     each carrying the normalized and unnormalized head quantities the set-prediction loss consumes, and
     `point_cloud_dims` is the per-scene $(\text{lo}, \text{hi})$ min-max extent used to normalize centers
     and sizes. These extra keys are present only when the model is in training mode; the eval forward
-    returns exactly the `DETR3DOutput` keys.
+    returns exactly the `ThreeDETROutput` keys.
     """
 
     aux_outputs: List[Dict[str, Tensor]]
@@ -518,7 +518,7 @@ class GenericConvMLP(nn.Module):
         return self.layers(x)
 
 
-class DETR3DDetection(DetectionModel):
+class ThreeDETRDetection(DetectionModel):
     r"""3DETR end-to-end transformer 3D object detector (packed point format).
 
     Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
@@ -757,11 +757,11 @@ class DETR3DDetection(DetectionModel):
 
     def _point_cloud_dims(self, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         if batch.numel() == 0:
-            raise ValueError("`DETR3DDetection` requires a non-empty point cloud.")
+            raise ValueError("`ThreeDETRDetection` requires a non-empty point cloud.")
         counts = batch.bincount()
         if bool((counts != counts[0]).any()):
             raise ValueError(
-                f"`DETR3DDetection` requires the same number of points per scene, got counts {counts.tolist()}."
+                f"`ThreeDETRDetection` requires the same number of points per scene, got counts {counts.tolist()}."
             )
         dense = _to_dense(pos, batch, int(counts[0]))
         return dense.amin(dim=1), dense.amax(dim=1)
@@ -842,7 +842,7 @@ class DETR3DDetection(DetectionModel):
         enc_features: Tensor,
         point_cloud_dims: Tuple[Tensor, Tensor],
         query_idx: OptTensor = None,
-    ) -> DETR3DOutput:
+    ) -> ThreeDETROutput:
         query_xyz, query_embed = self.get_query_embeddings(enc_xyz, point_cloud_dims, query_idx)
         enc_pos = self.pos_embedding(enc_xyz, point_cloud_dims).permute(2, 0, 1)
         query_embed = query_embed.permute(2, 0, 1)
@@ -864,7 +864,7 @@ class DETR3DDetection(DetectionModel):
 
         Builds both the normalized frame (center / size in the per-scene min-max box, consumed by the
         set-prediction loss) and the unnormalized frame (metric boxes, consumed by `decode`). The eval
-        forward keeps only the `DETR3DOutput` subset of the last layer; the extra normalized fields are
+        forward keeps only the `ThreeDETROutput` subset of the last layer; the extra normalized fields are
         used by the training loss.
         """
         angle_residual = angle_residual_normalized * (math.pi / angle_residual_normalized.shape[-1])
@@ -897,7 +897,7 @@ class DETR3DDetection(DetectionModel):
         query_xyz: Tensor,
         point_cloud_dims: Tuple[Tensor, Tensor],
         box_features: Tensor,
-    ) -> DETR3DOutput:
+    ) -> ThreeDETROutput:
         num_layers, num_queries, batch_size = box_features.shape[:3]
         feats = box_features.permute(0, 2, 3, 1).reshape(num_layers * batch_size, self.decoder_embed_dim, num_queries)
 
@@ -931,7 +931,7 @@ class DETR3DDetection(DetectionModel):
             angle_logits[-1],
             angle_residual_normalized[-1],
         )
-        output: DETR3DOutput = {
+        output: ThreeDETROutput = {
             "sem_cls_logits": last["sem_cls_logits"],
             "center_unnormalized": last["center_unnormalized"],
             "size_unnormalized": last["size_unnormalized"],
@@ -956,7 +956,7 @@ class DETR3DDetection(DetectionModel):
             )
             for layer in range(num_layers)
         ]
-        train_output: DETR3DTrainOutput = {
+        train_output: ThreeDETRTrainOutput = {
             "sem_cls_logits": output["sem_cls_logits"],
             "center_unnormalized": output["center_unnormalized"],
             "size_unnormalized": output["size_unnormalized"],
@@ -979,13 +979,13 @@ class DETR3DDetection(DetectionModel):
         angle[angle > math.pi] = angle[angle > math.pi] - 2 * math.pi
         return angle
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> DETR3DOutput:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> ThreeDETROutput:
         point_cloud_dims = self._point_cloud_dims(pos, batch)
         enc_xyz, enc_features = self.forward_features(x, pos, batch)
         return self.forward_head(enc_xyz, enc_features, point_cloud_dims)
 
     @torch.no_grad()
-    def decode(self, out: DETR3DOutput) -> Detection3D:
+    def decode(self, out: ThreeDETROutput) -> Detection3D:
         r"""Decode a forward output into raw per-query detections (no NMS, threshold, or filtering).
 
         Builds one oriented box per query, scores it by objectness, and labels it by the argmax semantic
@@ -997,7 +997,7 @@ class DETR3DDetection(DetectionModel):
         `APCalculator` test protocol (`exact_eval=True`).
 
         Args:
-            out: A `DETR3DOutput` from `forward`.
+            out: A `ThreeDETROutput` from `forward`.
 
         Returns:
             Packed queries `{"boxes", "scores", "labels", "batch", "class_probs"}` (PyG layout), where the
@@ -1075,8 +1075,8 @@ _SUNRGBD_TRANSFORM = T.Compose(
         encoder_dropout=0.3,
     ),
 )
-def detr3d_m_scannet(**hparams: Any) -> DETR3DDetection:
-    return DETR3DDetection(**hparams)
+def threedetr_m_scannet(**hparams: Any) -> ThreeDETRDetection:
+    return ThreeDETRDetection(**hparams)
 
 
 @register_model(
@@ -1099,8 +1099,8 @@ def detr3d_m_scannet(**hparams: Any) -> DETR3DDetection:
         encoder_type="vanilla",
     ),
 )
-def detr3d_scannet(**hparams: Any) -> DETR3DDetection:
-    return DETR3DDetection(**hparams)
+def threedetr_scannet(**hparams: Any) -> ThreeDETRDetection:
+    return ThreeDETRDetection(**hparams)
 
 
 @register_model(
@@ -1123,5 +1123,5 @@ def detr3d_scannet(**hparams: Any) -> DETR3DDetection:
         encoder_type="vanilla",
     ),
 )
-def detr3d_sunrgbd(**hparams: Any) -> DETR3DDetection:
-    return DETR3DDetection(**hparams)
+def threedetr_sunrgbd(**hparams: Any) -> ThreeDETRDetection:
+    return ThreeDETRDetection(**hparams)

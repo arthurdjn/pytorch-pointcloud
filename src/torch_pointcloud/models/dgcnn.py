@@ -22,7 +22,7 @@ from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size, is
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, PartSegmentationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 
@@ -312,7 +312,7 @@ class DGCNNClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class DGCNNSegmentation(SegmentationModel):
+class DGCNNSegmentation(SemanticSegmentationModel):
     """
     Semantic segmentation model as described in the paper
     :arxiv: ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
@@ -481,7 +481,7 @@ class DGCNNSegmentation(SegmentationModel):
         return self.forward_head(x, batch)
 
 
-class DGCNNPartSegmentation(SegmentationModel):
+class DGCNNPartSegmentation(PartSegmentationModel):
     """
     Part segmentation model as described in the paper
     :arxiv: ["Dynamic Graph CNN for Learning on Point Clouds"](https://arxiv.org/abs/1801.07829)
@@ -538,9 +538,8 @@ class DGCNNPartSegmentation(SegmentationModel):
         bias: bool = True,
         dropout: float = 0.0,
     ):
-        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
         self.spatial_dim = spatial_dim
-        self.num_categories = num_categories
         self.cat_embed_channels = cat_embed_channels
         self.proj_channels = proj_channels
         self.channels = ensure_list(channels)
@@ -691,7 +690,7 @@ _S3DIS_REVISIONS = {
 def _dgcnn_antao_s3dis_cfg(area: int, miou: float, oa: float) -> dict[str, Any]:
     return dict(
         name=f"dgcnn.s3dis-area{area}.an-tao",
-        task="segmentation",
+        task="semantic-segmentation",
         weights=WeightsDict(
             url=f"hf://torch-pointcloud/dgcnn.s3dis-area{area}.an-tao/resolve/{_S3DIS_REVISIONS[area]}/model.safetensors",
             dataset=f"s3dis-area{area}",
@@ -809,7 +808,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
 
 @register_model(
     "dgcnn.shapenetpart.an-tao",
-    task="segmentation",
+    task="part-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.shapenetpart.an-tao/resolve/ec81e21de268b6aed580bc9d13c8265fa4b7c312/model.safetensors",
         dataset="shapenetpart",
@@ -888,7 +887,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
 
 @register_model(
     "dgcnn.scannet20.an-tao",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.scannet20.an-tao/resolve/efb9370409b83ec80a1083f5abc41ac84ea31756/model.safetensors",
         dataset="scannet20",

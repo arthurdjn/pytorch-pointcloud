@@ -115,9 +115,10 @@ class PointCloudDataModule(LightningDataModule):
     def setup(self, stage: str) -> None:
         """Graft the model's evaluation transform onto datasets that have none, and collate its inverse key.
 
-        A `LitSegmentationModel` with an `inverse_key` needs that key in `cat_keys` so multi-scene eval batches
-        carry its `batch_<key>` scene index; it is added here. `collate` ignores `cat_keys` absent from the
-        samples, so pipelines that write no inverse map are unaffected.
+        A segmentation module (`LitSemanticSegmentationModel`, `LitPartSegmentationModel`) with an `inverse_key`
+        needs that key in `cat_keys` so multi-scene eval batches carry its `batch_<key>` scene index; it is added
+        here. `collate` ignores `cat_keys` absent from the samples, so pipelines that write no inverse map are
+        unaffected.
 
         The LightningModule (built from the registry) carries its `transform`; an experiment leaves
         a dataset's `transform` as `None` to use it, or sets one explicitly for custom augmentation. A

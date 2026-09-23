@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import DETR3DLoss
+from torch_pointcloud.losses import ThreeDETRLoss
 from torch_pointcloud.transforms.functional import angle_to_class
 from torch_pointcloud.utils.data import DataKeys
 
@@ -73,16 +73,16 @@ _SIZES = torch.tensor([[1.0, 1.5, 2.0], [2.0, 1.0, 1.0]])
 _LABELS = torch.tensor([0, 2])
 
 
-def test_detr3d_loss_giou_weight_defaults_to_zero() -> None:
+def test_threedetr_loss_giou_weight_defaults_to_zero() -> None:
     """The reference recipe trains with the GIoU term disabled; the GIoU still drives the matcher cost."""
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
     assert loss_fn.loss_giou_weight == 0.0
     assert loss_fn.matcher_giou_cost == 2.0
 
 
-def test_detr3d_loss_perfect_axis_aligned_predictions_near_zero() -> None:
+def test_threedetr_loss_perfect_axis_aligned_predictions_near_zero() -> None:
     angles = torch.zeros(2)
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_angle_bin=1)
     out = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -angles, _LABELS))
     for key in ("loss_center", "loss_size", "loss_giou", "loss_angle_cls", "loss_angle_reg"):
@@ -92,9 +92,9 @@ def test_detr3d_loss_perfect_axis_aligned_predictions_near_zero() -> None:
     assert out["loss_cardinality"] == 0.0
 
 
-def test_detr3d_loss_perturbed_predictions_are_larger() -> None:
+def test_threedetr_loss_perturbed_predictions_are_larger() -> None:
     angles = torch.zeros(2)
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_angle_bin=1)
     batch = _batch(_CENTERS, _SIZES, -angles, _LABELS)
     perfect = loss_fn(_output(layer), batch)
@@ -107,10 +107,10 @@ def test_detr3d_loss_perturbed_predictions_are_larger() -> None:
     assert out["loss"] > perfect["loss"]
 
 
-def test_detr3d_loss_ccw_gt_matches_native_heading_predictions() -> None:
+def test_threedetr_loss_ccw_gt_matches_native_heading_predictions() -> None:
     """GT headings arrive counter-clockwise; the loss must supervise the negated (native) heading bins."""
     native = torch.tensor([0.4, -1.2])
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
     layer = _perfect_layer(_CENTERS, _SIZES, native, _LABELS, num_queries=4, num_angle_bin=12)
 
     ccw = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -native, _LABELS))
@@ -121,10 +121,10 @@ def test_detr3d_loss_ccw_gt_matches_native_heading_predictions() -> None:
     assert wrong["loss"] > ccw["loss"]
 
 
-def test_detr3d_loss_densified_targets_follow_box_contract() -> None:
+def test_threedetr_loss_densified_targets_follow_box_contract() -> None:
     """Densify negates the CCW heading, keeps full extents, and reads classes from `DataKeys.LABEL`."""
     headings = torch.tensor([0.4, -1.2])
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
     dims = (torch.zeros(1, 3), torch.full((1, 3), _SCENE))
     targets = loss_fn._densify(_batch(_CENTERS, _SIZES, headings, _LABELS), dims)
     assert torch.equal(targets.center_unnormalized[0], _CENTERS)
@@ -134,10 +134,10 @@ def test_detr3d_loss_densified_targets_follow_box_contract() -> None:
     assert torch.equal(targets.present[0], torch.ones(2))
 
 
-def test_detr3d_loss_degenerate_gt_box_stays_finite() -> None:
+def test_threedetr_loss_degenerate_gt_box_stays_finite() -> None:
     """A zero-size GT box under a collapsed query must not produce NaN costs (the matcher raises on them)."""
     torch.manual_seed(0)
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
     centers = torch.tensor([[4.0, 4.0, 1.0], [2.0, 2.0, 1.0]])
     sizes = torch.tensor([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
     layer = _perfect_layer(centers, sizes, torch.zeros(2), _LABELS, num_queries=4, num_angle_bin=12)
@@ -145,16 +145,16 @@ def test_detr3d_loss_degenerate_gt_box_stays_finite() -> None:
     assert torch.isfinite(out["loss"])
 
 
-def test_detr3d_loss_no_boxes_is_finite() -> None:
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
+def test_threedetr_loss_no_boxes_is_finite() -> None:
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
     layer = _perfect_layer(_CENTERS, _SIZES, torch.zeros(2), _LABELS, num_queries=4, num_angle_bin=1)
     empty = _batch(_CENTERS[:0], _SIZES[:0], torch.zeros(0), _LABELS[:0])
     out = loss_fn(_output(layer), empty)
     assert torch.isfinite(out["loss"])
 
 
-def test_detr3d_loss_backward() -> None:
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
+def test_threedetr_loss_backward() -> None:
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
     layer = _perfect_layer(_CENTERS, _SIZES, torch.tensor([0.4, -1.2]), _LABELS, num_queries=4, num_angle_bin=12)
     for key in ("sem_cls_logits", "center_normalized", "size_normalized", "angle_residual_normalized"):
         layer[key].requires_grad_(True)
@@ -165,19 +165,19 @@ def test_detr3d_loss_backward() -> None:
     assert grad is not None and torch.isfinite(grad).all()
 
 
-def test_detr3d_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_threedetr_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch: pytest.MonkeyPatch) -> None:
     """CCW library headings are negated into native space, so an all-positive batch must still take the
     rotated GIoU branch."""
     headings = torch.tensor([0.8, 1.2])
-    loss_fn = DETR3DLoss(num_classes=_NUM_CLASSES, num_angle_bin=12, loss_giou_weight=1.0)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12, loss_giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, -headings, _LABELS, num_queries=4, num_angle_bin=12)
     seen: List[bool] = []
-    original = DETR3DLoss._giou3d
+    original = ThreeDETRLoss._giou3d
 
-    def spy(self: DETR3DLoss, layer: Dict[str, Tensor], targets: Any, rotated: bool) -> Tensor:
+    def spy(self: ThreeDETRLoss, layer: Dict[str, Tensor], targets: Any, rotated: bool) -> Tensor:
         seen.append(rotated)
         return original(self, layer, targets, rotated)
 
-    monkeypatch.setattr(DETR3DLoss, "_giou3d", spy)
+    monkeypatch.setattr(ThreeDETRLoss, "_giou3d", spy)
     loss_fn(_output(layer), _batch(_CENTERS, _SIZES, headings, _LABELS))
     assert seen == [True]

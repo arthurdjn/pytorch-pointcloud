@@ -25,7 +25,7 @@ from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import register_model
 
 
@@ -624,7 +624,7 @@ class PVCNN2Classification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PVCNN2Segmentation(SegmentationModel):
+class PVCNN2Segmentation(SemanticSegmentationModel):
     r"""PVCNN++ segmentation model from
     :arxiv: [Point-Voxel CNN for Efficient 3D Deep Learning](https://arxiv.org/abs/1907.03739)
     by Zhijian Liu, Haotian Tang, Yujun Lin, Song Han.
@@ -874,7 +874,7 @@ class PVCNN2Segmentation(SegmentationModel):
 
 @register_model(
     "pvcnn2.s3dis-area5",
-    task="segmentation",
+    task="semantic-segmentation",
     # No ported pretrained weights for PVCNN2 yet.
     weights=None,
     hparams=dict(

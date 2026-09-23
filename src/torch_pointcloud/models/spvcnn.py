@@ -32,7 +32,7 @@ from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, _TORCHSPARSE_GITHUB_URL, optional_import
@@ -891,7 +891,7 @@ class SPVCNNClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class SPVCNNSegmentation(SegmentationModel):
+class SPVCNNSegmentation(SemanticSegmentationModel):
     """SPVCNN segmentation model as described in the paper
     :arxiv: [Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution](https://arxiv.org/abs/2007.16100)
     by Haotian Tang, Zhijian Liu, Shengyu Zhao, Yujun Lin, Ji Lin, Hanrui Wang, Song Han.
@@ -1182,7 +1182,7 @@ def _spvcnn_semantickitti_hparams(cr: float) -> dict:
 
 @register_model(
     "spvcnn-30gmacs.semantickitti.mit-han-lab",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/spvcnn-30gmacs.semantickitti.mit-han-lab/resolve/19835c445d4a1e0c40c6db62fbcc5625d639ab9f/model.safetensors",
         dataset="semantickitti",
@@ -1200,7 +1200,7 @@ def spvcnn_30gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
 
 @register_model(
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/spvcnn-47gmacs.semantickitti.mit-han-lab/resolve/9638ee6c61ea72a9e33ab403f7c6d046a51703be/model.safetensors",
         dataset="semantickitti",
@@ -1218,7 +1218,7 @@ def spvcnn_47gmacs_semantickitti_seg(**hparams: Any) -> SPVCNNSegmentation:
 
 @register_model(
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/spvcnn-119gmacs.semantickitti.mit-han-lab/resolve/0f6344036b8e67c69155d3bfce1d9dd1f7e968a3/model.safetensors",
         dataset="semantickitti",

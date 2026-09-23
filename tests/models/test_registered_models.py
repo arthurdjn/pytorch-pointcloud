@@ -85,7 +85,7 @@ CLASSIFICATION_MODELS = [
     "pointnext-sm.scanobjectnn-hardest.openpoints",
     "pointnext-xl",
 ]
-BASE_MODELS = [
+PRETRAINING_MODELS = [
     "concerto-base.pretrain.pointcept",
     "concerto-large.pretrain.pointcept",
     "concerto-small.pretrain.pointcept",
@@ -99,13 +99,12 @@ BASE_MODELS = [
     "pointgpt-b.pretrain.guangyan-chen",
     "pointgpt-l.pretrain.guangyan-chen",
     "sonata-base.pretrain.fair",
-    "spformer-unet.scannet",
     "utonia.pretrain.pointcept",
 ]
-SEGMENTATION_MODELS = [
+SEMANTIC_SEGMENTATION_MODELS = [
+    "spformer-unet.scannet",
     "concerto-large-lp.scannet20.pointcept",
     "utonia-lp.scannet20.pointcept",
-    "dgcnn.shapenetpart.an-tao",
     "dgcnn.s3dis-area1.an-tao",
     "dgcnn.s3dis-area2.an-tao",
     "dgcnn.s3dis-area3.an-tao",
@@ -121,8 +120,6 @@ SEGMENTATION_MODELS = [
     "octformer-sm",
     "octformer-base.scannet20.octree-nn",
     "octformer-base.scannet200.octree-nn",
-    "point-mae-base.shapenetpart.yatian-pang",
-    "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-transformer.s3dis-area5",
     "point-transformer.scannet20",
     "pointcnn-base",
@@ -165,9 +162,6 @@ SEGMENTATION_MODELS = [
     "pointnext-sm.s3dis-area4.openpoints",
     "pointnext-sm.s3dis-area5.openpoints",
     "pointnext-sm.s3dis-area6.openpoints",
-    "pointnext-sm.shapenetpart.openpoints",
-    "pointnext-sm-c64.shapenetpart.openpoints",
-    "pointnext-sm-c160.shapenetpart.openpoints",
     "pointnext-xl",
     "pointnext-xl.s3dis-area1.openpoints",
     "pointnext-xl.s3dis-area2.openpoints",
@@ -183,6 +177,14 @@ SEGMENTATION_MODELS = [
     "spvcnn-30gmacs.semantickitti.mit-han-lab",
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
+]
+PART_SEGMENTATION_MODELS = [
+    "dgcnn.shapenetpart.an-tao",
+    "point-m2ae-base.shapenetpart.renrui-zhang",
+    "point-mae-base.shapenetpart.yatian-pang",
+    "pointnext-sm.shapenetpart.openpoints",
+    "pointnext-sm-c64.shapenetpart.openpoints",
+    "pointnext-sm-c160.shapenetpart.openpoints",
 ]
 DETECTION_MODELS = [
     "3detr-m.scannet.fair",
@@ -327,9 +329,10 @@ def _check_architecture_or_regen(
 @pytest.mark.parametrize(
     "task,expected_models",
     [
-        ("base", BASE_MODELS),
+        ("pretraining", PRETRAINING_MODELS),
         ("classification", CLASSIFICATION_MODELS),
-        ("segmentation", SEGMENTATION_MODELS),
+        ("semantic-segmentation", SEMANTIC_SEGMENTATION_MODELS),
+        ("part-segmentation", PART_SEGMENTATION_MODELS),
         ("detection", DETECTION_MODELS),
     ],
 )
@@ -385,9 +388,9 @@ def test_classification_architecture(model_name: str, force_regen: bool, models_
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-@pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
-def test_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
-    """Test that the architecture of all registered segmentation models is correct.
+@pytest.mark.parametrize("model_name", SEMANTIC_SEGMENTATION_MODELS)
+def test_semantic_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered semantic segmentation models is correct.
     This test will only verify that the state-dict structure of the model matches the expected structure,
     but will not verify that the content of the weights are correct.
 
@@ -397,17 +400,49 @@ def test_segmentation_architecture(model_name: str, force_regen: bool, models_di
     To regenerate the expected architecture as JSON files, run
 
     ```bash
-    uv run --no-sync pytest tests/models/test_registered_models.py -k test_segmentation_architecture --force-regen
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_semantic_segmentation_architecture --force-regen
     ```
     """
     _skip_if_model_deps_missing(model_name)
     models_dir = models_dir_factory("*.json")
 
-    model = create_model(model_name, task="segmentation", in_channels=3, num_classes=10)
+    model = create_model(model_name, task="semantic-segmentation", in_channels=3, num_classes=10)
     _check_architecture_or_regen(
         model,
         model_name,
-        task="segmentation",
+        task="semantic-segmentation",
+        models_dir=models_dir,
+        force_regen=force_regen,
+    )
+
+
+@pytest.mark.skipif(
+    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
+    reason="torch-cluster or torch-scatter is not installed",
+)
+@pytest.mark.parametrize("model_name", PART_SEGMENTATION_MODELS)
+def test_part_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered part segmentation models is correct.
+    This test will only verify that the state-dict structure of the model matches the expected structure,
+    but will not verify that the content of the weights are correct.
+
+    This test is useful to catch accidental architecture changes in the models (e.g. renaming a parameter or module),
+    and is faster than a full forward pass + weight loading.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_part_segmentation_architecture --force-regen
+    ```
+    """
+    _skip_if_model_deps_missing(model_name)
+    models_dir = models_dir_factory("*.json")
+
+    model = create_model(model_name, task="part-segmentation", in_channels=3, num_classes=10)
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="part-segmentation",
         models_dir=models_dir,
         force_regen=force_regen,
     )
@@ -450,11 +485,11 @@ def test_detection_architecture(model_name: str, force_regen: bool, models_dir_f
     not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
     reason="torch-cluster or torch-scatter is not installed",
 )
-@pytest.mark.parametrize("model_name", BASE_MODELS)
-def test_base_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
-    """Test that the architecture of all registered base models is correct.
+@pytest.mark.parametrize("model_name", PRETRAINING_MODELS)
+def test_pretraining_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered pretraining models is correct.
 
-    Base models (SSL encoders and pretraining heads) carry no task wrapper and, when they ship without
+    Pretraining models (SSL encoders and pretraining heads) carry no task wrapper and, when they ship without
     pretrained weights, have no pretrained-weight regression test, so this random-weight state-dict snapshot
     is their only guard against accidental architecture changes (renamed parameters, changed shapes) caused
     by refactors to shared layers, transforms or utilities.
@@ -462,17 +497,17 @@ def test_base_architecture(model_name: str, force_regen: bool, models_dir_factor
     To regenerate the expected architecture as JSON files, run
 
     ```bash
-    uv run --no-sync pytest tests/models/test_registered_models.py -k test_base_architecture --force-regen
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_pretraining_architecture --force-regen
     ```
     """
     _skip_if_model_deps_missing(model_name)
     models_dir = models_dir_factory("*.json")
 
-    model = create_model(model_name, task="base")
+    model = create_model(model_name, task="pretraining")
     _check_architecture_or_regen(
         model,
         model_name,
-        task="base",
+        task="pretraining",
         models_dir=models_dir,
         force_regen=force_regen,
     )
@@ -563,7 +598,8 @@ UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-b
     "model_name,task",
     [
         *[(model, "classification") for model in CLASSIFICATION_MODELS],
-        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+        *[(model, "semantic-segmentation") for model in SEMANTIC_SEGMENTATION_MODELS],
+        *[(model, "part-segmentation") for model in PART_SEGMENTATION_MODELS],
     ],
 )
 def test_model_forward(model_name: str, task: str, data_factory: Callable) -> None:
@@ -603,7 +639,8 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     "model_name,task",
     [
         *[(model, "classification") for model in CLASSIFICATION_MODELS],
-        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+        *[(model, "semantic-segmentation") for model in SEMANTIC_SEGMENTATION_MODELS],
+        *[(model, "part-segmentation") for model in PART_SEGMENTATION_MODELS],
     ],
 )
 def test_model_headless_forward_returns_features(model_name: str, task: str, data_factory: Callable) -> None:
@@ -742,7 +779,8 @@ def test_registered_weights_urls_name_the_hub_repo() -> None:
     "model_name,task",
     [
         *[(model, "classification") for model in CLASSIFICATION_MODELS],
-        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+        *[(model, "semantic-segmentation") for model in SEMANTIC_SEGMENTATION_MODELS],
+        *[(model, "part-segmentation") for model in PART_SEGMENTATION_MODELS],
     ],
 )
 def test_model_forward_features_intermediates(model_name: str, task: str, data_factory: Callable) -> None:
@@ -800,7 +838,8 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
     "model_name,task",
     [
         *[(model, "classification") for model in CLASSIFICATION_MODELS],
-        *[(model, "segmentation") for model in SEGMENTATION_MODELS],
+        *[(model, "semantic-segmentation") for model in SEMANTIC_SEGMENTATION_MODELS],
+        *[(model, "part-segmentation") for model in PART_SEGMENTATION_MODELS],
     ],
 )
 def test_model_pre_logits_matches_headless_forward(

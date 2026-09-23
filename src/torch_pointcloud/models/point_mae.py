@@ -27,7 +27,7 @@ from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import BaseModel, ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, PartSegmentationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
 
 
@@ -459,7 +459,7 @@ class PointMAEClassification(ClassificationModel):
         return self.forward_head(x)
 
 
-class PointMAESegmentation(SegmentationModel):
+class PointMAEPartSegmentation(PartSegmentationModel):
     r"""Point-MAE part-segmentation model, as in :arxiv: [Masked Autoencoders for Point Cloud Self-supervised
     Learning](https://arxiv.org/abs/2203.06604), adapted from
     :github: [Pang-Yatian/Point-MAE](https://github.com/Pang-Yatian/Point-MAE).
@@ -519,12 +519,11 @@ class PointMAESegmentation(SegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
     ) -> None:
-        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
         if max(self.fetch_idx) >= depth:
             raise ValueError(
                 f"`fetch_idx` {self.fetch_idx} requires at least {max(self.fetch_idx) + 1} blocks; got depth={depth}."
             )
-        self.num_categories = num_categories
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
@@ -679,7 +678,7 @@ class PointMAESegmentation(SegmentationModel):
         return self.forward_head(x)
 
 
-class PointMAEMaskedAutoEncoder(BaseModel):
+class PointMAEPretraining(PretrainingModel):
     r"""Point-MAE masked-autoencoder pretraining model, as in :arxiv: [Masked Autoencoders for Point Cloud
     Self-supervised Learning](https://arxiv.org/abs/2203.06604), adapted from
     :github: [Pang-Yatian/Point-MAE](https://github.com/Pang-Yatian/Point-MAE).
@@ -1028,7 +1027,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
 
 @register_model(
     "point-mae-base.shapenetpart.yatian-pang",
-    task="segmentation",
+    task="part-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.shapenetpart.yatian-pang/resolve/7f283670e1997fdf385132a835c3d14ca159bbee/model.safetensors",
         dataset="shapenetpart",
@@ -1068,13 +1067,13 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
         spatial_dim=3,
     ),
 )
-def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAESegmentation:
-    return PointMAESegmentation(**kwargs)
+def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAEPartSegmentation:
+    return PointMAEPartSegmentation(**kwargs)
 
 
 @register_model(
     "point-mae-base.pretrain.yatian-pang",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.pretrain.yatian-pang/resolve/29921d9f3f4eb70ef01ade99a9534af7022c3648/model.safetensors",
         dataset="shapenet55",
@@ -1099,5 +1098,5 @@ def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAESegmentation:
         spatial_dim=3,
     ),
 )
-def point_mae_base_pretrain(**kwargs: Any) -> PointMAEMaskedAutoEncoder:
-    return PointMAEMaskedAutoEncoder(**kwargs)
+def point_mae_base_pretrain(**kwargs: Any) -> PointMAEPretraining:
+    return PointMAEPretraining(**kwargs)

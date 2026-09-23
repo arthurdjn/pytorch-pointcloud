@@ -7,7 +7,7 @@ from torch_pointcloud.models.point_bert import (
     PointBERTClassification,
     PointBERTDiscreteVAE,
     PointBERTEncoder,
-    PointBERTMaskedTransformer,
+    PointBERTPretraining,
 )
 from torch_pointcloud.utils.imports import (
     _TORCH_CLUSTER_AVAILABLE,
@@ -149,7 +149,7 @@ def test_point_bert_classification_accepts_features() -> None:
 
 
 def test_point_bert_masked_transformer_basic() -> None:
-    model = PointBERTMaskedTransformer(
+    model = PointBERTPretraining(
         in_channels=0,
         embed_dim=384,
         depth=12,
@@ -170,7 +170,7 @@ def test_point_bert_masked_transformer_basic() -> None:
 
 def test_point_bert_masked_transformer_accepts_features() -> None:
     in_channels = 3
-    model = PointBERTMaskedTransformer(
+    model = PointBERTPretraining(
         in_channels=in_channels,
         embed_dim=384,
         depth=2,
@@ -193,8 +193,8 @@ def test_point_bert_masked_transformer_accepts_features() -> None:
     assert not torch.allclose(out_a["logits"], out_b["logits"])
 
 
-def _small_masked_transformer(mask_ratio: tuple[float, float]) -> PointBERTMaskedTransformer:
-    return PointBERTMaskedTransformer(
+def _small_masked_transformer(mask_ratio: tuple[float, float]) -> PointBERTPretraining:
+    return PointBERTPretraining(
         in_channels=0,
         embed_dim=96,
         depth=2,

@@ -13,7 +13,7 @@ from torch_pointcloud.lightning import (
     MeanAveragePrecision3D,
     MetricCallback,
 )
-from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
+from torch_pointcloud.models import ClassificationModel, DetectionModel, SemanticSegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.types import Detection3D
 
@@ -51,7 +51,7 @@ class DummyClassificationModel(ClassificationModel):
         return self.forward_head(features)
 
 
-class DummySegmentationModel(SegmentationModel):
+class DummySemanticSegmentationModel(SemanticSegmentationModel):
     def __init__(self, in_channels: int = 3, num_classes: int = 5) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.fc = self.configure_head()
@@ -116,8 +116,8 @@ def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
     return DummyClassificationModel(**kwargs)
 
 
-def _dummy_segmentation(**kwargs: Any) -> DummySegmentationModel:
-    return DummySegmentationModel(**kwargs)
+def _dummy_segmentation(**kwargs: Any) -> DummySemanticSegmentationModel:
+    return DummySemanticSegmentationModel(**kwargs)
 
 
 def _dummy_detection(**kwargs: Any) -> DummyDetectionModel:
@@ -129,12 +129,12 @@ def _register_dummies() -> Iterator[None]:
     """The LightningModules build their model via `create_model(name, ...)`, so the test doubles are
     registered here (and removed afterwards, to keep the global registry clean for other tests)."""
     register_model("dummy.classification", task="classification")(_dummy_classification)
-    register_model("dummy.segmentation", task="segmentation")(_dummy_segmentation)
+    register_model("dummy.segmentation", task="semantic-segmentation")(_dummy_segmentation)
     register_model("dummy.detection", task="detection")(_dummy_detection)
     yield
     dummies: Tuple[Tuple[Task, str], ...] = (
         ("classification", "dummy.classification"),
-        ("segmentation", "dummy.segmentation"),
+        ("semantic-segmentation", "dummy.segmentation"),
         ("detection", "dummy.detection"),
     )
     for task, name in dummies:

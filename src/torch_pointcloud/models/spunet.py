@@ -27,7 +27,7 @@ from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers import SparseModule
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_from_spconv_tensor, convert_to_spconv_tensor
 from torch_pointcloud.utils.data import DataKeys
@@ -379,7 +379,7 @@ class SparseUNetDecoder(nn.Module):
         return x
 
 
-class SparseUNetSegmentation(SegmentationModel):
+class SparseUNetSegmentation(SemanticSegmentationModel):
     r"""SpUNet segmentation model, a sparse residual U-Net in the spirit of
     :arxiv: [4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural Networks](https://arxiv.org/abs/1904.08755)
     by Christopher Choy, JunYoung Gwak, Silvio Savarese.
@@ -550,7 +550,7 @@ class SparseUNetSegmentation(SegmentationModel):
 
 @register_model(
     "spunet-v1m1.scannet20.pointcept",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/spunet-v1m1.scannet20.pointcept/resolve/641cc7cc6035a4086dfed9f70d839e9f551d5955/model.safetensors",
         dataset="scannet20",

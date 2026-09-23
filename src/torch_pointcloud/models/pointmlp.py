@@ -37,7 +37,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 
 
 class ResidualLinearBlock(nn.Module):
@@ -628,7 +628,7 @@ class PointMLPClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointMLPSegmentation(SegmentationModel):
+class PointMLPSegmentation(SemanticSegmentationModel):
     r"""PointMLP segmentation model from
     :arxiv: [Rethinking Network Design and Local Geometry in Point Cloud: A Simple Residual MLP Framework](https://arxiv.org/abs/2202.07123)
     by Xu Ma, Can Qin, Haoxuan You, Haoxi Ran, Yun Fu.
@@ -900,12 +900,12 @@ def pointmlp_elite_clf(**hparams: Any) -> PointMLPClassification:
     return PointMLPClassification(**hparams)
 
 
-@register_model("pointmlp-base", task="segmentation", hparams=_pointmlp_base_seg_hparams())
+@register_model("pointmlp-base", task="semantic-segmentation", hparams=_pointmlp_base_seg_hparams())
 def pointmlp_base_seg(**hparams: Any) -> PointMLPSegmentation:
     return PointMLPSegmentation(**hparams)
 
 
-@register_model("pointmlp-elite", task="segmentation", hparams=_pointmlp_elite_seg_hparams())
+@register_model("pointmlp-elite", task="semantic-segmentation", hparams=_pointmlp_elite_seg_hparams())
 def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     return PointMLPSegmentation(**hparams)
 

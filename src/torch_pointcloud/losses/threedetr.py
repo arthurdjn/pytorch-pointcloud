@@ -69,7 +69,7 @@ class _Targets:
         self.nactual = present.sum(dim=1).long()
 
 
-class DETR3DLoss(nn.Module):
+class ThreeDETRLoss(nn.Module):
     r"""3DETR Hungarian set-prediction detection loss.
 
     Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
@@ -153,7 +153,7 @@ class DETR3DLoss(nn.Module):
         r"""Compute the 3DETR set-prediction loss and its components.
 
         Args:
-            output: A training-mode `DETR3DTrainOutput`: `aux_outputs` (a per-decoder-layer list of head
+            output: A training-mode `ThreeDETRTrainOutput`: `aux_outputs` (a per-decoder-layer list of head
                 dicts with `sem_cls_logits`, `sem_cls_prob`, `objectness_prob`, `center_normalized`,
                 `center_unnormalized`, `size_normalized`, `size_unnormalized`, `angle_logits`,
                 `angle_residual_normalized`, `angle_continuous`) and `point_cloud_dims`.

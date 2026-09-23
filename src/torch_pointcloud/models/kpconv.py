@@ -28,7 +28,7 @@ from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 from .pointnet2 import PointNet2Decoder
 
@@ -1082,7 +1082,7 @@ class KPFCNNClassification(ClassificationModel):
         return self.forward_head(x, batch, pre_logits=False)
 
 
-class KPFCNNSegmentation(SegmentationModel):
+class KPFCNNSegmentation(SemanticSegmentationModel):
     """KPConv Network for segmentation tasks as described in the paper
     :arxiv: [KPConv: Flexible and Efficient Convolution for Point Clouds](https://arxiv.org/abs/1904.08889)
     by Hugues Thomas, Charles R. Qi, Jean-Emmanuel Deschaud, Beatriz Marcotegui, François Goulette, Leonidas J. Guibas.
@@ -1424,7 +1424,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
 
 @register_model(
     "kpfcnn-base-sm.s3dis-area5.hugues-thomas",
-    task="segmentation",
+    task="semantic-segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-sm.s3dis-area5.hugues-thomas/resolve/2162b440c28ddcf97e130a3cdfbf6cf740db5388/model.safetensors",
@@ -1467,7 +1467,7 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 @register_model(
     "kpfcnn-base.s3dis-area5.hugues-thomas",
-    task="segmentation",
+    task="semantic-segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base.s3dis-area5.hugues-thomas/resolve/7b241427afada125eb8e0dcedd30d8352e2e7d7a/model.safetensors",
@@ -1510,7 +1510,7 @@ def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 @register_model(
     "kpfcnn-base-deform.s3dis-area5.hugues-thomas",
-    task="segmentation",
+    task="semantic-segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-deform.s3dis-area5.hugues-thomas/resolve/bbeeb89dc1b1f5bc72ed713d47e90a84f263aa59/model.safetensors",
@@ -1553,7 +1553,7 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
 
 @register_model(
     "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas",
-    task="segmentation",
+    task="semantic-segmentation",
     transform=_BASE_S3DIS_TRANSFORMS,
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas/resolve/ebb67bd500167d5ec7249a63a68eae2b76b72f53/model.safetensors",

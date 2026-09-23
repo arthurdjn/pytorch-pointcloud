@@ -18,7 +18,7 @@ from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import BaseModel, ClassificationModel
+from ._base import ClassificationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
 
 
@@ -536,7 +536,7 @@ class PointGPTClassification(ClassificationModel):
         return self.forward_head(x)
 
 
-class PointGPTGenerativePretraining(BaseModel):
+class PointGPTPretraining(PretrainingModel):
     r"""PointGPT auto-regressive generative pretraining model.
 
     Implements the pretraining model (`PointGPT` / `GPT_Transformer`) of :arxiv: [PointGPT:
@@ -573,9 +573,9 @@ class PointGPTGenerativePretraining(BaseModel):
     Example:
         ```python
         import torch
-        from torch_pointcloud.models.pointgpt import PointGPTGenerativePretraining
+        from torch_pointcloud.models.pointgpt import PointGPTPretraining
 
-        model = PointGPTGenerativePretraining(in_channels=0)
+        model = PointGPTPretraining(in_channels=0)
         pos = torch.randn(2048, 3)
         batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
         pred, target = model(None, pos, batch)
@@ -897,9 +897,9 @@ for _size in ("s", "b", "l"):
 
     @register_model(
         f"pointgpt-{_size}.pretrain.guangyan-chen",
-        task="base",
+        task="pretraining",
         weights=_weights(_size, "pretrain", dataset="shapenet55"),
         hparams=_pretrain_hparams(_size),
     )
-    def _pointgpt_pretrain(_size: str = _size, **kwargs: Any) -> PointGPTGenerativePretraining:
-        return PointGPTGenerativePretraining(**kwargs)
+    def _pointgpt_pretrain(_size: str = _size, **kwargs: Any) -> PointGPTPretraining:
+        return PointGPTPretraining(**kwargs)

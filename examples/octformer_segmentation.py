@@ -39,7 +39,7 @@ def main() -> None:
         name=args.model,
         in_channels=4,
         num_classes=args.num_classes,
-        task="segmentation",
+        task="semantic-segmentation",
     ).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(

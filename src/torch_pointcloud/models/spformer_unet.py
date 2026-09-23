@@ -26,7 +26,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import (
     convert_from_spconv_tensor,
@@ -370,7 +370,7 @@ class SPFormerUNetDecoder(nn.Module):
         return self.output_layer(out)
 
 
-class SPFormerUNetSegmentation(SegmentationModel):
+class SPFormerUNetSegmentation(SemanticSegmentationModel):
     r"""SpConv U-Net from SPFormer.
 
     Reference: :github: [sunjiahao1999/SPFormer](https://github.com/sunjiahao1999/SPFormer).
@@ -514,7 +514,7 @@ class SPFormerUNetSegmentation(SegmentationModel):
 
 @register_model(
     "spformer-unet.scannet",
-    task="base",
+    task="semantic-segmentation",
     # No ported pretrained weights for the standalone SPFormer U-Net yet: the released SPFormer checkpoint
     # bundles an instance-segmentation query decoder, so the backbone is registered without weights.
     weights=None,
@@ -558,7 +558,7 @@ def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
 
 @register_model(
     "spformer-unet.scannet20",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=None,
     transform=T.Compose(
         [

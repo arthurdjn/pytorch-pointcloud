@@ -9,7 +9,7 @@ from torch import Tensor, nn
 
 from torch_pointcloud.models import (
     ClassificationModel,
-    SegmentationModel,
+    SemanticSegmentationModel,
     WeightsDict,
     create_model,
     list_models,
@@ -46,7 +46,7 @@ class DummyClassificationModel(ClassificationModel):
         return self.forward_head(features)
 
 
-class DummySegmentationModel(SegmentationModel):
+class DummySemanticSegmentationModel(SemanticSegmentationModel):
     def __init__(self, in_channels: int = 3, num_classes: int = 5) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.fc = self.configure_head()
@@ -77,8 +77,8 @@ def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
     return DummyClassificationModel(**kwargs)
 
 
-def _dummy_segmentation(**kwargs: Any) -> DummySegmentationModel:
-    return DummySegmentationModel(**kwargs)
+def _dummy_segmentation(**kwargs: Any) -> DummySemanticSegmentationModel:
+    return DummySemanticSegmentationModel(**kwargs)
 
 
 @pytest.fixture(autouse=True)
@@ -139,16 +139,18 @@ def test_create_model_unknown_name_suggests_close_matches() -> None:
 
 def test_create_model_unknown_name_hints_other_task() -> None:
     with pytest.raises(ValueError, match="registered under task 'classification'; pass task='classification'"):
-        create_model("dummy.classification", task="segmentation")
+        create_model("dummy.classification", task="semantic-segmentation")
 
 
 def test_create_model_segmentation_name_as_classification_hints_task() -> None:
-    register_model("dummy-seg-only.segmentation", task="segmentation")(_dummy_segmentation)
+    register_model("dummy-seg-only.segmentation", task="semantic-segmentation")(_dummy_segmentation)
     try:
-        with pytest.raises(ValueError, match="registered under task 'segmentation'; pass task='segmentation'"):
+        with pytest.raises(
+            ValueError, match="registered under task 'semantic-segmentation'; pass task='semantic-segmentation'"
+        ):
             create_model("dummy-seg-only.segmentation", task="classification")
     finally:
-        _REGISTERED_MODELS["segmentation"].pop("dummy-seg-only.segmentation", None)
+        _REGISTERED_MODELS["semantic-segmentation"].pop("dummy-seg-only.segmentation", None)
 
 
 def test_register_model_returns_the_registered_callable() -> None:

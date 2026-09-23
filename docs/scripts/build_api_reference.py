@@ -46,7 +46,7 @@ DISPLAY_TITLES = {
     "sphereformer": "SphereFormer",
     "oneformer3d": "OneFormer3D",
     "votenet": "VoteNet",
-    "detr3d": "3DETR",
+    "threedetr": "3DETR",
     "pointpillars": "PointPillars",
     "second": "SECOND",
     "pointrcnn": "PointRCNN",

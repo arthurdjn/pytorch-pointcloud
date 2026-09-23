@@ -25,7 +25,7 @@ from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 
@@ -505,7 +505,7 @@ class PointNet2Classification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointNet2Segmentation(SegmentationModel):
+class PointNet2Segmentation(SemanticSegmentationModel):
     """PointNet++ segmentation model from the paper
     :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
     by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
@@ -853,7 +853,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
 
 @register_model(
     "pointnet2.s3dis-area5.xu-yan",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area5.xu-yan/resolve/bd3cc4078324b25036fe6594c198092d22fd62e9/model.safetensors",
         dataset="s3dis-area5",
@@ -1010,7 +1010,7 @@ def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
 
 @register_model(
     "pointnet2.s3dis-area1.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area1.openpoints/resolve/228a72278aefb90c258a5bf287a67f8f0fdf6cdb/model.safetensors",
         dataset="s3dis-area1",
@@ -1028,7 +1028,7 @@ def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
 
 @register_model(
     "pointnet2.s3dis-area2.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area2.openpoints/resolve/da77c5e08004d0d816e235608e8ce42d98696d64/model.safetensors",
         dataset="s3dis-area2",
@@ -1046,7 +1046,7 @@ def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
 
 @register_model(
     "pointnet2.s3dis-area3.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area3.openpoints/resolve/56feacab8d87cbc576926873148474e66047601b/model.safetensors",
         dataset="s3dis-area3",
@@ -1064,7 +1064,7 @@ def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
 
 @register_model(
     "pointnet2.s3dis-area4.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area4.openpoints/resolve/17960ee6acf283183e456c593364805c82125c28/model.safetensors",
         dataset="s3dis-area4",
@@ -1082,7 +1082,7 @@ def pointnet2_openpoints_s3dis_area4(**hparams: Any) -> PointNet2Segmentation:
 
 @register_model(
     "pointnet2.s3dis-area5.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area5.openpoints/resolve/587c487e4965e0a11657701996324019e2426778/model.safetensors",
         dataset="s3dis-area5",
@@ -1100,7 +1100,7 @@ def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
 
 @register_model(
     "pointnet2.s3dis-area6.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area6.openpoints/resolve/7ca38dfd0b933db8f07881accdffc2601e5c77fa/model.safetensors",
         dataset="s3dis-area6",

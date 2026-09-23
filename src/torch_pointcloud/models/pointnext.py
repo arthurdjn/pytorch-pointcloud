@@ -22,7 +22,7 @@ from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, PartSegmentationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 
@@ -429,7 +429,7 @@ class PointNeXtPartDecoder(nn.Module):
         return x, pos, batch
 
 
-class PointNeXtPartSegmentation(SegmentationModel):
+class PointNeXtPartSegmentation(PartSegmentationModel):
     r"""PointNeXt part segmentation model for ShapeNetPart.
 
     Uses the same encoder as `PointNeXtSegmentation` but replaces the
@@ -483,8 +483,7 @@ class PointNeXtPartSegmentation(SegmentationModel):
         dropout: float = 0.0,
         head_channels: Optional[Sequence[int]] = None,
     ):
-        super().__init__(in_channels, num_classes)
-        self.num_categories = num_categories
+        super().__init__(in_channels, num_classes, num_categories)
         self.stem_channels = ensure_list(stem_channels, none_as_empty=True)
         self.stem_plain_last = stem_plain_last
         self.encoder_channels = ensure_list(encoder_channels)
@@ -880,7 +879,7 @@ class PointNeXtClassification(ClassificationModel):
         return self.forward_head(x, pos, batch)
 
 
-class PointNeXtSegmentation(SegmentationModel):
+class PointNeXtSegmentation(SemanticSegmentationModel):
     r"""
     PointNeXt segmentation model as described in the paper
     :arxiv: [PointNeXt: Revisiting PointNet++ with Improved Training and Scaling Strategies](https://arxiv.org/abs/2206.04670)
@@ -1330,7 +1329,7 @@ def pointnext_sm_c64_modelnet40_clf(**hparams: Any) -> PointNeXtClassification:
 
 @register_model(
     "pointnext-sm",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         spatial_dim=3,
         stem_channels=32,
@@ -1358,7 +1357,7 @@ def pointnext_sm_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         spatial_dim=3,
         stem_channels=32,
@@ -1386,7 +1385,7 @@ def pointnext_base_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         spatial_dim=3,
         stem_channels=32,
@@ -1414,7 +1413,7 @@ def pointnext_lg_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-xl",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         spatial_dim=3,
         stem_channels=64,
@@ -1544,7 +1543,7 @@ _S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
 
 @register_model(
     "pointnext-sm.s3dis-area1.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area1.openpoints/resolve/39812a57073c0a0752b8da3892adb242cc61ab45/model.safetensors",
         dataset="s3dis-area1",
@@ -1562,7 +1561,7 @@ def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-sm.s3dis-area2.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area2.openpoints/resolve/352339b71b5381e2895130e10f04b63cfc6682e0/model.safetensors",
         dataset="s3dis-area2",
@@ -1580,7 +1579,7 @@ def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-sm.s3dis-area3.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area3.openpoints/resolve/00ed6b00bfc7a8266a0b8b7beb621d41b259df08/model.safetensors",
         dataset="s3dis-area3",
@@ -1598,7 +1597,7 @@ def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-sm.s3dis-area4.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area4.openpoints/resolve/134813d2e9947ad0029f9156be04787a3545a9d3/model.safetensors",
         dataset="s3dis-area4",
@@ -1616,7 +1615,7 @@ def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-sm.s3dis-area5.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area5.openpoints/resolve/9ced8297997443c421ab240fe9e0d3879478f14a/model.safetensors",
         dataset="s3dis-area5",
@@ -1634,7 +1633,7 @@ def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-sm.s3dis-area6.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.s3dis-area6.openpoints/resolve/3298e4680216df5ee265593dc41163f4b82afa02/model.safetensors",
         dataset="s3dis-area6",
@@ -1652,7 +1651,7 @@ def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base.s3dis-area1.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area1.openpoints/resolve/42914f6c5748475c9de09c2a08b5a017495872ba/model.safetensors",
         dataset="s3dis-area1",
@@ -1670,7 +1669,7 @@ def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base.s3dis-area2.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area2.openpoints/resolve/60faf16389be38602a66c729f7ebd4125888cae8/model.safetensors",
         dataset="s3dis-area2",
@@ -1688,7 +1687,7 @@ def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base.s3dis-area3.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area3.openpoints/resolve/c9a41d00deb0be939d063018f040ed0b42f21550/model.safetensors",
         dataset="s3dis-area3",
@@ -1706,7 +1705,7 @@ def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base.s3dis-area4.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area4.openpoints/resolve/d86310698bc34193b42191e2908a68be3678224c/model.safetensors",
         dataset="s3dis-area4",
@@ -1724,7 +1723,7 @@ def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base.s3dis-area5.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area5.openpoints/resolve/f4e2eefc9abbe8996a0eb42247965f0e7fe91ffa/model.safetensors",
         dataset="s3dis-area5",
@@ -1742,7 +1741,7 @@ def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-base.s3dis-area6.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-base.s3dis-area6.openpoints/resolve/15bc76e0b58fc7ad12bb9654c6bad26b5fb7fdad/model.safetensors",
         dataset="s3dis-area6",
@@ -1760,7 +1759,7 @@ def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg.s3dis-area1.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area1.openpoints/resolve/0c6dec00e6e9a65d832e8cad1568241fc3965e8d/model.safetensors",
         dataset="s3dis-area1",
@@ -1778,7 +1777,7 @@ def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg.s3dis-area2.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area2.openpoints/resolve/2e60234e6aebb1630689b882fb386868b5b6d3a6/model.safetensors",
         dataset="s3dis-area2",
@@ -1796,7 +1795,7 @@ def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg.s3dis-area3.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area3.openpoints/resolve/42ffef65a2fa6429758734b97fa1e28d8277f11d/model.safetensors",
         dataset="s3dis-area3",
@@ -1814,7 +1813,7 @@ def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg.s3dis-area4.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area4.openpoints/resolve/dab363329b66bb2f304baaedd76ffaee4752681d/model.safetensors",
         dataset="s3dis-area4",
@@ -1832,7 +1831,7 @@ def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg.s3dis-area5.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area5.openpoints/resolve/3d3ed60e7e034404eb4a3c6305df86521f495194/model.safetensors",
         dataset="s3dis-area5",
@@ -1850,7 +1849,7 @@ def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-lg.s3dis-area6.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-lg.s3dis-area6.openpoints/resolve/886b9da0294d76c8742834e963d5f81f3b27d6f1/model.safetensors",
         dataset="s3dis-area6",
@@ -1868,7 +1867,7 @@ def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-xl.s3dis-area1.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area1.openpoints/resolve/974d69556464006745dff240db7344fdeadd0c05/model.safetensors",
         dataset="s3dis-area1",
@@ -1886,7 +1885,7 @@ def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-xl.s3dis-area2.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area2.openpoints/resolve/4ce369de2bcc4df21281813fc24bb0aef132e6fb/model.safetensors",
         dataset="s3dis-area2",
@@ -1904,7 +1903,7 @@ def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-xl.s3dis-area3.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area3.openpoints/resolve/cb0b3b524943897c186825cb4d19ba457b0767f6/model.safetensors",
         dataset="s3dis-area3",
@@ -1922,7 +1921,7 @@ def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-xl.s3dis-area4.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area4.openpoints/resolve/7c19ad05f3b699fbb5d83276f04f5d40c78848fe/model.safetensors",
         dataset="s3dis-area4",
@@ -1940,7 +1939,7 @@ def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 @register_model(
     "pointnext-xl.s3dis-area5.openpoints",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-xl.s3dis-area5.openpoints/resolve/1e2bbf52f4a7f3277ac6a41cd9eaf11498269ceb/model.safetensors",
         dataset="s3dis-area5",
@@ -2018,7 +2017,7 @@ _SHAPENETPART_VARIANT_HPARAMS = {
 
 @register_model(
     "pointnext-sm.shapenetpart.openpoints",
-    task="segmentation",
+    task="part-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.shapenetpart.openpoints/resolve/5149d99e21da44d3fd24e67b6fb2a612f2c92a3e/model.safetensors",
         dataset="shapenetpart",
@@ -2035,7 +2034,7 @@ def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
 
 @register_model(
     "pointnext-sm-c64.shapenetpart.openpoints",
-    task="segmentation",
+    task="part-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c64.shapenetpart.openpoints/resolve/030359b2b0af6a03f70bbe27f7e719177ced3581/model.safetensors",
         dataset="shapenetpart",
@@ -2052,7 +2051,7 @@ def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
 
 @register_model(
     "pointnext-sm-c160.shapenetpart.openpoints",
-    task="segmentation",
+    task="part-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c160.shapenetpart.openpoints/resolve/87f26001939b4553c8977ea9bfa73e1124a96921/model.safetensors",
         dataset="shapenetpart",

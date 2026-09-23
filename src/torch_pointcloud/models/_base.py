@@ -1,4 +1,4 @@
-"""Abstract base classes for classification, segmentation, and detection models."""
+"""Abstract base classes for classification, semantic and part segmentation, detection and pretraining models."""
 
 from abc import ABCMeta, abstractmethod
 from typing import Any
@@ -6,17 +6,16 @@ from typing import Any
 import torch.nn as nn
 
 
-class BaseModel(nn.Module, metaclass=ABCMeta):
-    r"""Base class for task-agnostic point cloud models, registered under the `"base"` task.
+class PretrainingModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for self-supervised pretraining models, registered under the `"pretraining"` task.
 
-    Models whose output is neither logits nor detections inherit from this class: self-supervised
-    pretraining models (masked autoencoders, generative pretraining) and generative models, whose
-    `forward` returns pretext outputs such as `(pred, target)` group coordinates for a
-    reconstruction objective. The class only stores `in_channels`; each subclass defines its own
-    `forward` signature.
+    Pretraining models (masked autoencoders, generative pretraining) return pretext outputs from `forward`, such as
+    `(pred, target)` group coordinates for a reconstruction objective, instead of logits or detections. The class only
+    stores `in_channels`; each subclass defines its own `forward` signature.
 
     Models with a task head inherit from one of the task ABCs instead: `ClassificationModel`,
-    `SegmentationModel` or `DetectionModel`. The classification and segmentation ABCs require the
+    `SemanticSegmentationModel`, `PartSegmentationModel` or `DetectionModel`. The classification and segmentation
+    ABCs require the
     split into `forward_features` (encoder), `forward_decoder` (segmentation only, optional) and
     `forward_head` (logits), plus `configure_head` / `reset_classifier` for building the head and
     the read-only `num_features` property for the width of the features entering it. Detection models
@@ -103,8 +102,8 @@ class ClassificationModel(nn.Module, metaclass=ABCMeta):
         """
 
 
-class SegmentationModel(nn.Module, metaclass=ABCMeta):
-    r"""Base class for point cloud semantic segmentation models.
+class SemanticSegmentationModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for point cloud semantic segmentation models, registered under the `"semantic-segmentation"` task.
 
     Subclasses implement `forward_features` (encoder, keeping the skip intermediates), `forward_head`
     (per-point logits), `configure_head` and `reset_classifier`, and compose them in `forward`, usually
@@ -152,6 +151,94 @@ class SegmentationModel(nn.Module, metaclass=ABCMeta):
 
         Canonical signature: `forward(x, pos, batch)` with features `x` $(N, C)$ (or `None`), positions
         `pos` $(N, 3)$ and batch index `batch` $(N,)$, returning per-point logits
+        $(N, \text{num\_classes})$, or the per-point features $(N, \text{num\_features})$ when
+        `num_classes=0`.
+        """
+
+    @abstractmethod
+    def forward_features(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Encode a packed point cloud, keeping what `forward_decoder` needs for the skip connections.
+
+        Canonical signature: `forward_features(x, pos, batch, return_intermediates=False)`, returning the encoder
+        output. With `return_intermediates=True`, the finer encoder stages are appended as the last element of the
+        return: a `List[FeaturesDict]` in fine-to-coarse order, each entry holding `x`, `batch` and the stage's `pos`
+        or `pos_grid`. Models add the keys their decoder needs (e.g. `pooling_inverse`) or use their own container
+        when a stage is not a packed point set (dense tokens, voxel-point pairs).
+        """
+
+    def forward_decoder(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Decode encoder features back to per-point resolution.
+
+        Canonical signature: `forward_decoder(x, ..., intermediates)`, consuming the output of
+        `forward_features` and returning per-point features $(N, C)$. Models whose encoder already emits
+        per-point features (DGCNN, PointNet) have no decoder and raise `NotImplementedError`.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement `forward_decoder`.")
+
+    @abstractmethod
+    def forward_head(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Map per-point features to per-point logits.
+
+        Canonical signature: `forward_head(x, pre_logits=False)`, returning logits $(N, \text{num\_classes})$,
+        or the per-point features $(N, \text{num\_features})$ when `pre_logits=True`.
+        """
+
+
+class PartSegmentationModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for part segmentation models, registered under the `"part-segmentation"` task.
+
+    Part segmentation labels the parts of a single object and conditions the prediction on the object category,
+    passed to `forward` as a one-hot $(B, \text{num\_categories})$.
+
+    Subclasses implement `forward_features` (encoder, keeping the skip intermediates), `forward_head`
+    (per-point logits), `configure_head` and `reset_classifier`, and compose them in `forward`, usually
+    through `forward_decoder` (upsampling path). Building a model with `num_classes=0` makes
+    `configure_head` return `nn.Identity`, so `forward` returns the per-point features
+    $(N, \text{num\_features})$; `forward_head(..., pre_logits=True)` returns those same features for any
+    `num_classes`.
+
+    Args:
+        in_channels: Number of input feature channels.
+        num_classes: Number of part classes; `0` drops the head.
+        num_categories: Number of object categories of the one-hot `category` input.
+    """
+
+    def __init__(self, in_channels: int, num_classes: int, num_categories: int) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+        self.num_categories = num_categories
+
+    @property
+    @abstractmethod
+    def num_features(self) -> int:
+        r"""Width $C$ of the per-point features entering the head.
+
+        The last dimension of `forward(...)` when `num_classes=0` and of `forward_head(..., pre_logits=True)`.
+        Read-only: it is derived from the instantiated submodules.
+        """
+
+    @abstractmethod
+    def configure_head(self) -> nn.Module:
+        r"""Build and return the segmentation head for the current `num_classes` (`nn.Identity` when 0).
+
+        Called from both `__init__` and `reset_classifier` so the two always build the same module.
+        """
+
+    @abstractmethod
+    def reset_classifier(self, num_classes: int) -> None:
+        r"""Replace the segmentation head for `num_classes` outputs (`0` drops it).
+
+        Concrete models may accept extra keyword options (e.g. `global_pool`, `head_channels`, `dropout`).
+        """
+
+    @abstractmethod
+    def forward(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Run the model on a packed point cloud.
+
+        Canonical signature: `forward(x, pos, batch, category)` with features `x` $(N, C)$ (or `None`), positions
+        `pos` $(N, 3)$, batch index `batch` $(N,)$ and the one-hot object `category` $(B, \text{num\_categories})$,
+        returning per-point logits
         $(N, \text{num\_classes})$, or the per-point features $(N, \text{num\_features})$ when
         `num_classes=0`.
         """
