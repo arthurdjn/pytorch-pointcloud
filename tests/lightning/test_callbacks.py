@@ -80,7 +80,11 @@ class DummySemanticSegmentationModel(SemanticSegmentationModel):
 
 class DummyDetectionModel(DetectionModel):
     def __init__(
-        self, in_channels: int = 1, num_classes: int = 10, num_heading_bins: int = 12, num_size_clusters: int = 10
+        self,
+        in_channels: int = 1,
+        num_classes: int = 10,
+        num_heading_bins: int = 12,
+        num_size_clusters: int = 10,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.num_heading_bins = num_heading_bins

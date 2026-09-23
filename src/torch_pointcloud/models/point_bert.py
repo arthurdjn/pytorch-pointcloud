@@ -171,7 +171,12 @@ class PointBERTEncoder(nn.Module):
             neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
+                pos,
+                batch,
+                self.num_groups,
+                self.group_size,
+                random_start=self.training,
+                return_indices=True,
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
 
@@ -554,7 +559,12 @@ class PointBERTPretraining(PretrainingModel):
             neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
+                pos,
+                batch,
+                self.num_groups,
+                self.group_size,
+                random_start=self.training,
+                return_indices=True,
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
 

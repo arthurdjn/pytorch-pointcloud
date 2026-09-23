@@ -515,7 +515,9 @@ class PointTransformerV2Encoder(nn.Module):
             encoder_channels, size=n, extra_msg="Encoder length `encoder_channels` != `encoder_depths`."
         )
         num_groups = ensure_tuple_size(
-            encoder_attention_groups, size=n, extra_msg="Encoder length `encoder_attention_groups` != `encoder_depths`."
+            encoder_attention_groups,
+            size=n,
+            extra_msg="Encoder length `encoder_attention_groups` != `encoder_depths`.",
         )
         num_neighbors = ensure_tuple_size(
             encoder_num_neighbors, size=n, extra_msg="Encoder length `encoder_num_neighbors` != `encoder_depths`."
@@ -669,7 +671,9 @@ class PointTransformerV2Decoder(nn.Module):
             extra_msg="Decoder length `encoder_channels` - 1 != `decoder_depths`.",
         )
         num_groups = ensure_tuple_size(
-            decoder_attention_groups, size=n, extra_msg="Decoder length `decoder_attention_groups` != `decoder_depths`."
+            decoder_attention_groups,
+            size=n,
+            extra_msg="Decoder length `decoder_attention_groups` != `decoder_depths`.",
         )
         num_neighbors = ensure_tuple_size(
             decoder_num_neighbors, size=n, extra_msg="Decoder length `decoder_num_neighbors` != `decoder_depths`."

@@ -52,7 +52,12 @@ def _make_inputs(n_per_scene: int = 3000, batch_size: int = 2, in_channels: int 
 
 
 def _assert_proposal_shapes(
-    out: Dict[str, Tensor], batch_size: int, num_proposals: int, nh: int, ns: int, nc: int
+    out: Dict[str, Tensor],
+    batch_size: int,
+    num_proposals: int,
+    nh: int,
+    ns: int,
+    nc: int,
 ) -> None:
     assert out["objectness_scores"].shape == (batch_size, num_proposals, 2)
     assert out["center"].shape == (batch_size, num_proposals, 3)

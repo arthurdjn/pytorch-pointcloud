@@ -14,7 +14,12 @@ _SCENE = 8.0
 
 
 def _perfect_layer(
-    centers: Tensor, sizes: Tensor, angles: Tensor, labels: Tensor, num_queries: int, num_heading_bins: int
+    centers: Tensor,
+    sizes: Tensor,
+    angles: Tensor,
+    labels: Tensor,
+    num_queries: int,
+    num_heading_bins: int,
 ) -> Dict[str, Tensor]:
     """One decoder layer whose first `len(centers)` queries predict the given boxes exactly."""
     k = centers.shape[0]
