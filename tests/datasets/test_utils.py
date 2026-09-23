@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from torch_pointcloud.datasets.utils import (
+    check_terms_accepted,
     compute_hash,
     download_url,
     extract_tar,
@@ -311,3 +312,32 @@ def test_download_url_incomplete_unknown_size_keeps_file(
 
     assert Path(result).read_text() == "existing"
     assert mock_urlopen.call_count == 1  # the HEAD request only
+
+
+def test_check_terms_accepted_passes_without_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    prompt = Mock(side_effect=AssertionError("must not prompt"))
+    monkeypatch.setattr("builtins.input", prompt)
+    check_terms_accepted(True, "ScanObjectNN", "https://example.org/terms")
+    prompt.assert_not_called()
+
+
+@pytest.mark.parametrize("answer", ["y", "Y", "yes", " Yes "])
+def test_check_terms_accepted_prompt_accepts(monkeypatch: pytest.MonkeyPatch, answer: str) -> None:
+    prompt = Mock(return_value=answer)
+    monkeypatch.setattr("builtins.input", prompt)
+    check_terms_accepted(False, "ScanObjectNN", "https://example.org/terms")
+    assert "https://example.org/terms" in prompt.call_args.args[0]
+
+
+@pytest.mark.parametrize("answer", ["", "n", "no", "maybe"])
+def test_check_terms_accepted_prompt_refuses(monkeypatch: pytest.MonkeyPatch, answer: str) -> None:
+    monkeypatch.setattr("builtins.input", lambda prompt: answer)
+    with pytest.raises(RuntimeError, match="terms-of-use"):
+        check_terms_accepted(False, "ScanObjectNN", "https://example.org/terms")
+
+
+@pytest.mark.parametrize("error", [EOFError, OSError])
+def test_check_terms_accepted_without_terminal_raises(monkeypatch: pytest.MonkeyPatch, error: type) -> None:
+    monkeypatch.setattr("builtins.input", Mock(side_effect=error))
+    with pytest.raises(RuntimeError, match="accept_terms=True"):
+        check_terms_accepted(False, "ScanObjectNN", "https://example.org/terms")

@@ -32,7 +32,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, download_url
+from .utils import check_cache_meta, check_terms_accepted, download_url
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -720,6 +720,8 @@ class ScanNet(PointCloudDataset):
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
+        accept_terms: Confirm that you have signed the ScanNet terms of use (`terms_url`). When left `False`,
+            `download` asks for the confirmation on the terminal.
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/,
@@ -756,6 +758,7 @@ class ScanNet(PointCloudDataset):
     unk_idx = 0
 
     data_url = "https://kaldir.vc.in.tum.de/scannet/"
+    terms_url = "https://kaldir.vc.in.tum.de/scannet/ScanNet_TOS.pdf"
     meta_url = "https://raw.githubusercontent.com/facebookresearch/votenet/master/scannet/meta_data/"
     label_resources = [
         "v1/tasks/scannet-labels.combined.tsv",  # v1 raw labels
@@ -810,6 +813,7 @@ class ScanNet(PointCloudDataset):
         force_process: bool = False,
         show_progress: bool = True,
         num_workers: Optional[int] = None,
+        accept_terms: bool = False,
     ) -> None:
         super().__init__(root)
         if split not in ["train", "val", "test"]:
@@ -823,6 +827,7 @@ class ScanNet(PointCloudDataset):
         self.return_superpoint = return_superpoint
         self.transform = transform
         self.show_progress = show_progress
+        self.accept_terms = accept_terms
 
         if download or force_download:
             self.download(force=force_download)
@@ -933,6 +938,7 @@ class ScanNet(PointCloudDataset):
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
             return
+        check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         # Download the metadata, to get train / val / test splits
         # to reproduce SOTA benchmarks
@@ -1231,6 +1237,8 @@ class ScanNet20(ScanNet):
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
+        accept_terms: Confirm that you have signed the ScanNet terms of use (`terms_url`). When left `False`,
+            `download` asks for the confirmation on the terminal.
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
@@ -1262,6 +1270,7 @@ class ScanNet20(ScanNet):
         force_process: bool = False,
         show_progress: bool = True,
         num_workers: Optional[int] = None,
+        accept_terms: bool = False,
     ) -> None:
         super().__init__(
             root=root,
@@ -1281,6 +1290,7 @@ class ScanNet20(ScanNet):
             force_process=force_process,
             show_progress=show_progress,
             num_workers=num_workers,
+            accept_terms=accept_terms,
         )
 
     @override
@@ -1335,6 +1345,8 @@ class ScanNet200(ScanNet):
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
+        accept_terms: Confirm that you have signed the ScanNet terms of use (`terms_url`). When left `False`,
+            `download` asks for the confirmation on the terminal.
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
@@ -1366,6 +1378,7 @@ class ScanNet200(ScanNet):
         force_process: bool = False,
         show_progress: bool = True,
         num_workers: Optional[int] = None,
+        accept_terms: bool = False,
     ) -> None:
         super().__init__(
             root=root,
@@ -1385,6 +1398,7 @@ class ScanNet200(ScanNet):
             force_process=force_process,
             show_progress=show_progress,
             num_workers=num_workers,
+            accept_terms=accept_terms,
         )
 
     @override

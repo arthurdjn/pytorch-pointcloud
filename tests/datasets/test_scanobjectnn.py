@@ -167,7 +167,7 @@ def test_scanobjectnn_download_redownloads_corrupt_resource(
 ) -> None:
     """A cached archive that fails the checksum is re-downloaded (overwritten) instead of being reused."""
     datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
-    dataset = ScanObjectNN(root=datasets_dir, show_progress=False)
+    dataset = ScanObjectNN(root=datasets_dir, accept_terms=True, show_progress=False)
     archive = _zip_bytes("h5_files/dummy.h5")
     monkeypatch.setattr(dataset, "md5", hashlib.md5(archive).hexdigest())
     resource_path = Path(dataset.raw_dir, dataset.resource)
@@ -187,7 +187,7 @@ def test_scanobjectnn_download_raises_when_redownload_still_corrupt(
 ) -> None:
     """If the re-downloaded archive still fails the checksum, download() raises with both hashes."""
     datasets_dir = datasets_dir_factory("ScanObjectNN/processed/**/*")
-    dataset = ScanObjectNN(root=datasets_dir, show_progress=False)
+    dataset = ScanObjectNN(root=datasets_dir, accept_terms=True, show_progress=False)
     resource_path = Path(dataset.raw_dir, dataset.resource)
     resource_path.parent.mkdir(parents=True, exist_ok=True)
     resource_path.write_bytes(b"corrupt")
@@ -201,12 +201,21 @@ def test_scanobjectnn_download_raises_when_redownload_still_corrupt(
     assert hashlib.md5(b"still corrupt").hexdigest() in str(excinfo.value)
 
 
+def test_scanobjectnn_download_requires_accepted_terms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`download=True` without `accept_terms=True` asks on the terminal, and a refusal raises before any request."""
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    with _serve_download(b"never served") as mock_urlopen:
+        with pytest.raises(RuntimeError, match="terms-of-use"):
+            _ = ScanObjectNN(root=tmp_path, download=True, show_progress=False)
+    mock_urlopen.assert_not_called()
+
+
 def test_scanobjectnn_force_download_overwrites_valid_resource(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """force re-downloads the archive even when a valid one is already on disk."""
     datasets_dir = datasets_dir_factory("ScanObjectNN/raw/**/*")
-    dataset = ScanObjectNN(root=datasets_dir, show_progress=False)
+    dataset = ScanObjectNN(root=datasets_dir, accept_terms=True, show_progress=False)
     archive = _zip_bytes("h5_files/dummy.h5")
     monkeypatch.setattr(dataset, "md5", hashlib.md5(archive).hexdigest())
     resource_path = Path(dataset.raw_dir, dataset.resource)

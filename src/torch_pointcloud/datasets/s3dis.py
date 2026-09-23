@@ -24,7 +24,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url, extract_zip, is_hash_valid
+from .utils import check_terms_accepted, download_url, extract_zip, is_hash_valid
 
 # Areas available in the S3DIS dataset.
 S3DISArea = Literal["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"]
@@ -269,7 +269,9 @@ class S3DIS(PointCloudDataset):
     The Stanford 3D Indoor Spaces Dataset (S3DIS) dataset, as described in the original paper
     [3D Indoor Spaces Dataset: Collection, Annotations, and Methods](https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf).
 
-    You can download the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/ official website.
+    You can download the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/ official website. The dataset is
+    released under a terms-of-use agreement (`terms_url`): accept it, then pass `download=True, accept_terms=True`
+    (or answer the prompt `download=True` alone raises on the terminal), or place the archive under `raw` by hand.
 
     The S3DIS dataset contains 6 diverse areas (one used for testing) covering a total of 6020 square meters.
     Each area contains multiple rooms (e.g. office, conference room, etc.), and each room contains multiple segment regions
@@ -310,6 +312,8 @@ class S3DIS(PointCloudDataset):
         show_progress: Whether to show a progress bar during processing.
         num_workers: Number of worker processes for parallel room processing. If `None`,
             rooms are processed sequentially.
+        accept_terms: Confirm that you have accepted the S3DIS terms of use (`terms_url`). When left `False`,
+            `download` asks for the confirmation on the terminal.
 
     Example:
         Assuming you have downloaded the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/,
@@ -338,6 +342,7 @@ class S3DIS(PointCloudDataset):
     """
 
     data_url = "https://cvg-data.inf.ethz.ch/s3dis/"
+    terms_url = "https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform"
 
     resources = [
         "ReadMe.txt",
@@ -362,6 +367,7 @@ class S3DIS(PointCloudDataset):
         force_process: bool = False,
         show_progress: bool = True,
         num_workers: Optional[int] = None,
+        accept_terms: bool = False,
     ) -> None:
         super().__init__(root)
 
@@ -371,6 +377,7 @@ class S3DIS(PointCloudDataset):
         self.transform = transform
         self.show_progress = show_progress
         self.num_workers = num_workers
+        self.accept_terms = accept_terms
 
         _check_areas(self.areas)
         _check_classes(self.classes)
@@ -439,6 +446,7 @@ class S3DIS(PointCloudDataset):
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
             return
+        check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         # Download the README file
         readme_url = urljoin(self.data_url, self.resources[0])
@@ -697,6 +705,8 @@ class S3DISHdf5(PointCloudDataset):
         force_process: Whether to force re-processing (no-op for this variant since
             the HDF5 files are used directly).
         show_progress: Whether to show progress bars during download and loading.
+        accept_terms: Confirm that you have accepted the S3DIS terms of use (`terms_url`). When left `False`,
+            `download` asks for the confirmation on the terminal.
 
     Example:
         Assuming you have downloaded the HDF5 files from https://shapenet.cs.stanford.edu/media/,
@@ -713,6 +723,7 @@ class S3DISHdf5(PointCloudDataset):
     """
 
     data_url = "https://shapenet.cs.stanford.edu/media/"
+    terms_url = S3DIS.terms_url
     resource = "indoor3d_sem_seg_hdf5_data.zip"
     md5 = "f07d79acdea1f497b3fb3d32f34f1428"
     classes = S3DIS_CLASSES
@@ -728,12 +739,14 @@ class S3DISHdf5(PointCloudDataset):
         force_download: bool = False,
         force_process: bool = False,
         show_progress: bool = True,
+        accept_terms: bool = False,
     ) -> None:
         super().__init__(root)
         self.areas = ensure_tuple(areas if areas != "all" else S3DIS_AREAS)
         self.classes = ensure_tuple(classes if classes != "all" else S3DIS_CLASSES)
         self.transform = transform
         self.show_progress = show_progress
+        self.accept_terms = accept_terms
 
         _check_areas(self.areas)
         _check_classes(self.classes)
@@ -776,6 +789,7 @@ class S3DISHdf5(PointCloudDataset):
     def download(self, force: bool = False, show_progress: bool = True) -> None:
         if self.raw_files_exist() and not force:
             return
+        check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         resource_path = Path(self.data_dir, self.resource)
         resource_url = urljoin(self.data_url, self.resource)
