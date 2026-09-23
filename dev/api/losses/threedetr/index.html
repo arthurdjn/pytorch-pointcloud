@@ -5568,7 +5568,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;ThreeDETRLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L72-L454&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.threedetr.ThreeDETRLoss">ThreeDETRLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/68d24f67d1d9f4054c609accc93c3046362cf9f0/src/torch_pointcloud/losses/threedetr.py#L72-L454&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.threedetr.ThreeDETRLoss">ThreeDETRLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>3DETR Hungarian set-prediction detection loss.</p>
@@ -5600,12 +5600,12 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ThreeDETRLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L72-L454" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/68d24f67d1d9f4054c609accc93c3046362cf9f0/src/torch_pointcloud/losses/threedetr.py#L72-L454" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.threedetr.ThreeDETRLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ThreeDETRLoss</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_angle_bin</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_heading_bins</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">matcher_cls_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">matcher_giou_cost</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
@@ -5661,7 +5661,7 @@ loss holds no reference to the model.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>num_angle_bin</code></b>
+            <b><code>num_heading_bins</code></b>
               (<code><span title="int">int</span></code>)
           –
           <div class="doc-md-description">
@@ -5799,7 +5799,7 @@ computed without gradients, so a non-zero weight trains only axis-aligned scenes
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L152-L196&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.threedetr.ThreeDETRLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/68d24f67d1d9f4054c609accc93c3046362cf9f0/src/torch_pointcloud/losses/threedetr.py#L152-L196&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.threedetr.ThreeDETRLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the 3DETR set-prediction loss and its components.</p>
@@ -5830,7 +5830,7 @@ computed without gradients, so a non-zero weight trains only axis-aligned scenes
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/49eeac533a2cb89b8156807312368f50878f7bbf/src/torch_pointcloud/losses/threedetr.py#L152-L196" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/68d24f67d1d9f4054c609accc93c3046362cf9f0/src/torch_pointcloud/losses/threedetr.py#L152-L196" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.threedetr.ThreeDETRLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
