@@ -26,7 +26,7 @@ from torch_pointcloud.layers.serialized_attention import (
 )
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
 from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
-from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -1358,7 +1358,7 @@ class PointTransformerV3Classification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointTransformerV3Segmentation(SegmentationModel):
+class PointTransformerV3Segmentation(SemanticSegmentationModel):
     """PyTorch implementation of the Point Transformer V3 model for segmentation tasks.
 
     Based on the paper :arxiv: [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)
@@ -1712,7 +1712,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
 
 @register_model(
     "ptv3-base.scannet20.pointcept",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.scannet20.pointcept/resolve/3a8e0a66d76ecfb57d4dd0e4ef43de18f1491b41/model.safetensors",
         dataset="scannet20",
@@ -1730,7 +1730,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
 
 @register_model(
     "ptv3-base.scannet200.pointcept",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.scannet200.pointcept/resolve/1f1232df7e827ff72dd7cd038763e75516494462/model.safetensors",
         dataset="scannet200",
@@ -1747,7 +1747,7 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
 
 @register_model(
     "ptv3-base.s3dis-area5.pointcept",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.s3dis-area5.pointcept/resolve/95d483ef0e186a94ffbf8302a2bba9b5ba710344/model.safetensors",
         dataset="s3dis-area5",

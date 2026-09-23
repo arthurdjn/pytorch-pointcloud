@@ -111,7 +111,7 @@ def main() -> None:
     set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on S3DIS (areas={args.areas})!")
-    model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
+    model, model_info = create_model(args.model, task="semantic-segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
     radius = args.radius if args.radius is not None else SPHERE_RADIUS[args.model]
     inferer = build_inferer(radius, args.sw_batch_size, args.seed)

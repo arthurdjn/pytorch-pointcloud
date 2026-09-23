@@ -29,7 +29,7 @@ from torch_pointcloud.datasets import ScanNet, SunRGBD
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_LABELS
 from torch_pointcloud.metrics import average_precision3d, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
-from torch_pointcloud.models import DETR3DDetection, create_model
+from torch_pointcloud.models import ThreeDETRDetection, create_model
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -47,7 +47,7 @@ IOU_THRESHOLDS = [0.25, 0.5]
 
 
 @torch.no_grad()
-def evaluate(model: DETR3DDetection, dataloader: PointCloudDataLoader, device: str) -> Dict[str, float]:
+def evaluate(model: ThreeDETRDetection, dataloader: PointCloudDataLoader, device: str) -> Dict[str, float]:
     model.to(device).eval()
     num_classes = model.num_classes
     matches: List[BoxMatches] = []
@@ -102,7 +102,7 @@ def main() -> None:
     set_determinism(tf32=False)
 
     model, model_info = create_model(args.model, task="detection", pretrained=True, return_info=True)
-    assert isinstance(model, DETR3DDetection)
+    assert isinstance(model, ThreeDETRDetection)
 
     dataset: Dataset
     if "sunrgbd" in args.model:

@@ -50,7 +50,7 @@ def main() -> None:
     set_determinism(tf32=False)
     print(f"Benchmarking model {args.model!r} on ScanNet (split={args.split!r})!")
 
-    model, info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
+    model, info = create_model(args.model, task="semantic-segmentation", pretrained=True, return_info=True)
     num_classes: int = int(model.num_classes)
 
     transform = info.get("transform")

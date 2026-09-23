@@ -26,7 +26,7 @@ from torch_pointcloud.layers import SparseModule, SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
@@ -550,7 +550,7 @@ class SphereFormerUBlock(nn.Module):
         return out
 
 
-class SphereFormerSegmentation(SegmentationModel):
+class SphereFormerSegmentation(SemanticSegmentationModel):
     r"""SphereFormer semantic-segmentation model, as described in the paper
     :arxiv: [Spherical Transformer for LiDAR-based 3D Recognition](https://arxiv.org/abs/2303.12766).
 
@@ -585,7 +585,7 @@ class SphereFormerSegmentation(SegmentationModel):
         ```pycon
         >>> import torch
         >>> from torch_pointcloud.models import create_model
-        >>> model = create_model("sphereformer.semantickitti", task="segmentation").eval()  # doctest: +SKIP
+        >>> model = create_model("sphereformer.semantickitti", task="semantic-segmentation").eval()  # doctest: +SKIP
         >>> pos = torch.rand(1000, 3) * 10  # doctest: +SKIP
         >>> pos_grid = (pos / 0.05).floor().long()  # doctest: +SKIP
         >>> x = torch.cat([pos, torch.rand(1000, 1)], dim=1)  # doctest: +SKIP
@@ -738,7 +738,7 @@ class SphereFormerSegmentation(SegmentationModel):
 
 @register_model(
     "sphereformer.semantickitti",
-    task="segmentation",
+    task="semantic-segmentation",
     # The original pretrained weights are no longer downloadable (the authors' CUHK OneDrive links are dead,
     # see dvlab-research/SphereFormer issue #78), so the architecture is registered without pretrained weights.
     weights=None,
@@ -815,7 +815,7 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
 
 @register_model(
     "sphereformer.nuscenes",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=None,
     transform=T.Compose(
         [

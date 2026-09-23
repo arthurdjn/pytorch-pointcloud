@@ -1,6 +1,6 @@
 """Lightning modules for classification, segmentation, and detection training."""
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Sequence, Union
 
 import torch
 from torch import Tensor, nn
@@ -36,7 +36,8 @@ class LitModel(LightningModule):
 
     Args:
         name: Registered model name; built via `create_model(name, task=...)`.
-        task: Which task head to build (`"classification"`, `"segmentation"`, `"detection"`); set by the subclass.
+        task: Registry of the model (`"classification"`, `"semantic-segmentation"`, `"part-segmentation"`,
+            `"detection"`); set by the subclass.
         optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.
@@ -189,11 +190,12 @@ class LitClassificationModel(LitModel):
         super().__init__(name, task="classification", **kwargs)
 
 
-class LitSegmentationModel(LitModel):
-    """LightningModule for a point cloud semantic segmentation model, built from the registry.
+class _LitSegmentationModel(LitModel):
+    """Per-point training and evaluation shared by `LitSemanticSegmentationModel` and `LitPartSegmentationModel`.
 
     Args:
-        name: Registered segmentation model name; built via `create_model(name, task="segmentation")`.
+        name: Registered segmentation model name; built via `create_model(name, task=task)`.
+        task: Registry of the model, `"semantic-segmentation"` or `"part-segmentation"`.
         inverse_key: Batch-dict key of the source-to-predictor row map written by the transform (`inverse`; see
             the transforms module docs on sampling keys). When set, eval predictions are broadcast to source
             resolution (`preds[batch[inverse_key]]`) and scored against `origin_target_key`; the loss stays at
@@ -209,14 +211,16 @@ class LitSegmentationModel(LitModel):
     def __init__(
         self,
         name: str,
+        task: Literal["semantic-segmentation", "part-segmentation"],
         inverse_key: Optional[str] = None,
         origin_target_key: Optional[str] = None,
         target_key: str = DataKeys.SEGMENT,
         **kwargs: Any,
     ) -> None:
-        super().__init__(name, task="segmentation", target_key=target_key, **kwargs)
         if (inverse_key is None) != (origin_target_key is None):
             raise ValueError("`inverse_key` and `origin_target_key` go together; pass both or neither.")
+
+        super().__init__(name, task=task, target_key=target_key, **kwargs)
         # Lightning serializes an `Enum` hparam by name, so a reloaded `hparams.yaml` would carry `"INVERSE"`.
         self.inverse_key = None if inverse_key is None else str(inverse_key)
         self.origin_target_key = None if origin_target_key is None else str(origin_target_key)
@@ -256,6 +260,80 @@ class LitSegmentationModel(LitModel):
                 )
             return inverse
         return offset_index(inverse, inverse_batch, batch[DataKeys.BATCH])
+
+
+class LitSemanticSegmentationModel(_LitSegmentationModel):
+    """LightningModule for a point cloud semantic segmentation model, built from the registry.
+
+    Args:
+        name: Registered semantic segmentation model name; built via
+            `create_model(name, task="semantic-segmentation")`.
+        inverse_key: Batch-dict key of the source-to-predictor row map written by the transform (`inverse`; see
+            the transforms module docs on sampling keys). When set, eval predictions are broadcast to source
+            resolution (`preds[batch[inverse_key]]`) and scored against `origin_target_key`; the loss stays at
+            predictor resolution against `target_key`. Multi-scene batches need the key in the loader's
+            `cat_keys` so the per-scene maps can be offset into the packed layout; the datamodule adds it.
+        origin_target_key: Batch-dict key of the source-resolution labels scored with `inverse_key`; required
+            with it.
+        target_key: Batch-dict key of the per-point labels.
+        **kwargs: Forwarded to the base `LitModel` (e.g. `inferer`, `optimizer`, `criterion`) and
+            `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        inverse_key: Optional[str] = None,
+        origin_target_key: Optional[str] = None,
+        target_key: str = DataKeys.SEGMENT,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            name,
+            task="semantic-segmentation",
+            inverse_key=inverse_key,
+            origin_target_key=origin_target_key,
+            target_key=target_key,
+            **kwargs,
+        )
+
+
+class LitPartSegmentationModel(_LitSegmentationModel):
+    """LightningModule for a part segmentation model, built from the registry.
+
+    The model also reads the one-hot object category: list it in `input_keys`, e.g.
+    `("x", "pos", "batch", "category")`.
+
+    Args:
+        name: Registered part segmentation model name; built via `create_model(name, task="part-segmentation")`.
+        inverse_key: Batch-dict key of the source-to-predictor row map written by the transform (`inverse`; see
+            the transforms module docs on sampling keys). When set, eval predictions are broadcast to source
+            resolution (`preds[batch[inverse_key]]`) and scored against `origin_target_key`; the loss stays at
+            predictor resolution against `target_key`. Multi-scene batches need the key in the loader's
+            `cat_keys` so the per-scene maps can be offset into the packed layout; the datamodule adds it.
+        origin_target_key: Batch-dict key of the source-resolution labels scored with `inverse_key`; required
+            with it.
+        target_key: Batch-dict key of the per-point labels.
+        **kwargs: Forwarded to the base `LitModel` (e.g. `inferer`, `optimizer`, `criterion`) and
+            `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        inverse_key: Optional[str] = None,
+        origin_target_key: Optional[str] = None,
+        target_key: str = DataKeys.SEGMENT,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            name,
+            task="part-segmentation",
+            inverse_key=inverse_key,
+            origin_target_key=origin_target_key,
+            target_key=target_key,
+            **kwargs,
+        )
 
 
 class LitDetectionModel(LitModel):

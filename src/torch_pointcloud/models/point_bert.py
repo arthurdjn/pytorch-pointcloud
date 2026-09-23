@@ -31,7 +31,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import BaseModel, ClassificationModel
+from ._base import ClassificationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
@@ -364,7 +364,7 @@ class PointBERTClassification(ClassificationModel):
         return self.forward_head(x)
 
 
-class PointBERTMaskedTransformer(BaseModel):
+class PointBERTPretraining(PretrainingModel):
     r"""Point-BERT masked point modeling backbone (pretrain).
 
     Implements the masked transformer (`transformer_q`) of :arxiv: [Point-BERT: Pre-training 3D Point
@@ -411,9 +411,9 @@ class PointBERTMaskedTransformer(BaseModel):
     Example:
         ```python
         import torch
-        from torch_pointcloud.models.point_bert import PointBERTMaskedTransformer
+        from torch_pointcloud.models.point_bert import PointBERTPretraining
 
-        model = PointBERTMaskedTransformer(in_channels=0)
+        model = PointBERTPretraining(in_channels=0)
         pos = torch.randn(2048, 3)
         batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
         out = model(None, pos, batch)
@@ -780,7 +780,7 @@ class FoldingDecoder(nn.Module):
         return coarse, fine
 
 
-class PointBERTDiscreteVAE(BaseModel):
+class PointBERTDiscreteVAE(PretrainingModel):
     r"""Point-BERT discrete VAE point tokenizer.
 
     Implements the dVAE of :arxiv: [Point-BERT: Pre-training 3D Point Cloud Transformers with Masked
@@ -1083,7 +1083,7 @@ def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassificati
 
 @register_model(
     "point-bert-base.pretrain.xumin-yu",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.pretrain.xumin-yu/resolve/d9e0a98afbeb66e1fa465e89687132fe2eb434dd/model.safetensors",
         dataset="shapenet55",
@@ -1110,13 +1110,13 @@ def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassificati
         act_kwargs=None,
     ),
 )
-def point_bert_base_pretrain(**kwargs: Any) -> PointBERTMaskedTransformer:
-    return PointBERTMaskedTransformer(**kwargs)
+def point_bert_base_pretrain(**kwargs: Any) -> PointBERTPretraining:
+    return PointBERTPretraining(**kwargs)
 
 
 @register_model(
     "point-bert-base.dvae.xumin-yu",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-bert-base.dvae.xumin-yu/resolve/ef1dfc2e5de122dea5a85c950ec863f93e5b940e/model.safetensors",
         dataset="shapenet55",

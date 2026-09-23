@@ -18,7 +18,7 @@ from torch_pointcloud.layers import (
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import register_model
 
 if TYPE_CHECKING:
@@ -394,7 +394,7 @@ class PointNetClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointNetSegmentation(SegmentationModel):
+class PointNetSegmentation(SemanticSegmentationModel):
     r"""PointNet architecture for point cloud segmentation tasks as described in the original PointNet paper
     :arxiv: [PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation](https://arxiv.org/pdf/1612.00593).
 
@@ -634,7 +634,7 @@ def pointnet_modelnet40(**hparams: Any) -> PointNetClassification:
 
 @register_model(
     "pointnet.s3dis-area5",
-    task="segmentation",
+    task="semantic-segmentation",
     # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=9, num_classes=13),
@@ -650,7 +650,7 @@ def pointnet_s3dis_area5(**hparams: Any) -> PointNetSegmentation:
 
 @register_model(
     "pointnet.shapenetpart",
-    task="segmentation",
+    task="semantic-segmentation",
     # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=0, num_classes=50),

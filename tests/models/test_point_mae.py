@@ -4,8 +4,8 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.models.point_mae import (
     PointMAEClassification,
-    PointMAEMaskedAutoEncoder,
-    PointMAESegmentation,
+    PointMAEPartSegmentation,
+    PointMAEPretraining,
 )
 from torch_pointcloud.utils.imports import (
     _TORCH_CLUSTER_AVAILABLE,
@@ -41,7 +41,7 @@ def test_point_mae_classification_basic() -> None:
 
 
 def test_point_mae_segmentation_basic() -> None:
-    model = PointMAESegmentation(
+    model = PointMAEPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -64,7 +64,7 @@ def test_point_mae_segmentation_basic() -> None:
 
 
 def test_point_mae_segmentation_returns_raw_logits() -> None:
-    model = PointMAESegmentation(
+    model = PointMAEPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -85,7 +85,7 @@ def test_point_mae_segmentation_returns_raw_logits() -> None:
 
 
 def test_point_mae_segmentation_head_width_follows_embed_dim() -> None:
-    model = PointMAESegmentation(
+    model = PointMAEPartSegmentation(
         in_channels=0,
         num_classes=5,
         num_categories=16,
@@ -107,7 +107,7 @@ def test_point_mae_segmentation_head_width_follows_embed_dim() -> None:
 
 
 def test_point_mae_segmentation_ragged_batch_raises() -> None:
-    model = PointMAESegmentation(in_channels=0, num_classes=5, num_categories=16, num_group=8, group_size=4)
+    model = PointMAEPartSegmentation(in_channels=0, num_classes=5, num_categories=16, num_group=8, group_size=4)
     model.eval()
     pos = torch.randn(128, 3)
     batch = torch.cat([torch.zeros(96), torch.ones(32)]).long()
@@ -144,7 +144,7 @@ def test_point_mae_classification_reset_classifier_rejects_global_pool() -> None
 
 
 def test_point_mae_masked_autoencoder_basic() -> None:
-    model = PointMAEMaskedAutoEncoder(
+    model = PointMAEPretraining(
         in_channels=0,
         embed_dim=384,
         encoder_depth=12,
@@ -177,7 +177,7 @@ def test_point_mae_masked_autoencoder_basic() -> None:
 )
 def test_point_mae_masked_autoencoder_invalid_mask_ratio_raises(mask_ratio: float) -> None:
     with pytest.raises(ValueError, match="mask_ratio"):
-        PointMAEMaskedAutoEncoder(
+        PointMAEPretraining(
             in_channels=0,
             embed_dim=48,
             encoder_depth=1,
@@ -218,7 +218,7 @@ def test_point_mae_classification_accepts_features() -> None:
 
 def test_point_mae_segmentation_accepts_features() -> None:
     in_channels = 3
-    model = PointMAESegmentation(
+    model = PointMAEPartSegmentation(
         in_channels=in_channels,
         num_classes=50,
         num_categories=16,
@@ -245,10 +245,10 @@ def test_point_mae_segmentation_accepts_features() -> None:
 
 
 def test_point_mae_segmentation_num_classes_zero_head_is_identity() -> None:
-    model = PointMAESegmentation(in_channels=0, num_classes=0, embed_dim=96, num_heads=2, num_group=8, group_size=4)
+    model = PointMAEPartSegmentation(in_channels=0, num_classes=0, embed_dim=96, num_heads=2, num_group=8, group_size=4)
     assert isinstance(model.head, torch.nn.Identity)
 
 
 def test_point_mae_segmentation_validates_fetch_idx_against_depth() -> None:
     with pytest.raises(ValueError, match="fetch_idx"):
-        PointMAESegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)
+        PointMAEPartSegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)

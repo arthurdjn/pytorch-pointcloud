@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Split the `segmentation` task into `semantic-segmentation` and `part-segmentation`, and renamed the `base` task to `pretraining`.
+- Renamed `SegmentationModel` to `SemanticSegmentationModel` and `BaseModel` to `PretrainingModel`, and added `PartSegmentationModel`.
+- Renamed the 3DETR classes from `DETR3D*` to `ThreeDETR*`, in the `threedetr` modules.
+- Renamed the pretraining models to `<Arch>Pretraining`, and the Point-MAE and Point-M2AE part segmentation models to `*PartSegmentation`.
+- Replaced `LitSegmentationModel` with `LitSemanticSegmentationModel` and `LitPartSegmentationModel`.
 - Replaced the `generator` argument of the random transforms and `MixDataset` with `seed`, and added `set_random_state`.
 - Fixed seeded random transforms repeating the same draws in every `DataLoader` worker (`seed_worker`).
 - Updated PointNet++, VoteNet, PointRCNN, 3DETR, PVCNN++, Point-MAE and Point-M2AE to use the `PointNet2*` layers.

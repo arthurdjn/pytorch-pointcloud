@@ -33,7 +33,7 @@ def main() -> None:
         args.model,
         in_channels=0,
         num_classes=args.num_classes,
-        task="segmentation",
+        task="semantic-segmentation",
     ).to(args.device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

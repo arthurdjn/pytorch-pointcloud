@@ -182,7 +182,7 @@ def test_pvcnn2_segmentation_too_many_decoder_blocks() -> None:
 
 def test_pvcnn2_segmentation_reference_hparams() -> None:
     torch.manual_seed(42)
-    model = create_model("pvcnn2.s3dis-area5", task="segmentation")
+    model = create_model("pvcnn2.s3dis-area5", task="semantic-segmentation")
     assert isinstance(model, PVCNN2Segmentation)
     assert isinstance(model.head, MLP)
     assert model.decoder.skip_channels == (256, 128, 64, 6)

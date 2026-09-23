@@ -6,8 +6,8 @@ from torch_pointcloud.layers import PointPatchEmbed
 from torch_pointcloud.models.point_m2ae import (
     HierarchicalEncoder,
     PointM2AEClassification,
-    PointM2AEMaskedAutoEncoder,
-    PointM2AESegmentation,
+    PointM2AEPartSegmentation,
+    PointM2AEPretraining,
     multi_scale_group,
 )
 from torch_pointcloud.utils.imports import (
@@ -165,7 +165,7 @@ def test_point_m2ae_classification_reset_classifier_zero() -> None:
 
 
 def test_point_m2ae_segmentation_basic() -> None:
-    model = PointM2AESegmentation(
+    model = PointM2AEPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -183,7 +183,7 @@ def test_point_m2ae_segmentation_basic() -> None:
 
 
 def test_point_m2ae_segmentation_reset_classifier() -> None:
-    model = PointM2AESegmentation(
+    model = PointM2AEPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -196,7 +196,7 @@ def test_point_m2ae_segmentation_reset_classifier() -> None:
 
 
 def test_point_m2ae_segmentation_reset_classifier_zero() -> None:
-    model = PointM2AESegmentation(
+    model = PointM2AEPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -208,7 +208,7 @@ def test_point_m2ae_segmentation_reset_classifier_zero() -> None:
 
 
 def test_point_m2ae_segmentation_ragged_batch_raises() -> None:
-    model = PointM2AESegmentation(
+    model = PointM2AEPartSegmentation(
         in_channels=0,
         num_classes=5,
         num_categories=16,
@@ -229,7 +229,7 @@ def test_point_m2ae_segmentation_ragged_batch_raises() -> None:
 
 
 def test_point_m2ae_segmentation_forward_head_pre_logits() -> None:
-    model = PointM2AESegmentation(
+    model = PointM2AEPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
@@ -251,7 +251,7 @@ def test_point_m2ae_segmentation_forward_head_pre_logits() -> None:
 
 
 def test_point_m2ae_mae_basic() -> None:
-    model = PointM2AEMaskedAutoEncoder(
+    model = PointM2AEPretraining(
         in_channels=0,
         group_sizes=(16, 8, 8),
         num_groups=(512, 256, 64),
@@ -282,7 +282,7 @@ def test_point_m2ae_mae_basic() -> None:
 )
 def test_point_m2ae_mae_invalid_mask_ratio_raises(mask_ratio: float) -> None:
     with pytest.raises(ValueError, match="mask_ratio"):
-        PointM2AEMaskedAutoEncoder(
+        PointM2AEPretraining(
             in_channels=0,
             encoder_depths=(1, 1, 1),
             encoder_dims=(32, 48, 64),
@@ -318,7 +318,7 @@ def test_point_m2ae_classification_accepts_features() -> None:
 
 def test_point_m2ae_segmentation_accepts_features() -> None:
     in_channels = 3
-    model = PointM2AESegmentation(
+    model = PointM2AEPartSegmentation(
         in_channels=in_channels,
         num_classes=50,
         num_categories=16,

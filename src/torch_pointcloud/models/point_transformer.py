@@ -19,7 +19,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.models._base import ClassificationModel, SegmentationModel
+from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.cluster import fps, knn, knn_graph
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
@@ -811,7 +811,7 @@ class PointTransformerClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointTransformerSegmentation(SegmentationModel):
+class PointTransformerSegmentation(SemanticSegmentationModel):
     r"""Point Transformer segmentation model from the paper
     :arxiv: [Point Transformer](https://arxiv.org/abs/2012.09164)
     by Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun.
@@ -1041,7 +1041,7 @@ def _point_transformer_seg_transforms(
 
 @register_model(
     "point-transformer.s3dis-area5",
-    task="segmentation",
+    task="semantic-segmentation",
     # No ported pretrained weights for Point Transformer yet.
     weights=None,
     transform=_point_transformer_seg_transforms([DataKeys.POS, DataKeys.COLOR], estimate_normals=True),
@@ -1065,7 +1065,7 @@ def point_transformer_s3dis_area5(**hparams: Any) -> PointTransformerSegmentatio
 
 @register_model(
     "point-transformer.scannet20",
-    task="segmentation",
+    task="semantic-segmentation",
     # No ported pretrained weights for Point Transformer yet.
     weights=None,
     transform=_point_transformer_seg_transforms([DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], range(1, 21)),

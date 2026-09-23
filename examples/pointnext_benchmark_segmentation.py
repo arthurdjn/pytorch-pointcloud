@@ -135,7 +135,7 @@ def main() -> None:
     set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on S3DIS (areas={args.areas})!")
-    model = create_model(args.model, task="segmentation", pretrained=True)
+    model = create_model(args.model, task="semantic-segmentation", pretrained=True)
     num_classes = int(model.num_classes)
     inferer = build_inferer(args.sub_batch_size, args.seed)
 

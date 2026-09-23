@@ -12,7 +12,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
-from torch_pointcloud.models._base import SegmentationModel
+from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder, SerializedFeaturesDict
 from torch_pointcloud.utils.data import DataKeys
@@ -20,7 +20,7 @@ from torch_pointcloud.utils.serialization import SerializationOrder
 from torch_pointcloud.utils.types import OptTensor
 
 
-class UtoniaSegmentation(SegmentationModel):
+class UtoniaSegmentation(SemanticSegmentationModel):
     r"""Utonia linear-probing segmentation model.
 
     Linear-probe variant from
@@ -295,7 +295,7 @@ def _utonia_encoder_hparams() -> Dict[str, Any]:
 
 @register_model(
     "utonia.pretrain.pointcept",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/utonia.pretrain.pointcept/resolve/33e4b0c0c25e4400ba420d9d9d373daba3433f67/model.safetensors",
         author="pointcept",
@@ -310,7 +310,7 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
 
 @register_model(
     "utonia-lp.scannet20.pointcept",
-    task="segmentation",
+    task="semantic-segmentation",
     weights=WeightsDict(
         url="hf://torch-pointcloud/utonia-lp.scannet20.pointcept/resolve/1811ef3a4de3df47bf17b932f07eb72e80472e37/model.safetensors",
         dataset="scannet20",

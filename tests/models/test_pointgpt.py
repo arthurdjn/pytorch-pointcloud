@@ -5,7 +5,7 @@ from torch_geometric.nn import MLP
 from torch_pointcloud.models.pointgpt import (
     PointGPTClassification,
     PointGPTExtractor,
-    PointGPTGenerativePretraining,
+    PointGPTPretraining,
     morton_sort,
 )
 from torch_pointcloud.utils.imports import (
@@ -51,7 +51,7 @@ def test_pointgpt_classification_basic(embed_dim: int, num_heads: int, depth: in
 
 
 def test_pointgpt_generative_pretraining_basic() -> None:
-    model = PointGPTGenerativePretraining(
+    model = PointGPTPretraining(
         in_channels=0,
         embed_dim=384,
         depth=12,
@@ -106,7 +106,7 @@ def test_pointgpt_classification_reset_classifier_keeps_global_pool() -> None:
 
 
 def test_pointgpt_generative_pretraining_duplicate_centers_finite() -> None:
-    model = PointGPTGenerativePretraining(
+    model = PointGPTPretraining(
         in_channels=0,
         embed_dim=96,
         depth=2,
@@ -148,7 +148,7 @@ def test_pointgpt_morton_sort_is_permutation() -> None:
 
 def test_pointgpt_generative_pretraining_accepts_features() -> None:
     in_channels = 3
-    model = PointGPTGenerativePretraining(
+    model = PointGPTPretraining(
         in_channels=in_channels,
         embed_dim=384,
         depth=2,

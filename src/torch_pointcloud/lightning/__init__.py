@@ -13,5 +13,6 @@ from torch_pointcloud.lightning.module import (
     LitClassificationModel,
     LitDetectionModel,
     LitModel,
-    LitSegmentationModel,
+    LitPartSegmentationModel,
+    LitSemanticSegmentationModel,
 )

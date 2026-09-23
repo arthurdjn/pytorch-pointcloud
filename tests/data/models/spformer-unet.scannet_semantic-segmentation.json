@@ -1,12 +1,12 @@
 {
-  "num_params": 10960384,
+  "num_params": 10958122,
   "state_dict": {
     "encoder.stem.weight": [
       32,
       3,
       3,
       3,
-      6
+      3
     ],
     "encoder.blocks.0.blocks.block0.conv_branch.0.module.weight": [
       32
@@ -928,6 +928,16 @@
     "decoder.output_layer.0.module.running_var": [
       32
     ],
-    "decoder.output_layer.0.module.num_batches_tracked": []
+    "decoder.output_layer.0.module.num_batches_tracked": [],
+    "head.weight": [
+      10,
+      1,
+      1,
+      1,
+      32
+    ],
+    "head.bias": [
+      10
+    ]
   }
 }

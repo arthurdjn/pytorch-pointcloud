@@ -130,7 +130,7 @@ def main() -> None:
     if args.dataset == "scannet":
         name = "dgcnn.scannet20.an-tao"
         print(f"Benchmarking model {name!r} on ScanNet!")
-        model = create_model(name, task="segmentation", pretrained=True)
+        model = create_model(name, task="semantic-segmentation", pretrained=True)
         dataset = ScanNet20(
             root=args.root,
             split="val",
@@ -145,7 +145,7 @@ def main() -> None:
     else:
         name = f"dgcnn.s3dis-area{args.area}.an-tao"
         print(f"Benchmarking model {name!r} on S3DIS Area {args.area} (pre-tiled blocks)!")
-        model, model_info = create_model(name, task="segmentation", pretrained=True, return_info=True)
+        model, model_info = create_model(name, task="semantic-segmentation", pretrained=True, return_info=True)
         dataset = S3DISHdf5(
             root=args.root,
             areas=[S3DIS_AREAS[args.area - 1]],

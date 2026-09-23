@@ -23,7 +23,7 @@ from torch_pointcloud.utils.imports import _DWCONV_GITHUB_URL, _OCNN_GITHUB_URL,
 from torch_pointcloud.utils.octree import octree_interpolate, octree_upsample
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
@@ -709,7 +709,7 @@ class OctFormerClassification(ClassificationModel):
         return max_depth - encoder_depth
 
 
-class OctFormerSegmentation(SegmentationModel):
+class OctFormerSegmentation(SemanticSegmentationModel):
     r"""OctFormer segmentation model from
     :arxiv: [OctFormer: Octree-based Transformers for 3D Point Clouds](https://arxiv.org/abs/2305.03045)
     by Peng-Shuai Wang.
@@ -1067,7 +1067,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         author="octree-nn",
         license="MIT",
     ),
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         in_channels=10,
         num_classes=21,
@@ -1136,7 +1136,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         author="octree-nn",
         license="MIT",
     ),
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         in_channels=10,
         num_classes=201,
@@ -1198,7 +1198,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
 
 @register_model(
     name="octformer-lg",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         stem_channels=(48, 96, 192),
         channels=(192, 384, 768, 768),
@@ -1234,7 +1234,7 @@ def octformer_lg_seg(**hparams: Any) -> OctFormerSegmentation:
 
 @register_model(
     name="octformer-sm",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         stem_channels=(24, 48, 96),
         channels=(96, 192, 384, 384),

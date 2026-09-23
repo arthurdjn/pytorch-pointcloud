@@ -28,7 +28,7 @@ from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SegmentationModel
+from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import register_model
 
 
@@ -413,7 +413,7 @@ class PointCNNClassification(ClassificationModel):
         return self.forward_head(x, batch)
 
 
-class PointCNNSegmentation(SegmentationModel):
+class PointCNNSegmentation(SemanticSegmentationModel):
     r"""Segmentation model as described in the paper
     :arxiv: ["PointCNN: Convolution On X-Transformed Points"](https://arxiv.org/abs/1801.07791)
     by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.
@@ -607,7 +607,7 @@ def pointcnn_base_cls(**hparams: Any) -> PointCNNClassification:
 
 @register_model(
     "pointcnn-base",
-    task="segmentation",
+    task="semantic-segmentation",
     hparams=dict(
         spatial_dim=3,
         channels=[48, 96, 192, 384],

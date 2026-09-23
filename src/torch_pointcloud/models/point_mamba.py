@@ -39,7 +39,7 @@ from torch_pointcloud.utils.imports import (
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import BaseModel, ClassificationModel
+from ._base import ClassificationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
@@ -823,7 +823,7 @@ class PointMambaClassification(ClassificationModel):
         return self.forward_head(x)
 
 
-class PointMambaMAE(BaseModel):
+class PointMambaPretraining(PretrainingModel):
     r"""PointMamba masked-autoencoder pre-training model, as described in the paper :arxiv: [PointMamba: A Simple State Space Model for Point Cloud Analysis](https://arxiv.org/abs/2402.10739).
     This implementation is adapted from the official repository :github: [LMD0311/PointMamba](https://github.com/LMD0311/PointMamba).
 
@@ -1175,7 +1175,7 @@ def point_mamba_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMambaClassi
 
 @register_model(
     "point-mamba-base.pretrain.dingkang-liang",
-    task="base",
+    task="pretraining",
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mamba-base.pretrain.dingkang-liang/resolve/be4fa60f4b6a9aa02eca045db5d80023f0667757/model.safetensors",
         dataset="shapenet55",
@@ -1203,5 +1203,5 @@ def point_mamba_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMambaClassi
         bias=True,
     ),
 )
-def point_mamba_base_pretrain(**kwargs: Any) -> PointMambaMAE:
-    return PointMambaMAE(**kwargs)
+def point_mamba_base_pretrain(**kwargs: Any) -> PointMambaPretraining:
+    return PointMambaPretraining(**kwargs)

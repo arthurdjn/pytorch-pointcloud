@@ -132,7 +132,7 @@ def main() -> None:
     seed_everything(args.seed)
     set_determinism(tf32=False)
 
-    model = create_model(args.model, task="segmentation", pretrained=True)
+    model = create_model(args.model, task="semantic-segmentation", pretrained=True)
     num_classes = int(model.num_classes)
 
     dataset: Dataset

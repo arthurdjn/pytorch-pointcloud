@@ -18,7 +18,7 @@ Browse available checkpoints with:
 import torch_pointcloud as tp
 
 models = tp.list_models(task="classification")
-# or task="segmentation", "detection", ...
+# or task="semantic-segmentation", "detection", ...
 ```
 
 Weights are downloaded from the Hugging Face Hub on first use and cached under `~/.cache/torch-pointcloud/models`.
@@ -104,7 +104,7 @@ Predict **3D bounding boxes** for indoor scenes (ScanNet, SUN RGB-D) or driving 
 | Model                                             | Paper                                                                                                                            | Benchmark                          |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | [**VoteNet**](../api/models/votenet.md)           | :arxiv: [Deep Hough Voting for 3D Object Detection in Point Clouds](https://arxiv.org/abs/1904.09664)                            | ScanNet<br>*mAP@25: 57.65 / 58.6*  |
-| [**3DETR**](../api/models/detr3d.md)              | :arxiv: [An End-to-End Transformer Model for 3D Object Detection](https://arxiv.org/abs/2109.08141)                              | SunRGBD<br>*mAP@25: 58.08 / 58.0*  |
+| [**3DETR**](../api/models/threedetr.md)              | :arxiv: [An End-to-End Transformer Model for 3D Object Detection](https://arxiv.org/abs/2109.08141)                              | SunRGBD<br>*mAP@25: 58.08 / 58.0*  |
 | [**PointPillars**](../api/models/pointpillars.md) | :arxiv: [PointPillars: Fast Encoders for Object Detection from Point Clouds](https://arxiv.org/abs/1812.05784)                   | KITTI<br>*mod. mAP: 64.16 / 64.08* |
 | [**SECOND**](../api/models/second.md)             | :arxiv: [SECOND: Sparsely Embedded Convolutional Detection](https://www.mdpi.com/1424-8220/18/10/3337)                           | KITTI<br>*mod. mAP: 66.26 / 66.25* |
 | [**PointRCNN**](../api/models/pointrcnn.md)       | :arxiv: [PointRCNN: 3D Object Proposal Generation and Detection from Point Cloud](https://arxiv.org/abs/1812.04244)              | KITTI<br>*mod. mAP: 69.29 / 68.41* |
@@ -114,7 +114,7 @@ Predict **3D bounding boxes** for indoor scenes (ScanNet, SUN RGB-D) or driving 
 
 ### Self-supervised pretraining
 
-Backbones pretrained without labels, registered with `task="base"`; the fine-tuned classification / segmentation heads are registered under their downstream task.
+Backbones pretrained without labels, registered with `task="pretraining"`; the fine-tuned classification / segmentation heads are registered under their downstream task.
 
 | Model                                          | Paper                                                                                                                             | Benchmark                              |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |

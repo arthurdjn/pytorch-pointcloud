@@ -13,12 +13,12 @@ from torch_pointcloud.inferers import SimpleInferer
 from torch_pointcloud.lightning import (
     LitClassificationModel,
     LitDetectionModel,
-    LitSegmentationModel,
+    LitSemanticSegmentationModel,
     PointCloudDataModule,
 )
 from torch_pointcloud.lightning.metrics import AveragePrecision3D
 from torch_pointcloud.metrics import average_precision3d, box_matches
-from torch_pointcloud.models import ClassificationModel, DetectionModel, SegmentationModel, register_model
+from torch_pointcloud.models import ClassificationModel, DetectionModel, SemanticSegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.box3d import projected_ignore_mask
 from torch_pointcloud.utils.data import DataKeys
@@ -57,7 +57,7 @@ class DummyClassificationModel(ClassificationModel):
         return self.forward_head(features, batch)
 
 
-class DummySegmentationModel(SegmentationModel):
+class DummySemanticSegmentationModel(SemanticSegmentationModel):
     def __init__(self, in_channels: int = 3, num_classes: int = 4) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.fc = self.configure_head()
@@ -122,8 +122,8 @@ def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
     return DummyClassificationModel(**kwargs)
 
 
-def _dummy_segmentation(**kwargs: Any) -> DummySegmentationModel:
-    return DummySegmentationModel(**kwargs)
+def _dummy_segmentation(**kwargs: Any) -> DummySemanticSegmentationModel:
+    return DummySemanticSegmentationModel(**kwargs)
 
 
 def _dummy_detection(**kwargs: Any) -> DummyDetectionModel:
@@ -135,12 +135,12 @@ def _register_dummies() -> Iterator[None]:
     """The LightningModules build their model via `create_model(name, ...)`, so the test doubles are
     registered here (and removed afterwards, to keep the global registry clean for other tests)."""
     register_model("dummy.classification", task="classification")(_dummy_classification)
-    register_model("dummy.segmentation", task="segmentation")(_dummy_segmentation)
+    register_model("dummy.segmentation", task="semantic-segmentation")(_dummy_segmentation)
     register_model("dummy.detection", task="detection")(_dummy_detection)
     yield
     dummies: Tuple[Tuple[Task, str], ...] = (
         ("classification", "dummy.classification"),
-        ("segmentation", "dummy.segmentation"),
+        ("semantic-segmentation", "dummy.segmentation"),
         ("detection", "dummy.detection"),
     )
     for task, name in dummies:
@@ -162,8 +162,8 @@ class DummySegmentationDataset(Dataset):
         }
 
 
-def _make_seg_module(*, scheduler: Any = None, param_groups: Any = None) -> LitSegmentationModel:
-    return LitSegmentationModel(
+def _make_seg_module(*, scheduler: Any = None, param_groups: Any = None) -> LitSemanticSegmentationModel:
+    return LitSemanticSegmentationModel(
         name="dummy.segmentation",
         target_key="segment",
         optimizer=partial(torch.optim.AdamW, lr=0.01),
@@ -203,7 +203,7 @@ def test_seg_forward_shapes() -> None:
 
 
 def test_seg_target_key_defaults_to_segment() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation")
+    lit = LitSemanticSegmentationModel(name="dummy.segmentation")
     batch = {
         "x": torch.randn(12, 3),
         "pos": torch.randn(12, 3),
@@ -252,7 +252,9 @@ def test_step_syncs_logged_loss_on_eval_stages_only(
 
 
 def test_forward_missing_input_key_raises() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", input_keys=("x", "pos", "wrong"))
+    lit = LitSemanticSegmentationModel(
+        name="dummy.segmentation", target_key="segment", input_keys=("x", "pos", "wrong")
+    )
     batch = {
         "x": torch.randn(6, 3),
         "pos": torch.randn(6, 3),
@@ -362,7 +364,7 @@ def test_fit_smoke_train_only() -> None:
 
 
 def test_seg_eval_params_saved_to_hparams() -> None:
-    lit = LitSegmentationModel(
+    lit = LitSemanticSegmentationModel(
         name="dummy.segmentation",
         target_key="segment",
         inverse_key=DataKeys.INVERSE,
@@ -387,7 +389,7 @@ def test_seg_inferer_runs_on_test_step() -> None:
     """`test_step` delegates the forward to the inferer, passing the batch and the module's forward."""
     preds = torch.randn(12, 4)
     inferer = Mock(return_value=preds)
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
+    lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
     batch = {
         "x": torch.randn(12, 3),
         "pos": torch.randn(12, 3),
@@ -494,7 +496,7 @@ def test_metric_input_keys_missing_from_batch_raises() -> None:
 
 def test_seg_metric_input_keys_extend_step_output() -> None:
     """The passthrough adds to the seg eval output without touching its `preds` / `target` / `batch`."""
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", metric_input_keys=("pos",))
+    lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", metric_input_keys=("pos",))
     batch = {
         "x": torch.randn(12, 3),
         "pos": torch.randn(12, 3),
@@ -509,7 +511,7 @@ def test_seg_metric_input_keys_extend_step_output() -> None:
 
 def test_seg_inferer_not_used_on_validation_step() -> None:
     inferer = Mock(return_value=torch.randn(12, 4))
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
+    lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
     batch = {
         "x": torch.randn(12, 3),
         "pos": torch.randn(12, 3),
@@ -523,7 +525,7 @@ def test_seg_inferer_not_used_on_validation_step() -> None:
 
 def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
     """With both keys set, eval preds are gathered to source resolution and scored against `origin_segment`."""
-    lit = LitSegmentationModel(
+    lit = LitSemanticSegmentationModel(
         name="dummy.segmentation", target_key="segment", inverse_key="inverse", origin_target_key="origin_segment"
     )
     batch = {
@@ -543,11 +545,11 @@ def test_seg_inverse_key_broadcasts_preds_to_raw_resolution() -> None:
 
 def test_seg_inverse_key_requires_origin_target_key() -> None:
     with pytest.raises(ValueError, match="go together"):
-        LitSegmentationModel(name="dummy.segmentation", inverse_key="inverse")
+        LitSemanticSegmentationModel(name="dummy.segmentation", inverse_key="inverse")
 
 
 def test_seg_default_scores_at_predictor_resolution() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment")
+    lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment")
     batch = {
         "x": torch.randn(6, 3),
         "pos": torch.randn(6, 3),
@@ -560,7 +562,7 @@ def test_seg_default_scores_at_predictor_resolution() -> None:
 
 
 def test_seg_inverse_key_none_ignores_inverse_in_batch() -> None:
-    lit = LitSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key=None)
+    lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inverse_key=None)
     batch = {
         "x": torch.randn(6, 3),
         "pos": torch.randn(6, 3),
@@ -576,7 +578,7 @@ def test_seg_inverse_key_none_ignores_inverse_in_batch() -> None:
 
 def test_seg_inverse_key_offsets_per_scene_with_batch_index() -> None:
     """Multi-scene batches offset each scene's inverse map by the voxel rows of the scenes before it."""
-    lit = LitSegmentationModel(
+    lit = LitSemanticSegmentationModel(
         name="dummy.segmentation", target_key="segment", inverse_key="inverse", origin_target_key="origin_segment"
     )
     batch = {
@@ -597,7 +599,7 @@ def test_seg_inverse_key_offsets_per_scene_with_batch_index() -> None:
 
 
 def test_seg_inverse_key_multi_scene_without_batch_index_raises() -> None:
-    lit = LitSegmentationModel(
+    lit = LitSemanticSegmentationModel(
         name="dummy.segmentation", target_key="segment", inverse_key="inverse", origin_target_key="origin_segment"
     )
     batch = {

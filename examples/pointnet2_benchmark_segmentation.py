@@ -149,7 +149,7 @@ def main() -> None:
     set_determinism(tf32=False)
 
     print(f"Benchmarking model {args.model!r} on S3DIS (areas={args.areas})!")
-    model, model_info = create_model(args.model, task="segmentation", pretrained=True, return_info=True)
+    model, model_info = create_model(args.model, task="semantic-segmentation", pretrained=True, return_info=True)
     num_classes = int(model.num_classes)
     transform, inferer_transform, build_inferer = PROTOCOLS[args.model]
     inferer_transform = inferer_transform or model_info["transform"]

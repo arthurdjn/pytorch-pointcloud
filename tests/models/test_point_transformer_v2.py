@@ -137,7 +137,7 @@ def test_pt_v2_segmentation_forward_features_decoder_head(
 
 @pytest.mark.parametrize("name", ["ptv2-base.scannet20", "ptv2-base.scannet200"])
 def test_pt_v2_registered_forward(name: str) -> None:
-    model = create_model(name, task="segmentation", in_channels=3, num_classes=10)
+    model = create_model(name, task="semantic-segmentation", in_channels=3, num_classes=10)
     torch.manual_seed(0)
     lengths = torch.tensor([256, 384])
     pos = torch.randn(int(lengths.sum()), 3)

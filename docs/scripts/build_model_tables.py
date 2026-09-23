@@ -35,10 +35,22 @@ COLUMNS = [
     "score",
 ]
 KEPT_COLUMNS = ["params", "reference", "score"]
-TASK_ORDER: Dict[Task, int] = {"classification": 0, "segmentation": 1, "detection": 2, "base": 3}
+TASK_ORDER: Dict[Task, int] = {
+    "classification": 0,
+    "semantic-segmentation": 1,
+    "part-segmentation": 2,
+    "detection": 3,
+    "pretraining": 4,
+}
 
 
-DEFAULT_METRIC: Dict[Task, str] = {"classification": "OA", "segmentation": "mIoU", "detection": "mAP", "base": ""}
+DEFAULT_METRIC: Dict[Task, str] = {
+    "classification": "OA",
+    "semantic-segmentation": "mIoU",
+    "part-segmentation": "mIoU",
+    "detection": "mAP",
+    "pretraining": "",
+}
 
 
 def metric_name(task: Task, dataset: str) -> str:

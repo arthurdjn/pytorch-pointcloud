@@ -116,7 +116,7 @@ Each checkpoint ships the transform that turns a raw point cloud into what the n
 import torch_pointcloud as tp
 
 # Requires torch-scatter, torch-cluster, spconv
-model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="segmentation", pretrained=True, return_info=True)
+model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="semantic-segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
 info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}
 

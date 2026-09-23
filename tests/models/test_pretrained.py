@@ -67,26 +67,26 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     *[(f"pointgpt-{s}.modelnet40.guangyan-chen", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
     *[(f"pointgpt-{s}.modelnet40-8k.guangyan-chen", "classification", "modelnet_resampled") for s in ("s", "b", "l")],
     # S3DIS based models
-    ("kpfcnn-base.s3dis-area5.hugues-thomas", "segmentation", "s3dis_hdf5"),
-    ("kpfcnn-base-sm.s3dis-area5.hugues-thomas", "segmentation", "s3dis_hdf5"),
-    ("kpfcnn-base-deform.s3dis-area5.hugues-thomas", "segmentation", "s3dis_hdf5"),
-    ("kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas", "segmentation", "s3dis_hdf5"),
-    *[(f"pointnext-sm.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    *[(f"pointnext-base.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    *[(f"pointnext-lg.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    *[(f"pointnext-xl.s3dis-area{i}.openpoints", "segmentation", "s3dis_hdf5") for i in range(1, 6)],
-    *[(f"dgcnn.s3dis-area{i}.an-tao", "segmentation", "s3dis_hdf5") for i in range(1, 7)],
-    ("pointnet2.s3dis-area5.xu-yan", "segmentation", "s3dis_hdf5"),
-    *[(f"pointnet2.s3dis-area{i}.openpoints", "segmentation", "s3dis") for i in range(1, 7)],
-    ("pvcnn.s3dis-area5.mit-han-lab", "segmentation", "s3dis_hdf5"),
-    ("ptv3-base.s3dis-area5.pointcept", "segmentation", "s3dis"),
+    ("kpfcnn-base.s3dis-area5.hugues-thomas", "semantic-segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base-sm.s3dis-area5.hugues-thomas", "semantic-segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base-deform.s3dis-area5.hugues-thomas", "semantic-segmentation", "s3dis_hdf5"),
+    ("kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas", "semantic-segmentation", "s3dis_hdf5"),
+    *[(f"pointnext-sm.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-base.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-lg.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    *[(f"pointnext-xl.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 6)],
+    *[(f"dgcnn.s3dis-area{i}.an-tao", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 7)],
+    ("pointnet2.s3dis-area5.xu-yan", "semantic-segmentation", "s3dis_hdf5"),
+    *[(f"pointnet2.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis") for i in range(1, 7)],
+    ("pvcnn.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
+    ("ptv3-base.s3dis-area5.pointcept", "semantic-segmentation", "s3dis"),
     # ShapenetPart based models
-    ("pointnext-sm.shapenetpart.openpoints", "segmentation", "shapenetpart"),
-    ("pointnext-sm-c64.shapenetpart.openpoints", "segmentation", "shapenetpart"),
-    ("pointnext-sm-c160.shapenetpart.openpoints", "segmentation", "shapenetpart"),
-    ("dgcnn.shapenetpart.an-tao", "segmentation", "shapenetpart"),
-    ("point-mae-base.shapenetpart.yatian-pang", "segmentation", "shapenetpart"),
-    ("point-m2ae-base.shapenetpart.renrui-zhang", "segmentation", "shapenetpart"),
+    ("pointnext-sm.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
+    ("pointnext-sm-c64.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
+    ("pointnext-sm-c160.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
+    ("dgcnn.shapenetpart.an-tao", "part-segmentation", "shapenetpart"),
+    ("point-mae-base.shapenetpart.yatian-pang", "part-segmentation", "shapenetpart"),
+    ("point-m2ae-base.shapenetpart.renrui-zhang", "part-segmentation", "shapenetpart"),
     # ScanObjectNN based models
     ("pointmlp-base.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),
     ("pointmlp-elite.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),
@@ -109,20 +109,20 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
         for v in ("hardest", "objbg", "objonly")
     ],
     # ScanNet20 based models
-    ("sonata-lp.scannet20.fair", "segmentation", "scannet20"),
-    ("concerto-large-lp.scannet20.pointcept", "segmentation", "scannet20"),
-    ("utonia-lp.scannet20.pointcept", "segmentation", "scannet20"),
-    ("ptv3-base.scannet20.pointcept", "segmentation", "scannet20"),
-    ("ptv3-base.scannet200.pointcept", "segmentation", "scannet20"),
-    ("octformer-base.scannet20.octree-nn", "segmentation", "scannet20"),
-    ("octformer-base.scannet200.octree-nn", "segmentation", "scannet20"),
-    ("dgcnn.scannet20.an-tao", "segmentation", "scannet20_blocks"),
-    ("spunet-v1m1.scannet20.pointcept", "segmentation", "scannet20"),
+    ("sonata-lp.scannet20.fair", "semantic-segmentation", "scannet20"),
+    ("concerto-large-lp.scannet20.pointcept", "semantic-segmentation", "scannet20"),
+    ("utonia-lp.scannet20.pointcept", "semantic-segmentation", "scannet20"),
+    ("ptv3-base.scannet20.pointcept", "semantic-segmentation", "scannet20"),
+    ("ptv3-base.scannet200.pointcept", "semantic-segmentation", "scannet20"),
+    ("octformer-base.scannet20.octree-nn", "semantic-segmentation", "scannet20"),
+    ("octformer-base.scannet200.octree-nn", "semantic-segmentation", "scannet20"),
+    ("dgcnn.scannet20.an-tao", "semantic-segmentation", "scannet20_blocks"),
+    ("spunet-v1m1.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     # SemanticKITTI based models
-    ("randlanet.semantickitti.tsung-han-wu", "segmentation", "semantickitti"),
-    ("spvcnn-30gmacs.semantickitti.mit-han-lab", "segmentation", "semantickitti"),
-    ("spvcnn-47gmacs.semantickitti.mit-han-lab", "segmentation", "semantickitti"),
-    ("spvcnn-119gmacs.semantickitti.mit-han-lab", "segmentation", "semantickitti"),
+    ("randlanet.semantickitti.tsung-han-wu", "semantic-segmentation", "semantickitti"),
+    ("spvcnn-30gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("spvcnn-47gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
 ]
 
 
@@ -271,7 +271,7 @@ def test_pretrained_votenet(
 
 @pytest.mark.pretrained
 @pytest.mark.parametrize("model_name", ["3detr.scannet.fair", "3detr.sunrgbd.fair", "3detr-m.scannet.fair"])
-def test_pretrained_detr3d(
+def test_pretrained_threedetr(
     model_name: str,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],

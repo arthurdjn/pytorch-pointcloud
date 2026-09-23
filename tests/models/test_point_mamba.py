@@ -7,7 +7,7 @@ from torch_pointcloud.models.point_mamba import (
     PointMambaClassification,
     PointMambaDecoderMAE,
     PointMambaEncoder,
-    PointMambaMAE,
+    PointMambaPretraining,
     order_sort,
 )
 from torch_pointcloud.utils.imports import (
@@ -184,9 +184,9 @@ def test_point_mamba_classification_accepts_features() -> None:
 
 @requires_cuda
 def test_point_mamba_mae_basic() -> None:
-    """Test the basic functionality of the PointMambaMAE model,
+    """Test the basic functionality of the PointMambaPretraining model,
     following similar architecture as the original PointMamba model."""
-    model = PointMambaMAE(
+    model = PointMambaPretraining(
         in_channels=0,
         embed_dim=384,
         encoder_depth=12,
@@ -211,7 +211,7 @@ def test_point_mamba_mae_basic() -> None:
 @requires_cuda
 def test_point_mamba_mae_accepts_features() -> None:
     in_channels = 3
-    model = PointMambaMAE(
+    model = PointMambaPretraining(
         in_channels=in_channels,
         embed_dim=192,
         encoder_depth=2,
