@@ -13,13 +13,13 @@ RUN="uv run --no-sync python"
 $RUN examples/pointnet2_benchmark_classification.py --root "$ROOT" --model pointnet2-ssg.modelnet40.xu-yan
 $RUN examples/pointnet2_benchmark_classification.py --root "$ROOT" --model pointnet2-msg.modelnet40.xu-yan
 $RUN examples/pointnet2_benchmark_classification.py --root "$ROOT" --model pointnet2.modelnet40.openpoints
-$RUN examples/pointnet2_benchmark_classification.py --root "$ROOT" --model pointnet2.scanobjectnn.openpoints
+$RUN examples/pointnet2_benchmark_classification.py --root "$ROOT" --model pointnet2.scanobjectnn-hardest.openpoints
 $RUN examples/pointnext_benchmark_classification.py --root "$ROOT" --model pointnext-sm-c64.modelnet40.openpoints
-$RUN examples/pointnext_benchmark_classification.py --root "$ROOT" --model pointnext-sm.scanobjectnn.openpoints
+$RUN examples/pointnext_benchmark_classification.py --root "$ROOT" --model pointnext-sm.scanobjectnn-hardest.openpoints
 $RUN examples/pointmlp_benchmark_classification.py --root "$ROOT" --model pointmlp-base.modelnet40.xu-ma
 $RUN examples/pointmlp_benchmark_classification.py --root "$ROOT" --model pointmlp-elite.modelnet40.xu-ma
-$RUN examples/pointmlp_benchmark_classification.py --root "$ROOT" --model pointmlp-base.scanobjectnn.xu-ma
-$RUN examples/pointmlp_benchmark_classification.py --root "$ROOT" --model pointmlp-elite.scanobjectnn.xu-ma
+$RUN examples/pointmlp_benchmark_classification.py --root "$ROOT" --model pointmlp-base.scanobjectnn-hardest.xu-ma
+$RUN examples/pointmlp_benchmark_classification.py --root "$ROOT" --model pointmlp-elite.scanobjectnn-hardest.xu-ma
 $RUN examples/pointconv_benchmark_classification.py --root "$ROOT" --model pointconv-density-base.modelnet40.wenxuan-wu
 $RUN examples/dgcnn_benchmark_classification.py --root "$ROOT" --model dgcnn.modelnet40-1024.an-tao
 $RUN examples/dgcnn_benchmark_classification.py --root "$ROOT" --model dgcnn.modelnet40-2048.an-tao
@@ -38,9 +38,9 @@ $RUN examples/point_m2ae_benchmark_classification.py --root "$ROOT" --model poin
 $RUN examples/point_m2ae_benchmark_classification.py --root "$ROOT" --model point-m2ae-base.scanobjectnn-objbg.renrui-zhang
 $RUN examples/point_m2ae_benchmark_classification.py --root "$ROOT" --model point-m2ae-base.scanobjectnn-hardest.renrui-zhang
 $RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.modelnet40.dingkang-liang
-$RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.scanobjectnn.dingkang-liang
-$RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.scanobjectnn-nobg.dingkang-liang
-$RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang
+$RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.scanobjectnn-objbg.dingkang-liang
+$RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.scanobjectnn-objonly.dingkang-liang
+$RUN examples/point_mamba_benchmark_classification.py --root "$ROOT" --model point-mamba-base.scanobjectnn-hardest.dingkang-liang
 $RUN examples/pointgpt_benchmark_classification.py --root "$ROOT" --model pointgpt-s.modelnet40.guangyan-chen
 $RUN examples/pointgpt_benchmark_classification.py --root "$ROOT" --model pointgpt-b.modelnet40.guangyan-chen
 $RUN examples/pointgpt_benchmark_classification.py --root "$ROOT" --model pointgpt-l.modelnet40.guangyan-chen
@@ -91,10 +91,10 @@ $RUN examples/dgcnn_benchmark_segmentation.py --root "$ROOT" --dataset s3dis --a
 $RUN examples/dgcnn_benchmark_segmentation.py --root "$ROOT" --dataset s3dis --area 5
 $RUN examples/dgcnn_benchmark_segmentation.py --root "$ROOT" --dataset s3dis --area 6
 $RUN examples/pvcnn_benchmark_segmentation.py --root "$ROOT" --model pvcnn.s3dis-area5.mit-han-lab --areas Area_5
-$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base.s3dis.hugues-thomas
-$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-sm.s3dis.hugues-thomas
-$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-deform.s3dis.hugues-thomas
-$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-sm-deform.s3dis.hugues-thomas
+$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base.s3dis-area5.hugues-thomas
+$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-sm.s3dis-area5.hugues-thomas
+$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-deform.s3dis-area5.hugues-thomas
+$RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas
 $RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area5.xu-yan --areas Area_5
 $RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area1.openpoints --areas Area_1 --sub-batch-size 4
 $RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area2.openpoints --areas Area_2 --sub-batch-size 1

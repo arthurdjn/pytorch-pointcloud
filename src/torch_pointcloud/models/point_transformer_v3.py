@@ -1714,7 +1714,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     "ptv3-base.scannet20.pointcept",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/ptv3-base.scannet20.pointcept/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/ptv3-base.scannet20.pointcept/resolve/3a8e0a66d76ecfb57d4dd0e4ef43de18f1491b41/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 77.40, "OA": 92.01},
         classes=SCANNET20_CLASSES,
@@ -1732,7 +1732,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
     "ptv3-base.scannet200.pointcept",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/ptv3-base.scannet200.pointcept/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/ptv3-base.scannet200.pointcept/resolve/1f1232df7e827ff72dd7cd038763e75516494462/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 34.99, "OA": 83.27},
         author="pointcept",
@@ -1749,7 +1749,7 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
     "ptv3-base.s3dis-area5.pointcept",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/ptv3-base.s3dis-area5.pointcept/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/ptv3-base.s3dis-area5.pointcept/resolve/95d483ef0e186a94ffbf8302a2bba9b5ba710344/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 72.06, "OA": 91.16},
         classes=S3DIS_CLASSES,

@@ -678,12 +678,22 @@ class DGCNNPartSegmentation(SegmentationModel):
         return self.forward_head(x, batch)
 
 
+_S3DIS_REVISIONS = {
+    1: "29b230cfa3bfe1a5ed64a2e657d6648345d24c27",
+    2: "e3e348e10e62cc54f7889a15d95374acee33f397",
+    3: "70eb433b95f6688f1ba40d163be157918ec7b187",
+    4: "ca61a2189de6e6f3b2ebe0cda18ebc3838016a78",
+    5: "927f38e410d457f13ed14dde67ef1e2be27efafa",
+    6: "4fbb78ed5a74e3651e011f0f09aa0e631ec3660f",
+}
+
+
 def _dgcnn_antao_s3dis_cfg(area: int, miou: float, oa: float) -> dict[str, Any]:
     return dict(
         name=f"dgcnn.s3dis-area{area}.an-tao",
         task="segmentation",
         weights=WeightsDict(
-            url=f"hf://torch-pointcloud/dgcnn.s3dis-area{area}.an-tao/resolve/main/model.safetensors",
+            url=f"hf://torch-pointcloud/dgcnn.s3dis-area{area}.an-tao/resolve/{_S3DIS_REVISIONS[area]}/model.safetensors",
             dataset=f"s3dis-area{area}",
             metrics={"mIoU": miou, "OA": oa},
             classes=S3DIS_CLASSES,
@@ -713,7 +723,7 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float, oa: float) -> dict[str, Any]:
     "dgcnn.modelnet40-1024.an-tao",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/dgcnn.modelnet40-1024.an-tao/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/dgcnn.modelnet40-1024.an-tao/resolve/93b81edc579fde6ef6240c805fc2610298af738f/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.27, "mAcc": 90.89},
         classes=MODELNET40_CLASSES,
@@ -757,7 +767,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     "dgcnn.modelnet40-2048.an-tao",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/dgcnn.modelnet40-2048.an-tao/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/dgcnn.modelnet40-2048.an-tao/resolve/6c428e23b4299afe7dee588c0b7d442827657699/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.60, "mAcc": 91.18},
         classes=MODELNET40_CLASSES,
@@ -801,7 +811,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     "dgcnn.shapenetpart.an-tao",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/dgcnn.shapenetpart.an-tao/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/dgcnn.shapenetpart.an-tao/resolve/ec81e21de268b6aed580bc9d13c8265fa4b7c312/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.23, "cls_mIoU": 80.92},
         author="an-tao",
@@ -880,7 +890,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     "dgcnn.scannet20.an-tao",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/dgcnn.scannet20.an-tao/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/dgcnn.scannet20.an-tao/resolve/efb9370409b83ec80a1083f5abc41ac84ea31756/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 52.89, "OA": 81.76},
         classes=SCANNET20_CLASSES,

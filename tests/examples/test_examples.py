@@ -55,7 +55,7 @@ BENCHMARKS = [
     ),
     pytest.param(
         "pointnext_benchmark_classification.py",
-        ("--model", "pointnext-sm.scanobjectnn.openpoints", "--limit", "8"),
+        ("--model", "pointnext-sm.scanobjectnn-hardest.openpoints", "--limit", "8"),
         marks=_CLUSTER_SCATTER,
         id="pointnext/scanobjectnn",
     ),
@@ -79,7 +79,7 @@ BENCHMARKS = [
     ),
     pytest.param(
         "pointnet2_benchmark_classification.py",
-        ("--model", "pointnet2.scanobjectnn.openpoints", "--limit", "8"),
+        ("--model", "pointnet2.scanobjectnn-hardest.openpoints", "--limit", "8"),
         marks=_CLUSTER_SCATTER,
         id="pointnet2/scanobjectnn",
     ),
@@ -168,7 +168,7 @@ BENCHMARKS = [
     ),
     pytest.param(
         "pointmlp_benchmark_classification.py",
-        ("--model", "pointmlp-base.scanobjectnn.xu-ma", "--limit", "8"),
+        ("--model", "pointmlp-base.scanobjectnn-hardest.xu-ma", "--limit", "8"),
         marks=_CLUSTER_SCATTER,
         id="pointmlp/scanobjectnn",
     ),

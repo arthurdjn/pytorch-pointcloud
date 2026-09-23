@@ -983,7 +983,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
     name="octformer-base.modelnet40.octree-nn",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/octformer-base.modelnet40.octree-nn/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/octformer-base.modelnet40.octree-nn/resolve/41f770a172a246227c92b9196e7ec1bf80e6ce41/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.02, "mAcc": 89.79},
         classes=MODELNET40_CLASSES,
@@ -1061,7 +1061,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
 @register_model(
     name="octformer-base.scannet20.octree-nn",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/octformer-base.scannet20.octree-nn/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/octformer-base.scannet20.octree-nn/resolve/440db325abc54ef7645b0e6db3dbafb65b76fe71/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 74.78, "OA": 90.90},
         author="octree-nn",
@@ -1130,7 +1130,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
 @register_model(
     name="octformer-base.scannet200.octree-nn",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/octformer-base.scannet200.octree-nn/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/octformer-base.scannet200.octree-nn/resolve/d19137dd693b614d3c70c9364bec2c2d43f0cd4f/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 31.71, "OA": 82.00},
         author="octree-nn",

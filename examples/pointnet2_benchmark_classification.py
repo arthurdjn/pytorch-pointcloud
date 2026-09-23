@@ -2,12 +2,12 @@
 
 Results (overall accuracy / mean class accuracy):
 
-    | Variant                           | reference | torch-pointcloud |
-    | --------------------------------- | --------- | ---------------- |
-    | pointnet2-ssg.modelnet40.xu-yan   | 92.0      | 92.30 / 88.23    |
-    | pointnet2-msg.modelnet40.xu-yan   | 92.8      | 92.67 / 90.60    |
-    | pointnet2.modelnet40.openpoints   | 93.0      | 91.90 / 88.88    |
-    | pointnet2.scanobjectnn.openpoints | 86.2      | 86.16 / 84.36    |
+    | Variant                                   | reference | torch-pointcloud |
+    | ----------------------------------------- | --------- | ---------------- |
+    | pointnet2-ssg.modelnet40.xu-yan           | 92.0      | 92.30 / 88.23    |
+    | pointnet2-msg.modelnet40.xu-yan           | 92.8      | 92.67 / 90.60    |
+    | pointnet2.modelnet40.openpoints           | 93.0      | 91.90 / 88.88    |
+    | pointnet2.scanobjectnn-hardest.openpoints | 86.2      | 86.16 / 84.36    |
 
 Usage:
     uv run --no-sync python examples/pointnet2_benchmark_classification.py --model pointnet2-ssg.modelnet40.xu-yan
@@ -40,7 +40,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
     "pointnet2-ssg.modelnet40.xu-yan": {"dataset": "modelnet40"},
     "pointnet2-msg.modelnet40.xu-yan": {"dataset": "modelnet40"},
     "pointnet2.modelnet40.openpoints": {"dataset": "modelnet40"},
-    "pointnet2.scanobjectnn.openpoints": {
+    "pointnet2.scanobjectnn-hardest.openpoints": {
         "dataset": "scanobjectnn",
         "background": True,
         "variant": "augmentedrot_scale75",

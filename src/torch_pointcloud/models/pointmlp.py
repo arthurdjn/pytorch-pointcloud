@@ -914,7 +914,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     "pointmlp-base.modelnet40.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp-base.modelnet40.xu-ma/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointmlp-base.modelnet40.xu-ma/resolve/83c919b3592393cd8ba12cf7e6857c7fb96c60ba/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.88, "mAcc": 90.51},
         classes=MODELNET40_CLASSES,
@@ -943,7 +943,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     "pointmlp-elite.modelnet40.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp-elite.modelnet40.xu-ma/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/pointmlp-elite.modelnet40.xu-ma/resolve/6722e099f5b988d1f974b792f5e7e9c2fad856bd/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.79, "mAcc": 89.36},
         classes=MODELNET40_CLASSES,
@@ -972,11 +972,11 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
 # standard deviation over the whole batch; their README accuracy holds on shuffled test batches of 32, while the
 # per-sample std of the later releases scores about 9 points lower with these weights.
 @register_model(
-    "pointmlp-base.scanobjectnn.xu-ma",
+    "pointmlp-base.scanobjectnn-hardest.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp-base.scanobjectnn.xu-ma/resolve/main/model.safetensors",
-        dataset="scanobjectnn",
+        url="hf://torch-pointcloud/pointmlp-base.scanobjectnn-hardest.xu-ma/resolve/5c8c2acdca18e18201953a4e947ba3cd0290257a/model.safetensors",
+        dataset="scanobjectnn-hardest",
         metrics={"OA": 85.81, "mAcc": 84.29},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",
@@ -1001,11 +1001,11 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
 
 
 @register_model(
-    "pointmlp-elite.scanobjectnn.xu-ma",
+    "pointmlp-elite.scanobjectnn-hardest.xu-ma",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointmlp-elite.scanobjectnn.xu-ma/resolve/main/model.safetensors",
-        dataset="scanobjectnn",
+        url="hf://torch-pointcloud/pointmlp-elite.scanobjectnn-hardest.xu-ma/resolve/ceb928e762abb1e184025000ed1d8ef0d7f0b6f2/model.safetensors",
+        dataset="scanobjectnn-hardest",
         metrics={"OA": 84.18, "mAcc": 81.77},
         classes=SCANOBJECTNN_CLASSES,
         author="xu-ma",

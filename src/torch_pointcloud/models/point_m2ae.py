@@ -1119,7 +1119,7 @@ class HierarchicalEncoderMAE(nn.Module):
     "point-m2ae-base.modelnet40.renrui-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-m2ae-base.modelnet40.renrui-zhang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-m2ae-base.modelnet40.renrui-zhang/resolve/9714c2f0cf785c65c3fbec0ba1898a37a34166b6/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.87, "mAcc": 90.13},
         classes=MODELNET40_CLASSES,
@@ -1164,7 +1164,7 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
     "point-m2ae-base.scanobjectnn-hardest.renrui-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-m2ae-base.scanobjectnn-hardest.renrui-zhang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-m2ae-base.scanobjectnn-hardest.renrui-zhang/resolve/f745262b83c9cae12a25b1c2bea5fe0ae0fbea8f/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 86.54, "mAcc": 85.21},
         classes=SCANOBJECTNN_CLASSES,
@@ -1207,7 +1207,7 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
     "point-m2ae-base.scanobjectnn-objbg.renrui-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-m2ae-base.scanobjectnn-objbg.renrui-zhang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-m2ae-base.scanobjectnn-objbg.renrui-zhang/resolve/0f840eb0a37ab8c62076d2cf8e668fd26c444968/model.safetensors",
         dataset="scanobjectnn-objbg",
         metrics={"OA": 91.22, "mAcc": 89.28},
         classes=SCANOBJECTNN_CLASSES,
@@ -1250,7 +1250,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
     "point-m2ae-base.shapenetpart.renrui-zhang",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-m2ae-base.shapenetpart.renrui-zhang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-m2ae-base.shapenetpart.renrui-zhang/resolve/539d06ae3865cd6c47bee941ff674e0db4148d1e/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.17, "cls_mIoU": 84.60},
         author="renrui-zhang",
@@ -1292,7 +1292,7 @@ def point_m2ae_base_shapenetpart(**kwargs: Any) -> PointM2AESegmentation:
     "point-m2ae-base.pretrain.renrui-zhang",
     task="base",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-m2ae-base.pretrain.renrui-zhang/resolve/main/model.safetensors",
+        url="hf://torch-pointcloud/point-m2ae-base.pretrain.renrui-zhang/resolve/8e22a423991a9a5c4be3f53d52d8e598239d10b9/model.safetensors",
         dataset="shapenet55",
         author="renrui-zhang",
         license="MIT",
