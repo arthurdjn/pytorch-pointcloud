@@ -4,8 +4,6 @@
 
 A PyTorch library for deep learning on point clouds. Models for classification, segmentation, and detection, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
 
-:pytorch-pointcloud-mini: `torch-pointcloud` is an independent project built for :pytorch: [PyTorch](https://pytorch.org). It is not affiliated with or endorsed by the PyTorch project or the PyTorch Foundation.
-
 <div class="tp-tasks" markdown>
 
 <figure markdown="1">

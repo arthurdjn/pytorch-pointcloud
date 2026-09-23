@@ -1,3 +1,6 @@
+> [!WARNING]
+> `torch-pointcloud` is in alpha and active development. Expect breaking changes.
+
 # pytorch-pointcloud
 
 <div align="center" style="width: 100%; margin: auto">
