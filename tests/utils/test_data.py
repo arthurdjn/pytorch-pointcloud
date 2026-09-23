@@ -361,7 +361,7 @@ def _single(samples: List[float]) -> List[float]:
 
 def _set_offset(worker_id: int) -> None:
     info = get_worker_info()
-    assert info is not None
+    assert info is not None and isinstance(info.dataset, _JitterDataset)
     info.dataset.offset = 100.0
 
 

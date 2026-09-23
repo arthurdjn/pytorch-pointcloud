@@ -71,11 +71,11 @@ def _partner_stream(scenes: List[Dict[str, Any]], draws: int = 16) -> List[float
     return [mixed[0]["other"][0, 0].item() for _ in range(draws)]
 
 
-def _partner(data: Dict[str, Any], other: Dict[str, Any]) -> float:
-    return other["pos"][0, 0].item()
+def _partner(data: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+    return {"partner": other["pos"][0, 0].item()}
 
 
-def _single(sample: float) -> float:
+def _single(sample: Dict[str, Any]) -> Dict[str, Any]:
     return sample
 
 
@@ -84,7 +84,9 @@ def test_mix_dataset_seeded_workers_draw_distinct_partners() -> None:
     scenes = [{"pos": torch.full((1, 3), float(i))} for i in range(64)]
     mixed = MixDataset(_ScenesDataset(scenes), mix=_partner, seed=0)
     torch.manual_seed(0)
-    partners = list(PointCloudDataLoader(mixed, batch_size=None, num_workers=2, collate_fn=_single))
+    partners = [
+        sample["partner"] for sample in PointCloudDataLoader(mixed, batch_size=None, num_workers=2, collate_fn=_single)
+    ]
     assert partners[0::2] != partners[1::2]
 
 
