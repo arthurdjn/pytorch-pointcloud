@@ -3995,7 +3995,7 @@ class EncodeVoteNetTargets(DictTransform):
         size_residual_key: Key to write the $(M, 3)$ size residual labels to.
         sem_cls_key: Key to write the $(M,)$ semantic class labels to.
         box_mask_key: Key to write the $(M,)$ box mask to.
-        num_heading_bin: Number of heading bins.
+        num_heading_bins: Number of heading bins.
         mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
         max_num_obj: Padded number of objects $M$.
         allow_missing_keys: If `True`, return the data unchanged when `box_key` or `class_key` is missing
@@ -4016,7 +4016,7 @@ class EncodeVoteNetTargets(DictTransform):
         size_residual_key: str = "size_residual_label",
         sem_cls_key: str = "sem_cls_label",
         box_mask_key: str = "box_label_mask",
-        num_heading_bin: int = 12,
+        num_heading_bins: int = 12,
         mean_sizes: Optional[Union[Tensor, Sequence[Sequence[float]]]] = None,
         max_num_obj: int = 64,
         allow_missing_keys: bool = False,
@@ -4034,7 +4034,7 @@ class EncodeVoteNetTargets(DictTransform):
         self.size_residual_key = size_residual_key
         self.sem_cls_key = sem_cls_key
         self.box_mask_key = box_mask_key
-        self.num_heading_bin = num_heading_bin
+        self.num_heading_bins = num_heading_bins
         self.mean_sizes = torch.as_tensor(mean_sizes, dtype=torch.float32)
         self.max_num_obj = max_num_obj
 
@@ -4066,7 +4066,7 @@ class EncodeVoteNetTargets(DictTransform):
             valid = boxes[:k]
             sem = classes[:k].long()
             center[:k] = valid[:, 0:3]
-            cls, residual = F.angle_to_class(valid[:, 6], self.num_heading_bin)
+            cls, residual = F.angle_to_class(valid[:, 6], self.num_heading_bins)
             heading_class[:k] = cls
             heading_residual[:k] = residual
             size_class[:k] = sem

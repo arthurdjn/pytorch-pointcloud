@@ -44,13 +44,13 @@ def data() -> Dict[str, Tensor]:
 @pytest.fixture
 def model_seg() -> SphereFormerSegmentation:
     # The sptr kernel requires head_dim == 16, and each window-attention branch needs at least one head
-    # (num_heads >= 2), so base_channels must be >= 32.
+    # (num_heads >= 2), so stem_channels must be >= 32.
     return SphereFormerSegmentation(
         in_channels=4,
         num_classes=10,
-        base_channels=32,
-        layers=(32, 64, 128),
-        block_reps=1,
+        stem_channels=32,
+        channels=(32, 64, 128),
+        depth=1,
         head_dim=16,
         min_spatial_shape=64,
     ).cuda()
@@ -87,7 +87,7 @@ def test_sphereformer_forward_head_pre_logits(model_seg: SphereFormerSegmentatio
     sparse_x = model_seg.forward_decoder(sparse_x)
     feats = model_seg.forward_head(sparse_x, pre_logits=True)
     assert torch.equal(feats, sparse_x.features)
-    assert feats.shape == (data["pos_grid"].shape[0], model_seg.base_channels)
+    assert feats.shape == (data["pos_grid"].shape[0], model_seg.stem_channels)
 
 
 @requires_cuda
@@ -161,8 +161,8 @@ def test_sphereformer_ublock_head_dim_validation() -> None:
     window = torch.tensor([0.3, 0.3, 0.3])
     with pytest.raises(ValueError, match="must be divisible by `head_dim`"):
         SphereFormerUBlock(
-            planes=(24,),
-            block_reps=1,
+            channels=(24,),
+            depth=1,
             window_size=window,
             window_size_sphere=window,
             quant_size=window / 24,

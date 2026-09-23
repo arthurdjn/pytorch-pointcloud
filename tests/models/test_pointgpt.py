@@ -41,7 +41,7 @@ def test_pointgpt_classification_basic(embed_dim: int, num_heads: int, depth: in
         embed_dim=embed_dim,
         depth=depth,
         num_heads=num_heads,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         act="gelu",
     )
@@ -57,7 +57,7 @@ def test_pointgpt_generative_pretraining_basic() -> None:
         depth=12,
         decoder_depth=4,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         act="gelu",
     )
@@ -75,7 +75,7 @@ def test_pointgpt_classification_num_classes_zero_returns_features() -> None:
         embed_dim=96,
         depth=2,
         num_heads=2,
-        num_group=16,
+        num_groups=16,
         group_size=8,
         act="gelu",
     )
@@ -92,7 +92,7 @@ def test_pointgpt_classification_reset_classifier_keeps_global_pool() -> None:
         embed_dim=96,
         depth=2,
         num_heads=2,
-        num_group=16,
+        num_groups=16,
         group_size=8,
         global_pool="mean",
     )
@@ -112,7 +112,7 @@ def test_pointgpt_generative_pretraining_duplicate_centers_finite() -> None:
         depth=2,
         decoder_depth=1,
         num_heads=2,
-        num_group=8,
+        num_groups=8,
         group_size=4,
         mask_ratio=0.5,
         keep_attend=2,
@@ -154,7 +154,7 @@ def test_pointgpt_generative_pretraining_accepts_features() -> None:
         depth=2,
         decoder_depth=1,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         act="gelu",
     )
@@ -179,7 +179,7 @@ def test_pointgpt_classification_accepts_features() -> None:
         embed_dim=384,
         depth=2,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         act="gelu",
     )

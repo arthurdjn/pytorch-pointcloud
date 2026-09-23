@@ -86,12 +86,12 @@ class DummySemanticSegmentationModel(SemanticSegmentationModel):
 
 class DummyDetectionModel(DetectionModel):
     def __init__(
-        self, in_channels: int = 1, num_classes: int = 10, num_heading_bin: int = 12, num_size_cluster: int = 10
+        self, in_channels: int = 1, num_classes: int = 10, num_heading_bins: int = 12, num_size_clusters: int = 10
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.num_heading_bin = num_heading_bin
-        self.num_size_cluster = num_size_cluster
-        self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
+        self.num_heading_bins = num_heading_bins
+        self.num_size_clusters = num_size_clusters
+        self.register_buffer("mean_sizes", torch.ones(num_size_clusters, 3))
         self.fc = nn.Linear(in_channels, num_classes)
 
     @property
@@ -620,8 +620,8 @@ def test_detection_criterion_completed_with_model_params() -> None:
     lit = LitDetectionModel(name="dummy.detection", optimizer=partial(torch.optim.AdamW, lr=0.01), criterion=criterion)
     criterion.assert_called_once()
     kwargs = criterion.call_args.kwargs
-    assert kwargs["num_heading_bin"] == lit.model.num_heading_bin
-    assert kwargs["num_size_cluster"] == lit.model.num_size_cluster
+    assert kwargs["num_heading_bins"] == lit.model.num_heading_bins
+    assert kwargs["num_size_clusters"] == lit.model.num_size_clusters
     assert kwargs["num_classes"] == lit.model.num_classes
     assert kwargs["mean_sizes"] is lit.model.mean_sizes
 
@@ -638,8 +638,8 @@ def test_detection_criterion_none_skips_head_geometry_completion() -> None:
 
     def factory(**kwargs: Any) -> DummyDetectionModel:
         model = DummyDetectionModel(**kwargs)
-        del model.num_heading_bin
-        del model.num_size_cluster
+        del model.num_heading_bins
+        del model.num_size_clusters
         del model.mean_sizes
         return model
 

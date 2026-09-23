@@ -374,19 +374,19 @@ def _scale_window(window_size: Tensor, quant_size: Tensor, scale: float, scale_l
 class SphereFormerUBlock(nn.Module):
     r"""Recursive UNet block: sparse residual blocks + windowed attention, then a downsample/upsample branch.
 
-    Each level runs `block_reps` sparse residual blocks, an optional `SphereFormerBlock`, then (for non-leaf
+    Each level runs `depth` sparse residual blocks, an optional `SphereFormerBlock`, then (for non-leaf
     levels) a strided sparse convolution into the next-deeper `SphereFormerUBlock`, an inverse convolution
-    back, a skip concatenation, and `block_reps` tail residual blocks. The cubic and spherical window sizes are
+    back, a skip concatenation, and `depth` tail residual blocks. The cubic and spherical window sizes are
     scaled by `window_size_scale` at every deeper level, mirroring the reference.
 
     Args:
-        planes: Channel count of this level and all deeper levels.
-        block_reps: Number of residual blocks before (and after) the recursive branch.
+        channels: Channel count of this level and all deeper levels.
+        depth: Number of residual blocks before (and after) the recursive branch.
         window_size: Cubic window size at this level, of shape $(3,)$.
         window_size_sphere: Spherical window size at this level, of shape $(3,)$.
         quant_size: Cubic quantization size at this level, of shape $(3,)$.
         quant_size_sphere: Spherical quantization size at this level, of shape $(3,)$.
-        head_dim: Per-head dimension (sets `num_heads = planes[0] // head_dim`).
+        head_dim: Per-head dimension (sets `num_heads = channels[0] // head_dim`).
         window_size_scale: Pair `(cubic_scale, sphere_scale)` applied per deeper level.
         drop_path: Per-level stochastic-depth rates (indexed by level).
         radial_split_exponent: Base bin width for the radial exponential split.
@@ -400,8 +400,8 @@ class SphereFormerUBlock(nn.Module):
 
     def __init__(
         self,
-        planes: Sequence[int],
-        block_reps: int,
+        channels: Sequence[int],
+        depth: int,
         window_size: Tensor,
         window_size_sphere: Tensor,
         quant_size: Tensor,
@@ -418,7 +418,7 @@ class SphereFormerUBlock(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        self.planes = tuple(planes)
+        self.channels = tuple(channels)
         self.indice_key_id = indice_key_id
         self.sphere_layers = tuple(sphere_layers)
 
@@ -426,8 +426,8 @@ class SphereFormerUBlock(nn.Module):
             (
                 f"block{i}",
                 SparseResidualBlock(
-                    planes[0],
-                    planes[0],
+                    channels[0],
+                    channels[0],
                     indice_key=f"subm{indice_key_id}",
                     norm=norm,
                     norm_kwargs=norm_kwargs,
@@ -435,17 +435,17 @@ class SphereFormerUBlock(nn.Module):
                     act_kwargs=act_kwargs,
                 ),
             )
-            for i in range(block_reps)
+            for i in range(depth)
         )
         self.blocks = spconv.SparseSequential(blocks)
 
         self.transformer_block: Optional[SphereFormerBlock] = None
         if indice_key_id in self.sphere_layers:
-            if planes[0] % head_dim != 0:
-                raise ValueError(f"`planes[0]` ({planes[0]}) must be divisible by `head_dim` ({head_dim}).")
+            if channels[0] % head_dim != 0:
+                raise ValueError(f"`channels[0]` ({channels[0]}) must be divisible by `head_dim` ({head_dim}).")
             self.transformer_block = SphereFormerBlock(
-                planes[0],
-                num_heads=planes[0] // head_dim,
+                channels[0],
+                num_heads=channels[0] // head_dim,
                 window_size=window_size,
                 window_size_sphere=window_size_sphere,
                 quant_size=quant_size,
@@ -454,13 +454,13 @@ class SphereFormerUBlock(nn.Module):
                 drop_path=float(drop_path[0]),
             )
 
-        if len(planes) > 1:
+        if len(channels) > 1:
             self.conv = spconv.SparseSequential(
-                create_norm(norm, planes[0], **(norm_kwargs or {})) or nn.Identity(),
+                create_norm(norm, channels[0], **(norm_kwargs or {})) or nn.Identity(),
                 create_act(act, **(act_kwargs or {})) or nn.Identity(),
                 spconv.SparseConv3d(
-                    planes[0],
-                    planes[1],
+                    channels[0],
+                    channels[1],
                     kernel_size=2,
                     stride=2,
                     bias=False,
@@ -476,8 +476,8 @@ class SphereFormerUBlock(nn.Module):
             )
 
             self.unet = SphereFormerUBlock(
-                planes[1:],
-                block_reps,
+                channels[1:],
+                depth,
                 window_next,
                 window_sphere_next,
                 quant_next,
@@ -495,11 +495,11 @@ class SphereFormerUBlock(nn.Module):
             )
 
             self.deconv = spconv.SparseSequential(
-                create_norm(norm, planes[1], **(norm_kwargs or {})) or nn.Identity(),
+                create_norm(norm, channels[1], **(norm_kwargs or {})) or nn.Identity(),
                 create_act(act, **(act_kwargs or {})) or nn.Identity(),
                 spconv.SparseInverseConv3d(
-                    planes[1],
-                    planes[0],
+                    channels[1],
+                    channels[0],
                     kernel_size=2,
                     bias=False,
                     indice_key=f"spconv{indice_key_id}",
@@ -511,8 +511,8 @@ class SphereFormerUBlock(nn.Module):
                 (
                     f"block{i}",
                     SparseResidualBlock(
-                        planes[0] * (2 - i),
-                        planes[0],
+                        channels[0] * (2 - i),
+                        channels[0],
                         indice_key=f"subm{indice_key_id}",
                         norm=norm,
                         norm_kwargs=norm_kwargs,
@@ -520,7 +520,7 @@ class SphereFormerUBlock(nn.Module):
                         act_kwargs=act_kwargs,
                     ),
                 )
-                for i in range(block_reps)
+                for i in range(depth)
             )
             self.blocks_tail = spconv.SparseSequential(blocks_tail)
 
@@ -532,7 +532,7 @@ class SphereFormerUBlock(nn.Module):
 
         identity = SparseConvTensor(out.features, out.indices, out.spatial_shape, out.batch_size)
 
-        if len(self.planes) > 1:
+        if len(self.channels) > 1:
             out_decoder = self.conv(out)
 
             indice_pairs = out_decoder.indice_dict[f"spconv{self.indice_key_id}"].indice_pairs
@@ -563,9 +563,9 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
     Args:
         in_channels: Input feature channels.
         num_classes: Number of semantic classes.
-        base_channels: Stem / level-0 channel count $m$.
-        layers: Per-level channel counts (length = number of UNet levels).
-        block_reps: Residual blocks per level (before and after the recursive branch).
+        stem_channels: Stem / level-0 channel count $m$.
+        channels: Per-level channel counts (length = number of UNet levels).
+        depth: Residual blocks per level (before and after the recursive branch).
         head_dim: Per-head dimension for the windowed attention.
         window_size: Base cubic window size (`voxel_size * patch_size * window`), of shape $(3,)$.
         window_size_sphere: Base spherical window size $(\theta, \phi, r)$, of shape $(3,)$.
@@ -602,9 +602,9 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
         in_channels: int,
         num_classes: int,
         *,
-        base_channels: int = 32,
-        layers: Sequence[int] = (32, 64, 128, 256, 256),
-        block_reps: int = 2,
+        stem_channels: int = 32,
+        channels: Sequence[int] = (32, 64, 128, 256, 256),
+        depth: int = 2,
         head_dim: int = 16,
         window_size: Sequence[float] = (0.3, 0.3, 0.3),
         window_size_sphere: Sequence[float] = (2.0, 2.0, 80.0),
@@ -624,10 +624,10 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
         if norm_kwargs is None:
             norm_kwargs = {"eps": 1e-4, "momentum": 0.1}
 
-        self.base_channels = base_channels
-        self.layers = tuple(layers)
+        self.stem_channels = stem_channels
+        self.channels = tuple(channels)
         self.min_spatial_shape = min_spatial_shape
-        self.block_reps = block_reps
+        self.depth = depth
         self.head_dim = head_dim
         self.window_size = tuple(window_size)
         self.window_size_sphere = tuple(window_size_sphere)
@@ -653,7 +653,7 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
         return spconv.SparseSequential(
             spconv.SubMConv3d(
                 self.in_channels,
-                self.base_channels,
+                self.stem_channels,
                 kernel_size=3,
                 padding=1,
                 bias=False,
@@ -663,10 +663,10 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
 
     def configure_unet(self) -> SphereFormerUBlock:
         """Build the recursive sparse UNet with windowed attention at every level."""
-        drop_paths = [float(v) for v in torch.linspace(0, self.drop_path, len(self.layers) + 2)]
+        drop_paths = [float(v) for v in torch.linspace(0, self.drop_path, len(self.channels) + 2)]
         return SphereFormerUBlock(
-            self.layers,
-            block_reps=self.block_reps,
+            self.channels,
+            depth=self.depth,
             window_size=torch.as_tensor(self.window_size, dtype=torch.float32),
             window_size_sphere=torch.as_tensor(self.window_size_sphere, dtype=torch.float32),
             quant_size=torch.as_tensor(self.quant_size, dtype=torch.float32),
@@ -686,14 +686,14 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
     def configure_output_layer(self) -> nn.Module:
         """Build the final normalization and activation applied before the head."""
         return spconv.SparseSequential(
-            create_norm(self.norm, self.base_channels, **self.norm_kwargs) or nn.Identity(),
+            create_norm(self.norm, self.stem_channels, **self.norm_kwargs) or nn.Identity(),
             create_act(self.act, **(self.act_kwargs or {})) or nn.Identity(),
         )
 
     @property
     def num_features(self) -> int:
         """Channel count $C$ of the full-resolution features entering the head."""
-        return self.base_channels
+        return self.stem_channels
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -795,9 +795,9 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
     hparams=dict(
         in_channels=4,
         num_classes=19,
-        base_channels=32,
-        layers=(32, 64, 128, 256, 256),
-        block_reps=2,
+        stem_channels=32,
+        channels=(32, 64, 128, 256, 256),
+        depth=2,
         head_dim=16,
         window_size=(0.3, 0.3, 0.3),
         window_size_sphere=(2.0, 2.0, 80.0),
@@ -865,9 +865,9 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
     hparams=dict(
         in_channels=4,
         num_classes=16,
-        base_channels=32,
-        layers=(32, 64, 128, 256, 256),
-        block_reps=2,
+        stem_channels=32,
+        channels=(32, 64, 128, 256, 256),
+        depth=2,
         head_dim=16,
         window_size=(0.6, 0.6, 0.6),
         window_size_sphere=(2.0, 2.0, 120.0),

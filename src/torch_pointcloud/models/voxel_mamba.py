@@ -617,7 +617,7 @@ class VoxelMambaDetection(DetectionModel):
         num_classes: Number of foreground classes.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        d_model: Voxel feature channels of the Mamba backbone.
+        embed_dim: Voxel feature channels of the Mamba backbone.
         vfe_num_filters: PFN widths of the dynamic mean VFE.
         layer_nums: 2D backbone residual-block counts per level.
         layer_strides: 2D backbone downsample strides per level.
@@ -637,7 +637,7 @@ class VoxelMambaDetection(DetectionModel):
         *,
         voxel_size: Sequence[float] = (0.32, 0.32, 0.1875),
         point_cloud_range: Sequence[float] = (-74.88, -74.88, -2.0, 74.88, 74.88, 4.0),
-        d_model: int = 128,
+        embed_dim: int = 128,
         vfe_num_filters: Sequence[int] = (128, 128),
         layer_nums: Sequence[int] = (1, 2, 2),
         layer_strides: Sequence[int] = (1, 2, 2),
@@ -655,7 +655,7 @@ class VoxelMambaDetection(DetectionModel):
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         self.feature_map_stride = 1
-        self.d_model = d_model
+        self.embed_dim = embed_dim
         self.vfe_num_filters = vfe_num_filters
         self.layer_nums = layer_nums
         self.layer_strides = layer_strides
@@ -669,7 +669,7 @@ class VoxelMambaDetection(DetectionModel):
 
         self.vfe = self.configure_vfe()
         self.backbone_3d = self.configure_backbone_3d()
-        self.bev_channels = d_model
+        self.bev_channels = embed_dim
         self.backbone = self.configure_backbone()
         self.head = self.configure_head()
 
@@ -682,7 +682,7 @@ class VoxelMambaDetection(DetectionModel):
     def configure_backbone_3d(self) -> VoxelMambaBackbone:
         """Build the Hilbert-serialized Mamba voxel backbone."""
         return VoxelMambaBackbone(
-            self.d_model,
+            self.embed_dim,
             self.grid_size,
             rms_norm=self.rms_norm,
             fused_add_norm=self.fused_add_norm,
@@ -820,7 +820,7 @@ class VoxelMambaDetection(DetectionModel):
         num_classes=3,
         voxel_size=(0.32, 0.32, 0.1875),
         point_cloud_range=(-74.88, -74.88, -2.0, 74.88, 74.88, 4.0),
-        d_model=128,
+        embed_dim=128,
         vfe_num_filters=(128, 128),
         layer_nums=(1, 2, 2),
         layer_strides=(1, 2, 2),

@@ -534,10 +534,10 @@ class ThreeDETRDetection(DetectionModel):
     Args:
         in_channels: Input feature channels per point excluding xyz ($0$ for xyz-only, $3$ for RGB).
         num_classes: Number of semantic classes (the class head adds one background slot).
-        num_angle_bin: Heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for oriented SUN RGB-D).
+        num_heading_bins: Heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for oriented SUN RGB-D).
         num_queries: Number of object queries (decoded boxes) per scene.
-        preenc_npoints: Token count after the set-abstraction tokenizer.
-        encoder_type: `"vanilla"` (encoder keeps `preenc_npoints` tokens) or `"masked"` (3DETR-m: radius
+        preencoder_num_points: Token count after the set-abstraction tokenizer.
+        encoder_type: `"vanilla"` (encoder keeps `preencoder_num_points` tokens) or `"masked"` (3DETR-m: radius
             attention masks plus one interim downsampling to $\text{preenc\_npoints} // 2$).
         encoder_embed_dim: Encoder token dimension.
         encoder_num_heads: Encoder attention heads.
@@ -558,9 +558,9 @@ class ThreeDETRDetection(DetectionModel):
         norm_kwargs: Extra normalization arguments.
     """
 
-    num_angle_bin: int
+    num_heading_bins: int
     num_queries: int
-    preenc_npoints: int
+    preencoder_num_points: int
     encoder_embed_dim: int
     decoder_embed_dim: int
 
@@ -569,9 +569,9 @@ class ThreeDETRDetection(DetectionModel):
         in_channels: int,
         num_classes: int,
         *,
-        num_angle_bin: int,
+        num_heading_bins: int,
         num_queries: int,
-        preenc_npoints: int = 2048,
+        preencoder_num_points: int = 2048,
         encoder_type: str = "vanilla",
         encoder_embed_dim: int = 256,
         encoder_num_heads: int = 4,
@@ -595,9 +595,9 @@ class ThreeDETRDetection(DetectionModel):
         if encoder_type not in ("vanilla", "masked"):
             raise ValueError(f"Unknown `encoder_type` {encoder_type!r}, expected 'vanilla' or 'masked'.")
 
-        self.num_angle_bin = num_angle_bin
+        self.num_heading_bins = num_heading_bins
         self.num_queries = num_queries
-        self.preenc_npoints = preenc_npoints
+        self.preencoder_num_points = preencoder_num_points
         self.encoder_type = encoder_type
         self.encoder_embed_dim = encoder_embed_dim
         self.encoder_num_heads = encoder_num_heads
@@ -630,7 +630,7 @@ class ThreeDETRDetection(DetectionModel):
         return PointnetSAModuleVotes(
             self.in_channels,
             [64, 128, self.encoder_embed_dim],
-            num_points=self.preenc_npoints,
+            num_points=self.preencoder_num_points,
             radius=self.preenc_radius,
             num_neighbors=self.preenc_nsample,
             act=self.act,
@@ -645,7 +645,7 @@ class ThreeDETRDetection(DetectionModel):
             interim = PointnetSAModuleVotes(
                 self.encoder_embed_dim,
                 [256, 256, self.encoder_embed_dim],
-                num_points=self.preenc_npoints // 2,
+                num_points=self.preencoder_num_points // 2,
                 radius=0.4,
                 num_neighbors=32,
                 act=self.act,
@@ -743,8 +743,8 @@ class ThreeDETRDetection(DetectionModel):
         mlp_heads["sem_cls_head"] = head(self.num_classes + 1)
         mlp_heads["center_head"] = head(3)
         mlp_heads["size_head"] = head(3)
-        mlp_heads["angle_cls_head"] = head(self.num_angle_bin)
-        mlp_heads["angle_residual_head"] = head(self.num_angle_bin)
+        mlp_heads["angle_cls_head"] = head(self.num_heading_bins)
+        mlp_heads["angle_residual_head"] = head(self.num_heading_bins)
         return mlp_heads
 
     def reset_classifier(self, num_classes: int) -> None:
@@ -785,7 +785,7 @@ class ThreeDETRDetection(DetectionModel):
             The token positions of shape $(B, P, 3)$ and the token features of shape $(P, B, C)$.
         """
         x_tok, pos_tok, batch_tok, _ = self.pre_encoder(x, pos, batch, idx)
-        num_tok = self.preenc_npoints
+        num_tok = self.preencoder_num_points
         enc_xyz = _to_dense(pos_tok, batch_tok, num_tok)
         enc_features = _to_dense(x_tok, batch_tok, num_tok).permute(1, 0, 2)
         enc_xyz, enc_features = self.encoder(enc_features, enc_xyz)
@@ -971,9 +971,9 @@ class ThreeDETRDetection(DetectionModel):
         return train_output
 
     def _angle_from_logits(self, angle_logits: Tensor, angle_residual: Tensor) -> Tensor:
-        if self.num_angle_bin == 1:
+        if self.num_heading_bins == 1:
             return (angle_logits * 0 + angle_residual * 0).squeeze(-1).clamp(min=0)
-        angle_per_cls = 2 * math.pi / self.num_angle_bin
+        angle_per_cls = 2 * math.pi / self.num_heading_bins
         pred_cls = angle_logits.argmax(dim=-1).detach()
         angle = angle_per_cls * pred_cls + angle_residual.gather(2, pred_cls.unsqueeze(-1)).squeeze(-1)
         angle[angle > math.pi] = angle[angle > math.pi] - 2 * math.pi
@@ -1069,7 +1069,7 @@ _SUNRGBD_TRANSFORM = T.Compose(
     hparams=dict(
         in_channels=0,
         num_classes=18,
-        num_angle_bin=1,
+        num_heading_bins=1,
         num_queries=256,
         encoder_type="masked",
         encoder_dropout=0.3,
@@ -1094,7 +1094,7 @@ def threedetr_m_scannet(**hparams: Any) -> ThreeDETRDetection:
     hparams=dict(
         in_channels=0,
         num_classes=18,
-        num_angle_bin=1,
+        num_heading_bins=1,
         num_queries=256,
         encoder_type="vanilla",
     ),
@@ -1118,7 +1118,7 @@ def threedetr_scannet(**hparams: Any) -> ThreeDETRDetection:
     hparams=dict(
         in_channels=0,
         num_classes=10,
-        num_angle_bin=12,
+        num_heading_bins=12,
         num_queries=128,
         encoder_type="vanilla",
     ),

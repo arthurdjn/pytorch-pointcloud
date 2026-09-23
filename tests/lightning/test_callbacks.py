@@ -80,12 +80,12 @@ class DummySemanticSegmentationModel(SemanticSegmentationModel):
 
 class DummyDetectionModel(DetectionModel):
     def __init__(
-        self, in_channels: int = 1, num_classes: int = 10, num_heading_bin: int = 12, num_size_cluster: int = 10
+        self, in_channels: int = 1, num_classes: int = 10, num_heading_bins: int = 12, num_size_clusters: int = 10
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.num_heading_bin = num_heading_bin
-        self.num_size_cluster = num_size_cluster
-        self.register_buffer("mean_sizes", torch.ones(num_size_cluster, 3))
+        self.num_heading_bins = num_heading_bins
+        self.num_size_clusters = num_size_clusters
+        self.register_buffer("mean_sizes", torch.ones(num_size_clusters, 3))
         self.fc = nn.Linear(in_channels, num_classes)
 
     @property

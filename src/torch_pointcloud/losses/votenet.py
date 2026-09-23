@@ -41,8 +41,8 @@ class VoteNetLoss(nn.Module):
     each object seed's vote toward its object center (the closest of up to three candidate votes).
 
     Args:
-        num_heading_bin: Number of heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for SUN RGB-D).
-        num_size_cluster: Number of size templates.
+        num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for SUN RGB-D).
+        num_size_clusters: Number of size templates.
         num_classes: Number of semantic classes.
         mean_sizes: Per-template mean box size, shape $(\text{num\_size\_cluster}, 3)$.
         near_threshold: Distance (meters) below which a proposal is a positive object match.
@@ -55,8 +55,8 @@ class VoteNetLoss(nn.Module):
 
     def __init__(
         self,
-        num_heading_bin: int,
-        num_size_cluster: int,
+        num_heading_bins: int,
+        num_size_clusters: int,
         num_classes: int,
         mean_sizes: Union[Tensor, List[List[float]]],
         *,
@@ -66,8 +66,8 @@ class VoteNetLoss(nn.Module):
         loss_scale: float = 10.0,
     ) -> None:
         super().__init__()
-        self.num_heading_bin = num_heading_bin
-        self.num_size_cluster = num_size_cluster
+        self.num_heading_bins = num_heading_bins
+        self.num_size_clusters = num_size_clusters
         self.num_classes = num_classes
         self.near_threshold = near_threshold
         self.far_threshold = far_threshold
@@ -75,8 +75,8 @@ class VoteNetLoss(nn.Module):
         self.loss_scale = loss_scale
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
-        if mean.shape != (num_size_cluster, 3):
-            raise ValueError(f"`mean_sizes` must have shape ({num_size_cluster}, 3), got {tuple(mean.shape)}.")
+        if mean.shape != (num_size_clusters, 3):
+            raise ValueError(f"`mean_sizes` must have shape ({num_size_clusters}, 3), got {tuple(mean.shape)}.")
         self.register_buffer("mean_sizes", mean)
 
     def forward(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
@@ -204,10 +204,10 @@ class VoteNetLoss(nn.Module):
             The `(heading_class, heading_residual)` pair re-binned in the native heading space.
         """
         two_pi = 2 * math.pi
-        angle_per_class = two_pi / self.num_heading_bin
+        angle_per_class = two_pi / self.num_heading_bins
         angle = heading_class.to(heading_residual.dtype) * angle_per_class + heading_residual
         shifted = ((-angle) % two_pi + angle_per_class / 2) % two_pi
-        native_class = (shifted / angle_per_class).floor().long().clamp(max=self.num_heading_bin - 1)
+        native_class = (shifted / angle_per_class).floor().long().clamp(max=self.num_heading_bins - 1)
         native_residual = shifted - (native_class.to(shifted.dtype) * angle_per_class + angle_per_class / 2)
         return native_class, native_residual
 
@@ -217,7 +217,7 @@ class VoteNetLoss(nn.Module):
         r"""Center (chamfer), heading (cls + residual), size (cls + residual) and semantic losses."""
         obj = objectness_label.float()
         denom = obj.sum() + _EPS
-        nh, ns = self.num_heading_bin, self.num_size_cluster
+        nh, ns = self.num_heading_bins, self.num_size_clusters
 
         gt_center: Tensor = batch["center_label"]
         box_label_mask: Tensor = batch["box_label_mask"]

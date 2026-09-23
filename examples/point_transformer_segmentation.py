@@ -36,11 +36,11 @@ def main() -> None:
         ratios=(0.25, 0.25, 0.25),
         encoder_depths=(2, 2, 6, 2),
         encoder_channels=(48, 96, 192, 384),
-        encoder_num_groups=(6, 12, 24, 48),
+        encoder_attention_groups=(6, 12, 24, 48),
         encoder_num_neighbors=(16, 16, 16, 16),
         decoder_depths=(1, 1, 1),
         decoder_channels=(192, 96, 48),
-        decoder_num_groups=(24, 12, 6),
+        decoder_attention_groups=(24, 12, 6),
         decoder_num_neighbors=(16, 16, 16),
     ).to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

@@ -32,7 +32,7 @@ def main() -> None:
         in_channels=6,
         encoder_depths=(2, 2, 6, 2),
         encoder_channels=(48, 96, 192, 384),
-        encoder_num_groups=(6, 12, 24, 48),
+        encoder_attention_groups=(6, 12, 24, 48),
         encoder_num_neighbors=(16, 16, 16, 16),
         grid_sizes=(0.1, 0.2, 0.4),
         qkv_bias=True,

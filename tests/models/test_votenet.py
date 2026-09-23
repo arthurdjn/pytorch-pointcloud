@@ -22,14 +22,14 @@ def _create_votenet(**overrides: Any) -> VoteNetDetection:
     kwargs: Dict[str, Any] = dict(
         in_channels=1,
         num_classes=18,
-        num_heading_bin=1,
-        num_size_cluster=18,
+        num_heading_bins=1,
+        num_size_clusters=18,
         mean_sizes=[[1.0, 1.0, 1.0]] * 18,
-        num_proposal=16,
+        num_proposals=16,
         vote_factor=1,
         sampling="vote_fps",
         sa_channels=[[16, 16, 32], [32, 32, 64], [64, 64, 64], [64, 64, 64]],
-        sa_npoints=[256, 128, 64, 32],
+        sa_num_points=[256, 128, 64, 32],
         sa_radii=[0.2, 0.4, 0.8, 1.2],
         sa_num_neighbors=[16, 16, 16, 16],
         fp_channels=[[64, 64], [64, 64]],
@@ -52,16 +52,16 @@ def _make_inputs(n_per_scene: int = 3000, batch_size: int = 2, in_channels: int 
 
 
 def _assert_proposal_shapes(
-    out: Dict[str, Tensor], batch_size: int, num_proposal: int, nh: int, ns: int, nc: int
+    out: Dict[str, Tensor], batch_size: int, num_proposals: int, nh: int, ns: int, nc: int
 ) -> None:
-    assert out["objectness_scores"].shape == (batch_size, num_proposal, 2)
-    assert out["center"].shape == (batch_size, num_proposal, 3)
-    assert out["heading_scores"].shape == (batch_size, num_proposal, nh)
-    assert out["heading_residuals"].shape == (batch_size, num_proposal, nh)
-    assert out["size_scores"].shape == (batch_size, num_proposal, ns)
-    assert out["size_residuals"].shape == (batch_size, num_proposal, ns, 3)
-    assert out["sem_cls_scores"].shape == (batch_size, num_proposal, nc)
-    assert out["pos_vote_aggr"].shape == (batch_size, num_proposal, 3)
+    assert out["objectness_scores"].shape == (batch_size, num_proposals, 2)
+    assert out["center"].shape == (batch_size, num_proposals, 3)
+    assert out["heading_scores"].shape == (batch_size, num_proposals, nh)
+    assert out["heading_residuals"].shape == (batch_size, num_proposals, nh)
+    assert out["size_scores"].shape == (batch_size, num_proposals, ns)
+    assert out["size_residuals"].shape == (batch_size, num_proposals, ns, 3)
+    assert out["sem_cls_scores"].shape == (batch_size, num_proposals, nc)
+    assert out["pos_vote_aggr"].shape == (batch_size, num_proposals, 3)
 
 
 def test_votenet_scannet_forward_shapes() -> None:
@@ -71,7 +71,7 @@ def test_votenet_scannet_forward_shapes() -> None:
         out = model(data["x"], data["pos"], data["batch"])
         x_seed, _, _, _ = model.forward_features(data["x"], data["pos"], data["batch"])
     assert x_seed.shape[1] == model.num_features
-    _assert_proposal_shapes(out, batch_size=2, num_proposal=256, nh=1, ns=18, nc=18)
+    _assert_proposal_shapes(out, batch_size=2, num_proposals=256, nh=1, ns=18, nc=18)
     # Seeds are the 1024 SA2 points per scene; votes are 1:1 with seeds.
     assert out["pos_seed"].shape == (2 * 1024, 3)
     assert out["pos_vote"].shape == (2 * 1024, 3)
@@ -84,7 +84,7 @@ def test_votenet_sunrgbd_forward_shapes() -> None:
     data = _make_inputs(in_channels=model.in_channels)
     with torch.no_grad():
         out = model(data["x"], data["pos"], data["batch"])
-    _assert_proposal_shapes(out, batch_size=2, num_proposal=256, nh=12, ns=10, nc=10)
+    _assert_proposal_shapes(out, batch_size=2, num_proposals=256, nh=12, ns=10, nc=10)
 
 
 def test_votenet_eval_is_deterministic() -> None:
@@ -122,7 +122,7 @@ def test_votenet_seed_fps_requires_unit_vote_factor() -> None:
 
 def test_votenet_bad_mean_sizes_shape() -> None:
     with pytest.raises(ValueError, match="mean_sizes"):
-        _create_votenet(num_size_cluster=3, mean_sizes=[[1.0, 1.0, 1.0]])
+        _create_votenet(num_size_clusters=3, mean_sizes=[[1.0, 1.0, 1.0]])
 
 
 def test_votenet_mean_sizes_not_persisted() -> None:
@@ -156,8 +156,8 @@ def test_votenet_create_model_no_pretrained() -> None:
     model = create_model("votenet.sunrgbd.fair", task="detection")
     assert isinstance(model, VoteNetDetection)
     assert model.num_classes == 10
-    assert model.num_heading_bin == 12
-    assert model.num_size_cluster == 10
+    assert model.num_heading_bins == 12
+    assert model.num_size_clusters == 10
     assert model.sampling == "seed_fps"
 
 
@@ -178,8 +178,13 @@ def test_votenet_sampling_is_weight_free() -> None:
 def test_votenet_decode_negates_native_heading() -> None:
     """`decode` returns counter-clockwise headings: the negated bin-decoded angle; all else is unchanged."""
     torch.manual_seed(0)
-    model = _create_votenet(num_heading_bin=12, num_classes=10, num_size_cluster=10, mean_sizes=[[1.0, 1.0, 1.0]] * 10)
-    b, k, nh, ns = 2, model.num_proposal, 12, 10
+    model = _create_votenet(
+        num_heading_bins=12,
+        num_classes=10,
+        num_size_clusters=10,
+        mean_sizes=[[1.0, 1.0, 1.0]] * 10,
+    )
+    b, k, nh, ns = 2, model.num_proposals, 12, 10
     out: VoteNetOutput = {
         "objectness_scores": torch.randn(b, k, 2),
         "center": torch.randn(b, k, 3),
@@ -221,8 +226,8 @@ def test_votenet_output_feeds_loss_directly() -> None:
         output = model(data["x"], data["pos"], data["batch"])
 
     loss_fn = VoteNetLoss(
-        num_heading_bin=model.num_heading_bin,
-        num_size_cluster=model.num_size_cluster,
+        num_heading_bins=model.num_heading_bins,
+        num_size_clusters=model.num_size_clusters,
         num_classes=int(model.num_classes),
         mean_sizes=model.mean_sizes,
     ).to(DEVICE)
@@ -233,7 +238,7 @@ def test_votenet_output_feeds_loss_directly() -> None:
         "center_label": torch.randn(batch_size, max_obj, 3, device=DEVICE),
         "heading_class_label": torch.zeros(batch_size, max_obj, dtype=torch.long, device=DEVICE),
         "heading_residual_label": torch.randn(batch_size, max_obj, device=DEVICE),
-        "size_class_label": torch.randint(0, model.num_size_cluster, (batch_size, max_obj), device=DEVICE),
+        "size_class_label": torch.randint(0, model.num_size_clusters, (batch_size, max_obj), device=DEVICE),
         "size_residual_label": torch.randn(batch_size, max_obj, 3, device=DEVICE),
         "sem_cls_label": torch.randint(0, int(model.num_classes), (batch_size, max_obj), device=DEVICE),
         "box_label_mask": box_label_mask,

@@ -58,7 +58,7 @@ def model_clf() -> PointTransformerClassification:
         num_classes=10,
         encoder_depths=[2, 2],
         encoder_channels=[32, 64],
-        encoder_num_groups=[1, 1],
+        encoder_attention_groups=[1, 1],
         encoder_num_neighbors=[16, 16],
         ratios=[0.25],
     )
@@ -71,11 +71,11 @@ def model_seg() -> PointTransformerSegmentation:
         num_classes=10,
         encoder_depths=[2, 2],
         encoder_channels=[32, 64],
-        encoder_num_groups=[1, 1],
+        encoder_attention_groups=[1, 1],
         encoder_num_neighbors=[16, 16],
         decoder_depths=[2],
         decoder_channels=[32],
-        decoder_num_groups=[1],
+        decoder_attention_groups=[1],
         decoder_num_neighbors=[16],
         ratios=[0.25],
     )

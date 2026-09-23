@@ -301,7 +301,7 @@ class PointMAEClassification(ClassificationModel):
         embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
-        num_group: Number of groups (FPS centers) per sample.
+        num_groups: Number of groups (FPS centers) per sample.
         group_size: Number of neighbors per group.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
@@ -327,7 +327,7 @@ class PointMAEClassification(ClassificationModel):
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
@@ -344,7 +344,7 @@ class PointMAEClassification(ClassificationModel):
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_local_channels = encoder_local_channels
         self.encoder_global_channels = encoder_global_channels
@@ -431,10 +431,10 @@ class PointMAEClassification(ClassificationModel):
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         if x is None:
-            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+            neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
         group_input_tokens = self.encoder(neighborhood)
@@ -477,7 +477,7 @@ class PointMAEPartSegmentation(PartSegmentationModel):
         embed_dim: Token channels.
         depth: Number of transformer blocks.
         num_heads: Number of attention heads.
-        num_group: Number of groups (FPS centers) per sample.
+        num_groups: Number of groups (FPS centers) per sample.
         group_size: Number of neighbors per group.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
@@ -506,7 +506,7 @@ class PointMAEPartSegmentation(PartSegmentationModel):
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
-        num_group: int = 128,
+        num_groups: int = 128,
         group_size: int = 32,
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
@@ -527,7 +527,7 @@ class PointMAEPartSegmentation(PartSegmentationModel):
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_local_channels = encoder_local_channels
         self.encoder_global_channels = encoder_global_channels
@@ -629,10 +629,10 @@ class PointMAEPartSegmentation(PartSegmentationModel):
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         if x is None:
-            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+            neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
         group_input_tokens = self.encoder(neighborhood)
@@ -660,9 +660,9 @@ class PointMAEPartSegmentation(PartSegmentationModel):
         cls_label_feature = self.label_conv(category).unsqueeze(-1).repeat(1, 1, N)
         x_global_feature = torch.cat([x_max_feature, x_avg_feature, cls_label_feature], 1)
 
-        group_batch = torch.arange(B, device=pos.device).repeat_interleave(self.num_group)
-        x_groups = x_feat.transpose(1, 2).reshape(B * self.num_group, -1)
-        center_pos = center.reshape(B * self.num_group, self.spatial_dim)
+        group_batch = torch.arange(B, device=pos.device).repeat_interleave(self.num_groups)
+        x_groups = x_feat.transpose(1, 2).reshape(B * self.num_groups, -1)
+        center_pos = center.reshape(B * self.num_groups, self.spatial_dim)
         f_level_0, _, _ = self.propagation_0(x_groups, center_pos, group_batch, pos, pos, batch)
         f_level_0 = f_level_0.reshape(B, N, -1).transpose(1, 2)
         return torch.cat([f_level_0, x_global_feature], 1)
@@ -696,7 +696,7 @@ class PointMAEPretraining(PretrainingModel):
         decoder_depth: Number of decoder transformer blocks.
         num_heads: Number of encoder attention heads.
         decoder_num_heads: Number of decoder attention heads.
-        num_group: Number of groups (FPS centers) per sample.
+        num_groups: Number of groups (FPS centers) per sample.
         group_size: Number of neighbors per group.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-group MLP.
@@ -723,7 +723,7 @@ class PointMAEPretraining(PretrainingModel):
         decoder_depth: int = 4,
         num_heads: int = 6,
         decoder_num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
@@ -742,7 +742,7 @@ class PointMAEPretraining(PretrainingModel):
         self.decoder_depth = decoder_depth
         self.num_heads = num_heads
         self.decoder_num_heads = decoder_num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_local_channels = encoder_local_channels
         self.encoder_global_channels = encoder_global_channels
@@ -812,7 +812,7 @@ class PointMAEPretraining(PretrainingModel):
         nn.init.trunc_normal_(self.mask_token, std=0.02)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
 
         x_vis, mask = self.MAE_encoder(neighborhood, center)
         B, _, C = x_vis.shape
@@ -866,7 +866,7 @@ _MODELNET_TRANSFORM = T.Compose(
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
@@ -911,7 +911,7 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=512,
+        num_groups=512,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
@@ -944,7 +944,7 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
@@ -977,7 +977,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
@@ -1010,7 +1010,7 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
@@ -1056,7 +1056,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
@@ -1087,7 +1087,7 @@ def point_mae_base_shapenetpart_seg(**kwargs: Any) -> PointMAEPartSegmentation:
         decoder_depth=4,
         num_heads=6,
         decoder_num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),

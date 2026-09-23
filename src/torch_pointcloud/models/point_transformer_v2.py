@@ -467,7 +467,7 @@ class PointTransformerV2Encoder(nn.Module):
     Args:
         encoder_depths: Number of blocks in each stage.
         encoder_channels: Number of channels in each stage.
-        encoder_num_groups: Number of attention groups in each stage.
+        encoder_attention_groups: Number of attention groups in each stage.
         encoder_num_neighbors: Number of neighbors of the graph built in each stage.
         grid_sizes: Voxel size of the pooling preceding each stage but the first.
         norm: Normalization layer to use.
@@ -495,7 +495,7 @@ class PointTransformerV2Encoder(nn.Module):
         self,
         encoder_depths: Sequence[int] = (1, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
-        encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
+        encoder_attention_groups: Sequence[int] = (6, 12, 24, 48, 64),
         encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
         grid_sizes: Sequence[float] = (0.06, 0.12, 0.24, 0.48),
         norm: Union[str, Callable, None] = "batch_norm",
@@ -515,7 +515,7 @@ class PointTransformerV2Encoder(nn.Module):
             encoder_channels, size=n, extra_msg="Encoder length `encoder_channels` != `encoder_depths`."
         )
         num_groups = ensure_tuple_size(
-            encoder_num_groups, size=n, extra_msg="Encoder length `encoder_num_groups` != `encoder_depths`."
+            encoder_attention_groups, size=n, extra_msg="Encoder length `encoder_attention_groups` != `encoder_depths`."
         )
         num_neighbors = ensure_tuple_size(
             encoder_num_neighbors, size=n, extra_msg="Encoder length `encoder_num_neighbors` != `encoder_depths`."
@@ -618,7 +618,7 @@ class PointTransformerV2Decoder(nn.Module):
         encoder_channels: Number of channels of each encoder stage, sizing the decoder input and the skips.
         decoder_depths: Number of blocks in each stage.
         decoder_channels: Number of output channels of each stage.
-        decoder_num_groups: Number of attention groups in each stage.
+        decoder_attention_groups: Number of attention groups in each stage.
         decoder_num_neighbors: Number of neighbors of the graph built in each stage.
         norm: Normalization layer to use.
         act: Activation function to use.
@@ -643,7 +643,7 @@ class PointTransformerV2Decoder(nn.Module):
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
         decoder_depths: Sequence[int] = (1, 1, 1, 1),
         decoder_channels: Sequence[int] = (384, 192, 96, 48),
-        decoder_num_groups: Sequence[int] = (48, 24, 12, 6),
+        decoder_attention_groups: Sequence[int] = (48, 24, 12, 6),
         decoder_num_neighbors: Sequence[int] = (16, 16, 16, 16),
         norm: Union[str, Callable, None] = "batch_norm",
         act: Union[str, Callable, None] = "relu",
@@ -669,7 +669,7 @@ class PointTransformerV2Decoder(nn.Module):
             extra_msg="Decoder length `encoder_channels` - 1 != `decoder_depths`.",
         )
         num_groups = ensure_tuple_size(
-            decoder_num_groups, size=n, extra_msg="Decoder length `decoder_num_groups` != `decoder_depths`."
+            decoder_attention_groups, size=n, extra_msg="Decoder length `decoder_attention_groups` != `decoder_depths`."
         )
         num_neighbors = ensure_tuple_size(
             decoder_num_neighbors, size=n, extra_msg="Decoder length `decoder_num_neighbors` != `decoder_depths`."
@@ -737,7 +737,7 @@ class PointTransformerV2Classification(ClassificationModel):
         num_classes: Number of output classes.
         encoder_depths: Number of encoder blocks for each stage.
         encoder_channels: Number of channels for each encoder block.
-        encoder_num_groups: Number of groups for each encoder block.
+        encoder_attention_groups: Number of groups for each encoder block.
         encoder_num_neighbors: Number of edge_index for each encoder block.
         grid_sizes: Size of the grid for each stage.
         norm: Normalization layer to use.
@@ -765,7 +765,7 @@ class PointTransformerV2Classification(ClassificationModel):
         grid_sizes: Sequence[float] = (0.06, 0.12, 0.24, 0.48),
         encoder_depths: Sequence[int] = (1, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
-        encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
+        encoder_attention_groups: Sequence[int] = (6, 12, 24, 48, 64),
         encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
         norm: Union[str, Callable, None] = "batch_norm",
         act: Union[str, Callable, None] = "relu",
@@ -783,7 +783,7 @@ class PointTransformerV2Classification(ClassificationModel):
         self.grid_sizes = grid_sizes
         self.encoder_depths = encoder_depths
         self.encoder_channels = encoder_channels
-        self.encoder_num_groups = encoder_num_groups
+        self.encoder_attention_groups = encoder_attention_groups
         self.encoder_num_neighbors = encoder_num_neighbors
         self.norm = norm
         self.act = act
@@ -819,7 +819,7 @@ class PointTransformerV2Classification(ClassificationModel):
         return PointTransformerV2Encoder(
             encoder_depths=self.encoder_depths,
             encoder_channels=self.encoder_channels,
-            encoder_num_groups=self.encoder_num_groups,
+            encoder_attention_groups=self.encoder_attention_groups,
             encoder_num_neighbors=self.encoder_num_neighbors,
             grid_sizes=self.grid_sizes,
             norm=self.norm,
@@ -948,11 +948,11 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
         num_classes: Number of output classes.
         encoder_depths: Number of encoder blocks for each stage.
         encoder_channels: Number of channels for each encoder block.
-        encoder_num_groups: Number of groups for each encoder block.
+        encoder_attention_groups: Number of groups for each encoder block.
         encoder_num_neighbors: Number of edge_index for each encoder block.
         decoder_depths: Number of decoder blocks per stage.
         decoder_channels: Number of channels for each decoder block.
-        decoder_num_groups: Number of groups for each decoder block.
+        decoder_attention_groups: Number of groups for each decoder block.
         decoder_num_neighbors: Neighbor count for each decoder block.
         grid_sizes: Size of the grid for each stage.
         norm: Normalization layer to use.
@@ -980,11 +980,11 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
         grid_sizes: Sequence[float] = (0.06, 0.12, 0.24, 0.48),
         encoder_depths: Sequence[int] = (1, 2, 2, 6, 2),
         encoder_channels: Sequence[int] = (48, 96, 192, 384, 512),
-        encoder_num_groups: Sequence[int] = (6, 12, 24, 48, 64),
+        encoder_attention_groups: Sequence[int] = (6, 12, 24, 48, 64),
         encoder_num_neighbors: Sequence[int] = (8, 16, 16, 16, 16),
         decoder_depths: Sequence[int] = (1, 1, 1, 1),
         decoder_channels: Sequence[int] = (384, 192, 96, 48),
-        decoder_num_groups: Sequence[int] = (48, 24, 12, 6),
+        decoder_attention_groups: Sequence[int] = (48, 24, 12, 6),
         decoder_num_neighbors: Sequence[int] = (16, 16, 16, 16),
         norm: Union[str, Callable, None] = "batch_norm",
         act: Union[str, Callable, None] = "relu",
@@ -1001,11 +1001,11 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
         self.grid_sizes = grid_sizes
         self.encoder_depths = encoder_depths
         self.encoder_channels = encoder_channels
-        self.encoder_num_groups = encoder_num_groups
+        self.encoder_attention_groups = encoder_attention_groups
         self.encoder_num_neighbors = encoder_num_neighbors
         self.decoder_depths = decoder_depths
         self.decoder_channels = decoder_channels
-        self.decoder_num_groups = decoder_num_groups
+        self.decoder_attention_groups = decoder_attention_groups
         self.decoder_num_neighbors = decoder_num_neighbors
         self.norm = norm
         self.act = act
@@ -1041,7 +1041,7 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
         return PointTransformerV2Encoder(
             encoder_depths=self.encoder_depths,
             encoder_channels=self.encoder_channels,
-            encoder_num_groups=self.encoder_num_groups,
+            encoder_attention_groups=self.encoder_attention_groups,
             encoder_num_neighbors=self.encoder_num_neighbors,
             grid_sizes=self.grid_sizes,
             norm=self.norm,
@@ -1061,7 +1061,7 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
             encoder_channels=self.encoder_channels,
             decoder_depths=self.decoder_depths,
             decoder_channels=self.decoder_channels,
-            decoder_num_groups=self.decoder_num_groups,
+            decoder_attention_groups=self.decoder_attention_groups,
             decoder_num_neighbors=self.decoder_num_neighbors,
             norm=self.norm,
             act=self.act,
@@ -1212,11 +1212,11 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
         grid_sizes=(0.06, 0.15, 0.375, 0.9375),
         encoder_depths=(1, 2, 2, 6, 2),
         encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_groups=(6, 12, 24, 48, 64),
+        encoder_attention_groups=(6, 12, 24, 48, 64),
         encoder_num_neighbors=(8, 16, 16, 16, 16),
         decoder_depths=(1, 1, 1, 1),
         decoder_channels=(384, 192, 96, 48),
-        decoder_num_groups=(48, 24, 12, 6),
+        decoder_attention_groups=(48, 24, 12, 6),
         decoder_num_neighbors=(16, 16, 16, 16),
         qkv_bias=True,
         pe_multiplier=False,
@@ -1263,11 +1263,11 @@ def ptv2_base_scannet20(**hparams: Any) -> PointTransformerV2Segmentation:
         grid_sizes=(0.06, 0.15, 0.375, 0.9375),
         encoder_depths=(1, 2, 2, 6, 2),
         encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_groups=(6, 12, 24, 48, 64),
+        encoder_attention_groups=(6, 12, 24, 48, 64),
         encoder_num_neighbors=(8, 16, 16, 16, 16),
         decoder_depths=(1, 1, 1, 1),
         decoder_channels=(384, 192, 96, 48),
-        decoder_num_groups=(48, 24, 12, 6),
+        decoder_attention_groups=(48, 24, 12, 6),
         decoder_num_neighbors=(16, 16, 16, 16),
         qkv_bias=True,
         pe_multiplier=False,

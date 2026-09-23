@@ -64,7 +64,7 @@ def train_transform(model: VoteNetDetection) -> T.Compose:
             T.RandomScale(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, scale_range=(0.85, 1.15)),
             T.EncodeVoteNetTargets(
                 box_key=DataKeys.BOX,
-                num_heading_bin=model.num_heading_bin,
+                num_heading_bins=model.num_heading_bins,
                 max_num_obj=64,
                 mean_sizes=model.mean_sizes,
             ),
@@ -162,8 +162,8 @@ def main() -> None:
     assert isinstance(model, VoteNetDetection)
     model.to(args.device)
     criterion = VoteNetLoss(
-        num_heading_bin=model.num_heading_bin,
-        num_size_cluster=model.num_size_cluster,
+        num_heading_bins=model.num_heading_bins,
+        num_size_clusters=model.num_size_clusters,
         num_classes=model.num_classes,
         mean_sizes=model.mean_sizes,
     )

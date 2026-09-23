@@ -145,7 +145,7 @@ class PointPatchEmbedding(nn.Module):
         Args:
             in_channels: The number of input channels.
             out_channels: The number of output channels.
-            num_group: The number of patches to sample.
+            num_groups: The number of patches to sample.
             group_size: The number of neighbors to consider for each patch.
             local_channels: Hidden widths of the per-point MLP (the derived input width is prepended).
             global_channels: Hidden widths of the per-patch MLP.
@@ -167,7 +167,7 @@ class PointPatchEmbedding(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        num_group: int,
+        num_groups: int,
         group_size: int,
         spatial_dim: int = 3,
         local_channels: Sequence[int] = (128, 256),
@@ -194,7 +194,7 @@ class PointPatchEmbedding(nn.Module):
             bias=bias,
         )
 
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.spatial_dim = spatial_dim
 
@@ -225,7 +225,7 @@ class PointPatchEmbedding(nn.Module):
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, return_pos_rel: bool = False) -> Any:
-        idx_centroid = fps(pos, batch, num_nodes=self.num_group, random_start=self.training)
+        idx_centroid = fps(pos, batch, num_nodes=self.num_groups, random_start=self.training)
         pos_centroid = pos[idx_centroid]
         x_centroid = x[idx_centroid] if x is not None else torch.empty(0, device=pos.device)
         batch_centroid = batch[idx_centroid]
@@ -264,7 +264,7 @@ class PointMambaEncoder(nn.Module):
             in_channels: The number of input channels.
             embed_dim: The number of output channels.
             depth: The number of Mamba blocks.
-            num_group: The number of patches to sample.
+            num_groups: The number of patches to sample.
             group_size: The number of neighbors to consider for each patch.
             drop_path: The maximum stochastic-depth rate, linearly scaled across the Mamba blocks.
             use_cls_token: Whether to use a class token.
@@ -291,7 +291,7 @@ class PointMambaEncoder(nn.Module):
         in_channels: int,
         embed_dim: int,
         depth: int,
-        num_group: int,
+        num_groups: int,
         group_size: int,
         drop_path: float = 0.0,
         use_cls_token: bool = False,
@@ -321,7 +321,7 @@ class PointMambaEncoder(nn.Module):
         self.patch_embed = PointPatchEmbedding(
             in_channels=in_channels,
             out_channels=embed_dim,
-            num_group=num_group,
+            num_groups=num_groups,
             group_size=group_size,
             spatial_dim=spatial_dim,
             local_channels=patch_local_channels,
@@ -437,7 +437,7 @@ class PointMambaEncoderMAE(nn.Module):
         in_channels: The number of input channels.
         embed_dim: The number of token channels.
         depth: The number of Mamba blocks.
-        num_group: The number of patches to sample.
+        num_groups: The number of patches to sample.
         group_size: The number of neighbors to consider for each patch.
         mask_ratio: The fraction of patch tokens to mask.
         drop_path: The maximum stochastic-depth rate, linearly scaled across the Mamba blocks.
@@ -463,7 +463,7 @@ class PointMambaEncoderMAE(nn.Module):
         in_channels: int,
         embed_dim: int,
         depth: int,
-        num_group: int,
+        num_groups: int,
         group_size: int,
         mask_ratio: float,
         drop_path: float = 0.0,
@@ -493,7 +493,7 @@ class PointMambaEncoderMAE(nn.Module):
         self.patch_embed = PointPatchEmbedding(
             in_channels=in_channels,
             out_channels=embed_dim,
-            num_group=num_group,
+            num_groups=num_groups,
             group_size=group_size,
             spatial_dim=spatial_dim,
             local_channels=patch_local_channels,
@@ -643,7 +643,7 @@ class PointMambaClassification(ClassificationModel):
             num_classes: The number of output classes.
             embed_dim: The number of output channels.
             depth: The number of Mamba blocks.
-            num_group: The number of patches to sample.
+            num_groups: The number of patches to sample.
             group_size: The number of neighbors to consider for each patch.
             drop_path: The maximum stochastic-depth rate, linearly scaled across the Mamba blocks.
             use_cls_token: Whether to use a class token.
@@ -675,7 +675,7 @@ class PointMambaClassification(ClassificationModel):
         *,
         embed_dim: int = 384,
         depth: int = 12,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         drop_path: float = 0.1,
         use_cls_token: bool = False,
@@ -696,7 +696,7 @@ class PointMambaClassification(ClassificationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.embed_dim = embed_dim
         self.depth = depth
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.drop_path = drop_path
         self.use_cls_token = use_cls_token
@@ -726,7 +726,7 @@ class PointMambaClassification(ClassificationModel):
             in_channels=self.in_channels,
             embed_dim=self.embed_dim,
             depth=self.depth,
-            num_group=self.num_group,
+            num_groups=self.num_groups,
             group_size=self.group_size,
             drop_path=self.drop_path,
             use_cls_token=self.use_cls_token,
@@ -837,7 +837,7 @@ class PointMambaPretraining(PretrainingModel):
         embed_dim: The number of token channels.
         encoder_depth: The number of encoder Mamba blocks.
         decoder_depth: The number of decoder Mamba blocks.
-        num_group: The number of patches to sample.
+        num_groups: The number of patches to sample.
         group_size: The number of neighbors to consider for each patch.
         mask_ratio: The fraction of patch tokens to mask.
         drop_path: The maximum stochastic-depth rate, linearly scaled across the Mamba blocks.
@@ -864,7 +864,7 @@ class PointMambaPretraining(PretrainingModel):
         embed_dim: int = 384,
         encoder_depth: int = 12,
         decoder_depth: int = 4,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         mask_ratio: float = 0.6,
         drop_path: float = 0.1,
@@ -883,7 +883,7 @@ class PointMambaPretraining(PretrainingModel):
         self.embed_dim = embed_dim
         self.encoder_depth = encoder_depth
         self.decoder_depth = decoder_depth
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.mask_ratio = mask_ratio
         self.drop_path = drop_path
@@ -912,7 +912,7 @@ class PointMambaPretraining(PretrainingModel):
             in_channels=self.in_channels,
             embed_dim=self.embed_dim,
             depth=self.encoder_depth,
-            num_group=self.num_group,
+            num_groups=self.num_groups,
             group_size=self.group_size,
             mask_ratio=self.mask_ratio,
             drop_path=self.drop_path,
@@ -997,7 +997,7 @@ class PointMambaPretraining(PretrainingModel):
         num_classes=40,
         embed_dim=384,
         depth=12,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         drop_path=0.1,
         use_cls_token=False,
@@ -1048,7 +1048,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
         num_classes=15,
         embed_dim=384,
         depth=12,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         drop_path=0.5,
         use_cls_token=False,
@@ -1099,7 +1099,7 @@ def point_mamba_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMambaClassifi
         num_classes=15,
         embed_dim=384,
         depth=12,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         drop_path=0.5,
         use_cls_token=False,
@@ -1150,7 +1150,7 @@ def point_mamba_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMambaClassi
         num_classes=15,
         embed_dim=384,
         depth=12,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         drop_path=0.5,
         use_cls_token=False,
@@ -1187,7 +1187,7 @@ def point_mamba_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMambaClassi
         embed_dim=384,
         encoder_depth=12,
         decoder_depth=4,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         mask_ratio=0.6,
         drop_path=0.1,

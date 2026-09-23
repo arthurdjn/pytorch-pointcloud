@@ -96,7 +96,7 @@ class ThreeDETRLoss(nn.Module):
 
     Args:
         num_classes: Number of semantic classes (the class head predicts one extra background slot).
-        num_angle_bin: Heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for oriented SUN RGB-D).
+        num_heading_bins: Heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for oriented SUN RGB-D).
         matcher_cls_cost: Matcher weight on the negative class probability.
         matcher_giou_cost: Matcher weight on the negative generalized 3D IoU.
         matcher_center_cost: Matcher weight on the normalized-center $L_1$ distance.
@@ -117,7 +117,7 @@ class ThreeDETRLoss(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        num_angle_bin: int,
+        num_heading_bins: int,
         *,
         matcher_cls_cost: float = 1.0,
         matcher_giou_cost: float = 2.0,
@@ -133,7 +133,7 @@ class ThreeDETRLoss(nn.Module):
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
-        self.num_angle_bin = num_angle_bin
+        self.num_heading_bins = num_heading_bins
         self.matcher_cls_cost = matcher_cls_cost
         self.matcher_giou_cost = matcher_giou_cost
         self.matcher_center_cost = matcher_center_cost
@@ -231,8 +231,8 @@ class ThreeDETRLoss(nn.Module):
         scene_scale = (hi - lo).clamp(min=1e-1)
         center_normalized = (center - lo.unsqueeze(1)) / (hi - lo).unsqueeze(1)
         size_normalized = size / scene_scale.unsqueeze(1)
-        angle_class, angle_residual = angle_to_class(angle, self.num_angle_bin)
-        angle_residual_normalized = angle_residual / (math.pi / self.num_angle_bin)
+        angle_class, angle_residual = angle_to_class(angle, self.num_heading_bins)
+        angle_residual_normalized = angle_residual / (math.pi / self.num_heading_bins)
 
         return _Targets(
             center_unnormalized=center,

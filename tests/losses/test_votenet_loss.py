@@ -11,25 +11,25 @@ from torch_pointcloud.transforms.functional import angle_to_class
 
 def _create_data(
     batch_size: int = 2,
-    num_proposal: int = 8,
+    num_proposals: int = 8,
     max_obj: int = 4,
     num_point: int = 64,
     num_seed: int = 16,
-    num_heading_bin: int = 12,
-    num_size_cluster: int = 10,
+    num_heading_bins: int = 12,
+    num_size_clusters: int = 10,
     num_classes: int = 10,
 ) -> Tuple[Dict[str, Tensor], Dict[str, Any]]:
     torch.manual_seed(0)
     batch_seed = torch.arange(batch_size).repeat_interleave(num_seed)
     output: Dict[str, Tensor] = {
-        "objectness_scores": torch.randn(batch_size, num_proposal, 2),
-        "center": torch.randn(batch_size, num_proposal, 3),
-        "heading_scores": torch.randn(batch_size, num_proposal, num_heading_bin),
-        "heading_residuals_normalized": torch.randn(batch_size, num_proposal, num_heading_bin),
-        "size_scores": torch.randn(batch_size, num_proposal, num_size_cluster),
-        "size_residuals_normalized": torch.randn(batch_size, num_proposal, num_size_cluster, 3),
-        "sem_cls_scores": torch.randn(batch_size, num_proposal, num_classes),
-        "pos_vote_aggr": torch.randn(batch_size, num_proposal, 3),
+        "objectness_scores": torch.randn(batch_size, num_proposals, 2),
+        "center": torch.randn(batch_size, num_proposals, 3),
+        "heading_scores": torch.randn(batch_size, num_proposals, num_heading_bins),
+        "heading_residuals_normalized": torch.randn(batch_size, num_proposals, num_heading_bins),
+        "size_scores": torch.randn(batch_size, num_proposals, num_size_clusters),
+        "size_residuals_normalized": torch.randn(batch_size, num_proposals, num_size_clusters, 3),
+        "sem_cls_scores": torch.randn(batch_size, num_proposals, num_classes),
+        "pos_vote_aggr": torch.randn(batch_size, num_proposals, 3),
         "pos_seed": torch.randn(batch_size * num_seed, 3),
         "pos_vote": torch.randn(batch_size * num_seed, 3),
         "seed_indices": torch.randint(0, num_point, (batch_size * num_seed,)) + batch_seed * num_point,
@@ -40,9 +40,9 @@ def _create_data(
     box_label_mask[:, :2] = 1.0
     batch: Dict[str, Any] = {
         "center_label": torch.randn(batch_size, max_obj, 3),
-        "heading_class_label": torch.randint(0, num_heading_bin, (batch_size, max_obj)),
+        "heading_class_label": torch.randint(0, num_heading_bins, (batch_size, max_obj)),
         "heading_residual_label": torch.randn(batch_size, max_obj),
-        "size_class_label": torch.randint(0, num_size_cluster, (batch_size, max_obj)),
+        "size_class_label": torch.randint(0, num_size_clusters, (batch_size, max_obj)),
         "size_residual_label": torch.randn(batch_size, max_obj, 3),
         "sem_cls_label": torch.randint(0, num_classes, (batch_size, max_obj)),
         "box_label_mask": box_label_mask,
@@ -53,13 +53,13 @@ def _create_data(
     return output, batch
 
 
-def _mean_size(num_size_cluster: int = 10) -> Tensor:
+def _mean_size(num_size_clusters: int = 10) -> Tensor:
     torch.manual_seed(1)
-    return torch.rand(num_size_cluster, 3) + 0.5
+    return torch.rand(num_size_clusters, 3) + 0.5
 
 
 def test_votenet_loss_returns_scalar_dict() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _create_data()
     out = loss_fn(output, batch)
     for key in ("loss", "vote_loss", "objectness_loss", "box_loss", "sem_cls_loss", "obj_acc"):
@@ -69,7 +69,7 @@ def test_votenet_loss_returns_scalar_dict() -> None:
 
 
 def test_votenet_loss_backward() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _create_data()
     for value in output.values():
         if value.is_floating_point():
@@ -80,13 +80,13 @@ def test_votenet_loss_backward() -> None:
 
 
 def test_votenet_loss_scannet_single_heading_bin() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=1, num_size_cluster=18, num_classes=18, mean_sizes=_mean_size(18))
-    output, batch = _create_data(num_heading_bin=1, num_size_cluster=18, num_classes=18)
+    loss_fn = VoteNetLoss(num_heading_bins=1, num_size_clusters=18, num_classes=18, mean_sizes=_mean_size(18))
+    output, batch = _create_data(num_heading_bins=1, num_size_clusters=18, num_classes=18)
     assert torch.isfinite(loss_fn(output, batch)["loss"])
 
 
 def test_votenet_loss_no_positive_targets_is_finite() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _create_data()
     batch["box_label_mask"] = torch.zeros_like(batch["box_label_mask"])
     batch["vote_label_mask"] = torch.zeros_like(batch["vote_label_mask"])
@@ -95,12 +95,12 @@ def test_votenet_loss_no_positive_targets_is_finite() -> None:
 
 def test_votenet_loss_bad_mean_size_shape() -> None:
     with pytest.raises(ValueError, match="mean_sizes"):
-        VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=torch.rand(5, 3))
+        VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=torch.rand(5, 3))
 
 
 def test_votenet_loss_ragged_batch_raises() -> None:
     """The dense reshape assumes a uniform per-scene point count; a ragged batch must raise, not misassign."""
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _create_data()
     batch["batch"] = torch.cat([torch.zeros(96, dtype=torch.long), torch.ones(32, dtype=torch.long)])
     with pytest.raises(ValueError, match="same number of points"):
@@ -108,7 +108,7 @@ def test_votenet_loss_ragged_batch_raises() -> None:
 
 
 def test_votenet_loss_empty_batch_raises() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     output, batch = _create_data()
     batch["batch"] = torch.zeros(0, dtype=torch.long)
     with pytest.raises(ValueError, match="non-empty"):
@@ -117,7 +117,7 @@ def test_votenet_loss_empty_batch_raises() -> None:
 
 def test_votenet_loss_heading_to_native_inverts_ccw_binning() -> None:
     """Re-binning the bins of the negated angle recovers the bins of the angle itself, exactly."""
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     theta = torch.arange(0.01, 2 * math.pi, 0.13)
     ccw_class, ccw_residual = angle_to_class((-theta) % (2 * math.pi), 12)
     native_class, native_residual = loss_fn._heading_to_native(ccw_class, ccw_residual)
@@ -127,7 +127,7 @@ def test_votenet_loss_heading_to_native_inverts_ccw_binning() -> None:
 
 
 def test_votenet_loss_single_bin_heading_conversion_is_identity() -> None:
-    loss_fn = VoteNetLoss(num_heading_bin=1, num_size_cluster=10, num_classes=10, mean_sizes=_mean_size())
+    loss_fn = VoteNetLoss(num_heading_bins=1, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
     cls = torch.zeros(2, 4, dtype=torch.long)
     residual = torch.zeros(2, 4)
     native_class, native_residual = loss_fn._heading_to_native(cls, residual)
@@ -192,7 +192,7 @@ def test_votenet_loss_perfect_predictions_near_zero() -> None:
     torch.manual_seed(0)
     native = torch.tensor([0.4, -1.2])
     output, batch, mean_sizes = _perfect_data(native)
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=3, num_classes=3, mean_sizes=mean_sizes)
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=3, num_classes=3, mean_sizes=mean_sizes)
     out = loss_fn(output, batch)
     for key in ("vote_loss", "center_loss", "heading_cls_loss", "heading_res_loss", "size_cls_loss", "size_res_loss"):
         assert out[key] < 1e-4, key
@@ -205,7 +205,7 @@ def test_votenet_loss_heading_labels_expect_ccw_convention() -> None:
     torch.manual_seed(0)
     native = torch.tensor([0.4, -1.2])
     output, batch, mean_sizes = _perfect_data(native)
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=3, num_classes=3, mean_sizes=mean_sizes)
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=3, num_classes=3, mean_sizes=mean_sizes)
     ccw = loss_fn(output, batch)
 
     wrong_class, wrong_residual = angle_to_class(native % (2 * math.pi), 12)
@@ -220,7 +220,7 @@ def test_votenet_loss_heading_labels_expect_ccw_convention() -> None:
 def test_votenet_loss_perturbed_center_is_larger() -> None:
     torch.manual_seed(0)
     output, batch, mean_sizes = _perfect_data(torch.tensor([0.4, -1.2]))
-    loss_fn = VoteNetLoss(num_heading_bin=12, num_size_cluster=3, num_classes=3, mean_sizes=mean_sizes)
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=3, num_classes=3, mean_sizes=mean_sizes)
     perfect = loss_fn(output, batch)
     output["center"] = output["center"] + 0.2
     out = loss_fn(output, batch)

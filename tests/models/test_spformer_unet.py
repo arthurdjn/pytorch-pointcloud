@@ -13,7 +13,7 @@ pytestmark = [
 ]
 
 CHANNELS = (16, 32, 64)
-LAYERS = (1, 1, 1)
+DEPTHS = (1, 1, 1)
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def model() -> SPFormerUNetSegmentation:
         in_channels=6,
         num_classes=10,
         channels=CHANNELS,
-        layers=LAYERS,
+        depths=DEPTHS,
         spatial_padding=64,
     ).cuda()
 
@@ -47,7 +47,7 @@ def test_spformer_unet_identity_head_returns_features(data: Dict[str, Tensor]) -
         in_channels=6,
         num_classes=0,
         channels=CHANNELS,
-        layers=LAYERS,
+        depths=DEPTHS,
         spatial_padding=64,
     ).cuda()
     assert isinstance(model.head, nn.Identity)
@@ -82,8 +82,8 @@ def test_spformer_unet_forward_head_pre_logits(model: SPFormerUNetSegmentation, 
 
 
 def test_spformer_unet_encoder_decoder_roundtrip(data: Dict[str, Tensor]) -> None:
-    encoder = SPFormerUNetEncoder(6, CHANNELS, LAYERS, spatial_padding=64).cuda()
-    decoder = SPFormerUNetDecoder(CHANNELS, LAYERS).cuda()
+    encoder = SPFormerUNetEncoder(6, CHANNELS, DEPTHS, spatial_padding=64).cuda()
+    decoder = SPFormerUNetDecoder(CHANNELS, DEPTHS).cuda()
     bottleneck, skips = encoder(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     out = decoder(bottleneck, skips)
     assert len(skips) == len(CHANNELS) - 1

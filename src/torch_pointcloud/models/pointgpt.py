@@ -349,7 +349,7 @@ class PointGPTClassification(ClassificationModel):
         embed_dim: The transformer / token-embedding dimension.
         depth: The number of extractor blocks.
         num_heads: The number of attention heads.
-        num_group: The number of patches $G$.
+        num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         decoder_depth: The number of generator blocks (kept for weight compatibility).
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
@@ -386,7 +386,7 @@ class PointGPTClassification(ClassificationModel):
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         decoder_depth: int = 4,
         encoder_local_channels: Sequence[int] = (128, 256),
@@ -402,7 +402,7 @@ class PointGPTClassification(ClassificationModel):
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.decoder_depth = decoder_depth
         self.encoder_local_channels = encoder_local_channels
@@ -488,7 +488,7 @@ class PointGPTClassification(ClassificationModel):
             neighborhood, center = group(
                 pos,
                 batch,
-                num_group=self.num_group,
+                num_groups=self.num_groups,
                 group_size=self.group_size,
                 random_start=self.training,
             )
@@ -496,7 +496,7 @@ class PointGPTClassification(ClassificationModel):
             neighborhood, center, neighbor_idx = group(
                 pos,
                 batch,
-                num_group=self.num_group,
+                num_groups=self.num_groups,
                 group_size=self.group_size,
                 random_start=self.training,
                 return_indices=True,
@@ -556,7 +556,7 @@ class PointGPTPretraining(PretrainingModel):
         depth: The number of extractor blocks.
         decoder_depth: The number of generator blocks.
         num_heads: The number of attention heads (shared by the extractor and the generator).
-        num_group: The number of patches $G$.
+        num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-patch MLP.
@@ -593,7 +593,7 @@ class PointGPTPretraining(PretrainingModel):
         depth: int = 12,
         decoder_depth: int = 4,
         num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
@@ -608,7 +608,7 @@ class PointGPTPretraining(PretrainingModel):
         self.depth = depth
         self.decoder_depth = decoder_depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.mask_ratio = mask_ratio
         self.keep_attend = keep_attend
@@ -617,7 +617,7 @@ class PointGPTPretraining(PretrainingModel):
         self.spatial_dim = spatial_dim
         self.encoder_local_channels = encoder_local_channels
         self.encoder_global_channels = encoder_global_channels
-        self.num_mask = int((num_group - keep_attend) * mask_ratio)
+        self.num_mask = int((num_groups - keep_attend) * mask_ratio)
 
         self.encoder = self.configure_encoder()
         self.pos_embed = self.configure_pos_embed()
@@ -659,7 +659,7 @@ class PointGPTPretraining(PretrainingModel):
     def _column_mask(self, device: torch.device) -> Tensor:
         maskable = torch.cat(
             [
-                torch.zeros(self.num_group - self.keep_attend - self.num_mask, dtype=torch.bool, device=device),
+                torch.zeros(self.num_groups - self.keep_attend - self.num_mask, dtype=torch.bool, device=device),
                 torch.ones(self.num_mask, dtype=torch.bool, device=device),
             ]
         )
@@ -668,10 +668,10 @@ class PointGPTPretraining(PretrainingModel):
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         if x is None:
-            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+            neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
         order = morton_sort(center)
@@ -762,11 +762,11 @@ _SIZE_HPARAMS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _cls_hparams(size: str, num_classes: int, num_group: int = 64) -> Dict[str, Any]:
+def _cls_hparams(size: str, num_classes: int, num_groups: int = 64) -> Dict[str, Any]:
     return dict(
         in_channels=0,
         num_classes=num_classes,
-        num_group=num_group,
+        num_groups=num_groups,
         group_size=32,
         dropout=0.5,
         act="gelu",
@@ -779,7 +779,7 @@ def _cls_hparams(size: str, num_classes: int, num_group: int = 64) -> Dict[str, 
 def _pretrain_hparams(size: str) -> Dict[str, Any]:
     return dict(
         in_channels=0,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         mask_ratio=0.7,
         keep_attend=10,
@@ -850,7 +850,7 @@ for _size in ("s", "b", "l"):
         task="classification",
         weights=_weights(_size, "modelnet40", dataset="modelnet40", classes=MODELNET40_CLASSES),
         transform=_modelnet_transforms(1024),
-        hparams=_cls_hparams(_size, 40, num_group=64),
+        hparams=_cls_hparams(_size, 40, num_groups=64),
     )
     def _pointgpt_modelnet40(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
@@ -860,7 +860,7 @@ for _size in ("s", "b", "l"):
         task="classification",
         weights=_weights(_size, "modelnet40-8k", dataset="modelnet40", classes=MODELNET40_CLASSES),
         transform=_modelnet_transforms(8192),
-        hparams=_cls_hparams(_size, 40, num_group=512),
+        hparams=_cls_hparams(_size, 40, num_groups=512),
     )
     def _pointgpt_modelnet40_8k(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
@@ -870,7 +870,7 @@ for _size in ("s", "b", "l"):
         task="classification",
         weights=_weights(_size, "scanobjectnn-hardest", dataset="scanobjectnn-hardest", classes=SCANOBJECTNN_CLASSES),
         transform=_scanobjectnn_transforms(),
-        hparams=_cls_hparams(_size, 15, num_group=128),
+        hparams=_cls_hparams(_size, 15, num_groups=128),
     )
     def _pointgpt_scanobjectnn_hardest(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
@@ -880,7 +880,7 @@ for _size in ("s", "b", "l"):
         task="classification",
         weights=_weights(_size, "scanobjectnn-objbg", dataset="scanobjectnn-objbg", classes=SCANOBJECTNN_CLASSES),
         transform=_scanobjectnn_transforms(),
-        hparams=_cls_hparams(_size, 15, num_group=128),
+        hparams=_cls_hparams(_size, 15, num_groups=128),
     )
     def _pointgpt_scanobjectnn_objbg(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)
@@ -890,7 +890,7 @@ for _size in ("s", "b", "l"):
         task="classification",
         weights=_weights(_size, "scanobjectnn-objonly", dataset="scanobjectnn-objonly", classes=SCANOBJECTNN_CLASSES),
         transform=_scanobjectnn_transforms(),
-        hparams=_cls_hparams(_size, 15, num_group=128),
+        hparams=_cls_hparams(_size, 15, num_groups=128),
     )
     def _pointgpt_scanobjectnn_objonly(_size: str = _size, **kwargs: Any) -> PointGPTClassification:
         return PointGPTClassification(**kwargs)

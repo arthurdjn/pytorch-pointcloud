@@ -26,7 +26,7 @@ def test_point_mae_classification_basic() -> None:
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         drop_path=0.1,
         dropout=0.5,
@@ -48,7 +48,7 @@ def test_point_mae_segmentation_basic() -> None:
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         drop_path=0.1,
         dropout=0.5,
@@ -71,7 +71,7 @@ def test_point_mae_segmentation_returns_raw_logits() -> None:
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
     )
     model.eval()
@@ -92,7 +92,7 @@ def test_point_mae_segmentation_head_width_follows_embed_dim() -> None:
         embed_dim=48,
         depth=12,
         num_heads=2,
-        num_group=8,
+        num_groups=8,
         group_size=4,
     )
     model.eval()
@@ -107,7 +107,7 @@ def test_point_mae_segmentation_head_width_follows_embed_dim() -> None:
 
 
 def test_point_mae_segmentation_ragged_batch_raises() -> None:
-    model = PointMAEPartSegmentation(in_channels=0, num_classes=5, num_categories=16, num_group=8, group_size=4)
+    model = PointMAEPartSegmentation(in_channels=0, num_classes=5, num_categories=16, num_groups=8, group_size=4)
     model.eval()
     pos = torch.randn(128, 3)
     batch = torch.cat([torch.zeros(96), torch.ones(32)]).long()
@@ -124,7 +124,7 @@ def test_point_mae_classification_num_classes_zero_returns_features() -> None:
         embed_dim=96,
         depth=2,
         num_heads=2,
-        num_group=16,
+        num_groups=16,
         group_size=8,
     )
     assert isinstance(model.head, torch.nn.Identity)
@@ -151,7 +151,7 @@ def test_point_mae_masked_autoencoder_basic() -> None:
         decoder_depth=4,
         num_heads=6,
         decoder_num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         mask_ratio=0.6,
         drop_path=0.1,
@@ -184,7 +184,7 @@ def test_point_mae_masked_autoencoder_invalid_mask_ratio_raises(mask_ratio: floa
             decoder_depth=1,
             num_heads=2,
             decoder_num_heads=2,
-            num_group=8,
+            num_groups=8,
             group_size=4,
             mask_ratio=mask_ratio,
         )
@@ -198,7 +198,7 @@ def test_point_mae_classification_accepts_features() -> None:
         embed_dim=384,
         depth=2,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         act="gelu",
         spatial_dim=3,
@@ -225,7 +225,7 @@ def test_point_mae_segmentation_accepts_features() -> None:
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=128,
+        num_groups=128,
         group_size=32,
         act="gelu",
         spatial_dim=3,
@@ -245,7 +245,14 @@ def test_point_mae_segmentation_accepts_features() -> None:
 
 
 def test_point_mae_segmentation_num_classes_zero_head_is_identity() -> None:
-    model = PointMAEPartSegmentation(in_channels=0, num_classes=0, embed_dim=96, num_heads=2, num_group=8, group_size=4)
+    model = PointMAEPartSegmentation(
+        in_channels=0,
+        num_classes=0,
+        embed_dim=96,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+    )
     assert isinstance(model.head, torch.nn.Identity)
 
 

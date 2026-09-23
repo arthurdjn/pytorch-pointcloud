@@ -14,7 +14,7 @@ _SCENE = 8.0
 
 
 def _perfect_layer(
-    centers: Tensor, sizes: Tensor, angles: Tensor, labels: Tensor, num_queries: int, num_angle_bin: int
+    centers: Tensor, sizes: Tensor, angles: Tensor, labels: Tensor, num_queries: int, num_heading_bins: int
 ) -> Dict[str, Tensor]:
     """One decoder layer whose first `len(centers)` queries predict the given boxes exactly."""
     k = centers.shape[0]
@@ -23,11 +23,11 @@ def _perfect_layer(
     angle = torch.zeros(1, num_queries)
     cls_logits = torch.full((1, num_queries, _NUM_CLASSES + 1), -10.0)
     cls_logits[0, :, -1] = 10.0  # background by default
-    angle_logits = torch.full((1, num_queries, num_angle_bin), -10.0)
+    angle_logits = torch.full((1, num_queries, num_heading_bins), -10.0)
     angle_logits[..., 0] = 10.0
-    angle_residual_normalized = torch.zeros(1, num_queries, num_angle_bin)
+    angle_residual_normalized = torch.zeros(1, num_queries, num_heading_bins)
 
-    angle_class, angle_residual = angle_to_class(angles % (2 * math.pi), num_angle_bin)
+    angle_class, angle_residual = angle_to_class(angles % (2 * math.pi), num_heading_bins)
     for i in range(k):
         center[0, i] = centers[i]
         size[0, i] = sizes[i]
@@ -36,7 +36,7 @@ def _perfect_layer(
         cls_logits[0, i, labels[i]] = 10.0
         angle_logits[0, i] = -10.0
         angle_logits[0, i, angle_class[i]] = 10.0
-        angle_residual_normalized[0, i, angle_class[i]] = angle_residual[i] / (math.pi / num_angle_bin)
+        angle_residual_normalized[0, i, angle_class[i]] = angle_residual[i] / (math.pi / num_heading_bins)
 
     cls_prob = cls_logits.softmax(dim=-1)
     return {
@@ -49,7 +49,7 @@ def _perfect_layer(
         "size_unnormalized": size,
         "angle_logits": angle_logits,
         "angle_residual_normalized": angle_residual_normalized,
-        "angle_residual": angle_residual_normalized * (math.pi / num_angle_bin),
+        "angle_residual": angle_residual_normalized * (math.pi / num_heading_bins),
         "angle_continuous": angle,
     }
 
@@ -75,15 +75,15 @@ _LABELS = torch.tensor([0, 2])
 
 def test_threedetr_loss_giou_weight_defaults_to_zero() -> None:
     """The reference recipe trains with the GIoU term disabled; the GIoU still drives the matcher cost."""
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1)
     assert loss_fn.loss_giou_weight == 0.0
     assert loss_fn.matcher_giou_cost == 2.0
 
 
 def test_threedetr_loss_perfect_axis_aligned_predictions_near_zero() -> None:
     angles = torch.zeros(2)
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
-    layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_angle_bin=1)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, loss_giou_weight=1.0)
+    layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_heading_bins=1)
     out = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -angles, _LABELS))
     for key in ("loss_center", "loss_size", "loss_giou", "loss_angle_cls", "loss_angle_reg"):
         assert out[key] < 1e-4, key
@@ -94,8 +94,8 @@ def test_threedetr_loss_perfect_axis_aligned_predictions_near_zero() -> None:
 
 def test_threedetr_loss_perturbed_predictions_are_larger() -> None:
     angles = torch.zeros(2)
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1, loss_giou_weight=1.0)
-    layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_angle_bin=1)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, loss_giou_weight=1.0)
+    layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_heading_bins=1)
     batch = _batch(_CENTERS, _SIZES, -angles, _LABELS)
     perfect = loss_fn(_output(layer), batch)
 
@@ -110,8 +110,8 @@ def test_threedetr_loss_perturbed_predictions_are_larger() -> None:
 def test_threedetr_loss_ccw_gt_matches_native_heading_predictions() -> None:
     """GT headings arrive counter-clockwise; the loss must supervise the negated (native) heading bins."""
     native = torch.tensor([0.4, -1.2])
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
-    layer = _perfect_layer(_CENTERS, _SIZES, native, _LABELS, num_queries=4, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12)
+    layer = _perfect_layer(_CENTERS, _SIZES, native, _LABELS, num_queries=4, num_heading_bins=12)
 
     ccw = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -native, _LABELS))
     wrong = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, native, _LABELS))
@@ -124,7 +124,7 @@ def test_threedetr_loss_ccw_gt_matches_native_heading_predictions() -> None:
 def test_threedetr_loss_densified_targets_follow_box_contract() -> None:
     """Densify negates the CCW heading, keeps full extents, and reads classes from `DataKeys.LABEL`."""
     headings = torch.tensor([0.4, -1.2])
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12)
     dims = (torch.zeros(1, 3), torch.full((1, 3), _SCENE))
     targets = loss_fn._densify(_batch(_CENTERS, _SIZES, headings, _LABELS), dims)
     assert torch.equal(targets.center_unnormalized[0], _CENTERS)
@@ -137,25 +137,25 @@ def test_threedetr_loss_densified_targets_follow_box_contract() -> None:
 def test_threedetr_loss_degenerate_gt_box_stays_finite() -> None:
     """A zero-size GT box under a collapsed query must not produce NaN costs (the matcher raises on them)."""
     torch.manual_seed(0)
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12)
     centers = torch.tensor([[4.0, 4.0, 1.0], [2.0, 2.0, 1.0]])
     sizes = torch.tensor([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
-    layer = _perfect_layer(centers, sizes, torch.zeros(2), _LABELS, num_queries=4, num_angle_bin=12)
+    layer = _perfect_layer(centers, sizes, torch.zeros(2), _LABELS, num_queries=4, num_heading_bins=12)
     out = loss_fn(_output(layer), _batch(centers, sizes, torch.zeros(2), _LABELS))
     assert torch.isfinite(out["loss"])
 
 
 def test_threedetr_loss_no_boxes_is_finite() -> None:
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=1)
-    layer = _perfect_layer(_CENTERS, _SIZES, torch.zeros(2), _LABELS, num_queries=4, num_angle_bin=1)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1)
+    layer = _perfect_layer(_CENTERS, _SIZES, torch.zeros(2), _LABELS, num_queries=4, num_heading_bins=1)
     empty = _batch(_CENTERS[:0], _SIZES[:0], torch.zeros(0), _LABELS[:0])
     out = loss_fn(_output(layer), empty)
     assert torch.isfinite(out["loss"])
 
 
 def test_threedetr_loss_backward() -> None:
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12)
-    layer = _perfect_layer(_CENTERS, _SIZES, torch.tensor([0.4, -1.2]), _LABELS, num_queries=4, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12)
+    layer = _perfect_layer(_CENTERS, _SIZES, torch.tensor([0.4, -1.2]), _LABELS, num_queries=4, num_heading_bins=12)
     for key in ("sem_cls_logits", "center_normalized", "size_normalized", "angle_residual_normalized"):
         layer[key].requires_grad_(True)
     out = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, torch.tensor([-0.4, 1.2]), _LABELS))
@@ -169,8 +169,8 @@ def test_threedetr_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch:
     """CCW library headings are negated into native space, so an all-positive batch must still take the
     rotated GIoU branch."""
     headings = torch.tensor([0.8, 1.2])
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_angle_bin=12, loss_giou_weight=1.0)
-    layer = _perfect_layer(_CENTERS, _SIZES, -headings, _LABELS, num_queries=4, num_angle_bin=12)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12, loss_giou_weight=1.0)
+    layer = _perfect_layer(_CENTERS, _SIZES, -headings, _LABELS, num_queries=4, num_heading_bins=12)
     seen: List[bool] = []
     original = ThreeDETRLoss._giou3d
 

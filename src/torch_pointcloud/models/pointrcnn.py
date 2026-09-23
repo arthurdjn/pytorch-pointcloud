@@ -226,7 +226,7 @@ class PointRCNNRefinementHead(nn.Module):
     Args:
         in_channels: Pooled point-feature channels (the stage-1 backbone feature dim).
         sa_channels: Per-SA-block MLP channel lists.
-        sa_npoints: Per-SA-block sample counts; `-1` groups all remaining points.
+        sa_num_points: Per-SA-block sample counts; `-1` groups all remaining points.
         sa_radii: Per-SA-block ball-query radii.
         sa_num_neighbors: Per-SA-block neighbor caps.
         xyz_up_channels: Channels of the canonical-xyz lifting MLP.
@@ -246,7 +246,7 @@ class PointRCNNRefinementHead(nn.Module):
         in_channels: int,
         *,
         sa_channels: Sequence[Sequence[int]],
-        sa_npoints: Sequence[int],
+        sa_num_points: Sequence[int],
         sa_radii: Sequence[float],
         sa_num_neighbors: Sequence[int],
         xyz_up_channels: Sequence[int],
@@ -281,7 +281,7 @@ class PointRCNNRefinementHead(nn.Module):
 
         channel_in = in_channels
         self.sa_modules = nn.ModuleList()
-        for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
+        for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_num_points, sa_radii, sa_num_neighbors):
             if npoint == -1:
                 module: nn.Module = PointNet2GlobalSetAbstraction(
                     channel_in,
@@ -523,7 +523,7 @@ class PointRCNNDetection(DetectionModel):
         num_classes: Number of foreground classes.
         mean_sizes: Per-class mean box size $(d_x, d_y, d_z)$, shape $(\text{num\_classes}, 3)$.
         sa_channels: Stage-1 per-SA-block, per-scale MLP channel lists.
-        sa_npoints: Stage-1 per-SA-block sample counts.
+        sa_num_points: Stage-1 per-SA-block sample counts.
         sa_radii: Stage-1 per-SA-block, per-scale ball-query radii.
         sa_num_neighbors: Stage-1 per-SA-block, per-scale neighbor caps.
         fp_channels: Stage-1 per-FP-block MLP channel lists, ordered from the coarsest skip level to the
@@ -531,7 +531,7 @@ class PointRCNNDetection(DetectionModel):
         point_cls_channels: Stage-1 classification MLP hidden channels.
         point_reg_channels: Stage-1 box-regression MLP hidden channels.
         roi_sa_channels: Stage-2 per-SA-block MLP channel lists.
-        roi_sa_npoints: Stage-2 per-SA-block sample counts (`-1` groups all).
+        roi_sa_num_points: Stage-2 per-SA-block sample counts (`-1` groups all).
         roi_sa_radii: Stage-2 per-SA-block ball-query radii.
         roi_sa_num_neighbors: Stage-2 per-SA-block neighbor caps.
         roi_xyz_up_channels: Stage-2 canonical-xyz lifting MLP channels.
@@ -568,14 +568,14 @@ class PointRCNNDetection(DetectionModel):
         *,
         mean_sizes: Union[Tensor, Sequence[Sequence[float]]],
         sa_channels: Sequence[Sequence[Sequence[int]]],
-        sa_npoints: Sequence[int],
+        sa_num_points: Sequence[int],
         sa_radii: Sequence[Sequence[float]],
         sa_num_neighbors: Sequence[Sequence[int]],
         fp_channels: Sequence[Sequence[int]],
         point_cls_channels: Sequence[int] = (256, 256),
         point_reg_channels: Sequence[int] = (256, 256),
         roi_sa_channels: Sequence[Sequence[int]],
-        roi_sa_npoints: Sequence[int],
+        roi_sa_num_points: Sequence[int],
         roi_sa_radii: Sequence[float],
         roi_sa_num_neighbors: Sequence[int],
         roi_xyz_up_channels: Sequence[int] = (128, 128),
@@ -615,14 +615,14 @@ class PointRCNNDetection(DetectionModel):
         self.cls_bg_thresh_lo = cls_bg_thresh_lo
         self.hard_bg_ratio = hard_bg_ratio
         self.sa_channels = sa_channels
-        self.sa_npoints = sa_npoints
+        self.sa_num_points = sa_num_points
         self.sa_radii = sa_radii
         self.sa_num_neighbors = sa_num_neighbors
         self.fp_channels = fp_channels
         self.point_cls_channels = point_cls_channels
         self.point_reg_channels = point_reg_channels
         self.roi_sa_channels = roi_sa_channels
-        self.roi_sa_npoints = roi_sa_npoints
+        self.roi_sa_num_points = roi_sa_num_points
         self.roi_sa_radii = roi_sa_radii
         self.roi_sa_num_neighbors = roi_sa_num_neighbors
         self.roi_xyz_up_channels = roi_xyz_up_channels
@@ -651,7 +651,7 @@ class PointRCNNDetection(DetectionModel):
         return PointNet2Encoder(
             self.in_channels - 3,
             self.sa_channels,
-            num_points=self.sa_npoints,
+            num_points=self.sa_num_points,
             radii=self.sa_radii,
             num_neighbors=self.sa_num_neighbors,
             use_pos=True,
@@ -697,7 +697,7 @@ class PointRCNNDetection(DetectionModel):
         return PointRCNNRefinementHead(
             self.fp_channels[-1][-1],
             sa_channels=self.roi_sa_channels,
-            sa_npoints=self.roi_sa_npoints,
+            sa_num_points=self.roi_sa_num_points,
             sa_radii=self.roi_sa_radii,
             sa_num_neighbors=self.roi_sa_num_neighbors,
             xyz_up_channels=self.roi_xyz_up_channels,
@@ -1090,12 +1090,12 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
             [[128, 196, 256], [128, 196, 256]],
             [[256, 256, 512], [256, 384, 512]],
         ],
-        sa_npoints=[4096, 1024, 256, 64],
+        sa_num_points=[4096, 1024, 256, 64],
         sa_radii=[[0.1, 0.5], [0.5, 1.0], [1.0, 2.0], [2.0, 4.0]],
         sa_num_neighbors=[[16, 32], [16, 32], [16, 32], [16, 32]],
         fp_channels=[[512, 512], [512, 512], [256, 256], [128, 128]],
         roi_sa_channels=[[128, 128, 128], [128, 128, 256], [256, 256, 512]],
-        roi_sa_npoints=[128, 32, -1],
+        roi_sa_num_points=[128, 32, -1],
         roi_sa_radii=[0.2, 0.4, 100.0],
         roi_sa_num_neighbors=[16, 16, 16],
         roi_xyz_up_channels=[128, 128],
