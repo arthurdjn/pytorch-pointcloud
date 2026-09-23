@@ -52,7 +52,7 @@ class LinearBlock(nn.Module):
         self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **(norm_kwargs or {}))
         self.act = create_act(act, **(act_kwargs or {}))
 
-    # TODO: Rename stem to lin, and remove pos and batch arguments as they are not used.
+    # `pos` and `batch` keep the call signature of `SubMConv3dBlock`, the other Point Transformer V3 stem.
     def forward(
         self,
         x: Tensor,
