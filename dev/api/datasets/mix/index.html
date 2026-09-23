@@ -5568,7 +5568,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MixDataset&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/datasets/mix.py#L9-L56&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.mix.MixDataset">MixDataset</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/datasets/mix.py#L11-L46&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.mix.MixDataset">MixDataset</a></code></b>
           –
           <div class="doc-md-description">
             <p>Draws a second random sample and applies a pairwise mix transform.</p>
@@ -5600,7 +5600,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">MixDataset</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/datasets/mix.py#L9-L56" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/datasets/mix.py#L11-L46" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.datasets.mix.MixDataset" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">MixDataset</span><span class="p">(</span>
@@ -5611,13 +5611,16 @@
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">transform</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">[[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]],</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.utils.data.Dataset">Dataset</span></code></p>
+              Bases: <code><span title="torch.utils.data.Dataset">Dataset</span></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
 
 
 
@@ -5657,15 +5660,13 @@ merge actually happens.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>generator</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Generator">Generator</span>]</code>, default:
+            <b><code>seed</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
                   <code>None</code>
 )
           –
           <div class="doc-md-description">
-            <p>Optional <code>torch.Generator</code> for the partner index. Every <code>DataLoader</code> worker receives a
-replica of this generator, so inside a worker the partner indices are drawn from a dedicated
-stream seeded with the generator's initial seed plus the worker id.</p>
+            <p>Seed for the partner index; <code>None</code> draws from the global generator (see <code>Randomizable</code>).</p>
           </div>
         </li>
     </ul>
@@ -5679,6 +5680,21 @@ stream seeded with the generator's initial seed plus the worker id.</p>
 
 
 
+
+
+<p><span class="doc-section-title">Methods:</span></p>
+    <ul>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;set_random_state&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/random.py#L91-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.mix.MixDataset.set_random_state">set_random_state</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Give the object its own random stream, or return it to the global generator.</p>
+            </div>
+          </li>
+    </ul>
 
 
 
@@ -5695,6 +5711,80 @@ stream seeded with the generator's initial seed plus the worker id.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="torch_pointcloud.datasets.mix.MixDataset.set_random_state" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">set_random_state</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/random.py#L91-L113" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.datasets.mix.MixDataset.set_random_state" class="headerlink" title="Anchor link to this section">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">set_random_state</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">state</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing_extensions.Self">Self</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Give the object its own random stream, or return it to the global generator.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>seed</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Seed of a new generator.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>state</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Generator">Generator</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Generator to draw from, shared with the caller.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing_extensions.Self">Self</span></code>
+          –
+          <div class="doc-md-description">
+            <p>The object itself, for chaining.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="ValueError">ValueError</span></code>
+            –
+          <div class="doc-md-description">
+            <p>If both <code>seed</code> and <code>state</code> are given.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
 
 
 

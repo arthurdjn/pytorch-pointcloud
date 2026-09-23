@@ -5005,6 +5005,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.utils.data.set_random_states" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set_random_states
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.utils.data.seed_worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        seed_worker
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5505,6 +5527,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.utils.data.set_random_states" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        set_random_states
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.utils.data.seed_worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        seed_worker
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5595,7 +5639,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>Data loading: standard sample keys, packed-batch collation, and the point cloud data loader.</p>
+        <p>Data loading: standard sample keys, packed-batch collation, worker seeding, and the point cloud data loader.</p>
 
 
 
@@ -5612,7 +5656,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DataKeys&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L24-L86&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.DataKeys">DataKeys</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L24-L86&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.DataKeys">DataKeys</a></code></b>
           –
           <div class="doc-md-description">
             <p>Standard keys of a sample dict, shared by the datasets, transforms and models.</p>
@@ -5622,7 +5666,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointCloudDataLoader&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L192-L230&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.PointCloudDataLoader">PointCloudDataLoader</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L275-L317&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.PointCloudDataLoader">PointCloudDataLoader</a></code></b>
           –
           <div class="doc-md-description">
             <p><code>DataLoader</code> that batches point clouds with the packed-batch <code>collate</code> by default.</p>
@@ -5639,10 +5683,30 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;collate&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L131-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.collate">collate</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L131-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.collate">collate</a></code></b>
             –
             <div class="doc-md-description">
               <p>Collate a list of point-cloud sample dicts into one batched dict.</p>
+            </div>
+          </li>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;set_random_states&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L195-L240&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.set_random_states">set_random_states</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Re-seed every seeded random object reachable from <code>obj</code>, each with its own seed.</p>
+            </div>
+          </li>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;seed_worker&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L244-L266&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.seed_worker">seed_worker</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p><code>worker_init_fn</code> re-seeding the dataset's seeded random objects from the worker's seed.</p>
             </div>
           </li>
     </ul>
@@ -5669,7 +5733,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DataKeys</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L24-L86" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L24-L86" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.utils.data.DataKeys" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -5679,7 +5743,7 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;StrEnum&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/types.py#L107-L116&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../types/#torch_pointcloud.utils.types.StrEnum">StrEnum</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/types.py#L107-L116&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../types/#torch_pointcloud.utils.types.StrEnum">StrEnum</a></code></p>
 
 
 
@@ -5729,7 +5793,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointCloudDataLoader</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L192-L230" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L275-L317" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.utils.data.PointCloudDataLoader" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointCloudDataLoader</span><span class="p">(</span>
@@ -5754,12 +5818,17 @@
 <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;collate&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L131-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.collate"><code>collate</code></a>. How keys collate is set by the spec arguments
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L131-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.collate"><code>collate</code></a>. How keys collate is set by the spec arguments
 (<code>batch_from</code> / <code>batch_key</code> for the per-point index, <code>stack_keys</code> for dense per-scene ground
 truth, <code>cat_keys</code> for ragged per-scene ground truth). These are supplied by the caller, never
 read off the dataset: transforms rewrite the key set downstream of the dataset (a <code>box</code> key may
 be derived from an object by a transform), so only the code building the loader knows which keys
 must stack or cat. Passing <code>collate_fn=...</code> via the usual <code>DataLoader</code> kwarg overrides the spec.</p>
+<p>Workers are re-seeded with <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;seed_worker&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L244-L266&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.data.seed_worker"><code>seed_worker</code></a> before any <code>worker_init_fn</code>
+passed in <code>kwargs</code>, so seeded random transforms draw different numbers in every worker and epoch.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -5866,7 +5935,7 @@ must stack or cat. Passing <code>collate_fn=...</code> via the usual <code>DataL
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">collate</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/3eef7477d413c7b06c6e33f76b9531db113aa7e2/src/torch_pointcloud/utils/data.py#L131-L189" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L131-L189" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.utils.data.collate" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">collate</span><span class="p">(</span>
@@ -5960,6 +6029,123 @@ one of <code>stack_keys</code> / <code>cat_keys</code>; overlapping entries rais
         </li>
     </ul>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.utils.data.set_random_states" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">set_random_states</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L195-L240" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.utils.data.set_random_states" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">set_random_states</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="int">int</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Re-seed every seeded random object reachable from <code>obj</code>, each with its own seed.</p>
+<p>A random object exposes <code>set_random_state(seed=...)</code> and its generator as <code>R</code> (e.g. a <code>Randomizable</code> transform).
+Objects are found through sequences, mappings and instance attributes, such as a dataset's <code>transform</code>. Objects
+drawing from the global generator (<code>R is None</code>) are left as they are.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>obj</code></b>
+              (<code><span title="typing.Any">Any</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Root object, typically a dataset.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>seed</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Seed of the first object; the next ones get <code>seed + 1</code>, <code>seed + 2</code>, ...</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="int">int</span></code>
+          –
+          <div class="doc-md-description">
+            <p>The seed following the last one used.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandomJitter</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_random_states</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">jitter</span> <span class="o">=</span> <span class="n">RandomJitter</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">set_random_states</span><span class="p">({</span><span class="s2">&quot;transform&quot;</span><span class="p">:</span> <span class="n">jitter</span><span class="p">},</span> <span class="n">seed</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+</code></pre></div>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.utils.data.seed_worker" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">seed_worker</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/bfaa32f2920ce24b07455bc4215339a44247a832/src/torch_pointcloud/utils/data.py#L244-L266" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.utils.data.seed_worker" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">seed_worker</span><span class="p">(</span><span class="n">worker_id</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p><code>worker_init_fn</code> re-seeding the dataset's seeded random objects from the worker's seed.</p>
+<p>Every worker receives a copy of the dataset, so a seeded transform would replay the same numbers in every worker.
+This re-seeds them from <code>torch.utils.data.get_worker_info().seed</code>, which differs per worker and per epoch and is
+reproducible under <code>torch.manual_seed</code>. <code>PointCloudDataLoader</code> applies it by default; pass it as <code>worker_init_fn</code>
+to a plain <code>DataLoader</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>worker_id</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Index of the worker, as passed by the <code>DataLoader</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">seed_worker</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">worker_init_fn</span><span class="o">=</span><span class="n">seed_worker</span><span class="p">)</span>
+</code></pre></div>
+</details>
 
     </div>
 
