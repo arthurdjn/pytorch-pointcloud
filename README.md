@@ -17,7 +17,7 @@
 A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, inspired by <a href="https://github.com/huggingface/pytorch-image-models">timm</a>.
 <br>
 <br>
-<i>Check out the official docs at <a href="https://www.pytorch-pointcloud.org">pytorch-pointcloud.org</a>!</i>
+<i>Check out the documentation at <a href="https://www.pytorch-pointcloud.org">pytorch-pointcloud.org</a>!</i>
 </p>
 
 <br>
@@ -81,10 +81,11 @@ Install the library with `pip` (or `uv`):
 pip install torch-pointcloud
 ```
 
-> [!WARNING]
-> The CUDA extensions (PyG kernels, spconv, flash-attention, Mamba, ocnn, torchsparse) are optional and only needed by
-> the architectures that use them.
-> See the [Installation](https://pytorch-pointcloud.org/installation/) page for the exact install command.
+> [!IMPORTANT]
+> It is recommended that you install a pinned version of torch first and select the extra dependencies based on it (`pyg-lib`, `torch-cluster`, `torch-scatter`).
+>
+> The other CUDA extensions (spconv, flash-attention, Mamba, ocnn, torchsparse) are only needed by the architectures
+> that use them. See the [Installation](https://pytorch-pointcloud.org/latest/installation/) page for more details.
 
 <br>
 
@@ -109,7 +110,7 @@ with torch.no_grad():
     logits = model(x, pos, batch)  # (1, 15)
 ```
 
-Every checkpoint ships the transform that turns a raw point cloud into what the network expects:
+Each checkpoint ships the transform that turns a raw point cloud into what the network expects:
 
 ```python
 import torch_pointcloud as tp
@@ -123,7 +124,7 @@ tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```
 
-See the [examples](examples/) directory for benchmarks and training recipes.
+See the [examples](https://github.com/arthurdjn/pytorch-pointcloud/tree/main/examples) directory for benchmarks and training recipes.
 
 <br>
 
@@ -137,7 +138,7 @@ tutorials and the full API reference.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and the pull request checks.
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CONTRIBUTING.md) for the development setup and the pull request checks.
 
 <br>
 
@@ -160,7 +161,8 @@ If you find this project useful, please consider citing:
 
 ## License
 
-Apache 2.0. See [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
 
 Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to
-non-commercial use. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+non-commercial use. Most were trained on research-only datasets, whose terms also apply to the weights.
+See [THIRD_PARTY_NOTICES.md](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
