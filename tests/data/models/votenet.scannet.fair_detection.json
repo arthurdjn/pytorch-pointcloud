@@ -1,210 +1,210 @@
 {
   "num_params": 953828,
   "state_dict": {
-    "backbone.sa_modules.0.mlps.0.lins.0.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.lins.0.weight": [
       64,
       4
     ],
-    "backbone.sa_modules.0.mlps.0.lins.1.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "backbone.sa_modules.0.mlps.0.lins.2.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.lins.2.weight": [
       128,
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.0.module.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.weight": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.0.module.bias": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.bias": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.0.module.running_mean": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.0.module.running_var": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.running_var": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.0.module.num_batches_tracked": [],
-    "backbone.sa_modules.0.mlps.0.norms.1.module.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.weight": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.1.module.bias": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.bias": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.1.module.running_mean": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.1.module.running_var": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.running_var": [
       64
     ],
-    "backbone.sa_modules.0.mlps.0.norms.1.module.num_batches_tracked": [],
-    "backbone.sa_modules.0.mlps.0.norms.2.module.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.weight": [
       128
     ],
-    "backbone.sa_modules.0.mlps.0.norms.2.module.bias": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.bias": [
       128
     ],
-    "backbone.sa_modules.0.mlps.0.norms.2.module.running_mean": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.0.mlps.0.norms.2.module.running_var": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.running_var": [
       128
     ],
-    "backbone.sa_modules.0.mlps.0.norms.2.module.num_batches_tracked": [],
-    "backbone.sa_modules.1.mlps.0.lins.0.weight": [
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.1.convs.0.local_nn.lins.0.weight": [
       128,
       131
     ],
-    "backbone.sa_modules.1.mlps.0.lins.1.weight": [
+    "backbone.sa_modules.1.convs.0.local_nn.lins.1.weight": [
       128,
       128
     ],
-    "backbone.sa_modules.1.mlps.0.lins.2.weight": [
+    "backbone.sa_modules.1.convs.0.local_nn.lins.2.weight": [
       256,
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.0.module.weight": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.weight": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.0.module.bias": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.bias": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.0.module.running_mean": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.0.module.running_var": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.running_var": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.0.module.num_batches_tracked": [],
-    "backbone.sa_modules.1.mlps.0.norms.1.module.weight": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.weight": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.1.module.bias": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.bias": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.1.module.running_mean": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.1.module.running_var": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.running_var": [
       128
     ],
-    "backbone.sa_modules.1.mlps.0.norms.1.module.num_batches_tracked": [],
-    "backbone.sa_modules.1.mlps.0.norms.2.module.weight": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.weight": [
       256
     ],
-    "backbone.sa_modules.1.mlps.0.norms.2.module.bias": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.bias": [
       256
     ],
-    "backbone.sa_modules.1.mlps.0.norms.2.module.running_mean": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.running_mean": [
       256
     ],
-    "backbone.sa_modules.1.mlps.0.norms.2.module.running_var": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.running_var": [
       256
     ],
-    "backbone.sa_modules.1.mlps.0.norms.2.module.num_batches_tracked": [],
-    "backbone.sa_modules.2.mlps.0.lins.0.weight": [
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.2.convs.0.local_nn.lins.0.weight": [
       128,
       259
     ],
-    "backbone.sa_modules.2.mlps.0.lins.1.weight": [
+    "backbone.sa_modules.2.convs.0.local_nn.lins.1.weight": [
       128,
       128
     ],
-    "backbone.sa_modules.2.mlps.0.lins.2.weight": [
+    "backbone.sa_modules.2.convs.0.local_nn.lins.2.weight": [
       256,
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.0.module.weight": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.weight": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.0.module.bias": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.bias": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.0.module.running_mean": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.0.module.running_var": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.running_var": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.0.module.num_batches_tracked": [],
-    "backbone.sa_modules.2.mlps.0.norms.1.module.weight": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.weight": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.1.module.bias": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.bias": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.1.module.running_mean": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.1.module.running_var": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.running_var": [
       128
     ],
-    "backbone.sa_modules.2.mlps.0.norms.1.module.num_batches_tracked": [],
-    "backbone.sa_modules.2.mlps.0.norms.2.module.weight": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.weight": [
       256
     ],
-    "backbone.sa_modules.2.mlps.0.norms.2.module.bias": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.bias": [
       256
     ],
-    "backbone.sa_modules.2.mlps.0.norms.2.module.running_mean": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.running_mean": [
       256
     ],
-    "backbone.sa_modules.2.mlps.0.norms.2.module.running_var": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.running_var": [
       256
     ],
-    "backbone.sa_modules.2.mlps.0.norms.2.module.num_batches_tracked": [],
-    "backbone.sa_modules.3.mlps.0.lins.0.weight": [
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.lins.0.weight": [
       128,
       259
     ],
-    "backbone.sa_modules.3.mlps.0.lins.1.weight": [
+    "backbone.sa_modules.3.convs.0.local_nn.lins.1.weight": [
       128,
       128
     ],
-    "backbone.sa_modules.3.mlps.0.lins.2.weight": [
+    "backbone.sa_modules.3.convs.0.local_nn.lins.2.weight": [
       256,
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.0.module.weight": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.weight": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.0.module.bias": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.bias": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.0.module.running_mean": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.0.module.running_var": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.running_var": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.0.module.num_batches_tracked": [],
-    "backbone.sa_modules.3.mlps.0.norms.1.module.weight": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.weight": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.1.module.bias": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.bias": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.1.module.running_mean": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.running_mean": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.1.module.running_var": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.running_var": [
       128
     ],
-    "backbone.sa_modules.3.mlps.0.norms.1.module.num_batches_tracked": [],
-    "backbone.sa_modules.3.mlps.0.norms.2.module.weight": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.weight": [
       256
     ],
-    "backbone.sa_modules.3.mlps.0.norms.2.module.bias": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.bias": [
       256
     ],
-    "backbone.sa_modules.3.mlps.0.norms.2.module.running_mean": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.running_mean": [
       256
     ],
-    "backbone.sa_modules.3.mlps.0.norms.2.module.running_var": [
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.running_var": [
       256
     ],
-    "backbone.sa_modules.3.mlps.0.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
     "backbone.fp_modules.0.mlp.lins.0.weight": [
       256,
       512
@@ -320,57 +320,57 @@
       256
     ],
     "vgen.mlp.norms.1.module.num_batches_tracked": [],
-    "proposal.vote_aggr.mlps.0.lins.0.weight": [
+    "proposal.vote_aggr.convs.0.local_nn.lins.0.weight": [
       128,
       259
     ],
-    "proposal.vote_aggr.mlps.0.lins.1.weight": [
+    "proposal.vote_aggr.convs.0.local_nn.lins.1.weight": [
       128,
       128
     ],
-    "proposal.vote_aggr.mlps.0.lins.2.weight": [
+    "proposal.vote_aggr.convs.0.local_nn.lins.2.weight": [
       128,
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.0.module.weight": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.0.module.weight": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.0.module.bias": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.0.module.bias": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.0.module.running_mean": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.0.module.running_mean": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.0.module.running_var": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.0.module.running_var": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.0.module.num_batches_tracked": [],
-    "proposal.vote_aggr.mlps.0.norms.1.module.weight": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "proposal.vote_aggr.convs.0.local_nn.norms.1.module.weight": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.1.module.bias": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.1.module.bias": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.1.module.running_mean": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.1.module.running_mean": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.1.module.running_var": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.1.module.running_var": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.1.module.num_batches_tracked": [],
-    "proposal.vote_aggr.mlps.0.norms.2.module.weight": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "proposal.vote_aggr.convs.0.local_nn.norms.2.module.weight": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.2.module.bias": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.2.module.bias": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.2.module.running_mean": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.2.module.running_mean": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.2.module.running_var": [
+    "proposal.vote_aggr.convs.0.local_nn.norms.2.module.running_var": [
       128
     ],
-    "proposal.vote_aggr.mlps.0.norms.2.module.num_batches_tracked": [],
+    "proposal.vote_aggr.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
     "proposal.mlp.lins.0.weight": [
       128,
       128

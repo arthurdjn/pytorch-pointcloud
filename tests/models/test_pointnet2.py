@@ -43,7 +43,7 @@ def model_clf() -> PointNet2Classification:
         norm_kwargs=None,
         bias=False,
         use_pos=True,
-        pool="max",
+        sa_aggr="max",
         dropout=0.0,
         global_pool="max",
     )
@@ -69,7 +69,7 @@ def model_seg() -> PointNet2Segmentation:
         norm_kwargs=None,
         bias=False,
         use_pos=True,
-        pool="max",
+        sa_aggr="max",
         dropout=0.0,
     )
 

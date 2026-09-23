@@ -3,7 +3,6 @@ import torch
 from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.pointnet2_blocks import (
-    GlobalSAModule,
     PointNet2Conv,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
@@ -32,12 +31,12 @@ def test_pointnet2_conv_forward() -> None:
 
 def test_pointnet2_set_abstraction_forward() -> None:
     sa = PointNet2SetAbstraction(
-        spatial_dim=3,
         in_channels=3,
         channels=[32],
         ratio=0.5,
-        radius=0.2,
+        radii=0.2,
         num_neighbors=16,
+        spatial_dim=3,
         dropout=0.0,
         act="relu",
         act_first=False,
@@ -45,7 +44,6 @@ def test_pointnet2_set_abstraction_forward() -> None:
         norm="batch_norm",
         norm_kwargs=None,
         bias=True,
-        add_self_loops=False,
         aggr="max",
     )
     pos = torch.randn(64, 3)
@@ -78,8 +76,59 @@ def test_pointnet2_global_sa_forward() -> None:
     assert out_batch.shape == (2,)
 
 
-def test_global_sa_module_use_pos() -> None:
-    sa = GlobalSAModule(in_channels=8, channels=[16, 32], use_pos=True, pos_first=True)
+def test_pointnet2_set_abstraction_multi_scale_concatenates_scales() -> None:
+    sa = PointNet2SetAbstraction(
+        in_channels=3, channels=[[16], [32]], ratio=0.5, radii=[0.1, 0.2], num_neighbors=[8, 16]
+    )
+    pos = torch.randn(64, 3)
+    x = torch.randn(64, 3)
+    batch = torch.cat([torch.zeros(32), torch.ones(32)]).long()
+    out_x, _, _ = sa(x, pos, batch)
+    assert out_x.shape[1] == 16 + 32
+
+
+def test_pointnet2_set_abstraction_num_points_and_precomputed_idx() -> None:
+    sa = PointNet2SetAbstraction(
+        in_channels=1,
+        channels=[16, 16],
+        num_points=64,
+        radii=0.4,
+        num_neighbors=16,
+        pos_first=True,
+    ).eval()
+    pos = torch.rand(500, 3)
+    x = torch.rand(500, 1)
+    batch = torch.zeros(500, dtype=torch.long)
+    with torch.no_grad():
+        new_x, new_pos, new_batch = sa(x, pos, batch)
+    assert new_x.shape == (64, 16)
+    assert new_pos.shape == (64, 3)
+    assert new_batch.shape == (64,)
+    # A precomputed sampling index is honored verbatim.
+    idx = torch.arange(64)
+    with torch.no_grad():
+        nx, npos, _ = sa(x, pos, batch, idx)
+    assert torch.equal(npos, pos[idx])
+    assert nx.shape == (64, 16)
+
+
+def test_pointnet2_set_abstraction_requires_exactly_one_sampling_spec() -> None:
+    with pytest.raises(ValueError, match="ratio"):
+        PointNet2SetAbstraction(in_channels=1, channels=[16], radii=0.4, num_neighbors=16)
+    with pytest.raises(ValueError, match="ratio"):
+        PointNet2SetAbstraction(in_channels=1, channels=[16], ratio=0.5, num_points=64, radii=0.4, num_neighbors=16)
+
+
+def test_pointnet2_conv_without_pos_requires_features() -> None:
+    conv = PointNet2Conv(local_nn=MLP([3, 8]), add_self_loops=False, use_pos=False)
+    pos = torch.randn(4, 3)
+    edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+    with pytest.raises(ValueError, match="use_pos"):
+        conv(None, pos, edge_index)
+
+
+def test_pointnet2_global_set_abstraction_use_pos() -> None:
+    sa = PointNet2GlobalSetAbstraction(in_channels=8, channels=[16, 32], use_pos=True, pos_first=True)
     x = torch.randn(64, 8)
     pos = torch.randn(64, 3)
     batch = torch.cat([torch.zeros(32), torch.ones(32)]).long()

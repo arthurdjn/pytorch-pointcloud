@@ -22,7 +22,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
+from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
@@ -466,7 +466,7 @@ class PointMAESegmentation(SegmentationModel):
 
     Tokenizes local groups with a mini-PointNet encoder, processes them with a plain transformer
     encoder, concatenates the normalized hidden states at three block depths, and propagates the
-    group features back to every point with a PointNet++-style feature propagation (`FPModule`). A
+    group features back to every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`). A
     category-conditioned global branch is fused before the per-point classifier. Every sample in
     the packed batch must contain the same number of points; a ragged batch raises `ValueError`.
 
@@ -594,15 +594,15 @@ class PointMAESegmentation(SegmentationModel):
             plain_last=False,
         )
 
-    def configure_propagation_0(self) -> FPModule:
+    def configure_propagation_0(self) -> PointNet2FeaturePropagation:
         """Build the feature-propagation module interpolating group features back to every point."""
-        return FPModule(
-            in_channels=3 * self.embed_dim + self.spatial_dim,
-            channels=[self.embed_dim * 4, 1024],
+        return PointNet2FeaturePropagation(
+            channels=[3 * self.embed_dim + self.spatial_dim, self.embed_dim * 4, 1024],
             k=3,
             act="relu",
             norm="batch_norm",
             bias=True,
+            plain_last=False,
             weighting="squared",
             eps=1e-8,
         )

@@ -16,10 +16,14 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
-from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list
+from torch_pointcloud.layers.pointnet2_blocks import (
+    PointNet2FeaturePropagation,
+    PointNet2SetAbstraction,
+    ensure_msg_list,
+)
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import FeaturesDict, OptTensor
+from torch_pointcloud.utils.types import AggrType, FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SegmentationModel
 from ._registry import WeightsDict, register_model
@@ -57,8 +61,8 @@ class PointNet2Encoder(nn.Module):
         bias: Whether to use bias in linear layers.
         use_pos: Whether to concatenate per-point relative positions to `x`.
         pos_first: Concatenate the relative positions *before* the grouped features
-            (see [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule]).
-        pool: Pooling operation for SA blocks.
+            (see [`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction]).
+        aggr: Aggregation of the grouped features in each SA block.
     """
 
     def __init__(
@@ -81,7 +85,7 @@ class PointNet2Encoder(nn.Module):
         use_pos: bool = True,
         normalize_pos: bool = True,
         pos_first: bool = False,
-        pool: PoolLike = "max",
+        aggr: AggrType = "max",
         sort_neighbors: bool = False,
     ) -> None:
         super().__init__()
@@ -110,7 +114,7 @@ class PointNet2Encoder(nn.Module):
         self.sa_blocks = nn.ModuleList()
         sa_out_channels: List[int] = []
         for i in range(num_blocks):
-            block = SAModule(
+            block = PointNet2SetAbstraction(
                 in_channels=ch,
                 channels=sa_channels[i],
                 ratio=ratios[i] if ratios is not None else None,
@@ -127,7 +131,7 @@ class PointNet2Encoder(nn.Module):
                 use_pos=use_pos,
                 normalize_pos=normalize_pos,
                 pos_first=pos_first,
-                pool=pool,
+                aggr=aggr,
                 sort_neighbors=sort_neighbors,
             )
             self.sa_blocks.append(block)
@@ -253,9 +257,8 @@ class PointNet2Decoder(nn.Module):
         self.fp_blocks = nn.ModuleList()
         for i in range(num_blocks):
             ch = in_channels if i == 0 else fp_channels[i - 1][-1]
-            block = FPModule(
-                in_channels=ch + skip_channels[i],
-                channels=fp_channels[i],
+            block = PointNet2FeaturePropagation(
+                channels=[ch + skip_channels[i], *fp_channels[i]],
                 k=ks[i],
                 act=act,
                 act_kwargs=act_kwargs,
@@ -263,6 +266,7 @@ class PointNet2Decoder(nn.Module):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
                 bias=bias,
+                plain_last=False,
                 weighting=weighting,
                 eps=eps,
             )
@@ -313,7 +317,7 @@ class PointNet2Classification(ClassificationModel):
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
         use_pos: Whether to concatenate per-point relative positions to `x`.
-        pool: Pooling operation for SA blocks.
+        sa_aggr: Aggregation of the grouped features in each SA block.
         dropout: Dropout for the classification head: a single rate shared by every hidden layer, or one
             rate per hidden layer.
         global_pool: Global pooling operation.
@@ -341,7 +345,7 @@ class PointNet2Classification(ClassificationModel):
         bias: bool = False,
         use_pos: bool = True,
         normalize_pos: bool = True,
-        pool: PoolLike = "max",
+        sa_aggr: AggrType = "max",
         dropout: Union[float, Sequence[float]] = 0.0,
         global_pool: PoolLike = "max",
     ) -> None:
@@ -363,7 +367,7 @@ class PointNet2Classification(ClassificationModel):
         self.bias = bias
         self.use_pos = use_pos
         self.normalize_pos = normalize_pos
-        self.pool = pool
+        self.sa_aggr = sa_aggr
         self.dropout = dropout
 
         self.encoder = self.configure_encoder()
@@ -389,7 +393,7 @@ class PointNet2Classification(ClassificationModel):
             bias=self.bias,
             use_pos=self.use_pos,
             normalize_pos=self.normalize_pos,
-            pool=self.pool,
+            aggr=self.sa_aggr,
         )
 
     def configure_aggr(self) -> Optional[MLP]:
@@ -534,7 +538,7 @@ class PointNet2Segmentation(SegmentationModel):
         norm_kwargs: Additional keyword arguments for the normalization layer.
         bias: Whether to use bias in linear layers.
         use_pos: Whether to concatenate per-point relative positions to `x`.
-        pool: Pooling operation for SA blocks.
+        sa_aggr: Aggregation of the grouped features in each SA block.
         dropout: Dropout rate for classification head.
     """
 
@@ -560,7 +564,7 @@ class PointNet2Segmentation(SegmentationModel):
         bias: bool = False,
         use_pos: bool = True,
         normalize_pos: bool = True,
-        pool: PoolLike = "max",
+        sa_aggr: AggrType = "max",
         dropout: float = 0.0,
         skip_input: bool = True,
         fp_k: Optional[Union[int, Sequence[int]]] = None,
@@ -583,7 +587,7 @@ class PointNet2Segmentation(SegmentationModel):
         self.bias = bias
         self.use_pos = use_pos
         self.normalize_pos = normalize_pos
-        self.pool = pool
+        self.sa_aggr = sa_aggr
         self.dropout = dropout
         self.skip_input = skip_input
         self.fp_k = fp_k
@@ -611,7 +615,7 @@ class PointNet2Segmentation(SegmentationModel):
             bias=self.bias,
             use_pos=self.use_pos,
             normalize_pos=self.normalize_pos,
-            pool=self.pool,
+            aggr=self.sa_aggr,
         )
 
     def configure_aggr(self) -> Optional[MLP]:
@@ -756,7 +760,7 @@ def _apply_yanx27_compat(model: nn.Module) -> None:
     "pointnet2-ssg.modelnet40.xu-yan",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2-ssg.modelnet40.xu-yan/resolve/3e8bf9c8c674f4b5a380050a5b16de197e79a4d1/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2-ssg.modelnet40.xu-yan/resolve/9e1021fc09c3cfc2abc4072dcf1e970e0ea18c97/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.30, "mAcc": 88.23},
         classes=MODELNET40_CLASSES,
@@ -802,7 +806,7 @@ def pointnet2_yanx27_ssg_modelnet40(**hparams: Any) -> PointNet2Classification:
     "pointnet2-msg.modelnet40.xu-yan",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2-msg.modelnet40.xu-yan/resolve/dd31b4d992c5b85b325c90de5ecfdcea63c443c4/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2-msg.modelnet40.xu-yan/resolve/de5d7c956fbc98db33e46d990adcdcdd7525c7e4/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 92.67, "mAcc": 90.60},
         classes=MODELNET40_CLASSES,
@@ -851,7 +855,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
     "pointnet2.s3dis-area5.xu-yan",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area5.xu-yan/resolve/17539d785aa8a6883bb79c8be1329a682f48b683/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area5.xu-yan/resolve/bd3cc4078324b25036fe6594c198092d22fd62e9/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 54.83, "OA": 83.71},
         classes=S3DIS_CLASSES,
@@ -906,7 +910,7 @@ _OPENPOINTS_CLS_HPARAMS: Dict[str, Any] = dict(
     "pointnet2.modelnet40.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.modelnet40.openpoints/resolve/19e941221a6c3c5c2ef7cc6e23e0cc96d2137339/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.modelnet40.openpoints/resolve/ddef49f2dadcd32a789c1c5567bec29b52c8d39f/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 91.90, "mAcc": 88.88},
         classes=MODELNET40_CLASSES,
@@ -934,7 +938,7 @@ def pointnet2_openpoints_modelnet40(**hparams: Any) -> PointNet2Classification:
     "pointnet2.scanobjectnn-hardest.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.scanobjectnn-hardest.openpoints/resolve/e86d53f418ea821d01cd63b8b25613fa3f000d31/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.scanobjectnn-hardest.openpoints/resolve/1091918fba47828228dfdf6574c6302f86af68e0/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 86.16, "mAcc": 84.36},
         classes=SCANOBJECTNN_CLASSES,
@@ -1008,7 +1012,7 @@ def _pointnet2_openpoints_s3dis(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area1.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area1.openpoints/resolve/c4570abde7318532c4dcbfe490c18b2b447d102b/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area1.openpoints/resolve/228a72278aefb90c258a5bf287a67f8f0fdf6cdb/model.safetensors",
         dataset="s3dis-area1",
         metrics={"mIoU": 74.96, "OA": 89.78},
         classes=S3DIS_CLASSES,
@@ -1026,7 +1030,7 @@ def pointnet2_openpoints_s3dis_area1(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area2.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area2.openpoints/resolve/52d7a5b1a0a54249f074b12fd444d731b5f18447/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area2.openpoints/resolve/da77c5e08004d0d816e235608e8ce42d98696d64/model.safetensors",
         dataset="s3dis-area2",
         metrics={"mIoU": 48.31, "OA": 80.14},
         classes=S3DIS_CLASSES,
@@ -1044,7 +1048,7 @@ def pointnet2_openpoints_s3dis_area2(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area3.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area3.openpoints/resolve/ac7399a16291872b17d1620a17bbb0b9b0b878ee/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area3.openpoints/resolve/56feacab8d87cbc576926873148474e66047601b/model.safetensors",
         dataset="s3dis-area3",
         metrics={"mIoU": 76.36, "OA": 90.89},
         classes=S3DIS_CLASSES,
@@ -1062,7 +1066,7 @@ def pointnet2_openpoints_s3dis_area3(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area4.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area4.openpoints/resolve/b7f70bf1a07a732d22d77982f1cde38b3725fd8f/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area4.openpoints/resolve/17960ee6acf283183e456c593364805c82125c28/model.safetensors",
         dataset="s3dis-area4",
         metrics={"mIoU": 60.05, "OA": 85.69},
         classes=S3DIS_CLASSES,
@@ -1080,7 +1084,7 @@ def pointnet2_openpoints_s3dis_area4(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area5.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area5.openpoints/resolve/6065fd44a9c7166903d7f12ff35a2c034918127e/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area5.openpoints/resolve/587c487e4965e0a11657701996324019e2426778/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 63.67, "OA": 88.24},
         classes=S3DIS_CLASSES,
@@ -1098,7 +1102,7 @@ def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
     "pointnet2.s3dis-area6.openpoints",
     task="segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2.s3dis-area6.openpoints/resolve/1416391a8806b450e43260ccd9caf3398dc693e2/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2.s3dis-area6.openpoints/resolve/7ca38dfd0b933db8f07881accdffc2601e5c77fa/model.safetensors",
         dataset="s3dis-area6",
         metrics={"mIoU": 82.46, "OA": 92.99},
         classes=S3DIS_CLASSES,

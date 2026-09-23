@@ -14,7 +14,12 @@ from torch_geometric.typing import OptTensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
-from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule, ensure_msg_list, ensure_msg_list_size
+from torch_pointcloud.layers.pointnet2_blocks import (
+    PointNet2FeaturePropagation,
+    PointNet2SetAbstraction,
+    ensure_msg_list,
+    ensure_msg_list_size,
+)
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -68,7 +73,7 @@ class PVCNN2EncoderBlock(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        sa_module: Optional[SAModule] = None,
+        sa_module: Optional[PointNet2SetAbstraction] = None,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -181,9 +186,9 @@ class PVCNN2Encoder(nn.Module):
 
         self.blocks = nn.ModuleList([])
         for i in range(num_blocks):
-            sa_block: Optional[SAModule] = None
+            sa_block: Optional[PointNet2SetAbstraction] = None
             if i > 0:
-                sa_block = SAModule(
+                sa_block = PointNet2SetAbstraction(
                     in_channels=self.channels[i],
                     channels=self.sa_channels[i - 1],
                     ratio=self.ratios[i - 1],
@@ -289,7 +294,7 @@ class PVCNN2DecoderBlock(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        fp_module: Optional[FPModule] = None,
+        fp_module: Optional[PointNet2FeaturePropagation] = None,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -406,15 +411,17 @@ class PVCNN2Decoder(nn.Module):
         self.blocks = nn.ModuleList([])
         for i in range(n):
             fp_in_channels = self.in_channels if i == 0 else int(self.fp_channels[i - 1][-1])
-            fp_module = FPModule(
-                in_channels=fp_in_channels + self.skip_channels[i],
-                channels=self.fp_channels[i],
+            fp_module = PointNet2FeaturePropagation(
+                channels=[fp_in_channels + self.skip_channels[i], *self.fp_channels[i]],
                 k=3,  # TODO: replace with spatial_dim
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
                 norm=norm,
                 norm_kwargs=norm_kwargs,
+                bias=False,
+                plain_last=False,
+                weighting="squared",
             )
 
             block = PVCNN2DecoderBlock(

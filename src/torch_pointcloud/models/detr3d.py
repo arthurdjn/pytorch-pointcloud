@@ -17,7 +17,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
 from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers import create_act, create_norm
-from torch_pointcloud.layers.pointnet2_blocks import SAModule
+from torch_pointcloud.layers.pointnet2_blocks import PointNet2SetAbstraction
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -74,11 +74,11 @@ class DETR3DTrainOutput(DETR3DOutput, total=False):
 class PointnetSAModuleVotes(nn.Module):
     r"""Set-abstraction tokenizer mirroring 3DETR's `PointnetSAModuleVotes` (single-scale, max pool).
 
-    Wraps [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule] with the reference settings:
-    farthest-point-sampled centroids, a ball query that normalizes the relative position by the radius and
-    concatenates it before the grouped features (`pos_first`), and a shared MLP whose first width already
-    accounts for the $3$ position channels. Returns the sampling index so the encoder can trace tokens back
-    to the input.
+    Wraps [`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction] with the
+    reference settings: farthest-point-sampled centroids, a ball query that normalizes the relative position by the
+    radius and concatenates it before the grouped features (`pos_first`), and a shared MLP whose first width already
+    accounts for the $3$ position channels. Returns the sampling index so the encoder can trace tokens back to the
+    input.
 
     Args:
         in_channels: Input feature channels per point (excluding xyz).
@@ -108,7 +108,7 @@ class PointnetSAModuleVotes(nn.Module):
         super().__init__()
         self.num_points = num_points
         self.out_channels = channels[-1]
-        self.sa = SAModule(
+        self.sa = PointNet2SetAbstraction(
             in_channels=in_channels,
             channels=list(channels),
             num_points=num_points,
@@ -118,7 +118,7 @@ class PointnetSAModuleVotes(nn.Module):
             normalize_pos=True,
             pos_first=True,
             sort_neighbors=True,
-            pool="max",
+            aggr="max",
             bias=False,
             act=act,
             act_kwargs=act_kwargs,
@@ -1058,7 +1058,7 @@ _SUNRGBD_TRANSFORM = T.Compose(
     "3detr-m.scannet.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/3detr-m.scannet.fair/resolve/d4fa9cf159fdca6a99ceffb2a431e3f9d973cc03/model.safetensors",
+        url="hf://torch-pointcloud/3detr-m.scannet.fair/resolve/85c4ce077acf1a9f611bbeb52a959c891a3c4b59/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 65.46, "mAP@0.5": 47.26},
         classes=SCANNET_DETECTION_CLASSES,
@@ -1083,7 +1083,7 @@ def detr3d_m_scannet(**hparams: Any) -> DETR3DDetection:
     "3detr.scannet.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/3detr.scannet.fair/resolve/ed5c1d12e103e44d4b106c449b57aa6c4e9c0532/model.safetensors",
+        url="hf://torch-pointcloud/3detr.scannet.fair/resolve/d3f48ec2fcbf140d3888bcacc75b3a12489a61a2/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 61.37, "mAP@0.5": 38.43},
         classes=SCANNET_DETECTION_CLASSES,
@@ -1107,7 +1107,7 @@ def detr3d_scannet(**hparams: Any) -> DETR3DDetection:
     "3detr.sunrgbd.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/3detr.sunrgbd.fair/resolve/ac1c63e967b71bb74a9577d91b6cb82ffdc3e9e6/model.safetensors",
+        url="hf://torch-pointcloud/3detr.sunrgbd.fair/resolve/d7d255c9d852901826de4ac28d55b47a07afedd2/model.safetensors",
         dataset="sunrgbd",
         metrics={"mAP@0.25": 58.08, "mAP@0.5": 29.64},
         classes=SUNRGBD_CLASSES,

@@ -12,7 +12,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers.pointnet2_blocks import GlobalSAModule, SAModule
+from torch_pointcloud.layers.pointnet2_blocks import PointNet2GlobalSetAbstraction, PointNet2SetAbstraction
 from torch_pointcloud.utils.box3d import boxes_iou3d, decode_box_residuals, nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -283,7 +283,7 @@ class PointRCNNRefinementHead(nn.Module):
         self.sa_modules = nn.ModuleList()
         for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
             if npoint == -1:
-                module: nn.Module = GlobalSAModule(
+                module: nn.Module = PointNet2GlobalSetAbstraction(
                     channel_in,
                     list(channels),
                     use_pos=True,
@@ -294,7 +294,7 @@ class PointRCNNRefinementHead(nn.Module):
                     norm_kwargs=norm_kwargs,
                 )
             else:
-                module = SAModule(
+                module = PointNet2SetAbstraction(
                     in_channels=channel_in,
                     channels=list(channels),
                     num_points=npoint,
@@ -303,7 +303,7 @@ class PointRCNNRefinementHead(nn.Module):
                     use_pos=True,
                     normalize_pos=False,
                     pos_first=True,
-                    pool="max",
+                    aggr="max",
                     bias=False,
                     act=act,
                     act_kwargs=act_kwargs,
@@ -1055,7 +1055,7 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
     "pointrcnn.kitti.openpcdet",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointrcnn.kitti.openpcdet/resolve/23a558c128a02b28cc2dcc7baa2cd7fccedb1b33/model.safetensors",
+        url="hf://torch-pointcloud/pointrcnn.kitti.openpcdet/resolve/fabc65a24dc9a90aed2d435a901b63e96fe426d8/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 69.29, "AP/Car": 78.67, "AP/Pedestrian": 56.94, "AP/Cyclist": 72.27},
         classes=("Car", "Pedestrian", "Cyclist"),

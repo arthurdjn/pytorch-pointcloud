@@ -12,7 +12,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import FPModule, PointPatchEmbed, TransformerBlock
+from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.data import DataKeys
@@ -199,7 +199,7 @@ class ConvResBlock1d(nn.Module):
 class FeaturePropagation(nn.Module):
     r"""Interpolate features from a coarse set to a fine set, fuse and refine them.
 
-    Each fine point gathers the three nearest coarse points with the shared packed `FPModule`
+    Each fine point gathers the three nearest coarse points with the shared packed `PointNet2FeaturePropagation`
     interpolation, optionally concatenates the fine features, then applies a fuse `MLP` and a residual
     extraction stack. Used by the pre-training decoder. The interpolation matches the reference
     inverse-distance-squared weighting ($1 / (d^2 + 10^{-8})$) up to the $\sim 10^{-6}$ difference between
@@ -233,15 +233,15 @@ class FeaturePropagation(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        self.fp = FPModule(
-            in_channels=in_channels,
-            channels=[out_channels],
+        self.fp = PointNet2FeaturePropagation(
+            channels=[in_channels, out_channels],
             k=3,
             act=act,
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
             bias=True,
+            plain_last=False,
             weighting="squared",
             eps=1e-8,
         )
@@ -665,13 +665,13 @@ class PointM2AESegmentation(SegmentationModel):
         """Build the per-stage feature-propagation modules interpolating stage features to every point."""
         return nn.ModuleList(
             [
-                FPModule(
-                    in_channels=self.encoder_dims[i] + 3,
-                    channels=[self.embed_dim * 4, 1024],
+                PointNet2FeaturePropagation(
+                    channels=[self.encoder_dims[i] + 3, self.embed_dim * 4, 1024],
                     k=3,
                     act="relu",
                     norm="batch_norm",
                     bias=True,
+                    plain_last=False,
                     weighting="squared",
                     eps=1e-8,
                 )
