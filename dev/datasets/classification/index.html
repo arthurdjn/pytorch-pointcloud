@@ -1527,7 +1527,7 @@
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Match the variant to the checkpoint</p>
-<p>Checkpoint names spell out which setting they were trained on: <code>point-mae-base.scanobjectnn-objbg.yatian-pang</code>, <code>point-mamba-base.scanobjectnn-augmentedrot-scale75.dingkang-liang</code>. Load the dataset with the same variant, or the score you get back will not be the published one.</p>
+<p>Checkpoint names spell out which setting they were trained on: <code>-objbg</code> is OBJ_BG (<code>background=True</code>), <code>-objonly</code> is OBJ_ONLY (<code>background=False</code>) and <code>-hardest</code> is PB_T50_RS (<code>background=True, variant="augmentedrot_scale75"</code>), as in <code>point-mae-base.scanobjectnn-objbg.yatian-pang</code> or <code>point-mamba-base.scanobjectnn-hardest.dingkang-liang</code>.</p>
 </div>
 <h2 id="batch-the-samples">Batch the samples<a class="headerlink" href="#batch-the-samples" title="Anchor link to this section">&para;</a></h2>
 <p>Batching uses the packed format. <code>PointCloudDataLoader</code> is a <code>DataLoader</code> whose <code>collate_fn</code> defaults to the packed <code>collate</code>: per-point tensors are concatenated into one tensor, and a <code>batch</code> index is built alongside them.</p>
