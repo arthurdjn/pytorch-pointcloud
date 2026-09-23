@@ -5634,7 +5634,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;ScanObjectNN&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/datasets/scanobjectnn.py#L64-L238&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.scanobjectnn.ScanObjectNN">ScanObjectNN</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4417c40ffe0aa872cf7fa2c1ef6e1ea2458c35c9/src/torch_pointcloud/datasets/scanobjectnn.py#L64-L246&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.scanobjectnn.ScanObjectNN">ScanObjectNN</a></code></b>
           –
           <div class="doc-md-description">
             <p>The ScanObjectNN dataset of 3D object point clouds, as described in the paper</p>
@@ -5666,7 +5666,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ScanObjectNN</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/datasets/scanobjectnn.py#L64-L238" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4417c40ffe0aa872cf7fa2c1ef6e1ea2458c35c9/src/torch_pointcloud/datasets/scanobjectnn.py#L64-L246" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.datasets.scanobjectnn.ScanObjectNN" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ScanObjectNN</span><span class="p">(</span>
@@ -5687,7 +5687,8 @@
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">force_download</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="n">force_process</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="n">show_progress</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="p">)</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">accept_terms</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5695,13 +5696,16 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointCloudDataset&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/datasets/pointcloud.py#L11-L78&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../pointcloud/#torch_pointcloud.datasets.pointcloud.PointCloudDataset">PointCloudDataset</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4417c40ffe0aa872cf7fa2c1ef6e1ea2458c35c9/src/torch_pointcloud/datasets/pointcloud.py#L11-L78&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../pointcloud/#torch_pointcloud.datasets.pointcloud.PointCloudDataset">PointCloudDataset</a></code></p>
 
 
 
         <p>The ScanObjectNN dataset of 3D object point clouds, as described in the paper
 <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1908.04616">Revisiting Point Cloud Classification: A New Benchmark Dataset and Classification Model on Real-World Data</a>
 by Mikaela Angelina Uy, Quang-Hieu Pham, Binh-Son Hua, Duc Thanh Nguyen, Sai-Kit Yeung (submitted on 2019).</p>
+<p>The dataset is released under a terms-of-use agreement (<code>terms_url</code>): accept it, then pass
+<code>download=True, accept_terms=True</code> (or answer the prompt <code>download=True</code> alone raises on the terminal), or place
+the <code>h5_files</code> folder under <code>raw</code> by hand.</p>
 
 
 

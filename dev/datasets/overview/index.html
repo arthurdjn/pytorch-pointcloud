@@ -1444,7 +1444,7 @@
     </g>
 </svg>
 </span> <code>torch-pointcloud</code> provides several datasets for benchmarking and training. Each dataset returns a single <code>dict</code> (the format consumed by <a href="../../transforms/overview/">transforms</a>) and integrates with <code>torch.utils.data.DataLoader</code> via the <code>collate</code> helper in <code>torch_pointcloud.utils.data</code>.</p>
-<p>Datasets with an automatic download take <code>download=True</code>; the others must be downloaded manually. Datasets that preprocess their data keep the original files in <code>raw</code> and the cache <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 167.29 200.00">
+<p>Datasets with an automatic download take <code>download=True</code>; the others must be downloaded manually. S3DIS, ScanNet and ScanObjectNN are released under terms of use: read and accept them (each class links its <code>terms_url</code>), then pass <code>accept_terms=True</code> next to <code>download=True</code>, or answer the confirmation <code>download</code> asks for on the terminal. Datasets that preprocess their data keep the original files in <code>raw</code> and the cache <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 167.29 200.00">
     <metadata>
         <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
