@@ -451,12 +451,6 @@
         <loc>https://pytorch-pointcloud.org/latest/api/utils/data/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/diffusion/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/ensemble/</loc>
-      </url>
-      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/geometry/</loc>
       </url>
       <url>

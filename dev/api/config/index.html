@@ -5008,60 +5008,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../utils/diffusion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  diffusion
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../utils/ensemble/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  ensemble
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../utils/geometry/" class="md-nav__link">
         
   
@@ -5606,18 +5552,13 @@
 <td><code>"data"</code></td>
 </tr>
 <tr>
-<td><code>RANDOM_SEED</code></td>
-<td>The random seed for the package.</td>
-<td><code>None</code></td>
-</tr>
-<tr>
 <td><code>FPS_RANDOM_START</code></td>
-<td>Whether to start the random seed from the current time.</td>
+<td>Overrides the <code>random_start</code> of every farthest point sampling call; <code>None</code> keeps each call's own.</td>
 <td><code>None</code></td>
 </tr>
 <tr>
 <td><code>KNN_DENSE_BUDGET</code></td>
-<td>The dense budget for the KNN.</td>
+<td>Largest <span class="arithmatex">\(B N_x N_y\)</span> (clouds times points squared) for which <code>knn</code> computes dense pairwise distances.</td>
 <td><code>16_000_000</code></td>
 </tr>
 </tbody>
@@ -5640,7 +5581,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;asbool&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/e628471a022e1fe16583b3470e52ba8b1563b3d4/src/torch_pointcloud/config.py#L21-L34&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.config.asbool">asbool</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3605d575da465eae0d9213b04e185deed8247292/src/torch_pointcloud/config.py#L20-L33&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.config.asbool">asbool</a></code></b>
             –
             <div class="doc-md-description">
               <p>Parse an environment variable as a boolean.</p>
@@ -5650,7 +5591,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;asint&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/e628471a022e1fe16583b3470e52ba8b1563b3d4/src/torch_pointcloud/config.py#L37-L52&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.config.asint">asint</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/3605d575da465eae0d9213b04e185deed8247292/src/torch_pointcloud/config.py#L36-L51&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.config.asint">asint</a></code></b>
             –
             <div class="doc-md-description">
               <p>Parse an environment variable as an integer.</p>
@@ -5680,7 +5621,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">asbool</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/e628471a022e1fe16583b3470e52ba8b1563b3d4/src/torch_pointcloud/config.py#L21-L34" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/3605d575da465eae0d9213b04e185deed8247292/src/torch_pointcloud/config.py#L20-L33" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.config.asbool" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">asbool</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="bool">bool</span></span><span class="p">]</span>
@@ -5734,7 +5675,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">asint</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/e628471a022e1fe16583b3470e52ba8b1563b3d4/src/torch_pointcloud/config.py#L37-L52" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/3605d575da465eae0d9213b04e185deed8247292/src/torch_pointcloud/config.py#L36-L51" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.config.asint" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">asint</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span>
