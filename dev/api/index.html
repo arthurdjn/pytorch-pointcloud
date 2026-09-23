@@ -5698,7 +5698,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;create_model&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/cf8bc487b389fedc533f55c779d820aaff3f1b75/src/torch_pointcloud/models/_registry.py#L375-L471&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.create_model">create_model</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/models/_registry.py#L375-L477&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.create_model">create_model</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build a registered model, optionally loading pretrained or local checkpoint weights.</p>
@@ -5708,7 +5708,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;list_models&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/cf8bc487b389fedc533f55c779d820aaff3f1b75/src/torch_pointcloud/models/_registry.py#L474-L506&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.list_models">list_models</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/models/_registry.py#L480-L512&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.list_models">list_models</a></code></b>
             –
             <div class="doc-md-description">
               <p>List registered model names, sorted alphabetically.</p>
@@ -5718,7 +5718,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;register_model&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/cf8bc487b389fedc533f55c779d820aaff3f1b75/src/torch_pointcloud/models/_registry.py#L111-L176&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.register_model">register_model</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/models/_registry.py#L111-L176&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.register_model">register_model</a></code></b>
             –
             <div class="doc-md-description">
               <p>Register a model entry point under <code>name</code> for <code>task</code>.</p>
@@ -5748,7 +5748,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">create_model</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/cf8bc487b389fedc533f55c779d820aaff3f1b75/src/torch_pointcloud/models/_registry.py#L375-L471" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/models/_registry.py#L375-L477" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.create_model" class="headerlink" title="Anchor link to this section">&para;</a></h3>
           <div class="doc-overloads">
@@ -5933,7 +5933,8 @@ files, <code>.safetensors</code>, and Lightning checkpoints (the wrapped network
               <code><span title="ValueError">ValueError</span></code>
             –
           <div class="doc-md-description">
-            <p>If <code>task</code> or <code>name</code> is unknown, or both <code>pretrained</code> and <code>checkpoint_path</code> are passed.</p>
+            <p>If <code>task</code> or <code>name</code> is unknown, if both <code>pretrained</code> and <code>checkpoint_path</code> are passed, or if
+<code>pretrained</code> is requested for an entry that registers no weights.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -5973,7 +5974,7 @@ the models cache and cannot be downloaded.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">list_models</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/cf8bc487b389fedc533f55c779d820aaff3f1b75/src/torch_pointcloud/models/_registry.py#L474-L506" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/models/_registry.py#L480-L512" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.list_models" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">list_models</span><span class="p">(</span>
@@ -6054,7 +6055,7 @@ the models cache and cannot be downloaded.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">register_model</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/cf8bc487b389fedc533f55c779d820aaff3f1b75/src/torch_pointcloud/models/_registry.py#L111-L176" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/767cca22debc489bbee8f3783ceb0b0e439e432c/src/torch_pointcloud/models/_registry.py#L111-L176" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.register_model" class="headerlink" title="Anchor link to this section">&para;</a></h3>
           <div class="doc-overloads">
