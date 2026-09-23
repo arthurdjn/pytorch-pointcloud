@@ -34,7 +34,7 @@ class WeightsDict(TypedDict):
         metrics: Scores measured with this package's benchmark scripts, keyed by metric name
             (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
         classes: Label names in prediction-channel order, so `classes[i]` names class $i$ of the head.
-        author: Tag identifying who trained the original checkpoint (e.g. `openpcdet`, `facebookresearch`).
+        author: Tag identifying who trained the original checkpoint (e.g. `openpcdet`, `fair`).
         license: License of the weight file (e.g. `CC-BY-NC-4.0`), when the source repository declares one.
     """
 

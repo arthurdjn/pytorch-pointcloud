@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed `utils.diffusion` and `utils.ensemble`, which nothing used.
+- Removed `config.RANDOM_SEED`, which nothing read.
+
 ## 0.0.6 (2026-09-23)
 
 - Renamed the ScanObjectNN checkpoints to name their split (`-hardest`, `-objbg`, `-objonly`) and the KPConv checkpoints to `s3dis-area5`.

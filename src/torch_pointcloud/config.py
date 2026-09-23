@@ -8,9 +8,8 @@ This module contains the following global variables for configuration:
 | `CACHE_DIR` | The cache directory for the package. | `Path(HOME_DIR, ".cache", "torch-pointcloud").as_posix()` |
 | `MODELS_DIR` | The directory for the models. | `Path(CACHE_DIR, "models").as_posix()` |
 | `DATA_DIR` | The directory for the data. | `"data"` |
-| `RANDOM_SEED` | The random seed for the package. | `None` |
-| `FPS_RANDOM_START` | Whether to start the random seed from the current time. | `None` |
-| `KNN_DENSE_BUDGET` | The dense budget for the KNN. | `16_000_000` |
+| `FPS_RANDOM_START` | Overrides the `random_start` of every farthest point sampling call; `None` keeps each call's own. | `None` |
+| `KNN_DENSE_BUDGET` | Largest $B N_x N_y$ (clouds times points squared) for which `knn` computes dense pairwise distances. | `16_000_000` |
 """
 
 import os
@@ -57,7 +56,5 @@ CACHE_DIR = os.getenv("TORCH_POINTCLOUD_CACHE_DIR", Path(HOME_DIR, ".cache", "to
 MODELS_DIR = os.getenv("TORCH_POINTCLOUD_MODELS_DIR", Path(CACHE_DIR, "models").as_posix())
 DATA_DIR = os.getenv("TORCH_POINTCLOUD_DATA_DIR", "data")
 
-# Some variables to affect how random operations are performed.
-RANDOM_SEED = asint(os.getenv("TORCH_POINTCLOUD_RANDOM_SEED", None))
 FPS_RANDOM_START = asbool(os.getenv("TORCH_POINTCLOUD_FPS_RANDOM_START", None))
 KNN_DENSE_BUDGET = asint(os.getenv("TORCH_POINTCLOUD_KNN_DENSE_BUDGET", None)) or 16_000_000
