@@ -2,7 +2,7 @@
 
 :pytorch-pointcloud-mini: `torch-pointcloud` provides several datasets for benchmarking and training. Each dataset returns a single `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
 
-Datasets with an automatic download take `download=True`; the others must be downloaded manually. Datasets that preprocess their data keep the original files in `raw` and the cache :pytorch-pointcloud-mini: `torch-pointcloud` builds from them in `processed`:
+Datasets with an automatic download take `download=True`; the others must be downloaded manually. S3DIS, ScanNet and ScanObjectNN are released under terms of use: read and accept them (each class links its `terms_url`), then pass `accept_terms=True` next to `download=True`, or answer the confirmation `download` asks for on the terminal. Datasets that preprocess their data keep the original files in `raw` and the cache :pytorch-pointcloud-mini: `torch-pointcloud` builds from them in `processed`:
 
 ```text
 data

@@ -86,6 +86,39 @@ def urlsize(
         return int(size) if size is not None else None
 
 
+def check_terms_accepted(accept_terms: bool, name: str, terms_url: str) -> None:
+    """Confirm the terms of use that gate a dataset's automatic download, asking on the terminal when not passed.
+
+    Args:
+        accept_terms: The `accept_terms` flag the dataset was built with. When false, the confirmation is asked
+            interactively with `input`; a non-interactive session (closed or captured stdin) counts as a refusal.
+        name: Dataset class name, for the prompt and the error message.
+        terms_url: Where the terms of use are read and accepted.
+
+    Raises:
+        RuntimeError: If the terms are not accepted.
+
+    Example:
+        ```python
+        from torch_pointcloud.datasets.utils import check_terms_accepted
+
+        check_terms_accepted(True, "ScanObjectNN", "https://forms.gle/ZZRnnmaUdwfRucoy7")
+        ```
+    """
+    if accept_terms:
+        return
+    message = (
+        f"{name} is released under a terms-of-use agreement: {terms_url}. Read and accept it, then pass "
+        "`accept_terms=True` to download the raw data, or download it by hand."
+    )
+    try:
+        answer = input(f"{name} is released under a terms-of-use agreement: {terms_url}\nAccept the terms? [y/N] ")
+    except (EOFError, OSError):
+        raise RuntimeError(message) from None
+    if answer.strip().lower() not in {"y", "yes"}:
+        raise RuntimeError(message)
+
+
 def download_url(
     url: str,
     file_path: PathLike = "",

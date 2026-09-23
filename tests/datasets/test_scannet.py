@@ -370,7 +370,7 @@ def test_scannet_dataset_download_rejects_malicious_scan_id(
 ) -> None:
     """A remote scan id with path separators is rejected before any write"""
     datasets_dir = datasets_dir_factory("ScanNet/processed/**/*")
-    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    dataset = ScanNet(root=datasets_dir, split="train", accept_terms=True, show_progress=False)
 
     monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", Mock())
     urlopen_mock = MagicMock()
@@ -664,3 +664,13 @@ def test_scannet_dataset_getitem_returns_shallow_copy(datasets_dir_factory: Call
     assert sample is not dataset[0]
     sample["extra"] = 1
     assert "extra" not in dataset[0]
+
+
+def test_scannet_download_requires_accepted_terms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`download=True` without `accept_terms=True` asks on the terminal, and a refusal raises before any request."""
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    download_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", download_mock)
+    with pytest.raises(RuntimeError, match="terms-of-use"):
+        _ = ScanNet(root=tmp_path, download=True, show_progress=False)
+    download_mock.assert_not_called()

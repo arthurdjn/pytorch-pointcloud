@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `accept_terms` to `S3DIS`, `S3DISHdf5`, `ScanNet` and `ScanObjectNN`; `download` asks for it on the terminal otherwise.
 - Updated `create_model(pretrained=True)` to raise when the model registers no weights.
 - Added `torch_pointcloud.metrics` to the package namespace.
 

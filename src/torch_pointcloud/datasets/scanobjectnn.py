@@ -17,7 +17,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import compute_hash, download_url, extract_zip, is_hash_valid
+from .utils import check_terms_accepted, compute_hash, download_url, extract_zip, is_hash_valid
 
 ScanObjectNNPartition = Literal["main", "split1", "split2", "split3", "split4"]
 SCANOBJECTNN_PARTITIONS = get_args(ScanObjectNNPartition)
@@ -65,9 +65,14 @@ class ScanObjectNN(PointCloudDataset):
     r"""The ScanObjectNN dataset of 3D object point clouds, as described in the paper
     :arxiv: [Revisiting Point Cloud Classification: A New Benchmark Dataset and Classification Model on Real-World Data](https://arxiv.org/abs/1908.04616)
     by Mikaela Angelina Uy, Quang-Hieu Pham, Binh-Son Hua, Duc Thanh Nguyen, Sai-Kit Yeung (submitted on 2019).
+
+    The dataset is released under a terms-of-use agreement (`terms_url`): accept it, then pass
+    `download=True, accept_terms=True` (or answer the prompt `download=True` alone raises on the terminal), or place
+    the `h5_files` folder under `raw` by hand.
     """
 
     data_url = "https://hkust-vgd.ust.hk/scanobjectnn/"
+    terms_url = "https://forms.gle/ZZRnnmaUdwfRucoy7"
     resource = "h5_files.zip"
     md5 = "36876af479f9ad39abad5ebcd89038dd"
 
@@ -86,6 +91,7 @@ class ScanObjectNN(PointCloudDataset):
         force_download: bool = False,
         force_process: bool = False,
         show_progress: bool = True,
+        accept_terms: bool = False,
     ) -> None:
         super().__init__(root)
         self.train = train
@@ -94,6 +100,7 @@ class ScanObjectNN(PointCloudDataset):
         self.variant = variant
         self.classes = tuple(self.original_classes if classes == "all" else ensure_tuple(classes))
         self.transform = transform
+        self.accept_terms = accept_terms
 
         _check_partition(self.partition)
         _check_variant(self.variant)
@@ -145,6 +152,7 @@ class ScanObjectNN(PointCloudDataset):
     def download(self, force: bool = False, show_progress: bool = True) -> None:
         if self.raw_files_exist() and not force:
             return
+        check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         url = f"{self.data_url}/{self.resource}"
         resource_path = Path(self.raw_dir, self.resource)
@@ -175,7 +183,7 @@ class ScanObjectNN(PointCloudDataset):
                 f"Dataset not found at {self.raw_dir!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
                 f"and extract it under {self.raw_dir!r}.\n"
-                "Please agree to the terms of use at the following link: https://forms.gle/ZZRnnmaUdwfRucoy7."
+                f"Please agree to the terms of use at the following link: {self.terms_url}."
             )
 
         with h5py.File(self.raw_file, "r") as f:

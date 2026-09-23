@@ -295,9 +295,19 @@ def test_s3dis_download_retries_corrupt_archive_with_overwrite(tmp_path: Path, m
     archive.write_bytes(b"corrupt")
 
     with pytest.raises(RuntimeError, match="MD5"):
-        _ = S3DIS(root=tmp_path, download=True, show_progress=False)
+        _ = S3DIS(root=tmp_path, download=True, accept_terms=True, show_progress=False)
 
     assert ("Stanford3dDataset_v1.2_Aligned_Version.zip", True) in calls
+
+
+def test_s3dis_download_requires_accepted_terms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`download=True` without `accept_terms=True` asks on the terminal, and a refusal raises before any request"""
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    download_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", download_mock)
+    with pytest.raises(RuntimeError, match="terms-of-use"):
+        _ = S3DIS(root=tmp_path, download=True, show_progress=False)
+    download_mock.assert_not_called()
 
 
 def test_s3dis_dataset_leftover_archive_detected(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -331,7 +341,7 @@ def test_s3dis_download_marks_extraction_complete(
         return str(out_dir)
 
     datasets_dir = datasets_dir_factory("S3DIS/processed_aligned/**/*")
-    dataset = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
+    dataset = S3DIS(root=datasets_dir, areas=["Area_1"], accept_terms=True, show_progress=False)
     monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", fake_download)
     monkeypatch.setattr("torch_pointcloud.datasets.s3dis.extract_zip", fake_extract)
     monkeypatch.setattr("torch_pointcloud.datasets.s3dis.is_hash_valid", lambda *args, **kwargs: True)
@@ -356,12 +366,22 @@ def test_s3dis_hdf5_download_retries_corrupt_archive_with_overwrite(
     monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", fake_download)
 
     with pytest.raises(RuntimeError, match="MD5"):
-        _ = S3DISHdf5(root=tmp_path, download=True, show_progress=False)
+        _ = S3DISHdf5(root=tmp_path, download=True, accept_terms=True, show_progress=False)
 
     assert ("indoor3d_sem_seg_hdf5_data.zip", True) in calls
 
 
 HDF5_GLOB = "S3DIS/indoor3d_sem_seg_hdf5_data/**/*"
+
+
+def test_s3dis_hdf5_download_requires_accepted_terms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`download=True` without `accept_terms=True` asks on the terminal, and a refusal raises before any request"""
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    download_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.s3dis.download_url", download_mock)
+    with pytest.raises(RuntimeError, match="terms-of-use"):
+        _ = S3DISHdf5(root=tmp_path, download=True, show_progress=False)
+    download_mock.assert_not_called()
 
 
 def test_s3dis_hdf5_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -394,7 +414,7 @@ def test_s3dis_hdf5_download_extracts_flat_and_loads(
     monkeypatch.setattr("torch_pointcloud.datasets.s3dis.is_hash_valid", lambda *args, **kwargs: True)
 
     root = tmp_path / "fresh"
-    dataset = S3DISHdf5(root=root, download=True, show_progress=False)
+    dataset = S3DISHdf5(root=root, download=True, accept_terms=True, show_progress=False)
     assert Path(dataset.raw_dir, "all_files.txt").exists()
     assert not Path(dataset.raw_dir, "indoor3d_sem_seg_hdf5_data").exists()
     assert len(dataset) > 0
