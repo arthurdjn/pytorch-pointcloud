@@ -1,246 +1,246 @@
 {
   "num_params": 967690,
   "state_dict": {
-    "encoder.sa_blocks.0.mlps.0.lins.0.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.lins.0.weight": [
       32,
       6
     ],
-    "encoder.sa_blocks.0.mlps.0.lins.0.bias": [
+    "encoder.sa_blocks.0.convs.0.local_nn.lins.0.bias": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.lins.1.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.lins.1.weight": [
       32,
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.lins.1.bias": [
+    "encoder.sa_blocks.0.convs.0.local_nn.lins.1.bias": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.lins.2.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.lins.2.weight": [
       64,
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.lins.2.bias": [
+    "encoder.sa_blocks.0.convs.0.local_nn.lins.2.bias": [
       64
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.0.module.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.0.module.weight": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.0.module.bias": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.0.module.bias": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.0.module.running_mean": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.0.module.running_mean": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.0.module.running_var": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.0.module.running_var": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.0.module.num_batches_tracked": [],
-    "encoder.sa_blocks.0.mlps.0.norms.1.module.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.1.module.weight": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.1.module.bias": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.1.module.bias": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.1.module.running_mean": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.1.module.running_mean": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.1.module.running_var": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.1.module.running_var": [
       32
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.1.module.num_batches_tracked": [],
-    "encoder.sa_blocks.0.mlps.0.norms.2.module.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.2.module.weight": [
       64
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.2.module.bias": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.2.module.bias": [
       64
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.2.module.running_mean": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.2.module.running_mean": [
       64
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.2.module.running_var": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.2.module.running_var": [
       64
     ],
-    "encoder.sa_blocks.0.mlps.0.norms.2.module.num_batches_tracked": [],
-    "encoder.sa_blocks.1.mlps.0.lins.0.weight": [
+    "encoder.sa_blocks.0.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "encoder.sa_blocks.1.convs.0.local_nn.lins.0.weight": [
       64,
       67
     ],
-    "encoder.sa_blocks.1.mlps.0.lins.0.bias": [
+    "encoder.sa_blocks.1.convs.0.local_nn.lins.0.bias": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.lins.1.weight": [
+    "encoder.sa_blocks.1.convs.0.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.lins.1.bias": [
+    "encoder.sa_blocks.1.convs.0.local_nn.lins.1.bias": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.lins.2.weight": [
+    "encoder.sa_blocks.1.convs.0.local_nn.lins.2.weight": [
       128,
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.lins.2.bias": [
+    "encoder.sa_blocks.1.convs.0.local_nn.lins.2.bias": [
       128
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.0.module.weight": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.0.module.weight": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.0.module.bias": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.0.module.bias": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.0.module.running_mean": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.0.module.running_var": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.0.module.running_var": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.0.module.num_batches_tracked": [],
-    "encoder.sa_blocks.1.mlps.0.norms.1.module.weight": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.1.module.weight": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.1.module.bias": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.1.module.bias": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.1.module.running_mean": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.1.module.running_var": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.1.module.running_var": [
       64
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.1.module.num_batches_tracked": [],
-    "encoder.sa_blocks.1.mlps.0.norms.2.module.weight": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.2.module.weight": [
       128
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.2.module.bias": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.2.module.bias": [
       128
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.2.module.running_mean": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.2.module.running_mean": [
       128
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.2.module.running_var": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.2.module.running_var": [
       128
     ],
-    "encoder.sa_blocks.1.mlps.0.norms.2.module.num_batches_tracked": [],
-    "encoder.sa_blocks.2.mlps.0.lins.0.weight": [
+    "encoder.sa_blocks.1.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "encoder.sa_blocks.2.convs.0.local_nn.lins.0.weight": [
       128,
       131
     ],
-    "encoder.sa_blocks.2.mlps.0.lins.0.bias": [
+    "encoder.sa_blocks.2.convs.0.local_nn.lins.0.bias": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.lins.1.weight": [
+    "encoder.sa_blocks.2.convs.0.local_nn.lins.1.weight": [
       128,
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.lins.1.bias": [
+    "encoder.sa_blocks.2.convs.0.local_nn.lins.1.bias": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.lins.2.weight": [
+    "encoder.sa_blocks.2.convs.0.local_nn.lins.2.weight": [
       256,
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.lins.2.bias": [
+    "encoder.sa_blocks.2.convs.0.local_nn.lins.2.bias": [
       256
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.0.module.weight": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.0.module.weight": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.0.module.bias": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.0.module.bias": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.0.module.running_mean": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.0.module.running_mean": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.0.module.running_var": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.0.module.running_var": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.0.module.num_batches_tracked": [],
-    "encoder.sa_blocks.2.mlps.0.norms.1.module.weight": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.1.module.weight": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.1.module.bias": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.1.module.bias": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.1.module.running_mean": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.1.module.running_mean": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.1.module.running_var": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.1.module.running_var": [
       128
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.1.module.num_batches_tracked": [],
-    "encoder.sa_blocks.2.mlps.0.norms.2.module.weight": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.2.module.weight": [
       256
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.2.module.bias": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.2.module.bias": [
       256
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.2.module.running_mean": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.2.module.running_mean": [
       256
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.2.module.running_var": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.2.module.running_var": [
       256
     ],
-    "encoder.sa_blocks.2.mlps.0.norms.2.module.num_batches_tracked": [],
-    "encoder.sa_blocks.3.mlps.0.lins.0.weight": [
+    "encoder.sa_blocks.2.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "encoder.sa_blocks.3.convs.0.local_nn.lins.0.weight": [
       256,
       259
     ],
-    "encoder.sa_blocks.3.mlps.0.lins.0.bias": [
+    "encoder.sa_blocks.3.convs.0.local_nn.lins.0.bias": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.lins.1.weight": [
+    "encoder.sa_blocks.3.convs.0.local_nn.lins.1.weight": [
       256,
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.lins.1.bias": [
+    "encoder.sa_blocks.3.convs.0.local_nn.lins.1.bias": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.lins.2.weight": [
+    "encoder.sa_blocks.3.convs.0.local_nn.lins.2.weight": [
       512,
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.lins.2.bias": [
+    "encoder.sa_blocks.3.convs.0.local_nn.lins.2.bias": [
       512
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.0.module.weight": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.0.module.weight": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.0.module.bias": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.0.module.bias": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.0.module.running_mean": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.0.module.running_mean": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.0.module.running_var": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.0.module.running_var": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.0.module.num_batches_tracked": [],
-    "encoder.sa_blocks.3.mlps.0.norms.1.module.weight": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.1.module.weight": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.1.module.bias": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.1.module.bias": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.1.module.running_mean": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.1.module.running_mean": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.1.module.running_var": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.1.module.running_var": [
       256
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.1.module.num_batches_tracked": [],
-    "encoder.sa_blocks.3.mlps.0.norms.2.module.weight": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.2.module.weight": [
       512
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.2.module.bias": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.2.module.bias": [
       512
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.2.module.running_mean": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.2.module.running_mean": [
       512
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.2.module.running_var": [
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.2.module.running_var": [
       512
     ],
-    "encoder.sa_blocks.3.mlps.0.norms.2.module.num_batches_tracked": [],
+    "encoder.sa_blocks.3.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
     "decoder.fp_blocks.0.mlp.lins.0.weight": [
       256,
       768

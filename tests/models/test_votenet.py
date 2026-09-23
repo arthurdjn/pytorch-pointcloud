@@ -4,7 +4,6 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.layers.pointnet2_blocks import SAModule
 from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.votenet import VoteNetDetection, VoteNetOutput, VotingModule
@@ -133,31 +132,6 @@ def test_votenet_mean_sizes_not_persisted() -> None:
     assert "mean_sizes" not in model.state_dict()
     # ...but it still moves with the module and drives size decoding.
     assert model.mean_sizes.shape == (18, 3)
-
-
-def test_sa_module_num_points_and_precomputed_idx() -> None:
-    sa = SAModule(in_channels=1, channels=[16, 16], num_points=64, radii=0.4, num_neighbors=16, pos_first=True).eval()
-    pos = torch.rand(500, 3)
-    x = torch.rand(500, 1)
-    batch = torch.zeros(500, dtype=torch.long)
-    with torch.no_grad():
-        new_x, new_pos, new_batch = sa(x, pos, batch)
-    assert new_x.shape == (64, 16)
-    assert new_pos.shape == (64, 3)
-    assert new_batch.shape == (64,)
-    # A precomputed sampling index is honored verbatim.
-    idx = torch.arange(64)
-    with torch.no_grad():
-        nx, npos, _ = sa(x, pos, batch, idx)
-    assert torch.equal(npos, pos[idx])
-    assert nx.shape == (64, 16)
-
-
-def test_sa_module_requires_exactly_one_sampling_spec() -> None:
-    with pytest.raises(ValueError, match="ratio"):
-        SAModule(in_channels=1, channels=[16], radii=0.4, num_neighbors=16)
-    with pytest.raises(ValueError, match="ratio"):
-        SAModule(in_channels=1, channels=[16], ratio=0.5, num_points=64, radii=0.4, num_neighbors=16)
 
 
 def test_votenet_voting_module_residual() -> None:

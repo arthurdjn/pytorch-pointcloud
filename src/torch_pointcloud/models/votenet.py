@@ -15,7 +15,7 @@ import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
 from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
-from torch_pointcloud.layers.pointnet2_blocks import FPModule, SAModule
+from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
@@ -48,12 +48,12 @@ class VoteNetOutput(TypedDict):
 class VoteNetBackbone(nn.Module):
     r"""PointNet++ single-scale-grouping backbone (set abstraction + feature propagation).
 
-    Reuses [`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule] /
-    [`FPModule`][torch_pointcloud.layers.pointnet2_blocks.FPModule]; every layer width, sample count,
-    radius and neighbor cap is a constructor argument (no hardcoded sizes). The seeds are the points at
-    the second SA resolution, recovered by the feature-propagation layers. Their indices into the
-    original packed input are tracked through the first two SA samplings (`idx1[idx2]`) for the voting
-    loss, so the SA samplings of those two blocks are computed here and threaded in.
+    Reuses [`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction] /
+    [`PointNet2FeaturePropagation`][torch_pointcloud.layers.pointnet2_blocks.PointNet2FeaturePropagation]; every
+    layer width, sample count, radius and neighbor cap is a constructor argument (no hardcoded sizes). The seeds are
+    the points at the second SA resolution, recovered by the feature-propagation layers. Their indices into the
+    original packed input are tracked through the first two SA samplings (`idx1[idx2]`) for the voting loss, so the
+    SA samplings of those two blocks are computed here and threaded in.
 
     Args:
         in_channels: Input feature channels per point (excluding xyz).
@@ -91,7 +91,7 @@ class VoteNetBackbone(nn.Module):
         self.sa_modules = nn.ModuleList()
         for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
             block_channels = ensure_list(channels)
-            sa_block = SAModule(
+            sa_block = PointNet2SetAbstraction(
                 in_channels=in_channels,
                 channels=block_channels,
                 num_points=npoint,
@@ -101,7 +101,7 @@ class VoteNetBackbone(nn.Module):
                 normalize_pos=True,
                 pos_first=True,
                 sort_neighbors=True,
-                pool="max",
+                aggr="max",
                 bias=False,
                 act=act,
                 act_kwargs=act_kwargs,
@@ -118,13 +118,13 @@ class VoteNetBackbone(nn.Module):
         self.fp_modules = nn.ModuleList()
         for i, channels in enumerate(fp_channels):
             block_channels = ensure_list(channels)
-            fp_block = FPModule(
-                in_channels=in_channels + skip_channels[num_sa_blocks - 2 - i],
-                channels=block_channels,
+            fp_block = PointNet2FeaturePropagation(
+                channels=[in_channels + skip_channels[num_sa_blocks - 2 - i], *block_channels],
                 k=3,
                 weighting="inverse",
                 eps=1e-8,
                 bias=False,
+                plain_last=False,
                 act=act,
                 act_kwargs=act_kwargs,
                 norm=norm,
@@ -214,8 +214,8 @@ class VoteNetProposalModule(nn.Module):
     r"""Vote aggregation and proposal generation.
 
     Mirrors the reference `ProposalModule`: cluster the votes with a single set-abstraction layer
-    ([`SAModule`][torch_pointcloud.layers.pointnet2_blocks.SAModule]), then a 3-layer linear head
-    decodes objectness, center, heading and size bins/residuals and semantic class per proposal.
+    ([`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction]), then a
+    3-layer linear head decodes objectness, center, heading and size bins/residuals and semantic class per proposal.
 
     Args:
         num_classes: Number of semantic classes.
@@ -257,7 +257,7 @@ class VoteNetProposalModule(nn.Module):
         self.num_proposal = num_proposal
         self.sampling = sampling
 
-        self.vote_aggr = SAModule(
+        self.vote_aggr = PointNet2SetAbstraction(
             in_channels=seed_channels,
             channels=list(vote_aggr_channels),
             num_points=num_proposal,
@@ -267,7 +267,7 @@ class VoteNetProposalModule(nn.Module):
             normalize_pos=True,
             pos_first=True,
             sort_neighbors=True,
-            pool="max",
+            aggr="max",
             bias=False,
             act=act,
             act_kwargs=act_kwargs,
@@ -626,7 +626,7 @@ _SUNRGBD_MEAN_SIZES = [
     "votenet.scannet.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/votenet.scannet.fair/resolve/77b1dc7ed053dfda5b95bda7b1151eda9b20179c/model.safetensors",
+        url="hf://torch-pointcloud/votenet.scannet.fair/resolve/5c71edbed9b9bf1030328012e80f31cee71a8d29/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 57.65, "mAP@0.5": 34.10},
         classes=SCANNET_DETECTION_CLASSES,
@@ -678,7 +678,7 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
     "votenet.sunrgbd.fair",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/votenet.sunrgbd.fair/resolve/16b890ae595ec169ffa100bd13add5803dd8d104/model.safetensors",
+        url="hf://torch-pointcloud/votenet.sunrgbd.fair/resolve/e80c18090b68164c177082772ec44ab76f442942/model.safetensors",
         dataset="sunrgbd",
         metrics={"mAP@0.25": 58.81, "mAP@0.5": 34.15},
         classes=SUNRGBD_CLASSES,

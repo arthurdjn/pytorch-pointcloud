@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Updated PointNet++, VoteNet, PointRCNN, 3DETR, PVCNN++, Point-MAE and Point-M2AE to use the `PointNet2*` layers.
+- Removed `SAModule`, `GlobalSAModule` and `FPModule`, replaced by `PointNet2SetAbstraction`, `PointNet2GlobalSetAbstraction` and `PointNet2FeaturePropagation`.
+- Renamed the `pool` argument of `PointNet2Encoder` to `aggr` and of the PointNet++ models to `sa_aggr`.
+- Updated the 17 checkpoints built on set abstraction to the new parameter names.
 - Removed `utils.diffusion` and `utils.ensemble`, which nothing used.
 - Removed `config.RANDOM_SEED`, which nothing read.
 

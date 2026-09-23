@@ -47,13 +47,10 @@ from .pointconv_sa import (
     PointConvSetAbstraction,
 )
 from .pointnet2_blocks import (
-    FPModule,
-    GlobalSAModule,
     PointNet2Conv,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
     PointNet2SetAbstraction,
-    SAModule,
     ensure_msg_list,
     ensure_msg_list_size,
 )
