@@ -143,7 +143,6 @@ def test_voxel_mamba_decode_validates_iou_rectifier_length() -> None:
 
 @pytest.mark.skipif(not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE), reason="mamba_ssm or spconv is not installed")
 def test_voxel_mamba_registered_without_pretrained_weights() -> None:
-    """Voxel Mamba has no public trained weights, so `pretrained=True` warns and returns the model unloaded."""
-    with pytest.warns(UserWarning, match="No pretrained weights"):
-        model = create_model("voxel-mamba.waymo", task="detection", pretrained=True)
-    assert isinstance(model, VoxelMambaDetection)
+    """Voxel Mamba has no public trained weights, so `pretrained=True` raises."""
+    with pytest.raises(ValueError, match="No pretrained weights are registered"):
+        create_model("voxel-mamba.waymo", task="detection", pretrained=True)

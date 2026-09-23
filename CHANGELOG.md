@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Updated `create_model(pretrained=True)` to raise when the model registers no weights.
+- Added `torch_pointcloud.metrics` to the package namespace.
+
 ## 0.0.5 (2026-09-21)
 
 - Added performances of object detection models on nuScenes.

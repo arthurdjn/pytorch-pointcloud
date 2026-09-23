@@ -10,6 +10,7 @@ import torch_pointcloud as tp
         pytest.param("inferers"),
         pytest.param("layers"),
         pytest.param("losses"),
+        pytest.param("metrics"),
         pytest.param("models"),
         pytest.param("transforms"),
         pytest.param("utils"),

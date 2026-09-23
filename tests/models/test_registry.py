@@ -117,19 +117,14 @@ def test_create_model_return_info_returns_tuple() -> None:
     assert info["name"] == "dummy.classification"
 
 
-def test_create_model_pretrained_without_weights_warns_and_returns_model() -> None:
-    with pytest.warns(UserWarning, match="No pretrained weights"):
-        model = create_model("dummy.classification", task="classification", pretrained=True)
-    assert isinstance(model, DummyClassificationModel)
+def test_create_model_pretrained_without_weights_raises() -> None:
+    with pytest.raises(ValueError, match="No pretrained weights are registered"):
+        create_model("dummy.classification", task="classification", pretrained=True)
 
 
-def test_create_model_pretrained_without_weights_respects_return_info() -> None:
-    with pytest.warns(UserWarning, match="No pretrained weights"):
-        result = create_model("dummy.classification", task="classification", pretrained=True, return_info=True)
-    assert isinstance(result, tuple)
-    model, info = result
-    assert isinstance(model, DummyClassificationModel)
-    assert info["name"] == "dummy.classification"
+def test_create_model_pretrained_without_weights_raises_with_return_info() -> None:
+    with pytest.raises(ValueError, match="No pretrained weights are registered"):
+        create_model("dummy.classification", task="classification", pretrained=True, return_info=True)
 
 
 def test_create_model_unknown_name_raises() -> None:
