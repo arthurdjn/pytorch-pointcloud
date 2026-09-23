@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Split `torch_pointcloud.transforms.transforms` into `base`, `sampling`, `masking`, `geometry`, `scaling`, `keys`, `voxelization`, `octree`, `augmentation`, `box` and `mixing`; `torch_pointcloud.transforms` exports the same names.
 - Removed `DataKeys.SEMANTIC`, `REFLECTANCE` and `ROOM_MAX`: `ParisLille3D` emits `intensity` and the S3DIS blocks `scene_max`, like the other datasets.
 - Renamed `DataKeys.POINTS` to `OCTREE_POINTS`.
 - Renamed `num_group`, `num_heading_bin` (and `num_angle_bin`), `num_size_cluster` and `num_proposal` to their plurals in the models, losses, box transforms and `utils.cluster.group`.
