@@ -159,9 +159,9 @@ class SparseUNetEncoder(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        base_channels: int = 32,
+        stem_channels: int = 32,
         channels: Sequence[int] = (32, 64, 128, 256),
-        layers: Sequence[int] = (2, 3, 4, 6),
+        depths: Sequence[int] = (2, 3, 4, 6),
         stem_kernel_size: int = 5,
         kernel_size: int = 3,
         spatial_padding: int = 96,
@@ -171,15 +171,15 @@ class SparseUNetEncoder(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        if len(layers) != len(channels):
+        if len(depths) != len(channels):
             raise ValueError(
-                f"`layers` and `channels` must have the same length, got {len(layers)} and {len(channels)}."
+                f"`depths` and `channels` must have the same length, got {len(depths)} and {len(channels)}."
             )
         self.in_channels = in_channels
-        self.base_channels = base_channels
+        self.stem_channels = stem_channels
         self.channels = tuple(channels)
-        self.layers = tuple(layers)
-        self.num_stages = len(self.layers)
+        self.depths = tuple(depths)
+        self.num_stages = len(self.depths)
         self.spatial_padding = spatial_padding
 
         norm_kwargs = norm_kwargs or {}
@@ -188,20 +188,20 @@ class SparseUNetEncoder(nn.Module):
         self.conv_input = spconv.SparseSequential(
             spconv.SubMConv3d(
                 in_channels,
-                base_channels,
+                stem_channels,
                 kernel_size=stem_kernel_size,
                 padding=stem_kernel_size // 2,
                 bias=False,
                 indice_key="stem",
             ),
-            create_norm(norm, base_channels, **norm_kwargs) or nn.Identity(),
+            create_norm(norm, stem_channels, **norm_kwargs) or nn.Identity(),
             create_act(act, **act_kwargs) or nn.Identity(),
         )
 
         self.down = nn.ModuleList()
         self.enc = nn.ModuleList()
 
-        enc_channels = base_channels
+        enc_channels = stem_channels
         for s in range(self.num_stages):
             self.down.append(
                 spconv.SparseSequential(
@@ -221,7 +221,7 @@ class SparseUNetEncoder(nn.Module):
                 _make_block_seq(
                     in_channels=self.channels[s],
                     out_channels=self.channels[s],
-                    depth=self.layers[s],
+                    depth=self.depths[s],
                     indice_key=f"subm{s + 1}",
                     kernel_size=kernel_size,
                     act=act,
@@ -287,7 +287,7 @@ class SparseUNetEncoder(nn.Module):
 class SparseUNetDecoder(nn.Module):
     """Mirror of `SparseUNetEncoder`: each stage inverse-convolves, concatenates its skip, and runs residual blocks.
 
-    Stages are built shallowest-first but run deepest-first, so `channels` and `layers` are read back-to-front.
+    Stages are built shallowest-first but run deepest-first, so `channels` and `depths` are read back-to-front.
     """
 
     def __init__(
@@ -295,7 +295,7 @@ class SparseUNetDecoder(nn.Module):
         in_channels: int,
         skip_channels: Sequence[int],
         channels: Sequence[int],
-        layers: Sequence[int],
+        depths: Sequence[int],
         kernel_size: int = 3,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -303,9 +303,9 @@ class SparseUNetDecoder(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        if len(layers) != len(channels):
+        if len(depths) != len(channels):
             raise ValueError(
-                f"`layers` and `channels` must have the same length, got {len(layers)} and {len(channels)}."
+                f"`depths` and `channels` must have the same length, got {len(depths)} and {len(channels)}."
             )
         if len(skip_channels) != len(channels):
             raise ValueError(
@@ -315,8 +315,8 @@ class SparseUNetDecoder(nn.Module):
         self.in_channels = in_channels
         self.skip_channels = tuple(skip_channels)
         self.channels = tuple(channels)
-        self.layers = tuple(layers)
-        self.num_stages = len(self.layers)
+        self.depths = tuple(depths)
+        self.num_stages = len(self.depths)
 
         norm_kwargs = norm_kwargs or {}
         act_kwargs = act_kwargs or {}
@@ -354,7 +354,7 @@ class SparseUNetDecoder(nn.Module):
                 _make_block_seq(
                     in_channels=dec_out,
                     out_channels=dec_out,
-                    depth=self.layers[self.num_stages - 1 - s],
+                    depth=self.depths[self.num_stages - 1 - s],
                     indice_key=f"subm{s}",
                     first_in_channels=dec_out + self.skip_channels[s],
                     kernel_size=kernel_size,
@@ -391,9 +391,11 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
     Args:
         in_channels: Number of input feature channels. Positions are used as features when `x` is `None`.
         num_classes: Number of output classes. $0$ replaces the head with `nn.Identity`.
-        base_channels: Number of channels of the stem, also the width of the shallowest skip.
-        channels: Feature width of every stage, encoder stages first then decoder stages. Must have even length.
-        layers: Number of residual blocks per stage, aligned with `channels`.
+        stem_channels: Number of channels of the stem, also the width of the shallowest skip.
+        encoder_channels: Feature width of every encoder stage.
+        decoder_channels: Feature width of every decoder stage, deepest first.
+        encoder_depths: Number of residual blocks per encoder stage.
+        decoder_depths: Number of residual blocks per decoder stage, aligned with `decoder_channels`.
         stem_kernel_size: Kernel size of the stem convolution.
         kernel_size: Kernel size of the residual convolutions.
         spatial_padding: Padding added to the sparse spatial shape, so that voxel indices stay in range.
@@ -408,9 +410,11 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
         in_channels: int,
         num_classes: int,
         *,
-        base_channels: int = 32,
-        channels: Sequence[int] = (32, 64, 128, 256, 256, 128, 96, 96),
-        layers: Sequence[int] = (2, 3, 4, 6, 2, 2, 2, 2),
+        stem_channels: int = 32,
+        encoder_channels: Sequence[int] = (32, 64, 128, 256),
+        decoder_channels: Sequence[int] = (256, 128, 96, 96),
+        encoder_depths: Sequence[int] = (2, 3, 4, 6),
+        decoder_depths: Sequence[int] = (2, 2, 2, 2),
         stem_kernel_size: int = 5,
         kernel_size: int = 3,
         spatial_padding: int = 96,
@@ -420,16 +424,27 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        if len(layers) != len(channels):
+        if len(decoder_channels) != len(encoder_channels):
             raise ValueError(
-                f"`layers` and `channels` must have the same length, got {len(layers)} and {len(channels)}."
+                f"`decoder_channels` and `encoder_channels` must have the same length, "
+                f"got {len(decoder_channels)} and {len(encoder_channels)}."
             )
-        if len(layers) % 2 != 0:
-            raise ValueError(f"`layers` must have an even length, got {len(layers)}.")
+        if len(encoder_depths) != len(encoder_channels):
+            raise ValueError(
+                f"`encoder_depths` and `encoder_channels` must have the same length, "
+                f"got {len(encoder_depths)} and {len(encoder_channels)}."
+            )
+        if len(decoder_depths) != len(decoder_channels):
+            raise ValueError(
+                f"`decoder_depths` and `decoder_channels` must have the same length, "
+                f"got {len(decoder_depths)} and {len(decoder_channels)}."
+            )
 
-        self.base_channels = base_channels
-        self.channels = tuple(channels)
-        self.layers = tuple(layers)
+        self.stem_channels = stem_channels
+        self.encoder_channels = tuple(encoder_channels)
+        self.decoder_channels = tuple(decoder_channels)
+        self.encoder_depths = tuple(encoder_depths)
+        self.decoder_depths = tuple(decoder_depths)
         self.stem_kernel_size = stem_kernel_size
         self.kernel_size = kernel_size
         self.spatial_padding = spatial_padding
@@ -445,12 +460,11 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
 
     def configure_encoder(self) -> SparseUNetEncoder:
         """Build the sparse encoder producing the bottleneck features and the per-stage skips."""
-        num_stages = len(self.layers) // 2
         return SparseUNetEncoder(
             in_channels=self.in_channels,
-            base_channels=self.base_channels,
-            channels=self.channels[:num_stages],
-            layers=self.layers[:num_stages],
+            stem_channels=self.stem_channels,
+            channels=self.encoder_channels,
+            depths=self.encoder_depths,
             stem_kernel_size=self.stem_kernel_size,
             kernel_size=self.kernel_size,
             spatial_padding=self.spatial_padding,
@@ -462,16 +476,14 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
 
     def configure_decoder(self) -> SparseUNetDecoder:
         """Build the sparse decoder upsampling the bottleneck back to full resolution."""
-        num_stages = len(self.layers) // 2
-        encoder_channels = self.channels[:num_stages]
         # Skip channels in INSERTION order (stem first, then per-encoder-stage outputs).
         # The bottleneck (last encoder stage) is consumed as `in_channels`, not a skip.
-        skip_channels = [self.base_channels, *encoder_channels[:-1]]
+        skip_channels = [self.stem_channels, *self.encoder_channels[:-1]]
         return SparseUNetDecoder(
-            in_channels=encoder_channels[-1],
+            in_channels=self.encoder_channels[-1],
             skip_channels=skip_channels,
-            channels=self.channels[num_stages:],
-            layers=self.layers[num_stages:],
+            channels=self.decoder_channels,
+            depths=self.decoder_depths,
             kernel_size=self.kernel_size,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -482,7 +494,7 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
     @property
     def num_features(self) -> int:
         """Channel count $C$ of the full-resolution decoder features entering the head."""
-        return self.channels[-1]
+        return self.decoder_channels[-1]
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -588,9 +600,11 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
     hparams=dict(
         in_channels=6,
         num_classes=20,
-        base_channels=32,
-        channels=(32, 64, 128, 256, 256, 128, 96, 96),
-        layers=(2, 3, 4, 6, 2, 2, 2, 2),
+        stem_channels=32,
+        encoder_channels=(32, 64, 128, 256),
+        decoder_channels=(256, 128, 96, 96),
+        encoder_depths=(2, 3, 4, 6),
+        decoder_depths=(2, 2, 2, 2),
         stem_kernel_size=5,
         kernel_size=3,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},

@@ -56,8 +56,8 @@ class PointNetEncoder(nn.Module):
     Args:
         spatial_dim: Dimension of point coordinates.
         in_channels: Dimension of additional point features.
-        mlp1_dims: Dimensions of the first MLP.
-        mlp2_dims: Dimensions of the second MLP.
+        mlp1_channels: Dimensions of the first MLP.
+        mlp2_channels: Dimensions of the second MLP.
         act: Activation function to use.
         act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use.
@@ -76,8 +76,8 @@ class PointNetEncoder(nn.Module):
         self,
         spatial_dim: int = 3,
         in_channels: int = 0,
-        mlp1_dims: Sequence[int] = (64,),
-        mlp2_dims: Sequence[int] = (128, 1024),
+        mlp1_channels: Sequence[int] = (64,),
+        mlp2_channels: Sequence[int] = (128, 1024),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -91,8 +91,8 @@ class PointNetEncoder(nn.Module):
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        mlp1_dims = [spatial_dim + in_channels] + list(mlp1_dims)
-        mlp2_dims = [mlp1_dims[-1]] + list(mlp2_dims)
+        mlp1_channels = [spatial_dim + in_channels] + list(mlp1_channels)
+        mlp2_channels = [mlp1_channels[-1]] + list(mlp2_channels)
 
         self.stnet = TNet(
             local_channels=tnet_mlp1_dims,
@@ -110,7 +110,7 @@ class PointNetEncoder(nn.Module):
             self.ftnet = TNet(
                 local_channels=tnet_mlp1_dims,
                 global_channels=tnet_mlp2_dims,
-                k=mlp1_dims[-1],
+                k=mlp1_channels[-1],
                 act=tnet_act,
                 act_kwargs=tnet_act_kwargs,
                 act_first=True,
@@ -119,7 +119,7 @@ class PointNetEncoder(nn.Module):
             )
 
         self.mlp1 = MLP(
-            mlp1_dims,
+            mlp1_channels,
             act=act,
             act_kwargs=act_kwargs,
             norm=norm,
@@ -128,7 +128,7 @@ class PointNetEncoder(nn.Module):
             plain_last=False,
         )
         self.mlp2 = MLP(
-            mlp2_dims,
+            mlp2_channels,
             act=act,
             act_kwargs=act_kwargs,
             norm=norm,
@@ -219,8 +219,8 @@ class PointNetClassification(ClassificationModel):
         spatial_dim: Dimension of point coordinates.
         dropout: Dropout rate applied within the classification head.
         global_pool: Pooling method to aggregate point features (`"max"` or `"mean"`).
-        mlp1_dims: Dimensions of encoder's first MLP.
-        mlp2_dims: Dimensions of encoder's second MLP.
+        mlp1_channels: Dimensions of encoder's first MLP.
+        mlp2_channels: Dimensions of encoder's second MLP.
         act: Activation function to use.
         act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use.
@@ -247,8 +247,8 @@ class PointNetClassification(ClassificationModel):
         spatial_dim: int = 3,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
-        mlp1_dims: Sequence[int] = (64,),
-        mlp2_dims: Sequence[int] = (128, 1024),
+        mlp1_channels: Sequence[int] = (64,),
+        mlp2_channels: Sequence[int] = (128, 1024),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -265,8 +265,8 @@ class PointNetClassification(ClassificationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
         self.spatial_dim = spatial_dim
-        self.mlp1_dims = mlp1_dims
-        self.mlp2_dims = mlp2_dims
+        self.mlp1_channels = mlp1_channels
+        self.mlp2_channels = mlp2_channels
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
@@ -289,8 +289,8 @@ class PointNetClassification(ClassificationModel):
         return PointNetEncoder(
             spatial_dim=self.spatial_dim,
             in_channels=self.in_channels,
-            mlp1_dims=self.mlp1_dims,
-            mlp2_dims=self.mlp2_dims,
+            mlp1_channels=self.mlp1_channels,
+            mlp2_channels=self.mlp2_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -307,7 +307,7 @@ class PointNetClassification(ClassificationModel):
     @property
     def num_features(self) -> int:
         """Feature dimension $C$ of the encoder output."""
-        return self.mlp2_dims[-1]
+        return self.mlp2_channels[-1]
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -414,8 +414,8 @@ class PointNetSegmentation(SemanticSegmentationModel):
         num_classes: Number of segmentation classes.
         spatial_dim: Dimension of point coordinates.
         dropout: Dropout rate applied within the segmentation head.
-        mlp1_dims: Dimensions of encoder's first MLP.
-        mlp2_dims: Dimensions of encoder's second MLP.
+        mlp1_channels: Dimensions of encoder's first MLP.
+        mlp2_channels: Dimensions of encoder's second MLP.
         act: Activation function to use.
         act_kwargs: Keyword arguments for the activation function.
         norm: Normalization to use.
@@ -442,8 +442,8 @@ class PointNetSegmentation(SemanticSegmentationModel):
         *,
         spatial_dim: int = 3,
         dropout: float = 0.3,
-        mlp1_dims: Sequence[int] = (64,),
-        mlp2_dims: Sequence[int] = (128, 1024),
+        mlp1_channels: Sequence[int] = (64,),
+        mlp2_channels: Sequence[int] = (128, 1024),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -461,8 +461,8 @@ class PointNetSegmentation(SemanticSegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
         self.spatial_dim = spatial_dim
-        self.mlp1_dims = mlp1_dims
-        self.mlp2_dims = mlp2_dims
+        self.mlp1_channels = mlp1_channels
+        self.mlp2_channels = mlp2_channels
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
@@ -487,8 +487,8 @@ class PointNetSegmentation(SemanticSegmentationModel):
         return PointNetEncoder(
             spatial_dim=self.spatial_dim,
             in_channels=self.in_channels,
-            mlp1_dims=self.mlp1_dims,
-            mlp2_dims=self.mlp2_dims,
+            mlp1_channels=self.mlp1_channels,
+            mlp2_channels=self.mlp2_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -505,7 +505,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
     @property
     def num_features(self) -> int:
         """Channel count $C$ entering the head: per-point features concatenated with the global feature."""
-        return self.mlp1_dims[-1] + self.mlp2_dims[-1]
+        return self.mlp1_channels[-1] + self.mlp2_channels[-1]
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:

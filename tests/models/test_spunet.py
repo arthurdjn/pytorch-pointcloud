@@ -34,9 +34,11 @@ def model_seg() -> SparseUNetSegmentation:
     return SparseUNetSegmentation(
         in_channels=6,
         num_classes=10,
-        base_channels=16,
-        channels=(16, 32, 64, 128, 64, 32, 16, 16),
-        layers=(1, 1, 1, 1, 1, 1, 1, 1),
+        stem_channels=16,
+        encoder_channels=(16, 32, 64, 128),
+        decoder_channels=(64, 32, 16, 16),
+        encoder_depths=(1, 1, 1, 1),
+        decoder_depths=(1, 1, 1, 1),
         stem_kernel_size=5,
         kernel_size=3,
         spatial_padding=64,
@@ -83,4 +85,4 @@ def test_spunet_forward_head_pre_logits(model_seg: SparseUNetSegmentation, data:
     sparse_x = model_seg.forward_decoder(sparse_x, skips)
     feats = model_seg.forward_head(sparse_x, pre_logits=True)
     assert torch.equal(feats, sparse_x.features)
-    assert feats.shape[1] == model_seg.channels[-1]
+    assert feats.shape[1] == model_seg.decoder_channels[-1]

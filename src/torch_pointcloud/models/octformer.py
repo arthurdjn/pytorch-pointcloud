@@ -155,7 +155,7 @@ class OctFormerBlock(nn.Module):
 
 
 class OctFormerEncoderLayer(nn.Module):
-    """One encoder stage: an optional octree convolution downsampling followed by `num_blocks` `OctFormerBlock` units.
+    """One encoder stage: an optional octree convolution downsampling followed by `depth` `OctFormerBlock` units.
 
     Blocks alternate between a dilation of `1` and the configured `dilation`, so consecutive blocks
     attend to neighboring and to spread-out patches in turn.
@@ -178,7 +178,7 @@ class OctFormerEncoderLayer(nn.Module):
         use_rpe: bool = True,
         use_dwconv: bool = False,
         cpe_first: bool = True,
-        num_blocks: int = 2,
+        depth: int = 2,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -188,11 +188,11 @@ class OctFormerEncoderLayer(nn.Module):
         downsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        drop_path = ensure_list_size(drop_path, size=num_blocks)
+        drop_path = ensure_list_size(drop_path, size=depth)
         self.use_checkpoint = use_checkpoint
         self.downsample = downsample
         self.blocks = nn.ModuleList()
-        for i in range(num_blocks):
+        for i in range(depth):
             block = OctFormerBlock(
                 channels=channels,
                 num_heads=num_heads,
@@ -241,7 +241,7 @@ class OctFormerEncoder(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
-        num_blocks: Sequence[int],
+        depths: Sequence[int],
         num_heads: Sequence[int],
         patch_size: int = 26,
         dilation: int = 4,
@@ -265,7 +265,7 @@ class OctFormerEncoder(nn.Module):
     ):
         super().__init__()
         self.nempty = nempty
-        drop_paths = torch.linspace(0, drop_path, sum(num_blocks)).tolist()
+        drop_paths = torch.linspace(0, drop_path, sum(depths)).tolist()
 
         self.layers = nn.ModuleList()
         for i in range(len(channels)):
@@ -293,12 +293,12 @@ class OctFormerEncoder(nn.Module):
                 qk_scale=qk_scale,
                 attn_drop=attn_drop,
                 proj_drop=proj_drop,
-                drop_path=drop_paths[sum(num_blocks[:i]) : sum(num_blocks[: i + 1])],
+                drop_path=drop_paths[sum(depths[:i]) : sum(depths[: i + 1])],
                 use_rpe=use_rpe,
                 use_dwconv=use_dwconv,
                 cpe_first=cpe_first,
                 nempty=nempty,
-                num_blocks=num_blocks[i],
+                depth=depths[i],
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
@@ -492,7 +492,7 @@ class OctFormerClassification(ClassificationModel):
         stem_channels: Union[int, Sequence[int]],
         encoder_channels: Sequence[int],
         head_channels: Optional[Union[int, Sequence[int]]] = None,
-        num_blocks: Sequence[int],
+        encoder_depths: Sequence[int],
         num_heads: Sequence[int],
         patch_size: int = 26,
         dilation: int = 4,
@@ -522,7 +522,7 @@ class OctFormerClassification(ClassificationModel):
         self.stem_channels = ensure_list(stem_channels)
         self.encoder_channels = ensure_list(encoder_channels)
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
-        self.num_blocks = ensure_list(num_blocks)
+        self.encoder_depths = ensure_list(encoder_depths)
         self.num_heads = ensure_list(num_heads)
 
         self.patch_size = patch_size
@@ -571,7 +571,7 @@ class OctFormerClassification(ClassificationModel):
         """Build the `OctFormerEncoder` backbone."""
         return OctFormerEncoder(
             channels=self.encoder_channels,
-            num_blocks=self.num_blocks,
+            depths=self.encoder_depths,
             num_heads=self.num_heads,
             patch_size=self.patch_size,
             dilation=self.dilation,
@@ -724,8 +724,8 @@ class OctFormerSegmentation(SemanticSegmentationModel):
         num_classes: int,
         *,
         stem_channels: Union[int, Sequence[int]],
-        channels: Sequence[int],
-        num_blocks: Sequence[int],
+        encoder_channels: Sequence[int],
+        encoder_depths: Sequence[int],
         num_heads: Sequence[int],
         head_channels: Optional[Union[int, Sequence[int]]] = None,
         fpn_channels: int,
@@ -754,8 +754,8 @@ class OctFormerSegmentation(SemanticSegmentationModel):
         in_channels = in_channels if in_channels > 0 else 3
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = ensure_list(stem_channels)
-        self.channels = ensure_list(channels)
-        self.num_blocks = ensure_list(num_blocks)
+        self.encoder_channels = ensure_list(encoder_channels)
+        self.encoder_depths = ensure_list(encoder_depths)
         self.num_heads = ensure_list(num_heads)
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.fpn_channels = fpn_channels
@@ -804,8 +804,8 @@ class OctFormerSegmentation(SemanticSegmentationModel):
     def configure_encoder(self) -> nn.Module:
         """Build the `OctFormerEncoder` backbone."""
         return OctFormerEncoder(
-            channels=self.channels,
-            num_blocks=self.num_blocks,
+            channels=self.encoder_channels,
+            depths=self.encoder_depths,
             num_heads=self.num_heads,
             patch_size=self.patch_size,
             dilation=self.dilation,
@@ -833,7 +833,7 @@ class OctFormerSegmentation(SemanticSegmentationModel):
         # The original OctFormer decoder uses hard-coded ReLU activation.
         num_ups = len(self.stem_channels) - 1
         return OctFormerDecoder(
-            channels=self.channels[::-1],
+            channels=self.encoder_channels[::-1],
             fpn_channels=self.fpn_channels,
             num_ups=num_ups,
             nempty=self.nempty,
@@ -908,7 +908,7 @@ class OctFormerSegmentation(SemanticSegmentationModel):
         # While the octree may have more depths, here we only precompute context
         # required at the different depths of the encoder.
         stem_depth = len(self.stem_channels) - 1
-        encoder_depth = len(self.channels) - 1
+        encoder_depth = len(self.encoder_channels) - 1
         max_depth = depth - stem_depth
         min_depth = max_depth - encoder_depth
         octree_t.construct_all_attention_context(
@@ -921,7 +921,7 @@ class OctFormerSegmentation(SemanticSegmentationModel):
 
     def forward_decoder(self, x: Tensor, octree: "Octree", depth: int, intermediates: List[FeaturesDict]) -> Tensor:
         stem_depth = len(self.stem_channels) - 1
-        encoder_depth = len(self.channels) - 1
+        encoder_depth = len(self.encoder_channels) - 1
         max_depth = depth - stem_depth
         min_depth = max_depth - encoder_depth
         return self.decoder(x, octree, min_depth, intermediates)
@@ -996,7 +996,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
         stem_channels=(24, 48, 96),
         encoder_channels=(96, 192),
         head_channels=(256,),
-        num_blocks=(6, 6),
+        encoder_depths=(6, 6),
         num_heads=(6, 12),
         patch_size=32,
         dilation=2,
@@ -1072,8 +1072,8 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         in_channels=10,
         num_classes=21,
         stem_channels=(24, 48, 96),
-        channels=(96, 192, 384, 384),
-        num_blocks=(2, 2, 18, 2),
+        encoder_channels=(96, 192, 384, 384),
+        encoder_depths=(2, 2, 18, 2),
         num_heads=(6, 12, 24, 24),
         head_channels=168,
         fpn_channels=168,
@@ -1141,8 +1141,8 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         in_channels=10,
         num_classes=201,
         stem_channels=(24, 48, 96),
-        channels=(96, 192, 384, 384),
-        num_blocks=(2, 2, 18, 2),
+        encoder_channels=(96, 192, 384, 384),
+        encoder_depths=(2, 2, 18, 2),
         num_heads=(6, 12, 24, 24),
         head_channels=168,
         fpn_channels=168,
@@ -1201,8 +1201,8 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
     task="semantic-segmentation",
     hparams=dict(
         stem_channels=(48, 96, 192),
-        channels=(192, 384, 768, 768),
-        num_blocks=(2, 2, 18, 2),
+        encoder_channels=(192, 384, 768, 768),
+        encoder_depths=(2, 2, 18, 2),
         num_heads=(12, 24, 48, 48),
         head_channels=168,
         fpn_channels=168,
@@ -1237,8 +1237,8 @@ def octformer_lg_seg(**hparams: Any) -> OctFormerSegmentation:
     task="semantic-segmentation",
     hparams=dict(
         stem_channels=(24, 48, 96),
-        channels=(96, 192, 384, 384),
-        num_blocks=(2, 2, 6, 2),
+        encoder_channels=(96, 192, 384, 384),
+        encoder_depths=(2, 2, 6, 2),
         num_heads=(6, 12, 24, 24),
         head_channels=168,
         fpn_channels=168,

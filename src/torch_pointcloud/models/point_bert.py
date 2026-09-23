@@ -57,7 +57,7 @@ class PointBERTEncoder(nn.Module):
         embed_dim: The transformer dimension $d$.
         depth: The number of transformer blocks.
         num_heads: The number of attention heads.
-        num_group: The number of patches $G$.
+        num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The token-embedding dimension before the linear bridge.
         in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
@@ -97,7 +97,7 @@ class PointBERTEncoder(nn.Module):
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
         in_channels: int = 0,
@@ -119,7 +119,7 @@ class PointBERTEncoder(nn.Module):
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_dims = encoder_dims
 
@@ -168,10 +168,10 @@ class PointBERTEncoder(nn.Module):
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
         if x is None:
-            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+            neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
 
@@ -214,7 +214,7 @@ class PointBERTClassification(ClassificationModel):
         embed_dim: The transformer dimension $d$.
         depth: The number of transformer blocks.
         num_heads: The number of attention heads.
-        num_group: The number of patches $G$.
+        num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The token-embedding dimension before the linear bridge.
         token_local_channels: Hidden widths of the tokenizer's per-point MLP.
@@ -255,7 +255,7 @@ class PointBERTClassification(ClassificationModel):
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
         token_local_channels: Sequence[int] = (128, 256),
@@ -275,7 +275,7 @@ class PointBERTClassification(ClassificationModel):
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_dims = encoder_dims
         self.token_local_channels = token_local_channels
@@ -300,7 +300,7 @@ class PointBERTClassification(ClassificationModel):
             embed_dim=self.embed_dim,
             depth=self.depth,
             num_heads=self.num_heads,
-            num_group=self.num_group,
+            num_groups=self.num_groups,
             group_size=self.group_size,
             encoder_dims=self.encoder_dims,
             in_channels=self.in_channels,
@@ -384,7 +384,7 @@ class PointBERTPretraining(PretrainingModel):
         embed_dim: The transformer dimension $d$.
         depth: The number of transformer blocks.
         num_heads: The number of attention heads.
-        num_group: The number of patches $G$.
+        num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The token-embedding dimension before the linear bridge.
         token_local_channels: Hidden widths of the tokenizer's per-point MLP.
@@ -428,7 +428,7 @@ class PointBERTPretraining(PretrainingModel):
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
         token_local_channels: Sequence[int] = (128, 256),
@@ -452,7 +452,7 @@ class PointBERTPretraining(PretrainingModel):
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_dims = encoder_dims
         self.token_local_channels = token_local_channels
@@ -551,10 +551,10 @@ class PointBERTPretraining(PretrainingModel):
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Dict[str, Tensor]:
         if x is None:
-            neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+            neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
             neighborhood, center, neighbor_idx = group(
-                pos, batch, self.num_group, self.group_size, random_start=self.training, return_indices=True
+                pos, batch, self.num_groups, self.group_size, random_start=self.training, return_indices=True
             )
             neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
 
@@ -793,7 +793,7 @@ class PointBERTDiscreteVAE(PretrainingModel):
 
     Args:
         in_channels: The number of input channels ($0$, coordinates only).
-        num_group: The number of patches $G$.
+        num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
         encoder_dims: The mini-PointNet token-embedding dimension.
         token_local_channels: Hidden widths of the tokenizer's per-point MLP.
@@ -827,7 +827,7 @@ class PointBERTDiscreteVAE(PretrainingModel):
         self,
         in_channels: int,
         *,
-        num_group: int = 64,
+        num_groups: int = 64,
         group_size: int = 32,
         encoder_dims: int = 256,
         token_local_channels: Sequence[int] = (128, 256),
@@ -841,7 +841,7 @@ class PointBERTDiscreteVAE(PretrainingModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(in_channels=in_channels)
-        self.num_group = num_group
+        self.num_groups = num_groups
         self.group_size = group_size
         self.encoder_dims = encoder_dims
         self.token_local_channels = token_local_channels
@@ -901,7 +901,7 @@ class PointBERTDiscreteVAE(PretrainingModel):
         Returns:
             Logits over the codebook of shape $(B, G, \text{num\_tokens})$.
         """
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         feat = self.encoder(neighborhood)
         logits = self.dgcnn_1(feat, center)
         return logits
@@ -909,7 +909,7 @@ class PointBERTDiscreteVAE(PretrainingModel):
     def forward(
         self, x: OptTensor, pos: Tensor, batch: Tensor, temperature: float = 1.0, hard: bool = False
     ) -> Dict[str, Tensor]:
-        neighborhood, center = group(pos, batch, self.num_group, self.group_size, random_start=self.training)
+        neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         feat = self.encoder(neighborhood)
         logits = self.dgcnn_1(feat, center)
         soft_one_hot = F.gumbel_softmax(logits, tau=temperature, dim=2, hard=hard)
@@ -960,7 +960,7 @@ _CLS_HPARAMS = dict(
     embed_dim=384,
     depth=12,
     num_heads=6,
-    num_group=64,
+    num_groups=64,
     group_size=32,
     encoder_dims=256,
     token_local_channels=(128, 256),
@@ -1006,7 +1006,7 @@ def point_bert_base_modelnet40(**kwargs: Any) -> PointBERTClassification:
         license="MIT",
     ),
     transform=_modelnet_transforms(4096),
-    hparams=dict(num_classes=40, **{**_CLS_HPARAMS, "num_group": 256}),
+    hparams=dict(num_classes=40, **{**_CLS_HPARAMS, "num_groups": 256}),
 )
 def point_bert_base_modelnet40_4k(**kwargs: Any) -> PointBERTClassification:
     return PointBERTClassification(**kwargs)
@@ -1024,7 +1024,7 @@ def point_bert_base_modelnet40_4k(**kwargs: Any) -> PointBERTClassification:
         license="MIT",
     ),
     transform=_modelnet_transforms(8192),
-    hparams=dict(num_classes=40, **{**_CLS_HPARAMS, "num_group": 512}),
+    hparams=dict(num_classes=40, **{**_CLS_HPARAMS, "num_groups": 512}),
 )
 def point_bert_base_modelnet40_8k(**kwargs: Any) -> PointBERTClassification:
     return PointBERTClassification(**kwargs)
@@ -1095,7 +1095,7 @@ def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassificati
         embed_dim=384,
         depth=12,
         num_heads=6,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         encoder_dims=256,
         token_local_channels=(128, 256),
@@ -1125,7 +1125,7 @@ def point_bert_base_pretrain(**kwargs: Any) -> PointBERTPretraining:
     ),
     hparams=dict(
         in_channels=0,
-        num_group=64,
+        num_groups=64,
         group_size=32,
         encoder_dims=256,
         token_local_channels=(128, 256),

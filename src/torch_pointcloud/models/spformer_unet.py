@@ -174,7 +174,7 @@ class SPFormerUNetEncoder(nn.Module):
     Args:
         in_channels: Number of input feature channels.
         channels: Per-level channel widths, deepest level last.
-        layers: Number of residual blocks per level; an `int` is broadcast to every level.
+        depths: Number of residual blocks per level; an `int` is broadcast to every level.
         stem_kernel_size: Kernel size of the submanifold stem convolution.
         spatial_padding: Padding (in voxels) added to the inferred spatial shape.
         act: Activation passed to `create_act`.
@@ -191,7 +191,7 @@ class SPFormerUNetEncoder(nn.Module):
         self,
         in_channels: int,
         channels: Sequence[int],
-        layers: Union[int, Sequence[int]],
+        depths: Union[int, Sequence[int]],
         *,
         stem_kernel_size: int = 3,
         spatial_padding: int = 96,
@@ -204,8 +204,8 @@ class SPFormerUNetEncoder(nn.Module):
         self.in_channels = in_channels
         self.channels = ensure_tuple(channels)
         self.num_levels = len(self.channels)
-        self.layers = ensure_tuple_size(
-            layers, size=self.num_levels, extra_msg="`layers` must match `channels` length."
+        self.depths = ensure_tuple_size(
+            depths, size=self.num_levels, extra_msg="`depths` must match `channels` length."
         )
         self.spatial_padding = spatial_padding
         norm_kwargs = norm_kwargs or {}
@@ -239,7 +239,7 @@ class SPFormerUNetEncoder(nn.Module):
             self.blocks.append(
                 SPFormerUNetEncoderBlock(
                     self.channels[i],
-                    self.layers[i],
+                    self.depths[i],
                     indice_key=f"subm{i + 1}",
                     downsample=downsample,
                     act=act,
@@ -304,7 +304,7 @@ class SPFormerUNetDecoder(nn.Module):
 
     Args:
         channels: Per-level channel widths, deepest level last (same as the encoder).
-        layers: Number of residual blocks per level; an `int` is broadcast to every level.
+        depths: Number of residual blocks per level; an `int` is broadcast to every level.
         act: Activation passed to `create_act`.
         act_kwargs: Extra keyword arguments for the activation.
         norm: Normalization passed to `create_norm`.
@@ -318,7 +318,7 @@ class SPFormerUNetDecoder(nn.Module):
     def __init__(
         self,
         channels: Sequence[int],
-        layers: Union[int, Sequence[int]],
+        depths: Union[int, Sequence[int]],
         *,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -328,8 +328,8 @@ class SPFormerUNetDecoder(nn.Module):
         super().__init__()
         self.channels = ensure_tuple(channels)
         self.num_levels = len(self.channels)
-        self.layers = ensure_tuple_size(
-            layers, size=self.num_levels, extra_msg="`layers` must match `channels` length."
+        self.depths = ensure_tuple_size(
+            depths, size=self.num_levels, extra_msg="`depths` must match `channels` length."
         )
         norm_kwargs = norm_kwargs or {}
         act_kwargs = act_kwargs or {}
@@ -349,7 +349,7 @@ class SPFormerUNetDecoder(nn.Module):
             )
             block = SPFormerUNetDecoderBlock(
                 self.channels[i],
-                self.layers[i],
+                self.depths[i],
                 indice_key=f"subm{i + 1}",
                 upsample=upsample,
                 act=act,
@@ -385,7 +385,7 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
         in_channels: Number of input feature channels.
         num_classes: Number of output classes; `0` yields an identity head.
         channels: Per-level channel widths, deepest level last.
-        layers: Number of residual blocks per level; an `int` is broadcast to every level.
+        depths: Number of residual blocks per level; an `int` is broadcast to every level.
         stem_kernel_size: Kernel size of the submanifold stem convolution.
         spatial_padding: Padding (in voxels) added to the inferred spatial shape.
         act: Activation passed to `create_act`.
@@ -404,7 +404,7 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
         num_classes: int,
         *,
         channels: Sequence[int] = (32, 64, 96, 128, 160),
-        layers: Union[int, Sequence[int]] = 2,
+        depths: Union[int, Sequence[int]] = 2,
         stem_kernel_size: int = 3,
         spatial_padding: int = 96,
         act: Union[str, Callable, None] = "relu",
@@ -414,8 +414,8 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.channels = ensure_tuple(channels)
-        self.layers = ensure_tuple_size(
-            layers, size=len(self.channels), extra_msg="`layers` must match `channels` length."
+        self.depths = ensure_tuple_size(
+            depths, size=len(self.channels), extra_msg="`depths` must match `channels` length."
         )
         self.stem_kernel_size = stem_kernel_size
         self.spatial_padding = spatial_padding
@@ -433,7 +433,7 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
         return SPFormerUNetEncoder(
             self.in_channels,
             self.channels,
-            self.layers,
+            self.depths,
             stem_kernel_size=self.stem_kernel_size,
             spatial_padding=self.spatial_padding,
             act=self.act,
@@ -446,7 +446,7 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
         """Builds the sparse decoder upsampling the bottleneck back to full resolution."""
         return SPFormerUNetDecoder(
             self.channels,
-            self.layers,
+            self.depths,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -546,7 +546,7 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
         in_channels=6,
         num_classes=0,
         channels=[32, 64, 96, 128, 160],
-        layers=2,
+        depths=2,
         stem_kernel_size=3,
         norm_kwargs=dict(eps=1e-4, momentum=0.1),
         spatial_padding=96,
@@ -589,7 +589,7 @@ def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
         in_channels=6,
         num_classes=20,
         channels=[32, 64, 96, 128, 160],
-        layers=2,
+        depths=2,
         stem_kernel_size=3,
         norm_kwargs=dict(eps=1e-4, momentum=0.1),
         spatial_padding=96,

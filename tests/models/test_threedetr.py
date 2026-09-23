@@ -22,9 +22,9 @@ def _small_threedetr(**overrides: Any) -> ThreeDETRDetection:
     kwargs: Dict[str, Any] = dict(
         in_channels=0,
         num_classes=5,
-        num_angle_bin=1,
+        num_heading_bins=1,
         num_queries=16,
-        preenc_npoints=128,
+        preencoder_num_points=128,
         encoder_type="vanilla",
         encoder_embed_dim=32,
         encoder_num_heads=2,
@@ -40,7 +40,7 @@ def _small_threedetr(**overrides: Any) -> ThreeDETRDetection:
 
 
 def _make_inputs(n_per_scene: int = 1024, batch_size: int = 2) -> Dict[str, Tensor]:
-    """Two scenes of `n_per_scene` points each (>= the tokenizer's `preenc_npoints`)."""
+    """Two scenes of `n_per_scene` points each (>= the tokenizer's `preencoder_num_points`)."""
     torch.manual_seed(0)
     n = n_per_scene * batch_size
     pos = torch.rand(n, 3) * 4.0
@@ -71,7 +71,7 @@ def test_threedetr_vanilla_forward_shapes() -> None:
 
 def test_threedetr_masked_forward_shapes() -> None:
     # 3DETR-m halves the token count via one interim downsampling; 12 oriented heading bins.
-    model = _small_threedetr(encoder_type="masked", num_angle_bin=12).to(DEVICE).eval()
+    model = _small_threedetr(encoder_type="masked", num_heading_bins=12).to(DEVICE).eval()
     data = _make_inputs()
     with torch.no_grad():
         out = model(None, data["pos"], data["batch"])
@@ -98,7 +98,7 @@ def test_threedetr_decode_packed_detections() -> None:
 def test_threedetr_decode_negates_native_heading() -> None:
     """`decode` returns counter-clockwise headings: the negated `angle_continuous`; all else is unchanged."""
     torch.manual_seed(0)
-    model = _small_threedetr(num_angle_bin=12).eval()
+    model = _small_threedetr(num_heading_bins=12).eval()
     b, q, nb = 2, 16, 12
     out: ThreeDETROutput = {
         "sem_cls_logits": torch.randn(b, q, 6),
@@ -146,7 +146,7 @@ def test_threedetr_create_model_no_pretrained() -> None:
     model = create_model("3detr.sunrgbd.fair", task="detection")
     assert isinstance(model, ThreeDETRDetection)
     assert model.num_classes == 10
-    assert model.num_angle_bin == 12
+    assert model.num_heading_bins == 12
     assert model.num_queries == 128
     assert model.encoder_type == "vanilla"
 
@@ -156,7 +156,7 @@ def test_threedetr_masked_variant_config() -> None:
     assert isinstance(model, ThreeDETRDetection)
     assert model.encoder_type == "masked"
     assert model.num_classes == 18
-    assert model.num_angle_bin == 1
+    assert model.num_heading_bins == 1
 
 
 @pytest.mark.skipif(

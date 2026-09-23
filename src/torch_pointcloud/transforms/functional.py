@@ -1509,47 +1509,47 @@ def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:
     return (local.abs() <= half).all(dim=1)
 
 
-def angle_to_class(angle: Tensor, num_heading_bin: int) -> Tuple[Tensor, Tensor]:
+def angle_to_class(angle: Tensor, num_heading_bins: int) -> Tuple[Tensor, Tensor]:
     r"""Convert continuous heading angles to discrete bin classes and residuals.
 
-    The range $[0, 2\pi)$ is split into `num_heading_bin` equal bins centered at
+    The range $[0, 2\pi)$ is split into `num_heading_bins` equal bins centered at
     $0, 1 \cdot (2\pi / N), \ldots, (N - 1) \cdot (2\pi / N)$. The returned class and residual satisfy
     $\text{class} \cdot (2\pi / N) + \text{residual} = \text{angle}$.
 
     Args:
         angle: Heading angles in radians of shape $(K,)$.
-        num_heading_bin: Number of heading bins $N$.
+        num_heading_bins: Number of heading bins $N$.
 
     Returns:
         A tuple of the per-angle class indices (long, shape $(K,)$) and residual angles (shape $(K,)$).
     """
     two_pi = 2 * math.pi
-    angle_per_class = two_pi / num_heading_bin
+    angle_per_class = two_pi / num_heading_bins
     angle = angle % two_pi
     shifted = (angle + angle_per_class / 2) % two_pi
     # The division can round up to exactly N when `shifted` sits a float ulp below 2 pi; clamp keeps the
     # class in range.
-    cls = (shifted / angle_per_class).long().clamp(max=num_heading_bin - 1)
+    cls = (shifted / angle_per_class).long().clamp(max=num_heading_bins - 1)
     residual = shifted - (cls.to(angle.dtype) * angle_per_class + angle_per_class / 2)
     return cls, residual
 
 
-def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_bin: int) -> Tensor:
+def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_bins: int) -> Tensor:
     r"""Invert `angle_to_class`: recover continuous heading angles from bin classes and residuals.
 
-    A single bin (`num_heading_bin == 1`, axis-aligned boxes) always decodes to a heading of $0$.
+    A single bin (`num_heading_bins == 1`, axis-aligned boxes) always decodes to a heading of $0$.
 
     Args:
         heading_class: Bin class indices (long) of shape $(K,)$.
         heading_residual: Per-angle residuals of shape $(K,)$.
-        num_heading_bin: Number of heading bins $N$.
+        num_heading_bins: Number of heading bins $N$.
 
     Returns:
         The recovered heading angles of shape $(K,)$.
     """
-    if num_heading_bin == 1:
+    if num_heading_bins == 1:
         return torch.zeros_like(heading_residual)
-    return heading_class.to(heading_residual.dtype) * (2 * math.pi / num_heading_bin) + heading_residual
+    return heading_class.to(heading_residual.dtype) * (2 * math.pi / num_heading_bins) + heading_residual
 
 
 def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor) -> Tensor:

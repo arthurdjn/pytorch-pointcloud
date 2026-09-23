@@ -68,11 +68,11 @@ def test_group_shapes_and_overloads() -> None:
     pos = torch.cat([torch.randn(1024, 3), torch.randn(2048, 3)])
     batch = torch.cat([torch.zeros(1024), torch.ones(2048)]).long()
 
-    neighborhood, center = group(pos, batch, num_group=64, group_size=32)
+    neighborhood, center = group(pos, batch, num_groups=64, group_size=32)
     assert neighborhood.shape == (2, 64, 32, 3)
     assert center.shape == (2, 64, 3)
 
-    neighborhood_idx, center_idx, idx = group(pos, batch, num_group=64, group_size=32, return_indices=True)
+    neighborhood_idx, center_idx, idx = group(pos, batch, num_groups=64, group_size=32, return_indices=True)
     assert idx.shape == (2 * 64 * 32,)
     assert torch.equal(center, center_idx)
     assert torch.equal(neighborhood, neighborhood_idx)
@@ -86,7 +86,7 @@ def test_group_recenters_on_its_centers() -> None:
     pos = torch.randn(512, 3)
     batch = torch.zeros(512, dtype=torch.long)
 
-    neighborhood, _ = group(pos, batch, num_group=32, group_size=16)
+    neighborhood, _ = group(pos, batch, num_groups=32, group_size=16)
     has_self = (neighborhood.abs().sum(dim=-1) == 0).any(dim=-1)
     assert bool(has_self.all())
 
@@ -99,20 +99,20 @@ def test_group_idx_indexes_packed_input() -> None:
     pos = torch.cat([torch.randn(800, 3), torch.randn(900, 3)])
     batch = torch.cat([torch.zeros(800), torch.ones(900)]).long()
 
-    neighborhood, center, idx = group(pos, batch, num_group=40, group_size=16, return_indices=True)
+    neighborhood, center, idx = group(pos, batch, num_groups=40, group_size=16, return_indices=True)
     gathered = pos[idx].view(2, 40, 16, 3) - center.unsqueeze(2)
     assert torch.equal(gathered, neighborhood)
 
 
 @pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
 def test_group_scene_smaller_than_num_group() -> None:
-    """A scene with fewer points than num_group still densifies (FPS repeats points), so the packed
+    """A scene with fewer points than num_groups still densifies (FPS repeats points), so the packed
     $(B, G, k, 3)$ shape holds even for degenerate scenes mixed with normal ones."""
     torch.manual_seed(0)
     pos = torch.cat([torch.randn(40, 3), torch.randn(1024, 3)])
     batch = torch.cat([torch.zeros(40), torch.ones(1024)]).long()
 
-    neighborhood, center = group(pos, batch, num_group=64, group_size=8)
+    neighborhood, center = group(pos, batch, num_groups=64, group_size=8)
     assert neighborhood.shape == (2, 64, 8, 3)
     assert center.shape == (2, 64, 3)
 
@@ -126,7 +126,7 @@ def test_group_scene_smaller_than_group_size_raises() -> None:
     batch = torch.cat([torch.zeros(20), torch.ones(1024)]).long()
 
     with pytest.raises(ValueError, match="group_size"):
-        group(pos, batch, num_group=64, group_size=32)
+        group(pos, batch, num_groups=64, group_size=32)
 
 
 @pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
@@ -136,8 +136,8 @@ def test_group_deterministic_without_random_start() -> None:
     pos = torch.randn(1024, 3)
     batch = torch.zeros(1024, dtype=torch.long)
 
-    first = group(pos, batch, num_group=64, group_size=32, random_start=False)
-    second = group(pos, batch, num_group=64, group_size=32, random_start=False)
+    first = group(pos, batch, num_groups=64, group_size=32, random_start=False)
+    second = group(pos, batch, num_groups=64, group_size=32, random_start=False)
     assert torch.equal(first[0], second[0])
     assert torch.equal(first[1], second[1])
 
@@ -145,7 +145,7 @@ def test_group_deterministic_without_random_start() -> None:
 @patch("torch_pointcloud.utils.cluster.knn")
 @patch("torch_pointcloud.utils.cluster.fps")
 def test_group_calls_fps_and_knn_with_correct_params(mock_fps: Mock, mock_knn: Mock) -> None:
-    """group delegates to the internal fps / knn: fps gets the cloud, the batch, num_nodes=num_group
+    """group delegates to the internal fps / knn: fps gets the cloud, the batch, num_nodes=num_groups
     and the threaded random_start; knn gets the cloud, the FPS centers, group_size and the matching
     per-sample batch indices. fps / knn are mocked, so no torch_cluster is needed."""
     pos = torch.randn(8, 3)
@@ -156,7 +156,7 @@ def test_group_calls_fps_and_knn_with_correct_params(mock_fps: Mock, mock_knn: M
     mock_fps.return_value = idx_center
     mock_knn.return_value = (row, col)
 
-    neighborhood, center, idx = group(pos, batch, num_group=2, group_size=3, random_start=True, return_indices=True)
+    neighborhood, center, idx = group(pos, batch, num_groups=2, group_size=3, random_start=True, return_indices=True)
 
     mock_fps.assert_called_once()
     fps_args, fps_kwargs = mock_fps.call_args

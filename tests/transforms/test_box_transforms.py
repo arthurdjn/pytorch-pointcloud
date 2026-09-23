@@ -212,7 +212,7 @@ def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
     mean = torch.ones(10, 3) * 0.5
     box = _box(heading=0.6)
     data = {"box": box.clone(), "label": torch.tensor([2])}
-    out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
+    out = T.EncodeVoteNetTargets(num_heading_bins=12, mean_sizes=mean, max_num_obj=64)(data)
     assert out["center_label"].shape == (64, 3)
     assert out["heading_class_label"].shape == (64,)
     assert out["heading_residual_label"].shape == (64,)
@@ -232,7 +232,7 @@ def test_encode_votenet_targets_truncates_to_max_num_obj() -> None:
     mean = torch.ones(10, 3) * 0.5
     boxes = _box(heading=0.0).repeat(5, 1)
     data = {"box": boxes, "label": torch.ones(5, dtype=torch.long)}
-    out = T.EncodeVoteNetTargets(num_heading_bin=12, mean_sizes=mean, max_num_obj=3)(data)
+    out = T.EncodeVoteNetTargets(num_heading_bins=12, mean_sizes=mean, max_num_obj=3)(data)
     assert out["center_label"].shape == (3, 3)
     assert out["box_label_mask"].sum().item() == 3
 
@@ -248,7 +248,7 @@ def test_vote_then_encode_keeps_boxes_and_writes_all_labels() -> None:
     )
     data = {"pos": pos.clone(), "box": boxes.clone(), "label": torch.tensor([3, 1])}
     data = T.GenerateVoteLabels(pos_key="pos", box_key="box")(data)
-    out = T.EncodeVoteNetTargets(box_key="box", num_heading_bin=12, mean_sizes=mean, max_num_obj=64)(data)
+    out = T.EncodeVoteNetTargets(box_key="box", num_heading_bins=12, mean_sizes=mean, max_num_obj=64)(data)
 
     assert torch.equal(out["box"], boxes)
     assert out["vote_label"].shape == (2048, 9)

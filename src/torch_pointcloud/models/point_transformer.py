@@ -671,7 +671,7 @@ class PointTransformerClassification(ClassificationModel):
         num_classes: Number of output classes.
         encoder_channels: Feature width of each encoder stage.
         encoder_depths: Number of `PointTransformerBlock` blocks per encoder stage.
-        encoder_num_groups: Number of shared-weight vector-attention groups per encoder stage.
+        encoder_attention_groups: Number of shared-weight vector-attention groups per encoder stage.
         encoder_num_neighbors: Number of neighbors in the $k$-NN graph of each encoder stage.
         ratios: Farthest-point-sampling keep ratio for each downsampling transition (length one less than
             the number of encoder stages).
@@ -699,7 +699,7 @@ class PointTransformerClassification(ClassificationModel):
         *,
         encoder_channels: Sequence[int],
         encoder_depths: Sequence[int],
-        encoder_num_groups: Sequence[int],
+        encoder_attention_groups: Sequence[int],
         encoder_num_neighbors: Sequence[int],
         ratios: Sequence[float],
         spatial_dim: int = 3,
@@ -717,7 +717,7 @@ class PointTransformerClassification(ClassificationModel):
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
         self.encoder_channels = encoder_channels
         self.encoder_depths = encoder_depths
-        self.encoder_num_groups = encoder_num_groups
+        self.encoder_attention_groups = encoder_attention_groups
         self.encoder_num_neighbors = encoder_num_neighbors
         self.ratios = ratios
         self.spatial_dim = spatial_dim
@@ -743,7 +743,7 @@ class PointTransformerClassification(ClassificationModel):
         return PointTransformerEncoder(
             channels=self.encoder_channels,
             depths=self.encoder_depths,
-            num_groups=self.encoder_num_groups,
+            num_groups=self.encoder_attention_groups,
             num_neighbors=self.encoder_num_neighbors,
             ratios=self.ratios,
             spatial_dim=self.spatial_dim,
@@ -825,11 +825,11 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
         num_classes: Number of output classes.
         encoder_channels: Feature width of each encoder stage.
         encoder_depths: Number of `PointTransformerBlock` blocks per encoder stage.
-        encoder_num_groups: Number of shared-weight vector-attention groups per encoder stage.
+        encoder_attention_groups: Number of shared-weight vector-attention groups per encoder stage.
         encoder_num_neighbors: Number of neighbors in the $k$-NN graph of each encoder stage.
         decoder_channels: Feature width of each decoder stage (the last entry is the head width).
         decoder_depths: Number of `PointTransformerBlock` blocks per decoder stage.
-        decoder_num_groups: Number of shared-weight vector-attention groups per decoder stage.
+        decoder_attention_groups: Number of shared-weight vector-attention groups per decoder stage.
         decoder_num_neighbors: Number of neighbors in the $k$-NN graph of each decoder stage.
         ratios: Farthest-point-sampling keep ratio for each downsampling transition (length one less than
             the number of encoder stages).
@@ -856,11 +856,11 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
         *,
         encoder_channels: Sequence[int],
         encoder_depths: Sequence[int],
-        encoder_num_groups: Sequence[int],
+        encoder_attention_groups: Sequence[int],
         encoder_num_neighbors: Sequence[int],
         decoder_channels: Sequence[int],
         decoder_depths: Sequence[int],
-        decoder_num_groups: Sequence[int],
+        decoder_attention_groups: Sequence[int],
         decoder_num_neighbors: Sequence[int],
         ratios: Sequence[float],
         spatial_dim: int = 3,
@@ -877,11 +877,11 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
         self.in_channels = in_channels if in_channels > 0 else spatial_dim
         self.encoder_channels = encoder_channels
         self.encoder_depths = encoder_depths
-        self.encoder_num_groups = encoder_num_groups
+        self.encoder_attention_groups = encoder_attention_groups
         self.encoder_num_neighbors = encoder_num_neighbors
         self.decoder_channels = decoder_channels
         self.decoder_depths = decoder_depths
-        self.decoder_num_groups = decoder_num_groups
+        self.decoder_attention_groups = decoder_attention_groups
         self.decoder_num_neighbors = decoder_num_neighbors
         self.ratios = ratios
         self.spatial_dim = spatial_dim
@@ -907,7 +907,7 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
         return PointTransformerEncoder(
             channels=self.encoder_channels,
             depths=self.encoder_depths,
-            num_groups=self.encoder_num_groups,
+            num_groups=self.encoder_attention_groups,
             num_neighbors=self.encoder_num_neighbors,
             ratios=self.ratios,
             spatial_dim=self.spatial_dim,
@@ -924,7 +924,7 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
         return PointTransformerDecoder(
             channels=[self.encoder_channels[-1]] + list(self.decoder_channels),
             depths=self.decoder_depths,
-            num_groups=self.decoder_num_groups,
+            num_groups=self.decoder_attention_groups,
             num_neighbors=self.decoder_num_neighbors,
             spatial_dim=self.spatial_dim,
             add_self_loops=self.add_self_loops,
@@ -1050,12 +1050,12 @@ def _point_transformer_seg_transforms(
         num_classes=13,
         encoder_channels=(32, 64, 128, 256, 512),
         encoder_depths=(1, 2, 3, 5, 2),
-        encoder_num_groups=(8, 8, 8, 8, 8),
+        encoder_attention_groups=(8, 8, 8, 8, 8),
         encoder_num_neighbors=(8, 16, 16, 16, 16),
         ratios=(0.25, 0.25, 0.25, 0.25),
         decoder_channels=(256, 128, 64, 32),
         decoder_depths=(1, 1, 1, 1),
-        decoder_num_groups=(8, 8, 8, 8),
+        decoder_attention_groups=(8, 8, 8, 8),
         decoder_num_neighbors=(16, 16, 16, 8),
     ),
 )
@@ -1074,12 +1074,12 @@ def point_transformer_s3dis_area5(**hparams: Any) -> PointTransformerSegmentatio
         num_classes=20,
         encoder_channels=(32, 64, 128, 256, 512),
         encoder_depths=(1, 2, 3, 5, 2),
-        encoder_num_groups=(8, 8, 8, 8, 8),
+        encoder_attention_groups=(8, 8, 8, 8, 8),
         encoder_num_neighbors=(8, 16, 16, 16, 16),
         ratios=(0.25, 0.25, 0.25, 0.25),
         decoder_channels=(256, 128, 64, 32),
         decoder_depths=(1, 1, 1, 1),
-        decoder_num_groups=(8, 8, 8, 8),
+        decoder_attention_groups=(8, 8, 8, 8),
         decoder_num_neighbors=(16, 16, 16, 8),
     ),
 )
@@ -1110,7 +1110,7 @@ def point_transformer_scannet20(**hparams: Any) -> PointTransformerSegmentation:
         num_classes=40,
         encoder_channels=(32, 64, 128, 256, 512),
         encoder_depths=(1, 2, 3, 5, 2),
-        encoder_num_groups=(8, 8, 8, 8, 8),
+        encoder_attention_groups=(8, 8, 8, 8, 8),
         encoder_num_neighbors=(8, 16, 16, 16, 16),
         ratios=(0.25, 0.25, 0.25, 0.25),
         global_pool="mean",

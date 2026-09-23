@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Renamed `num_group`, `num_heading_bin` (and `num_angle_bin`), `num_size_cluster` and `num_proposal` to their plurals in the models, losses, box transforms and `utils.cluster.group`.
+- Renamed `sa_npoints`, `roi_sa_npoints` and `preenc_npoints` to `sa_num_points`, `roi_sa_num_points` and `preencoder_num_points`.
+- Renamed the PointNet `mlp1_dims` / `mlp2_dims` to `mlp1_channels` / `mlp2_channels`, and the Point Transformer `encoder_num_groups` / `decoder_num_groups` to `encoder_attention_groups` / `decoder_attention_groups`.
+- Renamed the Voxel Mamba `d_model` to `embed_dim`, the OctFormer `num_blocks` to `encoder_depths` (and segmentation `channels` to `encoder_channels`), and the SPFormer U-Net `layers` to `depths`.
+- Renamed the SphereFormer `base_channels`, `layers` and `block_reps` to `stem_channels`, `channels` and `depth`.
+- Split the SparseUNet `channels` and `layers` into `encoder_channels`, `decoder_channels`, `encoder_depths` and `decoder_depths`, and renamed `base_channels` to `stem_channels`.
 - Split the `segmentation` task into `semantic-segmentation` and `part-segmentation`, and renamed the `base` task to `pretraining`.
 - Renamed `SegmentationModel` to `SemanticSegmentationModel` and `BaseModel` to `PretrainingModel`, and added `PartSegmentationModel`.
 - Renamed the 3DETR classes from `DETR3D*` to `ThreeDETR*`, in the `threedetr` modules.

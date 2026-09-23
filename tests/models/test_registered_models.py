@@ -697,17 +697,21 @@ def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int =
     "model_name,model_kwargs",
     [
         pytest.param(
-            "votenet.scannet.fair", dict(sa_npoints=[128, 64, 32, 16], num_proposal=32), id="votenet.scannet.fair"
+            "votenet.scannet.fair", dict(sa_num_points=[128, 64, 32, 16], num_proposals=32), id="votenet.scannet.fair"
         ),
         pytest.param(
-            "votenet.sunrgbd.fair", dict(sa_npoints=[128, 64, 32, 16], num_proposal=32), id="votenet.sunrgbd.fair"
+            "votenet.sunrgbd.fair", dict(sa_num_points=[128, 64, 32, 16], num_proposals=32), id="votenet.sunrgbd.fair"
         ),
-        pytest.param("3detr.scannet.fair", dict(preenc_npoints=128, num_queries=32), id="3detr.scannet.fair"),
-        pytest.param("3detr-m.scannet.fair", dict(preenc_npoints=128, num_queries=32), id="3detr-m.scannet.fair"),
-        pytest.param("3detr.sunrgbd.fair", dict(preenc_npoints=128, num_queries=32), id="3detr.sunrgbd.fair"),
+        pytest.param("3detr.scannet.fair", dict(preencoder_num_points=128, num_queries=32), id="3detr.scannet.fair"),
+        pytest.param(
+            "3detr-m.scannet.fair",
+            dict(preencoder_num_points=128, num_queries=32),
+            id="3detr-m.scannet.fair",
+        ),
+        pytest.param("3detr.sunrgbd.fair", dict(preencoder_num_points=128, num_queries=32), id="3detr.sunrgbd.fair"),
         pytest.param(
             "pointrcnn.kitti.openpcdet",
-            dict(sa_npoints=[128, 64, 32, 16], num_sampled_points=64, proposal_post_maxsize=16),
+            dict(sa_num_points=[128, 64, 32, 16], num_sampled_points=64, proposal_post_maxsize=16),
             id="pointrcnn.kitti.openpcdet",
         ),
     ],
@@ -715,7 +719,7 @@ def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int =
 def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) -> None:
     """CPU forward + decode smoke for the point-based detectors.
 
-    `model_kwargs` only shrinks sampling sizes (`sa_npoints`, `num_proposal`, `preenc_npoints`, ...), which
+    `model_kwargs` only shrinks sampling sizes (`sa_num_points`, `num_proposals`, `preencoder_num_points`, ...), which
     keeps the state-dict structure identical to the registered configuration while the forward stays fast
     on a few hundred CPU points. The grid-based detectors (pointpillars, second, voxelnext, voxel-mamba,
     lion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.

@@ -58,7 +58,7 @@ class VoteNetBackbone(nn.Module):
     Args:
         in_channels: Input feature channels per point (excluding xyz).
         sa_channels: Per-SA-block MLP channel lists, e.g. `[[64, 64, 128], ...]`.
-        sa_npoints: Per-SA-block farthest-point-sample counts.
+        sa_num_points: Per-SA-block farthest-point-sample counts.
         sa_radii: Per-SA-block ball-query radii.
         sa_num_neighbors: Per-SA-block neighbor caps.
         fp_channels: Per-FP-block MLP channel lists. The $i$-th FP block skips to the
@@ -74,7 +74,7 @@ class VoteNetBackbone(nn.Module):
         in_channels: int,
         *,
         sa_channels: Sequence[Sequence[int]],
-        sa_npoints: Sequence[int],
+        sa_num_points: Sequence[int],
         sa_radii: Sequence[float],
         sa_num_neighbors: Sequence[int],
         fp_channels: Sequence[Sequence[int]],
@@ -84,12 +84,12 @@ class VoteNetBackbone(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        self.sa_npoints = ensure_list(sa_npoints)
+        self.sa_num_points = ensure_list(sa_num_points)
 
         skip_channels: List[int] = []
 
         self.sa_modules = nn.ModuleList()
-        for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_npoints, sa_radii, sa_num_neighbors):
+        for channels, npoint, radius, num_neighbors in zip(sa_channels, sa_num_points, sa_radii, sa_num_neighbors):
             block_channels = ensure_list(channels)
             sa_block = PointNet2SetAbstraction(
                 in_channels=in_channels,
@@ -143,7 +143,7 @@ class VoteNetBackbone(nn.Module):
         intermediates: List[Tuple[Tensor, Tensor, Tensor]] = []
         for i, sa_block in enumerate(self.sa_modules):
             if i < 2:
-                idx = fps(pos, batch, num_nodes=self.sa_npoints[i], random_start=self.training)
+                idx = fps(pos, batch, num_nodes=self.sa_num_points[i], random_start=self.training)
                 x, pos, batch = sa_block(x, pos, batch, idx)
                 head_idx.append(idx)
             else:
@@ -219,9 +219,9 @@ class VoteNetProposalModule(nn.Module):
 
     Args:
         num_classes: Number of semantic classes.
-        num_heading_bin: Number of heading-angle bins.
-        num_size_cluster: Number of size templates.
-        num_proposal: Number of proposals (= aggregation centroids) per scene.
+        num_heading_bins: Number of heading-angle bins.
+        num_size_clusters: Number of size templates.
+        num_proposals: Number of proposals (= aggregation centroids) per scene.
         sampling: Aggregation-center sampling, `"vote_fps"` or `"seed_fps"`.
         seed_channels: Channel count of the (vote) input features.
         vote_aggr_channels: MLP channels of the vote-aggregation set-abstraction layer.
@@ -236,9 +236,9 @@ class VoteNetProposalModule(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        num_heading_bin: int,
-        num_size_cluster: int,
-        num_proposal: int,
+        num_heading_bins: int,
+        num_size_clusters: int,
+        num_proposals: int,
         sampling: str,
         seed_channels: int,
         *,
@@ -252,15 +252,15 @@ class VoteNetProposalModule(nn.Module):
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
-        self.num_heading_bin = num_heading_bin
-        self.num_size_cluster = num_size_cluster
-        self.num_proposal = num_proposal
+        self.num_heading_bins = num_heading_bins
+        self.num_size_clusters = num_size_clusters
+        self.num_proposals = num_proposals
         self.sampling = sampling
 
         self.vote_aggr = PointNet2SetAbstraction(
             in_channels=seed_channels,
             channels=list(vote_aggr_channels),
-            num_points=num_proposal,
+            num_points=num_proposals,
             radii=vote_aggr_radius,
             num_neighbors=vote_aggr_num_neighbors,
             use_pos=True,
@@ -275,7 +275,7 @@ class VoteNetProposalModule(nn.Module):
             norm_kwargs=norm_kwargs,
         )
         self.aggr_dim = vote_aggr_channels[-1]
-        out_dim = 2 + 3 + num_heading_bin * 2 + num_size_cluster * 4 + num_classes
+        out_dim = 2 + 3 + num_heading_bins * 2 + num_size_clusters * 4 + num_classes
         self.mlp = MLP(
             [self.aggr_dim, self.aggr_dim, self.aggr_dim, out_dim],
             act=act,
@@ -294,9 +294,9 @@ class VoteNetProposalModule(nn.Module):
         batch_seed: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if self.sampling == "vote_fps":
-            idx = fps(pos_vote, batch_vote, num_nodes=self.num_proposal, random_start=self.training)
+            idx = fps(pos_vote, batch_vote, num_nodes=self.num_proposals, random_start=self.training)
         elif self.sampling == "seed_fps":
-            idx = fps(pos_seed, batch_seed, num_nodes=self.num_proposal, random_start=self.training)
+            idx = fps(pos_seed, batch_seed, num_nodes=self.num_proposals, random_start=self.training)
         else:
             raise ValueError(f"Unknown sampling strategy {self.sampling!r}. Expected 'vote_fps' or 'seed_fps'.")
 
@@ -328,19 +328,19 @@ class VoteNetProposalModule(nn.Module):
             $(B, Q, \ldots)$.
         """
         batch_size = int(batch_aggr.max().item()) + 1 if batch_aggr.numel() else 0
-        num_proposal = self.num_proposal
-        nh = self.num_heading_bin
-        ns = self.num_size_cluster
+        num_proposals = self.num_proposals
+        nh = self.num_heading_bins
+        ns = self.num_size_clusters
 
-        preds = preds.view(batch_size, num_proposal, -1)
-        pos_vote_aggr = pos_aggr.view(batch_size, num_proposal, 3)
+        preds = preds.view(batch_size, num_proposals, -1)
+        pos_vote_aggr = pos_aggr.view(batch_size, num_proposals, 3)
 
         objectness = preds[..., 0:2]
         center = pos_vote_aggr + preds[..., 2:5]
         heading_scores = preds[..., 5 : 5 + nh]
         heading_res_norm = preds[..., 5 + nh : 5 + nh * 2]
         size_scores = preds[..., 5 + nh * 2 : 5 + nh * 2 + ns]
-        size_res_norm = preds[..., 5 + nh * 2 + ns : 5 + nh * 2 + ns * 4].view(batch_size, num_proposal, ns, 3)
+        size_res_norm = preds[..., 5 + nh * 2 + ns : 5 + nh * 2 + ns * 4].view(batch_size, num_proposals, ns, 3)
         sem_cls_scores = preds[..., 5 + nh * 2 + ns * 4 :]
 
         return {
@@ -372,15 +372,15 @@ class VoteNetDetection(DetectionModel):
         in_channels: Input feature channels per point excluding xyz (e.g. $1$ for a floor-relative
             height feature, $4$ for height + RGB).
         num_classes: Number of semantic classes.
-        num_heading_bin: Number of heading-angle bins ($1$ for axis-aligned ScanNet boxes, $12$ for
+        num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned ScanNet boxes, $12$ for
             oriented SUN RGB-D boxes).
-        num_size_cluster: Number of size templates (one per class here).
+        num_size_clusters: Number of size templates (one per class here).
         mean_sizes: Per-template mean box size, shape $(\text{num\_size\_cluster}, 3)$.
-        num_proposal: Number of box proposals per scene.
+        num_proposals: Number of box proposals per scene.
         vote_factor: Votes generated per seed.
         sampling: Aggregation-center sampling, `"vote_fps"` or `"seed_fps"`.
         sa_channels: Per-SA-block MLP channel lists for the backbone.
-        sa_npoints: Per-SA-block farthest-point-sample counts.
+        sa_num_points: Per-SA-block farthest-point-sample counts.
         sa_radii: Per-SA-block ball-query radii.
         sa_num_neighbors: Per-SA-block neighbor caps.
         fp_channels: Per-FP-block MLP channel lists for the backbone.
@@ -400,14 +400,14 @@ class VoteNetDetection(DetectionModel):
         in_channels: int,
         num_classes: int,
         *,
-        num_heading_bin: int,
-        num_size_cluster: int,
+        num_heading_bins: int,
+        num_size_clusters: int,
         mean_sizes: Union[Tensor, List[List[float]]],
-        num_proposal: int,
+        num_proposals: int,
         vote_factor: int,
         sampling: str,
         sa_channels: Sequence[Sequence[int]],
-        sa_npoints: Sequence[int],
+        sa_num_points: Sequence[int],
         sa_radii: Sequence[float],
         sa_num_neighbors: Sequence[int],
         fp_channels: Sequence[Sequence[int]],
@@ -423,14 +423,14 @@ class VoteNetDetection(DetectionModel):
         if sampling == "seed_fps" and vote_factor != 1:
             raise ValueError("'seed_fps' sampling requires vote_factor == 1.")
 
-        self.num_heading_bin = num_heading_bin
-        self.num_size_cluster = num_size_cluster
-        self.num_proposal = num_proposal
+        self.num_heading_bins = num_heading_bins
+        self.num_size_clusters = num_size_clusters
+        self.num_proposals = num_proposals
         self.vote_factor = vote_factor
         self.sampling = sampling
         self.spatial_dim = 3
         self.sa_channels = sa_channels
-        self.sa_npoints = sa_npoints
+        self.sa_num_points = sa_num_points
         self.sa_radii = sa_radii
         self.sa_num_neighbors = sa_num_neighbors
         self.fp_channels = fp_channels
@@ -443,8 +443,8 @@ class VoteNetDetection(DetectionModel):
         self.norm_kwargs = norm_kwargs
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
-        if mean.shape != (num_size_cluster, 3):
-            raise ValueError(f"`mean_sizes` must have shape ({num_size_cluster}, 3), got {tuple(mean.shape)}.")
+        if mean.shape != (num_size_clusters, 3):
+            raise ValueError(f"`mean_sizes` must have shape ({num_size_clusters}, 3), got {tuple(mean.shape)}.")
 
         # Not part of the checkpoint (the reference rebuilds it on the fly); persistent=False
         # keeps it out of the state dict while still moving with `.to(device)`.
@@ -459,7 +459,7 @@ class VoteNetDetection(DetectionModel):
         return VoteNetBackbone(
             self.in_channels,
             sa_channels=self.sa_channels,
-            sa_npoints=self.sa_npoints,
+            sa_num_points=self.sa_num_points,
             sa_radii=self.sa_radii,
             sa_num_neighbors=self.sa_num_neighbors,
             fp_channels=self.fp_channels,
@@ -484,9 +484,9 @@ class VoteNetDetection(DetectionModel):
         """Build the proposal module."""
         return VoteNetProposalModule(
             num_classes=self.num_classes,
-            num_heading_bin=self.num_heading_bin,
-            num_size_cluster=self.num_size_cluster,
-            num_proposal=self.num_proposal,
+            num_heading_bins=self.num_heading_bins,
+            num_size_clusters=self.num_size_clusters,
+            num_proposals=self.num_proposals,
             sampling=self.sampling,
             seed_channels=self.backbone.out_channels,
             vote_aggr_channels=self.vote_aggr_channels,
@@ -501,7 +501,7 @@ class VoteNetDetection(DetectionModel):
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
         self.proposal.num_classes = num_classes
-        out_dim = 2 + 3 + self.num_heading_bin * 2 + self.num_size_cluster * 4 + num_classes
+        out_dim = 2 + 3 + self.num_heading_bins * 2 + self.num_size_clusters * 4 + num_classes
         self.proposal.mlp.lins[-1] = nn.Linear(self.proposal.aggr_dim, out_dim)
 
     @property
@@ -563,21 +563,21 @@ class VoteNetDetection(DetectionModel):
             - scores / labels / batch: $(B \cdot P,)$
             - class_probs: $(B \cdot P, C)$
         """
-        batch_size, num_proposal = out["center"].shape[:2]
+        batch_size, num_proposals = out["center"].shape[:2]
 
         heading_class = out["heading_scores"].argmax(dim=-1)
         heading_residual = out["heading_residuals"].gather(2, heading_class.unsqueeze(-1)).squeeze(-1)
-        angle = -F.class_to_angle(heading_class, heading_residual, self.num_heading_bin)
+        angle = -F.class_to_angle(heading_class, heading_residual, self.num_heading_bins)
 
         size_class = out["size_scores"].argmax(dim=-1)
-        size_gather = size_class.view(batch_size, num_proposal, 1, 1).expand(-1, -1, 1, 3)
+        size_gather = size_class.view(batch_size, num_proposals, 1, 1).expand(-1, -1, 1, 3)
         size_residual = out["size_residuals"].gather(2, size_gather).squeeze(2)
         size = F.class_to_size(size_class.reshape(-1), size_residual.reshape(-1, 3), self.mean_sizes)
 
-        boxes = torch.cat([out["center"], size.view(batch_size, num_proposal, 3), angle.unsqueeze(-1)], dim=-1)
+        boxes = torch.cat([out["center"], size.view(batch_size, num_proposals, 3), angle.unsqueeze(-1)], dim=-1)
         objectness = out["objectness_scores"].softmax(dim=-1)[..., 1]
         class_probs = out["sem_cls_scores"].softmax(dim=-1)
-        batch = torch.arange(batch_size, device=boxes.device).repeat_interleave(num_proposal)
+        batch = torch.arange(batch_size, device=boxes.device).repeat_interleave(num_proposals)
         return {
             "boxes": boxes.reshape(-1, 7),
             "scores": objectness.reshape(-1),
@@ -655,17 +655,17 @@ _SUNRGBD_MEAN_SIZES = [
         in_channels=1,
         num_classes=18,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
-        sa_npoints=[2048, 1024, 512, 256],
+        sa_num_points=[2048, 1024, 512, 256],
         sa_radii=[0.2, 0.4, 0.8, 1.2],
         sa_num_neighbors=[64, 32, 16, 16],
         fp_channels=[[256, 256], [256, 256]],
         vote_aggr_channels=[128, 128, 128],
         vote_aggr_radius=0.3,
         vote_aggr_num_neighbors=16,
-        num_proposal=256,
+        num_proposals=256,
         vote_factor=1,
-        num_heading_bin=1,
-        num_size_cluster=18,
+        num_heading_bins=1,
+        num_size_clusters=18,
         mean_sizes=_SCANNET_MEAN_SIZES,
         sampling="seed_fps",
     ),
@@ -702,17 +702,17 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
         in_channels=1,
         num_classes=10,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
-        sa_npoints=[2048, 1024, 512, 256],
+        sa_num_points=[2048, 1024, 512, 256],
         sa_radii=[0.2, 0.4, 0.8, 1.2],
         sa_num_neighbors=[64, 32, 16, 16],
         fp_channels=[[256, 256], [256, 256]],
         vote_aggr_channels=[128, 128, 128],
         vote_aggr_radius=0.3,
         vote_aggr_num_neighbors=16,
-        num_proposal=256,
+        num_proposals=256,
         vote_factor=1,
-        num_heading_bin=12,
-        num_size_cluster=10,
+        num_heading_bins=12,
+        num_size_clusters=10,
         mean_sizes=_SUNRGBD_MEAN_SIZES,
         sampling="seed_fps",
     ),
