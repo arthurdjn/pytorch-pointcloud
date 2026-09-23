@@ -62,23 +62,23 @@ def load_parislille3d_data(ply_path: PathLike, /) -> Dict[str, Tensor]:
 
     The training files store per-vertex `x`, `y`, `z` (`float32`), `reflectance`
     (`uchar`) and `class` (`int32`). The `class` column is omitted in test files;
-    callers receive only `pos` and `reflectance` in that case.
+    callers receive only `pos` and `intensity` in that case.
 
-    | Key           | Shape    | Dtype   |
-    | ------------- | -------- | ------- |
-    | `pos`         | $(N, 3)$ | float32 |
-    | `reflectance` | $(N, 1)$ | uint8   |
-    | `segment`     | $(N,)$   | int64   | (optional)
+    | Key         | Shape    | Dtype   |
+    | ----------- | -------- | ------- |
+    | `pos`       | $(N, 3)$ | float32 |
+    | `intensity` | $(N, 1)$ | uint8   |
+    | `segment`   | $(N,)$   | int64   | (optional)
     """
     plydata = plyfile.PlyData.read(Path(ply_path).as_posix())
     v = plydata["vertex"].data
     fields = set(v.dtype.names or ())
 
     pos = np.ascontiguousarray(np.stack([v["x"], v["y"], v["z"]], axis=1)).astype(np.float32)
-    reflectance = np.ascontiguousarray(v["reflectance"]).astype(np.uint8).reshape(-1, 1)
+    intensity = np.ascontiguousarray(v["reflectance"]).astype(np.uint8).reshape(-1, 1)
     data: Dict[str, Tensor] = {
         DataKeys.POS: torch.from_numpy(pos),
-        DataKeys.REFLECTANCE: torch.from_numpy(reflectance),
+        DataKeys.INTENSITY: torch.from_numpy(intensity),
     }
 
     if "class" in fields:
@@ -93,12 +93,12 @@ class ParisLille3D(PointCloudDataset):
 
     Each sample is a single PLY scan, returned as a dictionary:
 
-    | Key           | Shape    | Dtype   | Meaning                                            |
-    | ------------- | -------- | ------- | -------------------------------------------------- |
-    | `pos`         | $(N, 3)$ | float32 | XYZ                                                |
-    | `reflectance` | $(N, 1)$ | uint8   | LiDAR reflectance                                  |
-    | `segment`     | $(N,)$   | int64   | Raw class id, 0-9 (0 = `unclassified`, ignored)    |
-    | `name`        | str      |         | Source file name without extension                 |
+    | Key         | Shape    | Dtype   | Meaning                                            |
+    | ----------- | -------- | ------- | -------------------------------------------------- |
+    | `pos`       | $(N, 3)$ | float32 | XYZ                                                |
+    | `intensity` | $(N, 1)$ | uint8   | LiDAR reflectance                                  |
+    | `segment`   | $(N,)$   | int64   | Raw class id, 0-9 (0 = `unclassified`, ignored)    |
+    | `name`      | str      |         | Source file name without extension                 |
 
     Args:
         root: Dataset root. Files are read from `<root>/ParisLille3D/raw/<file>.ply`.

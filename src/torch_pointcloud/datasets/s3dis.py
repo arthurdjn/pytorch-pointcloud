@@ -258,7 +258,7 @@ def tile_s3dis_room(
                     block[key] = val
 
             # Store the room maximum coordinates for normalization (might be used in transforms)
-            block[DataKeys.ROOM_MAX] = room_max.clone()
+            block[DataKeys.SCENE_MAX] = room_max.clone()
             blocks.append(block)
 
     return blocks

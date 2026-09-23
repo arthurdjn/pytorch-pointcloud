@@ -110,7 +110,7 @@ def train_one_epoch(
 
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
     for i, data in pbar:
-        points = data[DataKeys.POINTS].to(device)
+        points = data[DataKeys.OCTREE_POINTS].to(device)
         octree = data[DataKeys.OCTREE].to(device)
         target = data[DataKeys.SEGMENT].to(device)
         x = octree.get_input_feature("ND", nempty=True)
@@ -143,7 +143,7 @@ def eval_one_epoch(model: Module, dataloader: DataLoader, num_classes: int, devi
     total_correct = total_points = 0.0
     for data in tqdm(dataloader, total=len(dataloader), desc="Evaluating"):
         octree = data[DataKeys.OCTREE].to(device)
-        points = data[DataKeys.POINTS].to(device)
+        points = data[DataKeys.OCTREE_POINTS].to(device)
         target = data[DataKeys.SEGMENT].to(device)
         x = octree.get_input_feature("ND", nempty=True)
 
@@ -171,7 +171,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
                     pos_key=DataKeys.POS,
                     normal_key=DataKeys.NORMAL,
                     label_key=DataKeys.SEGMENT,
-                    points_key=DataKeys.POINTS,
+                    points_key=DataKeys.OCTREE_POINTS,
                     octree_key=DataKeys.OCTREE,
                     depth=11,
                     full_depth=2,
@@ -203,7 +203,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
                     pos_key=DataKeys.POS,
                     normal_key=None,
                     label_key=DataKeys.SEGMENT,
-                    points_key=DataKeys.POINTS,
+                    points_key=DataKeys.OCTREE_POINTS,
                     octree_key=DataKeys.OCTREE,
                     depth=11,
                     full_depth=2,
