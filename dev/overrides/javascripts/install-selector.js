@@ -52,8 +52,8 @@ function initInstallSelector() {
       );
     }
     lines.push("# torch-pointcloud + torch " + v + (tag === "cpu" ? " (CPU-only)" : " + CUDA " + CUDA_DOT[tag]));
-    lines.push(pipish + " torch-pointcloud");
     lines.push(pipish + " torch==" + v + " \\", "  --index-url https://download.pytorch.org/whl/" + tag);
+    lines.push(pipish + " torch-pointcloud");
     if (state.extras.pyg) {
       lines.push("", "# PyG extensions (torch-scatter, torch-cluster, ...)");
       if (PYG_MISSING[state.torch]) PYG_MISSING[state.torch].forEach(function (l) { lines.push(l); });

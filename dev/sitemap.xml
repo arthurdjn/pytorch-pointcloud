@@ -1,504 +1,504 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/installation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/installation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/get-started/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/get-started/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/models/overview/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/models/overview/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/models/classification/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/models/classification/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/models/segmentation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/models/segmentation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/models/part-segmentation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/models/part-segmentation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/models/detection/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/models/detection/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/models/features/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/models/features/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/datasets/overview/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/datasets/overview/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/datasets/classification/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/datasets/classification/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/datasets/segmentation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/datasets/segmentation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/datasets/part-segmentation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/datasets/part-segmentation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/datasets/detection/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/datasets/detection/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/transforms/overview/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/transforms/overview/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/inferers/overview/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/inferers/overview/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/01-quickstart/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/01-quickstart/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/02-segmentation-inference/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/02-segmentation-inference/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/03-transforms/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/03-transforms/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/04-custom-dataset/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/04-custom-dataset/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/05-training/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/05-training/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/06-feature-search/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/06-feature-search/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/examples/07-driving-detection/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/examples/07-driving-detection/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/config/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/config/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/concat/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/concat/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/kitti/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/kitti/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/mix/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/mix/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/modelnet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/modelnet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/nuscenes/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/nuscenes/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/parislille3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/parislille3d/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/pointcloud/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/pointcloud/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/repeat/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/repeat/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/s3dis/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/s3dis/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/scannet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/scannet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/scanobjectnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/scanobjectnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/semantic3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/semantic3d/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/semantickitti/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/semantickitti/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/shapenetpart/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/shapenetpart/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/sunrgbd/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/sunrgbd/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/toronto3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/toronto3d/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/datasets/utils/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/utils/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/inferer/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/inferer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/knn_window/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/knn_window/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/part_refinement/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/part_refinement/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/potential_sphere/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/potential_sphere/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/simple/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/simple/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/sliding_window/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/sliding_window/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/tta/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/tta/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/inferers/voxel_partition/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/inferers/voxel_partition/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/act/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/act/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/affine/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/affine/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/anchors/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/anchors/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/bev_backbone/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/bev_backbone/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/conv2d_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/conv2d_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/conv3d_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/conv3d_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/dropouts/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/dropouts/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/fps/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/fps/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/geometric_affine/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/geometric_affine/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/grid_pool/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/grid_pool/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/linear_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/linear_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/norms/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/norms/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/octree_attention/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/octree_attention/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/octree_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/octree_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pdnorm/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pdnorm/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/point_patch_embed/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/point_patch_embed/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pointconv/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointconv/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pointconv_sa/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointconv_sa/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pointnet2_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointnet2_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pointnext_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointnext_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pools/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pools/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/pvcnn_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pvcnn_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/rope/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/rope/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/serialized_attention/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/serialized_attention/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/serialized_pool/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/serialized_pool/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/spconv_blocks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/spconv_blocks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/tnet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/tnet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/transformer/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/transformer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/vfe/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/vfe/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/view/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/view/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/layers/xconv/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/xconv/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/lightning/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/lightning/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/lightning/callbacks/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/lightning/callbacks/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/lightning/datamodule/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/lightning/datamodule/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/lightning/metrics/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/lightning/metrics/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/lightning/module/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/lightning/module/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/anchor/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/anchor/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/center/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/center/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/chamfer/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/chamfer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/detr3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/detr3d/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/lovasz/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/lovasz/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/pointrcnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/pointrcnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/sum/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/sum/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/transfusion/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/transfusion/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/losses/votenet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/votenet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/metrics/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/metrics/classification/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/classification/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/metrics/detection/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/detection/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/metrics/instance_segmentation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/instance_segmentation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/metrics/nuscenes/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/nuscenes/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/metrics/segmentation/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/segmentation/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/concerto/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/concerto/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/detr3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/detr3d/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/dgcnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/dgcnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/kpconv/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/kpconv/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/lion/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/lion/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/octformer/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/octformer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_bert/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_bert/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_m2ae/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_m2ae/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_mae/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_mae/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_mamba/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_mamba/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_transformer/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_transformer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_transformer_v2/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_transformer_v2/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/point_transformer_v3/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point_transformer_v3/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointcnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointcnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointconv/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointconv/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointgpt/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointgpt/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointmlp/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointmlp/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointnet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointnet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointnet2/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointnet2/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointnext/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointnext/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointpillars/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointpillars/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pointrcnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pointrcnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pvcnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pvcnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/pvcnn2/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pvcnn2/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/randlanet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/randlanet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/second/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/second/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/sonata/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/sonata/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/spformer_unet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/spformer_unet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/sphereformer/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/sphereformer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/spunet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/spunet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/spvcnn/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/spvcnn/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/utonia/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/utonia/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/votenet/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/votenet/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/voxel_mamba/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/voxel_mamba/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/models/voxelnext/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/voxelnext/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/transforms/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/transforms/functional/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/functional/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/transforms/transforms/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/transforms/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/box3d/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/box3d/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/cluster/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/cluster/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/conversion/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/conversion/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/data/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/data/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/diffusion/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/diffusion/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/ensemble/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/ensemble/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/geometry/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/geometry/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/heatmap/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/heatmap/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/hilbert/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/hilbert/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/imports/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/imports/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/io/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/io/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/misc/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/misc/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/neighbors/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/neighbors/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/octree/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/octree/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/ops/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/ops/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/optim/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/optim/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/random/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/random/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/serialization/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/serialization/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/state_dict/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/state_dict/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/types/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/types/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/dev/api/utils/voxelization/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/voxelization/</loc>
       </url>
 </urlset>

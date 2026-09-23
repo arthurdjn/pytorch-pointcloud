@@ -6,13 +6,13 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
+        <meta name="description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
       
       
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/dev/installation/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/installation/">
       
       
         <link rel="prev" href="./..">
@@ -100,18 +100,23 @@
   
   
   
+  
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
   <meta property="og:title" content="Installation - PyTorch PointCloud">
-  <meta property="og:description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
-  <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png">
+  <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/dev/installation/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/installation/">
   
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Installation - PyTorch PointCloud">
-  <meta name="twitter:description" content="PyTorch PointCloud is the modular library for point cloud deep learning. Production-ready models for classification, segmentation, and detection matching PyG and timm standards.">
-  <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/avatar-1024.png">
+  <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
+  <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
 
   </head>
   
@@ -1259,19 +1264,6 @@
   
                   
   
-    <a href="https://github.com/arthurdjn/pytorch-pointcloud/edit/main/docs/installation.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
-    </a>
-  
-  
-    
-      
-    
-    <a href="https://github.com/arthurdjn/pytorch-pointcloud/raw/main/docs/installation.md" title="View source of this page" class="md-content__button md-icon">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
-    </a>
   
 
 
@@ -1321,7 +1313,7 @@ l0 -2496 1185 0 1185 0 0 770 0 770 205 0 205 0 0 -770 0 -770 1185 0 1185 0
 </tr>
 <tr>
 <td><code>mamba</code></td>
-<td>Point-Mamba, Voxel-Mamba, LION</td>
+<td>PointMamba, Voxel-Mamba, LION</td>
 </tr>
 <tr>
 <td><code>spconv</code></td>
@@ -1380,9 +1372,9 @@ l0 -2496 1185 0 1185 0 0 770 0 770 205 0 205 0 0 -770 0 -770 1185 0 1185 0
   <div class="isel-output">
     <button class="isel-copy" id="isel-copy" title="Copy to clipboard" aria-label="Copy to clipboard"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1Z"/></svg></button>
     <pre><code id="isel-command"># torch-pointcloud + torch 2.10.0 + CUDA 12.8
-uv pip install torch-pointcloud
 uv pip install torch==2.10.0 \
   --index-url https://download.pytorch.org/whl/cu128
+uv pip install torch-pointcloud
 # PyG extensions (torch-scatter, torch-cluster, ...)
 uv pip install \
   pyg-lib torch-scatter torch-sparse torch-cluster \
@@ -1390,8 +1382,17 @@ uv pip install \
   </div>
 </div>
 
-<p>The combination tested in CI and used for the benchmark results is <code>torch==2.10.0</code> with CUDA 12.8.
-Other torch or CUDA versions and exact wheel pins are listed on the <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 700" fill="#D7FF64"><g transform="translate(0,700) scale(0.1,-0.1)"><path d="M1065 6044 c-42 -21 -91 -71 -110 -110 -13 -29 -15 -302 -15 -2528
+<p>The benchmark results were measured with <code>torch==2.10.0</code> and CUDA 12.8. CI runs the test suite on CPU, with
+<code>torch==2.8.0</code>, so the CUDA-only families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer
+and the voxel-based detectors) are only exercised on a GPU machine.</p>
+<div class="admonition warning">
+<p class="admonition-title">Install torch before the package</p>
+<p>A bare <code>pip install torch-pointcloud</code> resolves the newest torch, and the <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
+</span> <a href="https://data.pyg.org/whl/">PyG wheel index</a>
+ships <code>torch-cluster</code> up to torch 2.11 and <code>torch-scatter</code> up to torch 2.12 only. Without those kernels no model
+can run, so pin torch to a version listed above first, then install the package and the kernels.</p>
+</div>
+<p>Other torch or CUDA versions and exact wheel pins are listed on the <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 700" fill="#D7FF64"><g transform="translate(0,700) scale(0.1,-0.1)"><path d="M1065 6044 c-42 -21 -91 -71 -110 -110 -13 -29 -15 -302 -15 -2528
 l0 -2496 1185 0 1185 0 0 770 0 770 205 0 205 0 0 -770 0 -770 1185 0 1185 0
 0 2490 c0 2229 -2 2495 -16 2528 -19 47 -58 88 -106 113 -36 19 -95 19 -2455
 19 -2168 0 -2421 -2 -2448 -16z m3065 -2149 l0 -205 -615 0 -615 0 0 205 0
@@ -1423,8 +1424,8 @@ and the <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http:
 <h2 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Anchor link to this section">&para;</a></h2>
 <ul>
 <li><strong>Python</strong>: 3.10+</li>
-<li><strong>PyTorch</strong>: <code>torch&gt;=2.8</code>. CI runs the test suite on the lowest supported version (<code>torch==2.8.0</code>). The benchmark
-  results use <code>torch==2.10.0</code> with CUDA 12.8.</li>
+<li><strong>PyTorch</strong>: <code>torch&gt;=2.8</code>. CI runs the test suite on CPU with the lowest supported version (<code>torch==2.8.0</code>); the
+  benchmark results use <code>torch==2.10.0</code> with CUDA 12.8.</li>
 <li><strong>PyG kernels</strong>: the <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
 </span> <a href="https://data.pyg.org/whl/">PyG wheel index</a> has deprecated <code>torch-cluster</code> in favor of <code>pyg-lib</code>.
   From <code>torch-geometric&gt;=2.8</code>, sampling and neighbor search need <code>pyg-lib&gt;=0.6</code>, which is built for <code>torch&gt;=2.8</code> only.</li>
@@ -1553,7 +1554,7 @@ and the <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http:
     
       
       
-      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["announce.dismiss","content.action.edit","content.action.view","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.instant","navigation.instant.prefetch","navigation.instant.preview","navigation.instant.progress","navigation.path","navigation.prune","navigation.sections","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"search":"../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["announce.dismiss","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.instant","navigation.instant.prefetch","navigation.instant.preview","navigation.instant.progress","navigation.path","navigation.prune","navigation.sections","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"search":"../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
     
     
       <script src="../assets/javascripts/bundle.69c251d7.min.js"></script>
