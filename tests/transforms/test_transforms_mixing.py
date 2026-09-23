@@ -59,8 +59,7 @@ def test_mix3d_does_not_mutate_inputs() -> None:
 def test_laser_mix_key_correspondence() -> None:
     """Every masked key keeps the same length as the coordinate key."""
     a, b = _mix_pair()
-    g = torch.Generator().manual_seed(1)
-    out = T.LaserMix(keys=("pos", "segment"), num_areas=(4,), pitch_range=(-25.0, 3.0), generator=g)(a, b)
+    out = T.LaserMix(keys=("pos", "segment"), num_areas=(4,), pitch_range=(-25.0, 3.0), seed=1)(a, b)
     assert out["pos"].shape[0] == out["segment"].shape[0]
 
 
@@ -72,8 +71,7 @@ def test_laser_mix_p_zero_is_noop() -> None:
 
 def test_polar_mix_key_correspondence() -> None:
     a, b = _mix_pair()
-    g = torch.Generator().manual_seed(2)
-    out = T.PolarMix(keys=("pos", "segment"), instance_classes=(1, 2, 3), generator=g)(a, b)
+    out = T.PolarMix(keys=("pos", "segment"), instance_classes=(1, 2, 3), seed=2)(a, b)
     assert out["pos"].shape[0] == out["segment"].shape[0]
 
 

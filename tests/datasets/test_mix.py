@@ -1,12 +1,11 @@
-from types import SimpleNamespace
 from typing import Any, Dict, List
 
-import pytest
 import torch
 from torch.utils.data import Dataset
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import MixDataset
+from torch_pointcloud.utils.data import PointCloudDataLoader
 
 
 class _ScenesDataset(Dataset):
@@ -38,8 +37,7 @@ def test_mix_dataset_len_matches_wrapped() -> None:
 def test_mix_dataset_applies_mix() -> None:
     """A drawn partner is concatenated, so the mixed sample is longer than the source sample."""
     dataset = _dataset()
-    g = torch.Generator().manual_seed(1)
-    mixed = MixDataset(dataset, mix=T.Mix3D(keys=("pos", "segment"), instance_key=None), generator=g)
+    mixed = MixDataset(dataset, mix=T.Mix3D(keys=("pos", "segment"), instance_key=None), seed=1)
     out = mixed[0]
     assert out["pos"].shape[0] > dataset[0]["pos"].shape[0]
     assert out["pos"].shape[0] == out["segment"].shape[0]
@@ -64,29 +62,33 @@ def test_mix_dataset_post_transform_runs() -> None:
 
 
 def _partner_stream(scenes: List[Dict[str, Any]], draws: int = 16) -> List[float]:
-    """Partner values drawn by a fresh MixDataset replica whose generator is seeded like every worker's."""
+    """Partner values drawn by a freshly seeded MixDataset."""
     mixed = MixDataset(
         _ScenesDataset(scenes),
         mix=lambda data, other: {"other": other["pos"]},
-        generator=torch.Generator().manual_seed(0),
+        seed=0,
     )
     return [mixed[0]["other"][0, 0].item() for _ in range(draws)]
 
 
-def test_mix_dataset_worker_streams_are_distinct(monkeypatch: pytest.MonkeyPatch) -> None:
-    """DataLoader workers hold identical generator replicas, so each must derive its own partner stream."""
+def _partner(data: Dict[str, Any], other: Dict[str, Any]) -> float:
+    return other["pos"][0, 0].item()
+
+
+def _single(sample: float) -> float:
+    return sample
+
+
+def test_mix_dataset_seeded_workers_draw_distinct_partners() -> None:
+    """Every worker gets a copy of the seeded dataset; the loader re-seeds each copy so their partners differ."""
     scenes = [{"pos": torch.full((1, 3), float(i))} for i in range(64)]
-
-    def stream(worker_id: int) -> List[float]:
-        monkeypatch.setattr("torch_pointcloud.datasets.mix.get_worker_info", lambda: SimpleNamespace(id=worker_id))
-        return _partner_stream(scenes)
-
-    assert stream(0) == stream(0)
-    assert stream(1) == stream(1)
-    assert stream(0) != stream(1)
+    mixed = MixDataset(_ScenesDataset(scenes), mix=_partner, seed=0)
+    torch.manual_seed(0)
+    partners = list(PointCloudDataLoader(mixed, batch_size=None, num_workers=2, collate_fn=_single))
+    assert partners[0::2] != partners[1::2]
 
 
-def test_mix_dataset_generator_reproducible_in_main_process() -> None:
-    """Outside DataLoader workers, an identically seeded generator yields the same partner stream."""
+def test_mix_dataset_seed_reproducible_in_main_process() -> None:
+    """Outside DataLoader workers, an identical seed yields the same partner stream."""
     scenes = [{"pos": torch.full((1, 3), float(i))} for i in range(64)]
     assert _partner_stream(scenes) == _partner_stream(scenes)

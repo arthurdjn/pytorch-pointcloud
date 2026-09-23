@@ -1,9 +1,12 @@
 # mypy: disable-error-code="list-item"
+from typing import Any, List
+
 import pytest
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, get_worker_info
 
-from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, collate
+import torch_pointcloud.transforms as T
+from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, collate, set_random_states
 
 
 def test_collate_empty_returns_empty_dict() -> None:
@@ -338,3 +341,49 @@ def test_data_keys_string_values(member: DataKeys, expected: str) -> None:
     """DataKeys is a StrEnum used as dict keys across the codebase; lock its surface."""
     assert member == expected
     assert isinstance(member, str)
+
+
+class _JitterDataset(Dataset):
+    def __init__(self) -> None:
+        self.transform = T.RandomJitter(keys="pos", sigma=1.0, clip=None, seed=0)
+        self.offset = 0.0
+
+    def __len__(self) -> int:
+        return 8
+
+    def __getitem__(self, index: int) -> float:
+        return self.transform({"pos": torch.zeros(1, 3)})["pos"][0, 0].item() + self.offset
+
+
+def _single(samples: List[float]) -> List[float]:
+    return samples
+
+
+def _set_offset(worker_id: int) -> None:
+    info = get_worker_info()
+    assert info is not None
+    info.dataset.offset = 100.0
+
+
+def _draw(**kwargs: Any) -> List[float]:
+    torch.manual_seed(0)
+    return list(PointCloudDataLoader(_JitterDataset(), batch_size=None, num_workers=2, collate_fn=_single, **kwargs))
+
+
+def test_dataloader_reseeds_seeded_transforms_per_worker() -> None:
+    values = _draw()
+    assert values[0::2] != values[1::2]
+    assert values == _draw()
+
+
+def test_dataloader_runs_the_user_worker_init_fn() -> None:
+    assert all(value > 50.0 for value in _draw(worker_init_fn=_set_offset))
+
+
+def test_set_random_states_reseeds_only_seeded_objects() -> None:
+    seeded = T.RandomJitter(keys="pos", seed=0)
+    unseeded = T.RandomJitter(keys="pos")
+    next_seed = set_random_states({"a": seeded, "b": [unseeded]}, seed=7)
+    assert next_seed == 8
+    assert seeded.R is not None and seeded.R.initial_seed() == 7
+    assert unseeded.R is None
