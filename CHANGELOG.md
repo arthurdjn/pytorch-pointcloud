@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.6 (2026-09-23)
+
 - Renamed the ScanObjectNN checkpoints to name their split (`-hardest`, `-objbg`, `-objonly`) and the KPConv checkpoints to `s3dis-area5`.
 - Pinned every registered weight URL to its Hub commit.
 - Fixed the `point-mamba-base.scanobjectnn-objonly.dingkang-liang` weights (block norms taken from the unused `norm_ffn` layer): OA 83.30 to 92.60.
