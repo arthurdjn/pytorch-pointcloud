@@ -809,6 +809,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
 @register_model(
     "dgcnn.shapenetpart.an-tao",
     task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.shapenetpart.an-tao/resolve/ec81e21de268b6aed580bc9d13c8265fa4b7c312/model.safetensors",
         dataset="shapenetpart",

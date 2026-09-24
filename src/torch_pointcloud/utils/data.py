@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, Dataset, get_worker_info
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
+from torch_pointcloud.utils.misc import deep_getattr
 from torch_pointcloud.utils.types import KeyCollection, StrEnum
 
 if TYPE_CHECKING:
@@ -19,6 +20,9 @@ if TYPE_CHECKING:
 ocnn, _OCNN_AVAILABLE = optional_import("ocnn", url=_OCNN_GITHUB_URL)
 Octree, _ = optional_import("ocnn.octree", "Octree", url=_OCNN_GITHUB_URL)
 Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
+
+
+_MISSING = object()
 
 
 class DataKeys(StrEnum):
@@ -185,6 +189,46 @@ def collate(
             out[dst] = torch.cat([torch.full((n,), i, dtype=torch.long, device=device) for i, n in enumerate(lengths)])
 
     return out
+
+
+def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
+    """Gather the positional inputs of a model's `forward` from a batch dict, in `keys` order.
+
+    A dotted key reads an attribute of a batch value (e.g. `octree.depth`). A missing `x` resolves to `None`, since
+    models accept `x=None` and build their features from the positions; any other missing key raises.
+
+    Args:
+        data: Collated batch dict, e.g. from `collate` or `PointCloudDataLoader`.
+        keys: Batch keys `forward` takes positionally, typically `info["input_keys"]` from
+            `create_model(..., return_info=True)`.
+
+    Returns:
+        The values to unpack into the model's `forward`.
+
+    Raises:
+        KeyError: If a key other than `x` is missing from `data`.
+
+    Example:
+        ```python
+        import torch
+
+        import torch_pointcloud as tp
+        from torch_pointcloud.utils.data import collate, select_inputs
+
+        model, info = tp.create_model("pointnet.modelnet40", return_info=True)
+        batch = collate([info["transform"]({"pos": torch.rand(2048, 3)})])
+        logits = model(*select_inputs(batch, info["input_keys"]))
+        ```
+    """
+    inputs = []
+    for key in keys:
+        value = deep_getattr(data, key, default=_MISSING)
+        if value is _MISSING:
+            if key != DataKeys.X:
+                raise KeyError(f"Input key {key!r} not found in the batch (available keys: {sorted(data)}).")
+            value = None
+        inputs.append(value)
+    return inputs
 
 
 # inspired by: https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/data/utils.py#L719

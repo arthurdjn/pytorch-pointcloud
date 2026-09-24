@@ -563,6 +563,7 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
 @register_model(
     "spunet-v1m1.scannet20.pointcept",
     task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/spunet-v1m1.scannet20.pointcept/resolve/641cc7cc6035a4086dfed9f70d839e9f551d5955/model.safetensors",
         dataset="scannet20",

@@ -566,6 +566,7 @@ class SECONDMultiHeadDetection(DetectionModel):
 @register_model(
     "second.kitti.openpcdet",
     task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/second.kitti.openpcdet/resolve/257ec23dfb951b12756786fcdaba9792cb3916a0/model.safetensors",
         dataset="kitti",
@@ -607,6 +608,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
 @register_model(
     "second-multihead.nuscenes.openpcdet",
     task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/e5a7f5cce77ba7e6457f6436e1a45baabc69448e/model.safetensors",
         dataset="nuscenes",

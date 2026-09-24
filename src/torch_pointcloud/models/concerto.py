@@ -289,6 +289,7 @@ def _concerto_encoder_hparams(
 @register_model(
     "concerto-tiny.pretrain.pointcept",
     task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/concerto-tiny.pretrain.pointcept/resolve/bbb0d0f2e7d8786be08a73895720a1a869cdfc7c/model.safetensors",
         author="pointcept",
@@ -308,6 +309,7 @@ def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "concerto-small.pretrain.pointcept",
     task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/concerto-small.pretrain.pointcept/resolve/d4c257e9f3d96f0dec0730bdb13f81b654ce3eae/model.safetensors",
         author="pointcept",
@@ -327,6 +329,7 @@ def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "concerto-base.pretrain.pointcept",
     task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/concerto-base.pretrain.pointcept/resolve/28fc60afc5f319eefb4d5099b72f74b68584c56a/model.safetensors",
         author="pointcept",
@@ -346,6 +349,7 @@ def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "concerto-large.pretrain.pointcept",
     task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/concerto-large.pretrain.pointcept/resolve/346194cf8870bdae84b03a62a671e61435d770fc/model.safetensors",
         author="pointcept",
@@ -365,6 +369,7 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "concerto-large-lp.scannet20.pointcept",
     task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/concerto-large-lp.scannet20.pointcept/resolve/c2c68b5771d7b53ec1ed000830813be6720b1f37/model.safetensors",
         dataset="scannet20",

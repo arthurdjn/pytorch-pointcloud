@@ -739,6 +739,7 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
 @register_model(
     "sphereformer.semantickitti",
     task="semantic-segmentation",
+    input_keys=("x", "pos", "pos_grid", "batch"),
     # The original pretrained weights are no longer downloadable (the authors' CUHK OneDrive links are dead,
     # see dvlab-research/SphereFormer issue #78), so the architecture is registered without pretrained weights.
     weights=None,
@@ -816,6 +817,7 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
 @register_model(
     "sphereformer.nuscenes",
     task="semantic-segmentation",
+    input_keys=("x", "pos", "pos_grid", "batch"),
     weights=None,
     transform=T.Compose(
         [

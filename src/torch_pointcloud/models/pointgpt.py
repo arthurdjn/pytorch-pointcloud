@@ -709,7 +709,7 @@ class PointGPTPretraining(PretrainingModel):
         return pred, target
 
 
-def _modelnet_transforms(num_samples: int) -> Callable:
+def _modelnet_transforms(num_samples: int) -> T.Compose:
     return T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
@@ -725,7 +725,7 @@ def _modelnet_transforms(num_samples: int) -> Callable:
     )
 
 
-def _scanobjectnn_transforms() -> Callable:
+def _scanobjectnn_transforms() -> T.Compose:
     return T.Compose(
         [
             T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),

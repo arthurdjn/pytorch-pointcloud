@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `input_keys` to the registry, the batch keys each model's `forward` takes, read by `LitModel` by default, and `utils.data.select_inputs`.
+- Made `task` optional in `create_model` when the name is registered under a single task.
+- Added `ModelInfoDict`, the type of `create_model(..., return_info=True)` info, with the resolved `task` and `input_keys`, and typed the registered `transform` as a `Transform`.
+- Moved the `return_intermediates` argument of `PointTransformerV3Encoder.forward` after `pos` and `condition`.
 - Replaced `RandomDropout(p_drop)` with `drop_ratio_range`, the range the dropped fraction is drawn from on each call, and renamed `functional.random_dropout_mask(p_drop)` to `drop_ratio`.
 - Renamed `Voxelize(method="pyg")` to `method="grid"` and `Voxelize(random_sample)` to `random_first`.
 - Moved `EncodeVoteNetTargets` and `GenerateVoteLabels` to `torch_pointcloud.models.votenet`, and `angle_to_class`, `class_to_angle` and `class_to_size` to `torch_pointcloud.utils.box3d`.

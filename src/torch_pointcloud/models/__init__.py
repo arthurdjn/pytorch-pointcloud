@@ -7,7 +7,7 @@ from ._base import (
     PretrainingModel,
     SemanticSegmentationModel,
 )
-from ._registry import ModelDict, Task, WeightsDict, create_model, list_models, register_model
+from ._registry import ModelDict, ModelInfoDict, Task, WeightsDict, create_model, list_models, register_model
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation

@@ -208,6 +208,7 @@ class SonataSegmentation(SemanticSegmentationModel):
 @register_model(
     "sonata-base.pretrain.fair",
     task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/sonata-base.pretrain.fair/resolve/26b9ca196f66540b193bf5a48b2b093e785e63ba/model.safetensors",
         author="fair",
@@ -269,6 +270,7 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "sonata-lp.scannet20.fair",
     task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/sonata-lp.scannet20.fair/resolve/140cf11dc2301ecc2f1e540ae11b04ff78457103/model.safetensors",
         dataset="scannet20",

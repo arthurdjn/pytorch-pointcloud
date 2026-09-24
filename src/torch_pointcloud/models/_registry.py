@@ -5,7 +5,7 @@ import fnmatch
 import re
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, TypedDict, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union, overload
 from urllib.parse import urlparse
 
 import torch
@@ -13,6 +13,7 @@ from torch import nn
 from typing_extensions import NotRequired
 
 from torch_pointcloud.config import MODELS_DIR
+from torch_pointcloud.transforms.base import Transform
 from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 from torch_pointcloud.utils.types import PathLike
 
@@ -47,13 +48,25 @@ class WeightsDict(TypedDict):
 
 
 class ModelDict(TypedDict):
-    """Registry entry describing a registered model, returned by `create_model(..., return_info=True)`."""
+    """Registry entry of a registered model: its entry point and the metadata `create_model` returns."""
 
     name: str
     weights: Optional[WeightsDict]
-    transform: Optional[Callable]
+    transform: Optional[Transform]
+    input_keys: Tuple[str, ...]
     hparams: Dict[str, Any]
     fn: Callable
+
+
+class ModelInfoDict(TypedDict):
+    """Registry entry of a built model, returned by `create_model(..., return_info=True)`."""
+
+    name: str
+    task: Task
+    weights: Optional[WeightsDict]
+    transform: Optional[Transform]
+    input_keys: Tuple[str, ...]
+    hparams: Dict[str, Any]
 
 
 _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
@@ -70,7 +83,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transform: Optional[Callable] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
     task: Literal["pretraining"],
 ) -> Callable[[Callable[..., nn.Module]], Callable[..., nn.Module]]: ...
@@ -81,7 +95,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transform: Optional[Callable] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
     task: Literal["classification"],
 ) -> Callable[[Callable[..., ClassificationModel]], Callable[..., ClassificationModel]]: ...
@@ -92,7 +107,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transform: Optional[Callable] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
     task: Literal["semantic-segmentation"],
 ) -> Callable[[Callable[..., SemanticSegmentationModel]], Callable[..., SemanticSegmentationModel]]: ...
@@ -103,7 +119,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transform: Optional[Callable] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
     task: Literal["part-segmentation"],
 ) -> Callable[[Callable[..., PartSegmentationModel]], Callable[..., PartSegmentationModel]]: ...
@@ -114,7 +131,8 @@ def register_model(
     name: str,
     *,
     hparams: Optional[Dict[str, Any]] = None,
-    transform: Optional[Callable] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
     task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
@@ -125,7 +143,8 @@ def register_model(
     *,
     task: Task,
     hparams: Optional[Dict[str, Any]] = None,
-    transform: Optional[Callable] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
 ) -> Callable:
     """Register a model entry point under `name` for `task`.
@@ -139,6 +158,8 @@ def register_model(
             `part-segmentation` or `detection`).
         hparams: Default keyword arguments the entry point is called with; `create_model` kwargs override them.
         transform: Evaluation transform reproducing the preprocessing the weights were trained with.
+        input_keys: Batch keys `forward` takes positionally, in order; a dotted key reads an attribute (e.g.
+            `octree.depth`). `utils.data.select_inputs` gathers them from a collated batch.
         weights: Pretrained checkpoint, either a URL string or a `WeightsDict` with metadata.
 
     Returns:
@@ -180,6 +201,7 @@ def register_model(
         _REGISTERED_MODELS[task][name] = {
             "name": name,
             "transform": transform,
+            "input_keys": tuple(input_keys),
             "hparams": hparams,
             "weights": weights_dict,
             "fn": fn,
@@ -286,7 +308,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[True],
     **kwargs: Any,
-) -> tuple[nn.Module, Dict[str, Any]]: ...
+) -> Tuple[nn.Module, ModelInfoDict]: ...
 
 
 @overload
@@ -310,7 +332,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[True],
     **kwargs: Any,
-) -> tuple[ClassificationModel, Dict[str, Any]]: ...
+) -> Tuple[ClassificationModel, ModelInfoDict]: ...
 
 
 @overload
@@ -334,7 +356,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[True],
     **kwargs: Any,
-) -> tuple[SemanticSegmentationModel, Dict[str, Any]]: ...
+) -> Tuple[SemanticSegmentationModel, ModelInfoDict]: ...
 
 
 @overload
@@ -358,7 +380,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[True],
     **kwargs: Any,
-) -> tuple[PartSegmentationModel, Dict[str, Any]]: ...
+) -> Tuple[PartSegmentationModel, ModelInfoDict]: ...
 
 
 @overload
@@ -382,7 +404,7 @@ def create_model(
     checkpoint_path: Optional[PathLike] = None,
     return_info: Literal[True],
     **kwargs: Any,
-) -> tuple[DetectionModel, Dict[str, Any]]: ...
+) -> Tuple[DetectionModel, ModelInfoDict]: ...
 
 
 @overload
@@ -400,7 +422,31 @@ def create_model(
 @overload
 def create_model(
     name: str,
-    task: Task,
+    task: None = None,
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
+) -> Tuple[nn.Module, ModelInfoDict]: ...
+
+
+@overload
+def create_model(
+    name: str,
+    task: None = None,
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
+) -> nn.Module: ...
+
+
+@overload
+def create_model(
+    name: str,
+    task: Optional[Task] = None,
     *,
     pretrained: bool = False,
     checkpoint_path: Optional[PathLike] = None,
@@ -411,7 +457,7 @@ def create_model(
 
 def create_model(
     name: str,
-    task: Task,
+    task: Optional[Task] = None,
     *,
     pretrained: bool = False,
     checkpoint_path: Optional[PathLike] = None,
@@ -427,19 +473,21 @@ def create_model(
     Args:
         name: Registered model name (see `list_models`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
-            `part-segmentation` or `detection`).
+            `part-segmentation` or `detection`). Optional when `name` is registered under a single task.
         pretrained: Load the registered pretrained weights. Mutually exclusive with `checkpoint_path`.
         checkpoint_path: Local checkpoint to load instead of the registered weights. Supports `torch.save`
             files, `.safetensors`, and Lightning checkpoints (the wrapped network is extracted).
-        return_info: Also return the registry entry, with `hparams` reflecting the effective values.
+        return_info: Also return the registry entry (`ModelInfoDict`), with the resolved `task` and the effective
+            `hparams`.
         **kwargs: Overrides merged into the registered `hparams` and passed to the model constructor.
 
     Returns:
         The model, or a `(model, info)` tuple when `return_info` is true.
 
     Raises:
-        ValueError: If `task` or `name` is unknown, if both `pretrained` and `checkpoint_path` are passed, or if
-            `pretrained` is requested for an entry that registers no weights.
+        ValueError: If `task` or `name` is unknown, if `task` is omitted for a name registered under several tasks,
+            if both `pretrained` and `checkpoint_path` are passed, or if `pretrained` is requested for an entry that
+            registers no weights.
         TypeError: If the entry registers architecture hparams only and the data-dependent arguments
             (typically `in_channels` and `num_classes`) are not passed.
         FileNotFoundError: If the checkpoint file does not exist, or if the registered weights are absent from
@@ -450,19 +498,33 @@ def create_model(
     ```python
     import torch_pointcloud as tp
 
-    model = tp.create_model("pointnet.modelnet40", task="classification")
-    model = tp.create_model("pointnet.modelnet40", task="classification", num_classes=10)
-    model, info = tp.create_model("pointnet.modelnet40", task="classification", return_info=True)
+    model = tp.create_model("pointnet.modelnet40")
+    model = tp.create_model("pointnet.modelnet40", num_classes=10)
+    model, info = tp.create_model("pointnet.modelnet40", return_info=True)
     ```
     """
-    if task not in _REGISTERED_MODELS.keys():
+    if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
     if pretrained and checkpoint_path is not None:
         raise ValueError("'pretrained' and 'checkpoint_path' are mutually exclusive. Pass a single weight source.")
 
-    model_info = _REGISTERED_MODELS[task].get(name)
-    if model_info is None:
+    if task is None:
+        tasks = [t for t, entries in _REGISTERED_MODELS.items() if name in entries]
+        if len(tasks) > 1:
+            registered = " and ".join(f"{t!r}" for t in tasks)
+            raise ValueError(f"Model {name!r} is registered under tasks {registered}; pass `task=` to pick one.")
+        if not tasks:
+            message = f"Model {name!r} is not registered."
+            matches = difflib.get_close_matches(name, list_models(), n=3)
+            if matches:
+                message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
+            message += " Use `list_models()` to list the registered names."
+            raise ValueError(message)
+        task = tasks[0]
+
+    entry = _REGISTERED_MODELS[task].get(name)
+    if entry is None:
         message = f"Model {name!r} not found in the {task!r} registry."
         other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
         for other in other_tasks:
@@ -473,17 +535,11 @@ def create_model(
         message += f" Use `list_models(task={task!r})` to list the registered names."
         raise ValueError(message)
 
-    # create a copy of the model entry to avoid modifying the original entry stored in the registry
-    model_info = model_info.copy()
-    # the fn key is dropped and is not returned with the model info in case `return_info` is True
-    model_fn = model_info.pop("fn")  # type: ignore[misc]
-
     # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
     # caller (e.g. a LightningModule) can log exactly what built the model.
-    hparams = {**model_info["hparams"], **kwargs}
-    model_info["hparams"] = hparams
+    hparams = {**entry["hparams"], **kwargs}
     try:
-        model = model_fn(**hparams)
+        model = entry["fn"](**hparams)
     except TypeError as err:
         if "required positional argument" not in str(err) and "required keyword-only argument" not in str(err):
             raise
@@ -493,7 +549,7 @@ def create_model(
         ) from err
 
     if pretrained:
-        weights = model_info["weights"]
+        weights = entry["weights"]
         if weights is None:
             raise ValueError(
                 f"No pretrained weights are registered for model {name!r}. Pass `pretrained=False` for a random "
@@ -511,7 +567,15 @@ def create_model(
         load_state_dict(model, read_state_dict(path), source=path.as_posix())
 
     if return_info:
-        return model, model_info
+        info: ModelInfoDict = {
+            "name": name,
+            "task": task,
+            "weights": entry["weights"],
+            "transform": entry["transform"],
+            "input_keys": entry["input_keys"],
+            "hparams": hparams,
+        }
+        return model, info
     return model
 
 

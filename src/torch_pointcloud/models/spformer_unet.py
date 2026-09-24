@@ -521,6 +521,7 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
 @register_model(
     "spformer-unet.scannet",
     task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
     # No ported pretrained weights for the standalone SPFormer U-Net yet: the released SPFormer checkpoint
     # bundles an instance-segmentation query decoder, so the backbone is registered without weights.
     weights=None,
@@ -565,6 +566,7 @@ def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
 @register_model(
     "spformer-unet.scannet20",
     task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
     weights=None,
     transform=T.Compose(
         [

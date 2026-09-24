@@ -1038,6 +1038,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
 @register_model(
     "point-mae-base.shapenetpart.yatian-pang",
     task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.shapenetpart.yatian-pang/resolve/7f283670e1997fdf385132a835c3d14ca159bbee/model.safetensors",
         dataset="shapenetpart",

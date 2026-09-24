@@ -14,7 +14,6 @@ uv run --no-sync pytest tests/models/test_pretrained.py --run-pretrained --force
 ```
 """
 
-import inspect
 from pathlib import Path
 from typing import Callable, List, Tuple
 
@@ -25,7 +24,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.utils.data import collate
+from torch_pointcloud.utils.data import collate, select_inputs
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -214,16 +213,10 @@ def test_pretrained_model(
     data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
     model = model.to(DEVICE)
 
-    # Inspect and keep only required arguments from forward method
-    sig = inspect.signature(model.forward)
-    kwargs = {a: data.get(a) for a in sig.parameters if a != "self"}
-    if "depth" in kwargs and "octree" in data:
-        kwargs["depth"] = data["octree"].depth
-
-    # Run inference (eval mode)
+    # Run inference (eval mode) on the registered input keys
     model.eval()
     with torch.no_grad():
-        output = model(**kwargs)
+        output = model(*select_inputs(data, info["input_keys"]))
 
     # Ensure output matches snapshot
     _check_output(output, model_name, force_regen, models_dir)

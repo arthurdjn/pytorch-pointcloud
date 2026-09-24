@@ -519,6 +519,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
 @register_model(
     "pointpillars.kitti.openpcdet",
     task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars.kitti.openpcdet/resolve/caf39bd441409bdd2997d3099cc524ac451ff06d/model.safetensors",
         dataset="kitti",
@@ -560,6 +561,7 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
 @register_model(
     "pointpillars-multihead.nuscenes.openpcdet",
     task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars-multihead.nuscenes.openpcdet/resolve/88e9d39251f75b29eb369826c84199d4d3dcd438/model.safetensors",
         dataset="nuscenes",

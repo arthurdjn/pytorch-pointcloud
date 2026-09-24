@@ -765,6 +765,20 @@ def test_registered_weights_classes_match_num_classes() -> None:
                 assert len(weights["classes"]) == num_classes, name
 
 
+def test_registered_input_keys_fill_the_forward_arguments() -> None:
+    """`input_keys` cover the required positional arguments of `forward`, and no more than its positional ones."""
+    for entries in _REGISTERED_MODELS.values():
+        for name, entry in entries.items():
+            model_cls = inspect.signature(entry["fn"]).return_annotation
+            params = [
+                p
+                for p in inspect.signature(model_cls.forward).parameters.values()
+                if p.name != "self" and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+            ]
+            required = [p for p in params if p.default is inspect.Parameter.empty]
+            assert len(required) <= len(entry["input_keys"]) <= len(params), (name, entry["input_keys"])
+
+
 def test_registered_weights_urls_name_the_hub_repo() -> None:
     for entries in _REGISTERED_MODELS.values():
         for name, entry in entries.items():
