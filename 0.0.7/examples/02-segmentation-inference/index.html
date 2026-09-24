@@ -1,0 +1,2243 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
+      
+      
+        <meta name="author" content="Arthur Dujardin">
+      
+      
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/examples/02-segmentation-inference/">
+      
+      
+        <link rel="prev" href="../01-quickstart/">
+      
+      
+        <link rel="next" href="../03-transforms/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="zensical-0.0.53">
+    
+    
+      
+        <title>Segment a scene - PyTorch PointCloud</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.20815dad.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20class%3D%22lucide%20lucide-book-open-check%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%205v16M16%2012l2%202%204-4%22/%3E%3Cpath%20d%3D%22M22%206V5a2%202%200%200%200-1.999-2L16%203.002A5%205%200%200%200%2012%205a5%205%200%200%200-4-2H4a2%202%200%200%200-2%202v12a2%202%200%200%200%201.999%202H8a5%205%200%200%201%204%202%205%205%200%200%201%204-2h4.001A2%202%200%200%200%2022%2017v-1.344%22/%3E%3C/svg%3E');--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20class%3D%22lucide%20lucide-info%22%20viewBox%3D%220%200%2024%2024%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%2210%22/%3E%3Cpath%20d%3D%22M12%2016v-4M12%208h.01%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20class%3D%22lucide%20lucide-lightbulb%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M15%2014c.2-1%20.7-1.7%201.5-2.5%201-.9%201.5-2.2%201.5-3.5A6%206%200%200%200%206%208c0%201%20.2%202.2%201.5%203.5.7.7%201.3%201.5%201.5%202.5M9%2018h6M10%2022h4%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetbrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"Jetbrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../overrides/stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="../../overrides/stylesheets/install-selector.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+  
+  
+    
+  
+  
+  
+  
+  
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PyTorch PointCloud">
+  <meta property="og:title" content="Segment a scene - PyTorch PointCloud">
+  <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
+  
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/examples/02-segmentation-inference/">
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Segment a scene - PyTorch PointCloud">
+  <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
+  <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#segment-a-scene" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            
+            
+  <b>First release!</b> <a href="https://github.com/arthurdjn/pytorch-pointcloud">torch_pointcloud</a> is open in alpha! 🎉 
+<i>Please try it, and tell us what you think!</i>
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are viewing the documentation of an older version.
+  <a href="../../..">
+    <strong>Go to the latest version.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PyTorch PointCloud" class="md-header__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>pytorch-pointcloud - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g fill="#EE4C2C">
+	<circle class="dot" cx="54.13" cy="97.53" r="7.66" />
+	<circle class="dot" cx="30.89" cy="120.77" r="7.66" />
+	<circle class="dot" cx="54.13" cy="120.77" r="10.21" />
+	<circle class="dot" cx="30.89" cy="144" r="10.21" />
+	<circle class="dot" cx="54.13" cy="144" r="7.66" />
+	<circle class="dot" cx="7.66" cy="167.23" r="5.11" />
+	<circle class="dot" cx="30.89" cy="167.23" r="10.21" />
+	<circle class="dot" cx="54.13" cy="167.23" r="5.11" />
+	<circle class="dot" cx="7.66" cy="190.47" r="7.66" />
+	<circle class="dot" cx="30.89" cy="190.47" r="10.21" />
+	<circle class="dot" cx="7.66" cy="213.7" r="7.66" />
+	<circle class="dot" cx="30.89" cy="213.7" r="10.21" />
+	<circle class="dot" cx="7.66" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="236.94" r="10.21" />
+	<circle class="dot" cx="54.13" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="260.17" r="7.66" />
+	<circle class="dot" cx="54.13" cy="260.17" r="10.21" />
+	<circle class="dot" cx="30.89" cy="283.4" r="5.11" />
+	<circle class="dot" cx="54.13" cy="283.4" r="10.21" />
+	<circle class="dot" cx="54.13" cy="306.64" r="5.11" />
+	<circle class="dot" cx="147.02" cy="5.11" r="5.11" />
+	<circle class="dot" cx="123.78" cy="28.34" r="7.66" />
+	<circle class="dot" cx="147.02" cy="28.34" r="7.66" />
+	<circle class="dot" cx="100.55" cy="51.57" r="7.66" />
+	<circle class="dot" cx="123.78" cy="51.57" r="10.21" />
+	<circle class="dot" cx="147.02" cy="51.57" r="5.11" />
+	<circle class="dot" cx="193.48" cy="51.57" r="5.11" />
+	<circle class="dot" cx="77.31" cy="74.81" r="7.66" />
+	<circle class="dot" cx="100.55" cy="74.81" r="10.21" />
+	<circle class="dot" cx="123.78" cy="74.81" r="5.11" />
+	<circle class="dot" cx="170.25" cy="74.81" r="5.11" />
+	<circle class="dot" cx="193.48" cy="74.81" r="10.21" />
+	<circle class="dot" cx="77.31" cy="98.04" r="10.21" />
+	<circle class="dot" cx="100.55" cy="98.04" r="5.11" />
+	<circle class="dot" cx="193.48" cy="98.04" r="5.11" />
+	<circle class="dot" cx="77.31" cy="121.28" r="5.11" />
+	<circle class="dot" cx="77.31" cy="283.91" r="7.66" />
+	<circle class="dot" cx="100.55" cy="283.91" r="5.11" />
+	<circle class="dot" cx="193.48" cy="283.91" r="5.11" />
+	<circle class="dot" cx="77.31" cy="307.15" r="7.66" />
+	<circle class="dot" cx="100.55" cy="307.15" r="10.21" />
+	<circle class="dot" cx="123.78" cy="307.15" r="10.21" />
+	<circle class="dot" cx="147.02" cy="307.15" r="7.66" />
+	<circle class="dot" cx="170.25" cy="307.15" r="10.21" />
+	<circle class="dot" cx="193.48" cy="307.15" r="10.21" />
+	<circle class="dot" cx="100.55" cy="330.38" r="5.11" />
+	<circle class="dot" cx="123.78" cy="330.38" r="7.66" />
+	<circle class="dot" cx="147.02" cy="330.38" r="10.21" />
+	<circle class="dot" cx="170.25" cy="330.38" r="7.66" />
+	<circle class="dot" cx="193.48" cy="330.38" r="5.11" />
+	<circle class="dot" cx="216.67" cy="75.32" r="5.11" />
+	<circle class="dot" cx="239.9" cy="98.55" r="5.11" />
+	<circle class="dot" cx="239.9" cy="121.79" r="10.21" />
+	<circle class="dot" cx="263.14" cy="121.79" r="7.66" />
+	<circle class="dot" cx="239.9" cy="145.02" r="7.66" />
+	<circle class="dot" cx="263.14" cy="145.02" r="10.21" />
+	<circle class="dot" cx="239.9" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="168.26" r="10.21" />
+	<circle class="dot" cx="286.37" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="191.49" r="10.21" />
+	<circle class="dot" cx="286.37" cy="191.49" r="7.66" />
+	<circle class="dot" cx="263.14" cy="214.72" r="10.21" />
+	<circle class="dot" cx="286.37" cy="214.72" r="7.66" />
+	<circle class="dot" cx="239.9" cy="237.96" r="5.11" />
+	<circle class="dot" cx="263.14" cy="237.96" r="10.21" />
+	<circle class="dot" cx="286.37" cy="237.96" r="5.11" />
+	<circle class="dot" cx="239.9" cy="261.19" r="10.21" />
+	<circle class="dot" cx="263.14" cy="261.19" r="7.66" />
+	<circle class="dot" cx="216.67" cy="284.43" r="7.66" />
+	<circle class="dot" cx="239.9" cy="284.43" r="10.21" />
+	<circle class="dot" cx="263.14" cy="284.43" r="5.11" />
+	<circle class="dot" cx="216.67" cy="307.66" r="7.66" />
+	<circle class="dot" cx="239.9" cy="307.66" r="5.11" />
+	<circle class="dot" cx="216.67" cy="121.79" r="5.11" />
+    </g>
+</svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PyTorch PointCloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Segment a scene
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-eclipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-eclipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/arthurdjn/pytorch-pointcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    arthurdjn/pytorch-pointcloud
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  Get Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../models/overview/" class="md-tabs__link">
+          
+  
+  Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../datasets/overview/" class="md-tabs__link">
+          
+  
+  Datasets
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../transforms/overview/" class="md-tabs__link">
+        
+  
+  Transforms
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../inferers/overview/" class="md-tabs__link">
+        
+  
+  Inferers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PyTorch PointCloud" class="md-nav__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>pytorch-pointcloud - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g fill="#EE4C2C">
+	<circle class="dot" cx="54.13" cy="97.53" r="7.66" />
+	<circle class="dot" cx="30.89" cy="120.77" r="7.66" />
+	<circle class="dot" cx="54.13" cy="120.77" r="10.21" />
+	<circle class="dot" cx="30.89" cy="144" r="10.21" />
+	<circle class="dot" cx="54.13" cy="144" r="7.66" />
+	<circle class="dot" cx="7.66" cy="167.23" r="5.11" />
+	<circle class="dot" cx="30.89" cy="167.23" r="10.21" />
+	<circle class="dot" cx="54.13" cy="167.23" r="5.11" />
+	<circle class="dot" cx="7.66" cy="190.47" r="7.66" />
+	<circle class="dot" cx="30.89" cy="190.47" r="10.21" />
+	<circle class="dot" cx="7.66" cy="213.7" r="7.66" />
+	<circle class="dot" cx="30.89" cy="213.7" r="10.21" />
+	<circle class="dot" cx="7.66" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="236.94" r="10.21" />
+	<circle class="dot" cx="54.13" cy="236.94" r="5.11" />
+	<circle class="dot" cx="30.89" cy="260.17" r="7.66" />
+	<circle class="dot" cx="54.13" cy="260.17" r="10.21" />
+	<circle class="dot" cx="30.89" cy="283.4" r="5.11" />
+	<circle class="dot" cx="54.13" cy="283.4" r="10.21" />
+	<circle class="dot" cx="54.13" cy="306.64" r="5.11" />
+	<circle class="dot" cx="147.02" cy="5.11" r="5.11" />
+	<circle class="dot" cx="123.78" cy="28.34" r="7.66" />
+	<circle class="dot" cx="147.02" cy="28.34" r="7.66" />
+	<circle class="dot" cx="100.55" cy="51.57" r="7.66" />
+	<circle class="dot" cx="123.78" cy="51.57" r="10.21" />
+	<circle class="dot" cx="147.02" cy="51.57" r="5.11" />
+	<circle class="dot" cx="193.48" cy="51.57" r="5.11" />
+	<circle class="dot" cx="77.31" cy="74.81" r="7.66" />
+	<circle class="dot" cx="100.55" cy="74.81" r="10.21" />
+	<circle class="dot" cx="123.78" cy="74.81" r="5.11" />
+	<circle class="dot" cx="170.25" cy="74.81" r="5.11" />
+	<circle class="dot" cx="193.48" cy="74.81" r="10.21" />
+	<circle class="dot" cx="77.31" cy="98.04" r="10.21" />
+	<circle class="dot" cx="100.55" cy="98.04" r="5.11" />
+	<circle class="dot" cx="193.48" cy="98.04" r="5.11" />
+	<circle class="dot" cx="77.31" cy="121.28" r="5.11" />
+	<circle class="dot" cx="77.31" cy="283.91" r="7.66" />
+	<circle class="dot" cx="100.55" cy="283.91" r="5.11" />
+	<circle class="dot" cx="193.48" cy="283.91" r="5.11" />
+	<circle class="dot" cx="77.31" cy="307.15" r="7.66" />
+	<circle class="dot" cx="100.55" cy="307.15" r="10.21" />
+	<circle class="dot" cx="123.78" cy="307.15" r="10.21" />
+	<circle class="dot" cx="147.02" cy="307.15" r="7.66" />
+	<circle class="dot" cx="170.25" cy="307.15" r="10.21" />
+	<circle class="dot" cx="193.48" cy="307.15" r="10.21" />
+	<circle class="dot" cx="100.55" cy="330.38" r="5.11" />
+	<circle class="dot" cx="123.78" cy="330.38" r="7.66" />
+	<circle class="dot" cx="147.02" cy="330.38" r="10.21" />
+	<circle class="dot" cx="170.25" cy="330.38" r="7.66" />
+	<circle class="dot" cx="193.48" cy="330.38" r="5.11" />
+	<circle class="dot" cx="216.67" cy="75.32" r="5.11" />
+	<circle class="dot" cx="239.9" cy="98.55" r="5.11" />
+	<circle class="dot" cx="239.9" cy="121.79" r="10.21" />
+	<circle class="dot" cx="263.14" cy="121.79" r="7.66" />
+	<circle class="dot" cx="239.9" cy="145.02" r="7.66" />
+	<circle class="dot" cx="263.14" cy="145.02" r="10.21" />
+	<circle class="dot" cx="239.9" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="168.26" r="10.21" />
+	<circle class="dot" cx="286.37" cy="168.26" r="5.11" />
+	<circle class="dot" cx="263.14" cy="191.49" r="10.21" />
+	<circle class="dot" cx="286.37" cy="191.49" r="7.66" />
+	<circle class="dot" cx="263.14" cy="214.72" r="10.21" />
+	<circle class="dot" cx="286.37" cy="214.72" r="7.66" />
+	<circle class="dot" cx="239.9" cy="237.96" r="5.11" />
+	<circle class="dot" cx="263.14" cy="237.96" r="10.21" />
+	<circle class="dot" cx="286.37" cy="237.96" r="5.11" />
+	<circle class="dot" cx="239.9" cy="261.19" r="10.21" />
+	<circle class="dot" cx="263.14" cy="261.19" r="7.66" />
+	<circle class="dot" cx="216.67" cy="284.43" r="7.66" />
+	<circle class="dot" cx="239.9" cy="284.43" r="10.21" />
+	<circle class="dot" cx="263.14" cy="284.43" r="5.11" />
+	<circle class="dot" cx="216.67" cy="307.66" r="7.66" />
+	<circle class="dot" cx="239.9" cy="307.66" r="5.11" />
+	<circle class="dot" cx="216.67" cy="121.79" r="5.11" />
+    </g>
+</svg>
+
+    </a>
+    PyTorch PointCloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/arthurdjn/pytorch-pointcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    arthurdjn/pytorch-pointcloud
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../.." class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get Started
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../models/overview/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Models
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../datasets/overview/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Datasets
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transforms/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Transforms
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../inferers/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Inferers
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Tutorials
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Tutorials
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Beginner
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Beginner
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Quickstart
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Segment a Scene
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Segment a Scene
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Setup
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#load-a-sample-scene" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Load a sample scene
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#find-a-model-in-the-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Find a model in the registry
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Run the model
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualize-the-predictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Visualize the predictions
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-an-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Using an inferer
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using an inferer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Simple Inferer
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sliding-window-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sliding Window Inferer
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-time-augmentation-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Test-time augmentation Inferer
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ensembling" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Ensembling
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-transforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Preprocessing Pipelines
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Intermediate
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Intermediate
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-custom-dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Use Your Own Data
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Train a Model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-feature-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Features and Similarity Search
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Advanced
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Advanced
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-driving-detection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Driving Detection
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../api/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Setup
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#load-a-sample-scene" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Load a sample scene
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#find-a-model-in-the-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Find a model in the registry
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Run the model
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualize-the-predictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Visualize the predictions
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-an-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Using an inferer
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using an inferer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Simple Inferer
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sliding-window-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sliding Window Inferer
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-time-augmentation-inferer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Test-time augmentation Inferer
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ensembling" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Ensembling
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+      
+        
+  
+  
+    
+    
+    
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+    
+    
+    
+      <li class="md-path__item">
+        <a href="../01-quickstart/" class="md-path__link">
+          
+  
+  <span class="md-ellipsis">
+    Beginner
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+
+  
+                  
+  
+  
+
+
+<h1 id="segment-a-scene">Segment a scene<a class="headerlink" href="#segment-a-scene" title="Anchor link to this section">&para;</a></h1>
+<p><span class="twemoji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 23.0.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 181.13 105" style="enable-background:new 0 0 181.13 105;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FFA800;}
+	.st1{fill:#FFDD3D;}
+</style>
+<g>
+	<path class="st0" d="M26.84,52.6c0-1.78,0.18-3.51,0.52-5.18c0.34-1.67,0.85-3.29,1.5-4.83c0.65-1.54,1.45-3,2.37-4.37
+		c0.92-1.37,1.98-2.64,3.14-3.81L16.92,16.96C7.8,26.08,2.16,38.68,2.16,52.6S7.8,79.12,16.92,88.24l17.45-17.45
+		C29.72,66.13,26.84,59.7,26.84,52.6z"/>
+	<path class="st1" d="M52.56,26.87c6.84,0,13.03,2.68,17.64,7.03l14.23-20.35C75.74,6.45,64.65,2.19,52.56,2.19
+		c-13.92,0-26.52,5.64-35.64,14.76l17.45,17.45C39.03,29.75,45.46,26.87,52.56,26.87z"/>
+	<path class="st1" d="M70.2,71.29c-4.61,4.35-10.8,7.03-17.64,7.03c-7.1,0-13.53-2.88-18.19-7.53L16.92,88.24
+		C26.04,97.36,38.64,103,52.56,103c12.04,0,23.09-4.23,31.76-11.27L70.2,71.29z"/>
+	<path class="st0" d="M164.44,16.96l-17.45,17.45c4.66,4.66,7.53,11.09,7.53,18.19c0,14.21-11.52,25.72-25.72,25.72
+		c-7.1,0-13.53-2.88-18.19-7.53L93.16,88.24c9.12,9.12,21.72,14.76,35.64,14.76c27.84,0,50.4-22.57,50.4-50.4
+		C179.2,38.68,173.56,26.08,164.44,16.96z"/>
+	<path class="st1" d="M103.07,52.6c0-14.21,11.52-25.72,25.72-25.72c7.1,0,13.53,2.88,18.19,7.53l17.45-17.45
+		c-9.12-9.12-21.72-14.76-35.64-14.76c-27.84,0-50.4,22.57-50.4,50.4c0,13.92,5.64,26.52,14.76,35.64l17.45-17.45
+		C105.95,66.13,103.07,59.7,103.07,52.6z"/>
+</g>
+</svg>
+</span> <a href="https://colab.research.google.com/github/arthurdjn/pytorch-pointcloud/blob/main/docs/examples/02-segmentation-inference.ipynb">Open in Colab</a> · <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"/></svg></span> <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/docs/examples/02-segmentation-inference.ipynb">Download notebook</a></p>
+<p>Semantic segmentation labels every point in a scene / point cloud.
+This notebook will guide you on how to use the <code>torch-pointcloud</code> library to load pretrained models and perform inference for semantic segmentation tasks. It will cover:</p>
+<ul>
+<li>the <strong>model registry</strong> and the <code>create_model</code> factory (the <code>timm</code>-style entry point),</li>
+<li>the <strong>inferer API</strong> to run a model over a large scene for inference.</li>
+</ul>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Anchor link to this section">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># On Colab:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># !pip install &quot;torch-pointcloud&quot;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># !pip install torch-scatter torch-cluster -f https://data.pyg.org/whl/torch-2.10.0+cu128.html</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tp</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">device</span> <span class="o">=</span> <span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;torch-pointcloud&quot;</span><span class="p">,</span> <span class="n">tp</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span> <span class="s2">&quot;| device:&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="load-a-sample-scene">Load a sample scene<a class="headerlink" href="#load-a-sample-scene" title="Anchor link to this section">&para;</a></h2>
+<p>First, let's read a room of the <a href="../../api/datasets/scannet/"><code>ScanNet20</code></a> validation set, which we will use throughout this notebook. ScanNet requires a signed agreement: request it on its <a href="https://kaldir.vc.in.tum.de/scannet/">download page</a> and extract it under <code>data/ScanNet/raw/</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScanNet20</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ScanNet20</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;val&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Let's load the sample scene and visualize it. The room is a ScanNet scene kept as the vertices of its reconstructed mesh, with a color, a normal and a semantic id of the 20-class benchmark per vertex. One thing is still missing before the checkpoint can read it: the scene has to be voxelized.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">load_sample</span><span class="p">():</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="c1"># Keep the per-point tensors of the first room</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">value</span><span class="p">)}</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># View defined as: (elevation, azimuth)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">ROOM_VIEW</span> <span class="o">=</span> <span class="p">(</span><span class="mi">34</span><span class="p">,</span> <span class="o">-</span><span class="mi">160</span><span class="p">)</span> 
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">show_cloud</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;viridis&quot;</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">ROOM_VIEW</span><span class="p">):</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Scatter a point cloud. `pos` is (N, 3); `color` is per-point RGB, a label vector, or None.&quot;&quot;&quot;</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="s2">&quot;3d&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="n">p</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">c</span> <span class="o">=</span> <span class="n">color</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">color</span><span class="p">)</span> <span class="k">else</span> <span class="n">color</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="n">kw</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;cmap&quot;</span><span class="p">:</span> <span class="n">cmap</span><span class="p">}</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="p">{}</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">p</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">p</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">p</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">depthshade</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">linewidths</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">view_init</span><span class="p">(</span><span class="n">elev</span><span class="o">=</span><span class="n">view</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">azim</span><span class="o">=</span><span class="n">view</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">set_box_aspect</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">p</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">zoom</span><span class="o">=</span><span class="mf">1.6</span><span class="p">)</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>    <span class="k">if</span> <span class="n">title</span><span class="p">:</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>    <span class="k">return</span> <span class="n">ax</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">data</span> <span class="o">=</span> <span class="n">load_sample</span><span class="p">()</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">show_cloud</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;segment&quot;</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sample scene&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="find-a-model-in-the-registry">Find a model in the registry<a class="headerlink" href="#find-a-model-in-the-registry" title="Anchor link to this section">&para;</a></h2>
+<p>Models are built by name through a single factory, <code>create_model</code>, mirroring <code>timm.create_model</code>. Names follow the pattern <code>&lt;arch&gt;-&lt;variant&gt;.&lt;dataset&gt;.&lt;author&gt;</code>.</p>
+<p>You can list what is available for a task with <code>list_models</code> (it accepts a glob pattern):</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_models</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">list_models</span><span class="p">(</span><span class="s2">&quot;*pointcept*&quot;</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="s2">&quot;semantic-segmentation&quot;</span><span class="p">,</span> <span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># [&#39;concerto-large-lp.scannet20.pointcept&#39;,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1">#  &#39;ptv3-base.s3dis-area5.pointcept&#39;,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1">#  &#39;ptv3-base.scannet20.pointcept&#39;,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1">#  &#39;ptv3-base.scannet200.pointcept&#39;,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1">#  &#39;spunet-v1m1.scannet20.pointcept&#39;,</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1">#  &#39;utonia-lp.scannet20.pointcept&#39;]</span>
+</code></pre></div>
+<p><code>create_model</code> returns a typed <code>SemanticSegmentationModel</code>, a regular <code>torch.nn.Module</code>, so <code>.eval()</code> and <code>.to(device)</code> work as usual.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">model</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">tp</span><span class="o">.</span><span class="n">create_model</span><span class="p">(</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;spunet-v1m1.scannet20.pointcept&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;semantic-segmentation&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">return_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">)</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1"># On Colab: !pip install &quot;torch-pointcloud&quot;</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># On Colab: !pip install torch-scatter torch-cluster -f https://data.pyg.org/whl/torch-2.10.0+cu128.html</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">classes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;weights&quot;</span><span class="p">][</span><span class="s2">&quot;classes&quot;</span><span class="p">])</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">classes</span><span class="p">),</span> <span class="s2">&quot;classes:&quot;</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">classes</span><span class="p">))</span>
+</code></pre></div>
+<h2 id="run-the-model">Run the model<a class="headerlink" href="#run-the-model" title="Anchor link to this section">&para;</a></h2>
+<p>A segmentation model is called as <code>model(x, pos, batch)</code>: features first, then coordinates, then the batch index. It returns a logits vector per point, shape <span class="arithmatex">\((N, C_\text{out})\)</span>.</p>
+<p>However, SpUNet is a voxel backbone, so it never reads the raw points as floats: the model expects a voxelized scene.
+This one was pretrained on ScanNet20 with scenes voxelized at 2 cm, and that transform is stored in the <code>info</code> dict (use <code>return_info=True</code> when creating the model to access it).</p>
+<p>Note that the transform voxelizes the scene in place: <code>pos</code>, <code>x</code> and <code>segment</code> hold one entry per voxel, the raw cloud is kept under <code>origin_pos</code> / <code>origin_segment</code>, and <code>inverse</code> maps every raw point to its voxel.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">collate</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">data_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">load_sample</span><span class="p">()]</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">data_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;transform&quot;</span><span class="p">](</span><span class="n">data</span><span class="p">)</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">data_list</span><span class="p">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">data</span> <span class="o">=</span> <span class="n">collate</span><span class="p">(</span><span class="n">data_list</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="c1"># dict_keys([&#39;pos&#39;, &#39;color&#39;, &#39;normal&#39;, &#39;segment&#39;, &#39;instance&#39;, &#39;x&#39;, &#39;origin_pos&#39;, &#39;origin_segment&#39;, &#39;pos_grid&#39;, &#39;inverse&#39;, &#39;batch&#39;])</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="c1"># pos: torch.Size([164614, 3])           # One position per voxel</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="c1"># color: torch.Size([164614, 3])         # Colors, one per voxel</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="c1"># normal: torch.Size([164614, 3])        # Normals, one per voxel</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="c1"># segment: torch.Size([164614])          # Labels, one per voxel</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="c1"># instance: torch.Size([164614])         # Instance ids, one per voxel</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="c1"># x: torch.Size([164614, 6])             # Voxelized features</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="c1"># origin_pos: torch.Size([237360, 3])    # The original coordinates</span>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="c1"># origin_segment: torch.Size([237360])   # The original labels</span>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="c1"># pos_grid: torch.Size([164614, 3])      # Integer voxel-grid coordinates</span>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="c1"># inverse: torch.Size([237360])          # Inverse mapping from raw points to voxels</span>
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="c1"># batch: torch.Size([164614])            # Batch index for each voxel</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">logits</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pos_grid&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;logits:&quot;</span><span class="p">,</span> <span class="n">logits</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># logits: torch.Size([164614, 20])</span>
+</code></pre></div>
+<h2 id="visualize-the-predictions">Visualize the predictions<a class="headerlink" href="#visualize-the-predictions" title="Anchor link to this section">&para;</a></h2>
+<p>Turn logits into probabilities and map predicted labels (voxel-wise) to per-point labels. We will use the <code>inverse</code> key to map the logits back to the original points (revert the voxelization that occurred in the transforms).</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">logits</span> <span class="o">=</span> <span class="n">logits</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;inverse&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)]</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">preds</span> <span class="o">=</span> <span class="n">logits</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;logits.shape: </span><span class="si">{</span><span class="n">logits</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;origin_pos.shape: </span><span class="si">{</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;origin_pos&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">accuracy</span><span class="p">,</span> <span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">intersection_over_union</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">target</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;origin_segment&quot;</span><span class="p">]</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">annotated</span> <span class="o">=</span> <span class="n">target</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">cm</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">iou</span> <span class="o">=</span> <span class="n">intersection_over_union</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="n">zero_division</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">))</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="n">involved</span> <span class="o">=</span> <span class="o">~</span><span class="n">iou</span><span class="o">.</span><span class="n">isnan</span><span class="p">()</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;annotated points: </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">annotated</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;accuracy: </span><span class="si">{</span><span class="n">accuracy</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mIoU over the </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">involved</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> classes involved: </span><span class="si">{</span><span class="n">iou</span><span class="p">[</span><span class="n">involved</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>To see <em>where</em> the model is wrong, color the room by whether each point came back right, and put the per-class IoU next to it. The pale points are the ones the room carries no label for, which both metrics leave out through <code>ignore_index=-1</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_rgb</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.lines</span><span class="w"> </span><span class="kn">import</span> <span class="n">Line2D</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">CORRECT</span><span class="p">,</span> <span class="n">WRONG</span><span class="p">,</span> <span class="n">UNANNOTATED</span> <span class="o">=</span> <span class="s2">&quot;#5c6068&quot;</span><span class="p">,</span> <span class="s2">&quot;#ff4c22&quot;</span><span class="p">,</span> <span class="s2">&quot;#dcdcdc&quot;</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">show_prediction</span><span class="p">(</span><span class="n">preds</span><span class="p">):</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Color the room by whether each point came back right, beside the per-class IoU of that run.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="n">cm</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="n">iou</span> <span class="o">=</span> <span class="n">intersection_over_union</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="n">zero_division</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">))</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    <span class="n">present</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="o">~</span><span class="n">iou</span><span class="o">.</span><span class="n">isnan</span><span class="p">())</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>    <span class="n">ranked</span> <span class="o">=</span> <span class="n">present</span><span class="p">[</span><span class="n">iou</span><span class="p">[</span><span class="n">present</span><span class="p">]</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="n">wrong</span> <span class="o">=</span> <span class="n">annotated</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">preds</span> <span class="o">!=</span> <span class="n">target</span><span class="p">)</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>    <span class="n">correct</span> <span class="o">=</span> <span class="n">accuracy</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>    <span class="n">ax</span> <span class="o">=</span> <span class="n">show_cloud</span><span class="p">(</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;origin_pos&quot;</span><span class="p">],</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>        <span class="n">color</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">to_rgb</span><span class="p">(</span><span class="n">UNANNOTATED</span><span class="p">),</span> <span class="n">to_rgb</span><span class="p">(</span><span class="n">CORRECT</span><span class="p">),</span> <span class="n">to_rgb</span><span class="p">(</span><span class="n">WRONG</span><span class="p">)])[</span><span class="n">annotated</span><span class="o">.</span><span class="n">long</span><span class="p">()</span> <span class="o">+</span> <span class="n">wrong</span><span class="o">.</span><span class="n">long</span><span class="p">()],</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>        <span class="n">ax</span><span class="o">=</span><span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">121</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s2">&quot;3d&quot;</span><span class="p">),</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>        <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">wrong</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> points wrong of </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">annotated</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> annotated (</span><span class="si">{</span><span class="n">correct</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2"> correct)&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>        <span class="n">size</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a>    <span class="p">)</span>
+<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
+<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>        <span class="n">handles</span><span class="o">=</span><span class="p">[</span>
+<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>            <span class="n">Line2D</span><span class="p">([],</span> <span class="p">[],</span> <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">&quot;correct&quot;</span><span class="p">,</span> <span class="n">CORRECT</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;wrong&quot;</span><span class="p">,</span> <span class="n">WRONG</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;unannotated&quot;</span><span class="p">,</span> <span class="n">UNANNOTATED</span><span class="p">))</span>
+<a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a>        <span class="p">],</span>
+<a id="__codelineno-12-29" name="__codelineno-12-29" href="#__codelineno-12-29"></a>        <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;lower center&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-30" name="__codelineno-12-30" href="#__codelineno-12-30"></a>        <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+<a id="__codelineno-12-31" name="__codelineno-12-31" href="#__codelineno-12-31"></a>        <span class="n">ncol</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-12-32" name="__codelineno-12-32" href="#__codelineno-12-32"></a>        <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-12-33" name="__codelineno-12-33" href="#__codelineno-12-33"></a>        <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-12-34" name="__codelineno-12-34" href="#__codelineno-12-34"></a>    <span class="p">)</span>
+<a id="__codelineno-12-35" name="__codelineno-12-35" href="#__codelineno-12-35"></a>
+<a id="__codelineno-12-36" name="__codelineno-12-36" href="#__codelineno-12-36"></a>    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">122</span><span class="p">)</span>
+<a id="__codelineno-12-37" name="__codelineno-12-37" href="#__codelineno-12-37"></a>    <span class="n">bars</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">barh</span><span class="p">([</span><span class="n">classes</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)]</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">ranked</span><span class="p">],</span> <span class="n">iou</span><span class="p">[</span><span class="n">ranked</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;tab:orange&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>
+<a id="__codelineno-12-38" name="__codelineno-12-38" href="#__codelineno-12-38"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">bar_label</span><span class="p">(</span><span class="n">bars</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<a id="__codelineno-12-39" name="__codelineno-12-39" href="#__codelineno-12-39"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">invert_yaxis</span><span class="p">()</span>
+<a id="__codelineno-12-40" name="__codelineno-12-40" href="#__codelineno-12-40"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.12</span><span class="p">)</span>
+<a id="__codelineno-12-41" name="__codelineno-12-41" href="#__codelineno-12-41"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span>
+<a id="__codelineno-12-42" name="__codelineno-12-42" href="#__codelineno-12-42"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<a id="__codelineno-12-43" name="__codelineno-12-43" href="#__codelineno-12-43"></a>    <span class="k">for</span> <span class="n">spine</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+<a id="__codelineno-12-44" name="__codelineno-12-44" href="#__codelineno-12-44"></a>        <span class="n">spine</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-12-45" name="__codelineno-12-45" href="#__codelineno-12-45"></a>    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;per-class IoU, mIoU </span><span class="si">{</span><span class="n">iou</span><span class="p">[</span><span class="n">present</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> over </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">present</span><span class="p">)</span><span class="si">}</span><span class="s2"> classes&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-12-46" name="__codelineno-12-46" href="#__codelineno-12-46"></a>
+<a id="__codelineno-12-47" name="__codelineno-12-47" href="#__codelineno-12-47"></a>
+<a id="__codelineno-12-48" name="__codelineno-12-48" href="#__codelineno-12-48"></a><span class="n">show_prediction</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span>
+</code></pre></div>
+<p><img alt="Prediction errors and per-class IoU" src="../../assets/tutorials/segmentation_room_errors.png" /></p>
+<h2 id="using-an-inferer">Using an inferer<a class="headerlink" href="#using-an-inferer" title="Anchor link to this section">&para;</a></h2>
+<p>An <a href="../../inferers/overview/">inferer</a> takes a packed-batch dict and a <code>predictor</code> callable, and returns one prediction per input point, shape <span class="arithmatex">\((N, C_\text{out})\)</span>, aligned to the input order.</p>
+<h3 id="simple-inferer">Simple Inferer<a class="headerlink" href="#simple-inferer" title="Anchor link to this section">&para;</a></h3>
+<p>This inferer runs the predictor on the whole scene at once, so it is just a wrapper around the model's <code>forward</code> method, but it adheres to the inferer API.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.inferers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimpleInferer</span><span class="p">,</span> <span class="n">SlidingWindowInferer</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">scene</span> <span class="o">=</span> <span class="n">collate</span><span class="p">([</span><span class="n">load_sample</span><span class="p">()])</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">spunet_predictor</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="c1"># Apply the inference transform to the specific input data</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;transform&quot;</span><span class="p">]({</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">value</span><span class="p">)})</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="n">pos_grid</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pos_grid&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pos_grid</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="n">logits</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span> <span class="n">pos_grid</span><span class="p">,</span> <span class="n">batch</span><span class="p">)</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>    <span class="k">return</span> <span class="n">logits</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;inverse&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">inferer</span> <span class="o">=</span> <span class="n">SimpleInferer</span><span class="p">()</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">preds_whole</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="n">spunet_predictor</span><span class="p">)</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;output:&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">preds_whole</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</code></pre></div>
+<h3 id="sliding-window-inferer">Sliding Window Inferer<a class="headerlink" href="#sliding-window-inferer" title="Anchor link to this section">&para;</a></h3>
+<p>When the scene is too large for one pass, <code>SlidingWindowInferer</code> tiles it into cubic blocks of a fixed metric size, runs the predictor on each, and blends overlapping predictions. With <code>mode="gaussian"</code> points near a block center count more than those at the seam, which softens block boundaries.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">inferer</span> <span class="o">=</span> <span class="n">SlidingWindowInferer</span><span class="p">(</span><span class="n">block_size</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="n">softmax</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">preds_tiled</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="n">spunet_predictor</span><span class="p">)</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;output:&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">preds_tiled</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;labels that differ from the whole-scene run:&quot;</span><span class="p">,</span> <span class="nb">int</span><span class="p">((</span><span class="n">preds_tiled</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="n">preds_whole</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">show_cloud</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;origin_pos&quot;</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">preds_whole</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">121</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s2">&quot;3d&quot;</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;whole scene at once&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">show_cloud</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;origin_pos&quot;</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">preds_tiled</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">122</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s2">&quot;3d&quot;</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;stitched from 2 m blocks&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">0.4</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="test-time-augmentation-inferer">Test-time augmentation Inferer<a class="headerlink" href="#test-time-augmentation-inferer" title="Anchor link to this section">&para;</a></h3>
+<p>Test-time augmentation wraps a base inferer, runs several augmented passes over the input, and averages the predictions.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.inferers</span><span class="w"> </span><span class="kn">import</span> <span class="n">TTAInferer</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandomRotate</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">views</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">RandomRotate</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;normal&quot;</span><span class="p">),</span> <span class="n">angle_range</span><span class="o">=</span><span class="p">(</span><span class="n">angle</span><span class="p">,</span> <span class="n">angle</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="k">for</span> <span class="n">angle</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">,</span> <span class="mf">180.0</span><span class="p">,</span> <span class="mf">270.0</span><span class="p">)</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="p">]</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="n">inferer</span> <span class="o">=</span> <span class="n">TTAInferer</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="n">SimpleInferer</span><span class="p">(</span><span class="n">softmax</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">transforms</span><span class="o">=</span><span class="n">views</span><span class="p">)</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="n">voted</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="n">spunet_predictor</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="n">cm</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">voted</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="n">iou</span> <span class="o">=</span> <span class="n">intersection_over_union</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="n">zero_division</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">))</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">involved</span> <span class="o">=</span> <span class="o">~</span><span class="n">iou</span><span class="o">.</span><span class="n">isnan</span><span class="p">()</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;accuracy: </span><span class="si">{</span><span class="n">accuracy</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mIoU over the </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">involved</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> classes involved: </span><span class="si">{</span><span class="n">iou</span><span class="p">[</span><span class="n">involved</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">show_prediction</span><span class="p">(</span><span class="n">voted</span><span class="p">)</span>
+</code></pre></div>
+<p><img alt="Errors with test-time augmentation" src="../../assets/tutorials/segmentation_tta_errors.png" /></p>
+<h2 id="ensembling">Ensembling<a class="headerlink" href="#ensembling" title="Anchor link to this section">&para;</a></h2>
+<p>The cell below ensembles two checkpoints: each runs through a <code>TTAInferer</code> wrapping a <code>SimpleInferer</code>, and their probabilities are averaged.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">probabilities</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="n">member</span><span class="p">,</span> <span class="n">member_info</span> <span class="o">=</span> <span class="n">tp</span><span class="o">.</span><span class="n">create_model</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="s2">&quot;semantic-segmentation&quot;</span><span class="p">,</span> <span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="n">member</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">predictor</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>        <span class="n">window</span> <span class="o">=</span> <span class="n">member_info</span><span class="p">[</span><span class="s2">&quot;transform&quot;</span><span class="p">]({</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">value</span><span class="p">)})</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>        <span class="n">pos_grid</span> <span class="o">=</span> <span class="n">window</span><span class="p">[</span><span class="s2">&quot;pos_grid&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>        <span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pos_grid</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>        <span class="n">logits</span> <span class="o">=</span> <span class="n">member</span><span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span> <span class="n">pos_grid</span><span class="p">,</span> <span class="n">batch</span><span class="p">)</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>        <span class="k">return</span> <span class="n">logits</span><span class="p">[</span><span class="n">window</span><span class="p">[</span><span class="s2">&quot;inverse&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)]</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="n">inferer</span> <span class="o">=</span> <span class="n">TTAInferer</span><span class="p">(</span>
+<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>        <span class="n">base</span><span class="o">=</span><span class="n">SimpleInferer</span><span class="p">(</span><span class="n">softmax</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> 
+<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>        <span class="n">transforms</span><span class="o">=</span><span class="n">views</span>
+<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a>    <span class="p">)</span>
+<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>    <span class="n">voted</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="n">predictor</span><span class="p">)</span>
+<a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a>
+<a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>    <span class="n">member</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+<a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a>    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
+<a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a>    <span class="k">return</span> <span class="n">voted</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+<a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a>
+<a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a>
+<a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a><span class="n">model_names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;spunet-v1m1.scannet20.pointcept&quot;</span><span class="p">,</span> <span class="s2">&quot;concerto-large-lp.scannet20.pointcept&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a><span class="n">merged</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">probabilities</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">model_names</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a>
+<a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a><span class="n">cm</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">merged</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a><span class="n">iou</span> <span class="o">=</span> <span class="n">intersection_over_union</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="n">zero_division</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">))</span>
+<a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a><span class="n">involved</span> <span class="o">=</span> <span class="o">~</span><span class="n">iou</span><span class="o">.</span><span class="n">isnan</span><span class="p">()</span>
+<a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;accuracy: </span><span class="si">{</span><span class="n">accuracy</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mIoU over the </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">involved</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> classes involved: </span><span class="si">{</span><span class="n">iou</span><span class="p">[</span><span class="n">involved</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">show_prediction</span><span class="p">(</span><span class="n">merged</span><span class="p">)</span>
+</code></pre></div>
+<p><img alt="Errors with a two-checkpoint ensemble" src="../../assets/tutorials/segmentation_ensemble_errors.png" /></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../01-quickstart/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Quickstart">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Quickstart
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../03-transforms/" class="md-footer__link md-footer__link--next" aria-label="Next: Preprocessing Pipelines">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Preprocessing Pipelines
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 Arthur Dujardin
+
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M216.5 362.5c-66-8-112.5-55.5-112.5-117 0-25 9-52 24-70-6.5-16.5-5.5-51.5 2-66 20-2.5 47 8 63 22.5 19-6 39-9 63.5-9s44.5 3 62.5 8.5c15.5-14 43-24.5 63-22 7 13.5 8 48.5 1.5 65.5 16 19 24.5 44.5 24.5 70.5 0 61.5-46.5 108-113.5 116.5 17 11 28.5 35 28.5 62.5v52c0 15 12.5 23.5 27.5 17.5C441 459.5 512 369 512 257 512 115.5 397 0 255.5 0S0 115.5 0 257c0 111 70.5 203 165.5 237.5 13.5 5 26.5-4 26.5-17.5v-40c-7 3-16 5-24 5-33 0-52.5-18-66.5-51.5-5.5-13.5-11.5-21.5-23-23-6-.5-8-3-8-6 0-6 10-10.5 20-10.5 14.5 0 27 9 40 27.5 10 14.5 20.5 21 33 21s20.5-4.5 32-16c8.5-8.5 15-16 21-21"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["announce.dismiss","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.instant","navigation.instant.prefetch","navigation.instant.preview","navigation.instant.progress","navigation.path","navigation.prune","navigation.sections","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.69c251d7.min.js"></script>
+      
+        <script src="../../overrides/javascripts/extra.js"></script>
+      
+        <script src="../../overrides/javascripts/install-selector.js"></script>
+      
+        <script src="../../overrides/javascripts/links.js"></script>
+      
+        <script src="../../overrides/javascripts/tablesort.js"></script>
+      
+        <script src="../../overrides/javascripts/table-wordbreak.js"></script>
+      
+        <script src="../../overrides/javascripts/katex.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"></script>
+      
+    
+  </body>
+</html>
