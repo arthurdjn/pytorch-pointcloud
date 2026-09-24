@@ -4631,6 +4631,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.models.votenet.GenerateVoteLabels" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        GenerateVoteLabels
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.models.votenet.EncodeVoteNetTargets" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        EncodeVoteNetTargets
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5819,6 +5841,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.models.votenet.GenerateVoteLabels" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        GenerateVoteLabels
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.models.votenet.EncodeVoteNetTargets" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        EncodeVoteNetTargets
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5930,7 +5974,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L28-L45&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L30-L47&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></code></b>
           –
           <div class="doc-md-description">
             <p>Decoded VoteNet proposals for a batch of <span class="arithmatex">\(B\)</span> scenes with <span class="arithmatex">\(K\)</span> proposals each.</p>
@@ -5940,7 +5984,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetBackbone&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L48-L161&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetBackbone">VoteNetBackbone</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L50-L163&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetBackbone">VoteNetBackbone</a></code></b>
           –
           <div class="doc-md-description">
             <p>PointNet++ single-scale-grouping backbone (set abstraction + feature propagation).</p>
@@ -5950,7 +5994,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VotingModule&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L164-L210&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VotingModule">VotingModule</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L166-L212&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VotingModule">VotingModule</a></code></b>
           –
           <div class="doc-md-description">
             <p>Hough voting: each seed predicts a vote offset and a residual feature.</p>
@@ -5960,7 +6004,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetProposalModule&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L213-L357&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetProposalModule">VoteNetProposalModule</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L215-L359&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetProposalModule">VoteNetProposalModule</a></code></b>
           –
           <div class="doc-md-description">
             <p>Vote aggregation and proposal generation.</p>
@@ -5970,10 +6014,30 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetDetection&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L360-L587&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection">VoteNetDetection</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L362-L589&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection">VoteNetDetection</a></code></b>
           –
           <div class="doc-md-description">
             <p>VoteNet 3D object detector (packed point format).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;GenerateVoteLabels&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L627-L707&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.GenerateVoteLabels">GenerateVoteLabels</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Generate per-point vote offsets and a vote mask from oriented GT boxes.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;EncodeVoteNetTargets&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L710-L820&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.EncodeVoteNetTargets">EncodeVoteNetTargets</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Encode oriented GT boxes into the padded label tensors the VoteNet loss consumes.</p>
           </div>
         </li>
     </ul>
@@ -6002,7 +6066,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetOutput</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L28-L45" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L30-L47" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetOutput" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -6057,7 +6121,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetBackbone</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L48-L161" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L50-L163" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetBackbone" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoteNetBackbone</span><span class="p">(</span>
@@ -6085,11 +6149,11 @@
 <p>Reuses <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointNet2SetAbstraction&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/layers/pointnet2_blocks.py#L100-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../layers/pointnet2_blocks/#torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction"><code>PointNet2SetAbstraction</code></a> /
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/layers/pointnet2_blocks.py#L100-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../layers/pointnet2_blocks/#torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction"><code>PointNet2SetAbstraction</code></a> /
 <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointNet2FeaturePropagation&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/layers/pointnet2_blocks.py#L282-L357&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../layers/pointnet2_blocks/#torch_pointcloud.layers.pointnet2_blocks.PointNet2FeaturePropagation"><code>PointNet2FeaturePropagation</code></a>; every
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/layers/pointnet2_blocks.py#L282-L357&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../layers/pointnet2_blocks/#torch_pointcloud.layers.pointnet2_blocks.PointNet2FeaturePropagation"><code>PointNet2FeaturePropagation</code></a>; every
 layer width, sample count, radius and neighbor cap is a constructor argument (no hardcoded sizes). The seeds are
 the points at the second SA resolution, recovered by the feature-propagation layers. Their indices into the
 original packed input are tracked through the first two SA samplings (<code>idx1[idx2]</code>) for the voting loss, so the
@@ -6231,7 +6295,7 @@ SA samplings of those two blocks are computed here and threaded in.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VotingModule</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L164-L210" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L166-L212" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VotingModule" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VotingModule</span><span class="p">(</span>
@@ -6358,7 +6422,7 @@ and output feature dims are equal.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetProposalModule</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L213-L357" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L215-L359" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetProposalModule" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoteNetProposalModule</span><span class="p">(</span>
@@ -6390,7 +6454,7 @@ and output feature dims are equal.</p>
 (<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointNet2SetAbstraction&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/layers/pointnet2_blocks.py#L100-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../layers/pointnet2_blocks/#torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction"><code>PointNet2SetAbstraction</code></a>), then a
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/layers/pointnet2_blocks.py#L100-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../layers/pointnet2_blocks/#torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction"><code>PointNet2SetAbstraction</code></a>), then a
 3-layer linear head decodes objectness, center, heading and size bins/residuals and semantic class per proposal.</p>
 
 
@@ -6527,7 +6591,7 @@ and output feature dims are equal.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;decode&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L308-L357&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetProposalModule.decode">decode</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L310-L359&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetProposalModule.decode">decode</a></code></b>
             –
             <div class="doc-md-description">
               <p>Splits the flat head output into the per-proposal box attributes.</p>
@@ -6558,7 +6622,7 @@ and output feature dims are equal.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">decode</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L308-L357" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L310-L359" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetProposalModule.decode" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">decode</span><span class="p">(</span>
@@ -6652,7 +6716,7 @@ denormalized by the bin width and the size templates respectively.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetDetection</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L360-L587" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L362-L589" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetDetection" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoteNetDetection</span><span class="p">(</span>
@@ -6886,7 +6950,7 @@ oriented SUN RGB-D boxes).</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_backbone&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L457-L470&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.configure_backbone">configure_backbone</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L459-L472&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.configure_backbone">configure_backbone</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the PointNet++ seed backbone.</p>
@@ -6896,7 +6960,7 @@ oriented SUN RGB-D boxes).</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_vgen&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L472-L481&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.configure_vgen">configure_vgen</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L474-L483&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.configure_vgen">configure_vgen</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the voting module.</p>
@@ -6906,7 +6970,7 @@ oriented SUN RGB-D boxes).</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_proposal&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L483-L499&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.configure_proposal">configure_proposal</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L485-L501&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.configure_proposal">configure_proposal</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the proposal module.</p>
@@ -6916,7 +6980,7 @@ oriented SUN RGB-D boxes).</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;decode&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L542-L587&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.decode">decode</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L544-L589&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetDetection.decode">decode</a></code></b>
             –
             <div class="doc-md-description">
               <p>Decode a forward output into raw per-proposal detections (no NMS, threshold, or filtering).</p>
@@ -6989,13 +7053,13 @@ oriented SUN RGB-D boxes).</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_backbone</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L457-L470" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L459-L472" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetDetection.configure_backbone" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_backbone</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetBackbone&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L48-L161&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetBackbone">VoteNetBackbone</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L50-L163&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetBackbone">VoteNetBackbone</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7014,13 +7078,13 @@ oriented SUN RGB-D boxes).</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_vgen</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L472-L481" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L474-L483" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetDetection.configure_vgen" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_vgen</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VotingModule&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L164-L210&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VotingModule">VotingModule</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L166-L212&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VotingModule">VotingModule</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7039,13 +7103,13 @@ oriented SUN RGB-D boxes).</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_proposal</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L483-L499" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L485-L501" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetDetection.configure_proposal" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_proposal</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetProposalModule&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L213-L357&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetProposalModule">VoteNetProposalModule</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L215-L359&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetProposalModule">VoteNetProposalModule</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7064,16 +7128,16 @@ oriented SUN RGB-D boxes).</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">decode</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L542-L587" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L544-L589" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.votenet.VoteNetDetection.decode" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">decode</span><span class="p">(</span><span class="n">out</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L28-L45&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L30-L47&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7094,7 +7158,7 @@ thresholding, and the indoor per-class expansion (driven by the returned <code>c
               (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/models/votenet.py#L28-L45&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></code>)
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L30-L47&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></code>)
           –
           <div class="doc-md-description">
             <p>A <code>VoteNetOutput</code> from <code>forward</code>.</p>
@@ -7109,7 +7173,7 @@ thresholding, and the indoor per-class expansion (driven by the returned <code>c
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>Packed proposals <code>{"boxes", "scores", "labels", "batch", "class_probs"}</code> (PyG layout), where the</p>
@@ -7119,7 +7183,7 @@ thresholding, and the indoor per-class expansion (driven by the returned <code>c
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>per-proposal score is objectness, the label is the argmax semantic class, and <code>class_probs</code> holds</p>
@@ -7129,7 +7193,7 @@ thresholding, and the indoor per-class expansion (driven by the returned <code>c
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>the softmaxed semantic-class probabilities.</p>
@@ -7146,6 +7210,581 @@ thresholding, and the indoor per-class expansion (driven by the returned <code>c
 <li>class_probs: <span class="arithmatex">\((B \cdot P, C)\)</span></li>
 </ul>
 </details>
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.models.votenet.GenerateVoteLabels" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">GenerateVoteLabels</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L627-L707" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.models.votenet.GenerateVoteLabels" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">GenerateVoteLabels</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;pos&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">box_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;box&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">dst_vote_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;vote_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">dst_mask_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;vote_label_mask&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">oriented</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">gt_vote_factor</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../transforms/base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+
+
+
+        <p>Generate per-point vote offsets and a vote mask from oriented GT boxes.</p>
+<p>Each point collects the offsets to the centers of the first <code>gt_vote_factor</code> boxes containing it, in box
+order, matching the VoteNet ScanNet and SUN RGB-D vote layout: a point inside fewer boxes repeats its
+first offset in the unfilled slots, so the min-over-votes loss can credit either center on overlapping
+objects. Points inside no box receive zero offsets and a zero mask. Boxes are <span class="arithmatex">\((K, 7)\)</span> rows
+<span class="arithmatex">\([c_x, c_y, c_z, d_x, d_y, d_z, \theta]\)</span> with full extents and heading in radians counterclockwise about
+<span class="arithmatex">\(+z\)</span>. When <code>oriented</code> is <code>True</code> containment is yaw-aware, otherwise an axis-aligned test is used.</p>
+
+
+<details class="see-also" open>
+  <summary>See Also</summary>
+  <p><code>torch_pointcloud.transforms.functional.points_in_oriented_box</code></p>
+</details>        <p><img alt="GenerateVoteLabels before / after" src="../../../assets/transforms/generate_vote_labels.png" /></p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>pos_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;pos&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the <span class="arithmatex">\((N, 3)\)</span> coordinate tensor.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>box_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;box&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the <span class="arithmatex">\((K, 7)\)</span> box tensor (full extents, counterclockwise heading).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_vote_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;vote_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((N, 3 G)\)</span> vote offsets to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_mask_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;vote_label_mask&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((N,)\)</span> vote mask to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>oriented</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>If <code>True</code>, use yaw-aware containment, otherwise an axis-aligned test.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>gt_vote_factor</code></b>
+              (<code><span title="int">int</span></code>, default:
+                  <code>3</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Number <span class="arithmatex">\(G\)</span> of vote slots per point.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>allow_missing_keys</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>If <code>True</code>, return the data unchanged when <code>pos_key</code> or <code>box_key</code> is missing
+instead of raising.</p>
+          </div>
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+<p><span class="doc-section-title">Methods:</span></p>
+    <ul>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;iter_keys&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L242-L269&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.GenerateVoteLabels.iter_keys">iter_keys</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Iterate over <code>self.keys</code> present in the data, honoring <code>allow_missing_keys</code>.</p>
+            </div>
+          </li>
+    </ul>
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="torch_pointcloud.models.votenet.GenerateVoteLabels.iter_keys" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">iter_keys</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L242-L269" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.models.votenet.GenerateVoteLabels.iter_keys" class="headerlink" title="Anchor link to this section">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">iter_keys</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">data</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="n">extra_iterables</span><span class="p">:</span> <span class="n"><span title="typing.Iterable">Iterable</span></span><span class="p">[</span><span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">extra_msg</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Generator">Generator</span></span><span class="p">[</span><span class="n"><span title="typing.Any">Any</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Iterate over <code>self.keys</code> present in the data, honoring <code>allow_missing_keys</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>data</code></b>
+              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>The dictionary data the transform is applied to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>*extra_iterables</code></b>
+              (<code><span title="typing.Iterable">Iterable</span>[<span title="typing.Any">Any</span>]</code>, default:
+                  <code>()</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Per-key values (e.g. one output key per input key) zipped with <code>self.keys</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>extra_msg</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Message appended to the <code>KeyError</code> raised on a missing key.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code>None</code>
+          –
+          <div class="doc-md-description">
+            <p>A generator yielding each present key, or a tuple of the key and its values from</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+              <code>None</code>
+          –
+          <div class="doc-md-description">
+            <p><code>extra_iterables</code> when any is given.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.models.votenet.EncodeVoteNetTargets" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">EncodeVoteNetTargets</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/models/votenet.py#L710-L820" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.models.votenet.EncodeVoteNetTargets" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">EncodeVoteNetTargets</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">box_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;box&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">class_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">dst_center_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;center_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">dst_heading_class_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;heading_class_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">dst_heading_residual_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;heading_residual_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">dst_size_class_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;size_class_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">dst_size_residual_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;size_residual_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">dst_sem_cls_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;sem_cls_label&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">dst_box_mask_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;box_label_mask&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">num_heading_bins</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">12</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">mean_sizes</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]]]</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">max_num_obj</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../transforms/base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+
+
+
+        <p>Encode oriented GT boxes into the padded label tensors the VoteNet loss consumes.</p>
+<p>Each <span class="arithmatex">\((K, 7)\)</span> box row <span class="arithmatex">\([c_x, c_y, c_z, d_x, d_y, d_z, \theta]\)</span> (full extents) and its class from
+<code>class_key</code> are converted to fixed-size <span class="arithmatex">\((M, \ldots)\)</span> targets where <span class="arithmatex">\(M\)</span> is <code>max_num_obj</code>. Headings are
+binned with <code>angle_to_class</code>. The size class is the semantic class and the size residual is computed
+against <code>mean_sizes</code> (full edge lengths).</p>
+
+
+<details class="see-also" open>
+  <summary>See Also</summary>
+  <p><code>torch_pointcloud.utils.box3d.angle_to_class</code>,
+<code>torch_pointcloud.utils.box3d.class_to_size</code></p>
+</details>        <p><img alt="EncodeVoteNetTargets before / after" src="../../../assets/transforms/encode_votenet_targets.png" /></p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>box_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;box&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the <span class="arithmatex">\((K, 7)\)</span> box tensor (full extents).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>class_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the <span class="arithmatex">\((K,)\)</span> per-box class tensor.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_center_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;center_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M, 3)\)</span> center labels to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_heading_class_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;heading_class_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M,)\)</span> heading class labels to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_heading_residual_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;heading_residual_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M,)\)</span> heading residual labels to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_size_class_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;size_class_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M,)\)</span> size class labels to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_size_residual_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;size_residual_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M, 3)\)</span> size residual labels to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_sem_cls_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;sem_cls_label&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M,)\)</span> semantic class labels to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dst_box_mask_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;box_label_mask&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key to write the <span class="arithmatex">\((M,)\)</span> box mask to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_heading_bins</code></b>
+              (<code><span title="int">int</span></code>, default:
+                  <code>12</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Number of heading bins.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>mean_sizes</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Sequence">Sequence</span>[<span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]]]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Template sizes of shape <span class="arithmatex">\((C, 3)\)</span> holding full edge lengths per class.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>max_num_obj</code></b>
+              (<code><span title="int">int</span></code>, default:
+                  <code>64</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Padded number of objects <span class="arithmatex">\(M\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>allow_missing_keys</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>If <code>True</code>, return the data unchanged when <code>box_key</code> or <code>class_key</code> is missing
+instead of raising.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="ValueError">ValueError</span></code>
+            –
+          <div class="doc-md-description">
+            <p>If <code>mean_sizes</code> is not provided.</p>
+          </div>
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+<p><span class="doc-section-title">Methods:</span></p>
+    <ul>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;iter_keys&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L242-L269&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.votenet.EncodeVoteNetTargets.iter_keys">iter_keys</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Iterate over <code>self.keys</code> present in the data, honoring <code>allow_missing_keys</code>.</p>
+            </div>
+          </li>
+    </ul>
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="torch_pointcloud.models.votenet.EncodeVoteNetTargets.iter_keys" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">iter_keys</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L242-L269" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.models.votenet.EncodeVoteNetTargets.iter_keys" class="headerlink" title="Anchor link to this section">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">iter_keys</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">data</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="n">extra_iterables</span><span class="p">:</span> <span class="n"><span title="typing.Iterable">Iterable</span></span><span class="p">[</span><span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">extra_msg</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Generator">Generator</span></span><span class="p">[</span><span class="n"><span title="typing.Any">Any</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Iterate over <code>self.keys</code> present in the data, honoring <code>allow_missing_keys</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>data</code></b>
+              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>The dictionary data the transform is applied to.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>*extra_iterables</code></b>
+              (<code><span title="typing.Iterable">Iterable</span>[<span title="typing.Any">Any</span>]</code>, default:
+                  <code>()</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Per-key values (e.g. one output key per input key) zipped with <code>self.keys</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>extra_msg</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code>&#39;&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Message appended to the <code>KeyError</code> raised on a missing key.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code>None</code>
+          –
+          <div class="doc-md-description">
+            <p>A generator yielding each present key, or a tuple of the key and its values from</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+              <code>None</code>
+          –
+          <div class="doc-md-description">
+            <p><code>extra_iterables</code> when any is given.</p>
+          </div>
+        </li>
+    </ul>
+
 
     </div>
 

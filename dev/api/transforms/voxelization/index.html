@@ -5121,17 +5121,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.split_batch" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        split_batch
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -5874,17 +5863,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.split_batch" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        split_batch
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -5992,7 +5970,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DivisiblePad&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L278-L381&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.DivisiblePad">DivisiblePad</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L228-L331&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.DivisiblePad">DivisiblePad</a></code></b>
           –
           <div class="doc-md-description">
             <p>Pad per-point tensors so each batch is divisible by <code>num_samples</code>.</p>
@@ -6002,7 +5980,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;HardVoxelize&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L384-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.HardVoxelize">HardVoxelize</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L334-L435&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.HardVoxelize">HardVoxelize</a></code></b>
           –
           <div class="doc-md-description">
             <p>Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.</p>
@@ -6012,7 +5990,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Voxelize&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L488-L657&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.Voxelize">Voxelize</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L438-L607&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.Voxelize">Voxelize</a></code></b>
           –
           <div class="doc-md-description">
             <p>Voxelize a point cloud by grid-binning and per-voxel reduction.</p>
@@ -6023,47 +6001,6 @@
 
 
 
-
-
-<p><span class="doc-section-title">Attributes:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelMethod&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelMethod">VoxelMethod</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Allowed values for <code>Voxelize.method</code> (voxel-id hashing scheme).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelReduce&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelReduce">VoxelReduce</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Allowed values for <code>Voxelize.reduce</code> (per-key per-voxel reduction).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelPosReduce&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelPosReduce">VoxelPosReduce</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Allowed values for <code>Voxelize.pos_reduce</code> (per-voxel reduction for positions; <code>"grid"</code> keeps integer voxel coords).</p>
-          </div>
-        </li>
-    </ul>
 
 
 
@@ -6088,7 +6025,7 @@
   </span>
 
 <a href="#torch_pointcloud.transforms.voxelization.VoxelMethod" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">VoxelMethod</span> <span class="o">=</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s1">&#39;fnv&#39;</span><span class="p">,</span> <span class="s1">&#39;pyg&#39;</span><span class="p">]</span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">VoxelMethod</span> <span class="o">=</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s1">&#39;fnv&#39;</span><span class="p">,</span> <span class="s1">&#39;grid&#39;</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6159,7 +6096,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DivisiblePad</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L278-L381" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L228-L331" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.DivisiblePad" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">DivisiblePad</span><span class="p">(</span>
@@ -6178,10 +6115,10 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
 
 
 
@@ -6342,7 +6279,7 @@ is missing instead of raising.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">HardVoxelize</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L384-L485" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L334-L435" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.HardVoxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">HardVoxelize</span><span class="p">(</span>
@@ -6364,7 +6301,7 @@ is missing instead of raising.</p>
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
 
 
 
@@ -6557,7 +6494,7 @@ batch index is all zeros), and adds three keys while keeping <code>pos</code> / 
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Voxelize</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L488-L657" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L438-L607" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.Voxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Voxelize</span><span class="p">(</span>
@@ -6574,7 +6511,7 @@ batch index is all zeros), and adds three keys while keeping <code>pos</code> / 
 
   &lt;span class=&quot;doc doc-labels&quot;&gt;
       &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelMethod">VoxelMethod</a></span> <span class="o">=</span> <span class="s2">&quot;pyg&quot;</span><span class="p">,</span>
+  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelMethod">VoxelMethod</a></span> <span class="o">=</span> <span class="s2">&quot;grid&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">reduce</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch_pointcloud.utils.types.ValueCollection">ValueCollection</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelReduce&lt;/span&gt;
 
 
@@ -6584,7 +6521,7 @@ batch index is all zeros), and adds three keys while keeping <code>pos</code> / 
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">keys</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">dst_inverse_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">dst_pos_grid_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">random_sample</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">random_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
@@ -6595,10 +6532,10 @@ batch index is all zeros), and adds three keys while keeping <code>pos</code> / 
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
 
 
 
@@ -6665,11 +6602,12 @@ predictor space.</p>
   &lt;span class=&quot;doc doc-labels&quot;&gt;
       &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
   &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelMethod">VoxelMethod</a></code>, default:
-                  <code>&#39;pyg&#39;</code>
+                  <code>&#39;grid&#39;</code>
 )
           –
           <div class="doc-md-description">
-            <p>Voxel-id hashing scheme (<code>fnv</code> matches FNV-1a-based reference pipelines; <code>pyg</code> is the default).</p>
+            <p>How voxel ids are computed, which fixes the output voxel order: <code>grid</code> (the default) uses the
+linear grid index, <code>fnv</code> an FNV-1a hash of the grid coordinates, as hash-based reference pipelines do.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6688,7 +6626,7 @@ predictor space.</p>
 floating-point tensors and <code>first</code> for integer tensors (e.g. <code>segment</code>). Integer keys keep
 their dtype: non-<code>first</code> reductions compute in float and cast back. The <code>first</code>
 representative is the first point of each voxel in input order, deterministic across
-devices (unless <code>random_sample=True</code>).</p>
+devices (unless <code>random_first=True</code>).</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6726,7 +6664,7 @@ as <code>pos_key</code>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>random_sample</code></b>
+            <b><code>random_first</code></b>
               (<code><span title="bool">bool</span></code>, default:
                   <code>False</code>
 )
@@ -6746,7 +6684,7 @@ training augmentation; leave
 )
           –
           <div class="doc-md-description">
-            <p>Seed for the random voxel representative (<code>random_sample</code>);
+            <p>Seed for the random voxel representative (<code>random_first</code>);
 <code>None</code> draws from the global generator (see <code>Randomizable</code>).</p>
           </div>
         </li>
@@ -6817,7 +6755,7 @@ not one of its allowed values.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">divisible_pad</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L71-L228" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/1d9b1b98f103782cd06885f49fd907c1f2f4c06a/src/torch_pointcloud/transforms/voxelization.py#L68-L225" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="headerlink" title="Anchor link to this section">&para;</a></h3>
           <div class="doc-overloads">
@@ -6987,81 +6925,6 @@ Interleaved orderings (e.g. <code>[0, 1, 0, 1]</code>) are not supported and sil
           </div>
         </li>
     </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.split_batch" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">split_batch</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/40895391c737e866fac6db271f56aab12d4a623f/src/torch_pointcloud/transforms/voxelization.py#L231-L275" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.transforms.voxelization.split_batch" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">split_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">max_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Split batches into multiple sub-batches of a given size.</p>
-
-
-<details class="note" open>
-  <summary>Note</summary>
-  <p>The batch is only splitted if it is larger than the given size.
-If not, the batch is returned as is.</p>
-</details>
-
-<details class="note" open>
-  <summary>Note</summary>
-  <p>If you want to split batches smaller than the given size,
-you can use the <code>divisible_pad</code> function before splitting the batch.</p>
-</details>
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The batch indices of the points.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_size</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The maximum size of the sub-batches.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The sub-batch indices.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">split_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">max_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])</span>
-</code></pre></div>
 
 
     </div>
