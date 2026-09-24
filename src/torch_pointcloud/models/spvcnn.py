@@ -1140,7 +1140,7 @@ def _spvcnn_semantickitti_transforms() -> Callable:
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
-                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
             T.Voxelize(

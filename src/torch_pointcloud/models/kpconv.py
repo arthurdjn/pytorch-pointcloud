@@ -1391,7 +1391,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
         # NOTE: tensors are automatically converted to float before reduction (if other than "first")
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
-            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
             allow_missing_keys=True,
         ),
         T.Voxelize(
@@ -1407,7 +1407,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
         T.AxisMinOffset(keys=DataKeys.POS, dst_keys="height", axis=2),
         T.OnesLike(keys="height", dst_keys="ones"),
         T.Cat(keys=["ones", DataKeys.COLOR, "height"], dst_key=DataKeys.X),
-        T.RenameItems(keys=[DataKeys.SEGMENT], names=[DataKeys.LABEL]),
+        T.RenameItems(keys=[DataKeys.SEGMENT], dst_keys=[DataKeys.LABEL]),
         T.KeepItems(
             keys=[
                 DataKeys.X,

@@ -49,10 +49,10 @@ def test_scale_boxes_centers_and_sizes() -> None:
     assert torch.allclose(scaled[:, 6], box[:, 6])
 
 
-def test_shift_boxes_centers_only() -> None:
+def test_translate_boxes_centers_only() -> None:
     box = _box(heading=0.2)
     shift = torch.tensor([0.5, -1.0, 2.0])
-    shifted = F.shift_boxes(box, shift)
+    shifted = F.translate_boxes(box, shift)
     assert torch.allclose(shifted[:, 0:3], box[:, 0:3] + shift)
     assert torch.allclose(shifted[:, 3:7], box[:, 3:7])
 
@@ -115,11 +115,11 @@ def test_random_scale_boxes_preserves_membership() -> None:
     assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()
 
 
-def test_random_shift_boxes_move_with_points() -> None:
+def test_random_translate_boxes_move_with_points() -> None:
     box = _box(heading=0.2)
     face = torch.tensor([[1.4, 0.5, 0.3]])
     data = {"pos": face.clone(), "box": box.clone()}
-    out = T.RandomShift(keys="pos", box_key="box", shift_range=(0.7, 0.7), p=1.0, seed=0)(data)
+    out = T.RandomTranslate(keys="pos", box_key="box", translation_range=(0.7, 0.7), p=1.0, seed=0)(data)
     assert torch.allclose(out["box"][:, 0:3], box[:, 0:3] + 0.7)
     assert torch.allclose(out["box"][:, 3:7], box[:, 3:7])
     assert F.points_in_oriented_box(out["pos"], _half_extent(out["box"][0])).item()

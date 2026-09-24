@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Renamed `SubtractKey` and `DivideKey` to `SubtractItems` and `DivideItems`, and `RandomShift` to `RandomTranslate` (`shift_range` to `translation_range`, `functional.shift_boxes` to `translate_boxes`).
+- Removed `AlignAxis`, the same as `Shift(method="min", axes=[k])`.
+- Renamed the output-key arguments to `dst_*`: `names` of `CopyItems` / `RenameItems` and `normal_key` of `EstimateNormals` to `dst_keys`, and the output keys of `RandomSampleFaceVertices`, `BuildOctree`, `HardVoxelize`, `GenerateVoteLabels`, `EncodeVoteNetTargets` and `RelabelBoxes`.
+- Renamed `HardVoxelize(feat_key)` to `feature_key`, like `BuildOctree`.
 - Moved every function of `torch_pointcloud.transforms.functional` next to its transform in the themed modules; `functional` imports them all.
 - Renamed `functional.abs` to `absolute`.
 - Split `torch_pointcloud.transforms.transforms` into `base`, `sampling`, `masking`, `geometry`, `scaling`, `utils`, `voxelization`, `octree`, `augmentation`, `box` and `mixing`; `torch_pointcloud.transforms` exports the same names.

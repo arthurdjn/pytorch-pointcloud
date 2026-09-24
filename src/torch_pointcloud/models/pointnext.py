@@ -1236,7 +1236,7 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 num_samples=1024,
@@ -1289,7 +1289,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -1450,7 +1450,7 @@ _S3DIS_TRANSFORMS = T.Compose(
         T.Shift(keys=DataKeys.POS, method="min"),
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
-            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
             allow_missing_keys=True,
         ),
         T.Voxelize(
@@ -1465,7 +1465,7 @@ _S3DIS_TRANSFORMS = T.Compose(
         ),
         T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
         T.Shift(keys=DataKeys.POS, method="centroid"),
-        T.AlignAxis(keys=DataKeys.POS, dim=2),
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),
         T.Normalize(
             keys=DataKeys.COLOR,
@@ -1957,7 +1957,7 @@ def pointnext_xl_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
 
 _SHAPENETPART_TRANSFORMS = T.Compose(
     [
-        T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+        T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
         T.FarthestPointSample(
             num_samples=2048,
             keys=[DataKeys.POS, DataKeys.NORMAL, DataKeys.SEGMENT],

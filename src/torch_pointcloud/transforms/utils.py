@@ -20,7 +20,7 @@ __all__ = [
     "Clamp",
     "CopyItems",
     "Divide",
-    "DivideKey",
+    "DivideItems",
     "KeepItems",
     "OneHot",
     "OnesLike",
@@ -30,7 +30,7 @@ __all__ = [
     "RenameItems",
     "Scale",
     "SetValue",
-    "SubtractKey",
+    "SubtractItems",
     "ToDevice",
     "ToFloat",
     "ToTensor",
@@ -266,22 +266,22 @@ class RenameItems(DictTransform):
 
     Args:
         keys: Source keys to rename.
-        names: New key names (same length as `keys`).
+        dst_keys: New key names (same length as `keys`).
         allow_missing_keys: If `True`, silently skip absent source keys.
     """
 
     def __init__(
         self,
         keys: KeyCollection,
-        names: KeyCollection,
+        dst_keys: KeyCollection,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.names = ensure_tuple_size(names, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        for key, dst_key in self.iter_keys(data, self.names):
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = data.pop(key)
         return data
 
@@ -293,22 +293,22 @@ class CopyItems(DictTransform):
 
     Args:
         keys: Source keys to copy from.
-        names: Destination keys to copy to (same length as `keys`).
+        dst_keys: Destination keys to copy to (same length as `keys`).
         allow_missing_keys: If `True`, silently skip absent source keys.
     """
 
     def __init__(
         self,
         keys: KeyCollection,
-        names: KeyCollection,
+        dst_keys: KeyCollection,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.names = ensure_tuple_size(names, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        for key, dst_key in self.iter_keys(data, self.names):
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
             val = data[key]
             if torch.is_tensor(val):
                 val = val.clone()
@@ -677,12 +677,12 @@ class Divide(DictTransform):
         return data
 
 
-class DivideKey(DictTransform):
+class DivideItems(DictTransform):
     """Divide target keys by the value of a reference key element-wise.
 
     Computes `data[key] = data[key] / data[div_key]` for each key.
 
-    ![DivideKey diagram](../../assets/transforms/divide_key.png)
+    ![DivideItems diagram](../../assets/transforms/divide_items.png)
 
     Args:
         keys: Keys whose tensors are divided.
@@ -709,7 +709,7 @@ class DivideKey(DictTransform):
         return data
 
 
-class SubtractKey(DictTransform):
+class SubtractItems(DictTransform):
     """Subtract the value of a reference key from target keys element-wise.
 
     Computes `data[key] = data[key] - data[sub_key]` for each key. With `axes`
@@ -718,11 +718,11 @@ class SubtractKey(DictTransform):
 
     === "Object"
 
-        ![SubtractKey on an object](../../assets/transforms/subtract_key.png)
+        ![SubtractItems on an object](../../assets/transforms/subtract_items.png)
 
     === "Scene"
 
-        ![SubtractKey on a room](../../assets/transforms/subtract_key_scene.png)
+        ![SubtractItems on a room](../../assets/transforms/subtract_items_scene.png)
 
     Args:
         keys: Keys whose tensors are modified (subtracted from).

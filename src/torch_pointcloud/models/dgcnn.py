@@ -747,7 +747,7 @@ def _dgcnn_antao_s3dis_cfg(area: int, miou: float, oa: float) -> dict[str, Any]:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -791,7 +791,7 @@ def dgcnn_antao_modelnet40_1024_cls(**hparams: Any) -> DGCNNClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -840,7 +840,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
             T.FarthestPointSample(
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
                 pos_key=DataKeys.POS,
@@ -919,9 +919,9 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
             T.Divide(keys=DataKeys.COLOR, divisor=255),
             # scene_max (whole-scene extent) and block_center (block window center) are attached per block by
             # tile_scannet_scene; recomputing them here would normalize by the block instead of the scene.
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.NORM_POS),
-            T.DivideKey(keys=DataKeys.NORM_POS, div_keys=DataKeys.SCENE_MAX),
-            T.SubtractKey(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.NORM_POS),
+            T.DivideItems(keys=DataKeys.NORM_POS, div_keys=DataKeys.SCENE_MAX),
+            T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER),
             T.Cat(keys=[DataKeys.NORM_POS, DataKeys.COLOR], dst_key=DataKeys.X),
         ]
     ),

@@ -638,7 +638,7 @@ _SUNRGBD_MEAN_SIZES = [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
-                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
             # `color` / `normal` / `segment` / `instance` are carried along only when present.
@@ -688,7 +688,7 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
     transform=T.Compose(
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.RandomSample(
                 keys=[DataKeys.POS, "height", DataKeys.COLOR],
                 num_samples=20000,

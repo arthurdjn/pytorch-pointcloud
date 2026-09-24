@@ -617,7 +617,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
     hparams=dict(in_channels=0, num_classes=40, dropout=0.3),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],

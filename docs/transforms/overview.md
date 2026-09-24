@@ -58,7 +58,6 @@ Chained steps compose these maps, so they always address the outermost source. R
 |                                                                         | Transform                                                                                           | Description                                               |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | <img src="../assets/transforms/thumbs/shift.png" width="220">           | [`Shift`](../api/transforms/geometry.md#torch_pointcloud.transforms.geometry.Shift)                 | Subtract a computed offset (`bbox`, `centroid`, or `min`) |
-| <img src="../assets/transforms/thumbs/align_axis.png" width="220">      | [`AlignAxis`](../api/transforms/geometry.md#torch_pointcloud.transforms.geometry.AlignAxis)         | Shift one axis so its min is zero                         |
 | <img src="../assets/transforms/thumbs/axis_min_offset.png" width="220"> | [`AxisMinOffset`](../api/transforms/geometry.md#torch_pointcloud.transforms.geometry.AxisMinOffset) | Per-point offset from axis minimum (height feature)       |
 
 ## Scaling / normalization
@@ -80,25 +79,25 @@ Chained steps compose these maps, so they always address the outermost source. R
 
 ## Utilities
 
-|                                                                      | Transform                                                                                 | Description                                            |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| <img src="../assets/transforms/thumbs/cat.png" width="220">          | [`Cat`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Cat)                 | Concatenate multiple keys' tensors along a dim         |
-| <img src="../assets/transforms/thumbs/copy_items.png" width="220">   | [`CopyItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.CopyItems)     | Clone a key's value under a new name                   |
-| <img src="../assets/transforms/thumbs/rename_items.png" width="220"> | [`RenameItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.RenameItems) | Move a key to a new name                               |
-| <img src="../assets/transforms/thumbs/keep_items.png" width="220">   | [`KeepItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.KeepItems)     | Drop everything not in a whitelist                     |
-| <img src="../assets/transforms/thumbs/set_value.png" width="220">    | [`SetValue`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.SetValue)       | Set keys to literal values                             |
-| <img src="../assets/transforms/thumbs/reduce.png" width="220">       | [`Reduce`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Reduce)           | Reduce a tensor along a dim (`min`/`max`/`mean`/`sum`) |
-| <img src="../assets/transforms/thumbs/one_hot.png" width="220">      | [`OneHot`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.OneHot)           | One-hot encode integer labels                          |
-| <img src="../assets/transforms/thumbs/relabel.png" width="220">      | [`Relabel`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Relabel)         | Remap integer labels via a lookup table                |
-| <img src="../assets/transforms/thumbs/scale.png" width="220">        | [`Scale`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Scale)             | Multiply by a scalar                                   |
-| <img src="../assets/transforms/thumbs/divide.png" width="220">       | [`Divide`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Divide)           | Divide by a scalar                                     |
-| <img src="../assets/transforms/thumbs/divide_key.png" width="220">   | [`DivideKey`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.DivideKey)     | `data[k] / data[div_k]` element-wise                   |
-| <img src="../assets/transforms/thumbs/subtract_key.png" width="220"> | [`SubtractKey`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.SubtractKey) | `data[k] - data[sub_k]` element-wise                   |
-| <img src="../assets/transforms/thumbs/abs.png" width="220">          | [`Abs`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Abs)                 | Element-wise absolute value                            |
-| <img src="../assets/transforms/thumbs/to_float.png" width="220">     | [`ToFloat`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.ToFloat)         | Cast tensors to float32                                |
-| <img src="../assets/transforms/thumbs/to_tensor.png" width="220">    | [`ToTensor`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.ToTensor)       | Convert lists / arrays to tensors                      |
-| <img src="../assets/transforms/thumbs/to_device.png" width="220">    | [`ToDevice`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.ToDevice)       | Move to a device                                       |
-| <img src="../assets/transforms/thumbs/ones_like.png" width="220">    | [`OnesLike`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.OnesLike)       | Add a key whose tensor is `torch.ones_like(...)`       |
+|                                                                        | Transform                                                                                     | Description                                            |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| <img src="../assets/transforms/thumbs/cat.png" width="220">            | [`Cat`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Cat)                     | Concatenate multiple keys' tensors along a dim         |
+| <img src="../assets/transforms/thumbs/copy_items.png" width="220">     | [`CopyItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.CopyItems)         | Clone a key's value under a new name                   |
+| <img src="../assets/transforms/thumbs/rename_items.png" width="220">   | [`RenameItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.RenameItems)     | Move a key to a new name                               |
+| <img src="../assets/transforms/thumbs/keep_items.png" width="220">     | [`KeepItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.KeepItems)         | Drop everything not in a whitelist                     |
+| <img src="../assets/transforms/thumbs/set_value.png" width="220">      | [`SetValue`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.SetValue)           | Set keys to literal values                             |
+| <img src="../assets/transforms/thumbs/reduce.png" width="220">         | [`Reduce`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Reduce)               | Reduce a tensor along a dim (`min`/`max`/`mean`/`sum`) |
+| <img src="../assets/transforms/thumbs/one_hot.png" width="220">        | [`OneHot`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.OneHot)               | One-hot encode integer labels                          |
+| <img src="../assets/transforms/thumbs/relabel.png" width="220">        | [`Relabel`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Relabel)             | Remap integer labels via a lookup table                |
+| <img src="../assets/transforms/thumbs/scale.png" width="220">          | [`Scale`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Scale)                 | Multiply by a scalar                                   |
+| <img src="../assets/transforms/thumbs/divide.png" width="220">         | [`Divide`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Divide)               | Divide by a scalar                                     |
+| <img src="../assets/transforms/thumbs/divide_items.png" width="220">   | [`DivideItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.DivideItems)     | `data[k] / data[div_k]` element-wise                   |
+| <img src="../assets/transforms/thumbs/subtract_items.png" width="220"> | [`SubtractItems`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.SubtractItems) | `data[k] - data[sub_k]` element-wise                   |
+| <img src="../assets/transforms/thumbs/abs.png" width="220">            | [`Abs`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.Abs)                     | Element-wise absolute value                            |
+| <img src="../assets/transforms/thumbs/to_float.png" width="220">       | [`ToFloat`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.ToFloat)             | Cast tensors to float32                                |
+| <img src="../assets/transforms/thumbs/to_tensor.png" width="220">      | [`ToTensor`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.ToTensor)           | Convert lists / arrays to tensors                      |
+| <img src="../assets/transforms/thumbs/to_device.png" width="220">      | [`ToDevice`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.ToDevice)           | Move to a device                                       |
+| <img src="../assets/transforms/thumbs/ones_like.png" width="220">      | [`OnesLike`](../api/transforms/utils.md#torch_pointcloud.transforms.utils.OnesLike)           | Add a key whose tensor is `torch.ones_like(...)`       |
 
 ## Octree (optional, requires `ocnn`)
 

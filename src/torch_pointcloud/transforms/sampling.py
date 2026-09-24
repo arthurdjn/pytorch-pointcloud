@@ -256,7 +256,7 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
     Args:
         keys: The keys holding vertex positions.
         face_key: The keys holding the face indices.
-        normal_key: The key to store the computed normals in.
+        dst_normal_key: The key to store the computed normals in.
         num_samples: The number of vertices to sample.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
@@ -267,7 +267,7 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
         *,
         keys: KeyCollection,
         face_key: KeyCollection,
-        normal_key: Optional[KeyCollection] = "normal",
+        dst_normal_key: Optional[KeyCollection] = "normal",
         num_samples: int,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
@@ -275,12 +275,12 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
         super().__init__(keys, allow_missing_keys)
         self.face_key = ensure_tuple_size(face_key, len(self.keys))
         self.num_samples = num_samples
-        self.normal_key = ensure_tuple_size(normal_key, len(self.keys))
+        self.dst_normal_key = ensure_tuple_size(dst_normal_key, len(self.keys))
         self.set_random_state(seed)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        for key, face_key, normal_key in self.iter_keys(data, self.face_key, self.normal_key):
+        for key, face_key, dst_normal_key in self.iter_keys(data, self.face_key, self.dst_normal_key):
             pos, normal = random_sample_face_vertices(
                 data[key],
                 data[face_key],
@@ -289,8 +289,8 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
                 return_normals=True,
             )
             data[key] = pos
-            if normal_key is not None:
-                data[normal_key] = normal
+            if dst_normal_key is not None:
+                data[dst_normal_key] = normal
         return data
 
 

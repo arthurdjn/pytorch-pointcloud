@@ -29,15 +29,6 @@ def test_center_centroid() -> None:
     assert torch.allclose(result["pos"], expected)
 
 
-def test_align_axis() -> None:
-    pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    data = {"pos": pos}
-    transform = T.AlignAxis(keys=["pos"], dim=-1)
-    result = transform(data)
-
-    assert result["pos"][:, -1].min() == 0.0
-
-
 def test_axis_min_offset() -> None:
     pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     data = {"pos": pos}
@@ -69,7 +60,7 @@ def test_estimate_normals() -> None:
     plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
     data = {"pos": plane}
 
-    result = T.EstimateNormals(keys="pos", normal_key="normal", k=16)(data)
+    result = T.EstimateNormals(keys="pos", dst_keys="normal", k=16)(data)
 
     assert result["normal"].shape == (400, 3)
     # The z=0 plane's normal is the unit z axis.
@@ -155,17 +146,6 @@ def test_shift_empty_passthrough(empty_scene: dict) -> None:
 def test_axis_min_offset_empty_passthrough(empty_scene: dict) -> None:
     out = T.AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"])(empty_scene)
     assert out["h"].shape == (0, 1)
-
-
-def test_align_axis_empty_passthrough(empty_scene: dict) -> None:
-    out = T.AlignAxis(keys=["pos"], dim=2)(empty_scene)
-    assert out["pos"].shape == (0, 3)
-
-
-def test_align_axis_inplace_on_non_contiguous_does_not_raise() -> None:
-    pos = torch.arange(12, dtype=torch.float32).reshape(3, 4)[:, :3]
-    assert not pos.is_contiguous()
-    T.AlignAxis(keys=["pos"], dim=2, inplace=True)({"pos": pos})  # should not crash
 
 
 def test_bbox_center_midpoint() -> None:

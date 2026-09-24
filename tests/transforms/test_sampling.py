@@ -59,7 +59,11 @@ def test_random_sample_face_vertices_basic() -> None:
     data = {"vertices": vertices, "face": face, "other": sentinel.other}
 
     transform = T.RandomSampleFaceVertices(
-        keys=["vertices"], face_key="face", normal_key="normal", num_samples=5, seed=0
+        keys=["vertices"],
+        face_key="face",
+        dst_normal_key="normal",
+        num_samples=5,
+        seed=0,
     )
     result = transform(data)
 

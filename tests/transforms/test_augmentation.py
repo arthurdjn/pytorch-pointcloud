@@ -53,9 +53,9 @@ def test_random_jitter_adds_bounded_noise() -> None:
     assert out["pos"].abs().max().item() <= 0.05 + 1e-6
 
 
-def test_random_shift_translates_uniformly() -> None:
+def test_random_translate_translates_uniformly() -> None:
     pos = torch.zeros(5, 3)
-    out = T.RandomShift(keys="pos", shift_range=(1.0, 1.0), seed=0)({"pos": pos})
+    out = T.RandomTranslate(keys="pos", translation_range=(1.0, 1.0), seed=0)({"pos": pos})
     assert torch.allclose(out["pos"], torch.ones_like(pos))
 
 
@@ -197,8 +197,8 @@ def test_random_scale_anisotropic_rejects_mismatched_key_widths() -> None:
         t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})
 
 
-def test_random_shift_rejects_mismatched_key_widths() -> None:
-    t = T.RandomShift(keys=["pos", "intensity"], shift_range=(-0.1, 0.1), p=1.0)
+def test_random_translate_rejects_mismatched_key_widths() -> None:
+    t = T.RandomTranslate(keys=["pos", "intensity"], translation_range=(-0.1, 0.1), p=1.0)
     with pytest.raises(ValueError, match="one offset per channel"):
         t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})
 

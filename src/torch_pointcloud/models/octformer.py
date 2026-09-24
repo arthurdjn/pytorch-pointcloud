@@ -1025,7 +1025,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
             T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
                 face_key=DataKeys.FACE,
-                normal_key=DataKeys.NORMAL,
+                dst_normal_key=DataKeys.NORMAL,
                 num_samples=8000,
             ),
             T.Shift(keys=DataKeys.POS, method="bbox"),
@@ -1039,7 +1039,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
             T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
             T.BuildOctree(
                 pos_key=DataKeys.POS,
-                octree_key=DataKeys.OCTREE,
+                dst_octree_key=DataKeys.OCTREE,
                 depth=6,
                 full_depth=2,
                 batch_size=1,
@@ -1102,14 +1102,14 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         [
             T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
-            T.AlignAxis(keys=DataKeys.POS, dim=-1),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
             T.BuildOctree(
                 pos_key=DataKeys.POS,
                 normal_key=DataKeys.NORMAL,
                 feature_key=DataKeys.COLOR,
                 label_key=DataKeys.SEGMENT,
-                points_key=DataKeys.OCTREE_POINTS,
-                octree_key=DataKeys.OCTREE,
+                dst_points_key=DataKeys.OCTREE_POINTS,
+                dst_octree_key=DataKeys.OCTREE,
                 depth=11,
                 full_depth=2,
                 batch_size=1,
@@ -1171,14 +1171,14 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         [
             T.Shift(keys=DataKeys.POS, method="bbox"),
             T.Divide(keys=[DataKeys.POS, DataKeys.COLOR], divisor=[10.24, 255]),
-            T.AlignAxis(keys=DataKeys.POS, dim=-1),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
             T.BuildOctree(
                 pos_key=DataKeys.POS,
                 normal_key=DataKeys.NORMAL,
                 feature_key=DataKeys.COLOR,
                 label_key=DataKeys.SEGMENT,
-                points_key=DataKeys.OCTREE_POINTS,
-                octree_key=DataKeys.OCTREE,
+                dst_points_key=DataKeys.OCTREE_POINTS,
+                dst_octree_key=DataKeys.OCTREE,
                 depth=11,
                 full_depth=2,
                 batch_size=1,

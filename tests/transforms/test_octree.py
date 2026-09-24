@@ -10,7 +10,7 @@ def test_build_octree_happy_path() -> None:
     normal = torch.nn.functional.normalize(torch.randn(64, 3), dim=-1)
     transform = T.BuildOctree(
         pos_key="pos",
-        octree_key="octree",
+        dst_octree_key="octree",
         normal_key="normal",
         depth=4,
     )
@@ -24,8 +24,8 @@ def test_build_octree_with_points_key() -> None:
     pos = torch.rand(32, 3) * 2 - 1
     transform = T.BuildOctree(
         pos_key="pos",
-        octree_key="octree",
-        points_key="points",
+        dst_octree_key="octree",
+        dst_points_key="points",
         depth=3,
     )
     out = transform({"pos": pos})
@@ -36,7 +36,7 @@ def test_build_octree_with_points_key() -> None:
 def test_build_octree_rejects_same_octree_and_points_key() -> None:
     pytest.importorskip("ocnn")
     with pytest.raises(ValueError, match="must be different"):
-        T.BuildOctree(pos_key="pos", octree_key="octree", points_key="octree", depth=3)
+        T.BuildOctree(pos_key="pos", dst_octree_key="octree", dst_points_key="octree", depth=3)
 
 
 def test_octree_features_nd() -> None:
@@ -46,7 +46,7 @@ def test_octree_features_nd() -> None:
     data = {"pos": pos, "normal": normal}
     data = T.BuildOctree(
         pos_key="pos",
-        octree_key="octree",
+        dst_octree_key="octree",
         normal_key="normal",
         depth=4,
     )(data)

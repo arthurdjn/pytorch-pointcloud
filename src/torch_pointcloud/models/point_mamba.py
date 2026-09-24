@@ -982,7 +982,7 @@ class PointMambaPretraining(PretrainingModel):
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -1033,7 +1033,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS, dst_index_key=DataKeys.INDEX),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
@@ -1084,7 +1084,7 @@ def point_mamba_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMambaClassifi
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS, dst_index_key=DataKeys.INDEX),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
@@ -1135,7 +1135,7 @@ def point_mamba_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMambaClassi
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.RemoveNearOrigin(pos_key=DataKeys.POS, radius=RADIUS, dst_index_key=DataKeys.INDEX),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,

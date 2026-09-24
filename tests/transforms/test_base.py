@@ -81,8 +81,8 @@ def test_compose_over_list_applies_per_item() -> None:
         T.Scale(keys=["absent"], scale=2.0, allow_missing_keys=True),
         T.Divide(keys=["absent"], divisor=2.0, allow_missing_keys=True),
         T.ToFloat(keys=["absent"], allow_missing_keys=True),
-        T.RenameItems(keys=["absent"], names=["new"], allow_missing_keys=True),
-        T.CopyItems(keys=["absent"], names=["new"], allow_missing_keys=True),
+        T.RenameItems(keys=["absent"], dst_keys=["new"], allow_missing_keys=True),
+        T.CopyItems(keys=["absent"], dst_keys=["new"], allow_missing_keys=True),
         T.KeepItems(keys=["pos"], allow_missing_keys=True),
         T.FarthestPointSample(pos_key="absent", num_samples=2, allow_missing_keys=True),
         T.RemoveNearOrigin(pos_key="absent", allow_missing_keys=True),
@@ -130,7 +130,7 @@ def test_transforms_do_not_mutate_input_dict(sample_scene: dict) -> None:
         T.Rescale(keys=["pos"]),
         T.Shift(keys=["pos"], method="bbox"),
         T.Shift(keys=["pos"], method="bbox", axes=[0, 1]),
-        T.AlignAxis(keys=["pos"], dim=2),
+        T.Shift(keys=["pos"], method="min", axes=[2]),
         T.AxisMinOffset(keys=["pos"], axis=2, dst_keys=["h"]),
     ]:
         _ = transform(sample_scene)
@@ -147,7 +147,7 @@ def test_transforms_do_not_mutate_input_dict(sample_scene: dict) -> None:
         pytest.param(lambda p: T.RandomScale(keys="pos", p=p), id="RandomScale"),
         pytest.param(lambda p: T.RandomFlip(keys="pos", p=p), id="RandomFlip"),
         pytest.param(lambda p: T.RandomJitter(keys="pos", p=p), id="RandomJitter"),
-        pytest.param(lambda p: T.RandomShift(keys="pos", p=p), id="RandomShift"),
+        pytest.param(lambda p: T.RandomTranslate(keys="pos", p=p), id="RandomTranslate"),
         pytest.param(lambda p: T.RandomDropout(keys="pos", p=p), id="RandomDropout"),
         pytest.param(lambda p: T.RandomColorJitter(keys="color", p=p), id="RandomColorJitter"),
         pytest.param(lambda p: T.RandomColorDrop(keys="color", p=p), id="RandomColorDrop"),

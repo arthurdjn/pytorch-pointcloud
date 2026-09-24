@@ -388,14 +388,14 @@ class HardVoxelize(DictTransform):
     model and into the data pipeline, mirroring how `BuildOctree` produces an octree for OctFormer.
     The model then receives already-voxelized input and focuses on the network math.
 
-    Reads `pos_key` (and optionally `feat_key`), runs
+    Reads `pos_key` (and optionally `feature_key`), runs
     `hard_voxelize` on the single sample (the
     batch index is all zeros), and adds three keys while keeping `pos` / `x`:
 
-    - `voxel_key`: the per-voxel point stack.
-    - `pos_voxel_key`: integer voxel grid indices $(z, y, x)$ (the single-sample batch column is dropped;
+    - `dst_voxel_key`: the per-voxel point stack.
+    - `dst_pos_voxel_key`: integer voxel grid indices $(z, y, x)$ (the single-sample batch column is dropped;
       the per-voxel scene index is synthesized at collation).
-    - `num_points_key`: the per-voxel point counts.
+    - `dst_num_points_key`: the per-voxel point counts.
 
     === "Object"
 
@@ -411,16 +411,16 @@ class HardVoxelize(DictTransform):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         max_num_points: Maximum number of points kept per voxel.
         max_num_voxels: Maximum number of voxels kept per scene.
-        feat_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
-        voxel_key: Output key for the per-voxel point stack.
-        pos_voxel_key: Output key for the integer voxel grid indices.
-        num_points_key: Output key for the per-voxel point counts.
+        feature_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
+        dst_voxel_key: Output key for the per-voxel point stack.
+        dst_pos_voxel_key: Output key for the integer voxel grid indices.
+        dst_num_points_key: Output key for the per-voxel point counts.
         allow_missing_keys: Unused (`pos_key` is always required); kept for interface parity.
 
     Shape:
-        - `voxel_key`: $(V, \text{max\_num\_points}, 3 + C)$.
-        - `pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
-        - `num_points_key`: $(V,)$.
+        - `dst_voxel_key`: $(V, \text{max\_num\_points}, 3 + C)$.
+        - `dst_pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
+        - `dst_num_points_key`: $(V,)$.
 
     Example:
         ```python
@@ -430,7 +430,7 @@ class HardVoxelize(DictTransform):
         data = {"pos": torch.rand(1000, 3) * 50.0, "x": torch.rand(1000, 1)}
         transform = T.HardVoxelize(
             pos_key="pos",
-            feat_key="x",
+            feature_key="x",
             voxel_size=(0.16, 0.16, 4.0),
             point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
             max_num_points=32,
@@ -448,10 +448,10 @@ class HardVoxelize(DictTransform):
         point_cloud_range: Sequence[float],
         max_num_points: int,
         max_num_voxels: int,
-        feat_key: Optional[str] = None,
-        voxel_key: str = DataKeys.VOXEL,
-        pos_voxel_key: str = DataKeys.POS_VOXEL,
-        num_points_key: str = DataKeys.VOXEL_NUM_POINTS,
+        feature_key: Optional[str] = None,
+        dst_voxel_key: str = DataKeys.VOXEL,
+        dst_pos_voxel_key: str = DataKeys.POS_VOXEL,
+        dst_num_points_key: str = DataKeys.VOXEL_NUM_POINTS,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys=pos_key, allow_missing_keys=allow_missing_keys)
@@ -460,15 +460,15 @@ class HardVoxelize(DictTransform):
         self.point_cloud_range = point_cloud_range
         self.max_num_points = max_num_points
         self.max_num_voxels = max_num_voxels
-        self.feat_key = feat_key
-        self.voxel_key = voxel_key
-        self.pos_voxel_key = pos_voxel_key
-        self.num_points_key = num_points_key
+        self.feature_key = feature_key
+        self.dst_voxel_key = dst_voxel_key
+        self.dst_pos_voxel_key = dst_pos_voxel_key
+        self.dst_num_points_key = dst_num_points_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feat = d.get(self.feat_key) if self.feat_key is not None else None
+        feat = d.get(self.feature_key) if self.feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = hard_voxelize(
@@ -479,9 +479,9 @@ class HardVoxelize(DictTransform):
             self.max_num_points,
             self.max_num_voxels,
         )
-        d[self.voxel_key] = voxels
-        d[self.pos_voxel_key] = voxel_indices[:, 1:]
-        d[self.num_points_key] = num_points
+        d[self.dst_voxel_key] = voxels
+        d[self.dst_pos_voxel_key] = voxel_indices[:, 1:]
+        d[self.dst_num_points_key] = num_points
         return d
 
 

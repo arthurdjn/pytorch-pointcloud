@@ -533,7 +533,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
-                feat_key=DataKeys.X,
+                feature_key=DataKeys.X,
                 voxel_size=(0.16, 0.16, 4.0),
                 point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
                 max_num_points=32,
@@ -573,7 +573,7 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
             T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
-                feat_key=DataKeys.X,
+                feature_key=DataKeys.X,
                 voxel_size=(0.2, 0.2, 8.0),
                 point_cloud_range=(-51.2, -51.2, -5.0, 51.2, 51.2, 3.0),
                 max_num_points=20,

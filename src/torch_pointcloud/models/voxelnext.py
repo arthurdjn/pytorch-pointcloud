@@ -583,7 +583,7 @@ class VoxelNeXtDetection(DetectionModel):
             T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
-                feat_key=DataKeys.X,
+                feature_key=DataKeys.X,
                 voxel_size=(0.075, 0.075, 0.2),
                 point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
                 max_num_points=10,

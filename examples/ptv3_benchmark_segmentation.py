@@ -55,7 +55,7 @@ S3DIS_TRANSFORM = T.Compose(
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
         # The released weights were trained on colors in $[-1, 1]$.
         T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
-        T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True),
+        T.EstimateNormals(keys=DataKeys.POS, dst_keys=DataKeys.NORMAL, orient_to_centroid=True),
     ]
 )
 S3DIS_VIEWS: List[T.Compose] = [

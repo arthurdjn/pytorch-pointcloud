@@ -293,7 +293,7 @@ def test_hard_voxelize_stacks_points_per_voxel() -> None:
     x = torch.tensor([[1.0], [2.0], [3.0]])
     out = T.HardVoxelize(
         pos_key="pos",
-        feat_key="x",
+        feature_key="x",
         voxel_size=(1.0, 1.0, 1.0),
         point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
         max_num_points=2,
